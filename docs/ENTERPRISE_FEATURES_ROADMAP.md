@@ -1,20 +1,32 @@
-# 🚀 Investment Mate v2 - Enterprise Features Roadmap
+# Investment Mate v2 - Enterprise Features Roadmap
 
-> Tài liệu phát triển chi tiết cho 11 tính năng nâng cao, đưa Investment Mate lên mức **Semi-Quant Trading Platform**.
+> Tài liệu phát triển chi tiết, đưa Investment Mate lên mức **Semi-Quant Trading Platform**.
+> **Last updated:** March 6, 2026 | Branch: `feat/phase4-enterprise`
+> Legend: ✅ Implemented | 🚧 In Progress | 📋 Planned
 
-## 📋 Mục lục
+## Mục lục
 
-1. [Risk Management](#1-risk-management)
-2. [Advanced Analytics](#2-advanced-analytics)
-3. [Strategy Management](#3-strategy-management)
-4. [Backtesting Engine](#4-backtesting-engine)
-5. [Market Data Integration](#5-market-data-integration)
-6. [Journal & Trade Notes](#6-journal--trade-notes)
-7. [Multi-Currency Support](#7-multi-currency-support)
-8. [Smart Alert System](#8-smart-alert-system)
-9. [Multi-User / SaaS Features](#9-multi-user--saas-features)
-10. [Capital Flow Tracking](#10-capital-flow-tracking)
-11. [Snapshot & Time Travel Data](#11-snapshot--time-travel-data)
+### Phase 1-3 — Completed ✅
+
+1. [Risk Management](#1-risk-management) ✅
+2. [Advanced Analytics](#2-advanced-analytics) ✅
+3. [Strategy Management](#3-strategy-management) ✅
+4. [Market Data Integration](#5-market-data-integration) ✅
+5. [Journal & Trade Notes](#6-journal--trade-notes) ✅
+6. [Smart Alert System](#8-smart-alert-system) ✅
+7. [Capital Flow Tracking](#10-capital-flow-tracking) ✅
+8. [Snapshot & Time Travel Data](#11-snapshot--time-travel-data) ✅
+
+### Phase 4 — Completed ✅
+
+1. [Backtesting Engine](#4-backtesting-engine) ✅
+2. [Multi-Currency Support](#7-multi-currency-support) ✅
+3. [Price Feed Worker](#12-price-feed-worker) ✅
+4. [Health Endpoint & Monitoring](#13-health-endpoint--monitoring) ✅
+
+### Phase 5 — Planned 📋
+
+1. [Multi-User / SaaS Features](#9-multi-user--saas-features) 📋
 
 ---
 
@@ -1124,71 +1136,154 @@ frontend/src/app/features/snapshots/
 
 ---
 
+## 12. Price Feed Worker
+
+> **Priority: Critical** | Replaces MockMarketDataProvider with scheduled real-time price collection.
+
+### Worker Job
+
+| Component  | File Path                          | Description                                              |
+|------------|------------------------------------|----------------------------------------------------------|
+| Worker Job | `Worker/Jobs/PriceSnapshotJob.cs`  | Runs every 15 min during market hours (09:00-15:00 ICT)  |
+
+### Behavior
+
+```
+Every 15 minutes (09:00–15:00 ICT, Mon–Fri):
+1. Collect unique symbols from all trades in DB
+2. Batch fetch current prices via IMarketDataProvider
+3. Upsert to stock_prices collection
+4. Refresh VNINDEX / VN30 in market_indices collection
+5. Check stop-loss / target triggers → update StopLossTarget
+```
+
+### Market Hours Check
+
+```csharp
+// UTC+7 (ICT): 09:00–15:00 → UTC: 02:00–08:00
+private static readonly TimeOnly _marketOpen  = new(2, 0);
+private static readonly TimeOnly _marketClose = new(8, 0);
+```
+
+---
+
+## 13. Health Endpoint & Monitoring
+
+> **Priority: Medium** | Liveness/readiness probes for Docker and Kubernetes.
+
+### API Endpoints
+
+```
+GET  /health        → Full check: MongoDB ping. Returns 503 if DB unreachable.
+GET  /health/live   → Liveness probe: always 200 if process is running.
+GET  /health/ready  → Readiness probe: 200 only when DB is connected.
+```
+
+### Response Format
+
+```json
+// GET /health — healthy
+{ "status": "healthy", "db": "connected", "timestamp": "2026-03-06T10:00:00Z" }
+
+// GET /health — unhealthy (503)
+{ "status": "unhealthy", "db": "disconnected", "error": "...", "timestamp": "..." }
+```
+
+### Docker Integration
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/health/live || exit 1
+```
+
+### docker-compose Integration
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
+```
+
+---
+
 ## 📊 Implementation Priority & Timeline
 
-### Phase 1: Foundation (Sprint 1-2) 🔴
-| # | Feature | Priority | Effort |
-|---|---------|----------|--------|
-| 5 | Market Data Integration | Critical | 3 days |
-| 10 | Capital Flow Tracking | Critical | 2 days |
-| 11 | Snapshot & Time Travel | Critical | 3 days |
+### Phase 1: Foundation — ✅ Done
 
-### Phase 2: Risk & Analytics (Sprint 3-4) 🔴
-| # | Feature | Priority | Effort |
-|---|---------|----------|--------|
-| 1 | Risk Management | Critical | 5 days |
-| 2 | Advanced Analytics | Critical | 4 days |
+| Feature                  | Status | Branch          |
+|--------------------------|--------|-----------------|
+| Market Data Integration  | ✅     | master          |
+| Capital Flow Tracking    | ✅     | master          |
+| Snapshot & Time Travel   | ✅     | master          |
 
-### Phase 3: Trading Tools (Sprint 5-6) 🟡
-| # | Feature | Priority | Effort |
-|---|---------|----------|--------|
-| 3 | Strategy Management | Medium | 3 days |
-| 6 | Journal & Trade Notes | Medium | 3 days |
-| 8 | Smart Alert System | Medium | 4 days |
+### Phase 2: Risk & Analytics — ✅ Done
 
-### Phase 4: Enterprise (Sprint 7-8) 🟢
-| # | Feature | Priority | Effort |
-|---|---------|----------|--------|
-| 4 | Backtesting Engine | Low | 5 days |
-| 7 | Multi-Currency Support | Low | 2 days |
-| 9 | Multi-User / SaaS | Low | 5 days |
+| Feature              | Status | Branch          |
+|----------------------|--------|-----------------|
+| Risk Management      | ✅     | master          |
+| Advanced Analytics   | ✅     | master          |
 
----
+### Phase 3: Trading Tools — ✅ Done
 
-## 🛠️ Tech Stack Additions
+| Feature               | Status | Branch          |
+|-----------------------|--------|-----------------|
+| Strategy Management   | ✅     | master          |
+| Journal & Trade Notes | ✅     | master          |
+| Smart Alert System    | ✅     | master          |
 
-| Technology | Purpose |
-|------------|---------|
-| **ng2-charts / Chart.js** | Equity curves, drawdown charts |
-| **SignalR** | Real-time price updates, alerts |
-| **Hangfire / Quartz.NET** | Scheduled jobs (snapshots, alerts) |
-| **Azure Blob Storage** | Journal image uploads |
-| **SendGrid / Mailgun** | Email alerts & digests |
-| **Redis** | Price cache, rate limiting |
+### Phase 4: Enterprise — ✅ Done
+
+| Feature                    | Status | Branch                    |
+|----------------------------|--------|---------------------------|
+| Backtesting Engine         | ✅     | feat/phase4-enterprise    |
+| Multi-Currency Support     | ✅     | feat/phase4-enterprise    |
+| Price Feed Worker          | ✅     | feat/phase4-enterprise    |
+| Health Endpoint & Monitor  | ✅     | feat/phase4-enterprise    |
+
+### Phase 5: SaaS — 📋 Planned
+
+| Feature                | Status | Notes                              |
+|------------------------|--------|------------------------------------|
+| Multi-User / SaaS      | 📋     | Organization, roles, subscriptions |
 
 ---
 
-## 📁 New MongoDB Collections Summary
+## Tech Stack Additions
 
-| Collection | Feature | Description |
-|-----------|---------|-------------|
-| `risk_profiles` | Risk Management | Risk settings per portfolio |
-| `stop_loss_targets` | Risk Management | SL/TP per trade |
-| `equity_snapshots` | Advanced Analytics | Daily equity data |
-| `strategies` | Strategy Management | Strategy definitions |
-| `backtests` | Backtesting | Backtest runs & results |
-| `stock_prices` | Market Data | Historical price data |
-| `market_indices` | Market Data | Index data (VNINDEX) |
-| `trade_journals` | Journal | Trade notes & attachments |
-| `exchange_rates` | Multi-Currency | Currency rates |
-| `alert_rules` | Smart Alerts | User alert rules |
-| `alert_history` | Smart Alerts | Triggered alerts log |
-| `digest_reports` | Smart Alerts | Generated reports |
-| `organizations` | SaaS | Team/org structure |
-| `capital_flows` | Capital Flow | Deposit/withdraw records |
-| `portfolio_snapshots` | Snapshots | Daily portfolio state |
+| Technology            | Purpose                         | Status     |
+|-----------------------|---------------------------------|------------|
+| ng2-charts / Chart.js | Equity curves, drawdown charts  | 📋 Planned |
+| SignalR               | Real-time price updates, alerts | 📋 Planned |
+| Azure Blob Storage    | Journal image uploads           | 📋 Planned |
+| SendGrid / Mailgun    | Email alerts & digests          | 📋 Planned |
+| Redis                 | Price cache, rate limiting      | 📋 Planned |
 
 ---
 
-> **Total Estimated Effort**: ~39 days (8 sprints × 5 days)
-> **Recommended Team**: 2 Backend + 1 Frontend + 1 QA
+## MongoDB Collections Summary
+
+| Collection           | Feature            | Status |
+|----------------------|--------------------|--------|
+| `risk_profiles`      | Risk Management    | ✅     |
+| `stop_loss_targets`  | Risk Management    | ✅     |
+| `equity_snapshots`   | Advanced Analytics | ✅     |
+| `strategies`         | Strategy Mgmt      | ✅     |
+| `backtests`          | Backtesting        | ✅     |
+| `stock_prices`       | Market Data        | ✅     |
+| `market_indices`     | Market Data        | ✅     |
+| `trade_journals`     | Journal            | ✅     |
+| `exchange_rates`     | Multi-Currency     | ✅     |
+| `alert_rules`        | Smart Alerts       | ✅     |
+| `alert_history`      | Smart Alerts       | ✅     |
+| `capital_flows`      | Capital Flow       | ✅     |
+| `portfolio_snapshots`| Snapshots          | ✅     |
+| `organizations`      | SaaS               | 📋     |
+| `digest_reports`     | Smart Alerts       | 📋     |
+
+---
+
+> **Phases 1-4 completed.** Next: Phase 5 (Multi-User/SaaS) on a new branch.
+> Recommended team: 2 Backend + 1 Frontend + 1 QA
