@@ -92,6 +92,8 @@ builder.Services.AddScoped<IStrategyRepository, StrategyRepository>();
 builder.Services.AddScoped<ITradeJournalRepository, TradeJournalRepository>();
 builder.Services.AddScoped<IAlertRuleRepository, AlertRuleRepository>();
 builder.Services.AddScoped<IAlertHistoryRepository, AlertHistoryRepository>();
+builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
+builder.Services.AddScoped<IBacktestRepository, BacktestRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -102,6 +104,8 @@ builder.Services.AddScoped<IMarketDataProvider, MockMarketDataProvider>();
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<ICashFlowAdjustedReturnService, CashFlowAdjustedReturnService>();
 builder.Services.AddScoped<IRiskCalculationService, RiskCalculationService>();
+builder.Services.AddScoped<ICurrencyService, CurrencyService>();
+builder.Services.AddScoped<BacktestEngine>();
 
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));
@@ -243,7 +247,36 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Add simple health check endpoint
-app.MapGet("/health", () => "API is running!");
+// Health check endpoints
+app.MapGet("/health", async (IMongoClient mongo) =>
+{
+    try
+    {
+        await mongo.GetDatabase("admin").RunCommandAsync<MongoDB.Bson.BsonDocument>(
+            new MongoDB.Bson.BsonDocument("ping", 1));
+        return Results.Ok(new { status = "healthy", db = "connected", timestamp = DateTime.UtcNow });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(
+            new { status = "unhealthy", db = "disconnected", error = ex.Message, timestamp = DateTime.UtcNow },
+            statusCode: 503);
+    }
+});
+
+app.MapGet("/health/live", () => Results.Ok(new { status = "alive", timestamp = DateTime.UtcNow }));
+app.MapGet("/health/ready", async (IMongoClient mongo) =>
+{
+    try
+    {
+        await mongo.GetDatabase("admin").RunCommandAsync<MongoDB.Bson.BsonDocument>(
+            new MongoDB.Bson.BsonDocument("ping", 1));
+        return Results.Ok(new { status = "ready", timestamp = DateTime.UtcNow });
+    }
+    catch
+    {
+        return Results.Json(new { status = "not ready", timestamp = DateTime.UtcNow }, statusCode: 503);
+    }
+});
 
 app.Run();
