@@ -103,6 +103,19 @@ public interface IAlertHistoryRepository : IRepository<AlertHistory>
     Task<int> GetUnreadCountAsync(string userId, CancellationToken cancellationToken = default);
 }
 
+public interface IExchangeRateRepository : IRepository<ExchangeRate>
+{
+    Task<ExchangeRate?> GetLatestAsync(string baseCurrency, string targetCurrency, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ExchangeRate>> GetAllLatestAsync(string baseCurrency, CancellationToken cancellationToken = default);
+    Task UpsertAsync(ExchangeRate rate, CancellationToken cancellationToken = default);
+}
+
+public interface IBacktestRepository : IRepository<Backtest>
+{
+    Task<IEnumerable<Backtest>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Backtest>> GetPendingAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IFeeCalculationService
 {
     Money CalculateTransactionFee(Money transactionAmount, bool isBuy, bool isListed = true, SecurityType securityType = SecurityType.Stock);

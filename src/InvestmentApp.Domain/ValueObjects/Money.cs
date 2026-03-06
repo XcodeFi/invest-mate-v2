@@ -38,6 +38,14 @@ public class Money : IEquatable<Money>
 
     public override int GetHashCode() => HashCode.Combine(Amount, Currency);
 
+    public Money ConvertTo(string targetCurrency, decimal rate)
+    {
+        if (rate <= 0) throw new ArgumentException("Rate must be positive", nameof(rate));
+        return new Money(Math.Round(Amount * rate, 2), targetCurrency);
+    }
+
+    public override string ToString() => $"{Amount:N2} {Currency}";
+
     public static bool operator ==(Money left, Money right) => left.Equals(right);
     public static bool operator !=(Money left, Money right) => !left.Equals(right);
 }
