@@ -1,0 +1,15 @@
+**/.git
+**/.gitignore
+**/.dockerignore
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/*.user
+**/*.suo
+**/node_modules
+**/dist
+frontend/.angular
+**/.env*
+**/logs
+**/appsettings.Production.json

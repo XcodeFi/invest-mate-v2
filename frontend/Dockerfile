@@ -14,7 +14,7 @@ RUN npm run build
 FROM nginx:alpine AS runtime
 
 # Copy build output
-COPY --from=build /app/dist/investment-mate-frontend/browser /usr/share/nginx/html
+COPY --from=build /app/dist/investment-mate-frontend /usr/share/nginx/html
 
 # Copy custom nginx config for Angular routing support
 COPY nginx.conf /etc/nginx/conf.d/default.conf

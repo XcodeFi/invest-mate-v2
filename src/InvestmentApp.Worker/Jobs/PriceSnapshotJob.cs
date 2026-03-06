@@ -82,19 +82,10 @@ public class PriceSnapshotJob : BackgroundService
             // 3. Persist to DB
             foreach (var (symbol, data) in prices)
             {
-                var stockPrice = new StockPrice
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Symbol = symbol,
-                    Date = data.Date,
-                    Open = data.Open,
-                    High = data.High,
-                    Low = data.Low,
-                    Close = data.Close,
-                    Volume = data.Volume,
-                    Source = "PriceSnapshotJob",
-                    FetchedAt = DateTime.UtcNow
-                };
+                var stockPrice = new StockPrice(
+                    symbol, data.Date,
+                    data.Open, data.High, data.Low, data.Close,
+                    data.Volume, "PriceSnapshotJob");
                 await priceRepo.UpsertAsync(stockPrice, cancellationToken);
             }
 
@@ -106,19 +97,10 @@ public class PriceSnapshotJob : BackgroundService
                 var indexData = await marketData.GetIndexDataAsync(indexSymbol, cancellationToken);
                 if (indexData == null) continue;
 
-                var marketIndex = new MarketIndex
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    IndexSymbol = indexData.IndexSymbol,
-                    Date = indexData.Date,
-                    Open = indexData.Open,
-                    High = indexData.High,
-                    Low = indexData.Low,
-                    Close = indexData.Close,
-                    Volume = indexData.Volume,
-                    Change = indexData.Change,
-                    ChangePercent = indexData.ChangePercent
-                };
+                var marketIndex = new MarketIndex(
+                    indexData.IndexSymbol, indexData.Date,
+                    indexData.Open, indexData.High, indexData.Low, indexData.Close,
+                    indexData.Volume);
                 await indexRepo.UpsertAsync(marketIndex, cancellationToken);
             }
 
