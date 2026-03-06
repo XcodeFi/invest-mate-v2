@@ -1,0 +1,36 @@
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+# Copy solution and project files first for layer caching
+COPY InvestmentApp.sln ./
+COPY src/InvestmentApp.Api/InvestmentApp.Api.csproj src/InvestmentApp.Api/
+COPY src/InvestmentApp.Application/InvestmentApp.Application.csproj src/InvestmentApp.Application/
+COPY src/InvestmentApp.Domain/InvestmentApp.Domain.csproj src/InvestmentApp.Domain/
+COPY src/InvestmentApp.Infrastructure/InvestmentApp.Infrastructure.csproj src/InvestmentApp.Infrastructure/
+COPY src/InvestmentApp.Worker/InvestmentApp.Worker.csproj src/InvestmentApp.Worker/
+
+RUN dotnet restore src/InvestmentApp.Api/InvestmentApp.Api.csproj
+
+# Copy source and publish
+COPY src/ src/
+RUN dotnet publish src/InvestmentApp.Api/InvestmentApp.Api.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+WORKDIR /app
+
+# Create non-root user for security
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
+
+COPY --from=build --chown=appuser:appuser /app/publish ./
+
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+ENTRYPOINT ["dotnet", "InvestmentApp.Api.dll"]
