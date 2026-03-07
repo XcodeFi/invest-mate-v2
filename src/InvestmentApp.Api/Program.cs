@@ -125,6 +125,10 @@ builder.Services.AddDataProtection()
     .SetApplicationName("InvestmentApp");
 
 // Configure Authentication & Authorization
+var isDevelopment = builder.Environment.IsDevelopment();
+var cookieSecurePolicy = isDevelopment ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
+var cookieSameSite = isDevelopment ? SameSiteMode.Lax : SameSiteMode.None;
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -132,9 +136,8 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(options =>
 {
-    // Configure cookie for OAuth flow in development (HTTP)
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.None;
+    options.Cookie.SameSite = cookieSameSite;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
     options.Cookie.HttpOnly = true;
 })
 .AddGoogle(options =>
@@ -148,34 +151,28 @@ builder.Services.AddAuthentication(options =>
 
     options.SaveTokens = true;
 
-    // Configure correlation and state cookies for HTTP development
-    options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.None;
+    options.CorrelationCookie.SameSite = cookieSameSite;
+    options.CorrelationCookie.SecurePolicy = cookieSecurePolicy;
 })
-// TODO: Revert JwtBearer config after testing - currently bypasses token validation
 .AddJwtBearer(options =>
 {
-    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    var jwtKey = builder.Configuration["Jwt:Key"]!;
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        OnMessageReceived = context =>
-        {
-            var claims = new[] {
-                new System.Security.Claims.Claim("sub", "test-user-id"),
-                new System.Security.Claims.Claim("email", "test@test.com")
-            };
-            var identity = new System.Security.Claims.ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme);
-            context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
-            context.Success();
-            return Task.CompletedTask;
-        }
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    // Configure for HTTP development environment
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.None;
+    options.Cookie.SameSite = cookieSameSite;
+    options.Cookie.SecurePolicy = cookieSecurePolicy;
     options.Cookie.HttpOnly = true;
     options.Cookie.Name = ".AspNetCore.Cookies";
     options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
@@ -219,11 +216,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Configure CORS
+var corsOrigins = builder.Configuration.GetSection("CorsOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins(corsOrigins)
               .AllowCredentials()
               .AllowAnyHeader()
               .AllowAnyMethod();
@@ -233,17 +231,21 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+var enableSwagger = app.Configuration.GetValue<bool>("EnableSwagger", app.Environment.IsDevelopment());
+if (enableSwagger)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// app.UseHttpsRedirection(); // Commented out for HTTP development
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCookiePolicy(new CookiePolicyOptions
 {
-    MinimumSameSitePolicy = SameSiteMode.Lax,
-    Secure = CookieSecurePolicy.SameAsRequest
+    MinimumSameSitePolicy = app.Environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.None,
+    Secure = app.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always
 });
 app.UseCors("AllowAll");
 
