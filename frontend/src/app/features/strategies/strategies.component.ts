@@ -7,11 +7,12 @@ import {
   StrategyPerformance
 } from '../../core/services/strategy.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-strategies',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -196,7 +197,7 @@ import { NotificationService } from '../../core/services/notification.service';
                   <div class="text-sm text-gray-500">Tổng P&L</div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.totalPnL >= 0"
                     [class.text-red-600]="performance.totalPnL < 0">
-                    {{ formatCurrency(performance.totalPnL) }}
+                    {{ performance.totalPnL | vndCurrency }}
                   </div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
@@ -219,23 +220,23 @@ import { NotificationService } from '../../core/services/notification.service';
                   <div class="text-xs text-gray-500">P&L trung bình</div>
                   <div class="font-semibold" [class.text-green-600]="performance.averagePnL >= 0"
                     [class.text-red-600]="performance.averagePnL < 0">
-                    {{ formatCurrency(performance.averagePnL) }}
+                    {{ performance.averagePnL | vndCurrency }}
                   </div>
                 </div>
                 <div class="bg-white border rounded-lg p-3">
                   <div class="text-xs text-gray-500">Lãi TB / Lỗ TB</div>
                   <div class="font-semibold">
-                    <span class="text-green-600">{{ formatCurrency(performance.averageWin) }}</span> /
-                    <span class="text-red-600">{{ formatCurrency(performance.averageLoss) }}</span>
+                    <span class="text-green-600">{{ performance.averageWin | vndCurrency }}</span> /
+                    <span class="text-red-600">{{ performance.averageLoss | vndCurrency }}</span>
                   </div>
                 </div>
                 <div class="bg-white border rounded-lg p-3">
                   <div class="text-xs text-gray-500">Lãi lớn nhất</div>
-                  <div class="font-semibold text-green-600">{{ formatCurrency(performance.largestWin) }}</div>
+                  <div class="font-semibold text-green-600">{{ performance.largestWin | vndCurrency }}</div>
                 </div>
                 <div class="bg-white border rounded-lg p-3">
                   <div class="text-xs text-gray-500">Lỗ lớn nhất</div>
-                  <div class="font-semibold text-red-600">{{ formatCurrency(performance.largestLoss) }}</div>
+                  <div class="font-semibold text-red-600">{{ performance.largestLoss | vndCurrency }}</div>
                 </div>
               </div>
             </div>
@@ -348,10 +349,6 @@ export class StrategiesComponent implements OnInit {
       },
       error: () => this.notification.error('Lỗi', 'Không thể xóa chiến lược')
     });
-  }
-
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
   }
 
   private resetForm(): void {

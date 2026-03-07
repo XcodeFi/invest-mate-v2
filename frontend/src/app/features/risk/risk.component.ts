@@ -9,11 +9,12 @@ import {
 } from '../../core/services/risk.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-risk',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Rủi ro</h1>
@@ -37,7 +38,7 @@ import { NotificationService } from '../../core/services/notification.service';
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="bg-white rounded-lg shadow p-4">
             <div class="text-sm text-gray-500">Tổng giá trị</div>
-            <div class="text-xl font-bold text-blue-600">{{ formatCurrency(riskSummary?.totalValue || 0) }}</div>
+            <div class="text-xl font-bold text-blue-600">{{ (riskSummary?.totalValue || 0) | vndCurrency }}</div>
           </div>
           <div class="bg-white rounded-lg shadow p-4">
             <div class="text-sm text-gray-500">Max Drawdown</div>
@@ -92,8 +93,8 @@ import { NotificationService } from '../../core/services/notification.service';
                     <tr *ngFor="let pos of riskSummary?.positions || []">
                       <td class="px-4 py-3 font-medium text-blue-600">{{ pos.symbol }}</td>
                       <td class="px-4 py-3 text-right">{{ pos.quantity | number:'1.0-0' }}</td>
-                      <td class="px-4 py-3 text-right">{{ formatCurrency(pos.currentPrice) }}</td>
-                      <td class="px-4 py-3 text-right">{{ formatCurrency(pos.marketValue) }}</td>
+                      <td class="px-4 py-3 text-right">{{ pos.currentPrice | vndCurrency }}</td>
+                      <td class="px-4 py-3 text-right">{{ pos.marketValue | vndCurrency }}</td>
                       <td class="px-4 py-3 text-right">
                         <span class="px-2 py-1 rounded text-xs font-medium"
                           [class.bg-red-100]="pos.positionSizePercent > (riskProfile?.maxPositionSizePercent || 20)"
@@ -103,8 +104,8 @@ import { NotificationService } from '../../core/services/notification.service';
                           {{ pos.positionSizePercent | number:'1.1-1' }}%
                         </span>
                       </td>
-                      <td class="px-4 py-3 text-right text-red-500">{{ pos.stopLossPrice ? formatCurrency(pos.stopLossPrice) : '-' }}</td>
-                      <td class="px-4 py-3 text-right text-green-500">{{ pos.targetPrice ? formatCurrency(pos.targetPrice) : '-' }}</td>
+                      <td class="px-4 py-3 text-right text-red-500">{{ pos.stopLossPrice ? (pos.stopLossPrice | vndCurrency) : '-' }}</td>
+                      <td class="px-4 py-3 text-right text-green-500">{{ pos.targetPrice ? (pos.targetPrice | vndCurrency) : '-' }}</td>
                       <td class="px-4 py-3 text-right">{{ pos.riskRewardRatio ? (pos.riskRewardRatio | number:'1.1-1') : '-' }}</td>
                     </tr>
                     <tr *ngIf="!riskSummary?.positions?.length">
@@ -142,16 +143,19 @@ import { NotificationService } from '../../core/services/notification.service';
                     <label class="block text-sm font-medium text-gray-700 mb-1">Giá vào</label>
                     <input type="number" [(ngModel)]="newSl.entryPrice"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <p *ngIf="newSl.entryPrice > 0" class="mt-1 text-xs text-gray-500">{{ newSl.entryPrice | vndCurrency }}</p>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Stop-Loss</label>
                     <input type="number" [(ngModel)]="newSl.stopLossPrice"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <p *ngIf="newSl.stopLossPrice > 0" class="mt-1 text-xs text-gray-500">{{ newSl.stopLossPrice | vndCurrency }}</p>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Target</label>
                     <input type="number" [(ngModel)]="newSl.targetPrice"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <p *ngIf="newSl.targetPrice > 0" class="mt-1 text-xs text-gray-500">{{ newSl.targetPrice | vndCurrency }}</p>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Trailing Stop %</label>
@@ -184,11 +188,11 @@ import { NotificationService } from '../../core/services/notification.service';
                   <tbody class="bg-white divide-y divide-gray-200">
                     <tr *ngFor="let sl of slTargets?.items || []">
                       <td class="px-4 py-3 font-medium text-blue-600">{{ sl.symbol }}</td>
-                      <td class="px-4 py-3 text-right">{{ formatCurrency(sl.entryPrice) }}</td>
-                      <td class="px-4 py-3 text-right text-red-500">{{ formatCurrency(sl.stopLossPrice) }}</td>
-                      <td class="px-4 py-3 text-right text-green-500">{{ formatCurrency(sl.targetPrice) }}</td>
+                      <td class="px-4 py-3 text-right">{{ sl.entryPrice | vndCurrency }}</td>
+                      <td class="px-4 py-3 text-right text-red-500">{{ sl.stopLossPrice | vndCurrency }}</td>
+                      <td class="px-4 py-3 text-right text-green-500">{{ sl.targetPrice | vndCurrency }}</td>
                       <td class="px-4 py-3 text-right">{{ sl.riskRewardRatio | number:'1.1-1' }}</td>
-                      <td class="px-4 py-3 text-right">{{ formatCurrency(sl.riskPerShare) }}</td>
+                      <td class="px-4 py-3 text-right">{{ sl.riskPerShare | vndCurrency }}</td>
                       <td class="px-4 py-3 text-center">
                         <span *ngIf="sl.isStopLossTriggered" class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">SL Triggered</span>
                         <span *ngIf="sl.isTargetTriggered" class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">TP Reached</span>
@@ -212,10 +216,10 @@ import { NotificationService } from '../../core/services/notification.service';
                     <div class="text-sm text-red-600">Max Drawdown</div>
                     <div class="text-2xl font-bold text-red-700">{{ drawdownResult.maxDrawdownPercent | number:'1.2-2' }}%</div>
                     <div class="text-xs text-gray-500 mt-1" *ngIf="drawdownResult.peakDate">
-                      Đỉnh: {{ drawdownResult.peakDate | date:'dd/MM/yyyy' }} ({{ formatCurrency(drawdownResult.peakValue || 0) }})
+                      Đỉnh: {{ drawdownResult.peakDate | date:'dd/MM/yyyy' }} ({{ (drawdownResult.peakValue || 0) | vndCurrency }})
                     </div>
                     <div class="text-xs text-gray-500" *ngIf="drawdownResult.troughDate">
-                      Đáy: {{ drawdownResult.troughDate | date:'dd/MM/yyyy' }} ({{ formatCurrency(drawdownResult.troughValue || 0) }})
+                      Đáy: {{ drawdownResult.troughDate | date:'dd/MM/yyyy' }} ({{ (drawdownResult.troughValue || 0) | vndCurrency }})
                     </div>
                   </div>
                   <div class="bg-yellow-50 rounded-lg p-4">
@@ -241,7 +245,7 @@ import { NotificationService } from '../../core/services/notification.service';
                     <tbody class="bg-white divide-y divide-gray-200">
                       <tr *ngFor="let point of drawdownResult.drawdownSeries">
                         <td class="px-4 py-2 text-sm">{{ point.date | date:'dd/MM/yyyy' }}</td>
-                        <td class="px-4 py-2 text-right text-sm">{{ formatCurrency(point.value) }}</td>
+                        <td class="px-4 py-2 text-right text-sm">{{ point.value | vndCurrency }}</td>
                         <td class="px-4 py-2 text-right text-sm">
                           <span [class.text-red-600]="point.drawdownPercent > 5"
                                 [class.text-yellow-600]="point.drawdownPercent > 0 && point.drawdownPercent <= 5"
@@ -476,10 +480,6 @@ export class RiskComponent implements OnInit {
         this.saving = false;
       }
     });
-  }
-
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
   }
 
   getCorrelationLevel(corr: number): string {

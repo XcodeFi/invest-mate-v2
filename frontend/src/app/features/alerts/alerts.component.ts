@@ -7,11 +7,12 @@ import {
 } from '../../core/services/alert.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -61,6 +62,8 @@ import { NotificationService } from '../../core/services/notification.service';
             <input [(ngModel)]="newRule.threshold" type="number"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               [placeholder]="newRule.alertType === 'DrawdownAlert' ? 'VD: 10 (%)' : 'VD: 80000'">
+            <p *ngIf="newRule.threshold > 0 && newRule.alertType !== 'DrawdownAlert'" class="mt-1 text-xs text-gray-500">{{ newRule.threshold | vndCurrency }}</p>
+            <p *ngIf="newRule.threshold > 0 && newRule.alertType === 'DrawdownAlert'" class="mt-1 text-xs text-gray-500">{{ newRule.threshold }}%</p>
           </div>
           <div *ngIf="newRule.alertType === 'PriceAlert'">
             <label class="block text-sm font-medium text-gray-700 mb-1">Mã cổ phiếu</label>

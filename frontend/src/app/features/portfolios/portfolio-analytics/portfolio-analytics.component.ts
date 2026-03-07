@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { PnlService, PortfolioPnL } from '../../../core/services/pnl.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-portfolio-analytics',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -40,16 +41,16 @@ import { NotificationService } from '../../../core/services/notification.service
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Tổng đầu tư</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(pnl.totalInvested) }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ pnl.totalInvested | vndCurrency }}</p>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Giá trị thị trường</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(pnl.totalMarketValue) }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ pnl.totalMarketValue | vndCurrency }}</p>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Tổng P&L</p>
             <p class="text-2xl font-bold mt-1" [class]="pnl.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ formatCurrency(pnl.totalPnL) }}
+              {{ pnl.totalPnL | vndCurrency }}
             </p>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -68,20 +69,20 @@ import { NotificationService } from '../../../core/services/notification.service
               <div class="flex justify-between items-center">
                 <span class="text-gray-600">Lãi/Lỗ đã thực hiện</span>
                 <span class="font-bold" [class]="pnl.totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(pnl.totalRealizedPnL) }}
+                  {{ pnl.totalRealizedPnL | vndCurrency }}
                 </span>
               </div>
               <div class="flex justify-between items-center">
                 <span class="text-gray-600">Lãi/Lỗ chưa thực hiện</span>
                 <span class="font-bold" [class]="pnl.totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(pnl.totalUnrealizedPnL) }}
+                  {{ pnl.totalUnrealizedPnL | vndCurrency }}
                 </span>
               </div>
               <hr />
               <div class="flex justify-between items-center">
                 <span class="text-gray-900 font-medium">Tổng P&L</span>
                 <span class="text-xl font-bold" [class]="pnl.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(pnl.totalPnL) }}
+                  {{ pnl.totalPnL | vndCurrency }}
                 </span>
               </div>
             </div>
@@ -98,7 +99,7 @@ import { NotificationService } from '../../../core/services/notification.service
                 </div>
                 <div class="text-right">
                   <span class="text-sm font-medium text-gray-900">{{ getPositionPercent(pos.marketValue) }}%</span>
-                  <p class="text-xs text-gray-500">{{ formatCurrency(pos.marketValue) }}</p>
+                  <p class="text-xs text-gray-500">{{ pos.marketValue | vndCurrency }}</p>
                 </div>
               </div>
             </div>
@@ -130,18 +131,18 @@ import { NotificationService } from '../../../core/services/notification.service
                 <tr *ngFor="let pos of pnl.positions" class="hover:bg-gray-50">
                   <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ pos.symbol }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.quantity }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(pos.averageCost) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(pos.currentPrice) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(pos.totalCost) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(pos.marketValue) }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ pos.averageCost | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ pos.currentPrice | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ pos.totalCost | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ pos.marketValue | vndCurrency }}</td>
                   <td class="px-6 py-4 text-sm" [class]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(pos.unrealizedPnL) }}
+                    {{ pos.unrealizedPnL | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 text-sm" [class]="pos.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(pos.realizedPnL) }}
+                    {{ pos.realizedPnL | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 text-sm font-bold" [class]="pos.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(pos.totalPnL) }} ({{ pos.totalPnLPercent.toFixed(2) }}%)
+                    {{ pos.totalPnL | vndCurrency }} ({{ pos.totalPnLPercent.toFixed(2) }}%)
                   </td>
                 </tr>
               </tbody>
@@ -192,7 +193,4 @@ export class PortfolioAnalyticsComponent implements OnInit {
     return ((marketValue / this.pnl.totalMarketValue) * 100).toFixed(2);
   }
 
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  }
 }

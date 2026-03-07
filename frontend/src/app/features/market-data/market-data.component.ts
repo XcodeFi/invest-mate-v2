@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MarketDataService, StockPrice, MarketIndex } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -56,19 +57,19 @@ import { NotificationService } from '../../core/services/notification.service';
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div>
               <div class="text-xs text-gray-500">Mở cửa</div>
-              <div class="font-semibold">{{ formatCurrency(currentPrice.open) }}</div>
+              <div class="font-semibold">{{ currentPrice.open | vndCurrency }}</div>
             </div>
             <div>
               <div class="text-xs text-gray-500">Cao nhất</div>
-              <div class="font-semibold text-green-600">{{ formatCurrency(currentPrice.high) }}</div>
+              <div class="font-semibold text-green-600">{{ currentPrice.high | vndCurrency }}</div>
             </div>
             <div>
               <div class="text-xs text-gray-500">Thấp nhất</div>
-              <div class="font-semibold text-red-600">{{ formatCurrency(currentPrice.low) }}</div>
+              <div class="font-semibold text-red-600">{{ currentPrice.low | vndCurrency }}</div>
             </div>
             <div>
               <div class="text-xs text-gray-500">Đóng cửa</div>
-              <div class="font-bold text-lg">{{ formatCurrency(currentPrice.close) }}</div>
+              <div class="font-bold text-lg">{{ currentPrice.close | vndCurrency }}</div>
             </div>
             <div>
               <div class="text-xs text-gray-500">Khối lượng</div>
@@ -120,10 +121,10 @@ import { NotificationService } from '../../core/services/notification.service';
             <tbody>
               <tr *ngFor="let p of priceHistory; let i = index" class="border-b hover:bg-gray-50">
                 <td class="px-4 py-3 text-sm">{{ p.date | date:'dd/MM/yyyy' }}</td>
-                <td class="px-4 py-3 text-sm text-right">{{ formatCurrency(p.open) }}</td>
-                <td class="px-4 py-3 text-sm text-right text-green-600">{{ formatCurrency(p.high) }}</td>
-                <td class="px-4 py-3 text-sm text-right text-red-600">{{ formatCurrency(p.low) }}</td>
-                <td class="px-4 py-3 text-sm text-right font-semibold">{{ formatCurrency(p.close) }}</td>
+                <td class="px-4 py-3 text-sm text-right">{{ p.open | vndCurrency }}</td>
+                <td class="px-4 py-3 text-sm text-right text-green-600">{{ p.high | vndCurrency }}</td>
+                <td class="px-4 py-3 text-sm text-right text-red-600">{{ p.low | vndCurrency }}</td>
+                <td class="px-4 py-3 text-sm text-right font-semibold">{{ p.close | vndCurrency }}</td>
                 <td class="px-4 py-3 text-sm text-right">{{ formatVolume(p.volume) }}</td>
                 <td class="px-4 py-3 text-sm text-right font-medium" [ngClass]="getDailyChange(i) >= 0 ? 'text-green-600' : 'text-red-600'">
                   {{ getDailyChange(i) >= 0 ? '+' : '' }}{{ getDailyChange(i).toFixed(2) }}%
@@ -157,7 +158,7 @@ import { NotificationService } from '../../core/services/notification.service';
         <div *ngIf="batchPrices.length > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <div *ngFor="let bp of batchPrices" class="border rounded-lg p-3 text-center hover:shadow-md transition-shadow">
             <div class="font-bold text-gray-800">{{ bp.symbol }}</div>
-            <div class="text-lg font-semibold text-blue-600">{{ formatCurrency(bp.close) }}</div>
+            <div class="text-lg font-semibold text-blue-600">{{ bp.close | vndCurrency }}</div>
             <div class="text-xs text-gray-500">KL: {{ formatVolume(bp.volume) }}</div>
           </div>
         </div>
@@ -269,10 +270,6 @@ export class MarketDataComponent implements OnInit {
     const previous = this.priceHistory[index + 1];
     if (!previous || previous.close === 0) return 0;
     return ((current.close - previous.close) / previous.close) * 100;
-  }
-
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'decimal', maximumFractionDigits: 0 }).format(value) + ' đ';
   }
 
   formatNumber(value: number): string {

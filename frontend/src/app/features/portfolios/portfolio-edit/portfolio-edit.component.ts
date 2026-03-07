@@ -4,11 +4,12 @@ import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService } from '../../../core/services/portfolio.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-portfolio-edit',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -67,7 +68,7 @@ import { NotificationService } from '../../../core/services/notification.service
                   #capitalInput="ngModel"
                 />
                 <p *ngIf="capitalInput.invalid && capitalInput.touched" class="mt-1 text-sm text-red-600">Vốn ban đầu phải lớn hơn 0</p>
-                <p *ngIf="form.initialCapital > 0" class="mt-1 text-sm text-gray-500">{{ formatCurrency(form.initialCapital) }}</p>
+                <p *ngIf="form.initialCapital > 0" class="mt-1 text-sm text-gray-500">{{ form.initialCapital | vndCurrency }}</p>
               </div>
 
               <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -143,7 +144,4 @@ export class PortfolioEditComponent implements OnInit {
     this.router.navigate(['/portfolios', this.portfolioId]);
   }
 
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  }
 }

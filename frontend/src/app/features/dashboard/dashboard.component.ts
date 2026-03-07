@@ -4,11 +4,12 @@ import { RouterModule } from '@angular/router';
 import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL } from '../../core/services/pnl.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -46,7 +47,7 @@ import { NotificationService } from '../../core/services/notification.service';
               </div>
               <div class="ml-4">
                 <p class="text-sm font-medium text-gray-600">Tổng Giá trị</p>
-                <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(pnlSummary.totalPortfolioValue) }}</p>
+                <p class="text-2xl font-bold text-gray-900">{{ pnlSummary.totalPortfolioValue | vndCurrency }}</p>
               </div>
             </div>
           </div>
@@ -62,7 +63,7 @@ import { NotificationService } from '../../core/services/notification.service';
               </div>
               <div class="ml-4">
                 <p class="text-sm font-medium text-gray-600">Đã Đầu tư</p>
-                <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(pnlSummary.totalInvested) }}</p>
+                <p class="text-2xl font-bold text-gray-900">{{ pnlSummary.totalInvested | vndCurrency }}</p>
               </div>
             </div>
           </div>
@@ -79,7 +80,7 @@ import { NotificationService } from '../../core/services/notification.service';
               <div class="ml-4">
                 <p class="text-sm font-medium text-gray-600">Lãi/Lỗ Thực hiện</p>
                 <p class="text-2xl font-bold" [class]="pnlSummary.totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(pnlSummary.totalRealizedPnL) }}
+                  {{ pnlSummary.totalRealizedPnL | vndCurrency }}
                 </p>
               </div>
             </div>
@@ -97,7 +98,7 @@ import { NotificationService } from '../../core/services/notification.service';
               <div class="ml-4">
                 <p class="text-sm font-medium text-gray-600">Lãi/Lỗ Chưa thực hiện</p>
                 <p class="text-2xl font-bold" [class]="pnlSummary.totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(pnlSummary.totalUnrealizedPnL) }}
+                  {{ pnlSummary.totalUnrealizedPnL | vndCurrency }}
                 </p>
               </div>
             </div>
@@ -114,12 +115,12 @@ import { NotificationService } from '../../core/services/notification.service';
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <h3 class="text-lg font-medium text-gray-900">{{ portfolio.portfolioName }}</h3>
-                  <p class="text-sm text-gray-600">Vốn: {{ formatCurrency(portfolio.initialCapital) }}</p>
+                  <p class="text-sm text-gray-600">Vốn: {{ portfolio.initialCapital | vndCurrency }}</p>
                 </div>
                 <div class="text-right">
-                  <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(safeNumber(portfolio.totalMarketValue)) }}</p>
+                  <p class="text-2xl font-bold text-gray-900">{{ safeNumber(portfolio.totalMarketValue) | vndCurrency }}</p>
                   <p class="text-sm" [class]="safeNumber(portfolio.totalPnL) >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(safeNumber(portfolio.totalPnL)) }} ({{ safeNumber(portfolio.totalPnLPercent).toFixed(2) }}%)
+                    {{ safeNumber(portfolio.totalPnL) | vndCurrency }} ({{ safeNumber(portfolio.totalPnLPercent).toFixed(2) }}%)
                   </p>
                 </div>
                 <div class="ml-6">
@@ -201,13 +202,6 @@ export class DashboardComponent implements OnInit {
         // Don't show error on initial load if no portfolios exist yet
       }
     });
-  }
-
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
   }
 
   formatDate(dateString: string): string {

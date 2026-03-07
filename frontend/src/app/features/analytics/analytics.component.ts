@@ -2,11 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PnlService, OverallPnLSummary, PositionPnL } from '../../core/services/pnl.service';
 import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../../core/services/analytics.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -44,7 +45,7 @@ import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../.
               <div class="ml-4">
                 <p class="text-sm font-medium text-gray-600">Tổng lợi nhuận</p>
                 <p class="text-2xl font-bold" [class]="totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'">{{ totalPnLPercent >= 0 ? '+' : '' }}{{ totalPnLPercent.toFixed(1) }}%</p>
-                <p class="text-sm text-gray-600">{{ formatCurrency(totalPnL) }}</p>
+                <p class="text-sm text-gray-600">{{ totalPnL | vndCurrency }}</p>
               </div>
             </div>
           </div>
@@ -128,7 +129,7 @@ import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../.
                 </div>
                 <div class="text-right">
                   <span class="text-sm font-medium text-gray-900">{{ getHoldingPercent(holding.marketValue) }}%</span>
-                  <p class="text-xs text-gray-500">{{ formatCurrency(holding.marketValue) }}</p>
+                  <p class="text-xs text-gray-500">{{ holding.marketValue | vndCurrency }}</p>
                 </div>
               </div>
               <div *ngIf="topHoldings.length === 0" class="text-center py-4 text-gray-500">
@@ -165,16 +166,16 @@ import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../.
                     {{ holding.quantity }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatCurrency(holding.averageCost) }}
+                    {{ holding.averageCost | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatCurrency(holding.currentPrice) }}
+                    {{ holding.currentPrice | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatCurrency(holding.marketValue) }}
+                    {{ holding.marketValue | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm" [class]="(holding.totalPnL ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(holding.totalPnL ?? 0) }}
+                    {{ (holding.totalPnL ?? 0) | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm" [class]="(holding.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
                     {{ (holding.totalPnLPercent ?? 0).toFixed(2) }}%
@@ -202,7 +203,7 @@ import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../.
               <div class="text-sm text-gray-600">Value at Risk (95%)</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? formatCurrency(performanceData.expectancy) : '--' }}</div>
+              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? (performanceData.expectancy | vndCurrency) : '--' }}</div>
               <div class="text-sm text-gray-600">Expectancy</div>
             </div>
           </div>
@@ -334,10 +335,4 @@ export class AnalyticsComponent implements OnInit {
     return ((marketValue / total) * 100).toFixed(2);
   }
 
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
-  }
 }

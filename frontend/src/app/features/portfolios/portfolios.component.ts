@@ -4,11 +4,12 @@ import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-portfolios',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -103,15 +104,15 @@ import { NotificationService } from '../../core/services/notification.service';
               <div class="space-y-3">
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Vốn ban đầu:</span>
-                  <span class="font-medium">{{ formatCurrency(portfolio.initialCapital) }}</span>
+                  <span class="font-medium">{{ portfolio.initialCapital | vndCurrency }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Tổng đầu tư:</span>
-                  <span class="font-medium">{{ formatCurrency(portfolio.totalInvested) }}</span>
+                  <span class="font-medium">{{ portfolio.totalInvested | vndCurrency }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Tổng bán:</span>
-                  <span class="font-medium">{{ formatCurrency(portfolio.totalSold) }}</span>
+                  <span class="font-medium">{{ portfolio.totalSold | vndCurrency }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Số mã CK:</span>
@@ -235,13 +236,6 @@ export class PortfoliosComponent implements OnInit {
         return aValue < bValue ? 1 : -1;
       }
     });
-  }
-
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
   }
 
   formatDate(dateString: string): string {
