@@ -56,7 +56,7 @@ public class Backtest : AggregateRoot
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
-    private Backtest() { }
+    public Backtest() { }
 
     public Backtest(string userId, string strategyId, string name,
         DateTime startDate, DateTime endDate, decimal initialCapital)

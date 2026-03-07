@@ -19,7 +19,7 @@ public class StockPrice : AggregateRoot
     public DateTime FetchedAt { get; private set; }
 
     [BsonConstructor]
-    private StockPrice() { } // For MongoDB
+    public StockPrice() { } // For MongoDB
 
     public StockPrice(string symbol, DateTime date, decimal open, decimal high, decimal low, decimal close, long volume, string source = "Manual")
     {

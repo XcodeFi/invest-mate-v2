@@ -19,7 +19,7 @@ public class MarketIndex : AggregateRoot
     public decimal ChangePercent { get; private set; }
 
     [BsonConstructor]
-    private MarketIndex() { } // For MongoDB
+    public MarketIndex() { } // For MongoDB
 
     public MarketIndex(string indexSymbol, DateTime date, decimal open, decimal high, decimal low, decimal close, long volume)
     {

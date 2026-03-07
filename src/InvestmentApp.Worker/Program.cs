@@ -1,10 +1,31 @@
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Domain.Entities;
 using InvestmentApp.Infrastructure.Repositories;
 using InvestmentApp.Infrastructure.Services;
 using InvestmentApp.Worker;
 using InvestmentApp.Worker.Jobs;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
+
+// Register MongoDB conventions and class maps (must run before any DB access)
+var conventionPack = new ConventionPack
+{
+    new IgnoreExtraElementsConvention(true)
+};
+ConventionRegistry.Register("InvestmentAppConventions", conventionPack, _ => true);
+
+if (!BsonClassMap.IsClassMapRegistered(typeof(AggregateRoot)))
+{
+    BsonClassMap.RegisterClassMap<AggregateRoot>(cm =>
+    {
+        cm.SetIsRootClass(true);
+        cm.MapIdMember(x => x.Id)
+          .SetSerializer(new MongoDB.Bson.Serialization.Serializers.StringSerializer(MongoDB.Bson.BsonType.String));
+        cm.MapMember(x => x.Version);
+    });
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 

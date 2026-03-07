@@ -1,6 +1,7 @@
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using EquityCurvePoint = InvestmentApp.Application.Interfaces.EquityCurvePoint;
 
 namespace InvestmentApp.Infrastructure.Services;
 

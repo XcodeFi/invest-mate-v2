@@ -13,6 +13,7 @@ public class CreateTradeCommand : IRequest<string>
     public decimal Price { get; set; }
     public decimal Fee { get; set; }
     public decimal Tax { get; set; }
+    public DateTime? TradeDate { get; set; }
 }
 
 public class CreateTradeCommandHandler : IRequestHandler<CreateTradeCommand, string>
@@ -49,7 +50,8 @@ public class CreateTradeCommandHandler : IRequestHandler<CreateTradeCommand, str
             request.Quantity,
             request.Price,
             request.Fee,
-            request.Tax);
+            request.Tax,
+            request.TradeDate);
 
         await _tradeRepository.AddAsync(trade, cancellationToken);
 

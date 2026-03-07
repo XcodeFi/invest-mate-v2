@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PnlService, OverallPnLSummary, PositionPnL } from '../../core/services/pnl.service';
-import { NotificationService } from '../../core/services/notification.service';
+import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../../core/services/analytics.service';
 
 @Component({
   selector: 'app-analytics',
@@ -17,17 +17,12 @@ import { NotificationService } from '../../core/services/notification.service';
               <h1 class="text-3xl font-bold text-gray-900">Phân tích Đầu tư</h1>
               <p class="text-gray-600 mt-1">Phân tích hiệu suất và phân bổ danh mục</p>
             </div>
-            <div class="flex space-x-3">
-              <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="1M">1 Tháng</option>
-                <option value="3M">3 Tháng</option>
-                <option value="6M">6 Tháng</option>
-                <option value="1Y">1 Năm</option>
-                <option value="ALL">Tất cả</option>
+            <div class="flex space-x-3" *ngIf="portfolioIds.length > 1">
+              <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                (change)="onPortfolioChange($event)">
+                <option value="">Tất cả danh mục</option>
+                <option *ngFor="let p of portfolioOptions" [value]="p.id">{{ p.name }}</option>
               </select>
-              <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200">
-                Xuất báo cáo
-              </button>
             </div>
           </div>
         </div>
@@ -64,9 +59,9 @@ import { NotificationService } from '../../core/services/notification.service';
                 </div>
               </div>
               <div class="ml-4">
-                <p class="text-sm font-medium text-gray-600">Beta</p>
-                <p class="text-2xl font-bold text-gray-900">1.12</p>
-                <p class="text-sm text-gray-600">So với VN-Index</p>
+                <p class="text-sm font-medium text-gray-600">Sharpe Ratio</p>
+                <p class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.sharpeRatio.toFixed(2) : '--' }}</p>
+                <p class="text-sm text-gray-600">Hiệu suất rủi ro</p>
               </div>
             </div>
           </div>
@@ -81,9 +76,9 @@ import { NotificationService } from '../../core/services/notification.service';
                 </div>
               </div>
               <div class="ml-4">
-                <p class="text-sm font-medium text-gray-600">Sharpe Ratio</p>
-                <p class="text-2xl font-bold text-gray-900">1.85</p>
-                <p class="text-sm text-gray-600">Hiệu suất rủi ro</p>
+                <p class="text-sm font-medium text-gray-600">Sortino Ratio</p>
+                <p class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.sortinoRatio.toFixed(2) : '--' }}</p>
+                <p class="text-sm text-gray-600">Rủi ro giảm giá</p>
               </div>
             </div>
           </div>
@@ -99,7 +94,7 @@ import { NotificationService } from '../../core/services/notification.service';
               </div>
               <div class="ml-4">
                 <p class="text-sm font-medium text-gray-600">Max Drawdown</p>
-                <p class="text-2xl font-bold text-red-600">-8.5%</p>
+                <p class="text-2xl font-bold text-red-600">{{ performanceData ? performanceData.maxDrawdown.toFixed(1) + '%' : '--' }}</p>
                 <p class="text-sm text-gray-600">Mất mát tối đa</p>
               </div>
             </div>
@@ -193,18 +188,45 @@ import { NotificationService } from '../../core/services/notification.service';
         <!-- Risk Metrics -->
         <div class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Chỉ số rủi ro</h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">12.5%</div>
-              <div class="text-sm text-gray-600">Volatility (Biến động)</div>
+              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.winRate.toFixed(1) + '%' : '--' }}</div>
+              <div class="text-sm text-gray-600">Win Rate</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">0.85</div>
-              <div class="text-sm text-gray-600">Sortino Ratio</div>
+              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.profitFactor.toFixed(2) : '--' }}</div>
+              <div class="text-sm text-gray-600">Profit Factor</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">15.2%</div>
+              <div class="text-2xl font-bold text-gray-900">{{ riskData ? riskData.valueAtRisk95.toFixed(1) + '%' : '--' }}</div>
               <div class="text-sm text-gray-600">Value at Risk (95%)</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? formatCurrency(performanceData.expectancy) : '--' }}</div>
+              <div class="text-sm text-gray-600">Expectancy</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trade Stats -->
+        <div *ngIf="performanceData" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Thống kê giao dịch</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-gray-900">{{ performanceData.totalTrades }}</div>
+              <div class="text-sm text-gray-600">Tổng GD</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-green-600">{{ performanceData.winningTrades }}</div>
+              <div class="text-sm text-gray-600">Lãi</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-red-600">{{ performanceData.losingTrades }}</div>
+              <div class="text-sm text-gray-600">Lỗ</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-gray-900">{{ performanceData.cagr.toFixed(1) }}%</div>
+              <div class="text-sm text-gray-600">CAGR</div>
             </div>
           </div>
         </div>
@@ -216,11 +238,16 @@ import { NotificationService } from '../../core/services/notification.service';
 export class AnalyticsComponent implements OnInit {
   summary: OverallPnLSummary | null = null;
   topHoldings: PositionPnL[] = [];
+  performanceData: PerformanceSummary | null = null;
+  riskData: PortfolioRiskSummary | null = null;
   isLoading = true;
+  portfolioIds: string[] = [];
+  portfolioOptions: { id: string; name: string }[] = [];
+  selectedPortfolioId = '';
 
   constructor(
     private pnlService: PnlService,
-    private notificationService: NotificationService
+    private analyticsService: AnalyticsService
   ) {}
 
   ngOnInit(): void {
@@ -232,17 +259,59 @@ export class AnalyticsComponent implements OnInit {
     this.pnlService.getSummary().subscribe({
       next: (data) => {
         this.summary = data;
-        // Flatten all positions across portfolios and sort by market value
         this.topHoldings = data.portfolios
           .flatMap(p => p.positions ?? [])
           .filter(pos => pos && pos.symbol)
           .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0));
+
+        this.portfolioIds = data.portfolios.map(p => p.portfolioId);
+        this.portfolioOptions = data.portfolios.map(p => ({ id: p.portfolioId, name: p.portfolioName }));
+
+        // Load performance metrics for the first portfolio (or selected)
+        if (this.portfolioIds.length > 0) {
+          const targetId = this.selectedPortfolioId || this.portfolioIds[0];
+          this.loadMetrics(targetId);
+        }
         this.isLoading = false;
       },
       error: () => {
         this.isLoading = false;
       }
     });
+  }
+
+  private loadMetrics(portfolioId: string): void {
+    this.analyticsService.getPerformance(portfolioId).subscribe({
+      next: (data) => this.performanceData = data,
+      error: () => this.performanceData = null
+    });
+
+    this.analyticsService.getRiskSummary(portfolioId).subscribe({
+      next: (data) => this.riskData = data,
+      error: () => this.riskData = null
+    });
+  }
+
+  onPortfolioChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.selectedPortfolioId = value;
+    if (value) {
+      this.loadMetrics(value);
+      // Filter holdings for selected portfolio
+      const portfolio = this.summary?.portfolios.find(p => p.portfolioId === value);
+      this.topHoldings = (portfolio?.positions ?? [])
+        .filter(pos => pos && pos.symbol)
+        .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0));
+    } else {
+      // Show all
+      this.topHoldings = (this.summary?.portfolios ?? [])
+        .flatMap(p => p.positions ?? [])
+        .filter(pos => pos && pos.symbol)
+        .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0));
+      if (this.portfolioIds.length > 0) {
+        this.loadMetrics(this.portfolioIds[0]);
+      }
+    }
   }
 
   get totalPnLPercent(): number {

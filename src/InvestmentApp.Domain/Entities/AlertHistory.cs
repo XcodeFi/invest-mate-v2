@@ -20,7 +20,7 @@ public class AlertHistory : AggregateRoot
     public DateTime TriggeredAt { get; private set; }
 
     [BsonConstructor]
-    private AlertHistory() { } // MongoDB
+    public AlertHistory() { } // MongoDB
 
     public AlertHistory(string userId, string alertRuleId, string alertType,
         string title, string message, string? portfolioId = null,

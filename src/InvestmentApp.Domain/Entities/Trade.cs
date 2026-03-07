@@ -17,9 +17,9 @@ public class Trade : AggregateRoot
     public string? StrategyId { get; private set; }
 
     [BsonConstructor]
-    private Trade() { } // For EF/MongoDB
+    public Trade() { } // For EF/MongoDB
 
-    public Trade(string portfolioId, string symbol, TradeType tradeType, decimal quantity, decimal price, decimal fee = 0, decimal tax = 0)
+    public Trade(string portfolioId, string symbol, TradeType tradeType, decimal quantity, decimal price, decimal fee = 0, decimal tax = 0, DateTime? tradeDate = null)
     {
         Id = Guid.NewGuid().ToString();
         PortfolioId = portfolioId ?? throw new ArgumentNullException(nameof(portfolioId));
@@ -29,7 +29,7 @@ public class Trade : AggregateRoot
         Price = price > 0 ? price : throw new ArgumentException("Price must be positive", nameof(price));
         Fee = fee >= 0 ? fee : throw new ArgumentException("Fee must be non-negative", nameof(fee));
         Tax = tax >= 0 ? tax : throw new ArgumentException("Tax must be non-negative", nameof(tax));
-        TradeDate = DateTime.UtcNow;
+        TradeDate = tradeDate ?? DateTime.UtcNow;
         CreatedAt = DateTime.UtcNow;
     }
 

@@ -18,7 +18,7 @@ public class RiskProfile : AggregateRoot
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
-    private RiskProfile() { } // MongoDB
+    public RiskProfile() { } // MongoDB
 
     public RiskProfile(string portfolioId, string userId,
         decimal maxPositionSizePercent = 20m,

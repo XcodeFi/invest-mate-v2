@@ -13,7 +13,7 @@ public class User : AggregateRoot
     public bool IsDeleted { get; private set; }
 
     [BsonConstructor]
-    private User() { } // For EF/MongoDB
+    public User() { } // For EF/MongoDB
 
     public User(string email, string name, string? avatar, string provider)
     {

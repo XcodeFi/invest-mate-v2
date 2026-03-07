@@ -12,7 +12,7 @@ public class ExchangeRate : AggregateRoot
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
-    private ExchangeRate() { }
+    public ExchangeRate() { }
 
     public ExchangeRate(string baseCurrency, string targetCurrency, decimal rate, DateTime date, string source = "manual")
     {

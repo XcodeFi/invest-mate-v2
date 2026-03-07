@@ -5,6 +5,12 @@
 
 # dotenv files
 .env
+.env.local
+.env.*.local
+
+# Production config files with secrets (use environment variables instead)
+appsettings.Production.json
+appsettings.*.Production.json
 
 # User-specific files
 *.rsuser

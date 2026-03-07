@@ -18,7 +18,7 @@ public class CapitalFlow : AggregateRoot
     public DateTime CreatedAt { get; private set; }
 
     [BsonConstructor]
-    private CapitalFlow() { } // For MongoDB
+    public CapitalFlow() { } // For MongoDB
 
     public CapitalFlow(string portfolioId, string userId, CapitalFlowType type, decimal amount, string currency = "VND", string? note = null, DateTime? flowDate = null)
     {

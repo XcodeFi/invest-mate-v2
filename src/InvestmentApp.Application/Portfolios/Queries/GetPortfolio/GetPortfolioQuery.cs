@@ -13,18 +13,22 @@ public class GetPortfolioQuery : IRequest<PortfolioDto?>
 public class GetPortfolioQueryHandler : IRequestHandler<GetPortfolioQuery, PortfolioDto?>
 {
     private readonly IPortfolioRepository _portfolioRepository;
+    private readonly ITradeRepository _tradeRepository;
 
-    public GetPortfolioQueryHandler(IPortfolioRepository portfolioRepository)
+    public GetPortfolioQueryHandler(IPortfolioRepository portfolioRepository, ITradeRepository tradeRepository)
     {
         _portfolioRepository = portfolioRepository;
+        _tradeRepository = tradeRepository;
     }
 
     public async Task<PortfolioDto?> Handle(GetPortfolioQuery request, CancellationToken cancellationToken)
     {
-        var portfolio = await _portfolioRepository.GetByIdWithTradesAsync(request.Id, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(request.Id, cancellationToken);
 
         if (portfolio == null || portfolio.UserId != request.UserId)
             return null;
+
+        var trades = await _tradeRepository.GetByPortfolioIdAsync(request.Id, cancellationToken);
 
         return new PortfolioDto
         {
@@ -32,7 +36,7 @@ public class GetPortfolioQueryHandler : IRequestHandler<GetPortfolioQuery, Portf
             Name = portfolio.Name,
             InitialCapital = portfolio.InitialCapital,
             CreatedAt = portfolio.CreatedAt,
-            Trades = portfolio.Trades.Select(t => new TradeDto
+            Trades = trades.Select(t => new TradeDto
             {
                 Id = t.Id,
                 Symbol = t.Symbol,

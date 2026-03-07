@@ -23,7 +23,7 @@ public class PortfolioSnapshotEntity : AggregateRoot
     public DateTime CreatedAt { get; private set; }
 
     [BsonConstructor]
-    private PortfolioSnapshotEntity() { } // For MongoDB
+    public PortfolioSnapshotEntity() { } // For MongoDB
 
     public PortfolioSnapshotEntity(
         string portfolioId,

@@ -1,6 +1,7 @@
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using EquityCurvePoint = InvestmentApp.Domain.Entities.EquityCurvePoint;
 
 namespace InvestmentApp.Infrastructure.Services;
 
@@ -61,7 +62,7 @@ public class BacktestEngine
             simulatedTrades.Add(new SimulatedTrade
             {
                 Symbol = symbol,
-                Type = TradeType.Buy,
+                Type = TradeType.BUY,
                 EntryPrice = entry.Close,
                 ExitPrice = exit.Close,
                 Quantity = quantity,

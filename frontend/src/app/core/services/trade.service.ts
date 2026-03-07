@@ -13,6 +13,7 @@ export interface CreateTradeRequest {
   price: number;
   fee: number;
   tax: number;
+  tradeDate?: string;
 }
 
 @Injectable({
