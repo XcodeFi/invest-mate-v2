@@ -8,6 +8,7 @@ import { PortfolioService, PortfolioSummary } from '../../../core/services/portf
 import { FeeService, FeeCalculationRequest, FeeCalculationResponse } from '../../../core/services/fee.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { TradeType } from '../../../shared/constants/trade-types';
+import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 
 interface StockSymbolEntry {
   symbol: string;
@@ -18,7 +19,7 @@ interface StockSymbolEntry {
 @Component({
   selector: 'app-trade-create',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -121,6 +122,7 @@ interface StockSymbolEntry {
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0.00" (input)="onFormChange()" #priceInput="ngModel" />
                   <p *ngIf="priceInput.invalid && priceInput.touched" class="mt-1 text-sm text-red-600">Phải lớn hơn 0</p>
+                  <p *ngIf="form.price > 0" class="mt-1 text-sm text-gray-500">{{ form.price | vndCurrency }}</p>
                 </div>
               </div>
 
@@ -129,13 +131,13 @@ interface StockSymbolEntry {
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Phí giao dịch</label>
                   <div class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-                    {{ isCalculatingFees ? 'Đang tính...' : (feeCalculation ? formatCurrency(feeCalculation.totalFees) : '0 VND') }}
+                    {{ isCalculatingFees ? 'Đang tính...' : (feeCalculation ? (feeCalculation.totalFees | vndCurrency) : '0 VND') }}
                   </div>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Thuế</label>
                   <div class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-                    {{ isCalculatingFees ? 'Đang tính...' : (feeCalculation ? formatCurrency(feeCalculation.breakdown.tax) : '0 VND') }}
+                    {{ isCalculatingFees ? 'Đang tính...' : (feeCalculation ? (feeCalculation.breakdown.tax | vndCurrency) : '0 VND') }}
                   </div>
                 </div>
               </div>
@@ -144,15 +146,15 @@ interface StockSymbolEntry {
               <div *ngIf="form.quantity > 0 && form.price > 0" class="bg-gray-50 rounded-lg p-4">
                 <h4 class="text-sm font-medium text-gray-700 mb-2">Tóm tắt lệnh</h4>
                 <div class="space-y-1 text-sm">
-                  <div class="flex justify-between"><span class="text-gray-600">Giá trị giao dịch:</span><span class="font-medium">{{ formatCurrency(form.quantity * form.price) }}</span></div>
+                  <div class="flex justify-between"><span class="text-gray-600">Giá trị giao dịch:</span><span class="font-medium">{{ form.quantity * form.price | vndCurrency }}</span></div>
                   <div *ngIf="feeCalculation" class="space-y-1">
-                    <div class="flex justify-between"><span class="text-gray-600">Phí giao dịch:</span><span>{{ formatCurrency(feeCalculation.breakdown.transactionFee) }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">VAT:</span><span>{{ formatCurrency(feeCalculation.breakdown.vat) }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">Thuế thu nhập:</span><span>{{ formatCurrency(feeCalculation.breakdown.tax) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">Phí giao dịch:</span><span>{{ feeCalculation.breakdown.transactionFee | vndCurrency }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">VAT:</span><span>{{ feeCalculation.breakdown.vat | vndCurrency }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">Thuế thu nhập:</span><span>{{ feeCalculation.breakdown.tax | vndCurrency }}</span></div>
                   </div>
                   <div *ngIf="!feeCalculation && !isCalculatingFees" class="text-yellow-600 text-xs">Không thể tính phí - vui lòng kiểm tra thông tin</div>
                   <hr class="my-1" />
-                  <div class="flex justify-between font-bold"><span>Tổng chi phí:</span><span>{{ feeCalculation ? formatCurrency(form.quantity * form.price + feeCalculation.totalFees) : formatCurrency(form.quantity * form.price) }}</span></div>
+                  <div class="flex justify-between font-bold"><span>Tổng chi phí:</span><span>{{ feeCalculation ? (form.quantity * form.price + feeCalculation.totalFees | vndCurrency) : (form.quantity * form.price | vndCurrency) }}</span></div>
                 </div>
               </div>
 
@@ -315,7 +317,4 @@ export class TradeCreateComponent implements OnInit {
     });
   }
 
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  }
 }

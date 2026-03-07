@@ -5,11 +5,12 @@ import { RouterModule } from '@angular/router';
 import { SnapshotService, Snapshot, SnapshotComparison } from '../../core/services/snapshot.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-snapshots',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Lịch sử & Time Travel</h1>
@@ -74,18 +75,18 @@ import { NotificationService } from '../../core/services/notification.service';
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="border rounded-lg p-3">
                 <div class="text-xs text-gray-500">Giá trị hiện tại</div>
-                <div class="text-lg font-bold text-gray-800">{{ formatCurrency(latestSnapshot?.totalValue || 0) }}</div>
+                <div class="text-lg font-bold text-gray-800">{{ (latestSnapshot?.totalValue || 0) | vndCurrency }}</div>
               </div>
               <div class="border rounded-lg p-3">
                 <div class="text-xs text-gray-500">Lãi/Lỗ chưa thực hiện</div>
                 <div class="text-lg font-bold" [ngClass]="(latestSnapshot?.unrealizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(latestSnapshot?.unrealizedPnL || 0) }}
+                  {{ (latestSnapshot?.unrealizedPnL || 0) | vndCurrency }}
                 </div>
               </div>
               <div class="border rounded-lg p-3">
                 <div class="text-xs text-gray-500">Lãi/Lỗ thực hiện</div>
                 <div class="text-lg font-bold" [ngClass]="(latestSnapshot?.realizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(latestSnapshot?.realizedPnL || 0) }}
+                  {{ (latestSnapshot?.realizedPnL || 0) | vndCurrency }}
                 </div>
               </div>
               <div class="border rounded-lg p-3">
@@ -114,11 +115,11 @@ import { NotificationService } from '../../core/services/notification.service';
                 <tbody>
                   <tr *ngFor="let snap of timeline" class="border-b hover:bg-gray-50 cursor-pointer" (click)="viewSnapshot(snap)">
                     <td class="px-4 py-3 text-sm font-medium">{{ snap.snapshotDate | date:'dd/MM/yyyy' }}</td>
-                    <td class="px-4 py-3 text-sm text-right font-semibold">{{ formatCurrency(snap.totalValue) }}</td>
-                    <td class="px-4 py-3 text-sm text-right">{{ formatCurrency(snap.cashBalance) }}</td>
-                    <td class="px-4 py-3 text-sm text-right">{{ formatCurrency(snap.investedValue) }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold">{{ snap.totalValue | vndCurrency }}</td>
+                    <td class="px-4 py-3 text-sm text-right">{{ snap.cashBalance | vndCurrency }}</td>
+                    <td class="px-4 py-3 text-sm text-right">{{ snap.investedValue | vndCurrency }}</td>
                     <td class="px-4 py-3 text-sm text-right font-medium" [ngClass]="snap.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                      {{ formatCurrency(snap.unrealizedPnL) }}
+                      {{ snap.unrealizedPnL | vndCurrency }}
                     </td>
                     <td class="px-4 py-3 text-sm text-right" [ngClass]="snap.dailyReturn >= 0 ? 'text-green-600' : 'text-red-600'">
                       {{ (snap.dailyReturn * 100).toFixed(2) }}%
@@ -154,22 +155,22 @@ import { NotificationService } from '../../core/services/notification.service';
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div class="border rounded-lg p-4">
                 <div class="text-xs text-gray-500">Tổng giá trị</div>
-                <div class="text-xl font-bold">{{ formatCurrency(lookupSnapshot_result.totalValue) }}</div>
+                <div class="text-xl font-bold">{{ lookupSnapshot_result.totalValue | vndCurrency }}</div>
               </div>
               <div class="border rounded-lg p-4">
                 <div class="text-xs text-gray-500">Tiền mặt</div>
-                <div class="text-xl font-bold">{{ formatCurrency(lookupSnapshot_result.cashBalance) }}</div>
+                <div class="text-xl font-bold">{{ lookupSnapshot_result.cashBalance | vndCurrency }}</div>
               </div>
               <div class="border rounded-lg p-4">
                 <div class="text-xs text-gray-500">Unrealized P&L</div>
                 <div class="text-xl font-bold" [ngClass]="lookupSnapshot_result.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(lookupSnapshot_result.unrealizedPnL) }}
+                  {{ lookupSnapshot_result.unrealizedPnL | vndCurrency }}
                 </div>
               </div>
               <div class="border rounded-lg p-4">
                 <div class="text-xs text-gray-500">Realized P&L</div>
                 <div class="text-xl font-bold" [ngClass]="lookupSnapshot_result.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(lookupSnapshot_result.realizedPnL) }}
+                  {{ lookupSnapshot_result.realizedPnL | vndCurrency }}
                 </div>
               </div>
             </div>
@@ -193,11 +194,11 @@ import { NotificationService } from '../../core/services/notification.service';
                   <tr *ngFor="let pos of lookupSnapshot_result.positions" class="border-b hover:bg-gray-50">
                     <td class="px-4 py-3 text-sm font-bold">{{ pos.symbol }}</td>
                     <td class="px-4 py-3 text-sm text-right">{{ pos.quantity | number }}</td>
-                    <td class="px-4 py-3 text-sm text-right">{{ formatCurrency(pos.averageCost) }}</td>
-                    <td class="px-4 py-3 text-sm text-right">{{ formatCurrency(pos.marketPrice) }}</td>
-                    <td class="px-4 py-3 text-sm text-right font-semibold">{{ formatCurrency(pos.marketValue) }}</td>
+                    <td class="px-4 py-3 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
+                    <td class="px-4 py-3 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold">{{ pos.marketValue | vndCurrency }}</td>
                     <td class="px-4 py-3 text-sm text-right font-medium" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                      {{ formatCurrency(pos.unrealizedPnL) }}
+                      {{ pos.unrealizedPnL | vndCurrency }}
                     </td>
                     <td class="px-4 py-3 text-sm text-right">{{ (pos.weight * 100).toFixed(1) }}%</td>
                   </tr>
@@ -244,7 +245,7 @@ import { NotificationService } from '../../core/services/notification.service';
               <div class="border-2 rounded-lg p-4" [ngClass]="comparison.valueChange >= 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'">
                 <div class="text-sm text-gray-600">Thay đổi giá trị</div>
                 <div class="text-2xl font-bold" [ngClass]="comparison.valueChange >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ comparison.valueChange >= 0 ? '+' : '' }}{{ formatCurrency(comparison.valueChange) }}
+                  {{ comparison.valueChange >= 0 ? '+' : '' }}{{ comparison.valueChange | vndCurrency }}
                 </div>
               </div>
               <div class="border-2 rounded-lg p-4" [ngClass]="comparison.valueChangePercent >= 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'">
@@ -269,12 +270,12 @@ import { NotificationService } from '../../core/services/notification.service';
                   📅 {{ comparison.snapshot1?.snapshotDate | date:'dd/MM/yyyy' }}
                 </h3>
                 <div *ngIf="comparison.snapshot1" class="space-y-2">
-                  <div class="flex justify-between"><span class="text-gray-500">Tổng GT:</span><span class="font-semibold">{{ formatCurrency(comparison.snapshot1.totalValue) }}</span></div>
-                  <div class="flex justify-between"><span class="text-gray-500">Tiền mặt:</span><span>{{ formatCurrency(comparison.snapshot1.cashBalance) }}</span></div>
-                  <div class="flex justify-between"><span class="text-gray-500">Đầu tư:</span><span>{{ formatCurrency(comparison.snapshot1.investedValue) }}</span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Tổng GT:</span><span class="font-semibold">{{ comparison.snapshot1.totalValue | vndCurrency }}</span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Tiền mặt:</span><span>{{ comparison.snapshot1.cashBalance | vndCurrency }}</span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Đầu tư:</span><span>{{ comparison.snapshot1.investedValue | vndCurrency }}</span></div>
                   <div class="flex justify-between"><span class="text-gray-500">Unrealized P&L:</span>
                     <span [ngClass]="comparison.snapshot1.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'" class="font-semibold">
-                      {{ formatCurrency(comparison.snapshot1.unrealizedPnL) }}
+                      {{ comparison.snapshot1.unrealizedPnL | vndCurrency }}
                     </span>
                   </div>
                   <div class="flex justify-between"><span class="text-gray-500">Lợi suất:</span>
@@ -293,12 +294,12 @@ import { NotificationService } from '../../core/services/notification.service';
                   📅 {{ comparison.snapshot2?.snapshotDate | date:'dd/MM/yyyy' }}
                 </h3>
                 <div *ngIf="comparison.snapshot2" class="space-y-2">
-                  <div class="flex justify-between"><span class="text-gray-500">Tổng GT:</span><span class="font-semibold">{{ formatCurrency(comparison.snapshot2.totalValue) }}</span></div>
-                  <div class="flex justify-between"><span class="text-gray-500">Tiền mặt:</span><span>{{ formatCurrency(comparison.snapshot2.cashBalance) }}</span></div>
-                  <div class="flex justify-between"><span class="text-gray-500">Đầu tư:</span><span>{{ formatCurrency(comparison.snapshot2.investedValue) }}</span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Tổng GT:</span><span class="font-semibold">{{ comparison.snapshot2.totalValue | vndCurrency }}</span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Tiền mặt:</span><span>{{ comparison.snapshot2.cashBalance | vndCurrency }}</span></div>
+                  <div class="flex justify-between"><span class="text-gray-500">Đầu tư:</span><span>{{ comparison.snapshot2.investedValue | vndCurrency }}</span></div>
                   <div class="flex justify-between"><span class="text-gray-500">Unrealized P&L:</span>
                     <span [ngClass]="comparison.snapshot2.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'" class="font-semibold">
-                      {{ formatCurrency(comparison.snapshot2.unrealizedPnL) }}
+                      {{ comparison.snapshot2.unrealizedPnL | vndCurrency }}
                     </span>
                   </div>
                   <div class="flex justify-between"><span class="text-gray-500">Lợi suất:</span>
@@ -329,16 +330,16 @@ import { NotificationService } from '../../core/services/notification.service';
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="border rounded p-3">
                 <div class="text-xs text-gray-500">Tổng GT</div>
-                <div class="font-bold">{{ formatCurrency(selectedSnapshot.totalValue) }}</div>
+                <div class="font-bold">{{ selectedSnapshot.totalValue | vndCurrency }}</div>
               </div>
               <div class="border rounded p-3">
                 <div class="text-xs text-gray-500">Tiền mặt</div>
-                <div class="font-bold">{{ formatCurrency(selectedSnapshot.cashBalance) }}</div>
+                <div class="font-bold">{{ selectedSnapshot.cashBalance | vndCurrency }}</div>
               </div>
               <div class="border rounded p-3">
                 <div class="text-xs text-gray-500">Unrealized P&L</div>
                 <div class="font-bold" [ngClass]="selectedSnapshot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ formatCurrency(selectedSnapshot.unrealizedPnL) }}
+                  {{ selectedSnapshot.unrealizedPnL | vndCurrency }}
                 </div>
               </div>
               <div class="border rounded p-3">
@@ -366,11 +367,11 @@ import { NotificationService } from '../../core/services/notification.service';
                   <tr *ngFor="let pos of selectedSnapshot.positions" class="border-b">
                     <td class="px-3 py-2 text-sm font-bold">{{ pos.symbol }}</td>
                     <td class="px-3 py-2 text-sm text-right">{{ pos.quantity | number }}</td>
-                    <td class="px-3 py-2 text-sm text-right">{{ formatCurrency(pos.averageCost) }}</td>
-                    <td class="px-3 py-2 text-sm text-right">{{ formatCurrency(pos.marketPrice) }}</td>
-                    <td class="px-3 py-2 text-sm text-right font-semibold">{{ formatCurrency(pos.marketValue) }}</td>
+                    <td class="px-3 py-2 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
+                    <td class="px-3 py-2 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
+                    <td class="px-3 py-2 text-sm text-right font-semibold">{{ pos.marketValue | vndCurrency }}</td>
                     <td class="px-3 py-2 text-sm text-right" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                      {{ formatCurrency(pos.unrealizedPnL) }}
+                      {{ pos.unrealizedPnL | vndCurrency }}
                     </td>
                     <td class="px-3 py-2 text-sm text-right">{{ (pos.weight * 100).toFixed(1) }}%</td>
                   </tr>
@@ -520,7 +521,4 @@ export class SnapshotsComponent implements OnInit {
     this.selectedSnapshot = snap;
   }
 
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'decimal', maximumFractionDigits: 0 }).format(value) + ' đ';
-  }
 }

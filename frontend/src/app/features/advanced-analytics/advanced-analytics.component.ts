@@ -7,11 +7,12 @@ import {
 } from '../../core/services/advanced-analytics.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-advanced-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Phân tích Nâng cao</h1>
@@ -102,7 +103,7 @@ import { NotificationService } from '../../core/services/notification.service';
                 <div class="bg-gray-50 rounded-lg p-4">
                   <div class="text-sm text-gray-500">Expectancy</div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.expectancy > 0" [class.text-red-600]="performance.expectancy <= 0">
-                    {{ formatCurrency(performance.expectancy) }}
+                    {{ performance.expectancy | vndCurrency }}
                   </div>
                   <div class="text-xs text-gray-500 mt-1">Kỳ vọng lợi nhuận trung bình / giao dịch</div>
                 </div>
@@ -114,17 +115,17 @@ import { NotificationService } from '../../core/services/notification.service';
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4">
                   <div class="text-sm text-gray-500">Trung bình thắng</div>
-                  <div class="text-xl font-bold text-green-600">{{ formatCurrency(performance.averageWin) }}</div>
+                  <div class="text-xl font-bold text-green-600">{{ performance.averageWin | vndCurrency }}</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4">
                   <div class="text-sm text-gray-500">Trung bình thua</div>
-                  <div class="text-xl font-bold text-red-600">{{ formatCurrency(performance.averageLoss) }}</div>
+                  <div class="text-xl font-bold text-red-600">{{ performance.averageLoss | vndCurrency }}</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4">
                   <div class="text-sm text-gray-500">Gross P/L</div>
                   <div class="flex justify-between">
-                    <span class="text-green-600 font-medium">+{{ formatCurrency(performance.grossProfit) }}</span>
-                    <span class="text-red-600 font-medium">{{ formatCurrency(performance.grossLoss) }}</span>
+                    <span class="text-green-600 font-medium">+{{ performance.grossProfit | vndCurrency }}</span>
+                    <span class="text-red-600 font-medium">{{ performance.grossLoss | vndCurrency }}</span>
                   </div>
                 </div>
               </div>
@@ -156,7 +157,7 @@ import { NotificationService } from '../../core/services/notification.service';
                     <tbody class="bg-white divide-y divide-gray-200">
                       <tr *ngFor="let point of equityCurve.points">
                         <td class="px-4 py-2 text-sm">{{ point.date | date:'dd/MM/yyyy' }}</td>
-                        <td class="px-4 py-2 text-right text-sm font-medium">{{ formatCurrency(point.portfolioValue) }}</td>
+                        <td class="px-4 py-2 text-right text-sm font-medium">{{ point.portfolioValue | vndCurrency }}</td>
                         <td class="px-4 py-2 text-right text-sm"
                           [class.text-green-600]="point.dailyReturn > 0"
                           [class.text-red-600]="point.dailyReturn < 0">
@@ -291,7 +292,4 @@ export class AdvancedAnalyticsComponent implements OnInit {
     return item ? item.returnPercent : null;
   }
 
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
-  }
 }

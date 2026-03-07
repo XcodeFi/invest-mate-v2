@@ -6,11 +6,12 @@ import { PortfolioService, TradeResponseItem } from '../../../core/services/port
 import { NotificationService } from '../../../core/services/notification.service';
 import { TradeService } from '../../../core/services/trade.service';
 import { getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } from '../../../shared/constants/trade-types';
+import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-portfolio-trades',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -94,10 +95,10 @@ import { getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } fro
                     </span>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ trade.quantity }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(trade.price) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(trade.totalValue) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(trade.fee) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(trade.tax) }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ trade.price | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ trade.totalValue | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ trade.fee | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ trade.tax | vndCurrency }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ formatDate(trade.tradeDate) }}</td>
                   <td class="px-6 py-4 text-sm">
                     <button (click)="deleteTrade(trade.id)" class="text-red-600 hover:text-red-900">Xóa</button>
@@ -207,10 +208,6 @@ export class PortfolioTradesComponent implements OnInit {
         this.notificationService.error('Lỗi', 'Không thể xóa giao dịch');
       }
     });
-  }
-
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   }
 
   formatDate(dateString: string): string {

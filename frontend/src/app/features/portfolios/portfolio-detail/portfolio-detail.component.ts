@@ -5,11 +5,12 @@ import { PortfolioService, PortfolioDetail } from '../../../core/services/portfo
 import { PnlService, PortfolioPnL } from '../../../core/services/pnl.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { getTradeTypeDisplay, getTradeTypeClass } from '../../../shared/constants/trade-types';
+import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-portfolio-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -56,22 +57,22 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../../shared/constant
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Vốn ban đầu</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(portfolio.initialCapital) }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ portfolio.initialCapital | vndCurrency }}</p>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Giá trị thị trường</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(pnl?.totalMarketValue || 0) }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ (pnl?.totalMarketValue || 0) | vndCurrency }}</p>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Lãi/Lỗ chưa thực hiện</p>
             <p class="text-2xl font-bold mt-1" [class]="(pnl?.totalUnrealizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ formatCurrency(pnl?.totalUnrealizedPnL || 0) }}
+              {{ (pnl?.totalUnrealizedPnL || 0) | vndCurrency }}
             </p>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Lãi/Lỗ đã thực hiện</p>
             <p class="text-2xl font-bold mt-1" [class]="(pnl?.totalRealizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ formatCurrency(pnl?.totalRealizedPnL || 0) }}
+              {{ (pnl?.totalRealizedPnL || 0) | vndCurrency }}
             </p>
           </div>
         </div>
@@ -98,11 +99,11 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../../shared/constant
                 <tr *ngFor="let pos of pnl.positions" class="hover:bg-gray-50">
                   <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ pos.symbol }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.quantity }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(pos.averageCost) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(pos.currentPrice) }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(pos.marketValue) }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ pos.averageCost | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ pos.currentPrice | vndCurrency }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ pos.marketValue | vndCurrency }}</td>
                   <td class="px-6 py-4 text-sm" [class]="pos.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(pos.totalPnL) }}
+                    {{ pos.totalPnL | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 text-sm" [class]="pos.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'">
                     {{ pos.totalPnLPercent.toFixed(2) }}%
@@ -142,7 +143,7 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../../shared/constant
                     </span>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ trade.quantity }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{{ formatCurrency(trade.price) }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">{{ trade.price | vndCurrency }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ formatDate(trade.tradeDate) }}</td>
                 </tr>
               </tbody>
@@ -226,10 +227,6 @@ export class PortfolioDetailComponent implements OnInit {
         this.notificationService.error('Lỗi', 'Không thể xóa danh mục');
       }
     });
-  }
-
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   }
 
   formatDate(dateString: string): string {

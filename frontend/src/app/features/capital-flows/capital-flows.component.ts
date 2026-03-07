@@ -5,11 +5,12 @@ import { RouterModule } from '@angular/router';
 import { CapitalFlowService, CapitalFlowItem, CapitalFlowHistory, AdjustedReturn } from '../../core/services/capital-flow.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-capital-flows',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Dòng vốn</h1>
@@ -57,6 +58,7 @@ import { NotificationService } from '../../core/services/notification.service';
               [(ngModel)]="newFlow.amount"
               placeholder="0"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <p *ngIf="newFlow.amount > 0" class="mt-1 text-sm text-gray-500">{{ newFlow.amount | vndCurrency }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Ngày</label>
@@ -97,20 +99,20 @@ import { NotificationService } from '../../core/services/notification.service';
       <div *ngIf="selectedPortfolioId" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow p-4">
           <div class="text-sm text-gray-500">Tổng nạp</div>
-          <div class="text-xl font-bold text-green-600">{{ formatCurrency(flowHistory?.totalDeposits || 0) }}</div>
+          <div class="text-xl font-bold text-green-600">{{ (flowHistory?.totalDeposits || 0) | vndCurrency }}</div>
         </div>
         <div class="bg-white rounded-lg shadow p-4">
           <div class="text-sm text-gray-500">Tổng rút</div>
-          <div class="text-xl font-bold text-red-600">{{ formatCurrency(flowHistory?.totalWithdrawals || 0) }}</div>
+          <div class="text-xl font-bold text-red-600">{{ (flowHistory?.totalWithdrawals || 0) | vndCurrency }}</div>
         </div>
         <div class="bg-white rounded-lg shadow p-4">
           <div class="text-sm text-gray-500">Cổ tức nhận</div>
-          <div class="text-xl font-bold text-blue-600">{{ formatCurrency(flowHistory?.totalDividends || 0) }}</div>
+          <div class="text-xl font-bold text-blue-600">{{ (flowHistory?.totalDividends || 0) | vndCurrency }}</div>
         </div>
         <div class="bg-white rounded-lg shadow p-4">
           <div class="text-sm text-gray-500">Dòng vốn ròng</div>
           <div class="text-xl font-bold" [ngClass]="(flowHistory?.netCashFlow || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-            {{ formatCurrency(flowHistory?.netCashFlow || 0) }}
+            {{ (flowHistory?.netCashFlow || 0) | vndCurrency }}
           </div>
         </div>
       </div>
@@ -166,7 +168,7 @@ import { NotificationService } from '../../core/services/notification.service';
                 </td>
                 <td class="px-4 py-3 text-sm text-right font-semibold"
                   [ngClass]="isInflow(flow.type) ? 'text-green-600' : 'text-red-600'">
-                  {{ isInflow(flow.type) ? '+' : '-' }}{{ formatCurrency(flow.amount) }}
+                  {{ isInflow(flow.type) ? '+' : '-' }}{{ flow.amount | vndCurrency }}
                 </td>
                 <td class="px-4 py-3 text-sm">{{ flow.currency }}</td>
                 <td class="px-4 py-3 text-sm text-gray-500">{{ flow.note || '-' }}</td>
@@ -329,7 +331,4 @@ export class CapitalFlowsComponent implements OnInit {
     return ['Deposit', 'Dividend', 'Interest'].includes(type);
   }
 
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('vi-VN', { style: 'decimal', maximumFractionDigits: 0 }).format(value) + ' đ';
-  }
 }

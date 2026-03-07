@@ -6,11 +6,12 @@ import { PortfolioService, PortfolioSummary, TradeResponseItem } from '../../cor
 import { TradeService } from '../../core/services/trade.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { TradeType, getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } from '../../shared/constants/trade-types';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-trades',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -116,16 +117,16 @@ import { TradeType, getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OP
                     {{ trade.quantity }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatCurrency(trade.price) }}
+                    {{ trade.price | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatCurrency(trade.totalValue) }}
+                    {{ trade.totalValue | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatCurrency(trade.fee) }}
+                    {{ trade.fee | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatCurrency(trade.tax) }}
+                    {{ trade.tax | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ formatDate(trade.tradeDate) }}
@@ -317,13 +318,6 @@ export class TradesComponent implements OnInit {
         }
       });
     }
-  }
-
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
   }
 
   formatDate(dateString: string): string {
