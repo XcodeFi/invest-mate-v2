@@ -22,7 +22,7 @@ public class Strategy : AggregateRoot
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
-    private Strategy() { } // MongoDB
+    public Strategy() { } // MongoDB
 
     public Strategy(string userId, string name, string description,
         string entryRules, string exitRules, string riskRules,

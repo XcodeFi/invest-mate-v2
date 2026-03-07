@@ -16,7 +16,7 @@ public class Portfolio : AggregateRoot
     public IReadOnlyCollection<Trade> Trades => _trades.AsReadOnly();
 
     [BsonConstructor]
-    private Portfolio() { } // For EF/MongoDB
+    public Portfolio() { } // For EF/MongoDB
 
     public Portfolio(string userId, string name, decimal initialCapital)
     {

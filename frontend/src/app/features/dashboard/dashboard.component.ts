@@ -117,9 +117,9 @@ import { NotificationService } from '../../core/services/notification.service';
                   <p class="text-sm text-gray-600">Vốn: {{ formatCurrency(portfolio.initialCapital) }}</p>
                 </div>
                 <div class="text-right">
-                  <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(portfolio.totalMarketValue ?? 0) }}</p>
-                  <p class="text-sm" [class]="(portfolio.totalPnL ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ formatCurrency(portfolio.totalPnL ?? 0) }} ({{ (portfolio.totalPnLPercent ?? 0).toFixed(2) }}%)
+                  <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(safeNumber(portfolio.totalMarketValue)) }}</p>
+                  <p class="text-sm" [class]="safeNumber(portfolio.totalPnL) >= 0 ? 'text-green-600' : 'text-red-600'">
+                    {{ formatCurrency(safeNumber(portfolio.totalPnL)) }} ({{ safeNumber(portfolio.totalPnLPercent).toFixed(2) }}%)
                   </p>
                 </div>
                 <div class="ml-6">
@@ -161,11 +161,15 @@ export class DashboardComponent implements OnInit {
 
   get pnlSummary() {
     return {
-      totalRealizedPnL: this.summary?.totalRealizedPnL || 0,
-      totalUnrealizedPnL: this.summary?.totalUnrealizedPnL || 0,
-      totalPortfolioValue: this.summary?.totalMarketValue || 0,
-      totalInvested: this.summary?.totalInvested || 0
+      totalRealizedPnL: this.safeNumber(this.summary?.totalRealizedPnL),
+      totalUnrealizedPnL: this.safeNumber(this.summary?.totalUnrealizedPnL),
+      totalPortfolioValue: this.safeNumber(this.summary?.totalMarketValue),
+      totalInvested: this.safeNumber(this.summary?.totalInvested)
     };
+  }
+
+  safeNumber(value: number | undefined | null): number {
+    return (value != null && isFinite(value)) ? value : 0;
   }
 
   get portfolios(): PortfolioPnL[] {

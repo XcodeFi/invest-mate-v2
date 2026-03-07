@@ -31,7 +31,7 @@ public class TradeJournal : AggregateRoot
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
-    private TradeJournal() { } // MongoDB
+    public TradeJournal() { } // MongoDB
 
     public TradeJournal(string tradeId, string userId, string portfolioId,
         string entryReason, string marketContext, string technicalSetup,

@@ -2,11 +2,18 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { TradeService, CreateTradeRequest } from '../../../core/services/trade.service';
 import { PortfolioService, PortfolioSummary } from '../../../core/services/portfolio.service';
 import { FeeService, FeeCalculationRequest, FeeCalculationResponse } from '../../../core/services/fee.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { TradeType, TRADE_TYPE_FILTER_OPTIONS } from '../../../shared/constants/trade-types';
+import { TradeType } from '../../../shared/constants/trade-types';
+
+interface StockSymbolEntry {
+  symbol: string;
+  name: string;
+  exchange: string;
+}
 
 @Component({
   selector: 'app-trade-create',
@@ -67,25 +74,46 @@ import { TradeType, TRADE_TYPE_FILTER_OPTIONS } from '../../../shared/constants/
                 </div>
               </div>
 
-              <!-- Symbol -->
-              <div>
+              <!-- Symbol with Autocomplete -->
+              <div class="relative">
                 <label for="symbol" class="block text-sm font-medium text-gray-700 mb-1">Mã chứng khoán <span class="text-red-500">*</span></label>
                 <input type="text" id="symbol" name="symbol" [(ngModel)]="form.symbol" required
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
-                  placeholder="VD: AAPL, VNM, VIC..."
-                  (input)="onFormChange()"
+                  placeholder="VD: VNM, VIC, FPT..."
+                  (input)="onSymbolInput($event); onFormChange()"
+                  (focus)="showSymbolDropdown = true"
+                  (blur)="hideDropdownDelayed()"
+                  autocomplete="off"
                   #symbolInput="ngModel" />
                 <p *ngIf="symbolInput.invalid && symbolInput.touched" class="mt-1 text-sm text-red-600">Mã chứng khoán là bắt buộc</p>
+                <!-- Autocomplete Dropdown -->
+                <div *ngIf="showSymbolDropdown && filteredSymbols.length > 0"
+                  class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div *ngFor="let s of filteredSymbols"
+                    class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                    (mousedown)="selectSymbol(s.symbol)">
+                    <span class="font-semibold text-gray-900">{{ s.symbol }}</span>
+                    <span class="text-gray-500 ml-2">{{ s.name }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Trade Date -->
+              <div>
+                <label for="tradeDate" class="block text-sm font-medium text-gray-700 mb-1">Ngày giao dịch</label>
+                <input type="datetime-local" id="tradeDate" name="tradeDate" [(ngModel)]="form.tradeDate"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <p class="mt-1 text-xs text-gray-500">Mặc định là ngày giờ hiện tại nếu để trống</p>
               </div>
 
               <!-- Quantity & Price -->
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng <span class="text-red-500">*</span></label>
-                  <input type="number" id="quantity" name="quantity" [(ngModel)]="form.quantity" required min="1"
+                  <input type="number" id="quantity" name="quantity" [(ngModel)]="form.quantity" required min="100" step="100"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0" (input)="onFormChange()" #qtyInput="ngModel" />
-                  <p *ngIf="qtyInput.invalid && qtyInput.touched" class="mt-1 text-sm text-red-600">Phải lớn hơn 0</p>
+                    placeholder="100" (input)="onFormChange()" #qtyInput="ngModel" />
+                  <p *ngIf="qtyInput.invalid && qtyInput.touched" class="mt-1 text-sm text-red-600">Tối thiểu 100, bước nhảy 100</p>
                 </div>
                 <div>
                   <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Giá <span class="text-red-500">*</span></label>
@@ -155,18 +183,25 @@ export class TradeCreateComponent implements OnInit {
     quantity: 0,
     price: 0,
     fee: 0,
-    tax: 0
+    tax: 0,
+    tradeDate: ''
   };
   isSubmitting = false;
   isCalculatingFees = false;
   feeCalculation: FeeCalculationResponse | null = null;
+
+  // Symbol autocomplete
+  allSymbols: StockSymbolEntry[] = [];
+  filteredSymbols: StockSymbolEntry[] = [];
+  showSymbolDropdown = false;
 
   constructor(
     private tradeService: TradeService,
     private portfolioService: PortfolioService,
     private feeService: FeeService,
     private notificationService: NotificationService,
-    private router: Router
+    private router: Router,
+    private http: HttpClient
   ) {}
 
   // Trade type enum
@@ -178,27 +213,40 @@ export class TradeCreateComponent implements OnInit {
       error: () => this.notificationService.error('Lỗi', 'Không thể tải danh sách danh mục')
     });
 
-    // Auto-calculate fees when form values change
-    this.setupFeeCalculation();
+    // Load stock symbols for autocomplete
+    this.http.get<StockSymbolEntry[]>('assets/data/vn-stock-symbols.json').subscribe({
+      next: (data) => this.allSymbols = data,
+      error: () => console.warn('Could not load stock symbols')
+    });
+
+    // Set default trade date to now
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    this.form.tradeDate = now.toISOString().slice(0, 16);
   }
 
-  setupFeeCalculation(): void {
-    // Simple debounce for fee calculation
-    let timeoutId: any;
-    const calculate = () => {
-      if (this.form.symbol && this.form.quantity > 0 && this.form.price > 0) {
-        this.calculateFees();
-      } else {
-        this.feeCalculation = null;
-      }
-    };
+  onSymbolInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value.toUpperCase();
+    if (value.length > 0) {
+      this.filteredSymbols = this.allSymbols.filter(s =>
+        s.symbol.includes(value) || s.name.toLowerCase().includes(value.toLowerCase())
+      ).slice(0, 10);
+      this.showSymbolDropdown = true;
+    } else {
+      this.filteredSymbols = [];
+      this.showSymbolDropdown = false;
+    }
+  }
 
-    // Watch for changes in relevant form fields
-    const watchFields = ['symbol', 'tradeType', 'quantity', 'price'];
-    watchFields.forEach(field => {
-      // Since we're using ngModel, we'll trigger calculation on key events
-      // This is a simple approach - in a real app you might use reactive forms
-    });
+  selectSymbol(symbol: string): void {
+    this.form.symbol = symbol;
+    this.filteredSymbols = [];
+    this.showSymbolDropdown = false;
+    this.onFormChange();
+  }
+
+  hideDropdownDelayed(): void {
+    setTimeout(() => this.showSymbolDropdown = false, 200);
   }
 
   calculateFees(): void {
@@ -251,7 +299,8 @@ export class TradeCreateComponent implements OnInit {
       quantity: this.form.quantity,
       price: this.form.price,
       fee: this.feeCalculation.totalFees,
-      tax: this.feeCalculation.breakdown.tax
+      tax: this.feeCalculation.breakdown.tax,
+      tradeDate: this.form.tradeDate || undefined
     };
 
     this.tradeService.create(payload).subscribe({

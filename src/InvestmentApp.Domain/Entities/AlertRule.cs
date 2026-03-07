@@ -22,7 +22,7 @@ public class AlertRule : AggregateRoot
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
-    private AlertRule() { } // MongoDB
+    public AlertRule() { } // MongoDB
 
     public AlertRule(string userId, string name, string alertType,
         string condition, decimal threshold, string channel,

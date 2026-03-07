@@ -23,7 +23,7 @@ public class StopLossTarget : AggregateRoot
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
-    private StopLossTarget() { } // MongoDB
+    public StopLossTarget() { } // MongoDB
 
     public StopLossTarget(string tradeId, string portfolioId, string userId, string symbol,
         decimal entryPrice, decimal stopLossPrice, decimal targetPrice,
