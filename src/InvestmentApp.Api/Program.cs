@@ -160,6 +160,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false;
     var jwtKey = builder.Configuration["Jwt:Key"]!;
     options.TokenValidationParameters = new TokenValidationParameters
     {
