@@ -17,15 +17,18 @@ public class AuthController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
     private readonly IAuditService _auditService;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         IUserRepository userRepository,
         IJwtService jwtService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
         _jwtService = jwtService;
         _auditService = auditService;
+        _configuration = configuration;
     }
 
     [HttpGet("google/login")]
@@ -171,7 +174,8 @@ public class AuthController : ControllerBase
             }
 
             // For web browsers, redirect to frontend
-            var frontendUrl = $"http://localhost:4200/auth/callback?token={token}";
+            var frontendBaseUrl = _configuration["FrontendUrl"] ?? "http://localhost:4200";
+            var frontendUrl = $"{frontendBaseUrl}/auth/callback?token={token}";
             return Redirect(frontendUrl);
         }
         catch (Exception ex)
