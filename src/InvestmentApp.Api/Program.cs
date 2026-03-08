@@ -24,7 +24,11 @@ using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
 using Serilog;
 using Swashbuckle.AspNetCore;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+
+// Disable default JWT claim type mapping so "sub" stays as "sub"
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 // Register MongoDB conventions before any class maps are created
 var conventionPack = new ConventionPack
