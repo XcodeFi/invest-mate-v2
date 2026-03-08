@@ -9,8 +9,8 @@ using InvestmentApp.Infrastructure.Persistence;
 using InvestmentApp.Infrastructure.Repositories;
 using InvestmentApp.Infrastructure.Services;
 using FluentValidation.AspNetCore;
-using MediatR;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -241,6 +241,10 @@ if (enableSwagger)
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    });
     app.UseHttpsRedirection();
 }
 app.UseCookiePolicy(new CookiePolicyOptions
