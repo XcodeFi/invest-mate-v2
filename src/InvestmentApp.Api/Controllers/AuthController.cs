@@ -175,7 +175,7 @@ public class AuthController : ControllerBase
 
             // For web browsers, redirect to frontend
             var frontendBaseUrl = _configuration["FrontendUrl"] ?? "http://localhost:4200";
-            var frontendUrl = $"{frontendBaseUrl}/#/auth/callback?token={token}";
+            var frontendUrl = $"{frontendBaseUrl}/auth/callback?token={token}";
             return Redirect(frontendUrl);
         }
         catch (Exception ex)
