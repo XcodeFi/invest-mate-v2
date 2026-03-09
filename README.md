@@ -21,6 +21,13 @@ Hệ thống quản lý danh mục đầu tư doanh nghiệp được xây dựn
 - **Real-time P&L**: Tính toán lãi/lỗ thời gian thực
 - **Position Monitoring**: Giám sát vị thế đầu tư chi tiết
 
+### 📋 Chiến lược & Quản lý Rủi ro
+
+- **14 Strategy Templates**: Chiến lược mẫu từ Beginner đến Advanced (Value Investing, CANSLIM, Trend Following, DCA, Core-Satellite...)
+- **4 Risk Profiles**: Mức rủi ro từ Bảo thủ → Mạo hiểm, tự động cấu hình khi tạo danh mục
+- **Gợi ý thông minh**: Mỗi chiến lược có Entry/Exit/Risk rules chi tiết, gợi ý khi nào nên dùng
+- **Seed Data tự động**: Templates được khởi tạo sẵn khi app chạy lần đầu
+
 ### 💰 Tính toán P&L Nâng cao
 - **Average Cost Method**: Phương pháp chi phí trung bình chuẩn xác
 - **Realized vs Unrealized P&L**: Phân biệt lãi/lỗ đã thực hiện và chưa thực hiện
@@ -107,6 +114,7 @@ Chi tiết cài đặt xem [docs/getting-started.md](docs/getting-started.md)
 
 - [🚀 Bắt đầu](docs/getting-started.md) - Hướng dẫn cài đặt chi tiết
 - [🏗️ Kiến trúc](docs/architecture.md) - Thiết kế hệ thống
+- [📋 Chiến lược & Rủi ro](docs/strategy-templates.md) - 14 chiến lược mẫu & 4 mức rủi ro
 - [🔧 API Documentation](docs/api.md) - REST API endpoints
 - [🤖 AI Agent Guide](AI_AGENT_GUIDE_ENTERPRISE.md) - Hướng dẫn cho AI development
 

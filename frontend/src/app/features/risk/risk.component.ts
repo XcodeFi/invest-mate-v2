@@ -9,6 +9,7 @@ import {
 } from '../../core/services/risk.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { TemplateService, RiskProfileTemplate } from '../../core/services/template.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
@@ -311,6 +312,60 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             <!-- Risk Profile Tab -->
             <div *ngIf="activeTab === 'profile'">
               <h3 class="text-lg font-semibold mb-4">Cấu hình rủi ro</h3>
+
+              <!-- Risk Profile Template Picker -->
+              <div class="mb-6">
+                <p class="text-sm text-gray-600 mb-3">Chọn mẫu cấu hình phù hợp với phong cách đầu tư:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div *ngFor="let tpl of riskTemplates"
+                    (click)="applyRiskTemplate(tpl)"
+                    class="cursor-pointer border-2 rounded-lg p-4 transition-all hover:shadow-md"
+                    [class.border-blue-500]="selectedRiskTemplateId === tpl.id"
+                    [class.bg-blue-50]="selectedRiskTemplateId === tpl.id"
+                    [class.border-gray-200]="selectedRiskTemplateId !== tpl.id">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="text-lg">{{ getRiskIcon(tpl.sortOrder) }}</span>
+                      <h4 class="font-semibold text-gray-800">{{ tpl.name }}</h4>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3 line-clamp-2">{{ tpl.description }}</p>
+                    <div class="space-y-1 text-xs">
+                      <div class="flex justify-between">
+                        <span class="text-gray-500">Vị thế tối đa:</span>
+                        <span class="font-medium">{{ tpl.maxPositionSizePercent }}%</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-500">Ngành tối đa:</span>
+                        <span class="font-medium">{{ tpl.maxSectorExposurePercent }}%</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-500">R:R:</span>
+                        <span class="font-medium">{{ tpl.defaultRiskRewardRatio }}:1</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-500">Rủi ro DM:</span>
+                        <span class="font-medium">{{ tpl.maxPortfolioRiskPercent }}%</span>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-1">
+                      <span *ngFor="let tag of tpl.suitableFor"
+                        class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{{ tag }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Suggestion box -->
+                <div *ngIf="selectedRiskTemplate" class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div class="flex items-start gap-2">
+                    <span class="text-amber-500 mt-0.5">&#9432;</span>
+                    <div>
+                      <h4 class="text-sm font-semibold text-amber-800">{{ selectedRiskTemplate.name }} - Gợi ý</h4>
+                      <p class="text-sm text-amber-700 mt-1">{{ selectedRiskTemplate.suggestion }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Form -->
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Tỷ trọng vị thế tối đa (%)</label>
@@ -370,6 +425,10 @@ export class RiskComponent implements OnInit {
   correlationMatrix: CorrelationMatrix | null = null;
   slTargets: StopLossTargetsResponse | null = null;
 
+  riskTemplates: RiskProfileTemplate[] = [];
+  selectedRiskTemplateId = '';
+  selectedRiskTemplate: RiskProfileTemplate | null = null;
+
   tabs = [
     { key: 'positions', label: 'Vị thế' },
     { key: 'stoploss', label: 'SL/TP' },
@@ -394,7 +453,8 @@ export class RiskComponent implements OnInit {
   constructor(
     private riskService: RiskService,
     private portfolioService: PortfolioService,
-    private notification: NotificationService
+    private notification: NotificationService,
+    private templateService: TemplateService
   ) {}
 
   ngOnInit() {
@@ -403,6 +463,11 @@ export class RiskComponent implements OnInit {
         this.portfolios = data;
       },
       error: () => this.notification.error('Lỗi', 'Không thể tải danh sách danh mục')
+    });
+
+    this.templateService.getRiskProfileTemplates().subscribe({
+      next: (templates) => this.riskTemplates = templates,
+      error: () => {}
     });
   }
 
@@ -480,6 +545,23 @@ export class RiskComponent implements OnInit {
         this.saving = false;
       }
     });
+  }
+
+  applyRiskTemplate(tpl: RiskProfileTemplate) {
+    this.selectedRiskTemplateId = tpl.id;
+    this.selectedRiskTemplate = tpl;
+    this.profileForm = {
+      maxPositionSizePercent: tpl.maxPositionSizePercent,
+      maxSectorExposurePercent: tpl.maxSectorExposurePercent,
+      maxDrawdownAlertPercent: tpl.maxDrawdownAlertPercent,
+      defaultRiskRewardRatio: tpl.defaultRiskRewardRatio,
+      maxPortfolioRiskPercent: tpl.maxPortfolioRiskPercent
+    };
+  }
+
+  getRiskIcon(sortOrder: number): string {
+    const icons: Record<number, string> = { 1: '\u{1F6E1}', 2: '\u{2696}', 3: '\u{1F680}', 4: '\u{1F525}' };
+    return icons[sortOrder] || '\u{1F4CA}';
   }
 
   getCorrelationLevel(corr: number): string {

@@ -20,4 +20,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Seed\Data\strategy_templates.json" />
+    <EmbeddedResource Include="Seed\Data\risk_profile_templates.json" />
+  </ItemGroup>
+
 </Project>

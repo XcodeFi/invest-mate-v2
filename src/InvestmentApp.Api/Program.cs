@@ -7,6 +7,7 @@ using InvestmentApp.Domain.Entities;
 using InvestmentApp.Infrastructure.Configuration;
 using InvestmentApp.Infrastructure.Persistence;
 using InvestmentApp.Infrastructure.Repositories;
+using InvestmentApp.Infrastructure.Seed;
 using InvestmentApp.Infrastructure.Services;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
@@ -123,6 +124,7 @@ builder.Services.AddScoped<IFeeCalculationService, FeeCalculationService>();
 builder.Services.AddScoped<IPerformanceMetricsService, PerformanceMetricsService>();
 builder.Services.AddScoped<IStrategyPerformanceService, StrategyPerformanceService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
+builder.Services.AddTransient<SeedDataService>();
 
 // Configure Data Protection for OAuth state cookies
 builder.Services.AddDataProtection()
@@ -235,6 +237,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Seed template data on startup
+using (var scope = app.Services.CreateScope())
+{
+    var seedService = scope.ServiceProvider.GetRequiredService<SeedDataService>();
+    await seedService.SeedAllAsync();
+}
 
 // Configure the HTTP request pipeline
 var enableSwagger = app.Configuration.GetValue<bool>("EnableSwagger", app.Environment.IsDevelopment());
