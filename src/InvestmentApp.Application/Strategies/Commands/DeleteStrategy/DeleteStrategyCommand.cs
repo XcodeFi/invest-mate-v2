@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 
@@ -5,7 +6,9 @@ namespace InvestmentApp.Application.Strategies.Commands.DeleteStrategy;
 
 public class DeleteStrategyCommand : IRequest<Unit>
 {
+    [JsonIgnore]
     public string Id { get; set; } = null!;
+    [JsonIgnore]
     public string UserId { get; set; } = null!;
 }
 

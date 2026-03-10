@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 
@@ -5,7 +6,9 @@ namespace InvestmentApp.Application.Journals.Commands.UpdateJournal;
 
 public class UpdateJournalCommand : IRequest<Unit>
 {
+    [JsonIgnore]
     public string Id { get; set; } = null!;
+    [JsonIgnore]
     public string UserId { get; set; } = null!;
     public string? EntryReason { get; set; }
     public string? MarketContext { get; set; }

@@ -2,13 +2,16 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Build configuration: production (default) or development
+ARG NG_CONFIG=production
+
 # Copy package files first for layer caching
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 
-# Copy source and build
+# Copy source and build with specified configuration
 COPY . .
-RUN npm run build
+RUN npx ng build --configuration=${NG_CONFIG}
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine AS runtime

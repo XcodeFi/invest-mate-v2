@@ -1,0 +1,58 @@
+[
+  {
+    "Id": "tpl-risk-001",
+    "Name": "Bảo thủ (Conservative)",
+    "Description": "Ưu tiên bảo toàn vốn tuyệt đối. Chấp nhận lợi nhuận thấp để đổi lấy sự an toàn. Biến động danh mục thấp, rủi ro mất vốn tối thiểu. Phù hợp giai đoạn thị trường bất ổn hoặc nhà đầu tư sắp cần dùng tiền.",
+    "Suggestion": "Dùng khi: Bạn mới bắt đầu đầu tư, gần nghỉ hưu, sắp cần dùng vốn trong 1-2 năm, hoặc thị trường đang rất bất ổn. Chiến lược phù hợp: DCA, Dividend Growth, phần Core của Core-Satellite.",
+    "MaxPositionSizePercent": 10,
+    "MaxSectorExposurePercent": 25,
+    "MaxDrawdownAlertPercent": 5,
+    "DefaultRiskRewardRatio": 3.0,
+    "MaxPortfolioRiskPercent": 1,
+    "SuitableFor": ["Người mới bắt đầu", "Nhà đầu tư gần nghỉ hưu", "Người có mục tiêu tài chính ngắn hạn", "Người sợ mất vốn"],
+    "Tags": ["conservative", "safe", "low-risk", "capital-preservation"],
+    "SortOrder": 1
+  },
+  {
+    "Id": "tpl-risk-002",
+    "Name": "Cân bằng (Balanced)",
+    "Description": "Cân bằng giữa tăng trưởng và bảo toàn vốn. Chấp nhận biến động vừa phải để đạt lợi nhuận trên mức trung bình. Đa dạng hóa tốt, quản lý rủi ro kỷ luật. Phù hợp đa số nhà đầu tư.",
+    "Suggestion": "Profile mặc định cho hầu hết nhà đầu tư. Dùng khi: Bạn có kinh nghiệm cơ bản, đầu tư trung-dài hạn (3-5 năm), muốn tăng trưởng nhưng không muốn mất ngủ. Chiến lược phù hợp: Value Investing, Core-Satellite, Trend Following.",
+    "MaxPositionSizePercent": 15,
+    "MaxSectorExposurePercent": 35,
+    "MaxDrawdownAlertPercent": 10,
+    "DefaultRiskRewardRatio": 2.0,
+    "MaxPortfolioRiskPercent": 2,
+    "SuitableFor": ["Đa số nhà đầu tư", "Nhà đầu tư trung-dài hạn", "Người có kinh nghiệm cơ bản", "Người muốn cân bằng rủi ro-lợi nhuận"],
+    "Tags": ["balanced", "moderate", "default", "diversified"],
+    "SortOrder": 2
+  },
+  {
+    "Id": "tpl-risk-003",
+    "Name": "Tích cực (Aggressive)",
+    "Description": "Ưu tiên tăng trưởng vốn. Chấp nhận biến động cao và drawdown lớn hơn để tìm kiếm lợi nhuận vượt trội. Tập trung vốn vào cơ hội tốt nhất, không dàn trải quá nhiều.",
+    "Suggestion": "Dùng khi: Bạn có kinh nghiệm ≥ 2 năm, vốn đầu tư là tiền dài hạn (5-10 năm), chấp nhận drawdown 15-20% mà không panic. Chiến lược phù hợp: CANSLIM, Momentum, Breakout, Sector Rotation.",
+    "MaxPositionSizePercent": 25,
+    "MaxSectorExposurePercent": 50,
+    "MaxDrawdownAlertPercent": 15,
+    "DefaultRiskRewardRatio": 1.5,
+    "MaxPortfolioRiskPercent": 5,
+    "SuitableFor": ["Nhà đầu tư có kinh nghiệm", "Trader tích cực", "Người đầu tư vốn dài hạn", "Người chấp nhận biến động cao"],
+    "Tags": ["aggressive", "growth", "high-risk", "concentrated"],
+    "SortOrder": 3
+  },
+  {
+    "Id": "tpl-risk-004",
+    "Name": "Mạo hiểm (Speculative)",
+    "Description": "Tìm kiếm lợi nhuận đột phá, chấp nhận rủi ro rất cao bao gồm khả năng mất phần lớn vốn. Tập trung cao độ, giao dịch tích cực, có thể dùng margin. CHỈ dùng với phần vốn bạn sẵn sàng mất hết.",
+    "Suggestion": "CẢNH BÁO: Chỉ dùng cho trader chuyên nghiệp hoặc phần vốn 'đánh cược'. KHÔNG BAO GIỜ dùng profile này cho toàn bộ tài sản. Dùng khi: Bạn là trader toàn thời gian, có hệ thống backtest, hoặc áp dụng cho phần Satellite/Rủi ro trong Barbell Strategy.",
+    "MaxPositionSizePercent": 35,
+    "MaxSectorExposurePercent": 60,
+    "MaxDrawdownAlertPercent": 25,
+    "DefaultRiskRewardRatio": 1.0,
+    "MaxPortfolioRiskPercent": 8,
+    "SuitableFor": ["Trader chuyên nghiệp", "Phần vốn 'đánh cược'", "Barbell Strategy (phần rủi ro)", "Người hiểu rõ rủi ro mất vốn"],
+    "Tags": ["speculative", "high-risk", "professional", "trading"],
+    "SortOrder": 4
+  }
+]

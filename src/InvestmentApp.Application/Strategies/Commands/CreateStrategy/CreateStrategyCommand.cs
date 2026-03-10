@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -6,6 +7,7 @@ namespace InvestmentApp.Application.Strategies.Commands.CreateStrategy;
 
 public class CreateStrategyCommand : IRequest<string>
 {
+    [JsonIgnore]
     public string UserId { get; set; } = null!;
     public string Name { get; set; } = null!;
     public string Description { get; set; } = string.Empty;

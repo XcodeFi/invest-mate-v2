@@ -6,6 +6,7 @@ import {
   StrategyService, Strategy, CreateStrategyRequest, UpdateStrategyRequest,
   StrategyPerformance
 } from '../../core/services/strategy.service';
+import { TemplateService, StrategyTemplate } from '../../core/services/template.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
@@ -17,15 +18,139 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Quản lý Chiến lược</h1>
-        <button (click)="showCreateForm = !showCreateForm"
+        <button (click)="openCreateForm()"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
           {{ showCreateForm ? 'Đóng' : '+ Tạo chiến lược' }}
         </button>
       </div>
 
+      <!-- Template Picker -->
+      <div *ngIf="showTemplatePicker" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-gray-800">Chọn chiến lược mẫu</h2>
+          <button (click)="skipTemplate()" class="text-sm text-blue-600 hover:text-blue-800 underline">
+            Bỏ qua, tạo từ đầu
+          </button>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button (click)="filterCategory = ''" [class.bg-blue-600]="filterCategory === ''"
+            [class.text-white]="filterCategory === ''"
+            [class.bg-white]="filterCategory !== ''"
+            class="px-3 py-1.5 rounded-full text-sm font-medium border transition">Tất cả</button>
+          <button (click)="filterCategory = 'ValueInvesting'" [class.bg-blue-600]="filterCategory === 'ValueInvesting'"
+            [class.text-white]="filterCategory === 'ValueInvesting'"
+            [class.bg-white]="filterCategory !== 'ValueInvesting'"
+            class="px-3 py-1.5 rounded-full text-sm font-medium border transition">Đầu tư giá trị</button>
+          <button (click)="filterCategory = 'Technical'" [class.bg-blue-600]="filterCategory === 'Technical'"
+            [class.text-white]="filterCategory === 'Technical'"
+            [class.bg-white]="filterCategory !== 'Technical'"
+            class="px-3 py-1.5 rounded-full text-sm font-medium border transition">Phân tích kỹ thuật</button>
+          <button (click)="filterCategory = 'PortfolioManagement'" [class.bg-blue-600]="filterCategory === 'PortfolioManagement'"
+            [class.text-white]="filterCategory === 'PortfolioManagement'"
+            [class.bg-white]="filterCategory !== 'PortfolioManagement'"
+            class="px-3 py-1.5 rounded-full text-sm font-medium border transition">Quản lý danh mục</button>
+        </div>
+
+        <!-- Difficulty Filter -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <span class="text-sm text-gray-500 mr-2 self-center">Trình độ:</span>
+          <button (click)="filterDifficulty = ''" [class.bg-green-600]="filterDifficulty === ''"
+            [class.text-white]="filterDifficulty === ''"
+            [class.bg-white]="filterDifficulty !== ''"
+            class="px-3 py-1 rounded-full text-xs font-medium border transition">Tất cả</button>
+          <button (click)="filterDifficulty = 'Beginner'" [class.bg-green-600]="filterDifficulty === 'Beginner'"
+            [class.text-white]="filterDifficulty === 'Beginner'"
+            [class.bg-white]="filterDifficulty !== 'Beginner'"
+            class="px-3 py-1 rounded-full text-xs font-medium border transition">Mới bắt đầu</button>
+          <button (click)="filterDifficulty = 'Intermediate'" [class.bg-yellow-500]="filterDifficulty === 'Intermediate'"
+            [class.text-white]="filterDifficulty === 'Intermediate'"
+            [class.bg-white]="filterDifficulty !== 'Intermediate'"
+            class="px-3 py-1 rounded-full text-xs font-medium border transition">Trung bình</button>
+          <button (click)="filterDifficulty = 'Advanced'" [class.bg-red-500]="filterDifficulty === 'Advanced'"
+            [class.text-white]="filterDifficulty === 'Advanced'"
+            [class.bg-white]="filterDifficulty !== 'Advanced'"
+            class="px-3 py-1 rounded-full text-xs font-medium border transition">Nâng cao</button>
+        </div>
+
+        <!-- Template Cards -->
+        <div *ngIf="loadingTemplates" class="text-center py-8 text-gray-500">Đang tải chiến lược mẫu...</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div *ngFor="let tpl of filteredTemplates"
+            (click)="selectTemplate(tpl)"
+            class="bg-white rounded-lg border-2 p-4 cursor-pointer hover:shadow-lg hover:border-blue-400 transition"
+            [class.border-blue-500]="selectedTemplate?.id === tpl.id"
+            [class.border-gray-200]="selectedTemplate?.id !== tpl.id">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-semibold text-gray-800 text-sm leading-tight flex-1">{{ tpl.name }}</h3>
+              <span class="ml-2 px-2 py-0.5 rounded text-xs font-medium shrink-0"
+                [class.bg-green-100]="tpl.difficultyLevel === 'Beginner'"
+                [class.text-green-700]="tpl.difficultyLevel === 'Beginner'"
+                [class.bg-yellow-100]="tpl.difficultyLevel === 'Intermediate'"
+                [class.text-yellow-700]="tpl.difficultyLevel === 'Intermediate'"
+                [class.bg-red-100]="tpl.difficultyLevel === 'Advanced'"
+                [class.text-red-700]="tpl.difficultyLevel === 'Advanced'">
+                {{ getDifficultyLabel(tpl.difficultyLevel) }}
+              </span>
+            </div>
+            <p class="text-xs text-gray-500 mb-2 line-clamp-2">{{ tpl.description }}</p>
+            <div class="flex flex-wrap gap-1 mb-2">
+              <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ getTimeFrameLabel(tpl.timeFrame) }}</span>
+              <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ getMarketLabel(tpl.marketCondition) }}</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span *ngFor="let indicator of tpl.keyIndicators.slice(0, 3)"
+                class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{{ indicator }}</span>
+              <span *ngIf="tpl.keyIndicators.length > 3" class="text-xs text-gray-400">+{{ tpl.keyIndicators.length - 3 }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Template Detail -->
+        <div *ngIf="selectedTemplate" class="mt-4 bg-white rounded-lg border border-blue-200 p-4">
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="font-bold text-gray-800">{{ selectedTemplate.name }}</h3>
+            <button (click)="applyTemplate()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+              Áp dụng chiến lược này
+            </button>
+          </div>
+          <p class="text-sm text-gray-600 mb-3">{{ selectedTemplate.description }}</p>
+          <div class="bg-blue-50 rounded p-3 mb-3">
+            <div class="text-xs font-medium text-blue-700 mb-1">Gợi ý sử dụng</div>
+            <p class="text-xs text-blue-600">{{ selectedTemplate.suggestion }}</p>
+          </div>
+          <div class="flex flex-wrap gap-1 mb-3">
+            <span class="text-xs text-gray-500 mr-1">Phù hợp:</span>
+            <span *ngFor="let who of selectedTemplate.suitableFor"
+              class="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-xs">{{ who }}</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div>
+              <div class="font-medium text-green-700 mb-1">Quy tắc vào lệnh</div>
+              <div class="text-gray-600 whitespace-pre-wrap bg-green-50 rounded p-2 max-h-40 overflow-y-auto">{{ selectedTemplate.entryRules }}</div>
+            </div>
+            <div>
+              <div class="font-medium text-red-700 mb-1">Quy tắc thoát lệnh</div>
+              <div class="text-gray-600 whitespace-pre-wrap bg-red-50 rounded p-2 max-h-40 overflow-y-auto">{{ selectedTemplate.exitRules }}</div>
+            </div>
+            <div>
+              <div class="font-medium text-orange-700 mb-1">Quản lý rủi ro</div>
+              <div class="text-gray-600 whitespace-pre-wrap bg-orange-50 rounded p-2 max-h-40 overflow-y-auto">{{ selectedTemplate.riskRules }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Create Form -->
-      <div *ngIf="showCreateForm" class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-4">Tạo chiến lược mới</h2>
+      <div *ngIf="showCreateForm && !showTemplatePicker" class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold">
+            {{ appliedTemplateName ? 'Tạo chiến lược từ: ' + appliedTemplateName : 'Tạo chiến lược mới' }}
+          </h2>
+          <button *ngIf="appliedTemplateName" (click)="showTemplatePicker = true"
+            class="text-sm text-blue-600 hover:text-blue-800 underline">Chọn lại mẫu</button>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Tên chiến lược *</label>
@@ -63,25 +188,25 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Quy tắc vào lệnh</label>
-            <textarea [(ngModel)]="newStrategy.entryRules" rows="2"
+            <textarea [(ngModel)]="newStrategy.entryRules" rows="4"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Điều kiện mở vị thế..."></textarea>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Quy tắc thoát lệnh</label>
-            <textarea [(ngModel)]="newStrategy.exitRules" rows="2"
+            <textarea [(ngModel)]="newStrategy.exitRules" rows="4"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Điều kiện đóng vị thế..."></textarea>
           </div>
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Quy tắc quản lý rủi ro</label>
-            <textarea [(ngModel)]="newStrategy.riskRules" rows="2"
+            <textarea [(ngModel)]="newStrategy.riskRules" rows="4"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Stop loss, position sizing..."></textarea>
           </div>
         </div>
         <div class="mt-4 flex justify-end gap-2">
-          <button (click)="showCreateForm = false"
+          <button (click)="showCreateForm = false; showTemplatePicker = false; appliedTemplateName = ''"
             class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Hủy</button>
           <button (click)="createStrategy()"
             [disabled]="!newStrategy.name"
@@ -131,17 +256,17 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                       <span *ngIf="!s.isActive"
                         class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">Inactive</span>
                     </div>
-                    <p *ngIf="s.description" class="text-sm text-gray-600 mt-1">{{ s.description }}</p>
+                    <p *ngIf="s.description" class="text-sm text-gray-600 mt-1 line-clamp-2">{{ s.description }}</p>
                     <div class="flex gap-4 mt-2 text-xs text-gray-500">
-                      <span *ngIf="s.timeFrame">⏱ {{ s.timeFrame }}</span>
-                      <span *ngIf="s.marketCondition">📊 {{ s.marketCondition }}</span>
-                      <span>📅 {{ s.createdAt | date:'dd/MM/yyyy' }}</span>
+                      <span *ngIf="s.timeFrame">{{ getTimeFrameLabel(s.timeFrame) }}</span>
+                      <span *ngIf="s.marketCondition">{{ getMarketLabel(s.marketCondition) }}</span>
+                      <span>{{ s.createdAt | date:'dd/MM/yyyy' }}</span>
                     </div>
                   </div>
                   <div class="flex gap-2 ml-4">
                     <button (click)="viewPerformance(s)"
                       class="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition">
-                      📈 Hiệu suất
+                      Hiệu suất
                     </button>
                     <button (click)="toggleActive(s)"
                       class="px-3 py-1 text-sm rounded transition"
@@ -256,20 +381,25 @@ export class StrategiesComponent implements OnInit {
   loading = false;
   loadingPerformance = false;
   showCreateForm = false;
+  showTemplatePicker = false;
   activeTab = 'list';
 
+  // Template picker
+  templates: StrategyTemplate[] = [];
+  loadingTemplates = false;
+  selectedTemplate: StrategyTemplate | null = null;
+  filterCategory = '';
+  filterDifficulty = '';
+  appliedTemplateName = '';
+
   newStrategy: CreateStrategyRequest = {
-    name: '',
-    description: '',
-    entryRules: '',
-    exitRules: '',
-    riskRules: '',
-    timeFrame: '',
-    marketCondition: ''
+    name: '', description: '', entryRules: '', exitRules: '',
+    riskRules: '', timeFrame: '', marketCondition: ''
   };
 
   constructor(
     private strategyService: StrategyService,
+    private templateService: TemplateService,
     private notification: NotificationService
   ) {}
 
@@ -280,15 +410,62 @@ export class StrategiesComponent implements OnInit {
   loadStrategies(): void {
     this.loading = true;
     this.strategyService.getAll().subscribe({
-      next: (data) => {
-        this.strategies = data;
-        this.loading = false;
-      },
-      error: () => {
-        this.notification.error('Lỗi', 'Không thể tải danh sách chiến lược');
-        this.loading = false;
-      }
+      next: (data) => { this.strategies = data; this.loading = false; },
+      error: () => { this.notification.error('Lỗi', 'Không thể tải danh sách chiến lược'); this.loading = false; }
     });
+  }
+
+  openCreateForm(): void {
+    if (this.showCreateForm) {
+      this.showCreateForm = false;
+      this.showTemplatePicker = false;
+      this.appliedTemplateName = '';
+      return;
+    }
+    this.showCreateForm = true;
+    this.showTemplatePicker = true;
+    this.selectedTemplate = null;
+    this.resetForm();
+    this.loadTemplates();
+  }
+
+  loadTemplates(): void {
+    this.loadingTemplates = true;
+    this.templateService.getStrategyTemplates().subscribe({
+      next: (data) => { this.templates = data; this.loadingTemplates = false; },
+      error: () => { this.loadingTemplates = false; }
+    });
+  }
+
+  get filteredTemplates(): StrategyTemplate[] {
+    return this.templates.filter(t => {
+      if (this.filterCategory && t.category !== this.filterCategory) return false;
+      if (this.filterDifficulty && t.difficultyLevel !== this.filterDifficulty) return false;
+      return true;
+    });
+  }
+
+  selectTemplate(tpl: StrategyTemplate): void {
+    this.selectedTemplate = this.selectedTemplate?.id === tpl.id ? null : tpl;
+  }
+
+  applyTemplate(): void {
+    if (!this.selectedTemplate) return;
+    const tpl = this.selectedTemplate;
+    this.newStrategy = {
+      name: tpl.name, description: tpl.description,
+      entryRules: tpl.entryRules, exitRules: tpl.exitRules, riskRules: tpl.riskRules,
+      timeFrame: tpl.timeFrame, marketCondition: tpl.marketCondition
+    };
+    this.appliedTemplateName = tpl.name;
+    this.showTemplatePicker = false;
+  }
+
+  skipTemplate(): void {
+    this.showTemplatePicker = false;
+    this.selectedTemplate = null;
+    this.appliedTemplateName = '';
+    this.resetForm();
   }
 
   createStrategy(): void {
@@ -296,9 +473,8 @@ export class StrategiesComponent implements OnInit {
     this.strategyService.create(this.newStrategy).subscribe({
       next: () => {
         this.notification.success('Thành công', 'Đã tạo chiến lược');
-        this.showCreateForm = false;
-        this.resetForm();
-        this.loadStrategies();
+        this.showCreateForm = false; this.showTemplatePicker = false; this.appliedTemplateName = '';
+        this.resetForm(); this.loadStrategies();
       },
       error: () => this.notification.error('Lỗi', 'Không thể tạo chiến lược')
     });
@@ -310,31 +486,20 @@ export class StrategiesComponent implements OnInit {
   }
 
   viewPerformance(s: Strategy): void {
-    this.selectedStrategy = s;
-    this.activeTab = 'performance';
-    this.loadPerformance(s.id);
+    this.selectedStrategy = s; this.activeTab = 'performance'; this.loadPerformance(s.id);
   }
 
   loadPerformance(id: string): void {
     this.loadingPerformance = true;
     this.strategyService.getPerformance(id).subscribe({
-      next: (data) => {
-        this.performance = data;
-        this.loadingPerformance = false;
-      },
-      error: () => {
-        this.notification.error('Lỗi', 'Không thể tải hiệu suất');
-        this.loadingPerformance = false;
-      }
+      next: (data) => { this.performance = data; this.loadingPerformance = false; },
+      error: () => { this.notification.error('Lỗi', 'Không thể tải hiệu suất'); this.loadingPerformance = false; }
     });
   }
 
   toggleActive(s: Strategy): void {
     this.strategyService.update(s.id, { isActive: !s.isActive }).subscribe({
-      next: () => {
-        this.notification.success('Thành công', `Đã ${s.isActive ? 'tắt' : 'bật'} chiến lược`);
-        this.loadStrategies();
-      },
+      next: () => { this.notification.success('Thành công', `Đã ${s.isActive ? 'tắt' : 'bật'} chiến lược`); this.loadStrategies(); },
       error: () => this.notification.error('Lỗi', 'Không thể cập nhật chiến lược')
     });
   }
@@ -351,10 +516,22 @@ export class StrategiesComponent implements OnInit {
     });
   }
 
+  getDifficultyLabel(level: string): string {
+    const map: Record<string, string> = { 'Beginner': 'Mới', 'Intermediate': 'TB', 'Advanced': 'Nâng cao' };
+    return map[level] || level;
+  }
+
+  getTimeFrameLabel(tf: string): string {
+    const map: Record<string, string> = { 'Scalping': 'Scalping', 'DayTrading': 'Day Trading', 'Swing': 'Swing', 'Position': 'Dài hạn' };
+    return map[tf] || tf;
+  }
+
+  getMarketLabel(mc: string): string {
+    const map: Record<string, string> = { 'Trending': 'Xu hướng', 'Ranging': 'Sideway', 'Volatile': 'Biến động', 'All': 'Mọi TT' };
+    return map[mc] || mc;
+  }
+
   private resetForm(): void {
-    this.newStrategy = {
-      name: '', description: '', entryRules: '', exitRules: '',
-      riskRules: '', timeFrame: '', marketCondition: ''
-    };
+    this.newStrategy = { name: '', description: '', entryRules: '', exitRules: '', riskRules: '', timeFrame: '', marketCondition: '' };
   }
 }

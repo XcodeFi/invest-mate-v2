@@ -7,6 +7,7 @@ using InvestmentApp.Domain.Entities;
 using InvestmentApp.Infrastructure.Configuration;
 using InvestmentApp.Infrastructure.Persistence;
 using InvestmentApp.Infrastructure.Repositories;
+using InvestmentApp.Infrastructure.Seed;
 using InvestmentApp.Infrastructure.Services;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
@@ -59,7 +60,15 @@ builder.Host.UseSerilog((context, config) =>
 });
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Disable automatic 400 for model state errors.
+        // Server-assigned properties (UserId, Id) are non-nullable in commands
+        // but not sent from client — controllers set them from JWT/route params.
+        // FluentValidation handles business validation via MediatR pipeline.
+        options.SuppressModelStateInvalidFilter = true;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // Configure MongoDB
@@ -123,6 +132,7 @@ builder.Services.AddScoped<IFeeCalculationService, FeeCalculationService>();
 builder.Services.AddScoped<IPerformanceMetricsService, PerformanceMetricsService>();
 builder.Services.AddScoped<IStrategyPerformanceService, StrategyPerformanceService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
+builder.Services.AddTransient<SeedDataService>();
 
 // Configure Data Protection for OAuth state cookies
 builder.Services.AddDataProtection()
@@ -235,6 +245,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Seed template data on startup
+using (var scope = app.Services.CreateScope())
+{
+    var seedService = scope.ServiceProvider.GetRequiredService<SeedDataService>();
+    await seedService.SeedAllAsync();
+}
 
 // Configure the HTTP request pipeline
 var enableSwagger = app.Configuration.GetValue<bool>("EnableSwagger", app.Environment.IsDevelopment());
