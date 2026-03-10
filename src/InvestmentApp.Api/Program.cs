@@ -60,7 +60,15 @@ builder.Host.UseSerilog((context, config) =>
 });
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Disable automatic 400 for model state errors.
+        // Server-assigned properties (UserId, Id) are non-nullable in commands
+        // but not sent from client — controllers set them from JWT/route params.
+        // FluentValidation handles business validation via MediatR pipeline.
+        options.SuppressModelStateInvalidFilter = true;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // Configure MongoDB

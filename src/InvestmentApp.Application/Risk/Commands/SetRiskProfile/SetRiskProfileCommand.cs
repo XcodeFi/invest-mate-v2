@@ -9,6 +9,7 @@ public class SetRiskProfileCommand : IRequest<string>
 {
     [JsonIgnore]
     public string? UserId { get; set; }
+    [JsonIgnore]
     public string PortfolioId { get; set; } = null!;
     public decimal? MaxPositionSizePercent { get; set; }
     public decimal? MaxSectorExposurePercent { get; set; }

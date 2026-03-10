@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 
@@ -5,7 +6,9 @@ namespace InvestmentApp.Application.Strategies.Commands.UpdateStrategy;
 
 public class UpdateStrategyCommand : IRequest<Unit>
 {
+    [JsonIgnore]
     public string Id { get; set; } = null!;
+    [JsonIgnore]
     public string UserId { get; set; } = null!;
     public string? Name { get; set; }
     public string? Description { get; set; }

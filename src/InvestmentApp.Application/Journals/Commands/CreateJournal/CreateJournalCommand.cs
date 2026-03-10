@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -7,6 +8,7 @@ namespace InvestmentApp.Application.Journals.Commands.CreateJournal;
 public class CreateJournalCommand : IRequest<string>
 {
     public string TradeId { get; set; } = null!;
+    [JsonIgnore]
     public string UserId { get; set; } = null!;
     public string PortfolioId { get; set; } = null!;
     public string EntryReason { get; set; } = string.Empty;
