@@ -2,22 +2,22 @@ using InvestmentApp.Application.Backtests.Commands.RunBacktest;
 using InvestmentApp.Application.Backtests.Queries.GetBacktest;
 using InvestmentApp.Application.Backtests.Queries.GetBacktests;
 using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace InvestmentApp.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/backtests")]
-[Authorize]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class BacktestsController : ControllerBase
 {
     private readonly IMediator _mediator;
 
     public BacktestsController(IMediator mediator) => _mediator = mediator;
 
-    private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)
+    private string UserId => User.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException();
 
     /// <summary>POST /api/v1/backtests — Queue a new backtest (processed async by Worker)</summary>

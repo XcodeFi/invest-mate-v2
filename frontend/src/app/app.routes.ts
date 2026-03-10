@@ -72,6 +72,26 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'backtesting',
+    loadComponent: () => import('./features/backtesting/backtesting.component').then(m => m.BacktestingComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'position-sizing',
+    loadComponent: () => import('./features/position-sizing/position-sizing.component').then(m => m.PositionSizingComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'trade-plan',
+    loadComponent: () => import('./features/trade-plan/trade-plan.component').then(m => m.TradePlanComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'risk-dashboard',
+    loadComponent: () => import('./features/risk-dashboard/risk-dashboard.component').then(m => m.RiskDashboardComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: '**',
     loadComponent: () => import('./shared/components/not-found/not-found.component').then(m => m.NotFoundComponent)
   }
