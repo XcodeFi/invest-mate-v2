@@ -78,6 +78,8 @@ public class PnLController : ControllerBase
         decimal totalPortfolioValue = 0;
         var portfolioPnLs = new List<object>();
 
+        decimal totalInitialCapital = portfolioList.Sum(p => p.InitialCapital);
+
         foreach (var portfolio in portfolioList)
         {
             try
@@ -92,12 +94,14 @@ public class PnLController : ControllerBase
                 {
                     PortfolioId = portfolio.Id,
                     PortfolioName = portfolio.Name,
+                    InitialCapital = portfolio.InitialCapital,
                     pnl.TotalInvested,
+                    TotalMarketValue = pnl.TotalPortfolioValue,
                     pnl.TotalUnrealizedPnL,
                     pnl.TotalRealizedPnL,
-                    pnl.TotalPortfolioValue,
                     pnl.TotalPnL,
-                    pnl.TotalReturnPercentage
+                    TotalPnLPercent = pnl.TotalReturnPercentage,
+                    Positions = pnl.Positions
                 });
             }
             catch
@@ -109,12 +113,13 @@ public class PnLController : ControllerBase
         return Ok(new
         {
             TotalPortfolios = portfolioList.Count,
+            TotalInitialCapital = totalInitialCapital,
             TotalInvested = totalInvested,
+            TotalMarketValue = totalPortfolioValue,
             TotalUnrealizedPnL = totalUnrealizedPnL,
             TotalRealizedPnL = totalRealizedPnL,
-            TotalPortfolioValue = totalPortfolioValue,
             TotalPnL = totalRealizedPnL + totalUnrealizedPnL,
-            TotalReturnPercentage = totalInvested > 0 ? ((totalRealizedPnL + totalUnrealizedPnL) / totalInvested) * 100 : 0,
+            TotalPnLPercent = totalInvested > 0 ? ((totalRealizedPnL + totalUnrealizedPnL) / totalInvested) * 100 : 0,
             Portfolios = portfolioPnLs
         });
     }

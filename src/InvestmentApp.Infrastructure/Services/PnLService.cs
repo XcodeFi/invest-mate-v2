@@ -40,17 +40,18 @@ public class PnLService : IPnLService
             positionPnLs.Add(positionPnL);
         }
 
-        var totalRealizedPnL = positionPnLs.Sum(p => 0m); // TODO: Calculate realized P&L
+        var totalRealizedPnL = positionPnLs.Sum(p => p.RealizedPnL);
         var totalUnrealizedPnL = positionPnLs.Sum(p => p.UnrealizedPnL);
         var totalPortfolioValue = positionPnLs.Sum(p => p.MarketValue);
-        var totalInvested = positionPnLs.Sum(p => p.Quantity * p.AverageCost);
+        var totalInvested = positionPnLs.Sum(p => p.TotalCost);
 
         return new PortfolioPnLSummary
         {
             TotalRealizedPnL = totalRealizedPnL,
             TotalUnrealizedPnL = totalUnrealizedPnL,
             TotalPortfolioValue = totalPortfolioValue,
-            TotalInvested = totalInvested
+            TotalInvested = totalInvested,
+            Positions = positionPnLs
         };
     }
 
@@ -75,7 +76,8 @@ public class PnLService : IPnLService
             Symbol = symbol.Value,
             Quantity = quantity,
             AverageCost = averageCost.Amount,
-            CurrentPrice = currentPrice.Amount
+            CurrentPrice = currentPrice.Amount,
+            RealizedPnL = realizedPnL.Amount
         };
     }
 

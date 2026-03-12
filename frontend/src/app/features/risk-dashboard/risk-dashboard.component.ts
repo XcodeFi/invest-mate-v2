@@ -40,50 +40,50 @@ interface StrategyScore {
         <h1 class="text-2xl font-bold text-gray-800">Risk Dashboard</h1>
         <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="loadDashboard()"
           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-          <option value="">-- Chon danh muc --</option>
+          <option value="">-- Chọn danh mục --</option>
           <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
         </select>
       </div>
 
       <div *ngIf="!selectedPortfolioId" class="text-center py-16 text-gray-400">
-        Chon danh muc de xem tong quan rui ro
+        Chọn danh mục để xem tổng quan rủi ro
       </div>
 
-      <div *ngIf="selectedPortfolioId && loading" class="text-center py-16 text-gray-400">Dang tai...</div>
+      <div *ngIf="selectedPortfolioId && loading" class="text-center py-16 text-gray-400">Đang tải...</div>
 
       <div *ngIf="selectedPortfolioId && !loading">
         <!-- Top Row: Risk Overview Cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div class="bg-white rounded-lg shadow p-4">
-            <div class="text-xs text-gray-500 mb-1">Tong gia tri</div>
+            <div class="text-xs text-gray-500 mb-1">Tổng giá trị</div>
             <div class="text-xl font-bold text-gray-800">{{ overview.totalValue | vndCurrency }}</div>
-            <div class="text-xs text-gray-400">{{ overview.totalPositions }} vi the</div>
+            <div class="text-xs text-gray-400">{{ overview.totalPositions }} vị thế</div>
           </div>
           <div class="bg-white rounded-lg shadow p-4">
             <div class="text-xs text-gray-500 mb-1">VaR (95%)</div>
             <div class="text-xl font-bold text-red-600">{{ overview.valueAtRisk | vndCurrency }}</div>
-            <div class="text-xs text-gray-400">Muc lo toi da 1 ngay</div>
+            <div class="text-xs text-gray-400">Mức lỗ tối đa 1 ngày</div>
           </div>
           <div class="bg-white rounded-lg shadow p-4">
             <div class="text-xs text-gray-500 mb-1">Max Drawdown</div>
             <div class="text-xl font-bold text-red-600">{{ overview.maxDrawdown | number:'1.2-2' }}%</div>
-            <div class="text-xs text-gray-400">Hien tai: {{ overview.currentDrawdown | number:'1.2-2' }}%</div>
+            <div class="text-xs text-gray-400">Hiện tại: {{ overview.currentDrawdown | number:'1.2-2' }}%</div>
           </div>
           <div class="bg-white rounded-lg shadow p-4">
-            <div class="text-xs text-gray-500 mb-1">Vi the lon nhat</div>
+            <div class="text-xs text-gray-500 mb-1">Vị thế lớn nhất</div>
             <div class="text-xl font-bold" [class.text-red-600]="overview.largestPosition > 25"
               [class.text-yellow-600]="overview.largestPosition > 15 && overview.largestPosition <= 25"
               [class.text-green-600]="overview.largestPosition <= 15">
               {{ overview.largestPosition | number:'1.1-1' }}%
             </div>
-            <div class="text-xs text-gray-400">cua danh muc</div>
+            <div class="text-xs text-gray-400">của danh mục</div>
           </div>
         </div>
 
         <!-- Risk Health Bar -->
         <div class="bg-white rounded-lg shadow p-6 mb-6">
           <div class="flex justify-between items-center mb-3">
-            <h2 class="text-lg font-semibold">Suc khoe rui ro</h2>
+            <h2 class="text-lg font-semibold">Sức khỏe rủi ro</h2>
             <span class="px-3 py-1 rounded-full text-sm font-bold"
               [class.bg-green-100]="riskHealthScore >= 70" [class.text-green-700]="riskHealthScore >= 70"
               [class.bg-yellow-100]="riskHealthScore >= 40 && riskHealthScore < 70"
@@ -113,8 +113,8 @@ interface StrategyScore {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <!-- Risk Profile Compliance -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Tuan thu Risk Profile</h2>
-            <div *ngIf="!riskProfile" class="text-center py-4 text-gray-400">Chua thiet lap risk profile</div>
+            <h2 class="text-lg font-semibold mb-4">Tuân thủ Risk Profile</h2>
+            <div *ngIf="!riskProfile" class="text-center py-4 text-gray-400">Chưa thiết lập risk profile</div>
             <div *ngIf="riskProfile" class="space-y-3">
               <div *ngFor="let item of complianceItems" class="flex items-center justify-between">
                 <div class="flex-1">
@@ -136,26 +136,26 @@ interface StrategyScore {
 
           <!-- Stop-Loss Status -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Trang thai Stop-Loss</h2>
+            <h2 class="text-lg font-semibold mb-4">Trạng thái Stop-Loss</h2>
             <div class="grid grid-cols-3 gap-4 mb-4">
               <div class="text-center bg-blue-50 rounded-lg p-3">
                 <div class="text-2xl font-bold text-blue-700">{{ overview.activeSLCount }}</div>
-                <div class="text-xs text-blue-500">Dang hoat dong</div>
+                <div class="text-xs text-blue-500">Đang hoạt động</div>
               </div>
               <div class="text-center bg-red-50 rounded-lg p-3">
                 <div class="text-2xl font-bold text-red-700">{{ overview.triggeredSLCount }}</div>
-                <div class="text-xs text-red-500">Da kich hoat</div>
+                <div class="text-xs text-red-500">Đã kích hoạt</div>
               </div>
               <div class="text-center bg-yellow-50 rounded-lg p-3">
                 <div class="text-2xl font-bold text-yellow-700">{{ closestSLPercent | number:'1.1-1' }}%</div>
-                <div class="text-xs text-yellow-500">SL gan nhat</div>
+                <div class="text-xs text-yellow-500">SL gần nhất</div>
               </div>
             </div>
             <div *ngIf="nearestSLItems.length > 0" class="space-y-2">
-              <div class="text-xs font-medium text-gray-500 uppercase">Vi the gan SL nhat</div>
+              <div class="text-xs font-medium text-gray-500 uppercase">Vị thế gần SL nhất</div>
               <div *ngFor="let item of nearestSLItems" class="flex justify-between items-center text-sm bg-gray-50 rounded p-2">
                 <span class="font-medium">{{ item.symbol }}</span>
-                <span class="text-red-600">{{ item.distancePercent | number:'1.1-1' }}% toi SL</span>
+                <span class="text-red-600">{{ item.distancePercent | number:'1.1-1' }}% tới SL</span>
               </div>
             </div>
           </div>
@@ -164,9 +164,9 @@ interface StrategyScore {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Correlation Warnings -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Canh bao tuong quan</h2>
+            <h2 class="text-lg font-semibold mb-4">Cảnh báo tương quan</h2>
             <div *ngIf="highCorrelationPairs.length === 0" class="text-center py-4 text-gray-400">
-              Khong co cap tuong quan cao
+              Không có cặp tương quan cao
             </div>
             <div class="space-y-2">
               <div *ngFor="let pair of highCorrelationPairs"
@@ -176,15 +176,15 @@ interface StrategyScore {
               </div>
             </div>
             <div *ngIf="highCorrelationPairs.length > 0" class="mt-3 text-xs text-gray-500">
-              Cap co tuong quan > 0.7 lam tang rui ro tap trung
+              Cặp có tương quan > 0.7 làm tăng rủi ro tập trung
             </div>
           </div>
 
           <!-- Strategy Scorecard -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Diem chien luoc</h2>
+            <h2 class="text-lg font-semibold mb-4">Điểm chiến lược</h2>
             <div *ngIf="strategyScores.length === 0" class="text-center py-4 text-gray-400">
-              Chua co du lieu chien luoc
+              Chưa có dữ liệu chiến lược
             </div>
             <div class="space-y-3">
               <div *ngFor="let s of strategyScores" class="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
@@ -312,13 +312,13 @@ export class RiskDashboardComponent implements OnInit {
   buildCompliance(risk: PortfolioRiskSummary, profile: RiskProfile): void {
     this.complianceItems = [
       {
-        label: 'Vi the lon nhat',
+        label: 'Vị thế lớn nhất',
         current: risk.largestPositionPercent,
         limit: profile.maxPositionSizePercent,
         ok: risk.largestPositionPercent <= profile.maxPositionSizePercent
       },
       {
-        label: 'Drawdown hien tai',
+        label: 'Drawdown hiện tại',
         current: Math.abs(this.overview.currentDrawdown),
         limit: profile.maxDrawdownAlertPercent,
         ok: Math.abs(this.overview.currentDrawdown) <= profile.maxDrawdownAlertPercent
@@ -336,40 +336,40 @@ export class RiskDashboardComponent implements OnInit {
       this.healthItems.push({ label: 'Drawdown cao', status: 'danger' });
     } else if (Math.abs(drawdown.currentDrawdownPercent) > 8) {
       score -= 15;
-      this.healthItems.push({ label: 'Drawdown trung binh', status: 'warning' });
+      this.healthItems.push({ label: 'Drawdown trung bình', status: 'warning' });
     } else {
-      this.healthItems.push({ label: 'Drawdown thap', status: 'good' });
+      this.healthItems.push({ label: 'Drawdown thấp', status: 'good' });
     }
 
     // Concentration check
     if (risk.largestPositionPercent > 30) {
       score -= 20;
-      this.healthItems.push({ label: 'Tap trung cao', status: 'danger' });
+      this.healthItems.push({ label: 'Tập trung cao', status: 'danger' });
     } else if (risk.largestPositionPercent > 20) {
       score -= 10;
-      this.healthItems.push({ label: 'Tap trung vua', status: 'warning' });
+      this.healthItems.push({ label: 'Tập trung vừa', status: 'warning' });
     } else {
-      this.healthItems.push({ label: 'Da dang hoa tot', status: 'good' });
+      this.healthItems.push({ label: 'Đa dạng hóa tốt', status: 'good' });
     }
 
     // Correlation check
     if (this.highCorrelationPairs.length > 3) {
       score -= 15;
-      this.healthItems.push({ label: 'Tuong quan cao', status: 'danger' });
+      this.healthItems.push({ label: 'Tương quan cao', status: 'danger' });
     } else if (this.highCorrelationPairs.length > 0) {
       score -= 5;
-      this.healthItems.push({ label: 'Tuong quan vua', status: 'warning' });
+      this.healthItems.push({ label: 'Tương quan vừa', status: 'warning' });
     } else {
-      this.healthItems.push({ label: 'Tuong quan thap', status: 'good' });
+      this.healthItems.push({ label: 'Tương quan thấp', status: 'good' });
     }
 
     // Stop-loss coverage
     const hasSL = this.overview.activeSLCount > 0;
     if (!hasSL && risk.positionCount > 0) {
       score -= 20;
-      this.healthItems.push({ label: 'Thieu stop-loss', status: 'danger' });
+      this.healthItems.push({ label: 'Thiếu stop-loss', status: 'danger' });
     } else {
-      this.healthItems.push({ label: 'Co stop-loss', status: 'good' });
+      this.healthItems.push({ label: 'Có stop-loss', status: 'good' });
     }
 
     this.riskHealthScore = Math.max(0, Math.min(100, score));

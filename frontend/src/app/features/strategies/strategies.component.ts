@@ -76,6 +76,9 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
         <!-- Template Cards -->
         <div *ngIf="loadingTemplates" class="text-center py-8 text-gray-500">Đang tải chiến lược mẫu...</div>
+        <div *ngIf="!loadingTemplates && templateError" class="text-center py-8 text-red-500">
+          Không thể tải chiến lược mẫu. <button (click)="loadTemplates()" class="underline text-blue-600 hover:text-blue-800">Thử lại</button>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div *ngFor="let tpl of filteredTemplates"
             (click)="selectTemplate(tpl)"
@@ -387,6 +390,7 @@ export class StrategiesComponent implements OnInit {
   // Template picker
   templates: StrategyTemplate[] = [];
   loadingTemplates = false;
+  templateError = false;
   selectedTemplate: StrategyTemplate | null = null;
   filterCategory = '';
   filterDifficulty = '';
@@ -431,9 +435,10 @@ export class StrategiesComponent implements OnInit {
 
   loadTemplates(): void {
     this.loadingTemplates = true;
+    this.templateError = false;
     this.templateService.getStrategyTemplates().subscribe({
       next: (data) => { this.templates = data; this.loadingTemplates = false; },
-      error: () => { this.loadingTemplates = false; }
+      error: () => { this.loadingTemplates = false; this.templateError = true; }
     });
   }
 

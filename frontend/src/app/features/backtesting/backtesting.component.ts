@@ -16,52 +16,52 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
         <h1 class="text-2xl font-bold text-gray-800">Backtest Chiến lược</h1>
         <button (click)="showRunForm = !showRunForm"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-          {{ showRunForm ? 'Dong' : '+ Chay Backtest' }}
+          {{ showRunForm ? 'Đóng' : '+ Chạy Backtest' }}
         </button>
       </div>
 
       <!-- Run Backtest Form -->
       <div *ngIf="showRunForm" class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-4">Chay Backtest moi</h2>
+        <h2 class="text-lg font-semibold mb-4">Chạy Backtest mới</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Chien luoc *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Chiến lược *</label>
             <select [(ngModel)]="newBacktest.strategyId"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-              <option value="">-- Chon chien luoc --</option>
+              <option value="">-- Chọn chiến lược --</option>
               <option *ngFor="let s of strategies" [value]="s.id">{{ s.name }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Ten backtest *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tên backtest *</label>
             <input [(ngModel)]="newBacktest.name" type="text"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="VD: Test MA Crossover Q1 2025">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Von ban dau (VND) *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Vốn ban đầu (VND) *</label>
             <input [(ngModel)]="newBacktest.initialCapital" type="number"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="100000000">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Ngay bat dau *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu *</label>
             <input [(ngModel)]="newBacktest.startDate" type="date"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Ngay ket thuc *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ngày kết thúc *</label>
             <input [(ngModel)]="newBacktest.endDate" type="date"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           </div>
         </div>
         <div class="mt-4 flex justify-end gap-2">
           <button (click)="showRunForm = false"
-            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Huy</button>
+            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Hủy</button>
           <button (click)="runBacktest()"
             [disabled]="!newBacktest.strategyId || !newBacktest.name || !newBacktest.startDate || !newBacktest.endDate || running"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-            {{ running ? 'Dang gui...' : 'Chay Backtest' }}
+            {{ running ? 'Đang gửi...' : 'Chạy Backtest' }}
           </button>
         </div>
       </div>
@@ -69,11 +69,11 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
       <!-- Backtest List -->
       <div class="bg-white rounded-lg shadow">
         <div class="border-b border-gray-200 px-6 py-4">
-          <h2 class="text-lg font-semibold">Lich su Backtest</h2>
+          <h2 class="text-lg font-semibold">Lịch sử Backtest</h2>
         </div>
-        <div *ngIf="loading" class="text-center py-8 text-gray-500">Dang tai...</div>
+        <div *ngIf="loading" class="text-center py-8 text-gray-500">Đang tải...</div>
         <div *ngIf="!loading && backtests.length === 0" class="text-center py-8 text-gray-500">
-          Chua co backtest nao. Hay chay backtest dau tien!
+          Chưa có backtest nào. Hãy chạy backtest đầu tiên!
         </div>
         <div class="divide-y divide-gray-200">
           <div *ngFor="let bt of backtests"
@@ -120,24 +120,24 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           <div class="flex gap-2 mb-6 border-b">
             <button (click)="detailTab = 'metrics'" [class.border-blue-500]="detailTab === 'metrics'"
               [class.text-blue-600]="detailTab === 'metrics'" [class.border-transparent]="detailTab !== 'metrics'"
-              class="py-2 px-4 border-b-2 text-sm font-medium">Ket qua</button>
+              class="py-2 px-4 border-b-2 text-sm font-medium">Kết quả</button>
             <button (click)="detailTab = 'equity'" [class.border-blue-500]="detailTab === 'equity'"
               [class.text-blue-600]="detailTab === 'equity'" [class.border-transparent]="detailTab !== 'equity'"
               class="py-2 px-4 border-b-2 text-sm font-medium">Equity Curve</button>
             <button (click)="detailTab = 'trades'" [class.border-blue-500]="detailTab === 'trades'"
               [class.text-blue-600]="detailTab === 'trades'" [class.border-transparent]="detailTab !== 'trades'"
-              class="py-2 px-4 border-b-2 text-sm font-medium">Giao dich</button>
+              class="py-2 px-4 border-b-2 text-sm font-medium">Giao dịch</button>
           </div>
 
           <!-- Metrics Tab -->
           <div *ngIf="detailTab === 'metrics' && selectedDetail.result">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 text-center">
-                <div class="text-xs text-blue-600 font-medium">Gia tri cuoi</div>
+                <div class="text-xs text-blue-600 font-medium">Giá trị cuối</div>
                 <div class="text-xl font-bold text-blue-800">{{ selectedDetail.result.finalValue | vndCurrency }}</div>
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 text-center">
-                <div class="text-xs text-green-600 font-medium">Tong loi nhuan</div>
+                <div class="text-xs text-green-600 font-medium">Tổng lợi nhuận</div>
                 <div class="text-xl font-bold" [class.text-green-800]="selectedDetail.result.totalReturn >= 0"
                   [class.text-red-800]="selectedDetail.result.totalReturn < 0">
                   {{ selectedDetail.result.totalReturn | number:'1.2-2' }}%
@@ -172,7 +172,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                 </div>
               </div>
               <div class="border rounded-lg p-3 text-center">
-                <div class="text-xs text-gray-500">Tong GD (Thang/Thua)</div>
+                <div class="text-xs text-gray-500">Tổng GD (Thắng/Thua)</div>
                 <div class="text-lg font-bold">
                   {{ selectedDetail.result.totalTrades }}
                   (<span class="text-green-600">{{ selectedDetail.result.winningTrades }}</span>/<span class="text-red-600">{{ selectedDetail.result.losingTrades }}</span>)
@@ -203,10 +203,10 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <table class="w-full text-sm">
                 <thead class="bg-gray-50 sticky top-0">
                   <tr>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500">Ngay</th>
-                    <th class="px-3 py-2 text-right text-xs text-gray-500">Gia tri</th>
-                    <th class="px-3 py-2 text-right text-xs text-gray-500">Loi nhuan ngay</th>
-                    <th class="px-3 py-2 text-right text-xs text-gray-500">Loi nhuan tich luy</th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500">Ngày</th>
+                    <th class="px-3 py-2 text-right text-xs text-gray-500">Giá trị</th>
+                    <th class="px-3 py-2 text-right text-xs text-gray-500">Lợi nhuận ngày</th>
+                    <th class="px-3 py-2 text-right text-xs text-gray-500">Lợi nhuận tích lũy</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y">
@@ -226,19 +226,19 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           <!-- Trades Tab -->
           <div *ngIf="detailTab === 'trades'">
             <div *ngIf="selectedDetail.simulatedTrades.length === 0" class="text-center py-8 text-gray-500">
-              Khong co giao dich mo phong
+              Không có giao dịch mô phỏng
             </div>
             <div class="overflow-x-auto">
               <table *ngIf="selectedDetail.simulatedTrades.length > 0" class="w-full text-sm">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500">Ma CK</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500">Loai</th>
-                    <th class="px-3 py-2 text-right text-xs text-gray-500">Gia vao</th>
-                    <th class="px-3 py-2 text-right text-xs text-gray-500">Gia ra</th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500">Mã CK</th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500">Loại</th>
+                    <th class="px-3 py-2 text-right text-xs text-gray-500">Giá vào</th>
+                    <th class="px-3 py-2 text-right text-xs text-gray-500">Giá ra</th>
                     <th class="px-3 py-2 text-right text-xs text-gray-500">KL</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500">Ngay vao</th>
-                    <th class="px-3 py-2 text-left text-xs text-gray-500">Ngay ra</th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500">Ngày vào</th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500">Ngày ra</th>
                     <th class="px-3 py-2 text-right text-xs text-gray-500">P&L</th>
                     <th class="px-3 py-2 text-right text-xs text-gray-500">%</th>
                   </tr>
@@ -250,7 +250,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                       <span class="px-2 py-0.5 rounded text-xs"
                         [class.bg-green-100]="t.type === 'Buy'" [class.text-green-700]="t.type === 'Buy'"
                         [class.bg-red-100]="t.type === 'Sell'" [class.text-red-700]="t.type === 'Sell'">
-                        {{ t.type === 'Buy' ? 'Mua' : 'Ban' }}
+                        {{ t.type === 'Buy' ? 'Mua' : 'Bán' }}
                       </span>
                     </td>
                     <td class="px-3 py-2 text-right">{{ t.entryPrice | vndCurrency }}</td>
@@ -274,7 +274,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
           <!-- Error message -->
           <div *ngIf="selectedDetail.status === 'Failed'" class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="text-red-700 font-medium">Backtest that bai</div>
+            <div class="text-red-700 font-medium">Backtest thất bại</div>
             <div class="text-red-600 text-sm mt-1">{{ selectedDetail.errorMessage }}</div>
           </div>
 
@@ -282,9 +282,9 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           <div *ngIf="selectedDetail.status === 'Pending' || selectedDetail.status === 'Running'"
             class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
             <div class="text-yellow-700 font-medium mb-2">{{ getStatusLabel(selectedDetail.status) }}</div>
-            <div class="text-yellow-600 text-sm">Backtest dang duoc xu ly. Nhan "Lam moi" de cap nhat ket qua.</div>
+            <div class="text-yellow-600 text-sm">Backtest đang được xử lý. Nhấn "Làm mới" để cập nhật kết quả.</div>
             <button (click)="refreshDetail()" class="mt-3 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm">
-              Lam moi
+              Làm mới
             </button>
           </div>
         </div>
@@ -325,7 +325,7 @@ export class BacktestingComponent implements OnInit {
     this.loading = true;
     this.backtestService.getAll().subscribe({
       next: (data) => { this.backtests = data; this.loading = false; },
-      error: () => { this.notification.error('Loi', 'Khong the tai danh sach backtest'); this.loading = false; }
+      error: () => { this.notification.error('Lỗi', 'Không thể tải danh sách backtest'); this.loading = false; }
     });
   }
 
@@ -347,7 +347,7 @@ export class BacktestingComponent implements OnInit {
       initialCapital: this.newBacktest.initialCapital
     }).subscribe({
       next: (res) => {
-        this.notification.success('Thanh cong', 'Backtest da duoc gui xu ly');
+        this.notification.success('Thành công', 'Backtest đã được gửi xử lý');
         this.showRunForm = false;
         this.running = false;
         this.newBacktest = { strategyId: '', name: '', startDate: '', endDate: '', initialCapital: 100000000 };
@@ -355,7 +355,7 @@ export class BacktestingComponent implements OnInit {
         // Auto-poll for result
         this.startPolling(res.id);
       },
-      error: () => { this.notification.error('Loi', 'Khong the chay backtest'); this.running = false; }
+      error: () => { this.notification.error('Lỗi', 'Không thể chạy backtest'); this.running = false; }
     });
   }
 
@@ -368,7 +368,7 @@ export class BacktestingComponent implements OnInit {
           this.startPolling(detail.id);
         }
       },
-      error: () => this.notification.error('Loi', 'Khong the tai chi tiet backtest')
+      error: () => this.notification.error('Lỗi', 'Không thể tải chi tiết backtest')
     });
   }
 
@@ -406,7 +406,7 @@ export class BacktestingComponent implements OnInit {
 
   getStatusLabel(status: string): string {
     const map: Record<string, string> = {
-      'Pending': 'Dang cho', 'Running': 'Dang chay', 'Completed': 'Hoan thanh', 'Failed': 'That bai'
+      'Pending': 'Đang chờ', 'Running': 'Đang chạy', 'Completed': 'Hoàn thành', 'Failed': 'Thất bại'
     };
     return map[status] || status;
   }
