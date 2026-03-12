@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { RiskService, RiskProfile } from '../../core/services/risk.service';
@@ -34,7 +35,7 @@ interface TradePlan {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Kế hoạch giao dịch (Trade Plan)</h1>
@@ -281,6 +282,20 @@ interface TradePlan {
             </div>
             <div *ngIf="!canTrade" class="mt-2 text-xs text-red-500 text-center">
               {{ getMissingCritical() }}
+            </div>
+
+            <!-- Action buttons -->
+            <div class="mt-4 space-y-2">
+              <a routerLink="/trade-wizard"
+                class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                [class.opacity-50]="!canTrade" [class.pointer-events-none]="!canTrade">
+                🧙 Thực hiện qua Wizard
+              </a>
+              <a [routerLink]="['/trades/create']"
+                [queryParams]="{ symbol: plan.symbol, direction: plan.direction, price: plan.entryPrice, quantity: plan.quantity || optimalShares, portfolioId: plan.portfolioId, stopLoss: plan.stopLoss, takeProfit: plan.target }"
+                class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm">
+                Thực hiện ngay →
+              </a>
             </div>
           </div>
         </div>
