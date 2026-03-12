@@ -65,8 +65,6 @@ interface TradePlan {
                 <select [(ngModel)]="plan.portfolioId" (ngModelChange)="onPortfolioChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="">-- Chọn --</option>
-                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
-                  <option value="">-- Chọn --</option>
                   <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.initialCapital | vndCurrency }})</option>
                 </select>
               </div>
