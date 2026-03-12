@@ -1,12 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
 import { RiskService, PortfolioRiskSummary, PositionRiskItem } from '../../core/services/risk.service';
+import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { forkJoin } from 'rxjs';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 interface RiskAlert {
   symbol: string;
@@ -129,9 +133,14 @@ interface RiskAlert {
                 </svg>
               </div>
             </div>
-            <p class="text-2xl font-bold text-gray-900">--</p>
+            <p class="text-2xl font-bold"
+              [class.text-emerald-600]="cagrValue > 0"
+              [class.text-red-600]="cagrValue < 0"
+              [class.text-gray-900]="cagrValue === 0">
+              {{ cagrValue !== 0 ? (cagrValue > 0 ? '+' : '') + cagrValue.toFixed(1) + '%' : '--' }}
+            </p>
             <div class="mt-2 text-sm text-gray-400">
-              Chưa đủ dữ liệu
+              {{ cagrValue !== 0 ? 'Lãi kép hàng năm' : 'Chưa đủ dữ liệu' }}
             </div>
           </div>
         </div>
@@ -211,12 +220,33 @@ interface RiskAlert {
           </div>
         </div>
 
+        <!-- Row 2.5: Mini Equity Curve -->
+        <div *ngIf="equityCurveData && equityCurveData.points.length > 1" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Equity Curve</h2>
+            <div class="flex space-x-2">
+              <button *ngFor="let range of equityRanges"
+                (click)="setEquityRange(range.days)"
+                class="px-3 py-1 text-xs font-medium rounded-full transition-colors"
+                [class.bg-blue-600]="selectedRange === range.days"
+                [class.text-white]="selectedRange === range.days"
+                [class.bg-gray-100]="selectedRange !== range.days"
+                [class.text-gray-600]="selectedRange !== range.days">
+                {{ range.label }}
+              </button>
+            </div>
+          </div>
+          <div class="h-48">
+            <canvas #miniEquityCanvas></canvas>
+          </div>
+        </div>
+
         <!-- Row 3: Quick Actions -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <a
-              routerLink="/trade-plan"
+              routerLink="/trade-wizard"
               class="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all duration-200 group cursor-pointer"
             >
               <div class="w-12 h-12 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mb-3 transition-colors">
@@ -224,7 +254,7 @@ interface RiskAlert {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                 </svg>
               </div>
-              <span class="text-sm font-medium text-gray-700 group-hover:text-blue-700">Lập kế hoạch GD</span>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-blue-700">Wizard Giao dịch</span>
             </a>
 
             <a
@@ -335,11 +365,23 @@ interface RiskAlert {
   `,
   styles: []
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
+  @ViewChild('miniEquityCanvas') miniEquityCanvas!: ElementRef<HTMLCanvasElement>;
+  private miniEquityChart: Chart | null = null;
+
   currentUser: User | null = null;
   summary: OverallPnLSummary | null = null;
   isLoading = true;
   riskAlerts: RiskAlert[] = [];
+  cagrValue = 0;
+  equityCurveData: EquityCurveData | null = null;
+  selectedRange = 90;
+  equityRanges = [
+    { label: '30D', days: 30 },
+    { label: '90D', days: 90 },
+    { label: '1Y', days: 365 },
+    { label: 'All', days: 0 }
+  ];
 
   allocationColors = [
     '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b',
@@ -377,6 +419,7 @@ export class DashboardComponent implements OnInit {
     private authService: AuthService,
     private pnlService: PnlService,
     private riskService: RiskService,
+    private advancedAnalyticsService: AdvancedAnalyticsService,
     private notificationService: NotificationService
   ) {}
 
@@ -409,7 +452,9 @@ export class DashboardComponent implements OnInit {
       next: (data) => {
         this.summary = data;
         this.isLoading = false;
+        this.calculateCagr();
         this.loadRiskAlerts(data);
+        this.loadEquityCurve();
       },
       error: () => {
         this.isLoading = false;
@@ -472,6 +517,129 @@ export class DashboardComponent implements OnInit {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.miniEquityChart?.destroy();
+  }
+
+  private calculateCagr(): void {
+    const invested = this.pnlSummary.totalInvested;
+    const current = this.pnlSummary.totalPortfolioValue;
+    if (invested <= 0 || current <= 0) { this.cagrValue = 0; return; }
+
+    // Estimate years from first portfolio creation (use earliest trade data)
+    // For now, approximate based on total initial capital vs market value
+    const totalReturn = current / invested;
+    // Assume investment period proportional to data — default 1 year if unknown
+    const years = 1;
+    this.cagrValue = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+  }
+
+  private loadEquityCurve(): void {
+    if (!this.summary?.portfolios?.length) return;
+    const firstPortfolioId = this.summary.portfolios[0].portfolioId;
+
+    this.advancedAnalyticsService.getEquityCurve(firstPortfolioId).subscribe({
+      next: (data) => {
+        this.equityCurveData = data;
+        if (data.points.length > 1) {
+          this.calculateCagrFromCurve(data);
+          setTimeout(() => this.renderMiniEquityChart());
+        }
+      },
+      error: () => this.equityCurveData = null
+    });
+  }
+
+  private calculateCagrFromCurve(data: EquityCurveData): void {
+    if (!data.points.length) return;
+    const first = data.points[0];
+    const last = data.points[data.points.length - 1];
+    if (first.portfolioValue <= 0) return;
+
+    const startDate = new Date(first.date);
+    const endDate = new Date(last.date);
+    const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    const years = diffDays / 365.25;
+
+    if (years >= 0.01) {
+      const totalReturn = last.portfolioValue / first.portfolioValue;
+      this.cagrValue = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+    }
+  }
+
+  setEquityRange(days: number): void {
+    this.selectedRange = days;
+    setTimeout(() => this.renderMiniEquityChart());
+  }
+
+  private renderMiniEquityChart(): void {
+    if (!this.miniEquityCanvas?.nativeElement || !this.equityCurveData?.points?.length) return;
+    this.miniEquityChart?.destroy();
+
+    let points = this.equityCurveData.points;
+    if (this.selectedRange > 0) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - this.selectedRange);
+      points = points.filter(p => new Date(p.date) >= cutoff);
+    }
+    if (points.length < 2) return;
+
+    const labels = points.map(p => new Date(p.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }));
+    const values = points.map(p => p.portfolioValue);
+    const isPositive = values[values.length - 1] >= values[0];
+
+    this.miniEquityChart = new Chart(this.miniEquityCanvas.nativeElement, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: isPositive ? '#10b981' : '#ef4444',
+          backgroundColor: isPositive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.parsed.y ?? 0;
+                if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(1) + ' tỷ';
+                if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1) + ' tr';
+                return v.toLocaleString('vi-VN') + ' đ';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => {
+                const n = Number(v);
+                if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(0) + 'B';
+                if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(0) + 'M';
+                return n.toLocaleString('vi-VN');
+              }
+            },
+            grid: { color: 'rgba(0,0,0,0.04)' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { maxTicksLimit: 8 }
+          }
+        }
+      }
     });
   }
 }

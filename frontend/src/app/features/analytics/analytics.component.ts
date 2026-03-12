@@ -1,6 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 import { PnlService, OverallPnLSummary, PositionPnL } from '../../core/services/pnl.service';
 import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../../core/services/analytics.service';
 import {
@@ -94,7 +97,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
           <div class="border-b border-gray-200">
             <nav class="flex space-x-4 px-4">
-              <button *ngFor="let tab of tabs" (click)="activeTab = tab.key"
+              <button *ngFor="let tab of tabs" (click)="onTabChange(tab.key)"
                 [class.border-blue-500]="activeTab === tab.key"
                 [class.text-blue-600]="activeTab === tab.key"
                 [class.border-transparent]="activeTab !== tab.key"
@@ -110,37 +113,25 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             <div *ngIf="activeTab === 'overview'">
               <!-- Charts Row -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                <!-- Performance Chart -->
+                <!-- P&L Bar Chart -->
                 <div class="bg-gray-50 rounded-lg p-6">
-                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Biểu đồ hiệu suất danh mục</h3>
-                  <div class="h-64 flex items-center justify-center rounded-lg">
-                    <div class="text-center">
-                      <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                      </svg>
-                      <p class="text-gray-500">Biểu đồ hiệu suất sẽ hiển thị ở đây</p>
-                      <p class="text-sm text-gray-400 mt-1">Tích hợp với Chart.js hoặc D3.js</p>
-                    </div>
+                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Lãi/Lỗ theo cổ phiếu</h3>
+                  <div class="h-64">
+                    <canvas #pnlBarCanvas></canvas>
+                  </div>
+                  <div *ngIf="topHoldings.length === 0" class="h-64 flex items-center justify-center text-gray-400">
+                    Chưa có dữ liệu
                   </div>
                 </div>
 
-                <!-- Position Allocation -->
+                <!-- Pie Allocation Chart -->
                 <div class="bg-gray-50 rounded-lg p-6">
                   <h3 class="text-lg font-semibold text-gray-900 mb-4">Phân bổ theo cổ phiếu</h3>
-                  <div class="space-y-4">
-                    <div *ngFor="let holding of topHoldings; let i = index" class="flex items-center justify-between">
-                      <div class="flex items-center">
-                        <div class="w-4 h-4 rounded-full mr-3" [style.background-color]="getPositionColor(i)"></div>
-                        <span class="text-sm font-medium text-gray-900">{{ holding.symbol }}</span>
-                      </div>
-                      <div class="text-right">
-                        <span class="text-sm font-medium text-gray-900">{{ getHoldingPercent(holding.marketValue) }}%</span>
-                        <p class="text-xs text-gray-500">{{ holding.marketValue | vndCurrency }}</p>
-                      </div>
-                    </div>
-                    <div *ngIf="topHoldings.length === 0" class="text-center py-4 text-gray-500">
-                      Chưa có vị thế nào
-                    </div>
+                  <div class="h-64" *ngIf="topHoldings.length > 0">
+                    <canvas #pieCanvas></canvas>
+                  </div>
+                  <div *ngIf="topHoldings.length === 0" class="h-64 flex items-center justify-center text-gray-500">
+                    Chưa có vị thế nào
                   </div>
                 </div>
               </div>
@@ -279,6 +270,11 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             <!-- Equity Curve Tab -->
             <div *ngIf="activeTab === 'equity'">
               <h3 class="text-lg font-semibold mb-4">Equity Curve</h3>
+              <div *ngIf="equityCurve && equityCurve.points.length > 0" class="mb-6">
+                <div class="bg-gray-50 rounded-lg p-4 h-72">
+                  <canvas #equityCurveCanvas></canvas>
+                </div>
+              </div>
               <div *ngIf="equityCurve && equityCurve.points.length > 0">
                 <div class="overflow-x-auto max-h-96 overflow-y-auto">
                   <table class="min-w-full divide-y divide-gray-200">
@@ -318,6 +314,11 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             <!-- Monthly Returns Tab -->
             <div *ngIf="activeTab === 'monthly'">
               <h3 class="text-lg font-semibold mb-4">Lợi nhuận theo Tháng</h3>
+              <div *ngIf="monthlyReturns && monthlyReturns.returns.length > 0" class="mb-6">
+                <div class="bg-gray-50 rounded-lg p-4 h-64">
+                  <canvas #monthlyBarCanvas></canvas>
+                </div>
+              </div>
               <div *ngIf="monthlyReturns && monthlyReturns.returns.length > 0">
                 <div class="overflow-x-auto">
                   <table class="min-w-full divide-y divide-gray-200">
@@ -360,7 +361,17 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
   `,
   styles: []
 })
-export class AnalyticsComponent implements OnInit {
+export class AnalyticsComponent implements OnInit, OnDestroy {
+  @ViewChild('pnlBarCanvas') pnlBarCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('pieCanvas') pieCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('equityCurveCanvas') equityCurveCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('monthlyBarCanvas') monthlyBarCanvas!: ElementRef<HTMLCanvasElement>;
+
+  private pnlBarChart: Chart | null = null;
+  private pieChart: Chart | null = null;
+  private equityCurveChart: Chart | null = null;
+  private monthlyBarChart: Chart | null = null;
+
   summary: OverallPnLSummary | null = null;
   topHoldings: PositionPnL[] = [];
   performanceData: PerformanceSummary | null = null;
@@ -423,6 +434,7 @@ export class AnalyticsComponent implements OnInit {
           this.loadAdvancedData(targetId);
         }
         this.isLoading = false;
+        this.renderOverviewCharts();
       },
       error: () => {
         this.isLoading = false;
@@ -449,13 +461,28 @@ export class AnalyticsComponent implements OnInit {
     });
 
     this.advancedAnalyticsService.getEquityCurve(portfolioId).subscribe({
-      next: (data) => this.equityCurve = data,
+      next: (data) => {
+        this.equityCurve = data;
+        if (this.activeTab === 'equity') setTimeout(() => this.renderEquityCurveChart());
+      },
       error: () => this.equityCurve = null
     });
 
     this.advancedAnalyticsService.getMonthlyReturns(portfolioId).subscribe({
-      next: (data) => this.monthlyReturns = data,
+      next: (data) => {
+        this.monthlyReturns = data;
+        if (this.activeTab === 'monthly') setTimeout(() => this.renderMonthlyBarChart());
+      },
       error: () => this.monthlyReturns = null
+    });
+  }
+
+  onTabChange(tabKey: string): void {
+    this.activeTab = tabKey;
+    setTimeout(() => {
+      if (tabKey === 'overview') this.renderOverviewCharts();
+      if (tabKey === 'equity') this.renderEquityCurveChart();
+      if (tabKey === 'monthly') this.renderMonthlyBarChart();
     });
   }
 
@@ -508,5 +535,214 @@ export class AnalyticsComponent implements OnInit {
     if (!this.monthlyReturns) return null;
     const item = this.monthlyReturns.returns.find(r => r.year === year && r.month === month);
     return item ? item.returnPercent : null;
+  }
+
+  ngOnDestroy(): void {
+    this.destroyCharts();
+  }
+
+  private destroyCharts(): void {
+    this.pnlBarChart?.destroy();
+    this.pieChart?.destroy();
+    this.equityCurveChart?.destroy();
+    this.monthlyBarChart?.destroy();
+  }
+
+  private renderOverviewCharts(): void {
+    setTimeout(() => {
+      this.renderPnLBarChart();
+      this.renderPieChart();
+    });
+  }
+
+  private renderPnLBarChart(): void {
+    if (!this.pnlBarCanvas?.nativeElement || this.topHoldings.length === 0) return;
+    this.pnlBarChart?.destroy();
+
+    const labels = this.topHoldings.slice(0, 10).map(h => h.symbol);
+    const data = this.topHoldings.slice(0, 10).map(h => h.totalPnL ?? h.unrealizedPnL ?? 0);
+    const colors = data.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)');
+
+    this.pnlBarChart = new Chart(this.pnlBarCanvas.nativeElement, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Lãi/Lỗ (VND)',
+          data,
+          backgroundColor: colors,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => this.formatVnd(ctx.parsed.y ?? 0)
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => this.formatVndShort(Number(v))
+            },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  private renderPieChart(): void {
+    if (!this.pieCanvas?.nativeElement || this.topHoldings.length === 0) return;
+    this.pieChart?.destroy();
+
+    const labels = this.topHoldings.slice(0, 8).map(h => h.symbol);
+    const data = this.topHoldings.slice(0, 8).map(h => h.marketValue);
+
+    this.pieChart = new Chart(this.pieCanvas.nativeElement, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: this.positionColors,
+          borderWidth: 2,
+          borderColor: '#f9fafb'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { padding: 12, usePointStyle: true, pointStyle: 'circle' }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0);
+                const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : '0';
+                return `${ctx.label}: ${this.formatVnd(ctx.parsed)} (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  renderEquityCurveChart(): void {
+    if (!this.equityCurveCanvas?.nativeElement || !this.equityCurve?.points?.length) return;
+    this.equityCurveChart?.destroy();
+
+    const points = this.equityCurve.points;
+    const labels = points.map(p => new Date(p.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }));
+    const values = points.map(p => p.portfolioValue);
+
+    this.equityCurveChart = new Chart(this.equityCurveCanvas.nativeElement, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Giá trị danh mục',
+          data: values,
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: points.length > 30 ? 0 : 3,
+          pointHoverRadius: 5,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => this.formatVnd(ctx.parsed.y ?? 0)
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: { callback: (v) => this.formatVndShort(Number(v)) },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { maxTicksLimit: 10 }
+          }
+        }
+      }
+    });
+  }
+
+  renderMonthlyBarChart(): void {
+    if (!this.monthlyBarCanvas?.nativeElement || !this.monthlyReturns?.returns?.length) return;
+    this.monthlyBarChart?.destroy();
+
+    const sorted = [...this.monthlyReturns.returns].sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+    const labels = sorted.map(r => `T${r.month}/${r.year}`);
+    const data = sorted.map(r => r.returnPercent);
+    const colors = data.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)');
+
+    this.monthlyBarChart = new Chart(this.monthlyBarCanvas.nativeElement, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Lợi nhuận (%)',
+          data,
+          backgroundColor: colors,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => { const v = ctx.parsed.y ?? 0; return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`; }
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: { callback: (v) => `${v}%` },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  private formatVnd(value: number): string {
+    if (Math.abs(value) >= 1e9) return (value / 1e9).toFixed(1) + ' tỷ';
+    if (Math.abs(value) >= 1e6) return (value / 1e6).toFixed(1) + ' tr';
+    if (Math.abs(value) >= 1e3) return (value / 1e3).toFixed(0) + 'k';
+    return value.toLocaleString('vi-VN');
+  }
+
+  private formatVndShort(value: number): string {
+    if (Math.abs(value) >= 1e9) return (value / 1e9).toFixed(0) + 'B';
+    if (Math.abs(value) >= 1e6) return (value / 1e6).toFixed(0) + 'M';
+    if (Math.abs(value) >= 1e3) return (value / 1e3).toFixed(0) + 'K';
+    return value.toString();
   }
 }
