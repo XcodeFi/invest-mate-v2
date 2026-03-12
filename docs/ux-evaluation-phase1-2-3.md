@@ -160,3 +160,84 @@ Optimal Shares = floor(Max Risk Amount / Risk Per Share / 100) × 100
 Position Value = Optimal Shares × Entry Price
 Max Position Value = Account Balance × Max Position%
 ```
+
+---
+
+## Phase 4 — Bieu do & Lien ket trang
+
+**Branch:** `feature/phase4-charts-and-links`
+**Status:** Da commit & push. Can tao PR vao master.
+**Thay doi:** 6 files, +645 / -44 dong
+**Dependency moi:** `chart.js v4.5`
+
+### 4.1 Bieu do Chart.js trong Analytics
+
+**File:** `features/analytics/analytics.component.ts`
+
+4 bieu do duoc them:
+- **P&L Bar Chart** — Bieu do cot Lai/Lo theo tung co phieu (xanh = lai, do = lo), thay the placeholder cu
+- **Pie Allocation (Doughnut)** — Bieu do phan bo danh muc theo % gia tri thi truong, legend ben phai
+- **Equity Curve (Line)** — Bieu do duong gia tri danh muc theo thoi gian, fill gradient, hien thi khi co du lieu snapshot
+- **Monthly Returns Bar** — Bieu do cot loi nhuan theo thang (xanh/do), sap xep theo thoi gian
+
+Ky thuat:
+- Import `Chart, registerables` tu `chart.js`, goi `Chart.register(...registerables)`
+- Dung `@ViewChild` de tham chieu canvas: `pnlBarCanvas`, `pieCanvas`, `equityCurveCanvas`, `monthlyBarCanvas`
+- Render chart khi data load va khi chuyen tab (`onTabChange()`)
+- Destroy charts khi component bi huy (`ngOnDestroy`)
+- Tooltip format VND: `formatVnd()` (1.2 ty, 500 tr, 25k)
+
+### 4.2 Mini Equity Curve tren Dashboard
+
+**File:** `features/dashboard/dashboard.component.ts`
+
+Tinh nang:
+- Bieu do duong mini (h-48) hien thi giua Row 2 (Risk Alerts) va Row 3 (Quick Actions)
+- 4 nut chon khoang thoi gian: 30D / 90D / 1Y / All
+- Mau xanh khi gia tri tang, do khi giam
+- Chi hien thi khi co >= 2 diem du lieu equity curve
+- Goi `AdvancedAnalyticsService.getEquityCurve()` cho portfolio dau tien
+
+### 4.3 Tinh toan CAGR thuc te
+
+**File:** `features/dashboard/dashboard.component.ts`
+
+2 phuong phap tinh:
+1. **calculateCagr()** — Tinh nhanh tu tong von dau tu vs gia tri hien tai (fallback, mac dinh 1 nam)
+2. **calculateCagrFromCurve()** — Tinh chinh xac tu equity curve:
+   ```
+   years = (endDate - startDate) / 365.25
+   CAGR = (lastValue / firstValue)^(1/years) - 1
+   ```
+   Uu tien phuong phap 2 khi co du lieu equity curve.
+
+Hien thi: Card CAGR tren Dashboard hien gia tri thuc (vd: +12.5%) thay vi "--"
+
+### 4.4 Lien ket Trade Plan → Wizard
+
+**File:** `features/trade-plan/trade-plan.component.ts`
+
+Them 2 nut hanh dong sau checklist Go/No-Go:
+- **"Thuc hien qua Wizard"** — Link den `/trade-wizard`, bi lam mo (opacity-50) khi chua du dieu kien
+- **"Thuc hien ngay →"** — Link den `/trades/create` voi queryParams pre-fill:
+  `symbol, direction, price, quantity, portfolioId, stopLoss, takeProfit`
+
+Import them `RouterModule` de su dung `routerLink` va `queryParams`.
+
+### 4.5 Dashboard Quick Action → Wizard
+
+**File:** `features/dashboard/dashboard.component.ts`
+
+- Doi link quick action tu `/trade-plan` → `/trade-wizard`
+- Doi label tu "Lap ke hoach GD" → "Wizard Giao dich"
+
+---
+
+## Tong ket tien do
+
+| Phase | Branch | Status | PR |
+|-------|--------|--------|----|
+| 1. Bug fixes | `fix/phase1-critical-bugs` | Da merge | PR #3, #4 |
+| 2. Gop trang | `feature/phase2-ux-consolidation` | Da merge | PR #5 |
+| 3. Tinh nang moi | `feature/phase3-new-features` | Da merge | PR #6 |
+| 4. Bieu do & lien ket | `feature/phase4-charts-and-links` | Da push | Can tao PR |
