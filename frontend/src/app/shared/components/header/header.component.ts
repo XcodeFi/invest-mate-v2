@@ -190,7 +190,6 @@ export class HeaderComponent implements OnInit {
       icon: '📈',
       items: [
         { path: '/analytics', label: 'Phân tích', icon: '📊' },
-        { path: '/advanced-analytics', label: 'Phân tích nâng cao', icon: '🔬' },
         { path: '/backtesting', label: 'Backtest', icon: '🧪' },
         { path: '/market-data', label: 'Thị trường', icon: '🌐' },
         { path: '/snapshots', label: 'Lịch sử snapshot', icon: '📸' },
@@ -204,7 +203,6 @@ export class HeaderComponent implements OnInit {
         { path: '/risk', label: 'Rủi ro chi tiết', icon: '🛡️' },
         { path: '/strategies', label: 'Chiến lược', icon: '🎯' },
         { path: '/trade-plan', label: 'Kế hoạch GD', icon: '📑' },
-        { path: '/position-sizing', label: 'Tính vị thế', icon: '🧮' },
         { path: '/journals', label: 'Nhật ký', icon: '📝' },
         { path: '/alerts', label: 'Cảnh báo', icon: '🔔' },
       ]

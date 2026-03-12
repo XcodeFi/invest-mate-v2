@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(python -c \"import json; d=json.load\\(open\\(''package.json''\\)\\); print\\(''Angular:'', d[''dependencies''].get\\(''@angular/core'',''''\\)\\); print\\(''Build cmd:'', d[''scripts''].get\\(''build'',''''\\)\\)\")",
-      "Bash(npx ng build --configuration=production)"
+      "Bash(npx ng build --configuration=production)",
+      "Bash(npx ng:*)",
+      "Bash(xargs grep:*)",
+      "Bash(dotnet build:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }

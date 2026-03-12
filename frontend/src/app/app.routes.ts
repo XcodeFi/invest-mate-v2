@@ -53,8 +53,8 @@ export const routes: Routes = [
   },
   {
     path: 'advanced-analytics',
-    loadComponent: () => import('./features/advanced-analytics/advanced-analytics.component').then(m => m.AdvancedAnalyticsComponent),
-    canActivate: [AuthGuard]
+    redirectTo: '/analytics',
+    pathMatch: 'full'
   },
   {
     path: 'strategies',
@@ -78,8 +78,8 @@ export const routes: Routes = [
   },
   {
     path: 'position-sizing',
-    loadComponent: () => import('./features/position-sizing/position-sizing.component').then(m => m.PositionSizingComponent),
-    canActivate: [AuthGuard]
+    redirectTo: '/trade-plan',
+    pathMatch: 'full'
   },
   {
     path: 'trade-plan',

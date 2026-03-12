@@ -1,13 +1,21 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { PnlService, OverallPnLSummary, PositionPnL } from '../../core/services/pnl.service';
 import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../../core/services/analytics.service';
+import {
+  AdvancedAnalyticsService,
+  PerformanceSummary as AdvPerformanceSummary,
+  EquityCurveData,
+  MonthlyReturnsData
+} from '../../core/services/advanced-analytics.service';
+import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [CommonModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -18,11 +26,12 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <h1 class="text-3xl font-bold text-gray-900">Phân tích Đầu tư</h1>
               <p class="text-gray-600 mt-1">Phân tích hiệu suất và phân bổ danh mục</p>
             </div>
-            <div class="flex space-x-3" *ngIf="portfolioIds.length > 1">
+            <div class="flex space-x-3">
               <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                (change)="onPortfolioChange($event)">
+                [(ngModel)]="selectedPortfolioId"
+                (ngModelChange)="onPortfolioChangeNew()">
                 <option value="">Tất cả danh mục</option>
-                <option *ngFor="let p of portfolioOptions" [value]="p.id">{{ p.name }}</option>
+                <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
               </select>
             </div>
           </div>
@@ -31,203 +40,318 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Performance Overview -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0">
-                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                  </svg>
-                </div>
-              </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-600">Tổng lợi nhuận</p>
-                <p class="text-2xl font-bold" [class]="totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'">{{ totalPnLPercent >= 0 ? '+' : '' }}{{ totalPnLPercent.toFixed(1) }}%</p>
-                <p class="text-sm text-gray-600">{{ totalPnL | vndCurrency }}</p>
-              </div>
+        <!-- Performance Overview Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Tổng lợi nhuận</div>
+            <div class="text-xl font-bold mt-1" [class]="totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ totalPnLPercent >= 0 ? '+' : '' }}{{ totalPnLPercent.toFixed(1) }}%
+            </div>
+            <div class="text-xs text-gray-500 mt-1">{{ totalPnL | vndCurrency }}</div>
+          </div>
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">CAGR</div>
+            <div class="text-xl font-bold mt-1"
+              [class.text-green-600]="advPerformance && advPerformance.cagr >= 0"
+              [class.text-red-600]="advPerformance && advPerformance.cagr < 0">
+              {{ advPerformance ? (advPerformance.cagr | number:'1.2-2') + '%' : '--' }}
             </div>
           </div>
-
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0">
-                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                  </svg>
-                </div>
-              </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-600">Sharpe Ratio</p>
-                <p class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.sharpeRatio.toFixed(2) : '--' }}</p>
-                <p class="text-sm text-gray-600">Hiệu suất rủi ro</p>
-              </div>
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Sharpe</div>
+            <div class="text-xl font-bold mt-1"
+              [class.text-green-600]="advPerformance && advPerformance.sharpeRatio >= 1"
+              [class.text-yellow-600]="advPerformance && advPerformance.sharpeRatio >= 0 && advPerformance.sharpeRatio < 1"
+              [class.text-red-600]="advPerformance && advPerformance.sharpeRatio < 0">
+              {{ advPerformance ? (advPerformance.sharpeRatio | number:'1.2-2') : '--' }}
             </div>
           </div>
-
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0">
-                <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                  </svg>
-                </div>
-              </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-600">Sortino Ratio</p>
-                <p class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.sortinoRatio.toFixed(2) : '--' }}</p>
-                <p class="text-sm text-gray-600">Rủi ro giảm giá</p>
-              </div>
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Sortino</div>
+            <div class="text-xl font-bold mt-1"
+              [class.text-green-600]="advPerformance && advPerformance.sortinoRatio >= 1"
+              [class.text-red-600]="advPerformance && advPerformance.sortinoRatio < 1">
+              {{ advPerformance ? (advPerformance.sortinoRatio | number:'1.2-2') : '--' }}
             </div>
           </div>
-
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center">
-              <div class="flex-shrink-0">
-                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                  </svg>
-                </div>
-              </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-600">Max Drawdown</p>
-                <p class="text-2xl font-bold text-red-600">{{ performanceData ? performanceData.maxDrawdown.toFixed(1) + '%' : '--' }}</p>
-                <p class="text-sm text-gray-600">Mất mát tối đa</p>
-              </div>
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Max Drawdown</div>
+            <div class="text-xl font-bold mt-1 text-red-600">
+              {{ advPerformance ? (advPerformance.maxDrawdown | number:'1.2-2') + '%' : '--' }}
+            </div>
+          </div>
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Win Rate</div>
+            <div class="text-xl font-bold mt-1"
+              [class.text-green-600]="advPerformance && advPerformance.winRate >= 50"
+              [class.text-red-600]="advPerformance && advPerformance.winRate < 50">
+              {{ advPerformance ? (advPerformance.winRate | number:'1.1-1') + '%' : '--' }}
             </div>
           </div>
         </div>
 
-        <!-- Charts Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <!-- Performance Chart -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Biểu đồ hiệu suất danh mục</h3>
-            <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-              <div class="text-center">
-                <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                <p class="text-gray-500">Biểu đồ hiệu suất sẽ hiển thị ở đây</p>
-                <p class="text-sm text-gray-400 mt-1">Tích hợp với Chart.js hoặc D3.js</p>
-              </div>
-            </div>
+        <!-- Tabs -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+          <div class="border-b border-gray-200">
+            <nav class="flex space-x-4 px-4">
+              <button *ngFor="let tab of tabs" (click)="activeTab = tab.key"
+                [class.border-blue-500]="activeTab === tab.key"
+                [class.text-blue-600]="activeTab === tab.key"
+                [class.border-transparent]="activeTab !== tab.key"
+                [class.text-gray-500]="activeTab !== tab.key"
+                class="py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                {{ tab.label }}
+              </button>
+            </nav>
           </div>
 
-          <!-- Position Allocation -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Phân bổ theo cổ phiếu</h3>
-            <div class="space-y-4">
-              <div *ngFor="let holding of topHoldings; let i = index" class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <div class="w-4 h-4 rounded-full mr-3" [style.background-color]="getPositionColor(i)"></div>
-                  <span class="text-sm font-medium text-gray-900">{{ holding.symbol }}</span>
+          <div class="p-6">
+            <!-- Tổng quan Tab -->
+            <div *ngIf="activeTab === 'overview'">
+              <!-- Charts Row -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Performance Chart -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Biểu đồ hiệu suất danh mục</h3>
+                  <div class="h-64 flex items-center justify-center rounded-lg">
+                    <div class="text-center">
+                      <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                      </svg>
+                      <p class="text-gray-500">Biểu đồ hiệu suất sẽ hiển thị ở đây</p>
+                      <p class="text-sm text-gray-400 mt-1">Tích hợp với Chart.js hoặc D3.js</p>
+                    </div>
+                  </div>
                 </div>
-                <div class="text-right">
-                  <span class="text-sm font-medium text-gray-900">{{ getHoldingPercent(holding.marketValue) }}%</span>
-                  <p class="text-xs text-gray-500">{{ holding.marketValue | vndCurrency }}</p>
+
+                <!-- Position Allocation -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Phân bổ theo cổ phiếu</h3>
+                  <div class="space-y-4">
+                    <div *ngFor="let holding of topHoldings; let i = index" class="flex items-center justify-between">
+                      <div class="flex items-center">
+                        <div class="w-4 h-4 rounded-full mr-3" [style.background-color]="getPositionColor(i)"></div>
+                        <span class="text-sm font-medium text-gray-900">{{ holding.symbol }}</span>
+                      </div>
+                      <div class="text-right">
+                        <span class="text-sm font-medium text-gray-900">{{ getHoldingPercent(holding.marketValue) }}%</span>
+                        <p class="text-xs text-gray-500">{{ holding.marketValue | vndCurrency }}</p>
+                      </div>
+                    </div>
+                    <div *ngIf="topHoldings.length === 0" class="text-center py-4 text-gray-500">
+                      Chưa có vị thế nào
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div *ngIf="topHoldings.length === 0" class="text-center py-4 text-gray-500">
-                Chưa có vị thế nào
+
+              <!-- Top Holdings Table -->
+              <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h3 class="text-lg font-semibold text-gray-900">Cổ phiếu nắm giữ nhiều nhất</h3>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã CK</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trung bình</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá hiện tại</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trị thị trường</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lãi/Lỗ</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Lãi/Lỗ</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr *ngFor="let holding of topHoldings" class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm font-medium text-gray-900">{{ holding.symbol }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {{ holding.quantity }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {{ holding.averageCost | vndCurrency }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {{ holding.currentPrice | vndCurrency }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {{ holding.marketValue | vndCurrency }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm" [class]="(holding.totalPnL ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ (holding.totalPnL ?? 0) | vndCurrency }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm" [class]="(holding.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ (holding.totalPnLPercent ?? 0).toFixed(2) }}%
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Risk Metrics -->
+              <div class="mt-8 bg-gray-50 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Chỉ số rủi ro</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.winRate.toFixed(1) + '%' : '--' }}</div>
+                    <div class="text-sm text-gray-600">Win Rate</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.profitFactor.toFixed(2) : '--' }}</div>
+                    <div class="text-sm text-gray-600">Profit Factor</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{{ riskData ? riskData.valueAtRisk95.toFixed(1) + '%' : '--' }}</div>
+                    <div class="text-sm text-gray-600">Value at Risk (95%)</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{{ performanceData ? (performanceData.expectancy | vndCurrency) : '--' }}</div>
+                    <div class="text-sm text-gray-600">Expectancy</div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Top Holdings Table -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">Cổ phiếu nắm giữ nhiều nhất</h3>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã CK</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trung bình</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá hiện tại</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trị thị trường</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lãi/Lỗ</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Lãi/Lỗ</th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <tr *ngFor="let holding of topHoldings" class="hover:bg-gray-50">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">{{ holding.symbol }}</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ holding.quantity }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ holding.averageCost | vndCurrency }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ holding.currentPrice | vndCurrency }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ holding.marketValue | vndCurrency }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm" [class]="(holding.totalPnL ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ (holding.totalPnL ?? 0) | vndCurrency }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm" [class]="(holding.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ (holding.totalPnLPercent ?? 0).toFixed(2) }}%
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+            <!-- Trade Statistics Tab -->
+            <div *ngIf="activeTab === 'trades'">
+              <div *ngIf="advPerformance">
+                <h3 class="text-lg font-semibold mb-4">Thống kê Giao dịch</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Tổng giao dịch</div>
+                    <div class="text-2xl font-bold text-gray-800">{{ advPerformance.totalTrades }}</div>
+                    <div class="flex justify-between mt-2 text-sm">
+                      <span class="text-green-600">Thắng: {{ advPerformance.winningTrades }}</span>
+                      <span class="text-red-600">Thua: {{ advPerformance.losingTrades }}</span>
+                    </div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Expectancy</div>
+                    <div class="text-2xl font-bold" [class.text-green-600]="advPerformance.expectancy > 0" [class.text-red-600]="advPerformance.expectancy <= 0">
+                      {{ advPerformance.expectancy | vndCurrency }}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">Kỳ vọng lợi nhuận trung bình / giao dịch</div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Total Return</div>
+                    <div class="text-2xl font-bold" [class.text-green-600]="advPerformance.totalReturn > 0" [class.text-red-600]="advPerformance.totalReturn <= 0">
+                      {{ advPerformance.totalReturn | number:'1.2-2' }}%
+                    </div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Trung bình thắng</div>
+                    <div class="text-xl font-bold text-green-600">{{ advPerformance.averageWin | vndCurrency }}</div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Trung bình thua</div>
+                    <div class="text-xl font-bold text-red-600">{{ advPerformance.averageLoss | vndCurrency }}</div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-sm text-gray-500">Gross P/L</div>
+                    <div class="flex justify-between">
+                      <span class="text-green-600 font-medium">+{{ advPerformance.grossProfit | vndCurrency }}</span>
+                      <span class="text-red-600 font-medium">{{ advPerformance.grossLoss | vndCurrency }}</span>
+                    </div>
+                  </div>
+                </div>
 
-        <!-- Risk Metrics -->
-        <div class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Chỉ số rủi ro</h3>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.winRate.toFixed(1) + '%' : '--' }}</div>
-              <div class="text-sm text-gray-600">Win Rate</div>
+                <!-- Win Rate Bar -->
+                <div class="mt-6">
+                  <div class="text-sm font-medium text-gray-700 mb-2">Win Rate: {{ advPerformance.winRate | number:'1.1-1' }}%</div>
+                  <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div class="bg-green-500 h-4 rounded-full transition-all duration-500"
+                      [style.width.%]="advPerformance.winRate"></div>
+                  </div>
+                </div>
+              </div>
+              <div *ngIf="!advPerformance && selectedPortfolioId" class="text-center py-8 text-gray-500">
+                Đang tải dữ liệu thống kê...
+              </div>
+              <div *ngIf="!selectedPortfolioId" class="text-center py-8 text-gray-500">
+                Chọn danh mục để xem thống kê giao dịch
+              </div>
             </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.profitFactor.toFixed(2) : '--' }}</div>
-              <div class="text-sm text-gray-600">Profit Factor</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ riskData ? riskData.valueAtRisk95.toFixed(1) + '%' : '--' }}</div>
-              <div class="text-sm text-gray-600">Value at Risk (95%)</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ performanceData ? (performanceData.expectancy | vndCurrency) : '--' }}</div>
-              <div class="text-sm text-gray-600">Expectancy</div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Trade Stats -->
-        <div *ngIf="performanceData" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Thống kê giao dịch</h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ performanceData.totalTrades }}</div>
-              <div class="text-sm text-gray-600">Tổng GD</div>
+            <!-- Equity Curve Tab -->
+            <div *ngIf="activeTab === 'equity'">
+              <h3 class="text-lg font-semibold mb-4">Equity Curve</h3>
+              <div *ngIf="equityCurve && equityCurve.points.length > 0">
+                <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá trị DM</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lợi nhuận ngày</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lợi nhuận tích luỹ</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr *ngFor="let point of equityCurve.points">
+                        <td class="px-4 py-2 text-sm">{{ point.date | date:'dd/MM/yyyy' }}</td>
+                        <td class="px-4 py-2 text-right text-sm font-medium">{{ point.portfolioValue | vndCurrency }}</td>
+                        <td class="px-4 py-2 text-right text-sm"
+                          [class.text-green-600]="point.dailyReturn > 0"
+                          [class.text-red-600]="point.dailyReturn < 0">
+                          {{ point.dailyReturn > 0 ? '+' : '' }}{{ point.dailyReturn | number:'1.2-2' }}%
+                        </td>
+                        <td class="px-4 py-2 text-right text-sm font-medium"
+                          [class.text-green-600]="point.cumulativeReturn > 0"
+                          [class.text-red-600]="point.cumulativeReturn < 0">
+                          {{ point.cumulativeReturn > 0 ? '+' : '' }}{{ point.cumulativeReturn | number:'1.2-2' }}%
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div *ngIf="!equityCurve || equityCurve.points.length === 0" class="text-center py-8 text-gray-500">
+                <span *ngIf="selectedPortfolioId">Chưa có dữ liệu equity curve. Hãy chụp snapshot hàng ngày để tạo dữ liệu.</span>
+                <span *ngIf="!selectedPortfolioId">Chọn danh mục để xem equity curve</span>
+              </div>
             </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-green-600">{{ performanceData.winningTrades }}</div>
-              <div class="text-sm text-gray-600">Lãi</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-red-600">{{ performanceData.losingTrades }}</div>
-              <div class="text-sm text-gray-600">Lỗ</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ performanceData.cagr.toFixed(1) }}%</div>
-              <div class="text-sm text-gray-600">CAGR</div>
+
+            <!-- Monthly Returns Tab -->
+            <div *ngIf="activeTab === 'monthly'">
+              <h3 class="text-lg font-semibold mb-4">Lợi nhuận theo Tháng</h3>
+              <div *ngIf="monthlyReturns && monthlyReturns.returns.length > 0">
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Năm</th>
+                        <th *ngFor="let m of months" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">{{ m }}</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr *ngFor="let year of monthlyReturns.years">
+                        <td class="px-3 py-2 font-medium text-sm">{{ year }}</td>
+                        <td *ngFor="let monthNum of monthNumbers" class="px-3 py-2 text-center text-sm">
+                          <span *ngIf="getMonthlyReturn(year, monthNum) !== null"
+                            class="px-2 py-1 rounded text-xs font-medium"
+                            [class.bg-green-100]="(getMonthlyReturn(year, monthNum) || 0) > 0"
+                            [class.text-green-700]="(getMonthlyReturn(year, monthNum) || 0) > 0"
+                            [class.bg-red-100]="(getMonthlyReturn(year, monthNum) || 0) < 0"
+                            [class.text-red-700]="(getMonthlyReturn(year, monthNum) || 0) < 0"
+                            [class.bg-gray-100]="(getMonthlyReturn(year, monthNum) || 0) === 0"
+                            [class.text-gray-700]="(getMonthlyReturn(year, monthNum) || 0) === 0">
+                            {{ getMonthlyReturn(year, monthNum) | number:'1.1-1' }}%
+                          </span>
+                          <span *ngIf="getMonthlyReturn(year, monthNum) === null" class="text-gray-300">-</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div *ngIf="!monthlyReturns || monthlyReturns.returns.length === 0" class="text-center py-8 text-gray-500">
+                <span *ngIf="selectedPortfolioId">Chưa đủ dữ liệu. Cần ít nhất 2 tháng snapshot để hiển thị.</span>
+                <span *ngIf="!selectedPortfolioId">Chọn danh mục để xem lợi nhuận theo tháng</span>
+              </div>
             </div>
           </div>
         </div>
@@ -246,12 +370,36 @@ export class AnalyticsComponent implements OnInit {
   portfolioOptions: { id: string; name: string }[] = [];
   selectedPortfolioId = '';
 
+  // Advanced analytics properties
+  portfolios: PortfolioSummary[] = [];
+  advPerformance: AdvPerformanceSummary | null = null;
+  equityCurve: EquityCurveData | null = null;
+  monthlyReturns: MonthlyReturnsData | null = null;
+  activeTab = 'overview';
+
+  tabs = [
+    { key: 'overview', label: 'Tổng quan' },
+    { key: 'trades', label: 'Thống kê GD' },
+    { key: 'equity', label: 'Equity Curve' },
+    { key: 'monthly', label: 'Theo tháng' }
+  ];
+
+  months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+  monthNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
   constructor(
     private pnlService: PnlService,
-    private analyticsService: AnalyticsService
+    private analyticsService: AnalyticsService,
+    private advancedAnalyticsService: AdvancedAnalyticsService,
+    private portfolioService: PortfolioService
   ) {}
 
   ngOnInit(): void {
+    this.portfolioService.getAll().subscribe({
+      next: (data) => {
+        this.portfolios = data;
+      }
+    });
     this.loadAnalyticsData();
   }
 
@@ -272,6 +420,7 @@ export class AnalyticsComponent implements OnInit {
         if (this.portfolioIds.length > 0) {
           const targetId = this.selectedPortfolioId || this.portfolioIds[0];
           this.loadMetrics(targetId);
+          this.loadAdvancedData(targetId);
         }
         this.isLoading = false;
       },
@@ -293,13 +442,29 @@ export class AnalyticsComponent implements OnInit {
     });
   }
 
-  onPortfolioChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.selectedPortfolioId = value;
-    if (value) {
-      this.loadMetrics(value);
+  private loadAdvancedData(portfolioId: string): void {
+    this.advancedAnalyticsService.getPerformance(portfolioId).subscribe({
+      next: (data) => this.advPerformance = data,
+      error: () => this.advPerformance = null
+    });
+
+    this.advancedAnalyticsService.getEquityCurve(portfolioId).subscribe({
+      next: (data) => this.equityCurve = data,
+      error: () => this.equityCurve = null
+    });
+
+    this.advancedAnalyticsService.getMonthlyReturns(portfolioId).subscribe({
+      next: (data) => this.monthlyReturns = data,
+      error: () => this.monthlyReturns = null
+    });
+  }
+
+  onPortfolioChangeNew(): void {
+    if (this.selectedPortfolioId) {
+      this.loadMetrics(this.selectedPortfolioId);
+      this.loadAdvancedData(this.selectedPortfolioId);
       // Filter holdings for selected portfolio
-      const portfolio = this.summary?.portfolios.find(p => p.portfolioId === value);
+      const portfolio = this.summary?.portfolios.find(p => p.portfolioId === this.selectedPortfolioId);
       this.topHoldings = (portfolio?.positions ?? [])
         .filter(pos => pos && pos.symbol)
         .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0));
@@ -309,8 +474,12 @@ export class AnalyticsComponent implements OnInit {
         .flatMap(p => p.positions ?? [])
         .filter(pos => pos && pos.symbol)
         .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0));
+      this.advPerformance = null;
+      this.equityCurve = null;
+      this.monthlyReturns = null;
       if (this.portfolioIds.length > 0) {
         this.loadMetrics(this.portfolioIds[0]);
+        this.loadAdvancedData(this.portfolioIds[0]);
       }
     }
   }
@@ -335,4 +504,9 @@ export class AnalyticsComponent implements OnInit {
     return ((marketValue / total) * 100).toFixed(2);
   }
 
+  getMonthlyReturn(year: number, month: number): number | null {
+    if (!this.monthlyReturns) return null;
+    const item = this.monthlyReturns.returns.find(r => r.year === year && r.month === month);
+    return item ? item.returnPercent : null;
+  }
 }

@@ -65,6 +65,8 @@ interface TradePlan {
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="">-- Chọn --</option>
                   <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
+                  <option value="">-- Chọn --</option>
+                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.initialCapital | vndCurrency }})</option>
                 </select>
               </div>
               <div>
@@ -84,8 +86,9 @@ interface TradePlan {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng (CP)</label>
-                <input [(ngModel)]="plan.quantity" type="number" step="100" (ngModelChange)="recalculate()"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <input [(ngModel)]="plan.quantity" type="number" step="100" (ngModelChange)="onQuantityManualChange()"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  [placeholder]="optimalShares > 0 ? 'Tự động: ' + optimalShares : '0'">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Chiến lược</label>
@@ -118,6 +121,17 @@ interface TradePlan {
               <input [(ngModel)]="plan.confidenceLevel" type="range" min="1" max="10"
                 class="w-full h-2 bg-gray-200 rounded-lg cursor-pointer">
             </div>
+
+            <!-- Risk profile auto-fill -->
+            <div *ngIf="riskProfile" class="mt-4 bg-blue-50 rounded-lg p-3 text-sm">
+              <div class="font-medium text-blue-700 mb-1">Risk Profile từ danh mục</div>
+              <div class="text-blue-600 grid grid-cols-2 gap-1">
+                <span>Max Position: {{ riskProfile.maxPositionSizePercent }}%</span>
+                <span>Max Risk: {{ riskProfile.maxPortfolioRiskPercent }}%</span>
+                <span>R:R mục tiêu: {{ riskProfile.defaultRiskRewardRatio }}</span>
+                <span>Max Drawdown Alert: {{ riskProfile.maxDrawdownAlertPercent }}%</span>
+              </div>
+            </div>
           </div>
 
           <!-- Strategy Rules Reference -->
@@ -148,8 +162,52 @@ interface TradePlan {
           </div>
         </div>
 
-        <!-- Right sidebar: Checklist + Metrics -->
+        <!-- Right sidebar: Position Sizing + Metrics + Checklist -->
         <div class="space-y-6">
+          <!-- Position Sizing Results -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Tính toán vị thế</h2>
+
+            <div *ngIf="optimalShares === 0 && !plan.entryPrice" class="text-center py-4 text-gray-400 text-sm">
+              Nhập giá vào lệnh và stop-loss để tính vị thế
+            </div>
+
+            <div *ngIf="optimalShares > 0">
+              <!-- Warning -->
+              <div *ngIf="positionWarning" class="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <div class="text-yellow-700 text-sm font-medium">Cảnh báo</div>
+                <div class="text-yellow-600 text-sm">{{ positionWarning }}</div>
+              </div>
+
+              <!-- Main result -->
+              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 mb-3 text-center">
+                <div class="text-sm text-blue-600 font-medium">Số lượng cổ phiếu tối ưu</div>
+                <div class="text-3xl font-bold text-blue-800 my-1">{{ optimalShares | number }}</div>
+                <div class="text-sm text-blue-500">Lô {{ getLotCount() }} lô (x100 cp)</div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div class="border rounded-lg p-2">
+                  <div class="text-xs text-gray-500">Giá trị vị thế</div>
+                  <div class="font-bold text-gray-800 text-sm">{{ optimalPositionValue | vndCurrency }}</div>
+                  <div class="text-xs text-gray-400">{{ positionPercent | number:'1.1-1' }}% danh mục</div>
+                </div>
+                <div class="border rounded-lg p-2">
+                  <div class="text-xs text-gray-500">Tiền rủi ro tối đa</div>
+                  <div class="font-bold text-red-600 text-sm">{{ maxRiskAmount | vndCurrency }}</div>
+                  <div class="text-xs text-gray-400">{{ riskPercent }}% của {{ accountBalance | vndCurrency }}</div>
+                </div>
+              </div>
+
+              <!-- Status -->
+              <div class="mt-3 p-2 rounded-lg text-center text-sm font-medium"
+                [class.bg-green-100]="withinLimit" [class.text-green-700]="withinLimit"
+                [class.bg-red-100]="!withinLimit" [class.text-red-700]="!withinLimit">
+                {{ withinLimit ? 'Vị thế nằm trong giới hạn rủi ro cho phép' : 'Vị thế VƯỢT giới hạn rủi ro!' }}
+              </div>
+            </div>
+          </div>
+
           <!-- Quick Metrics -->
           <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold mb-4">Chỉ số giao dịch</h2>
@@ -227,6 +285,38 @@ interface TradePlan {
           </div>
         </div>
       </div>
+
+      <!-- Quick Reference Table -->
+      <div class="mt-6 bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">Bảng tham chiếu nhanh</h2>
+        <p class="text-sm text-gray-500 mb-3">Số cổ phiếu tối đa theo các mức rủi ro khác nhau (với giá hiện tại)</p>
+        <div *ngIf="plan.entryPrice && plan.stopLoss" class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs text-gray-500">% Rủi ro</th>
+                <th class="px-4 py-2 text-right text-xs text-gray-500">Tiền rủi ro</th>
+                <th class="px-4 py-2 text-right text-xs text-gray-500">Số CP</th>
+                <th class="px-4 py-2 text-right text-xs text-gray-500">Giá trị vị thế</th>
+                <th class="px-4 py-2 text-right text-xs text-gray-500">% Danh mục</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              <tr *ngFor="let row of quickRefTable" class="hover:bg-gray-50"
+                [class.bg-blue-50]="row.riskPercent === riskPercent">
+                <td class="px-4 py-2 font-medium">{{ row.riskPercent }}%</td>
+                <td class="px-4 py-2 text-right">{{ row.riskAmount | vndCurrency }}</td>
+                <td class="px-4 py-2 text-right font-bold">{{ row.shares | number }}</td>
+                <td class="px-4 py-2 text-right">{{ row.value | vndCurrency }}</td>
+                <td class="px-4 py-2 text-right">{{ row.portfolioPercent | number:'1.1-1' }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div *ngIf="!plan.entryPrice || !plan.stopLoss" class="text-center py-4 text-gray-400">
+          Nhập giá vào và stop-loss để xem bảng tham chiếu
+        </div>
+      </div>
     </div>
   `
 })
@@ -249,6 +339,19 @@ export class TradePlanComponent implements OnInit {
   potentialLoss = 0;
   stopPercent = 0;
   checklistScore = 0;
+
+  // Position sizing properties
+  accountBalance = 100000000;
+  riskPercent = 2;
+  maxPositionPercent = 20;
+  optimalShares = 0;
+  optimalPositionValue = 0;
+  positionPercent = 0;
+  maxRiskAmount = 0;
+  withinLimit = true;
+  positionWarning = '';
+  manualQuantity = false;
+  quickRefTable: { riskPercent: number; riskAmount: number; shares: number; value: number; portfolioPercent: number }[] = [];
 
   checklistCategories = ['Phân tích', 'Quản lý rủi ro', 'Tâm lý', 'Xác nhận'];
 
@@ -294,20 +397,36 @@ export class TradePlanComponent implements OnInit {
 
   onPortfolioChange(): void {
     if (!this.plan.portfolioId) { this.riskProfile = null; return; }
+    const portfolio = this.portfolios.find(p => p.id === this.plan.portfolioId);
+    if (portfolio) this.accountBalance = portfolio.initialCapital;
+
     this.riskService.getRiskProfile(this.plan.portfolioId).subscribe({
-      next: (profile) => this.riskProfile = profile,
+      next: (profile) => {
+        this.riskProfile = profile;
+        this.maxPositionPercent = profile.maxPositionSizePercent;
+        this.riskPercent = profile.maxPortfolioRiskPercent;
+        this.recalculate();
+      },
       error: () => this.riskProfile = null
     });
   }
 
   recalculate(): void {
-    const { entryPrice, stopLoss, target, quantity } = this.plan;
+    const { entryPrice, stopLoss, target } = this.plan;
     this.riskPerShare = Math.abs(entryPrice - stopLoss);
     this.rr = this.riskPerShare > 0 && target > 0 ? Math.abs(target - entryPrice) / this.riskPerShare : 0;
-    this.positionValue = quantity * entryPrice;
-    this.potentialProfit = target > 0 ? quantity * Math.abs(target - entryPrice) : 0;
-    this.potentialLoss = quantity * this.riskPerShare;
     this.stopPercent = entryPrice > 0 ? (this.riskPerShare / entryPrice) * 100 : 0;
+
+    // Position sizing calculation
+    this.calculatePositionSizing();
+
+    // Use optimal shares when quantity is not manually set
+    const effectiveQuantity = this.manualQuantity && this.plan.quantity > 0
+      ? this.plan.quantity : this.optimalShares;
+
+    this.positionValue = effectiveQuantity * entryPrice;
+    this.potentialProfit = target > 0 ? effectiveQuantity * Math.abs(target - entryPrice) : 0;
+    this.potentialLoss = effectiveQuantity * this.riskPerShare;
 
     // Auto-check R:R item
     const rrItem = this.plan.checklist.find(c => c.label.includes('R:R ratio'));
@@ -317,7 +436,61 @@ export class TradePlanComponent implements OnInit {
     const slItem = this.plan.checklist.find(c => c.label.includes('Stop-loss'));
     if (slItem) slItem.checked = stopLoss > 0 && stopLoss !== entryPrice;
 
+    // Auto-check position sizing limit
+    const posItem = this.plan.checklist.find(c => c.label.includes('position sizing'));
+    if (posItem) posItem.checked = this.withinLimit && this.optimalShares > 0;
+
     this.updateChecklistScore();
+  }
+
+  calculatePositionSizing(): void {
+    const { entryPrice, stopLoss } = this.plan;
+    if (!entryPrice || !stopLoss || entryPrice <= 0 || this.riskPerShare === 0) {
+      this.optimalShares = 0;
+      this.optimalPositionValue = 0;
+      this.positionPercent = 0;
+      this.maxRiskAmount = 0;
+      this.withinLimit = true;
+      this.positionWarning = '';
+      this.quickRefTable = [];
+      return;
+    }
+
+    this.maxRiskAmount = this.accountBalance * (this.riskPercent / 100);
+    let optimal = Math.floor(this.maxRiskAmount / this.riskPerShare);
+    optimal = Math.floor(optimal / 100) * 100;
+    if (optimal < 100) optimal = 100;
+    this.optimalShares = optimal;
+
+    this.optimalPositionValue = this.optimalShares * entryPrice;
+    this.positionPercent = (this.optimalPositionValue / this.accountBalance) * 100;
+    const maxPositionValue = this.accountBalance * (this.maxPositionPercent / 100);
+
+    this.positionWarning = '';
+    if (this.optimalPositionValue > maxPositionValue) {
+      const cappedShares = Math.floor(maxPositionValue / entryPrice / 100) * 100;
+      this.positionWarning = `Vị thế (${this.positionPercent.toFixed(1)}%) vượt giới hạn ${this.maxPositionPercent}%. Nên giảm xuống ${cappedShares} cổ phiếu.`;
+    }
+
+    this.withinLimit = this.positionPercent <= this.maxPositionPercent;
+
+    // Build quick ref table
+    this.quickRefTable = [0.5, 1, 1.5, 2, 3, 5].map(pct => {
+      const risk = this.accountBalance * (pct / 100);
+      let shares = Math.floor(risk / this.riskPerShare / 100) * 100;
+      if (shares < 100) shares = 100;
+      const value = shares * entryPrice;
+      return { riskPercent: pct, riskAmount: risk, shares, value, portfolioPercent: (value / this.accountBalance) * 100 };
+    });
+  }
+
+  onQuantityManualChange(): void {
+    this.manualQuantity = this.plan.quantity > 0;
+    this.recalculate();
+  }
+
+  getLotCount(): number {
+    return Math.floor(this.optimalShares / 100);
   }
 
   getChecklistByCategory(cat: string): ChecklistItem[] {
