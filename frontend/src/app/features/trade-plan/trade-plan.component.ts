@@ -64,6 +64,8 @@ interface TradePlan {
                 <select [(ngModel)]="plan.portfolioId" (ngModelChange)="onPortfolioChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="">-- Chọn --</option>
+                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
+                  <option value="">-- Chọn --</option>
                   <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.initialCapital | vndCurrency }})</option>
                 </select>
               </div>
@@ -351,7 +353,7 @@ export class TradePlanComponent implements OnInit {
   manualQuantity = false;
   quickRefTable: { riskPercent: number; riskAmount: number; shares: number; value: number; portfolioPercent: number }[] = [];
 
-  checklistCategories = ['Phan tich', 'Quan ly rui ro', 'Tam ly', 'Xac nhan'];
+  checklistCategories = ['Phân tích', 'Quản lý rủi ro', 'Tâm lý', 'Xác nhận'];
 
   constructor(
     private strategyService: StrategyService,
@@ -369,22 +371,22 @@ export class TradePlanComponent implements OnInit {
 
   initChecklist(): void {
     this.plan.checklist = [
-      { label: 'Da xac dinh xu huong chinh (Daily/Weekly)', category: 'Phan tich', checked: false, critical: true, hint: 'Xu huong lon phai ro rang' },
-      { label: 'Setup khop voi chien luoc da chon', category: 'Phan tich', checked: false, critical: true, hint: 'Entry rules duoc thoa man' },
-      { label: 'Khoi luong giao dich xac nhan', category: 'Phan tich', checked: false, critical: false, hint: 'Volume tren trung binh' },
-      { label: 'Khong co tin xau (earnings, su kien)','category': 'Phan tich', checked: false, critical: false, hint: 'Kiem tra lich su kien' },
+      { label: 'Đã xác định xu hướng chính (Daily/Weekly)', category: 'Phân tích', checked: false, critical: true, hint: 'Xu hướng lớn phải rõ ràng' },
+      { label: 'Setup khớp với chiến lược đã chọn', category: 'Phân tích', checked: false, critical: true, hint: 'Entry rules được thỏa mãn' },
+      { label: 'Khối lượng giao dịch xác nhận', category: 'Phân tích', checked: false, critical: false, hint: 'Volume trên trung bình' },
+      { label: 'Không có tin xấu (earnings, sự kiện)','category': 'Phân tích', checked: false, critical: false, hint: 'Kiểm tra lịch sự kiện' },
 
-      { label: 'Stop-loss da duoc dat', category: 'Quan ly rui ro', checked: false, critical: true, hint: 'Biet chinh xac diem cat lo' },
-      { label: 'R:R ratio >= 2:1', category: 'Quan ly rui ro', checked: false, critical: true, hint: 'Loi tiem nang gap 2 lan rui ro' },
-      { label: 'Vi the trong gioi han position sizing', category: 'Quan ly rui ro', checked: false, critical: true, hint: 'Khong vuot % toi da danh muc' },
-      { label: 'Tong rui ro danh muc chua vuot gioi han', category: 'Quan ly rui ro', checked: false, critical: false, hint: 'Tinh ca vi the moi' },
+      { label: 'Stop-loss đã được đặt', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Biết chính xác điểm cắt lỗ' },
+      { label: 'R:R ratio >= 2:1', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Lời tiềm năng gấp 2 lần rủi ro' },
+      { label: 'Vị thế trong giới hạn position sizing', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Không vượt % tối đa danh mục' },
+      { label: 'Tổng rủi ro danh mục chưa vượt giới hạn', category: 'Quản lý rủi ro', checked: false, critical: false, hint: 'Tính cả vị thế mới' },
 
-      { label: 'Khong dang FOMO hoac so hai', category: 'Tam ly', checked: false, critical: false, hint: 'Binh tinh, co ke hoach ro' },
-      { label: 'Chap nhan mat so tien rui ro nay', category: 'Tam ly', checked: false, critical: true, hint: 'Thoai mai voi muc lo toi da' },
-      { label: 'Khong revenge trading', category: 'Tam ly', checked: false, critical: false, hint: 'Khong co giao dich lo truoc' },
+      { label: 'Không đang FOMO hoặc sợ hãi', category: 'Tâm lý', checked: false, critical: false, hint: 'Bình tĩnh, có kế hoạch rõ' },
+      { label: 'Chấp nhận mất số tiền rủi ro này', category: 'Tâm lý', checked: false, critical: true, hint: 'Thoải mái với mức lỗ tối đa' },
+      { label: 'Không revenge trading', category: 'Tâm lý', checked: false, critical: false, hint: 'Không có giao dịch lỗ trước' },
 
-      { label: 'Da ghi nhat ky giao dich', category: 'Xac nhan', checked: false, critical: false, hint: 'Entry reason, market context' },
-      { label: 'Da xac nhan lai gia vao/SL/TP', category: 'Xac nhan', checked: false, critical: true, hint: 'Double check cac muc gia' },
+      { label: 'Đã ghi nhật ký giao dịch', category: 'Xác nhận', checked: false, critical: false, hint: 'Entry reason, market context' },
+      { label: 'Đã xác nhận lại giá vào/SL/TP', category: 'Xác nhận', checked: false, critical: true, hint: 'Double check các mức giá' },
     ];
     this.updateChecklistScore();
   }
