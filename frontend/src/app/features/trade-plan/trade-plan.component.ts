@@ -37,38 +37,38 @@ interface TradePlan {
   imports: [CommonModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
-      <h1 class="text-2xl font-bold text-gray-800 mb-6">Ke hoach giao dich (Trade Plan)</h1>
+      <h1 class="text-2xl font-bold text-gray-800 mb-6">Kế hoạch giao dịch (Trade Plan)</h1>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Trade Setup -->
         <div class="lg:col-span-2 space-y-6">
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Thiet lap giao dich</h2>
+            <h2 class="text-lg font-semibold mb-4">Thiết lập giao dịch</h2>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Ma co phieu *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mã cổ phiếu *</label>
                 <input [(ngModel)]="plan.symbol" type="text" (input)="plan.symbol = plan.symbol.toUpperCase()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="VD: VNM">
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Huong *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hướng *</label>
                 <select [(ngModel)]="plan.direction"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="Buy">Mua (Long)</option>
-                  <option value="Sell">Ban (Short)</option>
+                  <option value="Sell">Bán (Short)</option>
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Danh muc</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
                 <select [(ngModel)]="plan.portfolioId" (ngModelChange)="onPortfolioChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                  <option value="">-- Chon --</option>
+                  <option value="">-- Chọn --</option>
                   <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Gia vao lenh *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Giá vào lệnh *</label>
                 <input [(ngModel)]="plan.entryPrice" type="number" (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               </div>
@@ -83,38 +83,38 @@ interface TradePlan {
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">So luong (CP)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng (CP)</label>
                 <input [(ngModel)]="plan.quantity" type="number" step="100" (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Chien luoc</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Chiến lược</label>
                 <select [(ngModel)]="plan.strategyId" (ngModelChange)="onStrategyChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                  <option value="">-- Chon --</option>
+                  <option value="">-- Chọn --</option>
                   <option *ngFor="let s of strategies" [value]="s.id">{{ s.name }}</option>
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Dieu kien thi truong</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Điều kiện thị trường</label>
                 <select [(ngModel)]="plan.marketCondition"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                  <option value="Trending">Xu huong</option>
+                  <option value="Trending">Xu hướng</option>
                   <option value="Ranging">Sideway</option>
-                  <option value="Volatile">Bien dong</option>
+                  <option value="Volatile">Biến động</option>
                 </select>
               </div>
             </div>
 
             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Ly do vao lenh</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Lý do vào lệnh</label>
               <textarea [(ngModel)]="plan.reason" rows="2"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Ly do cu the de vao lenh nay..."></textarea>
+                placeholder="Lý do cụ thể để vào lệnh này..."></textarea>
             </div>
 
             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Muc do tu tin: {{ plan.confidenceLevel }}/10</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Mức độ tự tin: {{ plan.confidenceLevel }}/10</label>
               <input [(ngModel)]="plan.confidenceLevel" type="range" min="1" max="10"
                 class="w-full h-2 bg-gray-200 rounded-lg cursor-pointer">
             </div>
@@ -122,29 +122,29 @@ interface TradePlan {
 
           <!-- Strategy Rules Reference -->
           <div *ngIf="selectedStrategy" class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-3">Quy tac chien luoc: {{ selectedStrategy.name }}</h2>
+            <h2 class="text-lg font-semibold mb-3">Quy tắc chiến lược: {{ selectedStrategy.name }}</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div class="bg-green-50 rounded-lg p-3">
-                <div class="font-medium text-green-700 mb-1">Vao lenh</div>
-                <div class="text-green-600 whitespace-pre-wrap">{{ selectedStrategy.entryRules || 'Chua thiet lap' }}</div>
+                <div class="font-medium text-green-700 mb-1">Vào lệnh</div>
+                <div class="text-green-600 whitespace-pre-wrap">{{ selectedStrategy.entryRules || 'Chưa thiết lập' }}</div>
               </div>
               <div class="bg-red-50 rounded-lg p-3">
-                <div class="font-medium text-red-700 mb-1">Thoat lenh</div>
-                <div class="text-red-600 whitespace-pre-wrap">{{ selectedStrategy.exitRules || 'Chua thiet lap' }}</div>
+                <div class="font-medium text-red-700 mb-1">Thoát lệnh</div>
+                <div class="text-red-600 whitespace-pre-wrap">{{ selectedStrategy.exitRules || 'Chưa thiết lập' }}</div>
               </div>
               <div class="bg-orange-50 rounded-lg p-3">
-                <div class="font-medium text-orange-700 mb-1">Quan ly rui ro</div>
-                <div class="text-orange-600 whitespace-pre-wrap">{{ selectedStrategy.riskRules || 'Chua thiet lap' }}</div>
+                <div class="font-medium text-orange-700 mb-1">Quản lý rủi ro</div>
+                <div class="text-orange-600 whitespace-pre-wrap">{{ selectedStrategy.riskRules || 'Chưa thiết lập' }}</div>
               </div>
             </div>
           </div>
 
           <!-- Notes -->
           <div class="bg-white rounded-lg shadow p-6">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chu them</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú thêm</label>
             <textarea [(ngModel)]="plan.notes" rows="3"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Ghi chu them ve giao dich nay..."></textarea>
+              placeholder="Ghi chú thêm về giao dịch này..."></textarea>
           </div>
         </div>
 
@@ -152,7 +152,7 @@ interface TradePlan {
         <div class="space-y-6">
           <!-- Quick Metrics -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Chi so giao dich</h2>
+            <h2 class="text-lg font-semibold mb-4">Chỉ số giao dịch</h2>
             <div class="space-y-3">
               <div class="flex justify-between items-center">
                 <span class="text-sm text-gray-600">R:R Ratio</span>
@@ -162,23 +162,23 @@ interface TradePlan {
                 </span>
               </div>
               <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-600">Rui ro / CP</span>
+                <span class="text-sm text-gray-600">Rủi ro / CP</span>
                 <span class="font-bold text-red-600">{{ riskPerShare | vndCurrency }}</span>
               </div>
               <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-600">Gia tri vi the</span>
+                <span class="text-sm text-gray-600">Giá trị vị thế</span>
                 <span class="font-bold">{{ positionValue | vndCurrency }}</span>
               </div>
               <div class="flex justify-between items-center border-t pt-2">
-                <span class="text-sm text-green-600">Loi tiem nang</span>
+                <span class="text-sm text-green-600">Lời tiềm năng</span>
                 <span class="font-bold text-green-600">+{{ potentialProfit | vndCurrency }}</span>
               </div>
               <div class="flex justify-between items-center">
-                <span class="text-sm text-red-600">Lo tiem nang</span>
+                <span class="text-sm text-red-600">Lỗ tiềm năng</span>
                 <span class="font-bold text-red-600">-{{ potentialLoss | vndCurrency }}</span>
               </div>
               <div class="flex justify-between items-center border-t pt-2">
-                <span class="text-sm text-gray-600">SL voi stop%</span>
+                <span class="text-sm text-gray-600">SL với stop%</span>
                 <span class="font-bold">{{ stopPercent | number:'1.2-2' }}%</span>
               </div>
             </div>
@@ -187,7 +187,7 @@ interface TradePlan {
           <!-- Pre-trade Checklist -->
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
-              <h2 class="text-lg font-semibold">Checklist truoc giao dich</h2>
+              <h2 class="text-lg font-semibold">Checklist trước giao dịch</h2>
               <span class="text-sm font-medium px-2 py-1 rounded-full"
                 [class.bg-green-100]="checklistScore >= 80"
                 [class.text-green-700]="checklistScore >= 80"
@@ -208,7 +208,7 @@ interface TradePlan {
                   <div class="text-sm" [class.text-gray-800]="!item.checked" [class.text-gray-400]="item.checked"
                     [class.line-through]="item.checked">
                     {{ item.label }}
-                    <span *ngIf="item.critical" class="text-red-500 text-xs">*bat buoc</span>
+                    <span *ngIf="item.critical" class="text-red-500 text-xs">*bắt buộc</span>
                   </div>
                   <div class="text-xs text-gray-400">{{ item.hint }}</div>
                 </div>
@@ -219,7 +219,7 @@ interface TradePlan {
             <div class="mt-4 p-4 rounded-lg text-center font-bold"
               [class.bg-green-100]="canTrade" [class.text-green-700]="canTrade"
               [class.bg-red-100]="!canTrade" [class.text-red-700]="!canTrade">
-              {{ canTrade ? 'SAN SANG GIAO DICH' : 'CHUA DU DIEU KIEN' }}
+              {{ canTrade ? 'SẴN SÀNG GIAO DỊCH' : 'CHƯA ĐỦ ĐIỀU KIỆN' }}
             </div>
             <div *ngIf="!canTrade" class="mt-2 text-xs text-red-500 text-center">
               {{ getMissingCritical() }}
@@ -250,7 +250,7 @@ export class TradePlanComponent implements OnInit {
   stopPercent = 0;
   checklistScore = 0;
 
-  checklistCategories = ['Phan tich', 'Quan ly rui ro', 'Tam ly', 'Xac nhan'];
+  checklistCategories = ['Phân tích', 'Quản lý rủi ro', 'Tâm lý', 'Xác nhận'];
 
   constructor(
     private strategyService: StrategyService,
@@ -268,22 +268,22 @@ export class TradePlanComponent implements OnInit {
 
   initChecklist(): void {
     this.plan.checklist = [
-      { label: 'Da xac dinh xu huong chinh (Daily/Weekly)', category: 'Phan tich', checked: false, critical: true, hint: 'Xu huong lon phai ro rang' },
-      { label: 'Setup khop voi chien luoc da chon', category: 'Phan tich', checked: false, critical: true, hint: 'Entry rules duoc thoa man' },
-      { label: 'Khoi luong giao dich xac nhan', category: 'Phan tich', checked: false, critical: false, hint: 'Volume tren trung binh' },
-      { label: 'Khong co tin xau (earnings, su kien)','category': 'Phan tich', checked: false, critical: false, hint: 'Kiem tra lich su kien' },
+      { label: 'Đã xác định xu hướng chính (Daily/Weekly)', category: 'Phân tích', checked: false, critical: true, hint: 'Xu hướng lớn phải rõ ràng' },
+      { label: 'Setup khớp với chiến lược đã chọn', category: 'Phân tích', checked: false, critical: true, hint: 'Entry rules được thỏa mãn' },
+      { label: 'Khối lượng giao dịch xác nhận', category: 'Phân tích', checked: false, critical: false, hint: 'Volume trên trung bình' },
+      { label: 'Không có tin xấu (earnings, sự kiện)','category': 'Phân tích', checked: false, critical: false, hint: 'Kiểm tra lịch sự kiện' },
 
-      { label: 'Stop-loss da duoc dat', category: 'Quan ly rui ro', checked: false, critical: true, hint: 'Biet chinh xac diem cat lo' },
-      { label: 'R:R ratio >= 2:1', category: 'Quan ly rui ro', checked: false, critical: true, hint: 'Loi tiem nang gap 2 lan rui ro' },
-      { label: 'Vi the trong gioi han position sizing', category: 'Quan ly rui ro', checked: false, critical: true, hint: 'Khong vuot % toi da danh muc' },
-      { label: 'Tong rui ro danh muc chua vuot gioi han', category: 'Quan ly rui ro', checked: false, critical: false, hint: 'Tinh ca vi the moi' },
+      { label: 'Stop-loss đã được đặt', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Biết chính xác điểm cắt lỗ' },
+      { label: 'R:R ratio >= 2:1', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Lời tiềm năng gấp 2 lần rủi ro' },
+      { label: 'Vị thế trong giới hạn position sizing', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Không vượt % tối đa danh mục' },
+      { label: 'Tổng rủi ro danh mục chưa vượt giới hạn', category: 'Quản lý rủi ro', checked: false, critical: false, hint: 'Tính cả vị thế mới' },
 
-      { label: 'Khong dang FOMO hoac so hai', category: 'Tam ly', checked: false, critical: false, hint: 'Binh tinh, co ke hoach ro' },
-      { label: 'Chap nhan mat so tien rui ro nay', category: 'Tam ly', checked: false, critical: true, hint: 'Thoai mai voi muc lo toi da' },
-      { label: 'Khong revenge trading', category: 'Tam ly', checked: false, critical: false, hint: 'Khong co giao dich lo truoc' },
+      { label: 'Không đang FOMO hoặc sợ hãi', category: 'Tâm lý', checked: false, critical: false, hint: 'Bình tĩnh, có kế hoạch rõ' },
+      { label: 'Chấp nhận mất số tiền rủi ro này', category: 'Tâm lý', checked: false, critical: true, hint: 'Thoải mái với mức lỗ tối đa' },
+      { label: 'Không revenge trading', category: 'Tâm lý', checked: false, critical: false, hint: 'Không có giao dịch lỗ trước' },
 
-      { label: 'Da ghi nhat ky giao dich', category: 'Xac nhan', checked: false, critical: false, hint: 'Entry reason, market context' },
-      { label: 'Da xac nhan lai gia vao/SL/TP', category: 'Xac nhan', checked: false, critical: true, hint: 'Double check cac muc gia' },
+      { label: 'Đã ghi nhật ký giao dịch', category: 'Xác nhận', checked: false, critical: false, hint: 'Entry reason, market context' },
+      { label: 'Đã xác nhận lại giá vào/SL/TP', category: 'Xác nhận', checked: false, critical: true, hint: 'Double check các mức giá' },
     ];
     this.updateChecklistScore();
   }
@@ -338,6 +338,6 @@ export class TradePlanComponent implements OnInit {
   getMissingCritical(): string {
     const missing = this.plan.checklist.filter(c => c.critical && !c.checked);
     if (missing.length === 0) return '';
-    return `Con ${missing.length} dieu kien bat buoc chua hoan thanh`;
+    return `Còn ${missing.length} điều kiện bắt buộc chưa hoàn thành`;
   }
 }
