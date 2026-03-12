@@ -6,7 +6,9 @@
       "Bash(npx ng:*)",
       "Bash(xargs grep:*)",
       "Bash(dotnet build:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(docker compose:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
