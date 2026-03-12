@@ -92,6 +92,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'monthly-review',
+    loadComponent: () => import('./features/monthly-review/monthly-review.component').then(m => m.MonthlyReviewComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'trade-wizard',
     loadComponent: () => import('./features/trade-wizard/trade-wizard.component').then(m => m.TradeWizardComponent),
     canActivate: [AuthGuard]
