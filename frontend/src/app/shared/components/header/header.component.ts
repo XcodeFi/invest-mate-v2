@@ -199,6 +199,7 @@ export class HeaderComponent implements OnInit {
       label: 'Quản lý',
       icon: '⚙️',
       items: [
+        { path: '/trade-wizard', label: 'Wizard GD', icon: '🧙' },
         { path: '/risk-dashboard', label: 'Risk Dashboard', icon: '📋' },
         { path: '/risk', label: 'Rủi ro chi tiết', icon: '🛡️' },
         { path: '/strategies', label: 'Chiến lược', icon: '🎯' },

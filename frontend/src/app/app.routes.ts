@@ -92,6 +92,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'trade-wizard',
+    loadComponent: () => import('./features/trade-wizard/trade-wizard.component').then(m => m.TradeWizardComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: '**',
     loadComponent: () => import('./shared/components/not-found/not-found.component').then(m => m.NotFoundComponent)
   }
