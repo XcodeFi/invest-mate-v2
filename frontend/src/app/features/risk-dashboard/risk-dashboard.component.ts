@@ -208,6 +208,122 @@ interface StrategyScore {
             </div>
           </div>
         </div>
+
+        <!-- Stress Test / What-If -->
+        <div class="bg-white rounded-lg shadow p-6 mt-6">
+          <h2 class="text-lg font-semibold mb-4">Stress Test — Mô phỏng kịch bản</h2>
+          <p class="text-sm text-gray-500 mb-4">Ước tính ảnh hưởng lên danh mục nếu VNINDEX biến động mạnh (dựa trên beta ước tính)</p>
+
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <button *ngFor="let scenario of stressScenarios"
+              (click)="runStressTest(scenario.marketChange)"
+              class="px-3 py-3 rounded-lg border-2 text-center transition-all text-sm font-medium"
+              [class.border-blue-500]="selectedScenario === scenario.marketChange"
+              [class.bg-blue-50]="selectedScenario === scenario.marketChange"
+              [class.border-gray-200]="selectedScenario !== scenario.marketChange"
+              [class.hover:border-gray-400]="selectedScenario !== scenario.marketChange">
+              <div class="font-bold" [class.text-red-600]="scenario.marketChange < 0" [class.text-green-600]="scenario.marketChange > 0">
+                {{ scenario.marketChange > 0 ? '+' : '' }}{{ scenario.marketChange }}%
+              </div>
+              <div class="text-xs text-gray-500">{{ scenario.label }}</div>
+            </button>
+          </div>
+
+          <!-- Custom scenario -->
+          <div class="flex items-center gap-3 mb-6">
+            <label class="text-sm text-gray-600 whitespace-nowrap">Hoặc nhập tùy chỉnh:</label>
+            <input [(ngModel)]="customScenarioChange" type="number" step="1" placeholder="-10"
+              class="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+            <span class="text-sm text-gray-500">%</span>
+            <button (click)="runStressTest(customScenarioChange)"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+              Mô phỏng
+            </button>
+          </div>
+
+          <!-- Stress test results -->
+          <div *ngIf="stressResults.length > 0">
+            <div class="mb-4 p-4 rounded-lg"
+              [class.bg-red-50]="stressTotalImpact < 0" [class.bg-green-50]="stressTotalImpact >= 0">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-700">Ảnh hưởng tổng danh mục</span>
+                <span class="text-xl font-bold" [class.text-red-700]="stressTotalImpact < 0" [class.text-green-700]="stressTotalImpact >= 0">
+                  {{ stressTotalImpact >= 0 ? '+' : '' }}{{ stressTotalImpact | number:'1.0-0' }} VND
+                  ({{ stressTotalImpactPercent >= 0 ? '+' : '' }}{{ stressTotalImpactPercent | number:'1.2-2' }}%)
+                </span>
+              </div>
+            </div>
+
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs text-gray-500">Mã CP</th>
+                  <th class="px-4 py-2 text-right text-xs text-gray-500">Giá trị hiện tại</th>
+                  <th class="px-4 py-2 text-right text-xs text-gray-500">Beta ước tính</th>
+                  <th class="px-4 py-2 text-right text-xs text-gray-500">Ảnh hưởng</th>
+                  <th class="px-4 py-2 text-right text-xs text-gray-500">Giá trị sau</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                <tr *ngFor="let r of stressResults" class="hover:bg-gray-50">
+                  <td class="px-4 py-2 font-medium">{{ r.symbol }}</td>
+                  <td class="px-4 py-2 text-right">{{ r.currentValue | number:'1.0-0' }}</td>
+                  <td class="px-4 py-2 text-right">{{ r.beta | number:'1.2-2' }}</td>
+                  <td class="px-4 py-2 text-right font-medium" [class.text-red-600]="r.impact < 0" [class.text-green-600]="r.impact >= 0">
+                    {{ r.impact >= 0 ? '+' : '' }}{{ r.impact | number:'1.0-0' }}
+                  </td>
+                  <td class="px-4 py-2 text-right">{{ r.afterValue | number:'1.0-0' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div *ngIf="stressResults.length === 0 && selectedScenario !== null" class="text-center py-4 text-gray-400">
+            Không có vị thế nào để mô phỏng
+          </div>
+        </div>
+
+        <!-- Risk Profile Setup -->
+        <div class="bg-white rounded-lg shadow p-6 mt-6">
+          <h2 class="text-lg font-semibold mb-4">Thiết lập Risk Profile</h2>
+          <p class="text-sm text-gray-500 mb-4">Đặt quy tắc quản lý rủi ro cứng — Trade Plan sẽ cảnh báo khi vi phạm</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Max vị thế (%)</label>
+              <input [(ngModel)]="riskProfileForm.maxPositionSizePercent" type="number" step="1" min="1" max="100"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <div class="text-xs text-gray-400 mt-1">Tỷ trọng tối đa 1 CP</div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Max rủi ro/lệnh (%)</label>
+              <input [(ngModel)]="riskProfileForm.maxPortfolioRiskPercent" type="number" step="0.5" min="0.5" max="10"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <div class="text-xs text-gray-400 mt-1">% vốn rủi ro mỗi lệnh</div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Max Drawdown Alert (%)</label>
+              <input [(ngModel)]="riskProfileForm.maxDrawdownAlertPercent" type="number" step="1" min="5" max="50"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <div class="text-xs text-gray-400 mt-1">Ngưỡng cảnh báo drawdown</div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">R:R tối thiểu</label>
+              <input [(ngModel)]="riskProfileForm.defaultRiskRewardRatio" type="number" step="0.5" min="1" max="10"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <div class="text-xs text-gray-400 mt-1">Tỷ lệ Risk/Reward tối thiểu</div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-center gap-3">
+            <button (click)="saveRiskProfile()"
+              class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+              [disabled]="savingProfile">
+              {{ savingProfile ? 'Đang lưu...' : 'Lưu Risk Profile' }}
+            </button>
+            <span *ngIf="profileSaved" class="text-sm text-green-600 font-medium">Đã lưu thành công!</span>
+          </div>
+        </div>
       </div>
     </div>
   `
@@ -232,6 +348,26 @@ export class RiskDashboardComponent implements OnInit {
   nearestSLItems: { symbol: string; distancePercent: number }[] = [];
   closestSLPercent = 0;
   strategyScores: StrategyScore[] = [];
+
+  // Stress Test
+  stressScenarios = [
+    { label: 'Crash nặng', marketChange: -20 },
+    { label: 'Suy giảm', marketChange: -10 },
+    { label: 'Điều chỉnh', marketChange: -5 },
+    { label: 'Hồi phục', marketChange: 5 },
+    { label: 'Tăng mạnh', marketChange: 15 },
+  ];
+  selectedScenario: number | null = null;
+  customScenarioChange = -10;
+  stressResults: { symbol: string; currentValue: number; beta: number; impact: number; afterValue: number }[] = [];
+  stressTotalImpact = 0;
+  stressTotalImpactPercent = 0;
+  private lastRiskSummary: PortfolioRiskSummary | null = null;
+
+  // Risk Profile Form
+  riskProfileForm = { maxPositionSizePercent: 20, maxPortfolioRiskPercent: 2, maxDrawdownAlertPercent: 15, defaultRiskRewardRatio: 2 };
+  savingProfile = false;
+  profileSaved = false;
 
   constructor(
     private portfolioService: PortfolioService,
@@ -262,6 +398,7 @@ export class RiskDashboardComponent implements OnInit {
       stopLoss: this.riskService.getStopLossTargets(this.selectedPortfolioId),
     }).subscribe({
       next: ({ risk, drawdown, correlation, stopLoss }) => {
+        this.lastRiskSummary = risk;
         // Overview
         this.overview.totalValue = risk.totalValue;
         this.overview.totalPositions = risk.positionCount;
@@ -291,6 +428,12 @@ export class RiskDashboardComponent implements OnInit {
         this.riskService.getRiskProfile(this.selectedPortfolioId).subscribe({
           next: (profile) => {
             this.riskProfile = profile;
+            this.riskProfileForm = {
+              maxPositionSizePercent: profile.maxPositionSizePercent,
+              maxPortfolioRiskPercent: profile.maxPortfolioRiskPercent,
+              maxDrawdownAlertPercent: profile.maxDrawdownAlertPercent,
+              defaultRiskRewardRatio: profile.defaultRiskRewardRatio,
+            };
             this.buildCompliance(risk, profile);
             this.calculateHealthScore(risk, drawdown, profile);
           },
@@ -429,5 +572,58 @@ export class RiskDashboardComponent implements OnInit {
       id: s.id, name: s.name, grade, score,
       winRate: perf.winRate, profitFactor: perf.profitFactor, totalTrades: perf.totalTrades
     };
+  }
+
+  // --- Stress Test ---
+  // Estimated betas for common VN stocks (simplified — in production, calculate from price history)
+  private estimatedBetas: Record<string, number> = {
+    VIC: 1.2, VNM: 0.7, FPT: 1.1, VCB: 0.9, HPG: 1.4,
+    MWG: 1.3, TCB: 1.1, VHM: 1.3, MSN: 1.0, VRE: 0.8,
+    SSI: 1.5, ACB: 1.0, MBB: 1.1, BID: 0.9, CTG: 0.9,
+    GAS: 0.8, PLX: 0.7, SAB: 0.6, PNJ: 0.9, REE: 1.0,
+  };
+
+  runStressTest(marketChangePercent: number): void {
+    this.selectedScenario = marketChangePercent;
+    if (!this.lastRiskSummary?.positions?.length) {
+      this.stressResults = [];
+      return;
+    }
+
+    const change = marketChangePercent / 100;
+    this.stressResults = this.lastRiskSummary.positions.map(pos => {
+      const beta = this.estimatedBetas[pos.symbol.toUpperCase()] ?? 1.0;
+      const positionChange = change * beta;
+      const impact = pos.marketValue * positionChange;
+      return {
+        symbol: pos.symbol,
+        currentValue: pos.marketValue,
+        beta,
+        impact,
+        afterValue: pos.marketValue + impact,
+      };
+    });
+
+    this.stressTotalImpact = this.stressResults.reduce((sum, r) => sum + r.impact, 0);
+    this.stressTotalImpactPercent = this.lastRiskSummary.totalValue > 0
+      ? (this.stressTotalImpact / this.lastRiskSummary.totalValue) * 100 : 0;
+  }
+
+  // --- Risk Profile Save ---
+  saveRiskProfile(): void {
+    if (!this.selectedPortfolioId) return;
+    this.savingProfile = true;
+    this.profileSaved = false;
+
+    this.riskService.setRiskProfile(this.selectedPortfolioId, this.riskProfileForm).subscribe({
+      next: () => {
+        this.savingProfile = false;
+        this.profileSaved = true;
+        // Reload dashboard to reflect new profile
+        this.loadDashboard();
+        setTimeout(() => this.profileSaved = false, 3000);
+      },
+      error: () => this.savingProfile = false
+    });
   }
 }

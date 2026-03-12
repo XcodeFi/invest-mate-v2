@@ -241,3 +241,21 @@ Import them `RouterModule` de su dung `routerLink` va `queryParams`.
 | 2. Gop trang | `feature/phase2-ux-consolidation` | Da merge | PR #5 |
 | 3. Tinh nang moi | `feature/phase3-new-features` | Da merge | PR #6 |
 | 4. Bieu do & lien ket | `feature/phase4-charts-and-links` | Da push | Can tao PR |
+| 5. Auto-fill, Risk, Compound | `feature/phase5-autofill-risk-compound` | Da push | Can tao PR |
+
+---
+
+## Phase 5 — Auto-fill, Risk Management nang cao, Compound Growth
+
+**Branch:** `feature/phase5-autofill-risk-compound`
+**Thay doi:** 6 files + 1 file moi
+
+### Tinh nang:
+1. **Auto-fill gia CP** — Nhap ma CP, tu dong tra gia + mini card thong tin
+2. **Risk Profile Enforcement** — Canh bao vi pham risk profile, block giao dich khi vi pham
+3. **Risk Alert Banner** — Banner canh bao rui ro noi bat tren Dashboard
+4. **Risk Score Badge** — Diem suc khoe rui ro (XX/100) tren thanh nav
+5. **Stress Test** — Mo phong kich ban thi truong (-20% den +15%), tinh anh huong tung CP theo beta
+6. **Risk Profile Setup** — Form thiet lap quy tac rui ro cung tren Risk Dashboard
+7. **Compound Growth Tracker** — Muc tieu CAGR, uoc tinh 5/10/20 nam, progress bar
+8. **Bao cao thang** — Tu dong tong hop thang: so GD, win rate, P&L, max drawdown

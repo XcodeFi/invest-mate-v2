@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
@@ -24,7 +25,7 @@ interface RiskAlert {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -49,6 +50,34 @@ interface RiskAlert {
 
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Risk Alert Banner (persistent top) -->
+        <div *ngIf="riskAlerts.length > 0" class="mb-6 bg-gradient-to-r rounded-xl p-4 border-2 shadow-sm"
+          [class.from-red-50]="hasDangerAlert" [class.to-orange-50]="hasDangerAlert" [class.border-red-300]="hasDangerAlert"
+          [class.from-amber-50]="!hasDangerAlert" [class.to-yellow-50]="!hasDangerAlert" [class.border-amber-300]="!hasDangerAlert">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5" [class.text-red-600]="hasDangerAlert" [class.text-amber-600]="!hasDangerAlert"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+              <span class="font-bold text-sm" [class.text-red-800]="hasDangerAlert" [class.text-amber-800]="!hasDangerAlert">
+                {{ riskAlerts.length }} cảnh báo rủi ro
+              </span>
+            </div>
+            <button (click)="bannerDismissed = true" *ngIf="!bannerDismissed" class="text-xs text-gray-500 hover:text-gray-700">Ẩn</button>
+          </div>
+          <div *ngIf="!bannerDismissed" class="space-y-1">
+            <div *ngFor="let alert of riskAlerts.slice(0, 3)" class="flex items-center gap-2 text-sm"
+              [class.text-red-700]="alert.severity === 'danger'" [class.text-amber-700]="alert.severity === 'warning'">
+              <span class="font-medium">{{ alert.symbol }}:</span> {{ alert.message }}
+            </div>
+            <a *ngIf="riskAlerts.length > 3" routerLink="/risk-dashboard"
+              class="text-xs font-medium underline" [class.text-red-600]="hasDangerAlert" [class.text-amber-600]="!hasDangerAlert">
+              Xem tất cả {{ riskAlerts.length }} cảnh báo →
+            </a>
+          </div>
+        </div>
 
         <!-- Row 1: Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -141,6 +170,101 @@ interface RiskAlert {
             </p>
             <div class="mt-2 text-sm text-gray-400">
               {{ cagrValue !== 0 ? 'Lãi kép hàng năm' : 'Chưa đủ dữ liệu' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Compound Growth Tracker -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Lãi kép (Compound Growth)</h2>
+            <button (click)="showTargetEditor = !showTargetEditor"
+              class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+              {{ showTargetEditor ? 'Đóng' : 'Đặt mục tiêu' }}
+            </button>
+          </div>
+
+          <!-- Target Editor -->
+          <div *ngIf="showTargetEditor" class="mb-4 bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">CAGR mục tiêu (%/năm)</label>
+                <input [(ngModel)]="cagrTarget" type="number" step="1" min="1" max="50"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Kỳ hạn (năm)</label>
+                <input [(ngModel)]="targetYears" type="number" step="1" min="1" max="30"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div class="col-span-2 flex items-end">
+                <button (click)="applyTarget()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  Áp dụng mục tiêu
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Current CAGR vs Target -->
+            <div class="text-center">
+              <div class="text-xs text-gray-500 mb-1">CAGR hiện tại</div>
+              <div class="text-3xl font-bold"
+                [class.text-emerald-600]="cagrValue > 0"
+                [class.text-red-600]="cagrValue < 0"
+                [class.text-gray-400]="cagrValue === 0">
+                {{ cagrValue !== 0 ? (cagrValue > 0 ? '+' : '') + cagrValue.toFixed(1) + '%' : '--' }}
+              </div>
+              <div *ngIf="cagrTargetSet" class="mt-1 text-sm">
+                <span class="text-gray-500">Mục tiêu: </span>
+                <span class="font-medium text-blue-600">{{ cagrTarget }}%</span>
+              </div>
+              <div *ngIf="cagrTargetSet && cagrValue !== 0" class="mt-2">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div class="h-2 rounded-full transition-all duration-500"
+                    [style.width.%]="getTargetProgress()"
+                    [class.bg-emerald-500]="getTargetProgress() >= 100"
+                    [class.bg-blue-500]="getTargetProgress() >= 50 && getTargetProgress() < 100"
+                    [class.bg-amber-500]="getTargetProgress() < 50"></div>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">{{ getTargetProgress().toFixed(0) }}% mục tiêu</div>
+              </div>
+            </div>
+
+            <!-- Projected Values -->
+            <div>
+              <div class="text-xs text-gray-500 mb-2">Ước tính giá trị vốn (CAGR hiện tại)</div>
+              <div class="space-y-2">
+                <div *ngFor="let proj of projections" class="flex justify-between items-center text-sm">
+                  <span class="text-gray-600">{{ proj.label }}</span>
+                  <span class="font-bold text-gray-800">{{ formatProjection(proj.value) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Target vs Actual -->
+            <div *ngIf="cagrTargetSet">
+              <div class="text-xs text-gray-500 mb-2">Mục tiêu vs Thực tế ({{ targetYears }} năm)</div>
+              <div class="space-y-2">
+                <div class="flex justify-between items-center text-sm">
+                  <span class="text-gray-600">Vốn hiện tại</span>
+                  <span class="font-bold">{{ formatProjection(pnlSummary.totalPortfolioValue || pnlSummary.totalInvested) }}</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                  <span class="text-blue-600">Mục tiêu</span>
+                  <span class="font-bold text-blue-600">{{ formatProjection(targetValue) }}</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                  <span class="text-emerald-600">Ước tính thực tế</span>
+                  <span class="font-bold text-emerald-600">{{ formatProjection(actualProjection) }}</span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="!cagrTargetSet">
+              <div class="flex flex-col items-center justify-center h-full text-gray-400 text-sm">
+                <p>Đặt mục tiêu CAGR để so sánh</p>
+                <p class="text-xs">VD: 15%/năm trong 10 năm</p>
+              </div>
             </div>
           </div>
         </div>
@@ -373,7 +497,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   summary: OverallPnLSummary | null = null;
   isLoading = true;
   riskAlerts: RiskAlert[] = [];
+  bannerDismissed = false;
   cagrValue = 0;
+  cagrTarget = 15; // default CAGR target %
+  cagrTargetSet = false;
+  targetYears = 10;
+  showTargetEditor = false;
+  targetValue = 0;
+  actualProjection = 0;
+  projections: { label: string; value: number }[] = [];
   equityCurveData: EquityCurveData | null = null;
   selectedRange = 90;
   equityRanges = [
@@ -387,6 +519,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b',
     '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'
   ];
+
+  get hasDangerAlert(): boolean {
+    return this.riskAlerts.some(a => a.severity === 'danger');
+  }
 
   get pnlSummary() {
     return {
@@ -520,6 +656,45 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  applyTarget(): void {
+    this.cagrTargetSet = true;
+    this.showTargetEditor = false;
+    this.calculateProjections();
+  }
+
+  getTargetProgress(): number {
+    if (!this.cagrTargetSet || this.cagrTarget <= 0) return 0;
+    return Math.min(200, (this.cagrValue / this.cagrTarget) * 100);
+  }
+
+  formatProjection(value: number): string {
+    if (value >= 1e9) return (value / 1e9).toFixed(1) + ' tỷ';
+    if (value >= 1e6) return (value / 1e6).toFixed(1) + ' triệu';
+    return value.toLocaleString('vi-VN') + ' đ';
+  }
+
+  calculateProjections(): void {
+    const currentValue = this.pnlSummary.totalPortfolioValue || this.pnlSummary.totalInvested;
+    if (currentValue <= 0 || this.cagrValue === 0) {
+      this.projections = [];
+      this.targetValue = 0;
+      this.actualProjection = 0;
+      return;
+    }
+
+    const rate = this.cagrValue / 100;
+    this.projections = [
+      { label: 'Sau 5 năm', value: currentValue * Math.pow(1 + rate, 5) },
+      { label: 'Sau 10 năm', value: currentValue * Math.pow(1 + rate, 10) },
+      { label: 'Sau 20 năm', value: currentValue * Math.pow(1 + rate, 20) },
+    ];
+
+    // Target vs actual
+    const targetRate = this.cagrTarget / 100;
+    this.targetValue = currentValue * Math.pow(1 + targetRate, this.targetYears);
+    this.actualProjection = currentValue * Math.pow(1 + rate, this.targetYears);
+  }
+
   ngOnDestroy(): void {
     this.miniEquityChart?.destroy();
   }
@@ -535,6 +710,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Assume investment period proportional to data — default 1 year if unknown
     const years = 1;
     this.cagrValue = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+    this.calculateProjections();
   }
 
   private loadEquityCurve(): void {
@@ -567,6 +743,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (years >= 0.01) {
       const totalReturn = last.portfolioValue / first.portfolioValue;
       this.cagrValue = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+      this.calculateProjections();
     }
   }
 

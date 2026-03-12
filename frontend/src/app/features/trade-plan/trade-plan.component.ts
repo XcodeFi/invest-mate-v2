@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil, catchError } from 'rxjs';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile } from '../../core/services/risk.service';
+import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
+import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
@@ -46,11 +48,15 @@ interface TradePlan {
           <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold mb-4">Thiết lập giao dịch</h2>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div>
+              <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Mã cổ phiếu *</label>
-                <input [(ngModel)]="plan.symbol" type="text" (input)="plan.symbol = plan.symbol.toUpperCase()"
+                <input [(ngModel)]="plan.symbol" type="text"
+                  (input)="plan.symbol = plan.symbol.toUpperCase(); onSymbolInput()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="VD: VNM">
+                <div *ngIf="stockLoading" class="absolute right-2 top-8">
+                  <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Hướng *</label>
@@ -121,6 +127,40 @@ interface TradePlan {
                 class="w-full h-2 bg-gray-200 rounded-lg cursor-pointer">
             </div>
 
+            <!-- Mini Stock Info Card -->
+            <div *ngIf="stockPrice" class="mt-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-100">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-indigo-800 text-lg">{{ stockPrice.symbol }}</span>
+                <button (click)="applyStockPrice()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full transition-colors">
+                  Áp dụng giá vào lệnh
+                </button>
+              </div>
+              <div class="grid grid-cols-4 gap-3 text-sm">
+                <div>
+                  <div class="text-xs text-gray-500">Giá hiện tại</div>
+                  <div class="font-bold text-gray-800">{{ stockPrice.close | number:'1.0-0' }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-500">Mở cửa</div>
+                  <div class="font-medium text-gray-700">{{ stockPrice.open | number:'1.0-0' }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-500">Cao / Thấp</div>
+                  <div class="font-medium text-gray-700">{{ stockPrice.high | number:'1.0-0' }} / {{ stockPrice.low | number:'1.0-0' }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-500">KL giao dịch</div>
+                  <div class="font-medium text-gray-700">{{ stockPrice.volume | number:'1.0-0' }}</div>
+                </div>
+              </div>
+              <div class="mt-2 text-xs" [class.text-green-600]="stockPrice.close >= stockPrice.open" [class.text-red-600]="stockPrice.close < stockPrice.open">
+                {{ stockPrice.close >= stockPrice.open ? '+' : '' }}{{ ((stockPrice.close - stockPrice.open) / stockPrice.open * 100).toFixed(2) }}% so với giá mở cửa
+              </div>
+            </div>
+            <div *ngIf="stockError" class="mt-4 bg-yellow-50 rounded-lg p-3 text-sm text-yellow-700 border border-yellow-200">
+              {{ stockError }}
+            </div>
+
             <!-- Risk profile auto-fill -->
             <div *ngIf="riskProfile" class="mt-4 bg-blue-50 rounded-lg p-3 text-sm">
               <div class="font-medium text-blue-700 mb-1">Risk Profile từ danh mục</div>
@@ -129,6 +169,30 @@ interface TradePlan {
                 <span>Max Risk: {{ riskProfile.maxPortfolioRiskPercent }}%</span>
                 <span>R:R mục tiêu: {{ riskProfile.defaultRiskRewardRatio }}</span>
                 <span>Max Drawdown Alert: {{ riskProfile.maxDrawdownAlertPercent }}%</span>
+              </div>
+            </div>
+
+            <!-- Risk Profile Enforcement Warnings -->
+            <div *ngIf="riskViolations.length > 0" class="mt-4 bg-red-50 border-2 border-red-300 rounded-lg p-4">
+              <div class="font-bold text-red-700 mb-2 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+                Vi phạm Risk Profile ({{ riskViolations.length }})
+              </div>
+              <ul class="space-y-1">
+                <li *ngFor="let v of riskViolations" class="text-sm text-red-600 flex items-start gap-1">
+                  <span class="mt-0.5">•</span> {{ v }}
+                </li>
+              </ul>
+              <div *ngIf="!riskOverrideConfirmed" class="mt-3">
+                <button (click)="riskOverrideConfirmed = true"
+                  class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                  Tôi biết và chấp nhận rủi ro này
+                </button>
+              </div>
+              <div *ngIf="riskOverrideConfirmed" class="mt-2 text-xs text-red-500 italic">
+                Đã xác nhận vi phạm — hãy cẩn trọng!
               </div>
             </div>
           </div>
@@ -333,11 +397,24 @@ interface TradePlan {
     </div>
   `
 })
-export class TradePlanComponent implements OnInit {
+export class TradePlanComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  private symbolSubject = new Subject<string>();
+
   strategies: Strategy[] = [];
   portfolios: PortfolioSummary[] = [];
   selectedStrategy: Strategy | null = null;
   riskProfile: RiskProfile | null = null;
+
+  // Auto-fill stock price
+  stockPrice: StockPrice | null = null;
+  stockLoading = false;
+  stockError = '';
+
+  // Risk enforcement
+  riskViolations: string[] = [];
+  riskOverrideConfirmed = false;
+  portfolioRiskSummary: PortfolioRiskSummary | null = null;
 
   plan: TradePlan = {
     symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
@@ -372,6 +449,7 @@ export class TradePlanComponent implements OnInit {
     private strategyService: StrategyService,
     private portfolioService: PortfolioService,
     private riskService: RiskService,
+    private marketDataService: MarketDataService,
     private notification: NotificationService
   ) {
     this.initChecklist();
@@ -380,6 +458,58 @@ export class TradePlanComponent implements OnInit {
   ngOnInit(): void {
     this.strategyService.getAll().subscribe({ next: d => this.strategies = d });
     this.portfolioService.getAll().subscribe({ next: d => this.portfolios = d });
+
+    // Auto-fill: debounced symbol lookup
+    this.symbolSubject.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(symbol => {
+        if (!symbol || symbol.length < 2) {
+          this.stockPrice = null;
+          this.stockError = '';
+          return of(null);
+        }
+        this.stockLoading = true;
+        this.stockError = '';
+        return this.marketDataService.getCurrentPrice(symbol).pipe(
+          catchError(() => {
+            this.stockError = `Không tìm thấy giá cho mã "${symbol}"`;
+            this.stockPrice = null;
+            this.stockLoading = false;
+            return of(null);
+          })
+        );
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(price => {
+      this.stockLoading = false;
+      if (price) {
+        this.stockPrice = price;
+        this.stockError = '';
+        // Auto-fill entry price if empty
+        if (!this.plan.entryPrice || this.plan.entryPrice === 0) {
+          this.plan.entryPrice = price.close;
+          this.recalculate();
+        }
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  onSymbolInput(): void {
+    this.symbolSubject.next(this.plan.symbol);
+    this.riskOverrideConfirmed = false;
+  }
+
+  applyStockPrice(): void {
+    if (this.stockPrice) {
+      this.plan.entryPrice = this.stockPrice.close;
+      this.recalculate();
+    }
   }
 
   initChecklist(): void {
@@ -409,7 +539,7 @@ export class TradePlanComponent implements OnInit {
   }
 
   onPortfolioChange(): void {
-    if (!this.plan.portfolioId) { this.riskProfile = null; return; }
+    if (!this.plan.portfolioId) { this.riskProfile = null; this.portfolioRiskSummary = null; return; }
     const portfolio = this.portfolios.find(p => p.id === this.plan.portfolioId);
     if (portfolio) this.accountBalance = portfolio.initialCapital;
 
@@ -421,6 +551,11 @@ export class TradePlanComponent implements OnInit {
         this.recalculate();
       },
       error: () => this.riskProfile = null
+    });
+
+    this.riskService.getPortfolioRiskSummary(this.plan.portfolioId).subscribe({
+      next: (summary) => { this.portfolioRiskSummary = summary; this.checkRiskViolations(); },
+      error: () => this.portfolioRiskSummary = null
     });
   }
 
@@ -453,6 +588,7 @@ export class TradePlanComponent implements OnInit {
     const posItem = this.plan.checklist.find(c => c.label.includes('position sizing'));
     if (posItem) posItem.checked = this.withinLimit && this.optimalShares > 0;
 
+    this.checkRiskViolations();
     this.updateChecklistScore();
   }
 
@@ -518,12 +654,58 @@ export class TradePlanComponent implements OnInit {
 
   get canTrade(): boolean {
     const criticalItems = this.plan.checklist.filter(c => c.critical);
-    return criticalItems.every(c => c.checked);
+    const criticalOk = criticalItems.every(c => c.checked);
+    const riskOk = this.riskViolations.length === 0 || this.riskOverrideConfirmed;
+    return criticalOk && riskOk;
   }
 
   getMissingCritical(): string {
     const missing = this.plan.checklist.filter(c => c.critical && !c.checked);
-    if (missing.length === 0) return '';
-    return `Còn ${missing.length} điều kiện bắt buộc chưa hoàn thành`;
+    const parts: string[] = [];
+    if (missing.length > 0) parts.push(`Còn ${missing.length} điều kiện bắt buộc chưa hoàn thành`);
+    if (this.riskViolations.length > 0 && !this.riskOverrideConfirmed) {
+      parts.push(`${this.riskViolations.length} vi phạm Risk Profile chưa xác nhận`);
+    }
+    return parts.join('. ');
+  }
+
+  checkRiskViolations(): void {
+    const violations: string[] = [];
+    const { entryPrice, stopLoss, target } = this.plan;
+
+    if (this.riskProfile && entryPrice > 0) {
+      // Check R:R ratio
+      if (this.rr > 0 && this.rr < this.riskProfile.defaultRiskRewardRatio) {
+        violations.push(`R:R (1:${this.rr.toFixed(1)}) thấp hơn mức yêu cầu (1:${this.riskProfile.defaultRiskRewardRatio})`);
+      }
+
+      // Check position size vs max position
+      if (this.positionPercent > this.riskProfile.maxPositionSizePercent) {
+        violations.push(`Vị thế (${this.positionPercent.toFixed(1)}%) vượt giới hạn ${this.riskProfile.maxPositionSizePercent}% danh mục`);
+      }
+
+      // Check stop loss distance vs max risk
+      if (stopLoss > 0 && this.stopPercent > this.riskProfile.maxPortfolioRiskPercent * 2) {
+        violations.push(`Khoảng cách SL (${this.stopPercent.toFixed(1)}%) quá lớn so với khẩu vị rủi ro`);
+      }
+    }
+
+    // Check concentration risk from existing portfolio
+    if (this.portfolioRiskSummary && this.plan.symbol) {
+      const existingPos = this.portfolioRiskSummary.positions.find(
+        p => p.symbol.toUpperCase() === this.plan.symbol.toUpperCase()
+      );
+      if (existingPos && existingPos.positionSizePercent > 30) {
+        violations.push(`${this.plan.symbol} đã chiếm ${existingPos.positionSizePercent.toFixed(1)}% danh mục — rủi ro tập trung cao`);
+      }
+
+      // Check if largest position > 30%
+      if (this.portfolioRiskSummary.largestPositionPercent > 30 && !existingPos) {
+        violations.push(`Danh mục đã có vị thế chiếm ${this.portfolioRiskSummary.largestPositionPercent.toFixed(1)}% — cân nhắc đa dạng hóa`);
+      }
+    }
+
+    this.riskViolations = violations;
+    if (violations.length === 0) this.riskOverrideConfirmed = false;
   }
 }
