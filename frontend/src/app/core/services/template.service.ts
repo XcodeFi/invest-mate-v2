@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, throwError, timeout } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
 export interface StrategyTemplate {
@@ -50,7 +50,7 @@ export class TemplateService {
     if (category) params.category = category;
     if (difficulty) params.difficulty = difficulty;
     return this.http.get<StrategyTemplate[]>(`${this.API_URL}/strategies`, { params })
-      .pipe(catchError(this.handleError));
+      .pipe(timeout(10000), catchError(this.handleError));
   }
 
   getStrategyTemplate(id: string): Observable<StrategyTemplate> {
