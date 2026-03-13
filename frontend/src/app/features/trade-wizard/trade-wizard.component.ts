@@ -7,6 +7,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile } from '../../core/services/risk.service';
 import { TradeService, CreateTradeRequest } from '../../core/services/trade.service';
 import { JournalService, CreateJournalRequest } from '../../core/services/journal.service';
+import { MarketDataService } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
@@ -139,8 +140,13 @@ interface PositionCalc {
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Mã chứng khoán</label>
-                  <input [(ngModel)]="plan.symbol" type="text" placeholder="VD: VNM, FPT"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase">
+                  <div class="relative">
+                    <input [(ngModel)]="plan.symbol" type="text" placeholder="VD: VNM, FPT"
+                      (blur)="onSymbolBlur()"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase">
+                    <span *ngIf="loadingPrice" class="absolute right-2 top-2.5 animate-spin inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></span>
+                  </div>
+                  <p *ngIf="fetchedPrice" class="text-xs text-emerald-600 mt-1">Giá hiện tại: {{ fetchedPrice.toLocaleString('vi-VN') }} đ</p>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Hướng giao dịch</label>
@@ -478,8 +484,12 @@ export class TradeWizardComponent implements OnInit {
   private riskService = inject(RiskService);
   private tradeService = inject(TradeService);
   private journalService = inject(JournalService);
+  private marketDataService = inject(MarketDataService);
   private notificationService = inject(NotificationService);
   private router = inject(Router);
+
+  loadingPrice = false;
+  fetchedPrice: number | null = null;
 
   steps = ['Chiến lược', 'Kế hoạch', 'Checklist', 'Xác nhận', 'Nhật ký'];
   currentStep = 0;
@@ -583,6 +593,27 @@ export class TradeWizardComponent implements OnInit {
       error: () => {
         this.riskProfile = null;
         this.calculate();
+      }
+    });
+  }
+
+  onSymbolBlur(): void {
+    const symbol = this.plan.symbol?.trim().toUpperCase();
+    if (!symbol) return;
+    this.plan.symbol = symbol;
+    this.loadingPrice = true;
+    this.fetchedPrice = null;
+    this.marketDataService.getCurrentPrice(symbol).subscribe({
+      next: (data) => {
+        this.loadingPrice = false;
+        this.fetchedPrice = data.close;
+        if (!this.plan.entryPrice) {
+          this.plan.entryPrice = data.close;
+          this.calculate();
+        }
+      },
+      error: () => {
+        this.loadingPrice = false;
       }
     });
   }

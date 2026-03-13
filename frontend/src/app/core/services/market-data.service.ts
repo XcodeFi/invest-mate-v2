@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { AuthService } from './auth.service';import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
+import { environment } from '../../../environments/environment';
 export interface StockPrice {
   symbol: string;
   date: string;
