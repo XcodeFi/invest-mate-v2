@@ -1,0 +1,109 @@
+# Changelog — Investment Mate v2
+
+Tất cả thay đổi đáng kể của dự án được ghi lại ở đây.
+Format theo [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [v2.1.0] — 2026-03-13 · Phase 5 & 6: Auto-fill, Risk, Templates, Changelog
+
+**Branch:** `feature/phase5-autofill-risk-compound`
+
+### Thêm mới
+- **Auto-fill giá cổ phiếu** trong Trade Wizard: nhập mã CP → blur → tự fetch giá hiện tại và điền vào Entry Price
+- **Concentration Alert**: cảnh báo khi 1 cổ phiếu vượt giới hạn `maxPositionSizePercent` trong Risk Profile, hiển thị trực tiếp trên Dashboard
+- **Trade Plan Template save/load**: lưu kế hoạch GD thành template, tải lại với 1 click, xóa template không cần nữa
+- **Trang Changelog** (`/changelog`): developer changelog đọc từ file `.md`, accessible không cần đăng nhập
+- **DEV badge** trên header: link nhanh đến `/changelog` từ mọi trang
+
+### Sửa lỗi
+- Fix lỗi `Cannot access 'MarketDataComponent' before initialization` do 2 `import` viết trên 1 dòng trong `market-data.service.ts`
+- Fix Risk Alert Banner sort: hiển thị cảnh báo nghiêm trọng nhất lên đầu (descending)
+
+### Cải thiện
+- Dashboard load risk alert chạy song song với `forkJoin` thay vì tuần tự
+- `docs/features.md`: tài liệu tính năng đầy đủ theo từng phase
+- `docs/getting-started.md`: thêm mục "Build vs Deploy" với lệnh cụ thể cho dự án
+
+### Gợi ý cho lần release tiếp theo
+- [ ] Quick Trade widget ngay trên Dashboard (nhập CP + Mua/Bán + SL → tính Position Size tại chỗ)
+- [ ] Risk Score badge trên header tự refresh mỗi 5 phút (hiện chỉ load 1 lần khi login)
+- [ ] Thêm field `positionSize` vào Trade Plan Template để save/load luôn số lượng CP
+
+---
+
+## [v2.0.0] — 2026-03-12 · Phase 3 & 4: Charts, Risk Dashboard, Compound Tracker
+
+**Branch:** `feature/phase4-charts-and-links`
+
+### Thêm mới
+- **Equity Curve chart** (Chart.js): line chart tăng trưởng vốn theo ngày, range filter 30D/90D/1Y/All
+- **Monthly Returns Matrix**: hiệu suất theo năm × tháng, color-coded xanh/đỏ
+- **CAGR thực tế**: tính từ capital flows + daily snapshots, hiển thị trên Dashboard
+- **Compound Growth Tracker**: card "Lãi kép" trên Dashboard — CAGR thực tế, ước tính 5/10/20 năm, so sánh vs mục tiêu
+- **Risk Alert Banner** trên Dashboard: stop-loss proximity, drawdown alert
+- **Risk Dashboard** (`/risk-dashboard`): tổng quan sức khỏe rủi ro, bảng position, stress test 5 kịch bản VNINDEX
+- **Risk Score badge** trên Header: badge màu động (xanh/vàng/đỏ) link đến Risk Dashboard
+- **Monthly Review** (`/monthly-review`): báo cáo tháng tự động — win rate, P&L, drawdown, best/worst trade
+
+### Cải thiện
+- Analytics: thay placeholder bằng biểu đồ thực tế (bar chart P&L, donut phân bổ danh mục)
+- Dashboard 4 Summary Cards: Tổng giá trị, Vốn đầu tư, P&L, CAGR
+
+### Gợi ý đã xử lý ở phase sau
+- ~~Concentration Alert~~ → Done v2.1.0
+- ~~Auto-fill giá~~ → Done v2.1.0
+
+---
+
+## [v1.5.0] — 2026-03-10 · Phase 2: Wizard Flow & Risk Profile
+
+**Branch:** `feature/phase2-wizard-flow`
+
+### Thêm mới
+- **Trade Wizard 5 bước** (`/trade-wizard`): Chiến lược → Kế hoạch → Checklist → Giao dịch → Nhật ký
+- **GO/NO-GO enforcement**: checklist bắt buộc, không thể skip qua bước Giao dịch nếu chưa đạt ≥80%
+- **Risk Profile** (`/risk`): thiết lập max position%, max risk/lệnh, R:R tối thiểu, max drawdown alert
+- **Position Sizing tự động**: nhập Entry + SL → tính ngay số lượng CP dựa trên Risk Profile
+- **Risk violations enforcement**: cảnh báo đỏ + yêu cầu xác nhận khi Trade Plan vi phạm Risk Profile
+
+### Cải thiện
+- Trade Plan: thêm các field SL, Target, Risk/Reward calculation
+- Strategies: load từ system templates (14 chiến lược mẫu), filter theo category/difficulty/timeframe
+
+---
+
+## [v1.0.0] — 2026-03-05 · Phase 1: Nền tảng
+
+**Branch:** `feature/phase1-foundation`
+
+### Thêm mới
+- **Google OAuth 2.0** login
+- **Portfolio CRUD**: tạo/sửa/xóa danh mục đầu tư
+- **Trade CRUD**: ghi nhận giao dịch Mua/Bán
+- **P&L theo Average Cost Method**: Realized + Unrealized P&L
+- **Capital Flows**: theo dõi dòng vốn vào/ra
+- **Daily Snapshots**: lưu giá trị danh mục mỗi ngày cho Equity Curve
+- **Journals** (`/journals`): nhật ký giao dịch
+- **Alerts** (`/alerts`): cảnh báo giá, stop-loss
+- **Market Data** (`/market-data`): tra cứu giá cổ phiếu từ API bên ngoài
+- **Backtesting** (`/backtesting`): backtest chiến lược cơ bản
+
+### Kiến trúc
+- Clean Architecture: Domain → Application → Infrastructure → API
+- CQRS + MediatR
+- MongoDB 7.0
+- .NET 8 + Angular 19
+- JWT authentication
+- Background Worker cho P&L calculations
+
+---
+
+## [v0.1.0] — 2026-02-20 · Khởi tạo dự án
+
+### Thêm mới
+- Khởi tạo solution `.NET 8` với Clean Architecture
+- Khởi tạo Angular 19 frontend với Tailwind CSS
+- Cấu hình MongoDB connection
+- Cấu hình JWT authentication
+- Docker Compose cho local development
