@@ -14,6 +14,8 @@ export interface Strategy {
   riskRules: string;
   timeFrame: string;
   marketCondition: string;
+  suggestedSlPercent?: number;
+  suggestedRrRatio?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +29,8 @@ export interface CreateStrategyRequest {
   riskRules?: string;
   timeFrame?: string;
   marketCondition?: string;
+  suggestedSlPercent?: number;
+  suggestedRrRatio?: number;
 }
 
 export interface UpdateStrategyRequest {

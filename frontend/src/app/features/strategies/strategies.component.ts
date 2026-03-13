@@ -162,7 +162,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               placeholder="VD: Breakout Trading">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Khung thời gian</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Khung thời gian <sup class="text-gray-400 font-bold">*</sup></label>
             <select [(ngModel)]="newStrategy.timeFrame"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               <option value="">-- Chọn --</option>
@@ -206,6 +206,36 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             <textarea [(ngModel)]="newStrategy.riskRules" rows="4"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Stop loss, position sizing..."></textarea>
+          </div>
+          <!-- Auto-fill hints for Trade Plan -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              SL gợi ý <sup class="text-blue-500">1</sup>
+              <span class="text-xs font-normal text-gray-400 ml-1">(% dưới giá vào)</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <input [(ngModel)]="newStrategy.suggestedSlPercent" type="number" step="0.5" min="0.5" max="20"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="VD: 5 → SL = giá vào - 5%">
+              <span class="text-gray-400 text-sm whitespace-nowrap">%</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              R:R gợi ý <sup class="text-blue-500">2</sup>
+              <span class="text-xs font-normal text-gray-400 ml-1">(lợi nhuận / rủi ro)</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <input [(ngModel)]="newStrategy.suggestedRrRatio" type="number" step="0.5" min="1" max="10"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="VD: 2 → TP = entry + 2×risk">
+              <span class="text-gray-400 text-sm">R</span>
+            </div>
+          </div>
+          <div class="md:col-span-2 text-xs text-gray-400 bg-blue-50 rounded p-2 space-y-1">
+            <div><sup>*</sup> <strong>Khung thời gian:</strong> <strong>Scalping</strong> = giao dịch trong vài phút; <strong>Day Trading</strong> = mở/đóng trong ngày; <strong>Swing</strong> = giữ vài ngày đến vài tuần; <strong>Position</strong> = giữ vài tuần đến vài tháng.</div>
+            <div><sup>1</sup> <strong>SL gợi ý:</strong> Khi chọn chiến lược này trong Trade Plan, Stop-Loss sẽ tự động điền = Giá vào × (1 - SL%).</div>
+            <div><sup>2</sup> <strong>R:R gợi ý:</strong> Take-Profit tự động = Giá vào + (Risk × R:R). R:R = 2 → TP = Entry + 2 × (Entry - SL).</div>
           </div>
         </div>
         <div class="mt-4 flex justify-end gap-2">
@@ -315,21 +345,21 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   <div class="text-2xl font-bold text-gray-800">{{ performance.totalTrades }}</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
-                  <div class="text-sm text-gray-500">Tỷ lệ thắng</div>
+                  <div class="text-sm text-gray-500">Tỷ lệ thắng <sup class="text-emerald-500 font-bold">¹</sup></div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.winRate >= 50"
                     [class.text-red-600]="performance.winRate < 50">
                     {{ performance.winRate | number:'1.1-1' }}%
                   </div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
-                  <div class="text-sm text-gray-500">Tổng P&L</div>
+                  <div class="text-sm text-gray-500">Tổng P&L <sup class="text-blue-400 font-bold">²</sup></div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.totalPnL >= 0"
                     [class.text-red-600]="performance.totalPnL < 0">
                     {{ performance.totalPnL | vndCurrency }}
                   </div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
-                  <div class="text-sm text-gray-500">Profit Factor</div>
+                  <div class="text-sm text-gray-500">Profit Factor <sup class="text-violet-400 font-bold">³</sup></div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.profitFactor >= 1"
                     [class.text-red-600]="performance.profitFactor < 1">
                     {{ performance.profitFactor | number:'1.2-2' }}
@@ -370,6 +400,13 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             </div>
             <div *ngIf="!loadingPerformance && !performance" class="text-center py-8 text-gray-500">
               Chưa có dữ liệu hiệu suất
+            </div>
+
+            <!-- Glossary -->
+            <div *ngIf="performance" class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
+              <div><sup class="text-emerald-500 font-bold">¹</sup> <strong>Tỷ lệ thắng (Win Rate):</strong> % số lệnh có lãi trên tổng số lệnh. VD: 55% = 55/100 lệnh thắng. Cần kết hợp với Profit Factor để đánh giá toàn diện.</div>
+              <div><sup class="text-blue-400 font-bold">²</sup> <strong>P&L (Profit & Loss):</strong> Tổng lãi/lỗ ròng của tất cả giao dịch sử dụng chiến lược này (chưa tính phí giao dịch).</div>
+              <div><sup class="text-violet-400 font-bold">³</sup> <strong>Profit Factor:</strong> Tổng lãi gộp ÷ Tổng lỗ gộp. PF > 1.5 = tốt; PF = 1 = hòa vốn; PF &lt; 1 = chiến lược đang âm vốn tổng thể.</div>
             </div>
           </div>
         </div>

@@ -63,13 +63,13 @@ import { NotificationService } from '../../core/services/notification.service';
               placeholder="Tình hình thị trường lúc vào lệnh?"></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Setup kỹ thuật</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Setup kỹ thuật <sup class="text-violet-400 font-bold">¹</sup></label>
             <textarea [(ngModel)]="newJournal.technicalSetup" rows="2"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="RSI, MACD, support/resistance..."></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái cảm xúc</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái cảm xúc <sup class="text-pink-400 font-bold">²</sup></label>
             <select [(ngModel)]="newJournal.emotionalState"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               <option value="">-- Chọn --</option>
@@ -83,7 +83,7 @@ import { NotificationService } from '../../core/services/notification.service';
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Mức tự tin (1-10)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Mức tự tin (1-10) <sup class="text-amber-400 font-bold">³</sup></label>
             <input [(ngModel)]="newJournal.confidenceLevel" type="number" min="1" max="10"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           </div>
@@ -93,7 +93,7 @@ import { NotificationService } from '../../core/services/notification.service';
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Đánh giá sau giao dịch</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Đánh giá sau giao dịch <sup class="text-blue-400 font-bold">⁴</sup></label>
             <textarea [(ngModel)]="newJournal.postTradeReview" rows="2"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Kết quả giao dịch..."></textarea>
@@ -111,6 +111,14 @@ import { NotificationService } from '../../core/services/notification.service';
               placeholder="Nhập tags phân cách bằng dấu phẩy (VD: breakout, trending, high-risk)">
           </div>
         </div>
+        <!-- Glossary -->
+        <div class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
+          <div><sup class="text-violet-400 font-bold">¹</sup> <strong>Setup kỹ thuật (Technical Setup):</strong> Các tín hiệu phân tích kỹ thuật đã nhận diện trước khi vào lệnh: mô hình nến, đường MA, RSI, MACD, vùng hỗ trợ/kháng cự, Bollinger Bands…</div>
+          <div><sup class="text-pink-400 font-bold">²</sup> <strong>Trạng thái cảm xúc:</strong> Ghi nhận tâm lý lúc vào lệnh để phân tích sau. <strong>FOMO</strong> (Fear Of Missing Out) = sợ bỏ lỡ cơ hội, vào lệnh khi giá đã chạy xa mà không theo kế hoạch.</div>
+          <div><sup class="text-amber-400 font-bold">³</sup> <strong>Mức tự tin (Confidence):</strong> Thang điểm 1–10 đánh giá độ chắc chắn của tín hiệu. Điểm thấp (&lt;5) = tín hiệu yếu, nên giảm size hoặc bỏ qua lệnh.</div>
+          <div><sup class="text-blue-400 font-bold">⁴</sup> <strong>Đánh giá sau giao dịch (Post-trade Review):</strong> Ghi lại kết quả thực tế so với kế hoạch: lệnh đúng/sai chiến lược, cảm xúc có ảnh hưởng không, rút kinh nghiệm gì.</div>
+        </div>
+
         <div class="mt-4 flex justify-end gap-2">
           <button (click)="showCreateForm = false"
             class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Hủy</button>

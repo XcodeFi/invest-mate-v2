@@ -19,6 +19,8 @@ public class StrategyDto
     public string TimeFrame { get; set; } = string.Empty;
     public string MarketCondition { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+    public decimal? SuggestedSlPercent { get; set; }
+    public decimal? SuggestedRrRatio { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -46,6 +48,8 @@ public class GetStrategiesQueryHandler : IRequestHandler<GetStrategiesQuery, IEn
             TimeFrame = s.TimeFrame,
             MarketCondition = s.MarketCondition,
             IsActive = s.IsActive,
+            SuggestedSlPercent = s.SuggestedSlPercent,
+            SuggestedRrRatio = s.SuggestedRrRatio,
             CreatedAt = s.CreatedAt,
             UpdatedAt = s.UpdatedAt
         });

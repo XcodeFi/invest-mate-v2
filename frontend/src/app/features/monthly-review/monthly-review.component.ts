@@ -73,14 +73,14 @@ interface MonthlyReport {
               </div>
             </div>
             <div class="bg-white/60 rounded-lg p-3">
-              <div class="text-xs text-gray-500">Win Rate</div>
+              <div class="text-xs text-gray-500">Win Rate <sup class="text-emerald-500 font-bold">¹</sup></div>
               <div class="text-2xl font-bold" [class.text-green-600]="currentReport.winRate >= 50"
                 [class.text-red-600]="currentReport.winRate < 50">
                 {{ currentReport.winRate | number:'1.0-0' }}%
               </div>
             </div>
             <div class="bg-white/60 rounded-lg p-3">
-              <div class="text-xs text-gray-500">Lãi/Lỗ ròng</div>
+              <div class="text-xs text-gray-500">Lãi/Lỗ ròng (P&L) <sup class="text-blue-400 font-bold">²</sup></div>
               <div class="text-2xl font-bold"
                 [class.text-green-600]="currentReport.netPnL >= 0"
                 [class.text-red-600]="currentReport.netPnL < 0">
@@ -88,7 +88,7 @@ interface MonthlyReport {
               </div>
             </div>
             <div class="bg-white/60 rounded-lg p-3">
-              <div class="text-xs text-gray-500">Max Drawdown</div>
+              <div class="text-xs text-gray-500">Max Drawdown <sup class="text-orange-400 font-bold">³</sup></div>
               <div class="text-2xl font-bold text-red-600">{{ currentReport.maxDrawdown | number:'1.1-1' }}%</div>
             </div>
           </div>
@@ -113,13 +113,13 @@ interface MonthlyReport {
               </div>
               <div class="flex items-center gap-4">
                 <div class="text-sm">
-                  <span class="text-gray-500">Win: </span>
+                  <span class="text-gray-500">Win<sup class="text-emerald-500 font-bold">¹</sup>: </span>
                   <span class="font-medium" [class.text-green-600]="r.winRate >= 50" [class.text-red-600]="r.winRate < 50">
                     {{ r.winRate | number:'1.0-0' }}%
                   </span>
                 </div>
                 <div class="text-sm">
-                  <span class="text-gray-500">P&L: </span>
+                  <span class="text-gray-500">P&L<sup class="text-blue-400 font-bold">²</sup>: </span>
                   <span class="font-bold" [class.text-green-600]="r.netPnL >= 0" [class.text-red-600]="r.netPnL < 0">
                     {{ r.netPnL | vndCurrency }}
                   </span>
@@ -169,6 +169,13 @@ interface MonthlyReport {
               <div class="text-lg font-bold text-red-600">{{ worstMonth | number:'1.2-2' }}%</div>
             </div>
           </div>
+        </div>
+
+        <!-- Glossary -->
+        <div *ngIf="reports.length > 0" class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
+          <div><sup class="text-emerald-500 font-bold">¹</sup> <strong>Win Rate (Tỷ lệ thắng):</strong> % số lệnh có lãi trên tổng số lệnh đã đóng trong tháng. VD: 60% = 6/10 lệnh thắng.</div>
+          <div><sup class="text-blue-400 font-bold">²</sup> <strong>P&L (Profit & Loss) — Lãi/Lỗ ròng:</strong> Tổng lãi trừ tổng lỗ sau tất cả giao dịch trong tháng (đã trừ phí và thuế).</div>
+          <div><sup class="text-orange-400 font-bold">³</sup> <strong>Max Drawdown — Sụt giảm tối đa:</strong> Mức giảm vốn lớn nhất từ đỉnh xuống đáy trong tháng đó. Cho biết bạn từng chịu đựng mức lỗ tối đa bao nhiêu.</div>
         </div>
       </div>
     </div>
