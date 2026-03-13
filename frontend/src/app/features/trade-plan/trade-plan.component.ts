@@ -566,6 +566,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     if (t.marketCondition) this.plan.marketCondition = t.marketCondition;
     if (t.reason) this.plan.reason = t.reason;
     if (t.notes) this.plan.notes = t.notes;
+    if (t.positionSize) { this.plan.quantity = t.positionSize; this.manualQuantity = true; }
     this.recalculate();
     this.notification.success('Template', `Đã tải "${t.name}"`);
   }
@@ -584,6 +585,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       marketCondition: this.plan.marketCondition,
       reason: this.plan.reason || undefined,
       notes: this.plan.notes || undefined,
+      positionSize: this.plan.quantity || this.optimalShares || undefined,
     }).subscribe({
       next: (saved) => {
         this.templates = [saved, ...this.templates];

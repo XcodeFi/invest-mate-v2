@@ -20,6 +20,7 @@ public class TradePlanTemplate
     public string MarketCondition { get; set; } = "Trending";
     public string? Reason { get; set; }
     public string? Notes { get; set; }
+    public int? PositionSize { get; set; }               // số lượng CP đề xuất
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

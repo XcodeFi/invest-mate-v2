@@ -287,53 +287,63 @@ dotnet test --filter Category=Integration
 # Trong VS Code, mở InvestmentApp.Api.http
 ```
 
-## 🐳 Docker Deployment
+## 🐳 Docker
+
+Dự án có 2 file compose:
+
+- `docker-compose.dev.yml` — môi trường development (API port 5000, Frontend port 4200)
+- `docker-compose.yml` — môi trường production
 
 ### Development với Docker Compose
 
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  mongodb:
-    image: mongo:7.0
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: investmentapp
+```bash
+# Lần đầu hoặc sau khi thay đổi code — build lại image và khởi động
+docker compose -f docker-compose.dev.yml up --build
 
-  api:
-    build:
-      context: .
-      dockerfile: src/InvestmentApp.Api/Dockerfile
-    ports:
-      - "5001:80"
-    depends_on:
-      - mongodb
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__MongoDb=mongodb://mongodb:27017
-      - MongoDb__DatabaseName=investmentapp
+# Chạy lại (không build) nếu code không đổi
+docker compose -f docker-compose.dev.yml up
 
-volumes:
-  mongodb_data:
+# Chạy nền (detached)
+docker compose -f docker-compose.dev.yml up --build -d
+
+# Xem logs realtime
+docker compose -f docker-compose.dev.yml logs -f
+
+# Dừng tất cả containers
+docker compose -f docker-compose.dev.yml down
 ```
 
+Sau khi khởi động:
+
+- **Frontend**: `http://localhost:4200`
+- **API**: `http://localhost:5000`
+- **Swagger**: `http://localhost:5000/swagger`
+
+> **Lưu ý:** `docker-compose.dev.yml` không bao gồm MongoDB — app kết nối tới MongoDB bên ngoài qua biến môi trường `ConnectionStrings__MongoDb` trong `.env`.
+
+### Rebuild chỉ 1 service
+
 ```bash
-docker-compose up --build
+# Chỉ rebuild frontend (sau khi sửa Angular)
+docker compose -f docker-compose.dev.yml build frontend
+docker compose -f docker-compose.dev.yml up frontend -d
+
+# Chỉ rebuild backend API (sau khi sửa C#)
+docker compose -f docker-compose.dev.yml build api
+docker compose -f docker-compose.dev.yml up api -d
 ```
 
 ### Production Deployment
 
 ```bash
-# Build production images
-docker build -f src/InvestmentApp.Api/Dockerfile -t investment-api:latest .
-docker build -f src/InvestmentApp.Worker/Dockerfile -t investment-worker:latest .
+# Build và khởi động production
+docker compose up --build -d
 
-# Chạy với docker-compose.prod.yml
-docker-compose -f docker-compose.prod.yml up -d
+# Xem logs
+docker compose logs -f
+
+# Dừng
+docker compose down
 ```
 
 ## 🔍 Troubleshooting
