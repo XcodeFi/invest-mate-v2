@@ -166,6 +166,94 @@ ng serve
 
 Frontend sẽ chạy tại: `http://localhost:4200`
 
+## 🔄 Build vs Deploy — Khi nào cần làm gì?
+
+Một câu hỏi thường gặp: sau khi thêm code, có cần build lại hay deploy lại không?
+
+### Môi trường Development (hàng ngày)
+
+**Không cần làm gì thêm** khi đang chạy dev server — chỉ cần save file:
+
+| Service | Lệnh dev | Hành vi khi save |
+| --- | --- | --- |
+| Frontend Angular | `ng serve` | Tự detect thay đổi, hot-reload ngay |
+| Backend .NET | `dotnet watch run` | Tự restart khi C# file thay đổi |
+| Backend .NET | `dotnet run` | Cần Ctrl+C và chạy lại thủ công |
+
+> **Khuyến nghị:** Dùng `dotnet watch run` thay vì `dotnet run` để tự động reload.
+
+### Môi trường Production / Staging
+
+Khi muốn đưa code lên server cho user thật dùng, cần build trước rồi mới deploy:
+
+**Frontend:**
+
+```bash
+ng build --configuration production
+# Sau đó copy thư mục dist/ lên server/CDN
+```
+
+**Backend:**
+
+```bash
+dotnet publish -c Release
+```
+
+**Docker:**
+
+```bash
+docker compose build       # Rebuild image
+docker compose up -d       # Restart containers
+```
+
+### Lệnh cụ thể cho dự án này
+
+**Terminal 1 — Frontend** (thư mục `frontend/`):
+
+```bash
+cd frontend
+npm start           # = ng serve, chạy tại http://localhost:4200
+```
+
+**Terminal 2 — Backend API** (thư mục `src/InvestmentApp.Api/`):
+
+```bash
+cd src/InvestmentApp.Api
+dotnet watch run    # auto-reload khi sửa C#, chạy tại https://localhost:5001
+```
+
+**Terminal 3 — Worker** (thư mục `src/InvestmentApp.Worker/`):
+
+```bash
+cd src/InvestmentApp.Worker
+dotnet watch run    # xử lý P&L nền tảng, snapshot hàng ngày
+```
+
+**Build production:**
+
+```bash
+# Frontend
+cd frontend
+npm run build       # output: frontend/dist/investment-mate-frontend/
+
+# Backend API
+cd src/InvestmentApp.Api
+dotnet publish -c Release
+
+# Worker
+cd src/InvestmentApp.Worker
+dotnet publish -c Release
+```
+
+### Tóm tắt nhanh
+
+```text
+Thêm code mới (dev)   → Chỉ cần save → npm start / dotnet watch tự lo
+Push lên server       → npm run build + dotnet publish + docker compose up -d
+```
+
+---
+
 ## 🧪 Testing
 
 ### Unit Tests

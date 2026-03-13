@@ -11,7 +11,11 @@
       "Bash(npm install:*)",
       "Bash(git checkout:*)",
       "Bash(git pull:*)",
-      "Bash(docker ps:*)"
+      "Bash(docker ps:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ls d:/invest-mate-v2/project/*.md)",
+      "Bash(git -C d:/invest-mate-v2/project log --oneline --merges master)",
+      "Bash(git -C d:/invest-mate-v2/project log --oneline master)"
     ]
   }
 }

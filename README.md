@@ -9,37 +9,62 @@ Hệ thống quản lý danh mục đầu tư doanh nghiệp được xây dựn
 
 ## ✨ Tính năng Chính
 
+> Xem chi tiết đầy đủ tại [docs/features.md](docs/features.md)
+
+### 🧙 Wizard Giao dịch (5 bước)
+
+- **Quy trình kỷ luật**: Chiến lược → Kế hoạch → Checklist → Ghi GD → Nhật ký
+- **GO/NO-GO enforcement**: Không thể bỏ qua checklist bắt buộc
+- **Auto-fill giá**: Nhập mã CP → tự điền giá hiện tại từ API
+
+### 📊 Dashboard Cockpit
+
+- **4 Summary Cards**: Tổng giá trị, Vốn đầu tư, P&L, CAGR
+- **Compound Growth Tracker**: CAGR thực tế vs mục tiêu, ước tính 5/10/20 năm
+- **Mini Equity Curve**: Line chart Chart.js với range filter 30D/90D/1Y/All
+- **Risk Alert Banner**: Stop-loss proximity, drawdown, cảnh báo tập trung danh mục
+
+### 📋 Kế hoạch Giao dịch với Template
+
+- **Auto-fill giá**: Debounced symbol lookup → điền Entry Price tự động
+- **Position Sizing tự động**: Tính từ Risk Profile (maxRisk%, maxPosition%)
+- **Template save/load**: Lưu kế hoạch thành template → tái sử dụng với 1 click
+- **Risk violations enforcement**: Cảnh báo vi phạm + yêu cầu xác nhận
+
+### 📈 Analytics & Báo cáo
+
+- **Bar chart P&L**: Lãi/lỗ theo cổ phiếu
+- **Donut chart**: Phân bổ danh mục
+- **Equity Curve**: Đường tăng trưởng vốn theo ngày
+- **Monthly Returns Matrix**: Hiệu suất theo năm × tháng, color-coded
+- **Monthly Review** (`/monthly-review`): Báo cáo tháng tự động
+
+### 🛡️ Quản lý Rủi ro
+
+- **Risk Profile**: Max position%, max risk/lệnh, R:R tối thiểu, max drawdown alert
+- **Risk Dashboard**: Tổng quan sức khỏe rủi ro, stop-loss tracking, correlation
+- **Concentration Alert**: Tự động cảnh báo khi cổ phiếu vượt giới hạn Risk Profile
+- **Stress Test**: Mô phỏng 5 kịch bản VNINDEX (-20% → +15%)
+
 ### 🔐 Xác thực & Bảo mật
+
 - **Google OAuth 2.0**: Đăng nhập an toàn với tài khoản Google
 - **JWT Tokens**: Quản lý phiên làm việc bảo mật
-- **Role-based Access**: Phân quyền chi tiết theo vai trò
-- **Audit Logging**: Ghi log toàn bộ hoạt động hệ thống
+- **User-scoped data**: Templates, Risk Profiles, Journals tách biệt theo user
 
-### 📊 Quản lý Danh mục Đầu tư
-- **Portfolio Management**: Tạo và quản lý nhiều danh mục đầu tư
-- **Trade Tracking**: Theo dõi giao dịch mua/bán chứng khoán
-- **Real-time P&L**: Tính toán lãi/lỗ thời gian thực
-- **Position Monitoring**: Giám sát vị thế đầu tư chi tiết
+### 💰 P&L & Portfolio
 
-### 📋 Chiến lược & Quản lý Rủi ro
-
-- **14 Strategy Templates**: Chiến lược mẫu từ Beginner đến Advanced (Value Investing, CANSLIM, Trend Following, DCA, Core-Satellite...)
-- **4 Risk Profiles**: Mức rủi ro từ Bảo thủ → Mạo hiểm, tự động cấu hình khi tạo danh mục
-- **Gợi ý thông minh**: Mỗi chiến lược có Entry/Exit/Risk rules chi tiết, gợi ý khi nào nên dùng
-- **Seed Data tự động**: Templates được khởi tạo sẵn khi app chạy lần đầu
-
-### 💰 Tính toán P&L Nâng cao
 - **Average Cost Method**: Phương pháp chi phí trung bình chuẩn xác
-- **Realized vs Unrealized P&L**: Phân biệt lãi/lỗ đã thực hiện và chưa thực hiện
-- **Position-based Tracking**: Theo dõi từng vị thế riêng biệt
-- **Historical Performance**: Báo cáo hiệu suất lịch sử
+- **Realized vs Unrealized P&L**: Phân biệt lãi/lỗ đã và chưa thực hiện
+- **Capital Flows**: Theo dõi dòng vốn vào/ra
+- **Daily Snapshots**: Lịch sử snapshot cho Equity Curve
 
 ### 🏗️ Kiến trúc Kỹ thuật
+
 - **Clean Architecture**: Tách biệt rõ ràng các layer
-- **CQRS Pattern**: Command Query Responsibility Segregation
+- **CQRS + MediatR**: Command Query Responsibility Segregation
 - **Domain-Driven Design**: Thiết kế theo domain business
-- **Event Sourcing**: Xử lý sự kiện domain
-- **Background Processing**: Worker service xử lý nền tảng
+- **Background Processing**: Worker service xử lý P&L nền tảng
 
 ## 🛠️ Công nghệ Sử dụng
 

@@ -59,6 +59,13 @@ interface NavGroup {
 
           <!-- Right side: Risk Score + User + Mobile hamburger -->
           <div class="flex items-center gap-3">
+            <!-- DEV Changelog Badge -->
+            <a routerLink="/changelog"
+              class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-gray-800 text-gray-200 hover:bg-gray-700 transition-colors"
+              title="Developer Changelog">
+              DEV
+            </a>
+
             <!-- Risk Score Badge -->
             <a *ngIf="riskScore >= 0" routerLink="/risk-dashboard"
               class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold cursor-pointer transition-colors"
@@ -140,6 +147,15 @@ interface NavGroup {
               </a>
             </div>
           </div>
+        </div>
+
+        <!-- Mobile DEV link -->
+        <div class="border-t border-gray-200 px-4 py-2">
+          <a routerLink="/changelog" (click)="mobileMenuOpen = false"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+            <span class="bg-gray-800 text-gray-200 px-1.5 py-0.5 rounded text-xs">DEV</span>
+            Changelog
+          </a>
         </div>
 
         <!-- Mobile user section -->

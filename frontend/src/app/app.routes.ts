@@ -102,6 +102,10 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'changelog',
+    loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent)
+  },
+  {
     path: '**',
     loadComponent: () => import('./shared/components/not-found/not-found.component').then(m => m.NotFoundComponent)
   }

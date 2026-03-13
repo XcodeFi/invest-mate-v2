@@ -8,7 +8,8 @@ import { RiskService, PortfolioRiskSummary, PositionRiskItem } from '../../core/
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -604,15 +605,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const riskRequests = summary.portfolios.map(p =>
       this.riskService.getPortfolioRiskSummary(p.portfolioId)
     );
+    const profileRequests = summary.portfolios.map(p =>
+      this.riskService.getRiskProfile(p.portfolioId).pipe(catchError(() => of(null)))
+    );
 
-    forkJoin(riskRequests).subscribe({
-      next: (riskSummaries) => {
+    forkJoin([forkJoin(riskRequests), forkJoin(profileRequests)]).subscribe({
+      next: ([riskSummaries, profiles]) => {
         const alerts: RiskAlert[] = [];
 
         riskSummaries.forEach((risk, index) => {
           const portfolio = summary.portfolios[index];
+          const profile = profiles[index];
 
           risk.positions.forEach((pos: PositionRiskItem) => {
+            // Stop-loss proximity alert
             if (pos.stopLossPrice != null && pos.distanceToStopLossPercent <= 5) {
               alerts.push({
                 symbol: pos.symbol,
@@ -623,8 +629,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
                 value: pos.distanceToStopLossPercent
               });
             }
+
+            // Concentration alert: position > maxPositionSizePercent from risk profile
+            if (profile && pos.positionSizePercent > profile.maxPositionSizePercent) {
+              alerts.push({
+                symbol: pos.symbol,
+                portfolioName: portfolio.portfolioName,
+                type: 'stop-loss',
+                message: `Tập trung quá mức: ${pos.positionSizePercent.toFixed(1)}% danh mục (giới hạn ${profile.maxPositionSizePercent}%)`,
+                severity: pos.positionSizePercent > profile.maxPositionSizePercent * 1.5 ? 'danger' : 'warning',
+                value: pos.positionSizePercent
+              });
+            }
           });
 
+          // Drawdown alert
           if (risk.maxDrawdown > 10) {
             alerts.push({
               symbol: portfolio.portfolioName,
@@ -637,7 +656,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           }
         });
 
-        alerts.sort((a, b) => a.value - b.value);
+        alerts.sort((a, b) => b.value - a.value);
         this.riskAlerts = alerts.slice(0, 5);
       },
       error: () => {

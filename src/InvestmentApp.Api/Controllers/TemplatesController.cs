@@ -1,4 +1,6 @@
 using InvestmentApp.Domain.Entities;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 
@@ -14,6 +16,9 @@ public class TemplatesController : ControllerBase
     {
         _database = database;
     }
+
+    private string GetUserId() =>
+        User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException();
 
     /// <summary>
     /// Get all strategy templates (public, no auth required)
@@ -82,4 +87,83 @@ public class TemplatesController : ControllerBase
         if (template == null) return NotFound(new { message = "Risk profile template not found" });
         return Ok(template);
     }
+
+    // ─── Trade Plan Templates (user-specific) ────────────────────────────────
+
+    /// <summary>
+    /// Get all trade plan templates for current user
+    /// </summary>
+    [HttpGet("trade-plans")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [ProducesResponseType(typeof(IEnumerable<TradePlanTemplate>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTradePlanTemplates()
+    {
+        var userId = GetUserId();
+        var col = _database.GetCollection<TradePlanTemplate>("trade_plan_templates");
+        var templates = await col.Find(t => t.UserId == userId)
+            .SortByDescending(t => t.UpdatedAt)
+            .ToListAsync();
+        return Ok(templates);
+    }
+
+    /// <summary>
+    /// Save a new trade plan template
+    /// </summary>
+    [HttpPost("trade-plans")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [ProducesResponseType(typeof(TradePlanTemplate), StatusCodes.Status201Created)]
+    public async Task<IActionResult> CreateTradePlanTemplate([FromBody] TradePlanTemplateRequest request)
+    {
+        var userId = GetUserId();
+        var col = _database.GetCollection<TradePlanTemplate>("trade_plan_templates");
+
+        var template = new TradePlanTemplate
+        {
+            Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+            UserId = userId,
+            Name = request.Name,
+            Symbol = request.Symbol,
+            Direction = request.Direction ?? "Buy",
+            EntryPrice = request.EntryPrice,
+            StopLoss = request.StopLoss,
+            Target = request.Target,
+            StrategyId = request.StrategyId,
+            MarketCondition = request.MarketCondition ?? "Trending",
+            Reason = request.Reason,
+            Notes = request.Notes,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await col.InsertOneAsync(template);
+        return CreatedAtAction(nameof(GetTradePlanTemplates), new { id = template.Id }, template);
+    }
+
+    /// <summary>
+    /// Delete a trade plan template
+    /// </summary>
+    [HttpDelete("trade-plans/{id}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteTradePlanTemplate(string id)
+    {
+        var userId = GetUserId();
+        var col = _database.GetCollection<TradePlanTemplate>("trade_plan_templates");
+        var result = await col.DeleteOneAsync(t => t.Id == id && t.UserId == userId);
+        if (result.DeletedCount == 0) return NotFound(new { message = "Template not found" });
+        return NoContent();
+    }
 }
+
+public record TradePlanTemplateRequest(
+    string Name,
+    string? Symbol,
+    string? Direction,
+    decimal? EntryPrice,
+    decimal? StopLoss,
+    decimal? Target,
+    string? StrategyId,
+    string? MarketCondition,
+    string? Reason,
+    string? Notes
+);
