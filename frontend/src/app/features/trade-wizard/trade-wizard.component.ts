@@ -167,13 +167,13 @@ interface PositionCalc {
                     placeholder="VND">
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Stop-Loss <sup class="text-red-400 font-bold">¹</sup></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Stop-Loss <sup class="text-red-400 font-bold">1</sup></label>
                   <input [(ngModel)]="plan.stopLoss" type="number" (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="VND">
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Take-Profit <sup class="text-emerald-500 font-bold">²</sup></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Take-Profit <sup class="text-emerald-500 font-bold">2</sup></label>
                   <input [(ngModel)]="plan.takeProfit" type="number" (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="VND">
@@ -188,7 +188,7 @@ interface PositionCalc {
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">% Rủi ro / giao dịch <sup class="text-amber-400 font-bold">³</sup></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">% Rủi ro / giao dịch <sup class="text-amber-400 font-bold">3</sup></label>
                   <input [(ngModel)]="plan.riskPercent" type="number" step="0.5" min="0.5" max="10" (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
@@ -223,7 +223,7 @@ interface PositionCalc {
                 </div>
                 <hr class="border-gray-200">
                 <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">Tỷ lệ R:R <sup class="text-blue-400 font-bold">⁴</sup></span>
+                  <span class="text-gray-500">Tỷ lệ R:R <sup class="text-blue-400 font-bold">4</sup></span>
                   <span class="font-bold"
                     [class.text-green-600]="positionCalc.riskRewardRatio >= 2"
                     [class.text-yellow-600]="positionCalc.riskRewardRatio >= 1 && positionCalc.riskRewardRatio < 2"
@@ -262,10 +262,10 @@ interface PositionCalc {
 
           <!-- Glossary -->
           <div class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
-            <div><sup class="text-red-400 font-bold">¹</sup> <strong>Stop-Loss (SL) — Cắt lỗ:</strong> Mức giá bạn chấp nhận bán để giới hạn thua lỗ. VD: mua 100, SL = 95 → tối đa chỉ lỗ 5%.</div>
-            <div><sup class="text-emerald-500 font-bold">²</sup> <strong>Take-Profit (TP) — Chốt lời:</strong> Mức giá mục tiêu để bán lấy lãi. VD: mua 100, TP = 110 → mục tiêu lãi 10%.</div>
-            <div><sup class="text-amber-400 font-bold">³</sup> <strong>% Rủi ro / giao dịch:</strong> Tỷ lệ % vốn bạn chấp nhận mất nếu lệnh chạm Stop-Loss. Thông thường 1–2% tổng danh mục mỗi lệnh.</div>
-            <div><sup class="text-blue-400 font-bold">⁴</sup> <strong>R:R (Risk:Reward) — Tỷ lệ rủi ro/lợi nhuận:</strong> Lợi nhuận tiềm năng ÷ Rủi ro tối đa. R:R = 1:2 nghĩa là có thể lãi 2 đồng khi chấp nhận rủi ro 1 đồng. Tối thiểu nên đạt 1:2.</div>
+            <div><sup class="text-red-400 font-bold">1</sup> <strong>Stop-Loss (SL) — Cắt lỗ:</strong> Mức giá bạn chấp nhận bán để giới hạn thua lỗ. VD: mua 100, SL = 95 → tối đa chỉ lỗ 5%.</div>
+            <div><sup class="text-emerald-500 font-bold">2</sup> <strong>Take-Profit (TP) — Chốt lời:</strong> Mức giá mục tiêu để bán lấy lãi. VD: mua 100, TP = 110 → mục tiêu lãi 10%.</div>
+            <div><sup class="text-amber-400 font-bold">3</sup> <strong>% Rủi ro / giao dịch:</strong> Tỷ lệ % vốn bạn chấp nhận mất nếu lệnh chạm Stop-Loss. Thông thường 1–2% tổng danh mục mỗi lệnh.</div>
+            <div><sup class="text-blue-400 font-bold">4</sup> <strong>R:R (Risk:Reward) — Tỷ lệ rủi ro/lợi nhuận:</strong> Lợi nhuận tiềm năng ÷ Rủi ro tối đa. R:R = 1:2 nghĩa là có thể lãi 2 đồng khi chấp nhận rủi ro 1 đồng. Tối thiểu nên đạt 1:2.</div>
           </div>
         </div>
 
@@ -417,7 +417,7 @@ interface PositionCalc {
 
             <!-- Technical Setup -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Thiết lập kỹ thuật <sup class="text-violet-400 font-bold">⁵</sup></label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Thiết lập kỹ thuật <sup class="text-violet-400 font-bold">5</sup></label>
               <textarea [(ngModel)]="journal.technicalSetup" rows="2"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Mô hình giá, chỉ báo kỹ thuật sử dụng..."></textarea>
@@ -426,7 +426,7 @@ interface PositionCalc {
             <!-- Emotional State + Confidence -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái cảm xúc <sup class="text-pink-400 font-bold">⁶</sup></label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái cảm xúc <sup class="text-pink-400 font-bold">6</sup></label>
                 <select [(ngModel)]="journal.emotionalState"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                   <option value="">-- Chọn --</option>
@@ -447,8 +447,8 @@ interface PositionCalc {
 
             <!-- Glossary step 5 -->
             <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
-              <div><sup class="text-violet-400 font-bold">⁵</sup> <strong>Thiết lập kỹ thuật (Technical Setup):</strong> Mô tả các tín hiệu phân tích kỹ thuật đã dùng để ra quyết định: mô hình nến, đường MA, RSI, MACD, vùng hỗ trợ/kháng cự…</div>
-              <div><sup class="text-pink-400 font-bold">⁶</sup> <strong>FOMO (Fear Of Missing Out):</strong> Tâm lý sợ bỏ lỡ — vào lệnh vì thấy giá tăng mạnh, không theo kế hoạch. Là một trong những nguyên nhân thua lỗ phổ biến nhất.</div>
+              <div><sup class="text-violet-400 font-bold">5</sup> <strong>Thiết lập kỹ thuật (Technical Setup):</strong> Mô tả các tín hiệu phân tích kỹ thuật đã dùng để ra quyết định: mô hình nến, đường MA, RSI, MACD, vùng hỗ trợ/kháng cự…</div>
+              <div><sup class="text-pink-400 font-bold">6</sup> <strong>FOMO (Fear Of Missing Out):</strong> Tâm lý sợ bỏ lỡ — vào lệnh vì thấy giá tăng mạnh, không theo kế hoạch. Là một trong những nguyên nhân thua lỗ phổ biến nhất.</div>
             </div>
 
             <!-- Journal saved success -->

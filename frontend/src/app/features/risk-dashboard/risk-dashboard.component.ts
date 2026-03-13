@@ -60,12 +60,12 @@ interface StrategyScore {
             <div class="text-xs text-gray-400">{{ overview.totalPositions }} vị thế</div>
           </div>
           <div class="bg-white rounded-lg shadow p-4">
-            <div class="text-xs text-gray-500 mb-1">VaR (95%) <sup class="text-red-400 font-bold">¹</sup></div>
+            <div class="text-xs text-gray-500 mb-1">VaR (95%) <sup class="text-red-400 font-bold">1</sup></div>
             <div class="text-xl font-bold text-red-600">{{ overview.valueAtRisk | vndCurrency }}</div>
             <div class="text-xs text-gray-400">Mức lỗ tối đa 1 ngày</div>
           </div>
           <div class="bg-white rounded-lg shadow p-4">
-            <div class="text-xs text-gray-500 mb-1">Max Drawdown <sup class="text-orange-400 font-bold">²</sup></div>
+            <div class="text-xs text-gray-500 mb-1">Max Drawdown <sup class="text-orange-400 font-bold">2</sup></div>
             <div class="text-xl font-bold text-red-600">{{ overview.maxDrawdown | number:'1.2-2' }}%</div>
             <div class="text-xs text-gray-400">Hiện tại: {{ overview.currentDrawdown | number:'1.2-2' }}%</div>
           </div>
@@ -164,7 +164,7 @@ interface StrategyScore {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Correlation Warnings -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Cảnh báo tương quan <sup class="text-amber-400 font-bold">⁶</sup></h2>
+            <h2 class="text-lg font-semibold mb-4">Cảnh báo tương quan <sup class="text-amber-400 font-bold">6</sup></h2>
             <div *ngIf="highCorrelationPairs.length === 0" class="text-center py-4 text-gray-400">
               Không có cặp tương quan cao
             </div>
@@ -200,7 +200,7 @@ interface StrategyScore {
                 <div class="flex-1">
                   <div class="font-medium text-sm">{{ s.name }}</div>
                   <div class="text-xs text-gray-500">
-                    Win<sup class="text-emerald-500 font-bold">³</sup>: {{ s.winRate | number:'1.0-0' }}% | PF<sup class="text-blue-400 font-bold">⁴</sup>: {{ s.profitFactor | number:'1.1-1' }} | {{ s.totalTrades }} GD
+                    Win<sup class="text-emerald-500 font-bold">3</sup>: {{ s.winRate | number:'1.0-0' }}% | PF<sup class="text-blue-400 font-bold">4</sup>: {{ s.profitFactor | number:'1.1-1' }} | {{ s.totalTrades }} GD
                   </div>
                 </div>
                 <div class="text-sm font-bold">{{ s.score }}/100</div>
@@ -259,7 +259,7 @@ interface StrategyScore {
                 <tr>
                   <th class="px-4 py-2 text-left text-xs text-gray-500">Mã CP</th>
                   <th class="px-4 py-2 text-right text-xs text-gray-500">Giá trị hiện tại</th>
-                  <th class="px-4 py-2 text-right text-xs text-gray-500">Beta ước tính <sup class="text-violet-400 font-bold">⁵</sup></th>
+                  <th class="px-4 py-2 text-right text-xs text-gray-500">Beta ước tính <sup class="text-violet-400 font-bold">5</sup></th>
                   <th class="px-4 py-2 text-right text-xs text-gray-500">Ảnh hưởng</th>
                   <th class="px-4 py-2 text-right text-xs text-gray-500">Giá trị sau</th>
                 </tr>
@@ -328,12 +328,12 @@ interface StrategyScore {
         <!-- Glossary -->
         <div class="mt-6 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
           <div class="font-medium text-gray-600 mb-1">Giải thích thuật ngữ</div>
-          <div><sup class="text-red-400 font-bold">¹</sup> <strong>VaR 95% (Value at Risk):</strong> Mức lỗ tối đa dự kiến trong 1 ngày với xác suất 95% — chỉ có 5% khả năng thua lỗ vượt mức này trong điều kiện thị trường thông thường.</div>
-          <div><sup class="text-orange-400 font-bold">²</sup> <strong>Max Drawdown — Sụt giảm tối đa:</strong> Khoảng cách từ đỉnh cao nhất xuống đáy thấp nhất trong lịch sử danh mục (VD: -25% = có lúc danh mục giảm 25% từ đỉnh).</div>
-          <div><sup class="text-emerald-500 font-bold">³</sup> <strong>Win Rate (Tỷ lệ thắng):</strong> % số lệnh có lãi trên tổng số lệnh. VD: 60% = 6/10 lệnh thắng. Cần kết hợp với Profit Factor để đánh giá toàn diện.</div>
-          <div><sup class="text-blue-400 font-bold">⁴</sup> <strong>Profit Factor (PF):</strong> Tổng lãi gộp ÷ Tổng lỗ gộp. PF > 1.5 là tốt; PF = 1 = hòa vốn; PF &lt; 1 = chiến lược thua lỗ tổng thể.</div>
-          <div><sup class="text-violet-400 font-bold">⁵</sup> <strong>Beta:</strong> Hệ số đo độ nhạy cảm của cổ phiếu so với VN-Index. Beta = 1.5 → CP tăng/giảm ~1.5% khi VNIndex thay đổi 1%.</div>
-          <div><sup class="text-amber-400 font-bold">⁶</sup> <strong>Tương quan (Correlation):</strong> Mức độ hai CP biến động cùng chiều. Từ -1 (hoàn toàn ngược chiều) đến +1 (hoàn toàn cùng chiều). Correlation &gt; 0.7 = rủi ro tập trung, nếu một cổ giảm thì cổ kia cũng giảm theo.</div>
+          <div><sup class="text-red-400 font-bold">1</sup> <strong>VaR 95% (Value at Risk):</strong> Mức lỗ tối đa dự kiến trong 1 ngày với xác suất 95% — chỉ có 5% khả năng thua lỗ vượt mức này trong điều kiện thị trường thông thường.</div>
+          <div><sup class="text-orange-400 font-bold">2</sup> <strong>Max Drawdown — Sụt giảm tối đa:</strong> Khoảng cách từ đỉnh cao nhất xuống đáy thấp nhất trong lịch sử danh mục (VD: -25% = có lúc danh mục giảm 25% từ đỉnh).</div>
+          <div><sup class="text-emerald-500 font-bold">3</sup> <strong>Win Rate (Tỷ lệ thắng):</strong> % số lệnh có lãi trên tổng số lệnh. VD: 60% = 6/10 lệnh thắng. Cần kết hợp với Profit Factor để đánh giá toàn diện.</div>
+          <div><sup class="text-blue-400 font-bold">4</sup> <strong>Profit Factor (PF):</strong> Tổng lãi gộp ÷ Tổng lỗ gộp. PF > 1.5 là tốt; PF = 1 = hòa vốn; PF &lt; 1 = chiến lược thua lỗ tổng thể.</div>
+          <div><sup class="text-violet-400 font-bold">5</sup> <strong>Beta:</strong> Hệ số đo độ nhạy cảm của cổ phiếu so với VN-Index. Beta = 1.5 → CP tăng/giảm ~1.5% khi VNIndex thay đổi 1%.</div>
+          <div><sup class="text-amber-400 font-bold">6</sup> <strong>Tương quan (Correlation):</strong> Mức độ hai CP biến động cùng chiều. Từ -1 (hoàn toàn ngược chiều) đến +1 (hoàn toàn cùng chiều). Correlation &gt; 0.7 = rủi ro tập trung, nếu một cổ giảm thì cổ kia cũng giảm theo.</div>
         </div>
       </div>
     </div>

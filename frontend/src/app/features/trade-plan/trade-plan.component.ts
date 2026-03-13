@@ -134,7 +134,7 @@ interface TradePlan {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Stop-Loss <sup class="text-red-400 font-bold cursor-default" title="Giải thích ¹">¹</sup> *
+                  Stop-Loss <sup class="text-red-400 font-bold cursor-default" title="Giải thích 1">1</sup> *
                 </label>
                 <input [(ngModel)]="plan.stopLoss" type="number" (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -143,7 +143,7 @@ interface TradePlan {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích ²">²</sup> *
+                  Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích 2">2</sup> *
                 </label>
                 <input [(ngModel)]="plan.target" type="number" (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -152,7 +152,7 @@ interface TradePlan {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Số lượng (CP) <sup class="text-violet-400 font-bold cursor-default" title="Giải thích ³">³</sup>
+                  Số lượng (CP) <sup class="text-violet-400 font-bold cursor-default" title="Giải thích 3">3</sup>
                 </label>
                 <input [(ngModel)]="plan.quantity" type="number" step="100" (ngModelChange)="onQuantityManualChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -192,7 +192,7 @@ interface TradePlan {
             <div class="mt-4">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Mức độ tự tin: {{ plan.confidenceLevel }}/10
-                <sup class="text-amber-400 font-bold cursor-default" title="Giải thích ⁴">⁴</sup>
+                <sup class="text-amber-400 font-bold cursor-default" title="Giải thích 4">4</sup>
               </label>
               <input [(ngModel)]="plan.confidenceLevel" type="range" min="1" max="10"
                 class="w-full h-2 bg-gray-200 rounded-lg cursor-pointer">
@@ -200,11 +200,11 @@ interface TradePlan {
 
             <!-- Glossary footnotes -->
             <div class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
-              <div><sup class="text-red-400 font-bold">¹</sup> <strong>Stop-Loss (SL) — Cắt lỗ:</strong> Mức giá mà bạn chấp nhận bán lỗ để giới hạn thiệt hại. VD: Mua ở 50,000 đ, SL = 47,500 đ → thua tối đa 5%.</div>
-              <div><sup class="text-emerald-500 font-bold">²</sup> <strong>Take-Profit (TP) — Chốt lời:</strong> Mức giá mục tiêu để hiện thực hóa lợi nhuận. VD: TP = 57,500 đ → lãi 15% nếu chạm mức này.</div>
-              <div><sup class="text-violet-400 font-bold">³</sup> <strong>Số lượng CP — Position Size:</strong> Số cổ phiếu nên mua để rủi ro không vượt % vốn cho phép. Tự tính nếu chọn Danh mục có Risk Profile.</div>
-              <div><sup class="text-amber-400 font-bold">⁴</sup> <strong>Mức độ tự tin:</strong> Điểm 1–10 đánh giá mức chắc chắn của tín hiệu. &lt;5 = tín hiệu yếu nên bỏ qua; ≥8 = tín hiệu mạnh.</div>
-              <div><sup class="text-blue-400 font-bold">⁵</sup> <strong>R:R Ratio (Risk:Reward):</strong> Tỷ lệ lợi nhuận/rủi ro. R:R = 1:2 nghĩa là rủi ro 1đ để kiếm 2đ. Nên giao dịch khi R:R ≥ 1:2 (màu xanh).</div>
+              <div><sup class="text-red-400 font-bold">1</sup> <strong>Stop-Loss (SL) — Cắt lỗ:</strong> Mức giá mà bạn chấp nhận bán lỗ để giới hạn thiệt hại. VD: Mua ở 50,000 đ, SL = 47,500 đ → thua tối đa 5%.</div>
+              <div><sup class="text-emerald-500 font-bold">2</sup> <strong>Take-Profit (TP) — Chốt lời:</strong> Mức giá mục tiêu để hiện thực hóa lợi nhuận. VD: TP = 57,500 đ → lãi 15% nếu chạm mức này.</div>
+              <div><sup class="text-violet-400 font-bold">3</sup> <strong>Số lượng CP — Position Size:</strong> Số cổ phiếu nên mua để rủi ro không vượt % vốn cho phép. Tự tính nếu chọn Danh mục có Risk Profile.</div>
+              <div><sup class="text-amber-400 font-bold">4</sup> <strong>Mức độ tự tin:</strong> Điểm 1–10 đánh giá mức chắc chắn của tín hiệu. &lt;5 = tín hiệu yếu nên bỏ qua; ≥8 = tín hiệu mạnh.</div>
+              <div><sup class="text-blue-400 font-bold">5</sup> <strong>R:R Ratio (Risk:Reward):</strong> Tỷ lệ lợi nhuận/rủi ro. R:R = 1:2 nghĩa là rủi ro 1đ để kiếm 2đ. Nên giao dịch khi R:R ≥ 1:2 (màu xanh).</div>
             </div>
 
             <!-- Mini Stock Info Card -->
@@ -357,7 +357,7 @@ interface TradePlan {
             <div class="space-y-3">
               <div class="flex justify-between items-center">
                 <span class="text-sm text-gray-600">
-                  R:R Ratio <sup class="text-blue-400 font-bold cursor-default" title="Giải thích ⁵">⁵</sup>
+                  R:R Ratio <sup class="text-blue-400 font-bold cursor-default" title="Giải thích 5">5</sup>
                 </span>
                 <span class="font-bold text-lg" [class.text-green-600]="rr >= 2"
                   [class.text-yellow-600]="rr >= 1 && rr < 2" [class.text-red-600]="rr < 1">

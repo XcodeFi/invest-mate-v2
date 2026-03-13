@@ -2,6 +2,60 @@
 
 ---
 
+## [v2.4.0] — 2026-03-13 · Phase 7 (tiếp): Tooltip Analytics & Glossary UX
+
+**Branch:** `feature/phase7-improvements`
+
+### Thêm mới
+
+- **Tooltip thuật ngữ trang Phân tích** (`/analytics`): hover vào icon `ⓘ` cạnh tên chỉ số để xem giải thích tại chỗ — không cần cuộn xuống glossary card
+  - Header cards: CAGR, Sharpe Ratio, Sortino Ratio, Max Drawdown, Win Rate
+  - Section "Chỉ số rủi ro": Win Rate, Profit Factor, Value at Risk (95%), Expectancy
+  - Tab Equity Curve: tiêu đề, cột Lợi nhuận ngày, cột Lợi nhuận tích luỹ
+- **CSS `.tooltip-trigger` / `.tooltip-box`** trong `styles.css`: component tooltip dùng chung toàn project — dark popup, mũi tên chỉ xuống, fade-in 0.15s
+
+### Cải thiện
+
+- **Glossary footnote style**: đổi từ ký tự Unicode `¹²³` sang chữ số thường `1 2 3` + CSS `::before`/`::after` tự thêm dấu ngoặc → hiển thị **(1) (2) (3)** nhất quán mọi nơi
+- **SVG info icon**: thay thế ký tự `ⓘ` Unicode bằng Heroicons `information-circle` SVG — sắc nét, scale tốt mọi độ phân giải
+- **Glossary footnote size**: `font-size: 0.85em`, `vertical-align: super` — dễ đọc hơn
+
+### Gợi ý cho lần release tiếp theo
+
+- [ ] Áp dụng `.tooltip-trigger` / `.tooltip-box` cho các trang khác (Risk Dashboard, Trade Plan) thay thế glossary card tĩnh
+- [ ] Tooltip delay ~200ms để tránh hiện khi hover qua nhanh
+
+---
+
+## [v2.3.0] — 2026-03-13 · Phase 7 (tiếp): Thuật ngữ chuyên ngành & Strategy Auto-fill
+
+**Branch:** `feature/phase7-improvements`
+
+### Thêm mới
+
+- **Glossary thuật ngữ chuyên ngành** toàn project: mỗi thuật ngữ hiển thị số mũ nhỏ `¹²³` → giải thích đầy đủ ở cuối form, áp dụng đồng bộ trên tất cả trang:
+  - **Risk Dashboard**: VaR 95%, Max Drawdown, Win Rate, Profit Factor, Beta, Tương quan (Correlation)
+  - **Trade Wizard** (step 2 + step 5): Stop-Loss, Take-Profit, % Rủi ro/lệnh, R:R, Thiết lập kỹ thuật, FOMO
+  - **Monthly Review**: Win Rate, P&L (Profit & Loss), Max Drawdown
+  - **Journals**: Setup kỹ thuật, Trạng thái cảm xúc/FOMO, Mức tự tin, Post-trade Review
+  - **Strategies** (form tạo + tab Hiệu suất): Khung thời gian (Scalping/Day Trading/Swing/Position), Win Rate, P&L, Profit Factor
+- **Strategy auto-fill SL/TP** trong Trade Plan: chọn chiến lược có `SuggestedSlPercent` / `SuggestedRrRatio` → tự động tính và điền Stop-Loss & Take-Profit, hiển thị badge "✓ Tự động điền từ chiến lược"
+- **`SuggestedSlPercent` và `SuggestedRrRatio`** trên Strategy entity (backend + frontend): 2 trường mới lưu gợi ý SL% dưới giá vào và R:R ratio, expose qua CQRS commands/queries và REST API
+
+### Cải thiện
+
+- Form tạo chiến lược: thêm input "SL gợi ý (%)" và "R:R gợi ý" với giải thích inline
+- `onStrategyChange()` trong Trade Plan: tính SL/TP từ entry price × strategy hints, chỉ tự điền khi ô đang trống (không ghi đè nếu người dùng đã nhập)
+- Glossary card dùng màu nhất quán: đỏ=SL, xanh lá=TP, xanh dương=R:R, cam=Drawdown, tím=Beta, hổ phách=Rủi ro
+
+### Gợi ý cho lần release tiếp theo
+
+- [ ] Glossary dạng tooltip hover thay vì card tĩnh cuối form (tiết kiệm không gian hơn)
+- [ ] Trade Plan: nút "Reset về gợi ý chiến lược" khi SL/TP đã bị sửa tay
+- [ ] Strategy Performance: thêm chart đường cong lãi/lỗ tích lũy theo thời gian
+
+---
+
 ## [v2.2.0] — 2026-03-13 · Phase 7: Quick Trade, positionSize Template, Multi-timeframe
 
 **Branch:** `feature/phase7-improvements`

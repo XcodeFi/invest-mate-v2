@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
 > **Cập nhật lần cuối:** 2026-03-13
-> **Trạng thái:** Phase 6 hoàn thành
+> **Trạng thái:** Phase 7 hoàn thành
 
 ---
 
@@ -13,6 +13,7 @@
 | 3–4 | Charts & Links | ✅ Done | `master` |
 | 5 | Auto-fill, Risk & Compound | ✅ Done | `feature/phase5-autofill-risk-compound` |
 | 6 | Trade Plan Template | ✅ Done | `feature/phase6-trade-plan-template` |
+| 7 | UX Improvements & Thuật ngữ | ✅ Done | `feature/phase7-improvements` |
 
 ---
 
@@ -184,6 +185,100 @@ delete(id): Observable<void>
 - **Load:** Điền symbol, direction, entry/SL/TP, strategyId, marketCondition, reason, notes vào form → `recalculate()` tự động
 - **Save:** Đặt tên → gọi API → prepend vào dropdown ngay lập tức
 - **Delete:** Xoá khỏi API + xoá khỏi dropdown; reset `selectedTemplateId`
+
+---
+
+## Phase 7: UX Improvements & Thuật ngữ
+
+### Quick Trade Widget (Dashboard)
+
+**File:** `dashboard.component.ts`
+
+Panel thu gọn được (collapsible) trên Dashboard:
+
+- Nhập mã CP → blur → auto-fetch giá hiện tại (MarketDataService)
+- Chọn hướng Mua/Bán, Entry Price, Stop-Loss → tính Position Size từ Risk Profile
+- Hiển thị: Rủi ro/lệnh, Số CP gợi ý, % danh mục, R:R
+- Nút "Mở trong Trade Plan" → navigate đến `/trade-plan` với queryParams đã điền sẵn
+
+---
+
+### Multi-timeframe Switcher (Dashboard)
+
+**File:** `dashboard.component.ts`
+
+Tab row: **Hôm nay / Tuần này / Tháng này / Năm nay / Toàn bộ**
+
+- Lọc equity curve data theo cutoff date của từng kỳ
+- Hiển thị period return % và period P&L
+- Không cần API call thêm — tính từ snapshot data đã có sẵn
+
+---
+
+### positionSize trong Trade Plan Template
+
+**File:** `TradePlanTemplate.cs`, `TemplatesController.cs`, `trade-plan-template.service.ts`
+
+- Thêm field `PositionSize?: int` vào entity và API
+- `saveAsTemplate()` trong Trade Plan: lưu luôn `quantity` vào template
+- `applyTemplate()`: điền lại số lượng CP + set `manualQuantity = true`
+
+---
+
+### Strategy SuggestedSlPercent & SuggestedRrRatio
+
+**Backend:** `Strategy.cs` (Domain entity), `CreateStrategyCommand`, `UpdateStrategyCommand`, `GetStrategiesQuery` (CQRS), `StrategyDto`
+
+**Frontend:** `strategy.service.ts`, `strategies.component.ts`
+
+Hai trường mới trên Strategy:
+
+- `SuggestedSlPercent`: % Stop-Loss gợi ý dưới giá vào (VD: 5 → SL = Entry × 0.95)
+- `SuggestedRrRatio`: R:R gợi ý (VD: 2 → TP = Entry + 2 × Risk)
+
+Form tạo chiến lược hiển thị 2 input với giải thích inline.
+
+---
+
+### Strategy Auto-fill SL/TP trong Trade Plan
+
+**File:** `trade-plan.component.ts` — `onStrategyChange()`
+
+Khi chọn chiến lược trong Trade Plan:
+
+1. Nếu `suggestedSlPercent` tồn tại và entry price đã nhập → tính SL = Entry × (1 ± SL%) theo hướng Buy/Sell
+2. Nếu `suggestedRrRatio` tồn tại và SL đã có → tính TP = Entry ± Risk × R:R
+3. Chỉ điền khi ô đang trống (không ghi đè nếu người dùng đã tự nhập)
+4. Hiển thị badge "✓ Tự động điền từ chiến lược" + gợi ý giá kể cả khi không tự điền
+
+---
+
+### Glossary thuật ngữ chuyên ngành
+
+Hai cơ chế song song trong project:
+
+**1. Footnote badge** — số thứ tự `(1)(2)(3)` trên nhãn field → glossary card tĩnh ở cuối form/trang:
+
+| Component | Thuật ngữ được giải thích |
+|-----------|--------------------------|
+| `risk-dashboard` | VaR 95%(1), Max Drawdown(2), Win Rate(3), Profit Factor(4), Beta(5), Correlation(6) |
+| `trade-wizard` | Stop-Loss(1), Take-Profit(2), % Rủi ro(3), R:R(4), Thiết lập kỹ thuật(5), FOMO(6) |
+| `monthly-review` | Win Rate(1), P&L(2), Max Drawdown(3) |
+| `journals` | Setup kỹ thuật(1), Trạng thái cảm xúc/FOMO(2), Mức tự tin(3), Post-trade Review(4) |
+| `strategies` | Khung thời gian(*), Win Rate(1), P&L(2), Profit Factor(3) |
+| `trade-plan` | Stop-Loss(1), Take-Profit(2), Số lượng(3), Mức tự tin(4), R:R(5) |
+
+**CSS:** `sup[class*="text-"]` với `::before`/`::after` tự thêm dấu ngoặc — không cần thay đổi HTML.
+
+**2. Hover tooltip** — icon `ⓘ` (Heroicons SVG) cạnh tên chỉ số → dark popup xuất hiện khi hover:
+
+| Component | Thuật ngữ có tooltip |
+| --------- | -------------------- |
+| `analytics` (header cards) | CAGR, Sharpe, Sortino, Max Drawdown, Win Rate |
+| `analytics` (Chỉ số rủi ro) | Win Rate, Profit Factor, Value at Risk (95%), Expectancy |
+| `analytics` (Equity Curve) | Equity Curve, Lợi nhuận ngày, Lợi nhuận tích luỹ |
+
+**CSS:** `.tooltip-trigger` + `.tooltip-box` trong `styles.css` — dùng lại được toàn project.
 
 ---
 

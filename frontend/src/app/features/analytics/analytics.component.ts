@@ -53,7 +53,10 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             <div class="text-xs text-gray-500 mt-1">{{ totalPnL | vndCurrency }}</div>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <div class="text-xs text-gray-500 uppercase tracking-wide">CAGR</div>
+            <div class="tooltip-trigger text-xs text-gray-500 uppercase tracking-wide">
+              CAGR <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+              <div class="tooltip-box"><strong>CAGR — Tăng trưởng kép hàng năm:</strong> Mức lợi nhuận trung bình mỗi năm nếu danh mục tăng đều đặn. VD: CAGR 12% = vốn nhân đôi sau ~6 năm. &gt; 15%/năm là tốt trên TTCK VN.</div>
+            </div>
             <div class="text-xl font-bold mt-1"
               [class.text-green-600]="advPerformance && advPerformance.cagr >= 0"
               [class.text-red-600]="advPerformance && advPerformance.cagr < 0">
@@ -61,7 +64,10 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             </div>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <div class="text-xs text-gray-500 uppercase tracking-wide">Sharpe</div>
+            <div class="tooltip-trigger text-xs text-gray-500 uppercase tracking-wide">
+              Sharpe <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+              <div class="tooltip-box"><strong>Sharpe Ratio:</strong> Lợi nhuận vượt trội ÷ độ biến động toàn phần. ≥ 1 = tốt; ≥ 2 = rất tốt; &lt; 0 = thua lãi suất phi rủi ro (tiết kiệm ngân hàng).</div>
+            </div>
             <div class="text-xl font-bold mt-1"
               [class.text-green-600]="advPerformance && advPerformance.sharpeRatio >= 1"
               [class.text-yellow-600]="advPerformance && advPerformance.sharpeRatio >= 0 && advPerformance.sharpeRatio < 1"
@@ -70,7 +76,10 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             </div>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <div class="text-xs text-gray-500 uppercase tracking-wide">Sortino</div>
+            <div class="tooltip-trigger text-xs text-gray-500 uppercase tracking-wide">
+              Sortino <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+              <div class="tooltip-box"><strong>Sortino Ratio:</strong> Giống Sharpe nhưng chỉ đo rủi ro sụt giảm (downside), bỏ qua biến động tăng. Phản ánh chính xác hơn mức độ kiểm soát thua lỗ. ≥ 1.5 = tốt.</div>
+            </div>
             <div class="text-xl font-bold mt-1"
               [class.text-green-600]="advPerformance && advPerformance.sortinoRatio >= 1"
               [class.text-red-600]="advPerformance && advPerformance.sortinoRatio < 1">
@@ -78,13 +87,19 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             </div>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <div class="text-xs text-gray-500 uppercase tracking-wide">Max Drawdown</div>
+            <div class="tooltip-trigger text-xs text-gray-500 uppercase tracking-wide">
+              Max Drawdown <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+              <div class="tooltip-box"><strong>Max Drawdown — Sụt giảm tối đa:</strong> Mức giảm vốn lớn nhất từ đỉnh xuống đáy trong lịch sử. VD: -20% = danh mục từng mất 20% so với đỉnh cao nhất trước đó.</div>
+            </div>
             <div class="text-xl font-bold mt-1 text-red-600">
               {{ advPerformance ? (advPerformance.maxDrawdown | number:'1.2-2') + '%' : '--' }}
             </div>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <div class="text-xs text-gray-500 uppercase tracking-wide">Win Rate</div>
+            <div class="tooltip-trigger text-xs text-gray-500 uppercase tracking-wide">
+              Win Rate <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+              <div class="tooltip-box"><strong>Win Rate — Tỷ lệ thắng:</strong> % số lệnh có lãi trên tổng lệnh đã đóng. Win Rate 50% không có nghĩa hòa vốn — cần kết hợp với Profit Factor và R:R để đánh giá toàn diện.</div>
+            </div>
             <div class="text-xl font-bold mt-1"
               [class.text-green-600]="advPerformance && advPerformance.winRate >= 50"
               [class.text-red-600]="advPerformance && advPerformance.winRate < 50">
@@ -189,19 +204,31 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div class="text-center">
                     <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.winRate.toFixed(1) + '%' : '--' }}</div>
-                    <div class="text-sm text-gray-600">Win Rate</div>
+                    <div class="tooltip-trigger text-sm text-gray-600 mt-1">
+                      Win Rate <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                      <div class="tooltip-box"><strong>Win Rate — Tỷ lệ thắng:</strong> % số lệnh có lãi trên tổng lệnh đã đóng. Cần kết hợp với Profit Factor và R:R để đánh giá toàn diện.</div>
+                    </div>
                   </div>
                   <div class="text-center">
                     <div class="text-2xl font-bold text-gray-900">{{ performanceData ? performanceData.profitFactor.toFixed(2) : '--' }}</div>
-                    <div class="text-sm text-gray-600">Profit Factor</div>
+                    <div class="tooltip-trigger text-sm text-gray-600 mt-1">
+                      Profit Factor <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                      <div class="tooltip-box"><strong>Profit Factor:</strong> Tổng lãi gộp ÷ Tổng lỗ gộp. PF &gt; 1.5 = tốt; PF = 1 = hòa vốn; PF &lt; 1 = chiến lược lỗ ròng tổng thể.</div>
+                    </div>
                   </div>
                   <div class="text-center">
                     <div class="text-2xl font-bold text-gray-900">{{ riskData ? riskData.valueAtRisk95.toFixed(1) + '%' : '--' }}</div>
-                    <div class="text-sm text-gray-600">Value at Risk (95%)</div>
+                    <div class="tooltip-trigger text-sm text-gray-600 mt-1">
+                      Value at Risk (95%) <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                      <div class="tooltip-box"><strong>VaR 95%:</strong> Mức lỗ tối đa dự kiến trong 1 ngày với xác suất 95%. VD: VaR 2% = 95% khả năng không mất quá 2% tổng danh mục trong 1 ngày.</div>
+                    </div>
                   </div>
                   <div class="text-center">
                     <div class="text-2xl font-bold text-gray-900">{{ performanceData ? (performanceData.expectancy | vndCurrency) : '--' }}</div>
-                    <div class="text-sm text-gray-600">Expectancy</div>
+                    <div class="tooltip-trigger text-sm text-gray-600 mt-1">
+                      Expectancy <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                      <div class="tooltip-box"><strong>Expectancy — Kỳ vọng lợi nhuận:</strong> Lãi/lỗ trung bình mỗi giao dịch = (WinRate × AvgWin) − (LossRate × AvgLoss). Dương = chiến lược sinh lời dài hạn.</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -269,7 +296,13 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
             <!-- Equity Curve Tab -->
             <div *ngIf="activeTab === 'equity'">
-              <h3 class="text-lg font-semibold mb-4">Equity Curve</h3>
+              <div class="flex items-center gap-2 mb-4">
+                <h3 class="text-lg font-semibold">Equity Curve</h3>
+                <span class="tooltip-trigger text-gray-400 cursor-help">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                  <div class="tooltip-box"><strong>Equity Curve — Đường cong vốn:</strong> Biểu đồ thể hiện sự thay đổi tổng giá trị danh mục theo thời gian. Đường đi lên đều = chiến lược ổn định; đường gấp khúc mạnh = rủi ro cao, drawdown lớn.</div>
+                </span>
+              </div>
               <div *ngIf="equityCurve && equityCurve.points.length > 0" class="mb-6">
                 <div class="bg-gray-50 rounded-lg p-4 h-72">
                   <canvas #equityCurveCanvas></canvas>
@@ -282,8 +315,18 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                       <tr>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá trị DM</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lợi nhuận ngày</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lợi nhuận tích luỹ</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          <span class="tooltip-trigger normal-case font-medium text-gray-500">
+                            Lợi nhuận ngày <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                            <div class="tooltip-box"><strong>Daily Return — Lợi nhuận ngày:</strong> % thay đổi giá trị danh mục so với ngày hôm trước. Dương = danh mục tăng; âm = danh mục giảm trong ngày đó.</div>
+                          </span>
+                        </th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          <span class="tooltip-trigger normal-case font-medium text-gray-500">
+                            Lợi nhuận tích luỹ <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                            <div class="tooltip-box"><strong>Cumulative Return — Lợi nhuận tích luỹ:</strong> Tổng % lợi nhuận kể từ ngày đầu tiên đến ngày đó. VD: +25% = danh mục đang lãi 25% so với vốn ban đầu.</div>
+                          </span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">

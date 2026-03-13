@@ -345,21 +345,21 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   <div class="text-2xl font-bold text-gray-800">{{ performance.totalTrades }}</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
-                  <div class="text-sm text-gray-500">Tỷ lệ thắng <sup class="text-emerald-500 font-bold">¹</sup></div>
+                  <div class="text-sm text-gray-500">Tỷ lệ thắng <sup class="text-emerald-500 font-bold">1</sup></div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.winRate >= 50"
                     [class.text-red-600]="performance.winRate < 50">
                     {{ performance.winRate | number:'1.1-1' }}%
                   </div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
-                  <div class="text-sm text-gray-500">Tổng P&L <sup class="text-blue-400 font-bold">²</sup></div>
+                  <div class="text-sm text-gray-500">Tổng P&L <sup class="text-blue-400 font-bold">2</sup></div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.totalPnL >= 0"
                     [class.text-red-600]="performance.totalPnL < 0">
                     {{ performance.totalPnL | vndCurrency }}
                   </div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
-                  <div class="text-sm text-gray-500">Profit Factor <sup class="text-violet-400 font-bold">³</sup></div>
+                  <div class="text-sm text-gray-500">Profit Factor <sup class="text-violet-400 font-bold">3</sup></div>
                   <div class="text-2xl font-bold" [class.text-green-600]="performance.profitFactor >= 1"
                     [class.text-red-600]="performance.profitFactor < 1">
                     {{ performance.profitFactor | number:'1.2-2' }}
@@ -404,9 +404,9 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
             <!-- Glossary -->
             <div *ngIf="performance" class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
-              <div><sup class="text-emerald-500 font-bold">¹</sup> <strong>Tỷ lệ thắng (Win Rate):</strong> % số lệnh có lãi trên tổng số lệnh. VD: 55% = 55/100 lệnh thắng. Cần kết hợp với Profit Factor để đánh giá toàn diện.</div>
-              <div><sup class="text-blue-400 font-bold">²</sup> <strong>P&L (Profit & Loss):</strong> Tổng lãi/lỗ ròng của tất cả giao dịch sử dụng chiến lược này (chưa tính phí giao dịch).</div>
-              <div><sup class="text-violet-400 font-bold">³</sup> <strong>Profit Factor:</strong> Tổng lãi gộp ÷ Tổng lỗ gộp. PF > 1.5 = tốt; PF = 1 = hòa vốn; PF &lt; 1 = chiến lược đang âm vốn tổng thể.</div>
+              <div><sup class="text-emerald-500 font-bold">1</sup> <strong>Tỷ lệ thắng (Win Rate):</strong> % số lệnh có lãi trên tổng số lệnh. VD: 55% = 55/100 lệnh thắng. Cần kết hợp với Profit Factor để đánh giá toàn diện.</div>
+              <div><sup class="text-blue-400 font-bold">2</sup> <strong>P&L (Profit & Loss):</strong> Tổng lãi/lỗ ròng của tất cả giao dịch sử dụng chiến lược này (chưa tính phí giao dịch).</div>
+              <div><sup class="text-violet-400 font-bold">3</sup> <strong>Profit Factor:</strong> Tổng lãi gộp ÷ Tổng lỗ gộp. PF > 1.5 = tốt; PF = 1 = hòa vốn; PF &lt; 1 = chiến lược đang âm vốn tổng thể.</div>
             </div>
           </div>
         </div>
