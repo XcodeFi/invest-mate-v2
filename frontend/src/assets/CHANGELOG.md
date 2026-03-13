@@ -1,5 +1,32 @@
 # Changelog — Investment Mate v2
 
+---
+
+## [v2.2.0] — 2026-03-13 · Phase 7: Quick Trade, positionSize Template, Multi-timeframe
+
+**Branch:** `feature/phase7-improvements`
+
+### Thêm mới
+
+- **Quick Trade widget** trên Dashboard: nhập mã CP (auto-fill giá), chiều, entry, SL → tính position size từ Risk Profile tại chỗ → "Mở trong Trade Plan" với dữ liệu đã điền sẵn
+- **Multi-timeframe switcher** trên Dashboard: tab Hôm nay / Tuần này / Tháng này / Năm nay / Toàn bộ → hiển thị period return % và period P&L từ Equity Curve
+- **`positionSize` trong Trade Plan Template**: lưu số lượng CP khi save template, tự điền lại khi load template
+
+### Cải thiện
+
+- Quick Trade collapsible panel — không chiếm không gian khi không dùng
+- Multi-timeframe tính từ equity curve data đã có sẵn — không cần API call thêm
+- Template save/load đầy đủ hơn: symbol, direction, giá, SL, target, chiến lược, lý do, notes, **số lượng CP**
+
+### Gợi ý cho lần release tiếp theo
+
+- [ ] Quick Trade: thêm ô Target → tính và hiển thị R:R ratio
+- [ ] Multi-timeframe: thêm trade count và win rate trong kỳ (cần fetch trades theo date range)
+- [ ] Risk Score badge tự refresh mỗi 5 phút (hiện chỉ load 1 lần lúc login)
+- [ ] Keyboard shortcuts: `Ctrl+T` → Trade Plan, `Ctrl+W` → Wizard, `Ctrl+D` → Dashboard
+
+---
+
 Tất cả thay đổi đáng kể của dự án được ghi lại ở đây.
 Format theo [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 

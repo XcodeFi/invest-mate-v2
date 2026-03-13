@@ -131,6 +131,7 @@ public class TemplatesController : ControllerBase
             MarketCondition = request.MarketCondition ?? "Trending",
             Reason = request.Reason,
             Notes = request.Notes,
+            PositionSize = request.PositionSize,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -165,5 +166,6 @@ public record TradePlanTemplateRequest(
     string? StrategyId,
     string? MarketCondition,
     string? Reason,
-    string? Notes
+    string? Notes,
+    int? PositionSize
 );

@@ -18,6 +18,7 @@ export interface TradePlanTemplate {
   marketCondition: string;
   reason?: string;
   notes?: string;
+  positionSize?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +34,7 @@ export interface CreateTradePlanTemplateRequest {
   marketCondition?: string;
   reason?: string;
   notes?: string;
+  positionSize?: number;
 }
 
 @Injectable({

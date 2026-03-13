@@ -1,11 +1,12 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
-import { RiskService, PortfolioRiskSummary, PositionRiskItem } from '../../core/services/risk.service';
+import { RiskService, PortfolioRiskSummary, PositionRiskItem, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
+import { MarketDataService } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { forkJoin, of } from 'rxjs';
@@ -78,6 +79,41 @@ interface RiskAlert {
               Xem tất cả {{ riskAlerts.length }} cảnh báo →
             </a>
           </div>
+        </div>
+
+        <!-- Timeframe Switcher -->
+        <div class="flex items-center gap-2 mb-6 flex-wrap">
+          <span class="text-xs font-medium text-gray-500 mr-1">Xem theo:</span>
+          <button *ngFor="let tf of timeframes"
+            (click)="setTimeframe(tf.key)"
+            class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+            [class.bg-blue-600]="selectedTimeframe === tf.key"
+            [class.text-white]="selectedTimeframe === tf.key"
+            [class.bg-white]="selectedTimeframe !== tf.key"
+            [class.text-gray-600]="selectedTimeframe !== tf.key"
+            [class.border]="selectedTimeframe !== tf.key"
+            [class.border-gray-200]="selectedTimeframe !== tf.key">
+            {{ tf.label }}
+          </button>
+
+          <!-- Period stats badge (shown when not "all") -->
+          <div *ngIf="selectedTimeframe !== 'all' && equityCurveData"
+            class="ml-auto flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm">
+            <span class="text-gray-500">{{ getTimeframeLabel() }}:</span>
+            <span class="font-bold"
+              [class.text-emerald-600]="periodReturn >= 0"
+              [class.text-red-600]="periodReturn < 0">
+              {{ periodReturn >= 0 ? '+' : '' }}{{ periodReturn.toFixed(2) }}%
+            </span>
+            <span class="text-gray-400">|</span>
+            <span class="font-semibold"
+              [class.text-emerald-600]="periodPnL >= 0"
+              [class.text-red-600]="periodPnL < 0">
+              {{ periodPnL >= 0 ? '+' : '' }}{{ formatProjection(periodPnL) }}
+            </span>
+          </div>
+          <div *ngIf="selectedTimeframe !== 'all' && !equityCurveData"
+            class="ml-auto text-xs text-gray-400 italic">Chưa có dữ liệu equity curve</div>
         </div>
 
         <!-- Row 1: Summary Cards -->
@@ -366,6 +402,102 @@ interface RiskAlert {
           </div>
         </div>
 
+        <!-- Quick Trade Widget -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+          <button (click)="qtExpanded = !qtExpanded"
+            class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors rounded-xl">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">⚡</span>
+              <h2 class="text-base font-semibold text-gray-900">Giao dịch nhanh</h2>
+              <span class="text-xs text-gray-400">Tính position size tại chỗ → mở Trade Plan</span>
+            </div>
+            <svg class="w-4 h-4 text-gray-400 transition-transform" [class.rotate-180]="qtExpanded"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+
+          <div *ngIf="qtExpanded" class="px-6 pb-6 border-t border-gray-100 pt-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <!-- Symbol -->
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Mã CP</label>
+                <div class="relative">
+                  <input [(ngModel)]="qt.symbol" (blur)="onQtSymbolBlur()"
+                    type="text" placeholder="VNM, VIC..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-blue-500">
+                  <span *ngIf="qtLoading" class="absolute right-2 top-2.5 text-xs text-gray-400">...</span>
+                  <span *ngIf="qtFetchedPrice && !qtLoading"
+                    class="absolute right-2 top-2 text-xs font-medium text-emerald-600">
+                    {{ qtFetchedPrice.toLocaleString('vi-VN') }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Direction -->
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Chiều</label>
+                <div class="flex rounded-lg overflow-hidden border border-gray-300">
+                  <button (click)="qt.direction='Buy'"
+                    class="flex-1 py-2 text-sm font-medium transition-colors"
+                    [class.bg-emerald-500]="qt.direction==='Buy'" [class.text-white]="qt.direction==='Buy'"
+                    [class.text-gray-600]="qt.direction!=='Buy'">Mua</button>
+                  <button (click)="qt.direction='Sell'"
+                    class="flex-1 py-2 text-sm font-medium transition-colors"
+                    [class.bg-red-500]="qt.direction==='Sell'" [class.text-white]="qt.direction==='Sell'"
+                    [class.text-gray-600]="qt.direction!=='Sell'">Bán</button>
+                </div>
+              </div>
+
+              <!-- Entry -->
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Giá vào</label>
+                <input [(ngModel)]="qt.entryPrice" (ngModelChange)="calcQtStats()" type="number"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+
+              <!-- Stop-loss -->
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Stop-loss</label>
+                <input [(ngModel)]="qt.stopLoss" (ngModelChange)="calcQtStats()" type="number"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+            </div>
+
+            <!-- Stats row -->
+            <div *ngIf="qt.entryPrice && qt.stopLoss" class="flex flex-wrap items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg text-sm">
+              <div>
+                <span class="text-gray-500">Rủi ro/CP: </span>
+                <span class="font-semibold text-red-600">{{ (qt.entryPrice - qt.stopLoss).toLocaleString('vi-VN') }} đ</span>
+              </div>
+              <div *ngIf="qtOptimalShares > 0">
+                <span class="text-gray-500">Số CP đề xuất: </span>
+                <span class="font-bold text-blue-600">{{ qtOptimalShares | number }}</span>
+              </div>
+              <div *ngIf="qtOptimalShares > 0">
+                <span class="text-gray-500">Giá trị vị thế: </span>
+                <span class="font-semibold">{{ (qtOptimalShares * qt.entryPrice) | vndCurrency }}</span>
+              </div>
+              <div *ngIf="!qtRiskProfile" class="text-amber-600 text-xs">
+                Chưa có Risk Profile → không tính được số CP tối ưu
+              </div>
+            </div>
+
+            <!-- Portfolio selector + action -->
+            <div class="flex flex-wrap items-center gap-3">
+              <select [(ngModel)]="qt.portfolioId"
+                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                <option value="">-- Chọn danh mục --</option>
+                <option *ngFor="let p of portfolios" [value]="p.portfolioId">{{ p.portfolioName }}</option>
+              </select>
+              <button (click)="openInTradePlan()" [disabled]="!qt.symbol"
+                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors">
+                Mở trong Trade Plan →
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Row 3: Quick Actions -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
@@ -552,12 +684,35 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.summary?.portfolios || [];
   }
 
+  // ─── Multi-timeframe ──────────────────────────────────────────────────────
+  selectedTimeframe = 'all';
+  timeframes = [
+    { key: 'today', label: 'Hôm nay' },
+    { key: 'week',  label: 'Tuần này' },
+    { key: 'month', label: 'Tháng này' },
+    { key: 'year',  label: 'Năm nay' },
+    { key: 'all',   label: 'Toàn bộ' },
+  ];
+  periodReturn = 0;
+  periodPnL = 0;
+
+  // ─── Quick Trade Widget ───────────────────────────────────────────────────
+  qtExpanded = false;
+  qtLoading = false;
+  qt = { symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, portfolioId: '' };
+  qtFetchedPrice: number | null = null;
+  qtRR = 0;
+  qtOptimalShares = 0;
+  qtRiskProfile: RiskProfile | null = null;
+
   constructor(
     private authService: AuthService,
     private pnlService: PnlService,
     private riskService: RiskService,
     private advancedAnalyticsService: AdvancedAnalyticsService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private marketDataService: MarketDataService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -741,6 +896,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.equityCurveData = data;
         if (data.points.length > 1) {
           this.calculateCagrFromCurve(data);
+          this.computePeriodStats();
           setTimeout(() => this.renderMiniEquityChart());
         }
       },
@@ -769,6 +925,81 @@ export class DashboardComponent implements OnInit, OnDestroy {
   setEquityRange(days: number): void {
     this.selectedRange = days;
     setTimeout(() => this.renderMiniEquityChart());
+  }
+
+  // ─── Multi-timeframe ──────────────────────────────────────────────────────
+  getTimeframeLabel(): string {
+    return this.timeframes.find(t => t.key === this.selectedTimeframe)?.label ?? '';
+  }
+
+  setTimeframe(key: string): void {
+    this.selectedTimeframe = key;
+    this.computePeriodStats();
+  }
+
+  private computePeriodStats(): void {
+    if (!this.equityCurveData?.points?.length) { this.periodReturn = 0; this.periodPnL = 0; return; }
+    const points = this.equityCurveData.points;
+    const now = new Date();
+    let cutoff: Date;
+    switch (this.selectedTimeframe) {
+      case 'today': cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate()); break;
+      case 'week':  cutoff = new Date(now); cutoff.setDate(now.getDate() - 7); break;
+      case 'month': cutoff = new Date(now.getFullYear(), now.getMonth(), 1); break;
+      case 'year':  cutoff = new Date(now.getFullYear(), 0, 1); break;
+      default:      this.periodReturn = this.cagrValue; this.periodPnL = this.totalPnL; return;
+    }
+    const filtered = points.filter(p => new Date(p.date) >= cutoff);
+    if (filtered.length < 1) { this.periodReturn = 0; this.periodPnL = 0; return; }
+    const first = filtered[0].portfolioValue;
+    const last  = filtered[filtered.length - 1].portfolioValue;
+    this.periodPnL    = last - first;
+    this.periodReturn = first > 0 ? ((last - first) / first) * 100 : 0;
+  }
+
+  // ─── Quick Trade Widget ───────────────────────────────────────────────────
+  onQtSymbolBlur(): void {
+    const sym = this.qt.symbol?.trim().toUpperCase();
+    if (!sym) return;
+    this.qt.symbol = sym;
+    this.qtLoading = true;
+    this.qtFetchedPrice = null;
+    this.marketDataService.getCurrentPrice(sym).subscribe({
+      next: (data) => {
+        this.qtLoading = false;
+        this.qtFetchedPrice = data.close;
+        if (!this.qt.entryPrice) this.qt.entryPrice = data.close;
+        this.calcQtStats();
+      },
+      error: () => { this.qtLoading = false; }
+    });
+    // Load risk profile for first portfolio if not yet loaded
+    if (!this.qtRiskProfile && this.portfolios.length > 0) {
+      this.riskService.getRiskProfile(this.portfolios[0].portfolioId).pipe(catchError(() => of(null)))
+        .subscribe(p => { this.qtRiskProfile = p; this.calcQtStats(); });
+    }
+  }
+
+  calcQtStats(): void {
+    const { entryPrice, stopLoss } = this.qt;
+    if (!entryPrice || !stopLoss || entryPrice <= stopLoss) { this.qtRR = 0; this.qtOptimalShares = 0; return; }
+    const riskPerShare = entryPrice - stopLoss;
+    const totalValue = this.pnlSummary.totalPortfolioValue || this.pnlSummary.totalInvested;
+    if (this.qtRiskProfile && totalValue > 0) {
+      const maxRisk = totalValue * (this.qtRiskProfile.maxPortfolioRiskPercent / 100);
+      this.qtOptimalShares = Math.floor(maxRisk / riskPerShare);
+    }
+    this.qtRR = 0; // R:R requires target — shown as 0 when no target
+  }
+
+  openInTradePlan(): void {
+    this.router.navigate(['/trade-plan'], { queryParams: {
+      symbol:    this.qt.symbol,
+      direction: this.qt.direction,
+      entry:     this.qt.entryPrice,
+      sl:        this.qt.stopLoss,
+      portfolio: this.qt.portfolioId || (this.portfolios[0]?.portfolioId ?? ''),
+    }});
   }
 
   private renderMiniEquityChart(): void {
