@@ -7,6 +7,7 @@ import { StrategyService, Strategy } from '../../core/services/strategy.service'
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
+import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
@@ -41,6 +42,55 @@ interface TradePlan {
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Kế hoạch giao dịch (Trade Plan)</h1>
+
+      <!-- Template Panel -->
+      <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-4">
+          <!-- Load from template -->
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="text-sm font-medium text-gray-600 whitespace-nowrap">Tải template:</span>
+            <select [(ngModel)]="selectedTemplateId"
+              class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              <option value="">-- Chọn template --</option>
+              <option *ngFor="let t of templates" [value]="t.id">
+                {{ t.name }}{{ t.symbol ? ' (' + t.symbol + ')' : '' }}
+              </option>
+            </select>
+            <button (click)="applyTemplate()" [disabled]="!selectedTemplateId"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+              Tải
+            </button>
+            <button *ngIf="selectedTemplateId" (click)="deleteTemplate(selectedTemplateId)"
+              class="px-3 py-2 border border-red-300 hover:bg-red-50 text-red-600 rounded-lg text-sm transition-colors">
+              Xoá
+            </button>
+          </div>
+
+          <!-- Save as template -->
+          <div class="flex items-center gap-2">
+            <div *ngIf="!showSaveTemplate">
+              <button (click)="showSaveTemplate = true"
+                class="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                + Lưu làm template
+              </button>
+            </div>
+            <div *ngIf="showSaveTemplate" class="flex items-center gap-2">
+              <input [(ngModel)]="newTemplateName" type="text" placeholder="Tên template..."
+                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 w-48">
+              <button (click)="saveAsTemplate()" [disabled]="!newTemplateName.trim() || savingTemplate"
+                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                {{ savingTemplate ? 'Đang lưu...' : 'Lưu' }}
+              </button>
+              <button (click)="showSaveTemplate = false; newTemplateName = ''"
+                class="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm">✕</button>
+            </div>
+          </div>
+
+          <div *ngIf="templates.length === 0" class="text-xs text-gray-400 italic">
+            Chưa có template nào
+          </div>
+        </div>
+      </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Trade Setup -->
@@ -445,11 +495,19 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   checklistCategories = ['Phân tích', 'Quản lý rủi ro', 'Tâm lý', 'Xác nhận'];
 
+  // Template management
+  templates: TradePlanTemplate[] = [];
+  selectedTemplateId = '';
+  showSaveTemplate = false;
+  newTemplateName = '';
+  savingTemplate = false;
+
   constructor(
     private strategyService: StrategyService,
     private portfolioService: PortfolioService,
     private riskService: RiskService,
     private marketDataService: MarketDataService,
+    private templateService: TradePlanTemplateService,
     private notification: NotificationService
   ) {
     this.initChecklist();
@@ -458,6 +516,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.strategyService.getAll().subscribe({ next: d => this.strategies = d });
     this.portfolioService.getAll().subscribe({ next: d => this.portfolios = d });
+    this.templateService.getAll().subscribe({ next: d => this.templates = d, error: () => {} });
 
     // Auto-fill: debounced symbol lookup
     this.symbolSubject.pipe(
@@ -492,6 +551,62 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           this.recalculate();
         }
       }
+    });
+  }
+
+  applyTemplate(): void {
+    const t = this.templates.find(x => x.id === this.selectedTemplateId);
+    if (!t) return;
+    if (t.symbol) { this.plan.symbol = t.symbol; this.onSymbolInput(); }
+    if (t.direction) this.plan.direction = t.direction;
+    if (t.entryPrice) this.plan.entryPrice = t.entryPrice;
+    if (t.stopLoss) this.plan.stopLoss = t.stopLoss;
+    if (t.target) this.plan.target = t.target;
+    if (t.strategyId) { this.plan.strategyId = t.strategyId; this.onStrategyChange(); }
+    if (t.marketCondition) this.plan.marketCondition = t.marketCondition;
+    if (t.reason) this.plan.reason = t.reason;
+    if (t.notes) this.plan.notes = t.notes;
+    this.recalculate();
+    this.notification.success('Template', `Đã tải "${t.name}"`);
+  }
+
+  saveAsTemplate(): void {
+    if (!this.newTemplateName.trim()) return;
+    this.savingTemplate = true;
+    this.templateService.create({
+      name: this.newTemplateName.trim(),
+      symbol: this.plan.symbol || undefined,
+      direction: this.plan.direction,
+      entryPrice: this.plan.entryPrice || undefined,
+      stopLoss: this.plan.stopLoss || undefined,
+      target: this.plan.target || undefined,
+      strategyId: this.plan.strategyId || undefined,
+      marketCondition: this.plan.marketCondition,
+      reason: this.plan.reason || undefined,
+      notes: this.plan.notes || undefined,
+    }).subscribe({
+      next: (saved) => {
+        this.templates = [saved, ...this.templates];
+        this.savingTemplate = false;
+        this.showSaveTemplate = false;
+        this.newTemplateName = '';
+        this.notification.success('Template', `Đã lưu "${saved.name}"`);
+      },
+      error: () => {
+        this.savingTemplate = false;
+        this.notification.error('Lỗi', 'Không thể lưu template');
+      }
+    });
+  }
+
+  deleteTemplate(id: string): void {
+    this.templateService.delete(id).subscribe({
+      next: () => {
+        this.templates = this.templates.filter(t => t.id !== id);
+        if (this.selectedTemplateId === id) this.selectedTemplateId = '';
+        this.notification.success('Template', 'Đã xoá template');
+      },
+      error: () => this.notification.error('Lỗi', 'Không thể xoá template')
     });
   }
 
