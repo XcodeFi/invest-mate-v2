@@ -10,6 +10,7 @@ import { MarketDataService, StockPrice } from '../../core/services/market-data.s
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 interface ChecklistItem {
   label: string;
@@ -38,7 +39,7 @@ interface TradePlan {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Kế hoạch giao dịch (Trade Plan)</h1>
@@ -125,23 +126,36 @@ interface TradePlan {
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Giá vào lệnh *</label>
-                <input [(ngModel)]="plan.entryPrice" type="number" (ngModelChange)="recalculate()"
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Giá vào lệnh *
+                  <span class="text-xs text-gray-400 font-normal ml-1">(giá bạn dự kiến mua)</span>
+                </label>
+                <input [(ngModel)]="plan.entryPrice" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Stop-Loss *</label>
-                <input [(ngModel)]="plan.stopLoss" type="number" (ngModelChange)="recalculate()"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Stop-Loss <sup class="text-red-400 font-bold cursor-default" title="Giải thích 1">1</sup> *
+                </label>
+                <input [(ngModel)]="plan.stopLoss" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  [placeholder]="suggestedSlHint">
+                <p *ngIf="slAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Take-Profit *</label>
-                <input [(ngModel)]="plan.target" type="number" (ngModelChange)="recalculate()"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích 2">2</sup> *
+                </label>
+                <input [(ngModel)]="plan.target" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  [placeholder]="suggestedTpHint">
+                <p *ngIf="tpAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng (CP)</label>
-                <input [(ngModel)]="plan.quantity" type="number" step="100" (ngModelChange)="onQuantityManualChange()"
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Số lượng (CP) <sup class="text-violet-400 font-bold cursor-default" title="Giải thích 3">3</sup>
+                </label>
+                <input [(ngModel)]="plan.quantity" type="text" inputmode="numeric" appNumMask step="100" (ngModelChange)="onQuantityManualChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="optimalShares > 0 ? 'Tự động: ' + optimalShares : '0'">
               </div>
@@ -152,6 +166,11 @@ interface TradePlan {
                   <option value="">-- Chọn --</option>
                   <option *ngFor="let s of strategies" [value]="s.id">{{ s.name }}</option>
                 </select>
+                <p *ngIf="selectedStrategy?.suggestedSlPercent" class="text-xs text-blue-500 mt-0.5">
+                  Gợi ý SL: -{{ selectedStrategy!.suggestedSlPercent }}%
+                  <span *ngIf="selectedStrategy?.suggestedRrRatio">, R:R {{ selectedStrategy!.suggestedRrRatio }}:1</span>
+                  — tự điền khi nhập giá vào
+                </p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Điều kiện thị trường</label>
@@ -172,9 +191,21 @@ interface TradePlan {
             </div>
 
             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Mức độ tự tin: {{ plan.confidenceLevel }}/10</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Mức độ tự tin: {{ plan.confidenceLevel }}/10
+                <sup class="text-amber-400 font-bold cursor-default" title="Giải thích 4">4</sup>
+              </label>
               <input [(ngModel)]="plan.confidenceLevel" type="range" min="1" max="10"
                 class="w-full h-2 bg-gray-200 rounded-lg cursor-pointer">
+            </div>
+
+            <!-- Glossary footnotes -->
+            <div class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
+              <div><sup class="text-red-400 font-bold">1</sup> <strong>Stop-Loss (SL) — Cắt lỗ:</strong> Mức giá mà bạn chấp nhận bán lỗ để giới hạn thiệt hại. VD: Mua ở 50,000 đ, SL = 47,500 đ → thua tối đa 5%.</div>
+              <div><sup class="text-emerald-500 font-bold">2</sup> <strong>Take-Profit (TP) — Chốt lời:</strong> Mức giá mục tiêu để hiện thực hóa lợi nhuận. VD: TP = 57,500 đ → lãi 15% nếu chạm mức này.</div>
+              <div><sup class="text-violet-400 font-bold">3</sup> <strong>Số lượng CP — Position Size:</strong> Số cổ phiếu nên mua để rủi ro không vượt % vốn cho phép. Tự tính nếu chọn Danh mục có Risk Profile.</div>
+              <div><sup class="text-amber-400 font-bold">4</sup> <strong>Mức độ tự tin:</strong> Điểm 1–10 đánh giá mức chắc chắn của tín hiệu. &lt;5 = tín hiệu yếu nên bỏ qua; ≥8 = tín hiệu mạnh.</div>
+              <div><sup class="text-blue-400 font-bold">5</sup> <strong>R:R Ratio (Risk:Reward):</strong> Tỷ lệ lợi nhuận/rủi ro. R:R = 1:2 nghĩa là rủi ro 1đ để kiếm 2đ. Nên giao dịch khi R:R ≥ 1:2 (màu xanh).</div>
             </div>
 
             <!-- Mini Stock Info Card -->
@@ -326,7 +357,9 @@ interface TradePlan {
             <h2 class="text-lg font-semibold mb-4">Chỉ số giao dịch</h2>
             <div class="space-y-3">
               <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-600">R:R Ratio</span>
+                <span class="text-sm text-gray-600">
+                  R:R Ratio <sup class="text-blue-400 font-bold cursor-default" title="Giải thích 5">5</sup>
+                </span>
                 <span class="font-bold text-lg" [class.text-green-600]="rr >= 2"
                   [class.text-yellow-600]="rr >= 1 && rr < 2" [class.text-red-600]="rr < 1">
                   1 : {{ rr | number:'1.2-2' }}
@@ -502,6 +535,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   newTemplateName = '';
   savingTemplate = false;
 
+  // Strategy auto-fill hints
+  suggestedSlHint = '';
+  suggestedTpHint = '';
+  slAutoFilled = false;
+  tpAutoFilled = false;
+
   constructor(
     private strategyService: StrategyService,
     private portfolioService: PortfolioService,
@@ -653,6 +692,41 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   onStrategyChange(): void {
     this.selectedStrategy = this.strategies.find(s => s.id === this.plan.strategyId) || null;
+    this.slAutoFilled = false;
+    this.tpAutoFilled = false;
+    this.suggestedSlHint = '';
+    this.suggestedTpHint = '';
+
+    const s = this.selectedStrategy;
+    if (!s) return;
+
+    const entry = this.plan.entryPrice;
+    const isBuy = this.plan.direction === 'Buy';
+
+    if (s.suggestedSlPercent) {
+      const slValue = isBuy
+        ? entry * (1 - s.suggestedSlPercent / 100)
+        : entry * (1 + s.suggestedSlPercent / 100);
+      this.suggestedSlHint = entry > 0 ? `Gợi ý: ${Math.round(slValue).toLocaleString('vi-VN')}` : `Gợi ý: -${s.suggestedSlPercent}%`;
+      if (entry > 0 && !this.plan.stopLoss) {
+        this.plan.stopLoss = Math.round(slValue);
+        this.slAutoFilled = true;
+      }
+    }
+
+    if (s.suggestedRrRatio && this.plan.stopLoss) {
+      const risk = Math.abs(entry - this.plan.stopLoss);
+      const tpValue = isBuy
+        ? entry + risk * s.suggestedRrRatio
+        : entry - risk * s.suggestedRrRatio;
+      this.suggestedTpHint = entry > 0 ? `Gợi ý: ${Math.round(tpValue).toLocaleString('vi-VN')}` : `Gợi ý: R:R ${s.suggestedRrRatio}:1`;
+      if (entry > 0 && !this.plan.target) {
+        this.plan.target = Math.round(tpValue);
+        this.tpAutoFilled = true;
+      }
+    }
+
+    if (this.slAutoFilled || this.tpAutoFilled) this.recalculate();
   }
 
   onPortfolioChange(): void {

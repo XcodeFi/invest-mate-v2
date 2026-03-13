@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { RiskService, RiskProfile } from '../../core/services/risk.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 interface PositionSizeResult {
   maxRiskAmount: number;
@@ -21,7 +22,7 @@ interface PositionSizeResult {
 @Component({
   selector: 'app-position-sizing',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Tính toán vị thế (Position Sizing)</h1>
@@ -44,35 +45,35 @@ interface PositionSizeResult {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tổng giá trị danh mục (VND)</label>
-              <input [(ngModel)]="input.accountBalance" type="number"
+              <input [(ngModel)]="input.accountBalance" type="text" inputmode="numeric" appNumMask
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">% Rủi ro tối đa / GD</label>
-              <input [(ngModel)]="input.riskPercent" type="number" step="0.5" min="0.5" max="10"
+              <input [(ngModel)]="input.riskPercent" type="text" inputmode="numeric" appNumMask [decimals]="1" step="0.5" min="0.5" max="10"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Giá vào lệnh (VND)</label>
-              <input [(ngModel)]="input.entryPrice" type="number"
+              <input [(ngModel)]="input.entryPrice" type="text" inputmode="numeric" appNumMask
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="VD: 25000">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Giá stop-loss (VND)</label>
-              <input [(ngModel)]="input.stopLossPrice" type="number"
+              <input [(ngModel)]="input.stopLossPrice" type="text" inputmode="numeric" appNumMask
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="VD: 23000">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Giá chốt lời (VND)</label>
-              <input [(ngModel)]="input.targetPrice" type="number"
+              <input [(ngModel)]="input.targetPrice" type="text" inputmode="numeric" appNumMask
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="VD: 30000">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">% Vị thế tối đa</label>
-              <input [(ngModel)]="input.maxPositionPercent" type="number" step="1" min="1" max="100"
+              <input [(ngModel)]="input.maxPositionPercent" type="text" inputmode="numeric" appNumMask [decimals]="1" step="1" min="1" max="100"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
             </div>
           </div>

@@ -33,6 +33,11 @@ public class Portfolio : AggregateRoot
         Name = name ?? throw new ArgumentNullException(nameof(name));
     }
 
+    public void UpdateInitialCapital(decimal initialCapital)
+    {
+        InitialCapital = initialCapital >= 0 ? initialCapital : throw new ArgumentException("Initial capital must be non-negative", nameof(initialCapital));
+    }
+
     public void MarkAsDeleted()
     {
         IsDeleted = true;

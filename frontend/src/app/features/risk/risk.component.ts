@@ -11,11 +11,12 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { NotificationService } from '../../core/services/notification.service';
 import { TemplateService, RiskProfileTemplate } from '../../core/services/template.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-risk',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Rủi ro</h1>
@@ -142,25 +143,25 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Giá vào</label>
-                    <input type="number" [(ngModel)]="newSl.entryPrice"
+                    <input type="text" inputmode="numeric" appNumMask [(ngModel)]="newSl.entryPrice"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                     <p *ngIf="newSl.entryPrice > 0" class="mt-1 text-xs text-gray-500">{{ newSl.entryPrice | vndCurrency }}</p>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Stop-Loss</label>
-                    <input type="number" [(ngModel)]="newSl.stopLossPrice"
+                    <input type="text" inputmode="numeric" appNumMask [(ngModel)]="newSl.stopLossPrice"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                     <p *ngIf="newSl.stopLossPrice > 0" class="mt-1 text-xs text-gray-500">{{ newSl.stopLossPrice | vndCurrency }}</p>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Target</label>
-                    <input type="number" [(ngModel)]="newSl.targetPrice"
+                    <input type="text" inputmode="numeric" appNumMask [(ngModel)]="newSl.targetPrice"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                     <p *ngIf="newSl.targetPrice > 0" class="mt-1 text-xs text-gray-500">{{ newSl.targetPrice | vndCurrency }}</p>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Trailing Stop %</label>
-                    <input type="number" [(ngModel)]="newSl.trailingStopPercent" placeholder="Tuỳ chọn"
+                    <input type="text" inputmode="numeric" appNumMask [decimals]="1" [(ngModel)]="newSl.trailingStopPercent" placeholder="Tuỳ chọn"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                   </div>
                 </div>
@@ -369,28 +370,28 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Tỷ trọng vị thế tối đa (%)</label>
-                  <input type="number" [(ngModel)]="profileForm.maxPositionSizePercent"
+                  <input type="text" inputmode="numeric" appNumMask [decimals]="1" [(ngModel)]="profileForm.maxPositionSizePercent"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                   <p class="text-xs text-gray-500 mt-1">Giới hạn % tối đa cho 1 vị thế</p>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Phơi nhiễm ngành tối đa (%)</label>
-                  <input type="number" [(ngModel)]="profileForm.maxSectorExposurePercent"
+                  <input type="text" inputmode="numeric" appNumMask [decimals]="1" [(ngModel)]="profileForm.maxSectorExposurePercent"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Cảnh báo drawdown (%)</label>
-                  <input type="number" [(ngModel)]="profileForm.maxDrawdownAlertPercent"
+                  <input type="text" inputmode="numeric" appNumMask [decimals]="1" [(ngModel)]="profileForm.maxDrawdownAlertPercent"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">R:R mặc định</label>
-                  <input type="number" [(ngModel)]="profileForm.defaultRiskRewardRatio" step="0.1"
+                  <input type="text" inputmode="numeric" appNumMask [decimals]="1" [(ngModel)]="profileForm.defaultRiskRewardRatio" step="0.1"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Rủi ro danh mục tối đa (%)</label>
-                  <input type="number" [(ngModel)]="profileForm.maxPortfolioRiskPercent"
+                  <input type="text" inputmode="numeric" appNumMask [decimals]="1" [(ngModel)]="profileForm.maxPortfolioRiskPercent"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
               </div>

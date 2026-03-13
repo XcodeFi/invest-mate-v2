@@ -8,11 +8,12 @@ import {
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -59,7 +60,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Ngưỡng *</label>
-            <input [(ngModel)]="newRule.threshold" type="number"
+            <input [(ngModel)]="newRule.threshold" type="text" inputmode="numeric" appNumMask
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               [placeholder]="newRule.alertType === 'DrawdownAlert' ? 'VD: 10 (%)' : 'VD: 80000'">
             <p *ngIf="newRule.threshold > 0 && newRule.alertType !== 'DrawdownAlert'" class="mt-1 text-xs text-gray-500">{{ newRule.threshold | vndCurrency }}</p>

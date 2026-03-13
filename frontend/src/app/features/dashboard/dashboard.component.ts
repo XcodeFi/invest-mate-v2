@@ -849,7 +849,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   calculateProjections(): void {
     const currentValue = this.pnlSummary.totalPortfolioValue || this.pnlSummary.totalInvested;
-    if (currentValue <= 0 || this.cagrValue === 0) {
+    if (currentValue <= 0 || !isFinite(this.cagrValue) || this.cagrValue === 0) {
       this.projections = [];
       this.targetValue = 0;
       this.actualProjection = 0;
@@ -883,7 +883,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const totalReturn = current / invested;
     // Assume investment period proportional to data — default 1 year if unknown
     const years = 1;
-    this.cagrValue = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+    const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+    this.cagrValue = isFinite(cagr) ? cagr : 0;
     this.calculateProjections();
   }
 
@@ -908,7 +909,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!data.points.length) return;
     const first = data.points[0];
     const last = data.points[data.points.length - 1];
-    if (first.portfolioValue <= 0) return;
+    if (!first.portfolioValue || first.portfolioValue <= 0) return;
+    if (!last.portfolioValue || last.portfolioValue <= 0) return;
 
     const startDate = new Date(first.date);
     const endDate = new Date(last.date);
@@ -917,8 +919,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (years >= 0.01) {
       const totalReturn = last.portfolioValue / first.portfolioValue;
-      this.cagrValue = (Math.pow(totalReturn, 1 / years) - 1) * 100;
-      this.calculateProjections();
+      const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+      if (isFinite(cagr)) {
+        this.cagrValue = cagr;
+        this.calculateProjections();
+      }
     }
   }
 

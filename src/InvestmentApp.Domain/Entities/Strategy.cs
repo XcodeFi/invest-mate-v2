@@ -16,6 +16,8 @@ public class Strategy : AggregateRoot
     public string RiskRules { get; private set; }
     public string TimeFrame { get; private set; }       // Scalping, Swing, Position
     public string MarketCondition { get; private set; }  // Trending, Ranging, Volatile
+    public decimal? SuggestedSlPercent { get; private set; }  // % SL dưới giá vào (VD: 5 = -5%)
+    public decimal? SuggestedRrRatio { get; private set; }    // R:R gợi ý (VD: 2.0 = TP = Entry + 2×Risk)
     public bool IsActive { get; private set; }
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -26,7 +28,8 @@ public class Strategy : AggregateRoot
 
     public Strategy(string userId, string name, string description,
         string entryRules, string exitRules, string riskRules,
-        string timeFrame, string marketCondition)
+        string timeFrame, string marketCondition,
+        decimal? suggestedSlPercent = null, decimal? suggestedRrRatio = null)
     {
         Id = Guid.NewGuid().ToString();
         UserId = userId ?? throw new ArgumentNullException(nameof(userId));
@@ -37,6 +40,8 @@ public class Strategy : AggregateRoot
         RiskRules = riskRules ?? string.Empty;
         TimeFrame = timeFrame ?? "Swing";
         MarketCondition = marketCondition ?? "Trending";
+        SuggestedSlPercent = suggestedSlPercent;
+        SuggestedRrRatio = suggestedRrRatio;
         IsActive = true;
         IsDeleted = false;
         CreatedAt = DateTime.UtcNow;
@@ -46,7 +51,8 @@ public class Strategy : AggregateRoot
     public void Update(string? name = null, string? description = null,
         string? entryRules = null, string? exitRules = null,
         string? riskRules = null, string? timeFrame = null,
-        string? marketCondition = null, bool? isActive = null)
+        string? marketCondition = null, bool? isActive = null,
+        decimal? suggestedSlPercent = null, decimal? suggestedRrRatio = null)
     {
         if (name != null) Name = name;
         if (description != null) Description = description;
@@ -56,6 +62,8 @@ public class Strategy : AggregateRoot
         if (timeFrame != null) TimeFrame = timeFrame;
         if (marketCondition != null) MarketCondition = marketCondition;
         if (isActive.HasValue) IsActive = isActive.Value;
+        if (suggestedSlPercent.HasValue) SuggestedSlPercent = suggestedSlPercent;
+        if (suggestedRrRatio.HasValue) SuggestedRrRatio = suggestedRrRatio;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }

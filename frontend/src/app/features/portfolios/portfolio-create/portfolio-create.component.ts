@@ -5,11 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { PortfolioService } from '../../../core/services/portfolio.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-portfolio-create',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -51,7 +52,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
               <div>
                 <label for="initialCapital" class="block text-sm font-medium text-gray-700 mb-1">Vốn ban đầu (VND) <span class="text-red-500">*</span></label>
                 <input
-                  type="number"
+                  type="text" inputmode="numeric" appNumMask
                   id="initialCapital"
                   name="initialCapital"
                   [(ngModel)]="form.initialCapital"

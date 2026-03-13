@@ -6,11 +6,12 @@ import { CapitalFlowService, CapitalFlowItem, CapitalFlowHistory, AdjustedReturn
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-capital-flows',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Dòng vốn</h1>
@@ -54,7 +55,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Số tiền</label>
             <input
-              type="number"
+              type="text" inputmode="numeric" appNumMask
               [(ngModel)]="newFlow.amount"
               placeholder="0"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
