@@ -10,6 +10,7 @@ import { JournalService, CreateJournalRequest } from '../../core/services/journa
 import { MarketDataService } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 interface ChecklistItem {
   label: string;
@@ -33,7 +34,7 @@ interface PositionCalc {
 @Component({
   selector: 'app-trade-wizard',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6 max-w-4xl">
       <h1 class="text-2xl font-bold text-gray-800 mb-2">Wizard Giao dịch</h1>
@@ -162,19 +163,19 @@ interface PositionCalc {
               <div class="grid grid-cols-3 gap-3">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Giá vào lệnh</label>
-                  <input [(ngModel)]="plan.entryPrice" type="number" (ngModelChange)="calculate()"
+                  <input [(ngModel)]="plan.entryPrice" type="text" inputmode="numeric" appNumMask (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="VND">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Stop-Loss <sup class="text-red-400 font-bold">1</sup></label>
-                  <input [(ngModel)]="plan.stopLoss" type="number" (ngModelChange)="calculate()"
+                  <input [(ngModel)]="plan.stopLoss" type="text" inputmode="numeric" appNumMask (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="VND">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Take-Profit <sup class="text-emerald-500 font-bold">2</sup></label>
-                  <input [(ngModel)]="plan.takeProfit" type="number" (ngModelChange)="calculate()"
+                  <input [(ngModel)]="plan.takeProfit" type="text" inputmode="numeric" appNumMask (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="VND">
                 </div>
@@ -184,12 +185,12 @@ interface PositionCalc {
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Tổng giá trị danh mục</label>
-                  <input [(ngModel)]="plan.accountBalance" type="number" (ngModelChange)="calculate()"
+                  <input [(ngModel)]="plan.accountBalance" type="text" inputmode="numeric" appNumMask (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">% Rủi ro / giao dịch <sup class="text-amber-400 font-bold">3</sup></label>
-                  <input [(ngModel)]="plan.riskPercent" type="number" step="0.5" min="0.5" max="10" (ngModelChange)="calculate()"
+                  <input [(ngModel)]="plan.riskPercent" type="text" inputmode="numeric" appNumMask [decimals]="1" step="0.5" min="0.5" max="10" (ngModelChange)="calculate()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
               </div>

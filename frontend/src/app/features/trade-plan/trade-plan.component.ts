@@ -10,6 +10,7 @@ import { MarketDataService, StockPrice } from '../../core/services/market-data.s
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 interface ChecklistItem {
   label: string;
@@ -38,7 +39,7 @@ interface TradePlan {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Kế hoạch giao dịch (Trade Plan)</h1>
@@ -129,14 +130,14 @@ interface TradePlan {
                   Giá vào lệnh *
                   <span class="text-xs text-gray-400 font-normal ml-1">(giá bạn dự kiến mua)</span>
                 </label>
-                <input [(ngModel)]="plan.entryPrice" type="number" (ngModelChange)="recalculate()"
+                <input [(ngModel)]="plan.entryPrice" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   Stop-Loss <sup class="text-red-400 font-bold cursor-default" title="Giải thích 1">1</sup> *
                 </label>
-                <input [(ngModel)]="plan.stopLoss" type="number" (ngModelChange)="recalculate()"
+                <input [(ngModel)]="plan.stopLoss" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="suggestedSlHint">
                 <p *ngIf="slAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
@@ -145,7 +146,7 @@ interface TradePlan {
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích 2">2</sup> *
                 </label>
-                <input [(ngModel)]="plan.target" type="number" (ngModelChange)="recalculate()"
+                <input [(ngModel)]="plan.target" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="suggestedTpHint">
                 <p *ngIf="tpAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
@@ -154,7 +155,7 @@ interface TradePlan {
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   Số lượng (CP) <sup class="text-violet-400 font-bold cursor-default" title="Giải thích 3">3</sup>
                 </label>
-                <input [(ngModel)]="plan.quantity" type="number" step="100" (ngModelChange)="onQuantityManualChange()"
+                <input [(ngModel)]="plan.quantity" type="text" inputmode="numeric" appNumMask step="100" (ngModelChange)="onQuantityManualChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="optimalShares > 0 ? 'Tự động: ' + optimalShares : '0'">
               </div>

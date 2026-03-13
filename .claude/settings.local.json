@@ -15,7 +15,21 @@
       "Bash(npx tsc:*)",
       "Bash(ls d:/invest-mate-v2/project/*.md)",
       "Bash(git -C d:/invest-mate-v2/project log --oneline --merges master)",
-      "Bash(git -C d:/invest-mate-v2/project log --oneline master)"
+      "Bash(git -C d:/invest-mate-v2/project log --oneline master)",
+      "Bash(npm -v)",
+      "Bash(ng version:*)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(sed -i 's/¹/1/g; s/²/2/g; s/³/3/g; s/⁴/4/g; s/⁵/5/g; s/⁶/6/g' \"$f\")",
+      "Bash(echo \"done: $f\")",
+      "Bash(done)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep -r \"UpdateInitialCapital\\\\|UpdateCapital\" d:invest-mate-v2project --include=*.cs)",
+      "Bash(find d:invest-mate-v2projectfrontendsrcappfeatures -type f \\\\\\(-name *.html -o -name *.ts \\\\\\))",
+      "Bash(cd /d \"d:\\\\invest-mate-v2\\\\project\\\\frontend\\\\src\\\\app\\\\features\")",
+      "Bash(__NEW_LINE_f485c3c8f8b30e5d__ node -e \":*)"
     ]
   }
 }

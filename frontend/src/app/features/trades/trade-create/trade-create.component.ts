@@ -9,6 +9,7 @@ import { FeeService, FeeCalculationRequest, FeeCalculationResponse } from '../..
 import { NotificationService } from '../../../core/services/notification.service';
 import { TradeType } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../../shared/directives/num-mask.directive';
 
 interface StockSymbolEntry {
   symbol: string;
@@ -19,7 +20,7 @@ interface StockSymbolEntry {
 @Component({
   selector: 'app-trade-create',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -111,14 +112,14 @@ interface StockSymbolEntry {
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng <span class="text-red-500">*</span></label>
-                  <input type="number" id="quantity" name="quantity" [(ngModel)]="form.quantity" required min="100" step="100"
+                  <input type="text" inputmode="numeric" appNumMask id="quantity" name="quantity" [(ngModel)]="form.quantity" required min="100" step="100"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="100" (input)="onFormChange()" #qtyInput="ngModel" />
                   <p *ngIf="qtyInput.invalid && qtyInput.touched" class="mt-1 text-sm text-red-600">Tối thiểu 100, bước nhảy 100</p>
                 </div>
                 <div>
                   <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Giá <span class="text-red-500">*</span></label>
-                  <input type="number" id="price" name="price" [(ngModel)]="form.price" required min="0.01" step="0.01"
+                  <input type="text" inputmode="numeric" appNumMask id="price" name="price" [(ngModel)]="form.price" required min="0.01" step="0.01"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0.00" (input)="onFormChange()" #priceInput="ngModel" />
                   <p *ngIf="priceInput.invalid && priceInput.touched" class="mt-1 text-sm text-red-600">Phải lớn hơn 0</p>

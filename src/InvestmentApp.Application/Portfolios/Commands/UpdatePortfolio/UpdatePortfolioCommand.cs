@@ -35,6 +35,7 @@ public class UpdatePortfolioCommandHandler : IRequestHandler<UpdatePortfolioComm
             return false;
 
         portfolio.UpdateName(request.Name);
+        portfolio.UpdateInitialCapital(request.InitialCapital);
 
         await _portfolioRepository.UpdateAsync(portfolio, cancellationToken);
 
