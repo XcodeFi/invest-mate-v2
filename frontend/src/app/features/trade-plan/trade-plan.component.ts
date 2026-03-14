@@ -270,32 +270,33 @@ interface TradePlanForm {
                   Giá vào lệnh *
                   <span class="text-xs text-gray-400 font-normal ml-1">(giá bạn dự kiến mua)</span>
                 </label>
-                <input [(ngModel)]="plan.entryPrice" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <input [(ngModel)]="plan.entryPrice" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" (ngModelChange)="recalculate()"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nhập giá dự kiến">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   Stop-Loss <sup class="text-red-400 font-bold cursor-default" title="Giải thích 1">1</sup> *
                 </label>
-                <input [(ngModel)]="plan.stopLoss" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
+                <input [(ngModel)]="plan.stopLoss" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  [placeholder]="suggestedSlHint">
+                  [placeholder]="suggestedSlHint || 'Mức cắt lỗ'">
                 <p *ngIf="slAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích 2">2</sup> *
                 </label>
-                <input [(ngModel)]="plan.target" type="text" inputmode="numeric" appNumMask (ngModelChange)="recalculate()"
+                <input [(ngModel)]="plan.target" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" (ngModelChange)="recalculate()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  [placeholder]="suggestedTpHint">
+                  [placeholder]="suggestedTpHint || 'Mức chốt lời'">
                 <p *ngIf="tpAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   Số lượng (CP) <sup class="text-violet-400 font-bold cursor-default" title="Giải thích 3">3</sup>
                 </label>
-                <input [(ngModel)]="plan.quantity" type="text" inputmode="numeric" appNumMask step="100" (ngModelChange)="onQuantityManualChange()"
+                <input [(ngModel)]="plan.quantity" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" step="100" (ngModelChange)="onQuantityManualChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="optimalShares > 0 ? 'Tự động: ' + optimalShares : '0'">
               </div>
@@ -333,11 +334,10 @@ interface TradePlanForm {
             </div>
 
             <!-- Lot Editor (Chia lô) -->
-            <div *ngIf="plan.entryMode !== 'Single'" class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div *ngIf="plan.entryMode === 'ScalingIn'" class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <h3 class="text-sm font-semibold text-amber-800">
-                  {{ plan.entryMode === 'ScalingIn' ? 'Chia lô mua' : 'DCA' }}
-                  ({{ plan.lots.length }} lô — Tổng: {{ getLotsTotalQty() | number:'1.0-0' }} CP)
+                  Chia lô mua ({{ plan.lots.length }} lô — Tổng: {{ getLotsTotalQty() | number:'1.0-0' }} CP)
                 </h3>
                 <div class="flex gap-1">
                   <button (click)="applyLotPreset('40-30-30')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">40/30/30</button>
@@ -380,6 +380,100 @@ interface TradePlanForm {
               </table>
               <div *ngIf="plan.lots.length > 1" class="mt-2 text-xs text-amber-700">
                 Giá TB dự kiến: {{ getLotsWeightedAvg() | number:'1.0-0' }}đ
+              </div>
+            </div>
+
+            <!-- DCA Editor -->
+            <div *ngIf="plan.entryMode === 'DCA'" class="mt-4 bg-teal-50 border border-teal-200 rounded-lg p-4">
+              <h3 class="text-sm font-semibold text-teal-800 mb-3">
+                DCA — Trung bình giá (Dollar Cost Averaging)
+              </h3>
+              <p class="text-xs text-teal-600 mb-3">Mua đều đặn theo lịch, không cần dự đoán giá — phù hợp tích luỹ dài hạn</p>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-teal-700 mb-1">Số tiền mỗi lần</label>
+                  <input [(ngModel)]="dcaForm.amountPerPeriod" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"
+                    (ngModelChange)="buildDcaSchedule()"
+                    class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
+                    placeholder="VD: 5.000.000">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-teal-700 mb-1">Tần suất</label>
+                  <select [(ngModel)]="dcaForm.frequency" (ngModelChange)="buildDcaSchedule()"
+                    class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm">
+                    <option value="weekly">Hàng tuần</option>
+                    <option value="biweekly">2 tuần / lần</option>
+                    <option value="monthly">Hàng tháng</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-teal-700 mb-1">Số kỳ</label>
+                  <input [(ngModel)]="dcaForm.numberOfPeriods" type="number" min="1" max="52"
+                    (ngModelChange)="buildDcaSchedule()"
+                    class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
+                    placeholder="VD: 12">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-teal-700 mb-1">Ngày bắt đầu</label>
+                  <input [(ngModel)]="dcaForm.startDate" type="date"
+                    (ngModelChange)="buildDcaSchedule()"
+                    class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label class="block text-xs font-medium text-teal-700 mb-1">Giá sàn (không mua nếu cao hơn)</label>
+                  <input [(ngModel)]="dcaForm.maxPrice" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"
+                    class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
+                    placeholder="Để trống = không giới hạn">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-teal-700 mb-1">Giá trần (mua thêm nếu dưới)</label>
+                  <input [(ngModel)]="dcaForm.minPrice" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"
+                    class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
+                    placeholder="Để trống = không giới hạn">
+                </div>
+              </div>
+              <!-- DCA Summary -->
+              <div *ngIf="dcaForm.amountPerPeriod > 0 && dcaForm.numberOfPeriods > 0" class="mt-3 bg-teal-100 rounded p-3">
+                <div class="grid grid-cols-3 gap-4 text-center text-sm">
+                  <div>
+                    <div class="text-xs text-teal-600">Tổng vốn DCA</div>
+                    <div class="font-bold text-teal-800">{{ dcaForm.amountPerPeriod * dcaForm.numberOfPeriods | vndCurrency }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-teal-600">Thời gian</div>
+                    <div class="font-bold text-teal-800">{{ getDcaDuration() }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-teal-600">Lịch mua</div>
+                    <div class="font-bold text-teal-800">{{ getDcaFrequencyLabel() }}</div>
+                  </div>
+                </div>
+              </div>
+              <!-- DCA Schedule Table -->
+              <div *ngIf="dcaSchedule.length > 0" class="mt-3">
+                <div class="text-xs font-medium text-teal-700 mb-1">Lịch mua dự kiến ({{ dcaSchedule.length }} kỳ)</div>
+                <div class="max-h-40 overflow-y-auto">
+                  <table class="w-full text-xs">
+                    <thead class="text-teal-600 bg-teal-100 sticky top-0">
+                      <tr>
+                        <th class="px-2 py-1 text-left">Kỳ</th>
+                        <th class="px-2 py-1 text-left">Ngày mua</th>
+                        <th class="px-2 py-1 text-right">Số tiền</th>
+                        <th class="px-2 py-1 text-right">Tích luỹ</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-teal-100">
+                      <tr *ngFor="let row of dcaSchedule">
+                        <td class="px-2 py-1">{{ row.period }}</td>
+                        <td class="px-2 py-1">{{ row.date | date:'dd/MM/yyyy' }}</td>
+                        <td class="px-2 py-1 text-right">{{ row.amount | vndCurrency }}</td>
+                        <td class="px-2 py-1 text-right font-medium">{{ row.cumulative | vndCurrency }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -803,6 +897,17 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   // Order sheet
   showOrderSheet = false;
+
+  // DCA form
+  dcaForm = {
+    amountPerPeriod: 0,
+    frequency: 'monthly' as 'weekly' | 'biweekly' | 'monthly',
+    numberOfPeriods: 12,
+    startDate: new Date().toISOString().substring(0, 10),
+    maxPrice: 0,
+    minPrice: 0
+  };
+  dcaSchedule: { period: number; date: Date; amount: number; cumulative: number }[] = [];
 
   // Strategy auto-fill hints
   suggestedSlHint = '';
@@ -1475,12 +1580,17 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   onEntryModeChange(): void {
     if (this.plan.entryMode === 'Single') {
       this.plan.lots = [];
+      this.dcaSchedule = [];
+    } else if (this.plan.entryMode === 'DCA') {
+      this.plan.lots = [];
+      this.buildDcaSchedule();
     } else if (this.plan.lots.length === 0) {
-      // Default 2 lots
+      // Default 2 lots for ScalingIn
       this.plan.lots = [
         { lotNumber: 1, plannedPrice: this.plan.entryPrice, plannedQuantity: 0, allocationPercent: 50, label: '' },
         { lotNumber: 2, plannedPrice: 0, plannedQuantity: 0, allocationPercent: 50, label: '' }
       ];
+      this.dcaSchedule = [];
       this.recalculateLots();
     }
   }
@@ -1541,6 +1651,54 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     if (totalQty <= 0) return 0;
     const totalValue = this.plan.lots.reduce((s, l) => s + (l.plannedPrice || 0) * (l.plannedQuantity || 0), 0);
     return totalValue / totalQty;
+  }
+
+  // --- DCA Methods ---
+
+  getDcaDuration(): string {
+    const n = this.dcaForm.numberOfPeriods;
+    switch (this.dcaForm.frequency) {
+      case 'weekly': return n >= 4 ? `~${(n / 4.3).toFixed(0)} tháng` : `${n} tuần`;
+      case 'biweekly': return n >= 2 ? `~${(n / 2.15).toFixed(0)} tháng` : `${n * 2} tuần`;
+      case 'monthly': return n >= 12 ? `${(n / 12).toFixed(1)} năm` : `${n} tháng`;
+      default: return '';
+    }
+  }
+
+  getDcaFrequencyLabel(): string {
+    switch (this.dcaForm.frequency) {
+      case 'weekly': return 'Hàng tuần';
+      case 'biweekly': return '2 tuần/lần';
+      case 'monthly': return 'Hàng tháng';
+      default: return '';
+    }
+  }
+
+  buildDcaSchedule(): void {
+    if (!this.dcaForm.amountPerPeriod || !this.dcaForm.numberOfPeriods) {
+      this.dcaSchedule = [];
+      return;
+    }
+    const schedule: typeof this.dcaSchedule = [];
+    let currentDate = new Date(this.dcaForm.startDate || Date.now());
+    let cumulative = 0;
+
+    for (let i = 1; i <= this.dcaForm.numberOfPeriods; i++) {
+      cumulative += this.dcaForm.amountPerPeriod;
+      schedule.push({
+        period: i,
+        date: new Date(currentDate),
+        amount: this.dcaForm.amountPerPeriod,
+        cumulative
+      });
+      // Advance date
+      switch (this.dcaForm.frequency) {
+        case 'weekly': currentDate.setDate(currentDate.getDate() + 7); break;
+        case 'biweekly': currentDate.setDate(currentDate.getDate() + 14); break;
+        case 'monthly': currentDate.setMonth(currentDate.getMonth() + 1); break;
+      }
+    }
+    this.dcaSchedule = schedule;
   }
 
   addExitTarget(): void {

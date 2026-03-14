@@ -27,6 +27,9 @@ export class NumMaskDirective implements ControlValueAccessor {
   /** Number of decimal places allowed (0 = integer only, 1+ = decimal) */
   @Input() decimals = 0;
 
+  /** When true, display empty string instead of "0" when value is 0 */
+  @Input() emptyWhenZero = false;
+
   private onChange: (value: number | null) => void = () => {};
   private onTouched: () => void = () => {};
   private isEditing = false;
@@ -188,11 +191,12 @@ export class NumMaskDirective implements ControlValueAccessor {
 
   /** Set the display value (formatted for viewing) */
   private setDisplay(value: number | null): void {
-    const formatted = value != null
+    const isEmpty = value == null || (this.emptyWhenZero && value === 0);
+    const formatted = !isEmpty
       ? new Intl.NumberFormat('vi-VN', {
           maximumFractionDigits: this.decimals,
           minimumFractionDigits: 0,
-        }).format(value)
+        }).format(value!)
       : '';
     this.renderer.setProperty(this.el.nativeElement, 'value', formatted);
   }
