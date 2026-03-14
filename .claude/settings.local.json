@@ -32,7 +32,8 @@
       "Bash(__NEW_LINE_f485c3c8f8b30e5d__ node -e \":*)",
       "Bash(dotnet run:*)",
       "Bash(docker info:*)",
-      "Bash(grep -E \"component\\\\.ts$\")"
+      "Bash(grep -E \"component\\\\.ts$\")",
+      "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")"
     ]
   }
 }

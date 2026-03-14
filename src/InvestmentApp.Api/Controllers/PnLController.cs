@@ -39,7 +39,18 @@ public class PnLController : ControllerBase
             return NotFound();
 
         var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId);
-        return Ok(pnlSummary);
+        return Ok(new
+        {
+            PortfolioId = portfolio.Id,
+            PortfolioName = portfolio.Name,
+            pnlSummary.TotalInvested,
+            TotalMarketValue = pnlSummary.TotalPortfolioValue,
+            pnlSummary.TotalRealizedPnL,
+            pnlSummary.TotalUnrealizedPnL,
+            pnlSummary.TotalPnL,
+            pnlSummary.TotalPnLPercent,
+            pnlSummary.Positions
+        });
     }
 
     /// <summary>

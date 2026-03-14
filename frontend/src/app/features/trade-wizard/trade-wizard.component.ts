@@ -796,6 +796,34 @@ export class TradeWizardComponent implements OnInit {
   }
 
   goToDashboard(): void {
+    if (this.createdTradeId && !this.journalSaved) {
+      const save = confirm('Bạn chưa lưu nhật ký giao dịch. Bạn có muốn lưu trước khi rời không?');
+      if (save) {
+        this.isSavingJournal = true;
+        const request: CreateJournalRequest = {
+          tradeId: this.createdTradeId,
+          portfolioId: this.plan.portfolioId,
+          entryReason: this.journal.entryReason || undefined,
+          marketContext: this.journal.marketContext || undefined,
+          technicalSetup: this.journal.technicalSetup || undefined,
+          emotionalState: this.journal.emotionalState || undefined,
+          confidenceLevel: this.journal.confidenceLevel || undefined,
+        };
+        this.journalService.create(request).subscribe({
+          next: () => {
+            this.isSavingJournal = false;
+            this.notificationService.success('Thành công', 'Nhật ký đã được lưu');
+            this.router.navigate(['/dashboard']);
+          },
+          error: () => {
+            this.isSavingJournal = false;
+            this.notificationService.error('Lỗi', 'Không thể lưu nhật ký');
+            this.router.navigate(['/dashboard']);
+          }
+        });
+        return;
+      }
+    }
     this.router.navigate(['/dashboard']);
   }
 

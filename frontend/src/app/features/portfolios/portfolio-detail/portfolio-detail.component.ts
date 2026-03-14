@@ -105,8 +105,8 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
                   <td class="px-6 py-4 text-sm" [class]="pos.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
                     {{ pos.totalPnL | vndCurrency }}
                   </td>
-                  <td class="px-6 py-4 text-sm" [class]="pos.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ pos.totalPnLPercent.toFixed(2) }}%
+                  <td class="px-6 py-4 text-sm" [class]="(pos.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                    {{ (pos.totalPnLPercent ?? 0).toFixed(2) }}%
                   </td>
                 </tr>
               </tbody>
