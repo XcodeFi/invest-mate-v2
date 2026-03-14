@@ -771,12 +771,17 @@ interface TradePlanForm {
             </div>
 
             <!-- Order Sheet (Phieu Lenh) -->
-            <div *ngIf="showOrderSheet" class="mt-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
+            <div *ngIf="showOrderSheet" class="mt-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4 print:border-black print:bg-white" id="orderSheet">
               <div class="flex items-center justify-between mb-3">
                 <h3 class="text-sm font-bold text-indigo-800">Phiếu lệnh</h3>
-                <button (click)="copyOrderSheet()" class="px-3 py-1 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded">
-                  Copy
-                </button>
+                <div class="flex gap-2">
+                  <button (click)="copyOrderSheet()" class="px-3 py-1 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded print:hidden">
+                    Copy
+                  </button>
+                  <button (click)="printOrderSheet()" class="px-3 py-1 text-xs bg-gray-600 text-white hover:bg-gray-700 rounded print:hidden">
+                    In
+                  </button>
+                </div>
               </div>
               <div class="font-mono text-sm text-indigo-900 whitespace-pre-line">{{ getOrderSheetText() }}</div>
             </div>
@@ -1723,18 +1728,34 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     );
   }
 
+  printOrderSheet(): void {
+    const text = this.getOrderSheetText();
+    const win = window.open('', '_blank', 'width=400,height=600');
+    if (win) {
+      win.document.write(`<html><head><title>Phiếu lệnh - ${this.plan.symbol}</title>
+        <style>body{font-family:monospace;white-space:pre-line;padding:20px;font-size:14px;}</style>
+        </head><body>${text}</body></html>`);
+      win.document.close();
+      win.print();
+    }
+  }
+
   getOrderSheetText(): string {
     const p = this.plan;
     const qty = p.quantity || this.optimalShares;
+    const portfolioName = this.portfolios.find(pt => pt.id === p.portfolioId)?.name || '';
+    const totalValue = qty * (p.entryPrice || 0);
     const lines: string[] = [
       `=== PHIẾU LỆNH ===`,
       `Mã: ${p.symbol}  |  ${getTradeTypeDisplay(p.direction).toUpperCase()}`,
+      portfolioName ? `Danh mục: ${portfolioName}` : '',
       `Giá vào: ${(p.entryPrice || 0).toLocaleString('vi-VN')}đ`,
       `Số lượng: ${qty.toLocaleString('vi-VN')} CP`,
+      `Giá trị: ${totalValue.toLocaleString('vi-VN')}đ`,
       `Stop-Loss: ${(p.stopLoss || 0).toLocaleString('vi-VN')}đ`,
       `Take-Profit: ${(p.target || 0).toLocaleString('vi-VN')}đ`,
       `R:R = 1:${this.rr.toFixed(1)}`,
-    ];
+    ].filter(l => l);
 
     if (p.entryMode !== 'Single' && p.lots.length > 0) {
       lines.push('', `--- Chia lô (${p.entryMode}) ---`);

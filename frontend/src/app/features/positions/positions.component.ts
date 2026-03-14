@@ -30,13 +30,20 @@ interface PortfolioGroup {
           <p class="text-sm text-gray-500 mt-1">Theo dõi các vị thế cổ phiếu đang nắm giữ</p>
         </div>
         <div class="flex items-center gap-3">
+          <select [(ngModel)]="sortBy" (ngModelChange)="sortPositions()"
+            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+            <option value="value">Sap xep: Gia tri</option>
+            <option value="pnl">Sap xep: Lai/Lo</option>
+            <option value="pnlPercent">Sap xep: % Lai/Lo</option>
+            <option value="symbol">Sap xep: Ma CK</option>
+          </select>
           <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="loadPositions()"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-            <option value="">Tất cả danh mục</option>
+            <option value="">Tat ca danh muc</option>
             <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
           </select>
           <button (click)="loadPositions()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors">
-            Làm mới
+            Lam moi
           </button>
         </div>
       </div>
@@ -145,6 +152,26 @@ interface PortfolioGroup {
                     <div class="font-medium" [class.text-green-600]="pos.realizedPnL >= 0" [class.text-red-600]="pos.realizedPnL < 0">
                       {{ pos.realizedPnL | vndCurrency }}
                     </div>
+                  </div>
+                </div>
+
+                <!-- SL/TP Distance Bar -->
+                <div *ngIf="pos.linkedPlan && pos.linkedPlan.stopLoss && pos.linkedPlan.target" class="mt-3">
+                  <div class="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                    <span class="text-red-500 font-medium">SL {{ pos.linkedPlan.stopLoss | number:'1.0-0' }}</span>
+                    <div class="flex-1 relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-red-400 via-yellow-300 to-green-400 rounded-full"
+                        [style.width.%]="100"></div>
+                      <div class="absolute inset-y-0 w-1 bg-gray-800 rounded"
+                        [style.left.%]="getPricePosition(pos)"></div>
+                    </div>
+                    <span class="text-green-500 font-medium">TP {{ pos.linkedPlan.target | number:'1.0-0' }}</span>
+                  </div>
+                  <div class="text-xs text-center"
+                    [class.text-red-600]="getDistanceToSL(pos) < 3"
+                    [class.text-amber-600]="getDistanceToSL(pos) >= 3 && getDistanceToSL(pos) < 5"
+                    [class.text-gray-500]="getDistanceToSL(pos) >= 5">
+                    Cach SL {{ getDistanceToSL(pos) | number:'1.1-1' }}% · Cach TP {{ getDistanceToTP(pos) | number:'1.1-1' }}%
                   </div>
                 </div>
 
@@ -267,6 +294,7 @@ export class PositionsComponent implements OnInit {
   groupedPositions: PortfolioGroup[] = [];
   portfolios: PortfolioSummary[] = [];
   selectedPortfolioId = '';
+  sortBy = 'value';
   loading = false;
   error = '';
   expandedSymbol: string | null = null;
@@ -355,6 +383,38 @@ export class PositionsComponent implements OnInit {
 
   toggleTrades(symbol: string): void {
     this.expandedSymbol = this.expandedSymbol === symbol ? null : symbol;
+  }
+
+  // SL/TP distance helpers
+  getPricePosition(pos: ActivePosition): number {
+    const plan = pos.linkedPlan;
+    if (!plan || !plan.stopLoss || !plan.target) return 50;
+    const range = plan.target - plan.stopLoss;
+    if (range <= 0) return 50;
+    return Math.max(0, Math.min(100, ((pos.currentPrice - plan.stopLoss) / range) * 100));
+  }
+
+  getDistanceToSL(pos: ActivePosition): number {
+    if (!pos.linkedPlan?.stopLoss || pos.currentPrice <= 0) return 0;
+    return Math.abs((pos.currentPrice - pos.linkedPlan.stopLoss) / pos.currentPrice) * 100;
+  }
+
+  getDistanceToTP(pos: ActivePosition): number {
+    if (!pos.linkedPlan?.target || pos.currentPrice <= 0) return 0;
+    return Math.abs((pos.linkedPlan.target - pos.currentPrice) / pos.currentPrice) * 100;
+  }
+
+  sortPositions(): void {
+    for (const group of this.groupedPositions) {
+      group.positions.sort((a, b) => {
+        switch (this.sortBy) {
+          case 'pnl': return b.unrealizedPnL - a.unrealizedPnL;
+          case 'pnlPercent': return b.unrealizedPnLPercent - a.unrealizedPnLPercent;
+          case 'symbol': return a.symbol.localeCompare(b.symbol);
+          default: return b.marketValue - a.marketValue;
+        }
+      });
+    }
   }
 
   isBuyTrade = isBuyTrade;

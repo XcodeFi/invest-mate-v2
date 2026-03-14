@@ -5,6 +5,23 @@ import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
 
+export interface BulkTradeItem {
+  symbol: string;
+  tradeType: string;
+  quantity: number;
+  price: number;
+  fee: number;
+  tax: number;
+  tradeDate?: string;
+}
+
+export interface BulkCreateResult {
+  successCount: number;
+  failedCount: number;
+  errors: string[];
+  createdIds: string[];
+}
+
 export interface CreateTradeRequest {
   portfolioId: string;
   symbol: string;
@@ -42,6 +59,16 @@ export class TradeService {
 
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/${id}`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  linkToPlan(tradeId: string, planId: string): Observable<void> {
+    return this.http.patch<void>(`${this.API_URL}/${tradeId}/link-plan`, { planId }, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  bulkCreate(portfolioId: string, trades: BulkTradeItem[]): Observable<BulkCreateResult> {
+    return this.http.post<BulkCreateResult>(`${this.API_URL}/bulk`, { portfolioId, trades }, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
