@@ -2,6 +2,54 @@
 
 ---
 
+## [v2.6.0] — 2026-03-14 · Phase 7 (tiếp): Trade UX, Positions, Multi-lot Plan
+
+**Branch:** `feature/phase7-improvements`
+
+### Thêm mới
+
+- **Trang Vị thế đang mở** (`/positions`): hiển thị open positions gom nhóm theo danh mục, mỗi nhóm có tổng giá trị & P&L, expand giao dịch gần nhất cho từng mã
+- **Trade Plan multi-lot**: hỗ trợ nhập lệnh chia lô (ScalingIn/DCA), exit targets (TP1/TP2/CutLoss), theo dõi stop-loss history, phiếu lệnh (order sheet) copy clipboard
+- **Trade Plan saved plans**: danh sách kế hoạch đã lưu với filter trạng thái, lot progress bar, nút thực hiện từng lot
+- **Positions API** (`GET /api/v1/positions`): backend query tổng hợp vị thế đang mở từ PnL + linked plan
+- **TradePlan backend**: entity mới với lifecycle Draft→Ready→InProgress→Executed→Reviewed→Cancelled, CRUD API, commands ExecuteLot/UpdateStopLoss/TriggerExitTarget
+
+### Cải thiện
+
+- **TradeType enum dùng chung**: refactor toàn bộ project (6 components) sử dụng `TradeType` enum + utility functions từ `shared/constants/trade-types.ts` thay vì hardcode string
+- **CAGR overflow fix**: sửa lỗi hiển thị `3.1e+260%` — thêm ngưỡng tối thiểu 30 ngày + clamp giá trị [-99.99%, 9999.99%] cả frontend và backend
+- **Risk Dashboard tiếng Việt**: dịch toàn bộ text tiếng Anh còn sót sang tiếng Việt
+- **Trades pagination**: sửa lỗi không nhấn được nút "Sau" (nextPage reset về trang 1)
+- **Trades filter by symbol**: click vào mã CK trong bảng → tự fill ô filter, có nút × clear filter
+- **Trade Create — lô chẵn**: lệnh MUA bắt buộc số lượng là bội số 100
+- **Trade Create — kiểm tra số dư**: giá trị lệnh MUA không được vượt quá tiền còn lại của danh mục (initialCapital - totalInvested + totalSold)
+- **Trade Create — hiện vốn danh mục**: dropdown danh mục hiển thị thêm tổng vốn bên cạnh tên
+- **Trade Wizard**: dùng shared TradeType, pre-fill journal từ thông tin trade plan
+- **Backtesting**: dùng shared `getTradeTypeDisplay`/`getTradeTypeClass`
+
+### Sửa lỗi
+
+- Fix webpack `Cannot access before initialization` error khi vào trang Risk và Strategies (cache corruption)
+- Fix CAGR backend (`PerformanceMetricsService.cs`): clamp giá trị, minimum years 0.08
+
+---
+
+## [v2.5.0] — 2026-03-14 · Phase 7 (tiếp): NumMask, PnL & Journal enhancements
+
+**Branch:** `feature/phase7-improvements`
+
+### Thêm mới
+
+- **NumMaskDirective**: format số với dấu phân cách hàng nghìn trong input fields, áp dụng trên backtesting và strategies
+- **Journal enhancements**: unsaved changes prompt, trade linkage improvements
+
+### Cải thiện
+
+- **PnL calculations**: cải thiện tính toán và xử lý lỗi trong PerformanceMetricsService
+- **Error handling**: cải thiện middleware exception handling
+
+---
+
 ## [v2.4.0] — 2026-03-13 · Phase 7 (tiếp): Tooltip Analytics & Glossary UX
 
 **Branch:** `feature/phase7-improvements`

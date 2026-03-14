@@ -1,5 +1,6 @@
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using EquityCurvePoint = InvestmentApp.Application.Interfaces.EquityCurvePoint;
 
@@ -42,23 +43,46 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
         if (portfolio == null) throw new ArgumentException("Portfolio not found");
 
+        // Try snapshot-based CAGR first
         var snapshots = await _snapshotRepository.GetByPortfolioIdAsync(
             portfolioId, DateTime.MinValue, DateTime.UtcNow, cancellationToken);
         var sorted = snapshots.OrderBy(s => s.SnapshotDate).ToList();
 
-        if (sorted.Count < 2) return 0;
+        if (sorted.Count >= 2 && sorted.First().TotalValue > 0)
+        {
+            var years = (sorted.Last().SnapshotDate - sorted.First().SnapshotDate).TotalDays / 365.25;
+            if (years >= 0.08) // ~30 days minimum for meaningful CAGR
+            {
+                var ratio = (double)(sorted.Last().TotalValue / sorted.First().TotalValue);
+                var snapshotCagr = (decimal)(Math.Pow(ratio, 1.0 / years) - 1) * 100;
+                if (!double.IsInfinity((double)snapshotCagr) && !double.IsNaN((double)snapshotCagr))
+                    return Math.Round(Math.Clamp(snapshotCagr, -99.99m, 9999.99m), 2);
+            }
+        }
 
-        var startValue = sorted.First().TotalValue;
-        var endValue = sorted.Last().TotalValue;
-        if (startValue <= 0) return 0;
+        // Fallback: calculate from trades and current PnL
+        try
+        {
+            var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
+            if (pnlSummary.TotalInvested <= 0 || pnlSummary.TotalPortfolioValue <= 0)
+                return 0;
 
-        var years = (sorted.Last().SnapshotDate - sorted.First().SnapshotDate).TotalDays / 365.25;
-        if (years < 0.01) return 0;
+            var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+            var firstTradeDate = trades.Min(t => t.TradeDate);
+            var tradeDays = (DateTime.UtcNow - firstTradeDate).TotalDays;
+            var tradeYears = tradeDays / 365.25;
+            if (tradeYears < 0.08) return 0; // Less than ~30 days — CAGR not meaningful
 
-        // CAGR = (EndValue / StartValue)^(1/Years) - 1
-        var ratio = (double)(endValue / startValue);
-        var cagr = (decimal)(Math.Pow(ratio, 1.0 / years) - 1) * 100;
-        return Math.Round(cagr, 2);
+            var tradeRatio = (double)(pnlSummary.TotalPortfolioValue / pnlSummary.TotalInvested);
+            var tradeCagr = (decimal)(Math.Pow(tradeRatio, 1.0 / tradeYears) - 1) * 100;
+            return !double.IsInfinity((double)tradeCagr) && !double.IsNaN((double)tradeCagr)
+                ? Math.Round(Math.Clamp(tradeCagr, -99.99m, 9999.99m), 2)
+                : 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     public async Task<decimal> CalculateSharpeRatioAsync(string portfolioId, decimal riskFreeRate = 0.05m, CancellationToken cancellationToken = default)
@@ -143,14 +167,27 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         var profitFactor = grossLoss != 0 ? Math.Round(grossProfit / Math.Abs(grossLoss), 2) : 0;
         var expectancy = total > 0 ? Math.Round((decimal)wins / total * avgWin - (decimal)losses / total * Math.Abs(avgLoss), 2) : 0;
 
-        // Total return from snapshots
+        // Total return from snapshots, with fallback to PnL data
+        decimal totalReturn = 0;
         var snapshots = await _snapshotRepository.GetByPortfolioIdAsync(
             portfolioId, DateTime.MinValue, DateTime.UtcNow, cancellationToken);
         var sorted = snapshots.OrderBy(s => s.SnapshotDate).ToList();
-        decimal totalReturn = 0;
         if (sorted.Count >= 2 && sorted.First().TotalValue > 0)
         {
             totalReturn = ((sorted.Last().TotalValue - sorted.First().TotalValue) / sorted.First().TotalValue) * 100;
+        }
+        else
+        {
+            // Fallback: calculate from current PnL
+            try
+            {
+                var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
+                if (pnlSummary.TotalInvested > 0)
+                {
+                    totalReturn = ((pnlSummary.TotalPortfolioValue - pnlSummary.TotalInvested) / pnlSummary.TotalInvested) * 100;
+                }
+            }
+            catch { }
         }
 
         return new PerformanceSummary
@@ -235,7 +272,8 @@ public class PerformanceMetricsService : IPerformanceMetricsService
     }
 
     /// <summary>
-    /// Analyze completed sell trades to determine win/loss statistics.
+    /// Analyze trades to determine win/loss statistics.
+    /// Includes both completed (sold) trades and open positions with unrealized P/L.
     /// </summary>
     private async Task<(int wins, int losses, decimal grossProfit, decimal grossLoss, decimal avgWin, decimal avgLoss)> AnalyzeTradesAsync(
         string portfolioId, CancellationToken cancellationToken)
@@ -243,7 +281,6 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
         var tradeList = trades.ToList();
 
-        // Group by symbol and analyze sell trades vs average cost
         var tradesBySymbol = tradeList.GroupBy(t => t.Symbol);
         var tradePnLs = new List<decimal>();
 
@@ -252,18 +289,40 @@ public class PerformanceMetricsService : IPerformanceMetricsService
             var buys = symbolGroup.Where(t => t.TradeType == TradeType.BUY).OrderBy(t => t.TradeDate).ToList();
             var sells = symbolGroup.Where(t => t.TradeType == TradeType.SELL).OrderBy(t => t.TradeDate).ToList();
 
-            if (buys.Count == 0 || sells.Count == 0) continue;
+            if (buys.Count == 0) continue;
 
-            // Calculate average cost
             var totalBuyQty = buys.Sum(b => b.Quantity);
             var totalBuyCost = buys.Sum(b => b.Quantity * b.Price);
             var avgCost = totalBuyQty > 0 ? totalBuyCost / totalBuyQty : 0;
 
-            // Each sell is a "trade result"
-            foreach (var sell in sells)
+            if (sells.Count > 0)
             {
-                var pnl = sell.Quantity * (sell.Price - avgCost) - sell.Fee - sell.Tax;
-                tradePnLs.Add(pnl);
+                // Completed trades: each sell is a "trade result"
+                foreach (var sell in sells)
+                {
+                    var pnl = sell.Quantity * (sell.Price - avgCost) - sell.Fee - sell.Tax;
+                    tradePnLs.Add(pnl);
+                }
+            }
+
+            // Open position: calculate unrealized P/L using current price
+            var remainingQty = totalBuyQty - sells.Sum(s => s.Quantity);
+            if (remainingQty > 0)
+            {
+                try
+                {
+                    var positionPnl = await _pnlService.CalculatePositionPnLAsync(
+                        portfolioId, new StockSymbol(symbolGroup.Key), cancellationToken);
+                    if (positionPnl.Quantity > 0)
+                    {
+                        var unrealizedPnL = positionPnl.Quantity * (positionPnl.CurrentPrice - positionPnl.AverageCost);
+                        tradePnLs.Add(unrealizedPnL);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not calculate unrealized P/L for {Symbol}", symbolGroup.Key);
+                }
             }
         }
 

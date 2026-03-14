@@ -10,6 +10,7 @@ public class TradeJournal : AggregateRoot
     public string TradeId { get; private set; }
     public string UserId { get; private set; }
     public string PortfolioId { get; private set; }
+    public string? TradePlanId { get; private set; }
 
     // Pre-trade analysis
     public string EntryReason { get; private set; }
@@ -72,6 +73,12 @@ public class TradeJournal : AggregateRoot
         if (tags != null) Tags = tags;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
+    }
+
+    public void LinkTradePlan(string tradePlanId)
+    {
+        TradePlanId = tradePlanId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void SoftDelete()

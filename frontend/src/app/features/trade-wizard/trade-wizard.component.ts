@@ -1,16 +1,18 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { RiskService, RiskProfile } from '../../core/services/risk.service';
 import { TradeService, CreateTradeRequest } from '../../core/services/trade.service';
 import { JournalService, CreateJournalRequest } from '../../core/services/journal.service';
+import { TradePlanService } from '../../core/services/trade-plan.service';
 import { MarketDataService } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
+import { isBuyTrade, getTradeTypeDisplay } from '../../shared/constants/trade-types';
 
 interface ChecklistItem {
   label: string;
@@ -346,9 +348,9 @@ interface PositionCalc {
               <div class="flex justify-between text-sm">
                 <span class="text-gray-500">Hướng</span>
                 <span class="font-medium"
-                  [class.text-green-600]="plan.direction === 'Buy'"
-                  [class.text-red-600]="plan.direction === 'Sell'">
-                  {{ plan.direction === 'Buy' ? 'Mua' : 'Bán' }}
+                  [class.text-green-600]="isBuyTrade(plan.direction)"
+                  [class.text-red-600]="!isBuyTrade(plan.direction)">
+                  {{ getTradeTypeDisplay(plan.direction) }}
                 </span>
               </div>
               <hr class="border-gray-200">
@@ -500,13 +502,20 @@ export class TradeWizardComponent implements OnInit {
   private tradeService = inject(TradeService);
   private journalService = inject(JournalService);
   private marketDataService = inject(MarketDataService);
+  private tradePlanService = inject(TradePlanService);
   private notificationService = inject(NotificationService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   loadingPrice = false;
   fetchedPrice: number | null = null;
+  planId: string | null = null;
+  lotNumber: number | null = null;
 
-  steps = ['Chiến lược', 'Kế hoạch', 'Checklist', 'Xác nhận', 'Nhật ký'];
+  isBuyTrade = isBuyTrade;
+  getTradeTypeDisplay = getTradeTypeDisplay;
+
+  steps =['Chiến lược', 'Kế hoạch', 'Checklist', 'Xác nhận', 'Nhật ký'];
   currentStep = 0;
 
   // Step 1
@@ -559,6 +568,46 @@ export class TradeWizardComponent implements OnInit {
   ngOnInit(): void {
     this.loadStrategies();
     this.loadPortfolios();
+    this.applyQueryParams();
+  }
+
+  private applyQueryParams(): void {
+    const params = this.route.snapshot.queryParams;
+    this.planId = params['planId'] || null;
+    this.lotNumber = params['lotNumber'] ? +params['lotNumber'] : null;
+
+    if (params['symbol']) this.plan.symbol = params['symbol'];
+    if (params['direction']) this.plan.direction = params['direction'] as 'Buy' | 'Sell';
+    if (params['price']) this.plan.entryPrice = +params['price'];
+    if (params['quantity']) this.plan.entryPrice = this.plan.entryPrice || 0; // quantity handled via positionCalc
+    if (params['portfolioId']) this.plan.portfolioId = params['portfolioId'];
+    if (params['stopLoss']) this.plan.stopLoss = +params['stopLoss'];
+    if (params['takeProfit']) this.plan.takeProfit = +params['takeProfit'];
+
+    // If planId provided, load full plan data
+    if (this.planId) {
+      this.tradePlanService.getById(this.planId).subscribe({
+        next: (tp) => {
+          this.plan.symbol = tp.symbol;
+          this.plan.direction = tp.direction as 'Buy' | 'Sell';
+          this.plan.entryPrice = tp.entryPrice;
+          this.plan.stopLoss = tp.stopLoss;
+          this.plan.takeProfit = tp.target;
+          this.plan.portfolioId = tp.portfolioId || '';
+          this.plan.accountBalance = tp.accountBalance || 0;
+          this.plan.riskPercent = tp.riskPercent || 2;
+          if (tp.strategyId) {
+            const strat = this.strategies.find(s => s.id === tp.strategyId);
+            if (strat) this.selectStrategy(strat);
+          }
+          if (tp.portfolioId) this.onPortfolioChange();
+          this.calculate();
+          // Mark plan as InProgress
+          this.tradePlanService.updateStatus(this.planId!, { status: 'inprogress' }).subscribe();
+        },
+        error: () => this.notificationService.error('Lỗi', 'Không thể tải kế hoạch')
+      });
+    }
   }
 
   // --- Data Loading ---
@@ -737,7 +786,7 @@ export class TradeWizardComponent implements OnInit {
         this.notificationService.success('Thành công', `Giao dịch ${this.plan.symbol.toUpperCase()} đã được ghi nhận`);
 
         // Pre-fill journal
-        this.journal.entryReason = `${this.plan.direction === 'Buy' ? 'Mua' : 'Bán'} ${this.plan.symbol.toUpperCase()} tại giá ${this.plan.entryPrice}`;
+        this.journal.entryReason = `${getTradeTypeDisplay(this.plan.direction)} ${this.plan.symbol.toUpperCase()} tại giá ${this.plan.entryPrice}`;
         if (this.selectedStrategy) {
           this.journal.technicalSetup = `Chiến lược: ${this.selectedStrategy.name}`;
         }
@@ -745,6 +794,35 @@ export class TradeWizardComponent implements OnInit {
         // Link strategy if selected
         if (this.selectedStrategy && this.createdTradeId) {
           this.strategyService.linkTrade(this.selectedStrategy.id, this.createdTradeId).subscribe();
+        }
+
+        // Update or create trade plan with Executed status
+        if (this.planId && this.createdTradeId && this.lotNumber) {
+          // Execute specific lot
+          this.tradePlanService.executeLot(this.planId, this.lotNumber, {
+            tradeId: this.createdTradeId, actualPrice: this.plan.entryPrice
+          }).subscribe();
+        } else if (this.planId && this.createdTradeId) {
+          this.tradePlanService.updateStatus(this.planId, { status: 'executed', tradeId: this.createdTradeId }).subscribe();
+        } else if (this.createdTradeId) {
+          // Auto-create plan from wizard data (fire-and-forget)
+          this.tradePlanService.create({
+            symbol: this.plan.symbol.toUpperCase(),
+            direction: this.plan.direction,
+            entryPrice: this.plan.entryPrice,
+            stopLoss: this.plan.stopLoss,
+            target: this.plan.takeProfit,
+            quantity: this.positionCalc?.optimalShares || 0,
+            portfolioId: this.plan.portfolioId || undefined,
+            strategyId: this.selectedStrategy?.id || undefined,
+            marketCondition: 'Trending',
+            riskPercent: this.plan.riskPercent,
+            accountBalance: this.plan.accountBalance,
+            riskRewardRatio: this.positionCalc?.riskRewardRatio,
+            confidenceLevel: 5,
+            status: 'Executed',
+            tradeId: this.createdTradeId
+          }).subscribe();
         }
 
         // Set stop-loss target
@@ -796,6 +874,34 @@ export class TradeWizardComponent implements OnInit {
   }
 
   goToDashboard(): void {
+    if (this.createdTradeId && !this.journalSaved) {
+      const save = confirm('Bạn chưa lưu nhật ký giao dịch. Bạn có muốn lưu trước khi rời không?');
+      if (save) {
+        this.isSavingJournal = true;
+        const request: CreateJournalRequest = {
+          tradeId: this.createdTradeId,
+          portfolioId: this.plan.portfolioId,
+          entryReason: this.journal.entryReason || undefined,
+          marketContext: this.journal.marketContext || undefined,
+          technicalSetup: this.journal.technicalSetup || undefined,
+          emotionalState: this.journal.emotionalState || undefined,
+          confidenceLevel: this.journal.confidenceLevel || undefined,
+        };
+        this.journalService.create(request).subscribe({
+          next: () => {
+            this.isSavingJournal = false;
+            this.notificationService.success('Thành công', 'Nhật ký đã được lưu');
+            this.router.navigate(['/dashboard']);
+          },
+          error: () => {
+            this.isSavingJournal = false;
+            this.notificationService.error('Lỗi', 'Không thể lưu nhật ký');
+            this.router.navigate(['/dashboard']);
+          }
+        });
+        return;
+      }
+    }
     this.router.navigate(['/dashboard']);
   }
 

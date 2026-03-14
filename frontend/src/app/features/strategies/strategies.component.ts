@@ -9,11 +9,12 @@ import {
 import { TemplateService, StrategyTemplate } from '../../core/services/template.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-strategies',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -214,7 +215,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <span class="text-xs font-normal text-gray-400 ml-1">(% dưới giá vào)</span>
             </label>
             <div class="flex items-center gap-2">
-              <input [(ngModel)]="newStrategy.suggestedSlPercent" type="number" step="0.5" min="0.5" max="20"
+              <input [(ngModel)]="newStrategy.suggestedSlPercent" type="text" inputmode="numeric" appNumMask [decimals]="1"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="VD: 5 → SL = giá vào - 5%">
               <span class="text-gray-400 text-sm whitespace-nowrap">%</span>
@@ -226,7 +227,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <span class="text-xs font-normal text-gray-400 ml-1">(lợi nhuận / rủi ro)</span>
             </label>
             <div class="flex items-center gap-2">
-              <input [(ngModel)]="newStrategy.suggestedRrRatio" type="number" step="0.5" min="1" max="10"
+              <input [(ngModel)]="newStrategy.suggestedRrRatio" type="text" inputmode="numeric" appNumMask [decimals]="1"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="VD: 2 → TP = entry + 2×risk">
               <span class="text-gray-400 text-sm">R</span>

@@ -8,6 +8,8 @@ public class PortfolioPnLSummary
     public decimal TotalInvested { get; set; }
     public decimal TotalPnL => TotalRealizedPnL + TotalUnrealizedPnL;
     public decimal TotalReturnPercentage => TotalInvested > 0 ? (TotalPnL / TotalInvested) * 100 : 0;
+    public decimal TotalPnLPercent => TotalReturnPercentage;
+    public decimal TotalMarketValue => TotalPortfolioValue;
     public List<PositionPnL> Positions { get; set; } = new();
 }
 

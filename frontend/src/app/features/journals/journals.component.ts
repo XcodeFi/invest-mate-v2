@@ -143,6 +143,10 @@ import { NotificationService } from '../../core/services/notification.service';
                 <div class="flex-1">
                   <div class="flex items-center gap-3 mb-2">
                     <span class="text-sm font-mono bg-gray-100 px-2 py-0.5 rounded">Trade: {{ j.tradeId | slice:0:8 }}...</span>
+                    <a *ngIf="j.tradePlanId" [routerLink]="['/trade-plan']" [queryParams]="{ loadPlan: j.tradePlanId }"
+                      class="px-2 py-0.5 text-xs rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
+                      KH
+                    </a>
                     <div class="flex">
                       <span *ngFor="let star of [1,2,3,4,5]"
                         class="text-lg" [class.text-yellow-400]="star <= j.rating" [class.text-gray-300]="star > j.rating">★</span>

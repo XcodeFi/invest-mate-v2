@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioSummary, TradeResponseItem } from '../../core/services/portfolio.service';
 import { TradeService } from '../../core/services/trade.service';
@@ -41,13 +41,20 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Mã chứng khoán</label>
-              <input
-                type="text"
-                placeholder="VD: AAPL, VNM..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                [(ngModel)]="filters.symbol"
-                (input)="applyFilters()"
-              />
+              <div class="relative">
+                <input
+                  type="text"
+                  placeholder="VD: AAPL, VNM..."
+                  class="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  [(ngModel)]="filters.symbol"
+                  (input)="applyFilters()"
+                />
+                <button *ngIf="filters.symbol"
+                  (click)="clearSymbolFilter()"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
+                  title="Xóa bộ lọc"
+                >&times;</button>
+              </div>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Loại giao dịch</label>
@@ -97,13 +104,17 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phí</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thuế</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày giao dịch</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Kế hoạch</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr *ngFor="let trade of filteredTrades" class="hover:bg-gray-50">
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">{{ trade.symbol }}</div>
+                    <button (click)="filterBySymbol(trade.symbol)"
+                      class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">
+                      {{ trade.symbol }}
+                    </button>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -130,6 +141,14 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ formatDate(trade.tradeDate) }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <a *ngIf="trade.tradePlanId" [routerLink]="['/trade-plan']"
+                      [queryParams]="{ loadPlan: trade.tradePlanId }"
+                      class="text-blue-600 hover:text-blue-800 font-medium">
+                      Xem
+                    </a>
+                    <span *ngIf="!trade.tradePlanId" class="text-gray-300">---</span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
@@ -214,7 +233,8 @@ export class TradesComponent implements OnInit {
   constructor(
     private portfolioService: PortfolioService,
     private tradeService: TradeService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private route: ActivatedRoute
   ) {}
 
   // Trade type utility functions
@@ -223,6 +243,10 @@ export class TradesComponent implements OnInit {
   TRADE_TYPE_FILTER_OPTIONS = TRADE_TYPE_FILTER_OPTIONS;
 
   ngOnInit(): void {
+    const params = this.route.snapshot.queryParams;
+    if (params['symbol']) {
+      this.filters.symbol = params['symbol'];
+    }
     this.loadTrades();
   }
 
@@ -274,8 +298,10 @@ export class TradesComponent implements OnInit {
     });
   }
 
+  private _filtered: TradeResponseItem[] = [];
+
   applyFilters(): void {
-    let filtered = this.allTrades.filter(trade => {
+    this._filtered = this.allTrades.filter(trade => {
       const matchesSymbol = !this.filters.symbol || trade.symbol.toLowerCase().includes(this.filters.symbol.toLowerCase());
       const matchesType = !this.filters.type || trade.tradeType === this.filters.type;
       const matchesFromDate = !this.filters.fromDate || new Date(trade.tradeDate) >= new Date(this.filters.fromDate);
@@ -283,25 +309,28 @@ export class TradesComponent implements OnInit {
       return matchesSymbol && matchesType && matchesFromDate && matchesToDate;
     });
 
-    this.totalTrades = filtered.length;
+    this.totalTrades = this._filtered.length;
     this.totalPages = Math.ceil(this.totalTrades / this.pageSize);
     this.currentPage = 1;
+    this.updatePage();
+  }
 
+  private updatePage(): void {
     const startIndex = (this.currentPage - 1) * this.pageSize;
-    this.filteredTrades = filtered.slice(startIndex, startIndex + this.pageSize);
+    this.filteredTrades = this._filtered.slice(startIndex, startIndex + this.pageSize);
   }
 
   previousPage(): void {
     if (this.currentPage > 1) {
       this.currentPage--;
-      this.applyFilters();
+      this.updatePage();
     }
   }
 
   nextPage(): void {
     if (this.currentPage < this.totalPages) {
       this.currentPage++;
-      this.applyFilters();
+      this.updatePage();
     }
   }
 
@@ -328,6 +357,16 @@ export class TradesComponent implements OnInit {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  clearSymbolFilter(): void {
+    this.filters.symbol = '';
+    this.applyFilters();
+  }
+
+  filterBySymbol(symbol: string): void {
+    this.filters.symbol = symbol;
+    this.applyFilters();
   }
 
   min(a: number, b: number): number {

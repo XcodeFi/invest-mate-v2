@@ -89,6 +89,14 @@ public interface ITradeJournalRepository : IRepository<TradeJournal>
     Task<IEnumerable<TradeJournal>> GetByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default);
 }
 
+public interface ITradePlanRepository : IRepository<TradePlan>
+{
+    Task<IEnumerable<TradePlan>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<TradePlan?> GetByTradeIdAsync(string tradeId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<TradePlan>> GetActiveByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<TradePlan?> GetActiveByPortfolioAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
+}
+
 public interface IAlertRuleRepository : IRepository<AlertRule>
 {
     Task<IEnumerable<AlertRule>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);

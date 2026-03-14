@@ -55,8 +55,8 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">% P&L</p>
-            <p class="text-2xl font-bold mt-1" [class]="pnl.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'">
-              {{ pnl.totalPnLPercent.toFixed(2) }}%
+            <p class="text-2xl font-bold mt-1" [class]="(pnl.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ (pnl.totalPnLPercent ?? 0).toFixed(2) }}%
             </p>
           </div>
         </div>
@@ -142,7 +142,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
                     {{ pos.realizedPnL | vndCurrency }}
                   </td>
                   <td class="px-6 py-4 text-sm font-bold" [class]="pos.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                    {{ pos.totalPnL | vndCurrency }} ({{ pos.totalPnLPercent.toFixed(2) }}%)
+                    {{ pos.totalPnL | vndCurrency }} ({{ (pos.totalPnLPercent ?? 0).toFixed(2) }}%)
                   </td>
                 </tr>
               </tbody>
@@ -189,7 +189,7 @@ export class PortfolioAnalyticsComponent implements OnInit {
   }
 
   getPositionPercent(marketValue: number): string {
-    if (!this.pnl || this.pnl.totalMarketValue === 0) return '0.00';
+    if (!this.pnl || !this.pnl.totalMarketValue) return '0.00';
     return ((marketValue / this.pnl.totalMarketValue) * 100).toFixed(2);
   }
 

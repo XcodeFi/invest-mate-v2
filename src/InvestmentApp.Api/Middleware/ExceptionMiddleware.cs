@@ -35,15 +35,23 @@ public class ExceptionMiddleware
         var statusCode = exception switch
         {
             UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
+            ArgumentException => (int)HttpStatusCode.BadRequest,
+            KeyNotFoundException => (int)HttpStatusCode.NotFound,
             _ => (int)HttpStatusCode.InternalServerError
+        };
+
+        var title = exception switch
+        {
+            UnauthorizedAccessException => "Unauthorized",
+            ArgumentException => "Bad Request",
+            KeyNotFoundException => "Not Found",
+            _ => "An error occurred"
         };
 
         var problem = new ProblemDetails
         {
-            Type = statusCode == 401
-                ? "https://tools.ietf.org/html/rfc7235#section-3.1"
-                : "https://tools.ietf.org/html/rfc7231#section-6.6.1",
-            Title = statusCode == 401 ? "Unauthorized" : "An error occurred",
+            Type = $"https://httpstatuses.com/{statusCode}",
+            Title = title,
             Detail = exception.Message,
             Instance = context.Request.Path,
             Status = statusCode

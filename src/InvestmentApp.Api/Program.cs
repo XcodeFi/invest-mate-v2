@@ -112,6 +112,7 @@ builder.Services.AddScoped<IAlertRuleRepository, AlertRuleRepository>();
 builder.Services.AddScoped<IAlertHistoryRepository, AlertHistoryRepository>();
 builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 builder.Services.AddScoped<IBacktestRepository, BacktestRepository>();
+builder.Services.AddScoped<ITradePlanRepository, TradePlanRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IAuditService, AuditService>();

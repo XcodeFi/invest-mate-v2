@@ -16,6 +16,7 @@ public class CreateJournalCommand : IRequest<string>
     public string TechnicalSetup { get; set; } = string.Empty;
     public string EmotionalState { get; set; } = string.Empty;
     public int ConfidenceLevel { get; set; } = 5;
+    public string? TradePlanId { get; set; }
 }
 
 public class CreateJournalCommandHandler : IRequestHandler<CreateJournalCommand, string>
@@ -45,6 +46,11 @@ public class CreateJournalCommandHandler : IRequestHandler<CreateJournalCommand,
             request.EntryReason, request.MarketContext, request.TechnicalSetup,
             request.EmotionalState, request.ConfidenceLevel
         );
+
+        // Link trade plan if provided (or inherit from trade)
+        var planId = request.TradePlanId ?? trade.TradePlanId;
+        if (!string.IsNullOrEmpty(planId))
+            journal.LinkTradePlan(planId);
 
         await _journalRepository.AddAsync(journal, cancellationToken);
         return journal.Id;

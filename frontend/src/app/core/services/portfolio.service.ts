@@ -125,4 +125,5 @@ export interface TradeResponseItem {
   tax: number;
   tradeDate: string;
   totalValue: number;
+  tradePlanId?: string;
 }

@@ -18,6 +18,7 @@ export interface TradeJournal {
   lessonsLearned: string;
   rating: number;
   tags: string[];
+  tradePlanId?: string;
   createdAt: string;
   updatedAt: string;
 }

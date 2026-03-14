@@ -23,6 +23,7 @@ public class JournalDto
     public string LessonsLearned { get; set; } = string.Empty;
     public int Rating { get; set; }
     public List<string> Tags { get; set; } = new();
+    public string? TradePlanId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -56,6 +57,7 @@ public class GetJournalsQueryHandler : IRequestHandler<GetJournalsQuery, IEnumer
             LessonsLearned = j.LessonsLearned,
             Rating = j.Rating,
             Tags = j.Tags ?? new(),
+            TradePlanId = j.TradePlanId,
             CreatedAt = j.CreatedAt,
             UpdatedAt = j.UpdatedAt
         });

@@ -72,7 +72,8 @@ public class GetTradesByPortfolioQueryHandler : IRequestHandler<GetTradesByPortf
                 Fee = t.Fee,
                 Tax = t.Tax,
                 TradeDate = t.TradeDate,
-                TotalValue = t.Quantity * t.Price + (t.TradeType == Domain.Entities.TradeType.BUY ? t.Fee + t.Tax : -(t.Fee + t.Tax))
+                TotalValue = t.Quantity * t.Price + (t.TradeType == Domain.Entities.TradeType.BUY ? t.Fee + t.Tax : -(t.Fee + t.Tax)),
+                TradePlanId = t.TradePlanId
             })
             .ToList();
 
@@ -99,6 +100,7 @@ public class TradeDto
     public decimal Tax { get; set; }
     public DateTime TradeDate { get; set; }
     public decimal TotalValue { get; set; }
+    public string? TradePlanId { get; set; }
 }
 
 public class TradeListDto

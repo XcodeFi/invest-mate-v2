@@ -67,7 +67,9 @@ public class RiskCalculationService : IRiskCalculationService
         var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
         var tradesBySymbol = trades.GroupBy(t => t.Symbol).ToList();
         var stopLossTargets = await _stopLossTargetRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
-        var slTargetMap = stopLossTargets.ToDictionary(s => s.Symbol, s => s);
+        var slTargetMap = stopLossTargets
+            .GroupBy(s => s.Symbol)
+            .ToDictionary(g => g.Key, g => g.Last());
 
         // Calculate total portfolio value
         var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
