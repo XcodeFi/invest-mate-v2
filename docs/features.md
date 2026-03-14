@@ -297,12 +297,14 @@ Hai cơ chế song song trong project:
 
 **File:** `trade-plan.component.ts`, `trade-plan.service.ts`
 
-- **Entry mode**: Một lần / Chia lô (ScalingIn) / DCA
-- **Lot editor**: bảng dynamic add/remove lot, preset phân bổ (40/30/30, 50/50, equal)
+- **Entry mode**: Một lần / Chia lô (ScalingIn) / DCA — mỗi mode có UI riêng
+- **Lot editor** (ScalingIn): bảng dynamic add/remove lot, preset phân bổ (40/30/30, 50/50, equal)
+- **DCA editor**: số tiền/lần, tần suất (tuần/2 tuần/tháng), số kỳ, ngày bắt đầu, khoảng giá, bảng lịch mua dự kiến với tích luỹ
 - **Exit targets**: TP1, TP2, CutLoss, Trailing Stop với giá + % vị thế
 - **Stop-loss history**: ghi nhận lịch sử thay đổi SL
 - **Phiếu lệnh (Order Sheet)**: panel toggle hiển thị tóm tắt lệnh, nút copy clipboard
 - **Saved plans**: danh sách kế hoạch đã lưu, filter trạng thái, lot progress bar, thực hiện từng lot
+- **Empty-when-zero placeholders**: các trường Giá vào, SL, TP, Số lượng hiện placeholder khi chưa nhập (không hiện "0")
 
 **Backend:** `TradePlan.cs` entity, `TradePlansController.cs`, lifecycle Draft→Ready→InProgress→Executed→Reviewed→Cancelled
 
