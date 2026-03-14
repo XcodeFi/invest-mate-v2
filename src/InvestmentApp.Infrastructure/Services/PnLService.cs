@@ -36,8 +36,15 @@ public class PnLService : IPnLService
 
         foreach (var symbolGroup in tradesBySymbol)
         {
-            var positionPnL = await CalculatePositionPnLAsync(portfolioId, new StockSymbol(symbolGroup.Key), cancellationToken);
-            positionPnLs.Add(positionPnL);
+            try
+            {
+                var positionPnL = await CalculatePositionPnLAsync(portfolioId, new StockSymbol(symbolGroup.Key), cancellationToken);
+                positionPnLs.Add(positionPnL);
+            }
+            catch
+            {
+                // Skip symbols that fail (e.g., price not available) to prevent cascading failures
+            }
         }
 
         var totalRealizedPnL = positionPnLs.Sum(p => p.RealizedPnL);

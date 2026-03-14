@@ -1,6 +1,7 @@
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.ValueObjects;
 
 namespace InvestmentApp.Infrastructure.Services;
 
@@ -9,15 +10,18 @@ public class StrategyPerformanceService : IStrategyPerformanceService
     private readonly IStrategyRepository _strategyRepository;
     private readonly ITradeRepository _tradeRepository;
     private readonly IPortfolioRepository _portfolioRepository;
+    private readonly IStockPriceService _stockPriceService;
 
     public StrategyPerformanceService(
         IStrategyRepository strategyRepository,
         ITradeRepository tradeRepository,
-        IPortfolioRepository portfolioRepository)
+        IPortfolioRepository portfolioRepository,
+        IStockPriceService stockPriceService)
     {
         _strategyRepository = strategyRepository;
         _tradeRepository = tradeRepository;
         _portfolioRepository = portfolioRepository;
+        _stockPriceService = stockPriceService;
     }
 
     public async Task<StrategyPerformanceSummary> GetPerformanceAsync(string strategyId, string userId, CancellationToken cancellationToken = default)
@@ -34,7 +38,7 @@ public class StrategyPerformanceService : IStrategyPerformanceService
             allTrades.AddRange(trades.Where(t => t.StrategyId == strategyId));
         }
 
-        return CalculatePerformance(strategyId, strategy.Name, allTrades);
+        return await CalculatePerformanceAsync(strategyId, strategy.Name, allTrades);
     }
 
     public async Task<IEnumerable<StrategyComparisonItem>> CompareStrategiesAsync(IEnumerable<string> strategyIds, string userId, CancellationToken cancellationToken = default)
@@ -58,7 +62,7 @@ public class StrategyPerformanceService : IStrategyPerformanceService
         return results;
     }
 
-    private StrategyPerformanceSummary CalculatePerformance(string strategyId, string strategyName, List<Trade> trades)
+    private async Task<StrategyPerformanceSummary> CalculatePerformanceAsync(string strategyId, string strategyName, List<Trade> trades)
     {
         var summary = new StrategyPerformanceSummary
         {
@@ -79,17 +83,34 @@ public class StrategyPerformanceService : IStrategyPerformanceService
             var buys = group.Where(t => t.TradeType == TradeType.BUY).OrderBy(t => t.TradeDate).ToList();
             var sells = group.Where(t => t.TradeType == TradeType.SELL).OrderBy(t => t.TradeDate).ToList();
 
-            if (buys.Count == 0 || sells.Count == 0) continue;
+            if (buys.Count == 0) continue;
 
             decimal totalBuyQty = buys.Sum(b => b.Quantity);
             decimal totalBuyCost = buys.Sum(b => b.Quantity * b.Price + b.Fee + b.Tax);
             decimal avgCost = totalBuyCost / totalBuyQty;
 
-            foreach (var sell in sells)
+            if (sells.Count > 0)
             {
-                decimal pnl = sell.Quantity * (sell.Price - avgCost) - sell.Fee - sell.Tax;
-                pnlPerTrade.Add(pnl);
-                totalPnL += pnl;
+                foreach (var sell in sells)
+                {
+                    decimal pnl = sell.Quantity * (sell.Price - avgCost) - sell.Fee - sell.Tax;
+                    pnlPerTrade.Add(pnl);
+                    totalPnL += pnl;
+                }
+            }
+
+            // Open position: calculate unrealized P/L
+            var remainingQty = totalBuyQty - sells.Sum(s => s.Quantity);
+            if (remainingQty > 0)
+            {
+                try
+                {
+                    var currentPrice = await _stockPriceService.GetCurrentPriceAsync(new StockSymbol(group.Key));
+                    var unrealizedPnL = remainingQty * (currentPrice.Amount - avgCost);
+                    pnlPerTrade.Add(unrealizedPnL);
+                    totalPnL += unrealizedPnL;
+                }
+                catch { }
             }
         }
 

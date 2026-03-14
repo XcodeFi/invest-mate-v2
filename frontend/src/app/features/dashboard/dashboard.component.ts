@@ -899,9 +899,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.calculateCagrFromCurve(data);
           this.computePeriodStats();
           setTimeout(() => this.renderMiniEquityChart());
+        } else {
+          // No equity curve snapshots — use backend-calculated CAGR
+          this.loadBackendCagr(firstPortfolioId);
         }
       },
-      error: () => this.equityCurveData = null
+      error: () => {
+        this.equityCurveData = null;
+        this.loadBackendCagr(firstPortfolioId);
+      }
+    });
+  }
+
+  private loadBackendCagr(portfolioId: string): void {
+    this.advancedAnalyticsService.getPerformance(portfolioId).subscribe({
+      next: (perf) => {
+        if (perf.cagr !== 0 && isFinite(perf.cagr)) {
+          this.cagrValue = perf.cagr;
+          this.calculateProjections();
+        }
+      },
+      error: () => {}
     });
   }
 
