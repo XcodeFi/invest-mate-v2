@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.7.0] — 2026-03-14 · Phase 7 (tiếp): Bug fix Round 6
+
+**Branch:** `feature/phase7-improvements`
+
+### Sửa lỗi
+
+- **H1: Fix DCA mode**: tách UI riêng cho DCA — giao diện mới với Số tiền/lần, Tần suất (tuần/2 tuần/tháng), Số kỳ, Ngày bắt đầu, Khoảng giá, Lịch mua dự kiến với bảng schedule
+- **H2: Fix CAGR mismatch**: Dashboard và Analytics hiện dùng cùng nguồn CAGR (equity curve hoặc backend AdvancedAnalytics) — bỏ phép tính sai dùng `years=1` hardcoded
+- **M1: Fix vị thế lớn nhất > 100%**: sửa backend `RiskCalculationService` dùng `Math.Max(netWorth, totalMarketValue)` làm mẫu số cho position sizing — tránh % vượt 100% khi tiền mặt âm
+- **M3: Fix giá 0 trên trade-plan**: thêm `[emptyWhenZero]` directive vào NumMask — các trường Giá vào, Stop-Loss, Take-Profit, Số lượng hiện placeholder thay vì "0" khi chưa nhập
+
+### Cải thiện
+
+- **NumMaskDirective**: thêm `@Input() emptyWhenZero` — khi `true`, hiện empty thay vì "0" trong display mode
+- **DCA form**: summary card (tổng vốn, thời gian, tần suất) + schedule table với cumulative amount
+- **Trade Plan placeholders**: placeholder text gợi ý cho các trường giá ("Nhập giá dự kiến", "Mức cắt lỗ", "Mức chốt lời")
+
+---
+
 ## [v2.6.0] — 2026-03-14 · Phase 7 (tiếp): Trade UX, Positions, Multi-lot Plan
 
 **Branch:** `feature/phase7-improvements`

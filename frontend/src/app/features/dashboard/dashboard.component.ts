@@ -748,7 +748,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.summary = data;
         this.isLoading = false;
-        this.calculateCagr();
+        this.cagrValue = 0; // Will be set by equity curve or backend CAGR
         this.loadRiskAlerts(data);
         this.loadEquityCurve();
       },
@@ -901,6 +901,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.calculateCagrFromCurve(data);
           this.computePeriodStats();
           setTimeout(() => this.renderMiniEquityChart());
+          // If curve didn't produce CAGR (< 30 days), still try backend
+          if (this.cagrValue === 0) {
+            this.loadBackendCagr(firstPortfolioId);
+          }
         } else {
           // No equity curve snapshots — use backend-calculated CAGR
           this.loadBackendCagr(firstPortfolioId);

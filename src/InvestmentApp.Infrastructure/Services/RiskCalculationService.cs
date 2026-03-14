@@ -75,7 +75,9 @@ public class RiskCalculationService : IRiskCalculationService
         var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
         var totalFlows = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolioId, cancellationToken);
         var cashBalance = portfolio.InitialCapital + totalFlows - pnlSummary.TotalInvested;
-        var totalValue = pnlSummary.TotalPortfolioValue + cashBalance;
+        // Use the larger of net worth or total market value as denominator for position sizing,
+        // ensuring position percentages never exceed 100%
+        var totalValue = Math.Max(pnlSummary.TotalPortfolioValue + cashBalance, pnlSummary.TotalPortfolioValue);
 
         var positions = new List<PositionRiskItem>();
         foreach (var symbolGroup in tradesBySymbol)
