@@ -15,6 +15,7 @@ public class Trade : AggregateRoot
     public DateTime TradeDate { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public string? StrategyId { get; private set; }
+    public string? TradePlanId { get; private set; }
 
     [BsonConstructor]
     public Trade() { } // For EF/MongoDB
@@ -41,6 +42,16 @@ public class Trade : AggregateRoot
     public void UnlinkStrategy()
     {
         StrategyId = null;
+    }
+
+    public void LinkTradePlan(string tradePlanId)
+    {
+        TradePlanId = tradePlanId;
+    }
+
+    public void UnlinkTradePlan()
+    {
+        TradePlanId = null;
     }
 }
 

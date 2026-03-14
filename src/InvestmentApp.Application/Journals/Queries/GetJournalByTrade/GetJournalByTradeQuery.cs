@@ -38,6 +38,7 @@ public class GetJournalByTradeQueryHandler : IRequestHandler<GetJournalByTradeQu
             LessonsLearned = journal.LessonsLearned,
             Rating = journal.Rating,
             Tags = journal.Tags ?? new(),
+            TradePlanId = journal.TradePlanId,
             CreatedAt = journal.CreatedAt,
             UpdatedAt = journal.UpdatedAt
         };

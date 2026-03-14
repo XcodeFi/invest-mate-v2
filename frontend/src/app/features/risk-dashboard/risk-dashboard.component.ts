@@ -37,7 +37,7 @@ interface StrategyScore {
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Risk Dashboard</h1>
+        <h1 class="text-2xl font-bold text-gray-800">Quản lý Rủi ro</h1>
         <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="loadDashboard()"
           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           <option value="">-- Chọn danh mục --</option>
@@ -65,7 +65,7 @@ interface StrategyScore {
             <div class="text-xs text-gray-400">Mức lỗ tối đa 1 ngày</div>
           </div>
           <div class="bg-white rounded-lg shadow p-4">
-            <div class="text-xs text-gray-500 mb-1">Max Drawdown <sup class="text-orange-400 font-bold">2</sup></div>
+            <div class="text-xs text-gray-500 mb-1">Sụt giảm tối đa <sup class="text-orange-400 font-bold">2</sup></div>
             <div class="text-xl font-bold text-red-600">{{ overview.maxDrawdown | number:'1.2-2' }}%</div>
             <div class="text-xs text-gray-400">Hiện tại: {{ overview.currentDrawdown | number:'1.2-2' }}%</div>
           </div>
@@ -113,8 +113,8 @@ interface StrategyScore {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <!-- Risk Profile Compliance -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Tuân thủ Risk Profile</h2>
-            <div *ngIf="!riskProfile" class="text-center py-4 text-gray-400">Chưa thiết lập risk profile</div>
+            <h2 class="text-lg font-semibold mb-4">Tuân thủ hồ sơ rủi ro</h2>
+            <div *ngIf="!riskProfile" class="text-center py-4 text-gray-400">Chưa thiết lập hồ sơ rủi ro</div>
             <div *ngIf="riskProfile" class="space-y-3">
               <div *ngFor="let item of complianceItems" class="flex items-center justify-between">
                 <div class="flex-1">
@@ -136,7 +136,7 @@ interface StrategyScore {
 
           <!-- Stop-Loss Status -->
           <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Trạng thái Stop-Loss</h2>
+            <h2 class="text-lg font-semibold mb-4">Trạng thái cắt lỗ</h2>
             <div class="grid grid-cols-3 gap-4 mb-4">
               <div class="text-center bg-blue-50 rounded-lg p-3">
                 <div class="text-2xl font-bold text-blue-700">{{ overview.activeSLCount }}</div>
@@ -148,14 +148,14 @@ interface StrategyScore {
               </div>
               <div class="text-center bg-yellow-50 rounded-lg p-3">
                 <div class="text-2xl font-bold text-yellow-700">{{ closestSLPercent | number:'1.1-1' }}%</div>
-                <div class="text-xs text-yellow-500">SL gần nhất</div>
+                <div class="text-xs text-yellow-500">Cắt lỗ gần nhất</div>
               </div>
             </div>
             <div *ngIf="nearestSLItems.length > 0" class="space-y-2">
-              <div class="text-xs font-medium text-gray-500 uppercase">Vị thế gần SL nhất</div>
+              <div class="text-xs font-medium text-gray-500 uppercase">Vị thế gần mức cắt lỗ nhất</div>
               <div *ngFor="let item of nearestSLItems" class="flex justify-between items-center text-sm bg-gray-50 rounded p-2">
                 <span class="font-medium">{{ item.symbol }}</span>
-                <span class="text-red-600">{{ item.distancePercent | number:'1.1-1' }}% tới SL</span>
+                <span class="text-red-600">{{ item.distancePercent | number:'1.1-1' }}% tới mức cắt lỗ</span>
               </div>
             </div>
           </div>
@@ -248,7 +248,7 @@ interface StrategyScore {
               <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-700">Ảnh hưởng tổng danh mục</span>
                 <span class="text-xl font-bold" [class.text-red-700]="stressTotalImpact < 0" [class.text-green-700]="stressTotalImpact >= 0">
-                  {{ stressTotalImpact >= 0 ? '+' : '' }}{{ stressTotalImpact | number:'1.0-0' }} VND
+                  {{ stressTotalImpact >= 0 ? '+' : '' }}{{ stressTotalImpact | number:'1.0-0' }} đ
                   ({{ stressTotalImpactPercent >= 0 ? '+' : '' }}{{ stressTotalImpactPercent | number:'1.2-2' }}%)
                 </span>
               </div>
@@ -259,7 +259,7 @@ interface StrategyScore {
                 <tr>
                   <th class="px-4 py-2 text-left text-xs text-gray-500">Mã CP</th>
                   <th class="px-4 py-2 text-right text-xs text-gray-500">Giá trị hiện tại</th>
-                  <th class="px-4 py-2 text-right text-xs text-gray-500">Beta ước tính <sup class="text-violet-400 font-bold">5</sup></th>
+                  <th class="px-4 py-2 text-right text-xs text-gray-500">Hệ số Beta <sup class="text-violet-400 font-bold">5</sup></th>
                   <th class="px-4 py-2 text-right text-xs text-gray-500">Ảnh hưởng</th>
                   <th class="px-4 py-2 text-right text-xs text-gray-500">Giá trị sau</th>
                 </tr>
@@ -285,8 +285,8 @@ interface StrategyScore {
 
         <!-- Risk Profile Setup -->
         <div class="bg-white rounded-lg shadow p-6 mt-6">
-          <h2 class="text-lg font-semibold mb-4">Thiết lập Risk Profile</h2>
-          <p class="text-sm text-gray-500 mb-4">Đặt quy tắc quản lý rủi ro cứng — Trade Plan sẽ cảnh báo khi vi phạm</p>
+          <h2 class="text-lg font-semibold mb-4">Thiết lập hồ sơ rủi ro</h2>
+          <p class="text-sm text-gray-500 mb-4">Đặt quy tắc quản lý rủi ro cứng — Kế hoạch giao dịch sẽ cảnh báo khi vi phạm</p>
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
@@ -302,10 +302,10 @@ interface StrategyScore {
               <div class="text-xs text-gray-400 mt-1">% vốn rủi ro mỗi lệnh</div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Max Drawdown Alert (%)</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Cảnh báo sụt giảm tối đa (%)</label>
               <input [(ngModel)]="riskProfileForm.maxDrawdownAlertPercent" type="number" step="1" min="5" max="50"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-              <div class="text-xs text-gray-400 mt-1">Ngưỡng cảnh báo drawdown</div>
+              <div class="text-xs text-gray-400 mt-1">Ngưỡng cảnh báo sụt giảm</div>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">R:R tối thiểu</label>
@@ -319,7 +319,7 @@ interface StrategyScore {
             <button (click)="saveRiskProfile()"
               class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               [disabled]="savingProfile">
-              {{ savingProfile ? 'Đang lưu...' : 'Lưu Risk Profile' }}
+              {{ savingProfile ? 'Đang lưu...' : 'Lưu hồ sơ rủi ro' }}
             </button>
             <span *ngIf="profileSaved" class="text-sm text-green-600 font-medium">Đã lưu thành công!</span>
           </div>
@@ -362,8 +362,8 @@ export class RiskDashboardComponent implements OnInit {
 
   // Stress Test
   stressScenarios = [
-    { label: 'Crash nặng', marketChange: -20 },
-    { label: 'Suy giảm', marketChange: -10 },
+    { label: 'Sập mạnh', marketChange: -20 },
+    { label: 'Giảm sâu', marketChange: -10 },
     { label: 'Điều chỉnh', marketChange: -5 },
     { label: 'Hồi phục', marketChange: 5 },
     { label: 'Tăng mạnh', marketChange: 15 },
@@ -521,9 +521,9 @@ export class RiskDashboardComponent implements OnInit {
     const hasSL = this.overview.activeSLCount > 0;
     if (!hasSL && risk.positionCount > 0) {
       score -= 20;
-      this.healthItems.push({ label: 'Thiếu stop-loss', status: 'danger' });
+      this.healthItems.push({ label: 'Thiếu cắt lỗ', status: 'danger' });
     } else {
-      this.healthItems.push({ label: 'Có stop-loss', status: 'good' });
+      this.healthItems.push({ label: 'Có cắt lỗ', status: 'good' });
     }
 
     this.riskHealthScore = Math.max(0, Math.min(100, score));

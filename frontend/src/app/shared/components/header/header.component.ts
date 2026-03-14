@@ -218,6 +218,7 @@ export class HeaderComponent implements OnInit {
       items: [
         { path: '/portfolios', label: 'Danh mục', icon: '📁' },
         { path: '/trades', label: 'Giao dịch', icon: '🔄' },
+        { path: '/positions', label: 'Vị thế', icon: '📊' },
         { path: '/capital-flows', label: 'Dòng vốn', icon: '💸' },
       ]
     },

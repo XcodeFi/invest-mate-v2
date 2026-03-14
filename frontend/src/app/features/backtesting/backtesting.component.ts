@@ -6,6 +6,7 @@ import { StrategyService, Strategy } from '../../core/services/strategy.service'
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
+import { getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
 
 @Component({
   selector: 'app-backtesting',
@@ -248,10 +249,8 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
                   <tr *ngFor="let t of selectedDetail.simulatedTrades" class="hover:bg-gray-50">
                     <td class="px-3 py-2 font-medium">{{ t.symbol }}</td>
                     <td class="px-3 py-2">
-                      <span class="px-2 py-0.5 rounded text-xs"
-                        [class.bg-green-100]="t.type === 'Buy'" [class.text-green-700]="t.type === 'Buy'"
-                        [class.bg-red-100]="t.type === 'Sell'" [class.text-red-700]="t.type === 'Sell'">
-                        {{ t.type === 'Buy' ? 'Mua' : 'Bán' }}
+                      <span class="px-2 py-0.5 rounded text-xs" [ngClass]="getTradeTypeClass(t.type)">
+                        {{ getTradeTypeDisplay(t.type) }}
                       </span>
                     </td>
                     <td class="px-3 py-2 text-right">{{ t.entryPrice | vndCurrency }}</td>
@@ -294,6 +293,9 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
   `
 })
 export class BacktestingComponent implements OnInit {
+  getTradeTypeDisplay = getTradeTypeDisplay;
+  getTradeTypeClass = getTradeTypeClass;
+
   backtests: BacktestSummary[] = [];
   strategies: Strategy[] = [];
   selectedDetail: BacktestDetail | null = null;

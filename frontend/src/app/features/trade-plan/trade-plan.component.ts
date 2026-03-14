@@ -8,9 +8,11 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
+import { TradePlanService, TradePlan as TradePlanDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
+import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
 
 interface ChecklistItem {
   label: string;
@@ -20,7 +22,23 @@ interface ChecklistItem {
   hint: string;
 }
 
-interface TradePlan {
+interface PlanLotForm {
+  lotNumber: number;
+  plannedPrice: number;
+  plannedQuantity: number;
+  allocationPercent: number;
+  label: string;
+}
+
+interface ExitTargetForm {
+  level: number;
+  actionType: string;
+  price: number;
+  percentOfPosition: number;
+  label: string;
+}
+
+interface TradePlanForm {
   symbol: string;
   direction: string;
   entryPrice: number;
@@ -34,6 +52,9 @@ interface TradePlan {
   confidenceLevel: number;
   checklist: ChecklistItem[];
   notes: string;
+  entryMode: string;
+  lots: PlanLotForm[];
+  exitTargets: ExitTargetForm[];
 }
 
 @Component({
@@ -42,7 +63,126 @@ interface TradePlan {
   imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
-      <h1 class="text-2xl font-bold text-gray-800 mb-6">Kế hoạch giao dịch (Trade Plan)</h1>
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Kế hoạch giao dịch (Trade Plan)</h1>
+        <div class="flex gap-2">
+          <button *ngIf="selectedPlanId" (click)="resetForm()"
+            class="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+            + Tạo mới
+          </button>
+          <button (click)="saveDraft()" [disabled]="saving || !plan.symbol"
+            class="px-4 py-2 border border-blue-300 hover:bg-blue-50 text-blue-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+            {{ saving ? 'Đang lưu...' : (selectedPlanId ? 'Cập nhật nháp' : 'Lưu nháp') }}
+          </button>
+          <button (click)="saveAndReady()" [disabled]="saving || !plan.symbol || !canTrade"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors">
+            {{ saving ? 'Đang lưu...' : 'Lưu & Sẵn sàng' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Saved Plans Panel -->
+      <div class="bg-white rounded-lg shadow mb-6">
+        <div class="px-4 py-3 border-b flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-gray-700">Kế hoạch đã lưu ({{ filteredSavedPlans.length }})</h2>
+          <div class="flex gap-1">
+            <button *ngFor="let tab of planFilterTabs" (click)="planFilterTab = tab.key; filterSavedPlans()"
+              class="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              [class.bg-blue-100]="planFilterTab === tab.key" [class.text-blue-700]="planFilterTab === tab.key"
+              [class.bg-gray-100]="planFilterTab !== tab.key" [class.text-gray-600]="planFilterTab !== tab.key">
+              {{ tab.label }}
+            </button>
+          </div>
+        </div>
+        <div *ngIf="savedPlansLoading" class="px-4 py-6 text-center text-gray-400 text-sm">Đang tải...</div>
+        <div *ngIf="!savedPlansLoading && filteredSavedPlans.length === 0" class="px-4 py-6 text-center text-gray-400 text-sm">
+          Chưa có kế hoạch nào{{ planFilterTab !== 'all' ? ' ở trạng thái này' : '' }}
+        </div>
+        <div *ngIf="!savedPlansLoading && filteredSavedPlans.length > 0" class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr>
+                <th class="px-4 py-2 text-left">Mã CK</th>
+                <th class="px-4 py-2 text-left">Hướng</th>
+                <th class="px-4 py-2 text-right">Giá vào</th>
+                <th class="px-4 py-2 text-right">SL / TP</th>
+                <th class="px-4 py-2 text-right">R:R</th>
+                <th class="px-4 py-2 text-center">Trạng thái</th>
+                <th class="px-4 py-2 text-left">Ngày tạo</th>
+                <th class="px-4 py-2 text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              <tr *ngFor="let sp of filteredSavedPlans" class="hover:bg-gray-50 cursor-pointer"
+                [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
+                <td class="px-4 py-2 font-bold">{{ sp.symbol }}</td>
+                <td class="px-4 py-2">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getTradeTypeClass(sp.direction)">
+                    {{ getTradeTypeDisplay(sp.direction) }}
+                  </span>
+                </td>
+                <td class="px-4 py-2 text-right">{{ sp.entryPrice | number:'1.0-0' }}</td>
+                <td class="px-4 py-2 text-right">
+                  <span class="text-red-500">{{ sp.stopLoss | number:'1.0-0' }}</span> /
+                  <span class="text-green-500">{{ sp.target | number:'1.0-0' }}</span>
+                </td>
+                <td class="px-4 py-2 text-right font-medium"
+                  [class.text-green-600]="getRR(sp) >= 2" [class.text-red-600]="getRR(sp) < 1">
+                  1:{{ getRR(sp) | number:'1.1-1' }}
+                </td>
+                <td class="px-4 py-2 text-center">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getStatusClass(sp.status)">
+                    {{ getStatusLabel(sp.status) }}
+                  </span>
+                  <div *ngIf="sp.lots && sp.lots.length > 0" class="mt-1">
+                    <div class="w-full bg-gray-200 rounded-full h-1.5">
+                      <div class="bg-amber-500 h-1.5 rounded-full" [style.width.%]="getLotProgress(sp)"></div>
+                    </div>
+                    <span class="text-xs text-amber-600">{{ getExecutedLotCount(sp) }}/{{ sp.lots.length }} lô</span>
+                  </div>
+                </td>
+                <td class="px-4 py-2 text-gray-500">{{ sp.createdAt | date:'dd/MM/yy HH:mm' }}</td>
+                <td class="px-4 py-2 text-center" (click)="$event.stopPropagation()">
+                  <div class="flex items-center justify-center gap-1">
+                    <button *ngIf="sp.status === 'Draft' || sp.status === 'Ready'"
+                      (click)="deletePlan(sp)" title="Xoá"
+                      class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                    </button>
+                    <button *ngIf="sp.status === 'Draft'" (click)="markReady(sp)" title="Sẵn sàng"
+                      class="p-1 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    </button>
+                    <button *ngIf="sp.status === 'Executed'" (click)="markReviewed(sp)" title="Đã review"
+                      class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                    </button>
+                    <button *ngIf="sp.status !== 'Cancelled' && sp.status !== 'Executed' && sp.status !== 'Reviewed'"
+                      (click)="cancelPlan(sp)" title="Huỷ"
+                      class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Editing indicator -->
+      <div *ngIf="selectedPlanId" class="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center justify-between">
+        <span class="text-sm text-blue-700">Đang chỉnh sửa kế hoạch: <strong>{{ plan.symbol }}</strong> ({{ getStatusLabel(selectedPlanStatus) }})</span>
+        <button (click)="resetForm()" class="text-xs text-blue-600 hover:text-blue-800 underline">Huỷ chỉnh sửa</button>
+      </div>
 
       <!-- Template Panel -->
       <div class="bg-white rounded-lg shadow p-4 mb-6">
@@ -160,6 +300,15 @@ interface TradePlan {
                   [placeholder]="optimalShares > 0 ? 'Tự động: ' + optimalShares : '0'">
               </div>
               <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Chế độ vào lệnh</label>
+                <select [(ngModel)]="plan.entryMode" (ngModelChange)="onEntryModeChange()"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                  <option value="Single">Một lần</option>
+                  <option value="ScalingIn">Chia lô</option>
+                  <option value="DCA">DCA</option>
+                </select>
+              </div>
+              <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Chiến lược</label>
                 <select [(ngModel)]="plan.strategyId" (ngModelChange)="onStrategyChange()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
@@ -181,6 +330,85 @@ interface TradePlan {
                   <option value="Volatile">Biến động</option>
                 </select>
               </div>
+            </div>
+
+            <!-- Lot Editor (Chia lô) -->
+            <div *ngIf="plan.entryMode !== 'Single'" class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-amber-800">
+                  {{ plan.entryMode === 'ScalingIn' ? 'Chia lô mua' : 'DCA' }}
+                  ({{ plan.lots.length }} lô — Tổng: {{ getLotsTotalQty() | number:'1.0-0' }} CP)
+                </h3>
+                <div class="flex gap-1">
+                  <button (click)="applyLotPreset('40-30-30')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">40/30/30</button>
+                  <button (click)="applyLotPreset('50-50')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">50/50</button>
+                  <button (click)="applyLotPreset('equal')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">Đều</button>
+                  <button (click)="addLot()" class="px-2 py-0.5 text-xs bg-amber-600 text-white hover:bg-amber-700 rounded">+ Thêm lô</button>
+                </div>
+              </div>
+              <table *ngIf="plan.lots.length > 0" class="w-full text-sm">
+                <thead class="text-xs text-amber-700">
+                  <tr>
+                    <th class="pb-1 text-left">Lô</th>
+                    <th class="pb-1 text-right">Giá mua</th>
+                    <th class="pb-1 text-right">Số lượng</th>
+                    <th class="pb-1 text-right">% vốn</th>
+                    <th class="pb-1 text-center w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let lot of plan.lots; let i = index" class="border-t border-amber-200">
+                    <td class="py-1 font-medium">Lô {{ lot.lotNumber }}</td>
+                    <td class="py-1">
+                      <input [(ngModel)]="lot.plannedPrice" type="text" inputmode="numeric" appNumMask
+                        (ngModelChange)="recalculateLots()" class="w-full px-2 py-1 border border-amber-300 rounded text-right text-sm">
+                    </td>
+                    <td class="py-1">
+                      <input [(ngModel)]="lot.plannedQuantity" type="text" inputmode="numeric" appNumMask
+                        (ngModelChange)="recalculateLots()" class="w-full px-2 py-1 border border-amber-300 rounded text-right text-sm">
+                    </td>
+                    <td class="py-1 text-right text-amber-700">{{ lot.allocationPercent | number:'1.0-0' }}%</td>
+                    <td class="py-1 text-center">
+                      <button (click)="removeLot(i)" class="text-red-400 hover:text-red-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div *ngIf="plan.lots.length > 1" class="mt-2 text-xs text-amber-700">
+                Giá TB dự kiến: {{ getLotsWeightedAvg() | number:'1.0-0' }}đ
+              </div>
+            </div>
+
+            <!-- Exit Targets -->
+            <div class="mt-4 bg-violet-50 border border-violet-200 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-violet-800">Thoát lệnh ({{ plan.exitTargets.length }} mục tiêu)</h3>
+                <button (click)="addExitTarget()" class="px-2 py-0.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded">+ Thêm</button>
+              </div>
+              <div *ngFor="let et of plan.exitTargets; let i = index" class="flex items-center gap-2 mb-2">
+                <select [(ngModel)]="et.actionType" class="px-2 py-1 border border-violet-300 rounded text-sm w-32">
+                  <option value="TakeProfit">Chốt lời</option>
+                  <option value="CutLoss">Cắt lỗ</option>
+                  <option value="TrailingStop">Trailing Stop</option>
+                  <option value="PartialExit">Bán một phần</option>
+                </select>
+                <input [(ngModel)]="et.price" type="text" inputmode="numeric" appNumMask placeholder="Giá"
+                  class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-28">
+                <input [(ngModel)]="et.percentOfPosition" type="number" placeholder="% vị thế" min="1" max="100"
+                  class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-20">
+                <span class="text-xs text-violet-500">%</span>
+                <input [(ngModel)]="et.label" type="text" placeholder="Ghi chú" class="px-2 py-1 border border-violet-300 rounded text-sm flex-1">
+                <button (click)="removeExitTarget(i)" class="text-red-400 hover:text-red-600">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <div *ngIf="plan.exitTargets.length === 0" class="text-xs text-violet-400">Chưa có mục tiêu thoát lệnh. TP hiện tại: {{ plan.target | number:'1.0-0' }}đ</div>
             </div>
 
             <div class="mt-4">
@@ -431,16 +659,32 @@ interface TradePlan {
 
             <!-- Action buttons -->
             <div class="mt-4 space-y-2">
-              <a routerLink="/trade-wizard"
+              <a [routerLink]="['/trade-wizard']"
+                [queryParams]="getWizardParams()"
                 class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
                 [class.opacity-50]="!canTrade" [class.pointer-events-none]="!canTrade">
-                🧙 Thực hiện qua Wizard
+                Thực hiện qua Wizard
               </a>
               <a [routerLink]="['/trades/create']"
-                [queryParams]="{ symbol: plan.symbol, direction: plan.direction, price: plan.entryPrice, quantity: plan.quantity || optimalShares, portfolioId: plan.portfolioId, stopLoss: plan.stopLoss, takeProfit: plan.target }"
+                [queryParams]="getTradeCreateParams()"
                 class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm">
-                Thực hiện ngay →
+                Thực hiện ngay
               </a>
+              <button (click)="showOrderSheet = !showOrderSheet"
+                class="block w-full text-center border border-indigo-300 hover:bg-indigo-50 text-indigo-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm">
+                {{ showOrderSheet ? 'Ẩn phiếu lệnh' : 'Xem phiếu lệnh' }}
+              </button>
+            </div>
+
+            <!-- Order Sheet (Phieu Lenh) -->
+            <div *ngIf="showOrderSheet" class="mt-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-indigo-800">Phiếu lệnh</h3>
+                <button (click)="copyOrderSheet()" class="px-3 py-1 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded">
+                  Copy
+                </button>
+              </div>
+              <div class="font-mono text-sm text-indigo-900 whitespace-pre-line">{{ getOrderSheetText() }}</div>
             </div>
           </div>
         </div>
@@ -489,6 +733,11 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   selectedStrategy: Strategy | null = null;
   riskProfile: RiskProfile | null = null;
 
+  // Shared trade type utilities
+  isBuyTrade = isBuyTrade;
+  getTradeTypeDisplay = getTradeTypeDisplay;
+  getTradeTypeClass = getTradeTypeClass;
+
   // Auto-fill stock price
   stockPrice: StockPrice | null = null;
   stockLoading = false;
@@ -499,10 +748,27 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   riskOverrideConfirmed = false;
   portfolioRiskSummary: PortfolioRiskSummary | null = null;
 
-  plan: TradePlan = {
+  // Saved plans
+  savedPlans: TradePlanDto[] = [];
+  filteredSavedPlans: TradePlanDto[] = [];
+  savedPlansLoading = false;
+  selectedPlanId: string | null = null;
+  selectedPlanStatus = '';
+  saving = false;
+  planFilterTab = 'all';
+  planFilterTabs = [
+    { key: 'all', label: 'Tất cả' },
+    { key: 'Draft', label: 'Nháp' },
+    { key: 'Ready', label: 'Sẵn sàng' },
+    { key: 'InProgress', label: 'Đang chờ' },
+    { key: 'Executed', label: 'Đã thực hiện' },
+  ];
+
+  plan: TradePlanForm = {
     symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
     quantity: 0, strategyId: '', portfolioId: '', reason: '',
-    marketCondition: 'Trending', confidenceLevel: 5, checklist: [], notes: ''
+    marketCondition: 'Trending', confidenceLevel: 5, checklist: [], notes: '',
+    entryMode: 'Single', lots: [], exitTargets: []
   };
 
   rr = 0;
@@ -535,6 +801,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   newTemplateName = '';
   savingTemplate = false;
 
+  // Order sheet
+  showOrderSheet = false;
+
   // Strategy auto-fill hints
   suggestedSlHint = '';
   suggestedTpHint = '';
@@ -547,6 +816,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     private riskService: RiskService,
     private marketDataService: MarketDataService,
     private templateService: TradePlanTemplateService,
+    private tradePlanService: TradePlanService,
     private notification: NotificationService
   ) {
     this.initChecklist();
@@ -556,6 +826,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.strategyService.getAll().subscribe({ next: d => this.strategies = d });
     this.portfolioService.getAll().subscribe({ next: d => this.portfolios = d });
     this.templateService.getAll().subscribe({ next: d => this.templates = d, error: () => {} });
+    this.loadSavedPlans();
 
     // Auto-fill: debounced symbol lookup
     this.symbolSubject.pipe(
@@ -701,7 +972,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     if (!s) return;
 
     const entry = this.plan.entryPrice;
-    const isBuy = this.plan.direction === 'Buy';
+    const isBuy = isBuyTrade(this.plan.direction);
 
     if (s.suggestedSlPercent) {
       const slValue = isBuy
@@ -898,5 +1169,434 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
     this.riskViolations = violations;
     if (violations.length === 0) this.riskOverrideConfirmed = false;
+  }
+
+  // --- Saved Plans ---
+
+  loadSavedPlans(): void {
+    this.savedPlansLoading = true;
+    this.tradePlanService.getAll().subscribe({
+      next: (plans) => {
+        this.savedPlans = plans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        this.filterSavedPlans();
+        this.savedPlansLoading = false;
+      },
+      error: () => { this.savedPlansLoading = false; }
+    });
+  }
+
+  filterSavedPlans(): void {
+    this.filteredSavedPlans = this.planFilterTab === 'all'
+      ? this.savedPlans
+      : this.savedPlans.filter(p => p.status === this.planFilterTab);
+  }
+
+  loadPlan(sp: TradePlanDto): void {
+    this.selectedPlanId = sp.id;
+    this.selectedPlanStatus = sp.status;
+    this.plan.symbol = sp.symbol;
+    this.plan.direction = sp.direction;
+    this.plan.entryPrice = sp.entryPrice;
+    this.plan.stopLoss = sp.stopLoss;
+    this.plan.target = sp.target;
+    this.plan.quantity = sp.quantity;
+    this.plan.strategyId = sp.strategyId || '';
+    this.plan.portfolioId = sp.portfolioId || '';
+    this.plan.reason = sp.reason || '';
+    this.plan.marketCondition = sp.marketCondition || 'Trending';
+    this.plan.confidenceLevel = sp.confidenceLevel;
+    this.plan.notes = sp.notes || '';
+    this.plan.entryMode = sp.entryMode || 'Single';
+    this.plan.lots = (sp.lots || []).map((l, i) => ({
+      lotNumber: l.lotNumber ?? (i + 1),
+      plannedPrice: l.plannedPrice,
+      plannedQuantity: l.plannedQuantity,
+      allocationPercent: l.allocationPercent ?? 0,
+      label: l.label ?? ''
+    }));
+    this.plan.exitTargets = (sp.exitTargets || []).map((e, i) => ({
+      level: e.level ?? (i + 1),
+      actionType: e.actionType,
+      price: e.price,
+      percentOfPosition: e.percentOfPosition ?? 0,
+      label: e.label ?? ''
+    }));
+    if (sp.checklist && sp.checklist.length > 0) {
+      this.plan.checklist = sp.checklist.map(c => ({
+        label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint
+      }));
+    }
+    this.manualQuantity = sp.quantity > 0;
+    if (sp.strategyId) this.onStrategyChange();
+    if (sp.portfolioId) this.onPortfolioChange();
+    if (sp.symbol) this.onSymbolInput();
+    this.recalculate();
+    this.updateChecklistScore();
+  }
+
+  resetForm(): void {
+    this.selectedPlanId = null;
+    this.selectedPlanStatus = '';
+    this.plan = {
+      symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
+      quantity: 0, strategyId: '', portfolioId: '', reason: '',
+      marketCondition: 'Trending', confidenceLevel: 5, checklist: [], notes: '',
+      entryMode: 'Single', lots: [], exitTargets: []
+    };
+    this.showOrderSheet = false;
+    this.manualQuantity = false;
+    this.selectedStrategy = null;
+    this.riskProfile = null;
+    this.stockPrice = null;
+    this.stockError = '';
+    this.initChecklist();
+    this.recalculate();
+  }
+
+  saveDraft(): void {
+    this.savePlan('Draft');
+  }
+
+  saveAndReady(): void {
+    this.savePlan('Ready');
+  }
+
+  private savePlan(status: string): void {
+    this.saving = true;
+    const checklist = this.plan.checklist.map(c => ({
+      label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint
+    }));
+
+    if (this.selectedPlanId) {
+      // Update existing plan
+      this.tradePlanService.update(this.selectedPlanId, {
+        portfolioId: this.plan.portfolioId || undefined,
+        symbol: this.plan.symbol,
+        direction: this.plan.direction,
+        entryPrice: this.plan.entryPrice,
+        stopLoss: this.plan.stopLoss,
+        target: this.plan.target,
+        quantity: this.plan.quantity || this.optimalShares,
+        strategyId: this.plan.strategyId || undefined,
+        marketCondition: this.plan.marketCondition,
+        reason: this.plan.reason || undefined,
+        notes: this.plan.notes || undefined,
+        riskPercent: this.riskPercent,
+        accountBalance: this.accountBalance,
+        riskRewardRatio: this.rr,
+        confidenceLevel: this.plan.confidenceLevel,
+        checklist,
+        entryMode: this.plan.entryMode !== 'Single' ? this.plan.entryMode : undefined,
+        lots: this.plan.lots.length > 0 ? this.plan.lots.map(l => ({
+          lotNumber: l.lotNumber, plannedPrice: l.plannedPrice,
+          plannedQuantity: l.plannedQuantity, allocationPercent: l.allocationPercent,
+          label: l.label, status: 'Pending'
+        })) : undefined,
+        exitTargets: this.plan.exitTargets.length > 0 ? this.plan.exitTargets.map(e => ({
+          level: e.level, actionType: e.actionType, price: e.price,
+          percentOfPosition: e.percentOfPosition, label: e.label, isTriggered: false
+        })) : undefined
+      }).subscribe({
+        next: () => {
+          // If status changed (e.g., Draft → Ready), update status separately
+          if (status !== this.selectedPlanStatus && status === 'Ready') {
+            this.tradePlanService.updateStatus(this.selectedPlanId!, { status: 'ready' }).subscribe({
+              next: () => {
+                this.saving = false;
+                this.notification.success('Kế hoạch', 'Đã cập nhật & sẵn sàng');
+                this.loadSavedPlans();
+              },
+              error: () => {
+                this.saving = false;
+                this.notification.error('Lỗi', 'Cập nhật thành công nhưng không chuyển trạng thái được');
+                this.loadSavedPlans();
+              }
+            });
+          } else {
+            this.saving = false;
+            this.notification.success('Kế hoạch', 'Đã cập nhật');
+            this.loadSavedPlans();
+          }
+        },
+        error: () => {
+          this.saving = false;
+          this.notification.error('Lỗi', 'Không thể cập nhật kế hoạch');
+        }
+      });
+    } else {
+      // Create new plan
+      this.tradePlanService.create({
+        portfolioId: this.plan.portfolioId || undefined,
+        symbol: this.plan.symbol,
+        direction: this.plan.direction,
+        entryPrice: this.plan.entryPrice,
+        stopLoss: this.plan.stopLoss,
+        target: this.plan.target,
+        quantity: this.plan.quantity || this.optimalShares,
+        strategyId: this.plan.strategyId || undefined,
+        marketCondition: this.plan.marketCondition,
+        reason: this.plan.reason || undefined,
+        notes: this.plan.notes || undefined,
+        riskPercent: this.riskPercent,
+        accountBalance: this.accountBalance,
+        riskRewardRatio: this.rr,
+        confidenceLevel: this.plan.confidenceLevel,
+        checklist,
+        status: status === 'Ready' ? 'Ready' : undefined,
+        entryMode: this.plan.entryMode !== 'Single' ? this.plan.entryMode : undefined,
+        lots: this.plan.lots.length > 0 ? this.plan.lots.map(l => ({
+          lotNumber: l.lotNumber, plannedPrice: l.plannedPrice,
+          plannedQuantity: l.plannedQuantity, allocationPercent: l.allocationPercent,
+          label: l.label, status: 'Pending'
+        })) : undefined,
+        exitTargets: this.plan.exitTargets.length > 0 ? this.plan.exitTargets.map(e => ({
+          level: e.level, actionType: e.actionType, price: e.price,
+          percentOfPosition: e.percentOfPosition, label: e.label, isTriggered: false
+        })) : undefined
+      }).subscribe({
+        next: (res) => {
+          this.saving = false;
+          this.selectedPlanId = res.id;
+          this.selectedPlanStatus = status === 'Ready' ? 'Ready' : 'Draft';
+          this.notification.success('Kế hoạch', status === 'Ready' ? 'Đã tạo & sẵn sàng' : 'Đã lưu nháp');
+          this.loadSavedPlans();
+        },
+        error: () => {
+          this.saving = false;
+          this.notification.error('Lỗi', 'Không thể lưu kế hoạch');
+        }
+      });
+    }
+  }
+
+  deletePlan(sp: TradePlanDto): void {
+    if (!confirm(`Xoá kế hoạch ${sp.symbol}?`)) return;
+    this.tradePlanService.delete(sp.id).subscribe({
+      next: () => {
+        if (this.selectedPlanId === sp.id) this.resetForm();
+        this.notification.success('Kế hoạch', 'Đã xoá');
+        this.loadSavedPlans();
+      },
+      error: () => this.notification.error('Lỗi', 'Không thể xoá')
+    });
+  }
+
+  markReady(sp: TradePlanDto): void {
+    this.tradePlanService.updateStatus(sp.id, { status: 'ready' }).subscribe({
+      next: () => { this.notification.success('Kế hoạch', `${sp.symbol} sẵn sàng`); this.loadSavedPlans(); },
+      error: () => this.notification.error('Lỗi', 'Không thể chuyển trạng thái')
+    });
+  }
+
+  markReviewed(sp: TradePlanDto): void {
+    this.tradePlanService.updateStatus(sp.id, { status: 'reviewed' }).subscribe({
+      next: () => { this.notification.success('Kế hoạch', `${sp.symbol} đã review`); this.loadSavedPlans(); },
+      error: () => this.notification.error('Lỗi', 'Không thể chuyển trạng thái')
+    });
+  }
+
+  cancelPlan(sp: TradePlanDto): void {
+    if (!confirm(`Huỷ kế hoạch ${sp.symbol}?`)) return;
+    this.tradePlanService.updateStatus(sp.id, { status: 'cancelled' }).subscribe({
+      next: () => {
+        if (this.selectedPlanId === sp.id) this.resetForm();
+        this.notification.success('Kế hoạch', `${sp.symbol} đã huỷ`);
+        this.loadSavedPlans();
+      },
+      error: () => this.notification.error('Lỗi', 'Không thể huỷ')
+    });
+  }
+
+  getRR(sp: TradePlanDto): number {
+    const risk = Math.abs(sp.entryPrice - sp.stopLoss);
+    return risk > 0 ? Math.abs(sp.target - sp.entryPrice) / risk : 0;
+  }
+
+  getStatusClass(status: string): Record<string, boolean> {
+    return {
+      'bg-gray-100 text-gray-600': status === 'Draft',
+      'bg-emerald-100 text-emerald-700': status === 'Ready',
+      'bg-blue-100 text-blue-700': status === 'InProgress',
+      'bg-violet-100 text-violet-700': status === 'Executed',
+      'bg-amber-100 text-amber-700': status === 'Reviewed',
+      'bg-red-100 text-red-600': status === 'Cancelled',
+    };
+  }
+
+  getStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      'Draft': 'Nháp', 'Ready': 'Sẵn sàng', 'InProgress': 'Đang chờ',
+      'Executed': 'Đã thực hiện', 'Reviewed': 'Đã review', 'Cancelled': 'Đã huỷ'
+    };
+    return labels[status] || status;
+  }
+
+  getWizardParams(): Record<string, string> {
+    const params: Record<string, string> = {};
+    if (this.selectedPlanId) params['planId'] = this.selectedPlanId;
+    if (this.plan.symbol) params['symbol'] = this.plan.symbol;
+    if (this.plan.direction) params['direction'] = this.plan.direction;
+    if (this.plan.entryPrice) params['price'] = String(this.plan.entryPrice);
+    if (this.plan.quantity || this.optimalShares) params['quantity'] = String(this.plan.quantity || this.optimalShares);
+    if (this.plan.portfolioId) params['portfolioId'] = this.plan.portfolioId;
+    if (this.plan.stopLoss) params['stopLoss'] = String(this.plan.stopLoss);
+    if (this.plan.target) params['takeProfit'] = String(this.plan.target);
+    if (this.plan.strategyId) params['strategyId'] = this.plan.strategyId;
+    return params;
+  }
+
+  getTradeCreateParams(): Record<string, string> {
+    const params: Record<string, string> = {};
+    if (this.selectedPlanId) params['planId'] = this.selectedPlanId;
+    if (this.plan.symbol) params['symbol'] = this.plan.symbol;
+    if (this.plan.direction) params['direction'] = this.plan.direction;
+    if (this.plan.entryPrice) params['price'] = String(this.plan.entryPrice);
+    if (this.plan.quantity || this.optimalShares) params['quantity'] = String(this.plan.quantity || this.optimalShares);
+    if (this.plan.portfolioId) params['portfolioId'] = this.plan.portfolioId;
+    if (this.plan.stopLoss) params['stopLoss'] = String(this.plan.stopLoss);
+    if (this.plan.target) params['takeProfit'] = String(this.plan.target);
+    return params;
+  }
+
+  // --- Saved Plan Lot Helpers ---
+
+  getExecutedLotCount(sp: TradePlanDto): number {
+    return (sp.lots || []).filter(l => l.status === 'Executed').length;
+  }
+
+  getLotProgress(sp: TradePlanDto): number {
+    const lots = sp.lots || [];
+    if (lots.length === 0) return 0;
+    return Math.round((this.getExecutedLotCount(sp) / lots.length) * 100);
+  }
+
+  // --- Multi-lot & Exit Targets ---
+
+  onEntryModeChange(): void {
+    if (this.plan.entryMode === 'Single') {
+      this.plan.lots = [];
+    } else if (this.plan.lots.length === 0) {
+      // Default 2 lots
+      this.plan.lots = [
+        { lotNumber: 1, plannedPrice: this.plan.entryPrice, plannedQuantity: 0, allocationPercent: 50, label: '' },
+        { lotNumber: 2, plannedPrice: 0, plannedQuantity: 0, allocationPercent: 50, label: '' }
+      ];
+      this.recalculateLots();
+    }
+  }
+
+  addLot(): void {
+    const nextNum = this.plan.lots.length + 1;
+    this.plan.lots.push({
+      lotNumber: nextNum, plannedPrice: 0, plannedQuantity: 0, allocationPercent: 0, label: ''
+    });
+  }
+
+  removeLot(index: number): void {
+    this.plan.lots.splice(index, 1);
+    this.plan.lots.forEach((l, i) => l.lotNumber = i + 1);
+    this.recalculateLots();
+  }
+
+  recalculateLots(): void {
+    const totalQty = this.plan.quantity || this.optimalShares;
+    if (totalQty <= 0) return;
+    const totalPlanned = this.plan.lots.reduce((s, l) => s + (l.plannedQuantity || 0), 0);
+    if (totalPlanned > 0) {
+      this.plan.lots.forEach(l => {
+        l.allocationPercent = totalPlanned > 0 ? Math.round((l.plannedQuantity / totalPlanned) * 100) : 0;
+      });
+    }
+  }
+
+  applyLotPreset(preset: string): void {
+    const totalQty = this.plan.quantity || this.optimalShares || 0;
+    const entryPrice = this.plan.entryPrice || 0;
+    let splits: number[];
+    switch (preset) {
+      case '40-30-30': splits = [40, 30, 30]; break;
+      case '50-50': splits = [50, 50]; break;
+      case 'equal':
+        const n = this.plan.lots.length || 3;
+        splits = Array(n).fill(Math.floor(100 / n));
+        splits[0] += 100 - splits.reduce((a, b) => a + b, 0);
+        break;
+      default: return;
+    }
+    this.plan.lots = splits.map((pct, i) => ({
+      lotNumber: i + 1,
+      plannedPrice: entryPrice,
+      plannedQuantity: Math.floor(totalQty * pct / 100 / 100) * 100,
+      allocationPercent: pct,
+      label: ''
+    }));
+  }
+
+  getLotsTotalQty(): number {
+    return this.plan.lots.reduce((s, l) => s + (l.plannedQuantity || 0), 0);
+  }
+
+  getLotsWeightedAvg(): number {
+    const totalQty = this.getLotsTotalQty();
+    if (totalQty <= 0) return 0;
+    const totalValue = this.plan.lots.reduce((s, l) => s + (l.plannedPrice || 0) * (l.plannedQuantity || 0), 0);
+    return totalValue / totalQty;
+  }
+
+  addExitTarget(): void {
+    const nextLevel = this.plan.exitTargets.length + 1;
+    this.plan.exitTargets.push({
+      level: nextLevel, actionType: 'TakeProfit', price: 0, percentOfPosition: 0, label: ''
+    });
+  }
+
+  removeExitTarget(index: number): void {
+    this.plan.exitTargets.splice(index, 1);
+    this.plan.exitTargets.forEach((e, i) => e.level = i + 1);
+  }
+
+  // --- Order Sheet ---
+
+  copyOrderSheet(): void {
+    const text = this.getOrderSheetText();
+    navigator.clipboard.writeText(text).then(
+      () => this.notification.success('Phiếu lệnh', 'Đã copy vào clipboard'),
+      () => this.notification.error('Lỗi', 'Không thể copy')
+    );
+  }
+
+  getOrderSheetText(): string {
+    const p = this.plan;
+    const qty = p.quantity || this.optimalShares;
+    const lines: string[] = [
+      `=== PHIẾU LỆNH ===`,
+      `Mã: ${p.symbol}  |  ${getTradeTypeDisplay(p.direction).toUpperCase()}`,
+      `Giá vào: ${(p.entryPrice || 0).toLocaleString('vi-VN')}đ`,
+      `Số lượng: ${qty.toLocaleString('vi-VN')} CP`,
+      `Stop-Loss: ${(p.stopLoss || 0).toLocaleString('vi-VN')}đ`,
+      `Take-Profit: ${(p.target || 0).toLocaleString('vi-VN')}đ`,
+      `R:R = 1:${this.rr.toFixed(1)}`,
+    ];
+
+    if (p.entryMode !== 'Single' && p.lots.length > 0) {
+      lines.push('', `--- Chia lô (${p.entryMode}) ---`);
+      p.lots.forEach(l => {
+        lines.push(`  Lô ${l.lotNumber}: ${(l.plannedQuantity || 0).toLocaleString('vi-VN')} CP @ ${(l.plannedPrice || 0).toLocaleString('vi-VN')}đ (${l.allocationPercent}%)`);
+      });
+    }
+
+    if (p.exitTargets.length > 0) {
+      lines.push('', '--- Thoát lệnh ---');
+      p.exitTargets.forEach(e => {
+        const typeLabel: Record<string, string> = {
+          TakeProfit: 'Chốt lời', CutLoss: 'Cắt lỗ', TrailingStop: 'Trailing', PartialExit: 'Bán 1 phần'
+        };
+        lines.push(`  ${typeLabel[e.actionType] || e.actionType}: ${(e.price || 0).toLocaleString('vi-VN')}đ${e.percentOfPosition ? ` (${e.percentOfPosition}%)` : ''}`);
+      });
+    }
+
+    if (p.reason) lines.push('', `Lý do: ${p.reason}`);
+    lines.push('', `Ngày: ${new Date().toLocaleDateString('vi-VN')}`);
+    return lines.join('\n');
   }
 }

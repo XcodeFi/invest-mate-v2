@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-13
-> **Trạng thái:** Phase 7 hoàn thành
+> **Cập nhật lần cuối:** 2026-03-14
+> **Trạng thái:** Phase 7 đang tiếp tục
 
 ---
 
@@ -13,7 +13,7 @@
 | 3–4 | Charts & Links | ✅ Done | `master` |
 | 5 | Auto-fill, Risk & Compound | ✅ Done | `feature/phase5-autofill-risk-compound` |
 | 6 | Trade Plan Template | ✅ Done | `feature/phase6-trade-plan-template` |
-| 7 | UX Improvements & Thuật ngữ | ✅ Done | `feature/phase7-improvements` |
+| 7 | UX Improvements & Thuật ngữ | 🔄 In Progress | `feature/phase7-improvements` |
 
 ---
 
@@ -282,6 +282,68 @@ Hai cơ chế song song trong project:
 
 ---
 
+### Vị thế đang mở (`/positions`)
+
+**File:** `positions.component.ts`, `positions.service.ts`
+
+- Gom nhóm theo danh mục (portfolio): mỗi nhóm hiện tên, số vị thế, tổng giá trị, tổng P&L
+- Mỗi vị thế: symbol, số lượng, giá TB, giá hiện tại, P&L (xanh/đỏ), linked plan
+- Expand giao dịch gần nhất cho từng mã
+- Dùng shared TradeType utilities cho hiển thị Mua/Bán
+
+---
+
+### Trade Plan Multi-lot & Order Sheet (`/trade-plan`)
+
+**File:** `trade-plan.component.ts`, `trade-plan.service.ts`
+
+- **Entry mode**: Một lần / Chia lô (ScalingIn) / DCA
+- **Lot editor**: bảng dynamic add/remove lot, preset phân bổ (40/30/30, 50/50, equal)
+- **Exit targets**: TP1, TP2, CutLoss, Trailing Stop với giá + % vị thế
+- **Stop-loss history**: ghi nhận lịch sử thay đổi SL
+- **Phiếu lệnh (Order Sheet)**: panel toggle hiển thị tóm tắt lệnh, nút copy clipboard
+- **Saved plans**: danh sách kế hoạch đã lưu, filter trạng thái, lot progress bar, thực hiện từng lot
+
+**Backend:** `TradePlan.cs` entity, `TradePlansController.cs`, lifecycle Draft→Ready→InProgress→Executed→Reviewed→Cancelled
+
+---
+
+### Trade Create Improvements (`/trades/create`)
+
+**File:** `trade-create.component.ts`
+
+- **Lô chẵn**: lệnh MUA bắt buộc bội số 100
+- **Kiểm tra số dư**: giá trị lệnh không vượt tiền còn lại danh mục
+- **Dropdown danh mục**: hiện thêm tổng vốn bên cạnh tên
+- **Position info**: hiện thông tin vị thế khi bán (đang nắm giữ, giá TB, P&L)
+- **Fee auto-calculation**: tự tính phí + thuế từ FeeService
+
+---
+
+### Trades History Improvements (`/trades`)
+
+**File:** `trades.component.ts`
+
+- **Click symbol filter**: nhấn vào mã CK → tự fill ô filter, nút × clear
+- **Pagination fix**: sửa lỗi nextPage/previousPage reset về trang 1
+- Dùng shared TradeType utilities
+
+---
+
+### Shared TradeType Enum
+
+**File:** `shared/constants/trade-types.ts`
+
+Refactor toàn bộ project (6+ components) sử dụng:
+- `TradeType.BUY` / `TradeType.SELL` thay vì hardcode string
+- `isBuyTrade()`, `isSellTrade()` — so sánh case-insensitive
+- `getTradeTypeDisplay()` — trả về 'Mua'/'Bán'
+- `getTradeTypeClass()` — trả về Tailwind CSS classes
+
+Components đã refactor: `trade-plan`, `trade-wizard`, `trade-create`, `backtesting`, `positions`, `trades`
+
+---
+
 ## API Endpoints tổng hợp (Frontend → Backend)
 
 | Module | Endpoint | Auth |
@@ -303,6 +365,11 @@ Hai cơ chế song song trong project:
 | Templates (system) | `GET /api/v1/templates/strategies` | — |
 | Templates (system) | `GET /api/v1/templates/risk-profiles` | — |
 | **Templates (user)** | `GET/POST/DELETE /api/v1/templates/trade-plans` | ✅ |
+| **Trade Plans** | `GET/POST/PUT/DELETE /api/v1/trade-plans` | ✅ |
+| **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/lots/{lotNumber}/execute` | ✅ |
+| **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/stop-loss` | ✅ |
+| **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/exit-targets/{level}/trigger` | ✅ |
+| **Positions** | `GET /api/v1/positions` | ✅ |
 
 ---
 
@@ -323,6 +390,9 @@ Hai cơ chế song song trong project:
 | `/snapshots` | `SnapshotsComponent` | Lịch sử snapshot |
 | `/capital-flows` | `CapitalFlowsComponent` | Dòng vốn |
 | `/portfolios` | `PortfoliosRoutes` | Quản lý danh mục |
+| `/positions` | `PositionsComponent` | Vị thế đang mở |
+| `/trades` | `TradesComponent` | Lịch sử giao dịch |
+| `/trades/create` | `TradeCreateComponent` | Tạo giao dịch mới |
 
 ---
 
@@ -335,4 +405,4 @@ Hai cơ chế song song trong project:
 | B3 | Export PDF/Excel | Trung bình |
 | B4 | Keyboard shortcuts | Thấp |
 | B5 | Dark mode | Thấp |
-| B6 | Multi-timeframe Dashboard | Thấp |
+| B6 | ~~Multi-timeframe Dashboard~~ | ✅ Done v2.2.0 |

@@ -51,12 +51,12 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         if (sorted.Count >= 2 && sorted.First().TotalValue > 0)
         {
             var years = (sorted.Last().SnapshotDate - sorted.First().SnapshotDate).TotalDays / 365.25;
-            if (years >= 0.01)
+            if (years >= 0.08) // ~30 days minimum for meaningful CAGR
             {
                 var ratio = (double)(sorted.Last().TotalValue / sorted.First().TotalValue);
                 var snapshotCagr = (decimal)(Math.Pow(ratio, 1.0 / years) - 1) * 100;
                 if (!double.IsInfinity((double)snapshotCagr) && !double.IsNaN((double)snapshotCagr))
-                    return Math.Round(snapshotCagr, 2);
+                    return Math.Round(Math.Clamp(snapshotCagr, -99.99m, 9999.99m), 2);
             }
         }
 
@@ -71,11 +71,13 @@ public class PerformanceMetricsService : IPerformanceMetricsService
             var firstTradeDate = trades.Min(t => t.TradeDate);
             var tradeDays = (DateTime.UtcNow - firstTradeDate).TotalDays;
             var tradeYears = tradeDays / 365.25;
-            if (tradeYears < 0.01) tradeYears = 0.01;
+            if (tradeYears < 0.08) return 0; // Less than ~30 days — CAGR not meaningful
 
             var tradeRatio = (double)(pnlSummary.TotalPortfolioValue / pnlSummary.TotalInvested);
             var tradeCagr = (decimal)(Math.Pow(tradeRatio, 1.0 / tradeYears) - 1) * 100;
-            return !double.IsInfinity((double)tradeCagr) && !double.IsNaN((double)tradeCagr) ? Math.Round(tradeCagr, 2) : 0;
+            return !double.IsInfinity((double)tradeCagr) && !double.IsNaN((double)tradeCagr)
+                ? Math.Round(Math.Clamp(tradeCagr, -99.99m, 9999.99m), 2)
+                : 0;
         }
         catch
         {

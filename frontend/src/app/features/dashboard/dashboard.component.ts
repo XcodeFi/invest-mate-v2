@@ -9,6 +9,7 @@ import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/a
 import { MarketDataService } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { isBuyTrade } from '../../shared/constants/trade-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Chart, registerables } from 'chart.js';
@@ -440,12 +441,12 @@ interface RiskAlert {
                 <div class="flex rounded-lg overflow-hidden border border-gray-300">
                   <button (click)="qt.direction='Buy'"
                     class="flex-1 py-2 text-sm font-medium transition-colors"
-                    [class.bg-emerald-500]="qt.direction==='Buy'" [class.text-white]="qt.direction==='Buy'"
-                    [class.text-gray-600]="qt.direction!=='Buy'">Mua</button>
+                    [class.bg-emerald-500]="isBuyTrade(qt.direction)" [class.text-white]="isBuyTrade(qt.direction)"
+                    [class.text-gray-600]="!isBuyTrade(qt.direction)">Mua</button>
                   <button (click)="qt.direction='Sell'"
                     class="flex-1 py-2 text-sm font-medium transition-colors"
-                    [class.bg-red-500]="qt.direction==='Sell'" [class.text-white]="qt.direction==='Sell'"
-                    [class.text-gray-600]="qt.direction!=='Sell'">Bán</button>
+                    [class.bg-red-500]="!isBuyTrade(qt.direction)" [class.text-white]="!isBuyTrade(qt.direction)"
+                    [class.text-gray-600]="isBuyTrade(qt.direction)">Bán</button>
                 </div>
               </div>
 
@@ -696,6 +697,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   periodReturn = 0;
   periodPnL = 0;
 
+  // ─── Shared utilities ────────────────────────────────────────────────────
+  isBuyTrade = isBuyTrade;
+
   // ─── Quick Trade Widget ───────────────────────────────────────────────────
   qtExpanded = false;
   qtLoading = false;
@@ -857,16 +861,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     const rate = this.cagrValue / 100;
+    const cap = 1e15; // Cap projections at 1 quadrillion
     this.projections = [
-      { label: 'Sau 5 năm', value: currentValue * Math.pow(1 + rate, 5) },
-      { label: 'Sau 10 năm', value: currentValue * Math.pow(1 + rate, 10) },
-      { label: 'Sau 20 năm', value: currentValue * Math.pow(1 + rate, 20) },
+      { label: 'Sau 5 năm', value: Math.min(cap, currentValue * Math.pow(1 + rate, 5)) },
+      { label: 'Sau 10 năm', value: Math.min(cap, currentValue * Math.pow(1 + rate, 10)) },
+      { label: 'Sau 20 năm', value: Math.min(cap, currentValue * Math.pow(1 + rate, 20)) },
     ];
 
     // Target vs actual
     const targetRate = this.cagrTarget / 100;
-    this.targetValue = currentValue * Math.pow(1 + targetRate, this.targetYears);
-    this.actualProjection = currentValue * Math.pow(1 + rate, this.targetYears);
+    this.targetValue = Math.min(cap, currentValue * Math.pow(1 + targetRate, this.targetYears));
+    this.actualProjection = Math.min(cap, currentValue * Math.pow(1 + rate, this.targetYears));
   }
 
   ngOnDestroy(): void {
@@ -878,13 +883,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const current = this.pnlSummary.totalPortfolioValue;
     if (invested <= 0 || current <= 0) { this.cagrValue = 0; return; }
 
-    // Estimate years from first portfolio creation (use earliest trade data)
-    // For now, approximate based on total initial capital vs market value
     const totalReturn = current / invested;
-    // Assume investment period proportional to data — default 1 year if unknown
     const years = 1;
     const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
-    this.cagrValue = isFinite(cagr) ? cagr : 0;
+    this.cagrValue = isFinite(cagr) ? Math.max(-99.99, Math.min(9999.99, cagr)) : 0;
     this.calculateProjections();
   }
 
@@ -915,7 +917,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.advancedAnalyticsService.getPerformance(portfolioId).subscribe({
       next: (perf) => {
         if (perf.cagr !== 0 && isFinite(perf.cagr)) {
-          this.cagrValue = perf.cagr;
+          this.cagrValue = Math.max(-99.99, Math.min(9999.99, perf.cagr));
           this.calculateProjections();
         }
       },
@@ -935,11 +937,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
     const years = diffDays / 365.25;
 
-    if (years >= 0.01) {
+    if (years >= 0.08) { // ~30 days minimum for meaningful CAGR
       const totalReturn = last.portfolioValue / first.portfolioValue;
       const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
       if (isFinite(cagr)) {
-        this.cagrValue = cagr;
+        this.cagrValue = Math.max(-99.99, Math.min(9999.99, cagr));
         this.calculateProjections();
       }
     }
