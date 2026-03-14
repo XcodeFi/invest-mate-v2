@@ -5,11 +5,12 @@ import { BacktestService, BacktestSummary, BacktestDetail, SimulatedTrade } from
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-backtesting',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -40,9 +41,9 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Vốn ban đầu (VND) *</label>
-            <input [(ngModel)]="newBacktest.initialCapital" type="number"
+            <input [(ngModel)]="newBacktest.initialCapital" type="text" inputmode="numeric" appNumMask
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="100000000">
+              placeholder="100.000.000">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu *</label>
