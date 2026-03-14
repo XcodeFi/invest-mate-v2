@@ -33,7 +33,12 @@
       "Bash(dotnet run:*)",
       "Bash(docker info:*)",
       "Bash(grep -E \"component\\\\.ts$\")",
-      "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(cs|ts\\)$\")",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(where gh:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "mcp__github__create_pull_request"
     ]
   }
 }
