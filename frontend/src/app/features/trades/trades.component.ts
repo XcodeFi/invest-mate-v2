@@ -4,6 +4,7 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioSummary, TradeResponseItem } from '../../core/services/portfolio.service';
 import { TradeService } from '../../core/services/trade.service';
+import { TradePlanService, TradePlan } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { TradeType, getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } from '../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
@@ -23,6 +24,12 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <p class="text-gray-600 mt-1">Xem và quản lý tất cả giao dịch của bạn</p>
             </div>
             <div class="flex space-x-3">
+              <button
+                routerLink="/trades/import"
+                class="border border-blue-300 text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+              >
+                Import CSV
+              </button>
               <button
                 routerLink="/trades/create"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
@@ -148,7 +155,31 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                       class="text-blue-600 hover:text-blue-800 font-medium">
                       Xem
                     </a>
-                    <span *ngIf="!trade.tradePlanId" class="text-gray-300">---</span>
+                    <div *ngIf="!trade.tradePlanId" class="relative inline-block">
+                      <button *ngIf="linkingTradeId !== trade.id"
+                        (click)="showLinkPlanDropdown(trade)"
+                        class="text-xs px-2 py-1 border border-dashed border-gray-300 text-gray-500 rounded hover:border-blue-400 hover:text-blue-600 transition-colors"
+                        title="Gắn kế hoạch giao dịch">
+                        + Gắn KH
+                      </button>
+                      <div *ngIf="linkingTradeId === trade.id" class="absolute z-20 right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg">
+                        <div class="p-2 border-b border-gray-100 flex items-center justify-between">
+                          <span class="text-xs font-medium text-gray-600">Chọn kế hoạch</span>
+                          <button (click)="linkingTradeId = null" class="text-gray-400 hover:text-gray-600 text-sm">&times;</button>
+                        </div>
+                        <div class="max-h-40 overflow-y-auto">
+                          <div *ngFor="let plan of getMatchingPlans(trade.symbol)"
+                            (click)="linkTradeToPlan(trade, plan)"
+                            class="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer border-b border-gray-50">
+                            <div class="font-medium text-gray-800">{{ plan.symbol }} - {{ plan.direction }}</div>
+                            <div class="text-gray-500">{{ plan.entryPrice | number:'1.0-0' }}đ · {{ plan.status }} · {{ formatDate(plan.createdAt) }}</div>
+                          </div>
+                          <div *ngIf="getMatchingPlans(trade.symbol).length === 0" class="px-3 py-3 text-xs text-gray-400 text-center">
+                            Không có KH cho {{ trade.symbol }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
@@ -230,9 +261,14 @@ export class TradesComponent implements OnInit {
     toDate: ''
   };
 
+  // Plan linking
+  allPlans: TradePlan[] = [];
+  linkingTradeId: string | null = null;
+
   constructor(
     private portfolioService: PortfolioService,
     private tradeService: TradeService,
+    private tradePlanService: TradePlanService,
     private notificationService: NotificationService,
     private route: ActivatedRoute
   ) {}
@@ -248,6 +284,10 @@ export class TradesComponent implements OnInit {
       this.filters.symbol = params['symbol'];
     }
     this.loadTrades();
+    this.tradePlanService.getAll().subscribe({
+      next: (plans) => this.allPlans = plans,
+      error: () => {}
+    });
   }
 
   private loadTrades(): void {
@@ -367,6 +407,30 @@ export class TradesComponent implements OnInit {
   filterBySymbol(symbol: string): void {
     this.filters.symbol = symbol;
     this.applyFilters();
+  }
+
+  // Plan linking
+  showLinkPlanDropdown(trade: TradeResponseItem): void {
+    this.linkingTradeId = trade.id;
+  }
+
+  getMatchingPlans(symbol: string): TradePlan[] {
+    return this.allPlans.filter(p =>
+      p.symbol.toUpperCase() === symbol.toUpperCase()
+    );
+  }
+
+  linkTradeToPlan(trade: TradeResponseItem, plan: TradePlan): void {
+    this.tradeService.linkToPlan(trade.id, plan.id).subscribe({
+      next: () => {
+        trade.tradePlanId = plan.id;
+        this.linkingTradeId = null;
+        this.notificationService.success('Thành công', `Đã gắn kế hoạch cho ${trade.symbol}`);
+      },
+      error: () => {
+        this.notificationService.error('Lỗi', 'Không thể gắn kế hoạch');
+      }
+    });
   }
 
   min(a: number, b: number): number {

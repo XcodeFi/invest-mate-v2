@@ -56,6 +56,8 @@ Flow 5 bước dẫn dắt giao dịch có kỷ luật:
 - Drawdown vượt ngưỡng (>10% → warning, >20% → danger)
 - **Cảnh báo tập trung danh mục** (positionSizePercent > maxPositionSizePercent từ Risk Profile)
 
+**Vị thế nổi bật (v2.8):** Top 6 positions theo giá trị, hiện symbol/SL/qty/P&L%, link đến `/positions`
+
 **Portfolio List:** Vốn ban đầu, giá trị hiện tại, P&L, performance progress bar
 
 ---
@@ -290,6 +292,8 @@ Hai cơ chế song song trong project:
 - Mỗi vị thế: symbol, số lượng, giá TB, giá hiện tại, P&L (xanh/đỏ), linked plan
 - Expand giao dịch gần nhất cho từng mã
 - Dùng shared TradeType utilities cho hiển thị Mua/Bán
+- **SL/TP distance bar (v2.8)**: thanh gradient SL→TP với marker giá hiện tại, cảnh báo khi gần SL
+- **Sắp xếp (v2.8)**: dropdown sort theo Giá trị / Lãi-Lỗ / % / Mã CK
 
 ---
 
@@ -302,7 +306,7 @@ Hai cơ chế song song trong project:
 - **DCA editor**: số tiền/lần, tần suất (tuần/2 tuần/tháng), số kỳ, ngày bắt đầu, khoảng giá, bảng lịch mua dự kiến với tích luỹ
 - **Exit targets**: TP1, TP2, CutLoss, Trailing Stop với giá + % vị thế
 - **Stop-loss history**: ghi nhận lịch sử thay đổi SL
-- **Phiếu lệnh (Order Sheet)**: panel toggle hiển thị tóm tắt lệnh, nút copy clipboard
+- **Phiếu lệnh (Order Sheet)**: panel toggle hiển thị tóm tắt lệnh, nút copy clipboard, nút In (print), hiện danh mục + giá trị lệnh
 - **Saved plans**: danh sách kế hoạch đã lưu, filter trạng thái, lot progress bar, thực hiện từng lot
 - **Empty-when-zero placeholders**: các trường Giá vào, SL, TP, Số lượng hiện placeholder khi chưa nhập (không hiện "0")
 
@@ -329,6 +333,27 @@ Hai cơ chế song song trong project:
 - **Click symbol filter**: nhấn vào mã CK → tự fill ô filter, nút × clear
 - **Pagination fix**: sửa lỗi nextPage/previousPage reset về trang 1
 - Dùng shared TradeType utilities
+- **Link KH (v2.8)**: nút "Gắn KH" cho trade chưa liên kết plan, dropdown chọn KH theo symbol
+- **Import CSV (v2.8)**: nút "Import CSV" → trang `/trades/import` — upload, preview, validate, bulk import
+
+### Import CSV (`/trades/import`) — v2.8
+
+**File:** `trade-import.component.ts`, `trade.service.ts`
+
+- Upload file CSV, tự detect header
+- Hỗ trợ separator: dấu phẩy, chấm phẩy, tab
+- Preview table với validation (mã CK, loại, số lượng, giá)
+- Hiện số dòng hợp lệ / lỗi
+- Bulk import via `POST /api/v1/trades/bulk`
+- Kết quả: số thành công / thất bại + chi tiết lỗi
+
+### Journal tự động (Wizard) — v2.8
+
+**File:** `trade-wizard.component.ts`
+
+- Step 4 (Record Trade) tự động tạo journal entry với thông tin pre-fill
+- Step 5 (Journal) update journal đã tạo thay vì tạo mới (tránh duplicate)
+- `goToDashboard()` prompt save nếu chưa lưu
 
 ---
 

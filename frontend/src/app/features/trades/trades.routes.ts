@@ -10,6 +10,10 @@ export const TRADES_ROUTES: Routes = [
     loadComponent: () => import('./trade-create/trade-create.component').then(m => m.TradeCreateComponent)
   },
   {
+    path: 'import',
+    loadComponent: () => import('./trade-import/trade-import.component').then(m => m.TradeImportComponent)
+  },
+  {
     path: ':id/edit',
     loadComponent: () => import('./trade-edit/trade-edit.component').then(m => m.TradeEditComponent)
   }

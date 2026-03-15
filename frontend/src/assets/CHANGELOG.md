@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.8.0] — 2026-03-14 · M2 Fix + 6 Feature Enhancements
+
+**Branch:** `feature/m2-and-enhancements`
+
+### Bug fix
+
+- **M2: Cột KẾ HOẠCH toàn "---"**: Thêm backend `LinkTradeToPlanCommand` + API `PATCH /trades/{id}/link-plan`, frontend hiện nút "Gắn KH" cho trade chưa liên kết, dropdown chọn kế hoạch theo mã CK
+
+### Thêm mới
+
+- **Import CSV**: Trang `/trades/import` — upload file CSV, preview dữ liệu, validate, bulk import giao dịch vào danh mục. Backend `BulkCreateTrades` API
+- **Journal tự động**: Wizard step 4 auto-create journal entry khi ghi nhận giao dịch, step 5 update thay vì tạo mới nếu đã tồn tại
+- **Dashboard vị thế nổi bật**: Widget "Vị thế nổi bật" hiện top 6 positions theo giá trị, P&L%, link đến trang Vị thế
+
+### Cải thiện
+
+- **Phiếu lệnh nâng cao**: Thêm nút In (print), hiện Danh mục + Giá trị lệnh trong phiếu, filter dòng trống
+- **Vị thế — SL/TP distance**: Thanh gradient SL→TP với marker giá hiện tại, % khoảng cách đến SL/TP, cảnh báo màu khi gần SL
+- **Vị thế — Sắp xếp**: Dropdown sắp xếp theo Giá trị / Lãi-Lỗ / % / Mã CK
+
+---
+
 ## [v2.7.0] — 2026-03-14 · Phase 7 (tiếp): Bug fix Round 6
 
 **Branch:** `feature/phase7-improvements`

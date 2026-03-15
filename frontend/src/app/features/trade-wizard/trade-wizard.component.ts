@@ -836,6 +836,24 @@ export class TradeWizardComponent implements OnInit {
             targetPrice: this.plan.takeProfit
           }).subscribe();
         }
+
+        // Auto-create journal entry with pre-filled data
+        if (this.createdTradeId) {
+          this.journalService.create({
+            tradeId: this.createdTradeId,
+            portfolioId: this.plan.portfolioId,
+            entryReason: this.journal.entryReason || `${getTradeTypeDisplay(this.plan.direction)} ${this.plan.symbol.toUpperCase()} tại giá ${this.plan.entryPrice}`,
+            technicalSetup: this.journal.technicalSetup || undefined,
+            marketContext: this.journal.marketContext || undefined,
+            emotionalState: this.journal.emotionalState || 'Calm',
+            confidenceLevel: this.journal.confidenceLevel || 5,
+          }).subscribe({
+            next: () => {
+              this.journalSaved = true;
+            },
+            error: () => {} // Non-blocking, user can still manually save in step 5
+          });
+        }
       },
       error: (err) => {
         this.isRecording = false;
@@ -850,9 +868,7 @@ export class TradeWizardComponent implements OnInit {
     if (!this.createdTradeId) return;
     this.isSavingJournal = true;
 
-    const request: CreateJournalRequest = {
-      tradeId: this.createdTradeId,
-      portfolioId: this.plan.portfolioId,
+    const updateData = {
       entryReason: this.journal.entryReason || undefined,
       marketContext: this.journal.marketContext || undefined,
       technicalSetup: this.journal.technicalSetup || undefined,
@@ -860,17 +876,42 @@ export class TradeWizardComponent implements OnInit {
       confidenceLevel: this.journal.confidenceLevel || undefined,
     };
 
-    this.journalService.create(request).subscribe({
-      next: () => {
-        this.journalSaved = true;
-        this.isSavingJournal = false;
-        this.notificationService.success('Thành công', 'Nhật ký giao dịch đã được lưu');
-      },
-      error: () => {
-        this.isSavingJournal = false;
-        this.notificationService.error('Lỗi', 'Không thể lưu nhật ký. Vui lòng thử lại.');
-      }
-    });
+    // If journal was auto-created, update it; otherwise create new
+    if (this.journalSaved) {
+      this.journalService.getByTrade(this.createdTradeId).subscribe({
+        next: (existing) => {
+          this.journalService.update(existing.id, updateData).subscribe({
+            next: () => {
+              this.isSavingJournal = false;
+              this.notificationService.success('Thành công', 'Nhật ký giao dịch đã được cập nhật');
+            },
+            error: () => {
+              this.isSavingJournal = false;
+              this.notificationService.error('Lỗi', 'Không thể cập nhật nhật ký');
+            }
+          });
+        },
+        error: () => {
+          this.isSavingJournal = false;
+        }
+      });
+    } else {
+      this.journalService.create({
+        tradeId: this.createdTradeId,
+        portfolioId: this.plan.portfolioId,
+        ...updateData
+      }).subscribe({
+        next: () => {
+          this.journalSaved = true;
+          this.isSavingJournal = false;
+          this.notificationService.success('Thành công', 'Nhật ký giao dịch đã được lưu');
+        },
+        error: () => {
+          this.isSavingJournal = false;
+          this.notificationService.error('Lỗi', 'Không thể lưu nhật ký. Vui lòng thử lại.');
+        }
+      });
+    }
   }
 
   goToDashboard(): void {

@@ -1,5 +1,7 @@
 using InvestmentApp.Application.Trades.Commands.CreateTrade;
 using InvestmentApp.Application.Trades.Commands.DeleteTrade;
+using InvestmentApp.Application.Trades.Commands.LinkTradeToPlan;
+using InvestmentApp.Application.Trades.Commands.BulkCreateTrades;
 using InvestmentApp.Application.Trades.Queries.GetTradesByPortfolio;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -48,6 +50,35 @@ public class TradesController : ControllerBase
     }
 
     /// <summary>
+    /// Link a trade to a trade plan
+    /// </summary>
+    [HttpPatch("{id}/link-plan")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LinkTradeToPlan(string id, [FromBody] LinkTradeToPlanRequest request)
+    {
+        var userId = GetUserId();
+        var command = new LinkTradeToPlanCommand { TradeId = id, PlanId = request.PlanId, UserId = userId };
+        var result = await _mediator.Send(command);
+
+        if (!result)
+            return NotFound();
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Bulk import trades
+    /// </summary>
+    [HttpPost("bulk")]
+    [ProducesResponseType(typeof(BulkCreateTradesResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkCreateTrades([FromBody] BulkCreateTradesCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Delete a trade
     /// </summary>
     [HttpDelete("{id}")]
@@ -64,4 +95,9 @@ public class TradesController : ControllerBase
 
         return NoContent();
     }
+}
+
+public class LinkTradeToPlanRequest
+{
+    public string PlanId { get; set; } = null!;
 }

@@ -7,6 +7,7 @@ import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../
 import { RiskService, PortfolioRiskSummary, PositionRiskItem, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
 import { MarketDataService } from '../../core/services/market-data.service';
+import { PositionsService, ActivePosition } from '../../core/services/positions.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { isBuyTrade } from '../../shared/constants/trade-types';
@@ -403,6 +404,37 @@ interface RiskAlert {
           </div>
         </div>
 
+        <!-- Top Positions Widget -->
+        <div *ngIf="topPositions.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-semibold text-gray-900">Vi the noi bat</h2>
+              <span class="text-xs text-gray-400">(Top {{ topPositions.length }})</span>
+            </div>
+            <a routerLink="/positions" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Xem tat ca</a>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div *ngFor="let pos of topPositions"
+              class="border rounded-lg p-3 hover:shadow-sm transition-shadow"
+              [class.border-green-200]="pos.unrealizedPnL >= 0"
+              [class.border-red-200]="pos.unrealizedPnL < 0">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-sm text-gray-800">{{ pos.symbol }}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                  [class.bg-green-100]="pos.unrealizedPnL >= 0" [class.text-green-700]="pos.unrealizedPnL >= 0"
+                  [class.bg-red-100]="pos.unrealizedPnL < 0" [class.text-red-700]="pos.unrealizedPnL < 0">
+                  {{ pos.unrealizedPnL >= 0 ? '+' : '' }}{{ pos.unrealizedPnLPercent | number:'1.1-1' }}%
+                </span>
+              </div>
+              <div class="text-xs text-gray-500">{{ pos.quantity | number:'1.0-0' }} CP &#64; {{ pos.averageCost | number:'1.0-0' }}</div>
+              <div class="text-xs mt-1">
+                <span class="text-gray-500">Gia tri:</span>
+                <span class="font-medium ml-1">{{ pos.marketValue | vndCurrency }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Quick Trade Widget -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
           <button (click)="qtExpanded = !qtExpanded"
@@ -700,6 +732,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Shared utilities ────────────────────────────────────────────────────
   isBuyTrade = isBuyTrade;
 
+  // ─── Positions Widget ────────────────────────────────────────────────────
+  topPositions: ActivePosition[] = [];
+
   // ─── Quick Trade Widget ───────────────────────────────────────────────────
   qtExpanded = false;
   qtLoading = false;
@@ -714,6 +749,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private pnlService: PnlService,
     private riskService: RiskService,
     private advancedAnalyticsService: AdvancedAnalyticsService,
+    private positionsService: PositionsService,
     private notificationService: NotificationService,
     private marketDataService: MarketDataService,
     private router: Router
@@ -724,6 +760,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.currentUser = user;
     });
     this.loadDashboardData();
+    this.loadTopPositions();
+  }
+
+  private loadTopPositions(): void {
+    this.positionsService.getAll().subscribe({
+      next: (positions) => {
+        // Sort by market value descending, take top 6
+        this.topPositions = positions
+          .sort((a, b) => b.marketValue - a.marketValue)
+          .slice(0, 6);
+      },
+      error: () => {}
+    });
   }
 
   getAllocationPercent(portfolio: PortfolioPnL): number {
