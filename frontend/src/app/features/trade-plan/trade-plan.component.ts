@@ -12,6 +12,7 @@ import { TradePlanService, TradePlan as TradePlanDto } from '../../core/services
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
+import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
 
 interface ChecklistItem {
@@ -60,7 +61,7 @@ interface TradePlanForm {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -241,8 +242,8 @@ interface TradePlanForm {
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Mã cổ phiếu *</label>
-                <input [(ngModel)]="plan.symbol" type="text"
-                  (input)="plan.symbol = plan.symbol.toUpperCase(); onSymbolInput()"
+                <input [(ngModel)]="plan.symbol" type="text" appUppercase
+                  (ngModelChange)="onSymbolInput()"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="VD: VNM">
                 <div *ngIf="stockLoading" class="absolute right-2 top-8">
@@ -1381,7 +1382,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       // Update existing plan
       this.tradePlanService.update(this.selectedPlanId, {
         portfolioId: this.plan.portfolioId || undefined,
-        symbol: this.plan.symbol,
+        symbol: this.plan.symbol.toUpperCase().trim(),
         direction: this.plan.direction,
         entryPrice: this.plan.entryPrice,
         stopLoss: this.plan.stopLoss,
@@ -1437,7 +1438,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       // Create new plan
       this.tradePlanService.create({
         portfolioId: this.plan.portfolioId || undefined,
-        symbol: this.plan.symbol,
+        symbol: this.plan.symbol.toUpperCase().trim(),
         direction: this.plan.direction,
         entryPrice: this.plan.entryPrice,
         stopLoss: this.plan.stopLoss,

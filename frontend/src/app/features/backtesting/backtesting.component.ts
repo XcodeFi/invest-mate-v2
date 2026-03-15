@@ -97,7 +97,7 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/t
                 </div>
                 <div class="text-sm text-gray-500 mt-1">
                   {{ bt.startDate | date:'dd/MM/yyyy' }} - {{ bt.endDate | date:'dd/MM/yyyy' }}
-                  | Von: {{ bt.initialCapital | vndCurrency }}
+                  | Vốn: {{ bt.initialCapital | vndCurrency }}
                 </div>
               </div>
               <div class="text-sm text-gray-400">{{ bt.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>

@@ -7,11 +7,12 @@ import { NotificationService } from '../../../core/services/notification.service
 import { TradeService } from '../../../core/services/trade.service';
 import { getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
+import { UppercaseDirective } from '../../../shared/directives/uppercase.directive';
 
 @Component({
   selector: 'app-portfolio-trades',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -42,7 +43,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Mã chứng khoán</label>
-              <input type="text" placeholder="VD: AAPL" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              <input type="text" placeholder="VD: AAPL" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" appUppercase
                 [(ngModel)]="filters.symbol" (input)="loadTrades()" />
             </div>
             <div>

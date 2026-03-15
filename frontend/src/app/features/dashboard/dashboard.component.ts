@@ -10,6 +10,7 @@ import { MarketDataService } from '../../core/services/market-data.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { isBuyTrade } from '../../shared/constants/trade-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -29,7 +30,7 @@ interface RiskAlert {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -408,10 +409,10 @@ interface RiskAlert {
         <div *ngIf="topPositions.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-2">
-              <h2 class="text-base font-semibold text-gray-900">Vi the noi bat</h2>
+              <h2 class="text-base font-semibold text-gray-900">Vị thế nổi bật</h2>
               <span class="text-xs text-gray-400">(Top {{ topPositions.length }})</span>
             </div>
-            <a routerLink="/positions" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Xem tat ca</a>
+            <a routerLink="/positions" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Xem tất cả</a>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div *ngFor="let pos of topPositions"
@@ -428,7 +429,7 @@ interface RiskAlert {
               </div>
               <div class="text-xs text-gray-500">{{ pos.quantity | number:'1.0-0' }} CP &#64; {{ pos.averageCost | number:'1.0-0' }}</div>
               <div class="text-xs mt-1">
-                <span class="text-gray-500">Gia tri:</span>
+                <span class="text-gray-500">Giá trị:</span>
                 <span class="font-medium ml-1">{{ pos.marketValue | vndCurrency }}</span>
               </div>
             </div>
@@ -456,9 +457,9 @@ interface RiskAlert {
               <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Mã CP</label>
                 <div class="relative">
-                  <input [(ngModel)]="qt.symbol" (blur)="onQtSymbolBlur()"
+                  <input [(ngModel)]="qt.symbol" (blur)="onQtSymbolBlur()" appUppercase
                     type="text" placeholder="VNM, VIC..."
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-blue-500">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                   <span *ngIf="qtLoading" class="absolute right-2 top-2.5 text-xs text-gray-400">...</span>
                   <span *ngIf="qtFetchedPrice && !qtLoading"
                     class="absolute right-2 top-2 text-xs font-medium text-emerald-600">

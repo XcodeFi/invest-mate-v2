@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { MarketDataService, StockPrice, MarketIndex } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -36,10 +37,10 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
         <div class="flex gap-3 mb-4">
           <input
             type="text"
-            [(ngModel)]="searchSymbol"
+            [(ngModel)]="searchSymbol" appUppercase
             (keyup.enter)="lookupPrice()"
             placeholder="Nhập mã CP (VD: VNM, FPT, VCB...)"
-            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase">
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
           <button
             (click)="lookupPrice()"
             [disabled]="loadingPrice"
@@ -85,9 +86,9 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
         <div class="flex flex-wrap gap-3 mb-4">
           <input
             type="text"
-            [(ngModel)]="historySymbol"
+            [(ngModel)]="historySymbol" appUppercase
             placeholder="Mã CP"
-            class="px-4 py-2 border border-gray-300 rounded-lg w-32 uppercase">
+            class="px-4 py-2 border border-gray-300 rounded-lg w-32">
           <input
             type="date"
             [(ngModel)]="historyFrom"
@@ -144,9 +145,9 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
         <div class="flex gap-3 mb-4">
           <input
             type="text"
-            [(ngModel)]="batchSymbols"
+            [(ngModel)]="batchSymbols" appUppercase
             placeholder="Nhập các mã, cách nhau dấu phẩy (VD: VNM,FPT,VCB)"
-            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg uppercase">
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
           <button
             (click)="loadBatchPrices()"
             [disabled]="loadingBatch"
