@@ -1,24 +1,20 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, tap, filter } from 'rxjs/operators';
 import { TradeService, CreateTradeRequest } from '../../../core/services/trade.service';
 import { PortfolioService, PortfolioSummary } from '../../../core/services/portfolio.service';
 import { FeeService, FeeCalculationRequest, FeeCalculationResponse } from '../../../core/services/fee.service';
 import { TradePlanService } from '../../../core/services/trade-plan.service';
 import { PnlService, PositionPnL } from '../../../core/services/pnl.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { MarketDataService, StockSearchResult } from '../../../core/services/market-data.service';
 import { TradeType, isSellTrade } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../../shared/directives/uppercase.directive';
-
-interface StockSymbolEntry {
-  symbol: string;
-  name: string;
-  exchange: string;
-}
 
 @Component({
   selector: 'app-trade-create',
@@ -83,23 +79,32 @@ interface StockSymbolEntry {
               <!-- Symbol with Autocomplete -->
               <div class="relative">
                 <label for="symbol" class="block text-sm font-medium text-gray-700 mb-1">Mã chứng khoán <span class="text-red-500">*</span></label>
-                <input type="text" id="symbol" name="symbol" [(ngModel)]="form.symbol" required appUppercase
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="VD: VNM, VIC, FPT..."
-                  (input)="onSymbolInput($event); onFormChange()"
-                  (focus)="showSymbolDropdown = true"
-                  (blur)="hideDropdownDelayed()"
-                  autocomplete="off"
-                  #symbolInput="ngModel" />
+                <div class="relative">
+                  <input type="text" id="symbol" name="symbol" [(ngModel)]="form.symbol" required appUppercase
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="VD: VNM, VIC, FPT..."
+                    (input)="onSymbolInput($event); onFormChange()"
+                    (focus)="onSymbolFocus()"
+                    (blur)="hideDropdownDelayed()"
+                    autocomplete="off"
+                    #symbolInput="ngModel" />
+                  <div *ngIf="isSearchingSymbol" class="absolute right-3 top-1/2 -translate-y-1/2">
+                    <svg class="animate-spin h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                  </div>
+                </div>
                 <p *ngIf="symbolInput.invalid && symbolInput.touched" class="mt-1 text-sm text-red-600">Mã chứng khoán là bắt buộc</p>
                 <!-- Autocomplete Dropdown -->
                 <div *ngIf="showSymbolDropdown && filteredSymbols.length > 0"
                   class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   <div *ngFor="let s of filteredSymbols"
-                    class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                    class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm flex items-center"
                     (mousedown)="selectSymbol(s.symbol)">
-                    <span class="font-semibold text-gray-900">{{ s.symbol }}</span>
-                    <span class="text-gray-500 ml-2">{{ s.name }}</span>
+                    <span class="font-semibold text-gray-900 min-w-[60px]">{{ s.symbol }}</span>
+                    <span class="text-gray-500 ml-2 truncate">{{ s.companyName }}</span>
+                    <span class="text-xs text-gray-400 ml-auto pl-2 shrink-0">{{ s.exchange }}</span>
                   </div>
                 </div>
               </div>
@@ -231,7 +236,7 @@ interface StockSymbolEntry {
   `,
   styles: []
 })
-export class TradeCreateComponent implements OnInit {
+export class TradeCreateComponent implements OnInit, OnDestroy {
   portfolios: PortfolioSummary[] = [];
   form: CreateTradeRequest = {
     portfolioId: '',
@@ -248,9 +253,11 @@ export class TradeCreateComponent implements OnInit {
   feeCalculation: FeeCalculationResponse | null = null;
 
   // Symbol autocomplete
-  allSymbols: StockSymbolEntry[] = [];
-  filteredSymbols: StockSymbolEntry[] = [];
+  filteredSymbols: StockSearchResult[] = [];
   showSymbolDropdown = false;
+  isSearchingSymbol = false;
+  private symbolSearch$ = new Subject<string>();
+  private searchSub!: Subscription;
 
   planId: string | null = null;
   lotNumber: number | null = null;
@@ -268,9 +275,9 @@ export class TradeCreateComponent implements OnInit {
     private tradePlanService: TradePlanService,
     private pnlService: PnlService,
     private notificationService: NotificationService,
+    private marketDataService: MarketDataService,
     private router: Router,
-    private route: ActivatedRoute,
-    private http: HttpClient
+    private route: ActivatedRoute
   ) {}
 
   // Trade type enum
@@ -283,10 +290,23 @@ export class TradeCreateComponent implements OnInit {
       error: () => this.notificationService.error('Lỗi', 'Không thể tải danh sách danh mục')
     });
 
-    // Load stock symbols for autocomplete
-    this.http.get<StockSymbolEntry[]>('assets/data/vn-stock-symbols.json').subscribe({
-      next: (data) => this.allSymbols = data,
-      error: () => console.warn('Could not load stock symbols')
+    // Setup symbol search with debounce
+    this.searchSub = this.symbolSearch$.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      filter(keyword => keyword.length >= 1),
+      tap(() => this.isSearchingSymbol = true),
+      switchMap(keyword => this.marketDataService.searchStocks(keyword))
+    ).subscribe({
+      next: (results) => {
+        this.filteredSymbols = results.slice(0, 15);
+        this.showSymbolDropdown = this.filteredSymbols.length > 0;
+        this.isSearchingSymbol = false;
+      },
+      error: () => {
+        this.filteredSymbols = [];
+        this.isSearchingSymbol = false;
+      }
     });
 
     // Set default trade date to now
@@ -312,16 +332,26 @@ export class TradeCreateComponent implements OnInit {
     }
   }
 
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+  }
+
   onSymbolInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value.toUpperCase();
     if (value.length > 0) {
-      this.filteredSymbols = this.allSymbols.filter(s =>
-        s.symbol.includes(value) || s.name.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 10);
-      this.showSymbolDropdown = true;
+      this.symbolSearch$.next(value);
     } else {
       this.filteredSymbols = [];
       this.showSymbolDropdown = false;
+      this.isSearchingSymbol = false;
+    }
+  }
+
+  onSymbolFocus(): void {
+    if (this.form.symbol && this.filteredSymbols.length > 0) {
+      this.showSymbolDropdown = true;
+    } else if (this.form.symbol) {
+      this.symbolSearch$.next(this.form.symbol.toUpperCase());
     }
   }
 
