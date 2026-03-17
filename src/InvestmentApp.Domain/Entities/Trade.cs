@@ -24,7 +24,7 @@ public class Trade : AggregateRoot
     {
         Id = Guid.NewGuid().ToString();
         PortfolioId = portfolioId ?? throw new ArgumentNullException(nameof(portfolioId));
-        Symbol = symbol ?? throw new ArgumentNullException(nameof(symbol));
+        Symbol = symbol?.ToUpper().Trim() ?? throw new ArgumentNullException(nameof(symbol));
         TradeType = tradeType;
         Quantity = quantity > 0 ? quantity : throw new ArgumentException("Quantity must be positive", nameof(quantity));
         Price = price > 0 ? price : throw new ArgumentException("Price must be positive", nameof(price));

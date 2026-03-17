@@ -28,8 +28,8 @@ interface PreviewRow extends BulkTradeItem {
               </svg>
             </button>
             <div>
-              <h1 class="text-3xl font-bold text-gray-900">Import Giao dich</h1>
-              <p class="text-gray-600 mt-1">Nhap giao dich tu file CSV</p>
+              <h1 class="text-3xl font-bold text-gray-900">Import Giao dịch</h1>
+              <p class="text-gray-600 mt-1">Nhập giao dịch từ file CSV</p>
             </div>
           </div>
         </div>
@@ -38,14 +38,14 @@ interface PreviewRow extends BulkTradeItem {
       <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Step 1: Select portfolio + upload -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">1. Chon danh muc va file CSV</h2>
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">1. Chọn danh mục và file CSV</h2>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Danh muc <span class="text-red-500">*</span></label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục <span class="text-red-500">*</span></label>
               <select [(ngModel)]="selectedPortfolioId"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Chon danh muc --</option>
+                <option value="">-- Chọn danh mục --</option>
                 <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
               </select>
             </div>
@@ -58,23 +58,23 @@ interface PreviewRow extends BulkTradeItem {
 
           <!-- CSV Format Guide -->
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-            <p class="font-medium text-blue-800 mb-2">Dinh dang CSV:</p>
+            <p class="font-medium text-blue-800 mb-2">Định dạng CSV:</p>
             <code class="text-blue-700 block bg-blue-100 rounded p-2 text-xs">
               symbol,tradeType,quantity,price,fee,tax,tradeDate<br>
               VNM,BUY,1000,85000,0,0,2024-03-01<br>
               FPT,SELL,500,120000,0,0,2024-03-05
             </code>
-            <p class="mt-2 text-blue-600">tradeType: BUY hoac SELL | tradeDate: YYYY-MM-DD (tuy chon) | fee, tax: so (tuy chon, mac dinh 0)</p>
+            <p class="mt-2 text-blue-600">tradeType: BUY hoặc SELL | tradeDate: YYYY-MM-DD (tùy chọn) | fee, tax: số (tùy chọn, mặc định 0)</p>
           </div>
         </div>
 
         <!-- Step 2: Preview -->
         <div *ngIf="previewRows.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800">2. Xem truoc ({{ previewRows.length }} dong)</h2>
+            <h2 class="text-lg font-semibold text-gray-800">2. Xem trước ({{ previewRows.length }} dòng)</h2>
             <div class="text-sm">
-              <span class="text-green-600 font-medium">{{ validCount }} hop le</span>
-              <span *ngIf="errorCount > 0" class="text-red-600 font-medium ml-3">{{ errorCount }} loi</span>
+              <span class="text-green-600 font-medium">{{ validCount }} hợp lệ</span>
+              <span *ngIf="errorCount > 0" class="text-red-600 font-medium ml-3">{{ errorCount }} lỗi</span>
             </div>
           </div>
 
@@ -83,13 +83,13 @@ interface PreviewRow extends BulkTradeItem {
               <thead class="bg-gray-50">
                 <tr>
                   <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">#</th>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Ma CK</th>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Loai</th>
-                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">So luong</th>
-                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Gia</th>
-                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Tong</th>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Ngay</th>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Trang thai</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Mã CK</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Loại</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Số lượng</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Giá</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Tổng</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Ngày</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Trạng thái</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
@@ -106,7 +106,7 @@ interface PreviewRow extends BulkTradeItem {
                   <td class="px-3 py-2 text-right">{{ row.quantity | number:'1.0-0' }}</td>
                   <td class="px-3 py-2 text-right">{{ row.price | number:'1.0-0' }}</td>
                   <td class="px-3 py-2 text-right">{{ row.totalValue | vndCurrency }}</td>
-                  <td class="px-3 py-2 text-gray-500">{{ row.tradeDate || 'Hom nay' }}</td>
+                  <td class="px-3 py-2 text-gray-500">{{ row.tradeDate || 'Hôm nay' }}</td>
                   <td class="px-3 py-2">
                     <span *ngIf="!row.error" class="text-green-600 text-xs">OK</span>
                     <span *ngIf="row.error" class="text-red-600 text-xs">{{ row.error }}</span>
@@ -118,36 +118,36 @@ interface PreviewRow extends BulkTradeItem {
 
           <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-200">
             <button (click)="clearPreview()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm">
-              Huy
+              Hủy
             </button>
             <button (click)="importTrades()" [disabled]="importing || validCount === 0 || !selectedPortfolioId"
               class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm disabled:opacity-50">
-              {{ importing ? 'Dang import...' : 'Import ' + validCount + ' giao dich' }}
+              {{ importing ? 'Đang import...' : 'Import ' + validCount + ' giao dịch' }}
             </button>
           </div>
         </div>
 
         <!-- Step 3: Result -->
         <div *ngIf="importResult" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">3. Ket qua</h2>
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">3. Kết quả</h2>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div class="bg-green-50 rounded-lg p-4 text-center">
               <div class="text-2xl font-bold text-green-600">{{ importResult.successCount }}</div>
-              <div class="text-sm text-green-700">Thanh cong</div>
+              <div class="text-sm text-green-700">Thành công</div>
             </div>
             <div class="bg-red-50 rounded-lg p-4 text-center">
               <div class="text-2xl font-bold text-red-600">{{ importResult.failedCount }}</div>
-              <div class="text-sm text-red-700">That bai</div>
+              <div class="text-sm text-red-700">Thất bại</div>
             </div>
           </div>
           <div *ngIf="importResult.errors.length > 0" class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <p class="text-sm font-medium text-red-800 mb-1">Chi tiet loi:</p>
+            <p class="text-sm font-medium text-red-800 mb-1">Chi tiết lỗi:</p>
             <ul class="list-disc list-inside text-sm text-red-700">
               <li *ngFor="let err of importResult.errors">{{ err }}</li>
             </ul>
           </div>
           <button routerLink="/trades" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
-            Ve trang giao dich
+            Về trang giao dịch
           </button>
         </div>
       </div>
@@ -218,10 +218,10 @@ export class TradeImportComponent implements OnInit {
       };
 
       // Validate
-      if (!symbol) row.error = 'Thieu ma CK';
-      else if (tradeType !== 'BUY' && tradeType !== 'SELL') row.error = 'Loai phai la BUY hoac SELL';
-      else if (quantity <= 0) row.error = 'So luong phai > 0';
-      else if (price <= 0) row.error = 'Gia phai > 0';
+      if (!symbol) row.error = 'Thiếu mã CK';
+      else if (tradeType !== 'BUY' && tradeType !== 'SELL') row.error = 'Loại phải là BUY hoặc SELL';
+      else if (quantity <= 0) row.error = 'Số lượng phải > 0';
+      else if (price <= 0) row.error = 'Giá phải > 0';
 
       this.previewRows.push(row);
     });
@@ -254,12 +254,12 @@ export class TradeImportComponent implements OnInit {
         this.importing = false;
         this.previewRows = [];
         if (result.successCount > 0) {
-          this.notificationService.success('Import', `Da import ${result.successCount} giao dich`);
+          this.notificationService.success('Import', `Đã import ${result.successCount} giao dịch`);
         }
       },
       error: (err) => {
         this.importing = false;
-        this.notificationService.error('Loi', 'Khong the import giao dich');
+        this.notificationService.error('Lỗi', 'Không thể import giao dịch');
       }
     });
   }

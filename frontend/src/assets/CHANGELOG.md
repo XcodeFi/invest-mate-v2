@@ -2,6 +2,33 @@
 
 ---
 
+## [v2.9.0] — 2026-03-17 · Tích hợp 24hmoney API — Dữ liệu thị trường real-time
+
+**Branch:** `feature/m2-and-enhancements`
+
+### Thêm mới
+
+- **24hmoney.vn API Provider**: `HmoneyMarketDataProvider` — nguồn dữ liệu thị trường chứng khoán Việt Nam real-time, thay thế toàn bộ mock data
+- **5 API endpoints mới**: Stock detail (`/market/stock/{symbol}/detail`), Market overview (`/market/overview`), Search (`/market/search`), Top fluctuation (`/market/top-fluctuation`), Trading summary (`/market/stock/{symbol}/summary`)
+- **IStockInfoProvider interface**: Interface mới cho stock detail, search, top fluctuation, trading summary
+- **Trang Thị trường nâng cao**: Overview 4 chỉ số (VN-INDEX, VN30, HNX, UPCOM), tra cứu cổ phiếu chi tiết với order book 3 mức, tìm kiếm autocomplete (debounce 300ms), top biến động theo sàn (HOSE/HNX/UPCOM tabs), biến động giá 1D/1W/1M/3M/6M
+- **Dashboard Market Overview**: Strip 4 index cards ở đầu dashboard — giá, %, KL
+
+### Sửa lỗi
+
+- **StockPriceService mock → real API**: Xoá toàn bộ giá cổ phiếu mock hardcoded (~20 mã), delegate sang `IMarketDataProvider` (24hmoney). P&L, Risk, Positions, Strategy Performance giờ dùng giá thật VND thay vì giá giả USD
+- **Worker mock → real API**: Worker background jobs (PriceSnapshot, BacktestJob) giờ dùng `HmoneyMarketDataProvider` thay vì `MockMarketDataProvider`
+
+### Cải thiện
+
+- **IMemoryCache**: Cache giá cổ phiếu (15s), chỉ số (15s), danh sách công ty (30 phút) — configurable qua `appsettings.json`
+- **Price ×1000 scaling**: API 24hmoney trả giá ÷1000, tự động nhân lại khi mapping. Chỉ số index giữ nguyên
+- **Shared raw cache**: `GetCurrentPriceAsync` và `GetStockDetailAsync` dùng chung cache raw response — cùng 1 mã chỉ gọi API 1 lần trong 15s
+- **MarketIndexData enriched**: Thêm foreign trading, advance/decline, prior close cho dữ liệu chỉ số
+- **BaseUrl configurable**: URL API 24hmoney đọc từ config/env var, không hardcode
+
+---
+
 ## [v2.8.0] — 2026-03-14 · M2 Fix + 6 Feature Enhancements
 
 **Branch:** `feature/m2-and-enhancements`

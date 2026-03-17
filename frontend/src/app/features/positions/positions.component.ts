@@ -32,18 +32,18 @@ interface PortfolioGroup {
         <div class="flex items-center gap-3">
           <select [(ngModel)]="sortBy" (ngModelChange)="sortPositions()"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-            <option value="value">Sap xep: Gia tri</option>
-            <option value="pnl">Sap xep: Lai/Lo</option>
-            <option value="pnlPercent">Sap xep: % Lai/Lo</option>
-            <option value="symbol">Sap xep: Ma CK</option>
+            <option value="value">Sắp xếp: Giá trị</option>
+            <option value="pnl">Sắp xếp: Lãi/Lỗ</option>
+            <option value="pnlPercent">Sắp xếp: % Lãi/Lỗ</option>
+            <option value="symbol">Sắp xếp: Mã CK</option>
           </select>
           <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="loadPositions()"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-            <option value="">Tat ca danh muc</option>
+            <option value="">Tất cả danh mục</option>
             <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
           </select>
           <button (click)="loadPositions()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors">
-            Lam moi
+            Làm mới
           </button>
         </div>
       </div>
@@ -171,7 +171,7 @@ interface PortfolioGroup {
                     [class.text-red-600]="getDistanceToSL(pos) < 3"
                     [class.text-amber-600]="getDistanceToSL(pos) >= 3 && getDistanceToSL(pos) < 5"
                     [class.text-gray-500]="getDistanceToSL(pos) >= 5">
-                    Cach SL {{ getDistanceToSL(pos) | number:'1.1-1' }}% · Cach TP {{ getDistanceToTP(pos) | number:'1.1-1' }}%
+                    Cách SL {{ getDistanceToSL(pos) | number:'1.1-1' }}% · Cách TP {{ getDistanceToTP(pos) | number:'1.1-1' }}%
                   </div>
                 </div>
 

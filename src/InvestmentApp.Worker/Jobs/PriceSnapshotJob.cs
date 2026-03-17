@@ -99,7 +99,7 @@ public class PriceSnapshotJob : BackgroundService
 
                 var marketIndex = new MarketIndex(
                     indexData.IndexSymbol, indexData.Date,
-                    indexData.Open, indexData.High, indexData.Low, indexData.Close,
+                    indexData.PriorClose, indexData.High, indexData.Low, indexData.Close,
                     indexData.Volume);
                 await indexRepo.UpsertAsync(marketIndex, cancellationToken);
             }

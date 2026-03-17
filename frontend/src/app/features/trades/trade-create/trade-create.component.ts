@@ -12,6 +12,7 @@ import { NotificationService } from '../../../core/services/notification.service
 import { TradeType, isSellTrade } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../../shared/directives/num-mask.directive';
+import { UppercaseDirective } from '../../../shared/directives/uppercase.directive';
 
 interface StockSymbolEntry {
   symbol: string;
@@ -22,7 +23,7 @@ interface StockSymbolEntry {
 @Component({
   selector: 'app-trade-create',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -82,8 +83,8 @@ interface StockSymbolEntry {
               <!-- Symbol with Autocomplete -->
               <div class="relative">
                 <label for="symbol" class="block text-sm font-medium text-gray-700 mb-1">Mã chứng khoán <span class="text-red-500">*</span></label>
-                <input type="text" id="symbol" name="symbol" [(ngModel)]="form.symbol" required
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
+                <input type="text" id="symbol" name="symbol" [(ngModel)]="form.symbol" required appUppercase
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="VD: VNM, VIC, FPT..."
                   (input)="onSymbolInput($event); onFormChange()"
                   (focus)="showSymbolDropdown = true"

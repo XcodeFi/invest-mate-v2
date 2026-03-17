@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-14
-> **Trạng thái:** Phase 7 đang tiếp tục
+> **Cập nhật lần cuối:** 2026-03-17
+> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API
 
 ---
 
@@ -56,6 +56,8 @@ Flow 5 bước dẫn dắt giao dịch có kỷ luật:
 - Drawdown vượt ngưỡng (>10% → warning, >20% → danger)
 - **Cảnh báo tập trung danh mục** (positionSizePercent > maxPositionSizePercent từ Risk Profile)
 
+**Market Overview Strip (v2.9):** 4 index cards (VN-INDEX, VN30, HNX, UPCOM) — giá, %, KL — dữ liệu real-time từ 24hmoney
+
 **Vị thế nổi bật (v2.8):** Top 6 positions theo giá trị, hiện symbol/SL/qty/P&L%, link đến `/positions`
 
 **Portfolio List:** Vốn ban đầu, giá trị hiện tại, P&L, performance progress bar
@@ -91,12 +93,32 @@ Tabs:
 
 ### Market Data (`/market-data`)
 
-- Tra cứu giá cổ phiếu đơn lẻ (Open/High/Low/Close/Volume)
-- Lịch sử giá theo khoảng thời gian tùy chọn
-- Bảng giá nhanh nhiều mã (watchlist)
-- Chỉ số thị trường: VNINDEX, VN30, HNX
+**Nguồn dữ liệu:** 24hmoney.vn API (real-time, cache IMemoryCache TTL 15s configurable)
 
-**API:** `GET /api/v1/market/price/{symbol}`, `/history`, `/prices`, `/index/{symbol}`
+- **Chỉ số thị trường**: Overview 4 index (VN-INDEX, VN30, HNX, UPCOM) — giá, thay đổi, KL, GT, NN mua/bán
+- **Tra cứu cổ phiếu chi tiết**: Company info, giá OHLC, trần/sàn/tham chiếu, order book 3 mức (bid/ask), giao dịch nước ngoài, biến động giá (1D/1W/1M/3M/6M)
+- **Tìm kiếm mã**: Autocomplete từ danh sách ~1800 công ty (cache 30 phút), debounce 300ms
+- **Top biến động**: Tab HOSE/HNX/UPCOM, bảng mã biến động mạnh nhất
+- **Bảng giá nhanh**: Nhập nhiều mã, xem giá close + KL
+- **Lịch sử giá**: Khoảng thời gian tùy chọn, bảng OHLCV
+
+**Quy tắc giá:** API 24hmoney trả giá cổ phiếu ÷1000 → nhân ×1000 khi mapping. Chỉ số index giữ nguyên.
+
+**API endpoints:**
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `GET` | `/market/price/{symbol}` | Giá hiện tại (OHLCV) |
+| `GET` | `/market/price/{symbol}/history` | Lịch sử giá |
+| `GET` | `/market/prices?symbols=` | Bảng giá nhanh (batch) |
+| `GET` | `/market/index/{symbol}` | Chi tiết chỉ số (VN-INDEX, VN30, HNX, UPCOM) |
+| `GET` | `/market/overview` | Tổng quan tất cả chỉ số |
+| `GET` | `/market/stock/{symbol}/detail` | Chi tiết cổ phiếu + order book |
+| `GET` | `/market/search?keyword=` | Tìm kiếm mã/tên công ty |
+| `GET` | `/market/top-fluctuation?floor=` | Top biến động (10=HOSE, 02=HNX, 03=UPCOM) |
+| `GET` | `/market/stock/{symbol}/summary` | Biến động giá 1D/1W/1M/3M/6M |
+
+**Services:** `MarketDataService` (FE), `HmoneyMarketDataProvider` (BE — implements `IMarketDataProvider` + `IStockInfoProvider`)
 
 ---
 

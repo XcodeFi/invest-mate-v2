@@ -12,11 +12,12 @@ import { NotificationService } from '../../core/services/notification.service';
 import { TemplateService, RiskProfileTemplate } from '../../core/services/template.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
+import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 
 @Component({
   selector: 'app-risk',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Rủi ro</h1>
@@ -138,7 +139,7 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Mã CK</label>
-                    <input type="text" [(ngModel)]="newSl.symbol" placeholder="VNM"
+                    <input type="text" [(ngModel)]="newSl.symbol" placeholder="VNM" appUppercase
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                   </div>
                   <div>

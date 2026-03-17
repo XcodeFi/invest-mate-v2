@@ -8,11 +8,12 @@ import { TradePlanService, TradePlan } from '../../core/services/trade-plan.serv
 import { NotificationService } from '../../core/services/notification.service';
 import { TradeType, getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } from '../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 
 @Component({
   selector: 'app-trades',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -26,9 +27,13 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             <div class="flex space-x-3">
               <button
                 routerLink="/trades/import"
-                class="border border-blue-300 text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+                class="border border-blue-300 text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg font-medium transition-colors duration-200 group relative"
+                title="Nhập nhiều giao dịch cùng lúc từ file Excel/CSV"
               >
-                Import CSV
+                📥 Nhập từ Excel
+                <span class="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap z-10">
+                  Hỗ trợ file .csv — Nhập nhiều giao dịch cùng lúc
+                </span>
               </button>
               <button
                 routerLink="/trades/create"
@@ -51,7 +56,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <div class="relative">
                 <input
                   type="text"
-                  placeholder="VD: AAPL, VNM..."
+                  placeholder="VD: AAPL, VNM..." appUppercase
                   class="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   [(ngModel)]="filters.symbol"
                   (input)="applyFilters()"

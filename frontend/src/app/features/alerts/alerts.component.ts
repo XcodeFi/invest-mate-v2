@@ -9,11 +9,12 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
+import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 
 @Component({
   selector: 'app-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -68,7 +69,7 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
           </div>
           <div *ngIf="newRule.alertType === 'PriceAlert'">
             <label class="block text-sm font-medium text-gray-700 mb-1">Mã cổ phiếu</label>
-            <input [(ngModel)]="newRule.symbol" type="text"
+            <input [(ngModel)]="newRule.symbol" type="text" appUppercase
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="VD: VNM">
           </div>
