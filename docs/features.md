@@ -393,6 +393,27 @@ Components đã refactor: `trade-plan`, `trade-wizard`, `trade-create`, `backtes
 
 ---
 
+### Trade Replay (`/trade-replay/:id`)
+
+Visualize toàn bộ vòng đời kế hoạch giao dịch trên biểu đồ giá thực:
+
+| Thành phần | Mô tả |
+|------------|-------|
+| Biểu đồ giá | Chart.js line chart giá đóng cửa (từ 24hmoney API), phạm vi tự động từ ngày tạo KH đến ngày hoàn thành |
+| Sự kiện vào lệnh | Scatter points tam giác xanh ▲ tại ngày/giá thực hiện từng lô |
+| Sự kiện thoát lệnh | Scatter points tam giác đỏ ▼ tại ngày/giá trigger exit target |
+| Stop-Loss | Đường ngang nét đứt đỏ, hiển thị lịch sử điều chỉnh SL theo thời gian |
+| Mục tiêu | Đường ngang nét đứt xanh tại giá target |
+| Tạo kế hoạch | Scatter point ngôi sao xanh ★ tại ngày tạo plan |
+| Summary cards | Giá vào lệnh (KH/TT), Lãi/Lỗ, R:R (KH/TT), Phí GD |
+| Timeline | Dòng thời gian sự kiện theo thứ tự: Tạo KH → Vào lệnh → Điều chỉnh SL → Thoát lệnh → Hoàn thành |
+
+**Entry point:** Nút "Xem replay" (icon film) trên bảng kế hoạch đã lưu — chỉ hiện cho status `Executed` / `Reviewed`.
+
+**Dữ liệu kết hợp từ:** `TradePlanService`, `MarketDataService.getPriceHistory()`, `PortfolioService.getTrades()`
+
+---
+
 ## API Endpoints tổng hợp (Frontend → Backend)
 
 | Module | Endpoint | Auth |
@@ -442,6 +463,7 @@ Components đã refactor: `trade-plan`, `trade-wizard`, `trade-create`, `backtes
 | `/positions` | `PositionsComponent` | Vị thế đang mở |
 | `/trades` | `TradesComponent` | Lịch sử giao dịch |
 | `/trades/create` | `TradeCreateComponent` | Tạo giao dịch mới |
+| `/trade-replay/:id` | `TradeReplayComponent` | Replay kế hoạch giao dịch trên biểu đồ giá |
 
 ---
 

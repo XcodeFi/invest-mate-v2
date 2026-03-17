@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.10.0] — 2026-03-17 · Trade Replay — Xem lại giao dịch trên biểu đồ giá
+
+**Branch:** `feature/m2-and-enhancements`
+
+### Thêm mới
+
+- **Trade Replay** (`/trade-replay/:id`): Visualize toàn bộ vòng đời kế hoạch giao dịch trên biểu đồ giá thực từ 24hmoney API
+  - Biểu đồ giá đóng cửa (Chart.js) với overlay: vào lệnh (▲ xanh), thoát lệnh (▼ đỏ), tạo KH (★ xanh), stop-loss (nét đứt đỏ), mục tiêu (nét đứt xanh)
+  - Summary cards: Giá vào lệnh (KH/TT), Lãi/Lỗ, R:R (KH/TT), Phí GD
+  - Dòng thời gian sự kiện: Tạo KH → Vào lệnh → Điều chỉnh SL → Thoát lệnh → Hoàn thành
+  - Entry point: Nút "Xem replay" trên bảng kế hoạch cho status Executed/Reviewed
+- **Symbol Autocomplete real-time**: Thay thế file JSON tĩnh (58 mã) bằng `MarketDataService.searchStocks()` (API 24hmoney), debounce 300ms, hiển thị tên công ty + sàn
+
+---
+
 ## [v2.9.0] — 2026-03-17 · Tích hợp 24hmoney API — Dữ liệu thị trường real-time
 
 **Branch:** `feature/m2-and-enhancements`

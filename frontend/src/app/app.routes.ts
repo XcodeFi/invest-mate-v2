@@ -107,6 +107,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'trade-replay/:id',
+    loadComponent: () => import('./features/trade-replay/trade-replay.component').then(m => m.TradeReplayComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'changelog',
     loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent)
   },

@@ -158,6 +158,13 @@ interface TradePlanForm {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                       </svg>
                     </button>
+                    <a *ngIf="sp.status === 'Executed' || sp.status === 'Reviewed'"
+                      [routerLink]="['/trade-replay', sp.id]" title="Xem replay"
+                      class="p-1 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
+                      </svg>
+                    </a>
                     <button *ngIf="sp.status === 'Executed'" (click)="markReviewed(sp)" title="Đã review"
                       class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
