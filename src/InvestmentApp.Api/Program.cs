@@ -119,7 +119,23 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IStockPriceService, StockPriceService>();
 builder.Services.AddScoped<IPnLService, PnLService>();
-builder.Services.AddScoped<IMarketDataProvider, MockMarketDataProvider>();
+// In-memory cache for market data
+builder.Services.AddMemoryCache();
+builder.Services.Configure<InvestmentApp.Infrastructure.Services.Hmoney.MarketDataProviderOptions>(
+    builder.Configuration.GetSection("MarketDataProvider"));
+
+// 24hmoney.vn market data provider (BaseUrl + timeout from appsettings.json)
+var mdpConfig = builder.Configuration.GetSection("MarketDataProvider");
+builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyMarketDataProvider>(client =>
+{
+    client.BaseAddress = new Uri(mdpConfig["BaseUrl"]!);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+    client.Timeout = TimeSpan.FromSeconds(mdpConfig.GetValue<int>("TimeoutSeconds", 15));
+});
+builder.Services.AddScoped<IMarketDataProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyMarketDataProvider>());
+builder.Services.AddScoped<IStockInfoProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyMarketDataProvider>());
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<ICashFlowAdjustedReturnService, CashFlowAdjustedReturnService>();
 builder.Services.AddScoped<IRiskCalculationService, RiskCalculationService>();

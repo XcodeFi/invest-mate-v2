@@ -119,19 +119,21 @@ public class MockMarketDataProvider : IMarketDataProvider
         var baseValue = baseValues.GetValueOrDefault(indexSymbol, 1000m);
         var variation = (decimal)(_random.NextDouble() * 0.04 - 0.02);
         var close = Math.Round(baseValue * (1 + variation), 2);
-        var open = Math.Round(baseValue * (1 + (decimal)(_random.NextDouble() * 0.01 - 0.005)), 2);
+        var priorClose = Math.Round(baseValue * (1 + (decimal)(_random.NextDouble() * 0.01 - 0.005)), 2);
 
         var data = new MarketIndexData
         {
             IndexSymbol = indexSymbol,
             Date = DateTime.UtcNow.Date,
-            Open = open,
-            High = Math.Max(open, close) + Math.Round((decimal)(_random.NextDouble() * 5), 2),
-            Low = Math.Min(open, close) - Math.Round((decimal)(_random.NextDouble() * 5), 2),
             Close = close,
+            PriorClose = priorClose,
+            High = Math.Max(priorClose, close) + Math.Round((decimal)(_random.NextDouble() * 5), 2),
+            Low = Math.Min(priorClose, close) - Math.Round((decimal)(_random.NextDouble() * 5), 2),
+            Average = Math.Round((close + priorClose) / 2, 2),
+            Change = Math.Round(close - priorClose, 2),
+            ChangePercent = Math.Round(((close - priorClose) / priorClose) * 100, 2),
             Volume = _random.Next(500000000, 1500000000),
-            Change = Math.Round(close - open, 2),
-            ChangePercent = Math.Round(((close - open) / open) * 100, 2)
+            Value = Math.Round((decimal)_random.Next(10000, 30000), 2)
         };
 
         return Task.FromResult<MarketIndexData?>(data);

@@ -6,7 +6,7 @@ import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
 import { RiskService, PortfolioRiskSummary, PositionRiskItem, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
-import { MarketDataService } from '../../core/services/market-data.service';
+import { MarketDataService, MarketOverview } from '../../core/services/market-data.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
@@ -55,6 +55,27 @@ interface RiskAlert {
 
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Market Overview Strip -->
+        <div *ngIf="marketOverview.length > 0" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div *ngFor="let idx of marketOverview"
+            class="bg-white rounded-lg border px-4 py-3 flex items-center justify-between"
+            [class.border-l-green-500]="idx.change >= 0" [class.border-l-red-500]="idx.change < 0"
+            style="border-left-width: 3px;">
+            <div>
+              <div class="text-xs font-medium text-gray-500">{{ idx.symbol }}</div>
+              <div class="text-lg font-bold" [class.text-green-600]="idx.change >= 0" [class.text-red-600]="idx.change < 0">
+                {{ idx.price.toLocaleString('vi-VN', {maximumFractionDigits: 2}) }}
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-medium" [class.text-green-600]="idx.change >= 0" [class.text-red-600]="idx.change < 0">
+                {{ idx.changePercent >= 0 ? '+' : '' }}{{ idx.changePercent.toFixed(2) }}%
+              </div>
+              <div class="text-xs text-gray-400">KL: {{ idx.totalVolume >= 1000000 ? (idx.totalVolume / 1000000).toFixed(0) + 'M' : (idx.totalVolume / 1000).toFixed(0) + 'K' }}</div>
+            </div>
+          </div>
+        </div>
 
         <!-- Risk Alert Banner (persistent top) -->
         <div *ngIf="riskAlerts.length > 0" class="mb-6 bg-gradient-to-r rounded-xl p-4 border-2 shadow-sm"
@@ -733,6 +754,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Shared utilities ────────────────────────────────────────────────────
   isBuyTrade = isBuyTrade;
 
+  // ─── Market Overview ─────────────────────────────────────────────────────
+  marketOverview: MarketOverview[] = [];
+
   // ─── Positions Widget ────────────────────────────────────────────────────
   topPositions: ActivePosition[] = [];
 
@@ -762,6 +786,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
     this.loadDashboardData();
     this.loadTopPositions();
+    this.loadMarketOverview();
+  }
+
+  private loadMarketOverview(): void {
+    this.marketDataService.getMarketOverview().subscribe({
+      next: data => this.marketOverview = data,
+      error: () => {}
+    });
   }
 
   private loadTopPositions(): void {

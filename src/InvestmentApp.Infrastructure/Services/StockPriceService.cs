@@ -1,67 +1,60 @@
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.ValueObjects;
+using Microsoft.Extensions.Logging;
 
 namespace InvestmentApp.Infrastructure.Services;
 
+/// <summary>
+/// Bridges IStockPriceService (used by PnL/Risk/Positions) to IMarketDataProvider (24hmoney API).
+/// Returns real-time prices in VND.
+/// </summary>
 public class StockPriceService : IStockPriceService
 {
-    // Mock stock prices - in production, this would call a real stock price API
-    private static readonly Dictionary<string, decimal> _mockPrices = new()
+    private readonly IMarketDataProvider _marketDataProvider;
+    private readonly ILogger<StockPriceService> _logger;
+
+    public StockPriceService(
+        IMarketDataProvider marketDataProvider,
+        ILogger<StockPriceService> logger)
     {
-        // US stocks (USD)
-        { "AAPL", 150.25m },
-        { "GOOGL", 2750.80m },
-        { "MSFT", 305.50m },
-        { "TSLA", 245.75m },
-        { "AMZN", 3380.90m },
-        { "NVDA", 875.30m },
-        { "META", 330.45m },
-        { "NFLX", 485.20m },
-        // Vietnamese stocks (VND)
-        { "VIC", 42380m },
-        { "VNM", 72500m },
-        { "FPT", 128000m },
-        { "VCB", 89000m },
-        { "HPG", 25800m },
-        { "MWG", 52600m },
-        { "TCB", 24500m },
-        { "VHM", 39500m },
-        { "MSN", 75000m },
-        { "VRE", 27800m },
-        { "SSI", 28500m },
-        { "ACB", 24200m },
-        { "MBB", 19800m },
-        { "BID", 47500m },
-        { "CTG", 32000m },
-        { "GAS", 78500m },
-        { "PLX", 38000m },
-        { "SAB", 56000m },
-        { "PNJ", 78000m },
-        { "REE", 57000m }
-    };
+        _marketDataProvider = marketDataProvider;
+        _logger = logger;
+    }
 
-    private static readonly Random _random = new();
-
-    public Task<Money> GetCurrentPriceAsync(StockSymbol symbol)
+    public async Task<Money> GetCurrentPriceAsync(StockSymbol symbol)
     {
-        // In production, this would call a real stock price API
-        // For demo purposes, return mock data with some randomization
-        var basePrice = _mockPrices.GetValueOrDefault(symbol.Value, 100.00m);
-        var variation = (decimal)(_random.NextDouble() * 0.1 - 0.05); // ±5% variation
-        var currentPrice = basePrice * (1 + variation);
+        var priceData = await _marketDataProvider.GetCurrentPriceAsync(symbol.Value);
 
-        return Task.FromResult(new Money(Math.Round(currentPrice, 2), "USD"));
+        if (priceData == null || priceData.Close <= 0)
+        {
+            _logger.LogWarning("No price data from API for {Symbol}, returning 0", symbol.Value);
+            return new Money(0, "VND");
+        }
+
+        return new Money(priceData.Close, "VND");
     }
 
     public async Task<Dictionary<string, Money>> GetCurrentPricesAsync(IEnumerable<StockSymbol> symbols)
     {
-        var prices = new Dictionary<string, Money>();
+        var symbolList = symbols.Select(s => s.Value).ToList();
+        var batchPrices = await _marketDataProvider.GetBatchPricesAsync(symbolList);
 
-        foreach (var symbol in symbols)
+        var result = new Dictionary<string, Money>();
+        foreach (var (sym, priceData) in batchPrices)
         {
-            prices[symbol.Value] = await GetCurrentPriceAsync(symbol);
+            result[sym] = new Money(priceData.Close, "VND");
         }
 
-        return prices;
+        // Fill missing symbols with 0
+        foreach (var symbol in symbols)
+        {
+            if (!result.ContainsKey(symbol.Value))
+            {
+                _logger.LogWarning("No batch price for {Symbol}", symbol.Value);
+                result[symbol.Value] = new Money(0, "VND");
+            }
+        }
+
+        return result;
     }
 }

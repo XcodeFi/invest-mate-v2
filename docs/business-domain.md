@@ -83,7 +83,7 @@ Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cance
 
 ### 3.4. Tính toán Lãi/Lỗ (P&L)
 - **Average Cost Method**: giá vốn bình quân gia quyền
-- **Unrealized P&L** = (giá hiện tại - giá vốn) × số lượng
+- **Unrealized P&L** = (giá hiện tại - giá vốn) × số lượng — giá hiện tại lấy từ 24hmoney API (real-time)
 - **Realized P&L** = tổng (giá bán - giá vốn) × số lượng bán
 - **TWR** (Time-Weighted Return): loại bỏ ảnh hưởng nạp/rút tiền
 - **MWR** (Money-Weighted Return / IRR): tính cả dòng tiền
@@ -137,7 +137,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns |
 | Capital Flows | `/api/v1/capital-flows` | Record, history, TWR/MWR |
 | Snapshots | `/api/v1/snapshots` | Take, range, compare |
-| Market Data | `/api/v1/market` | Price, history, batch, index |
+| Market Data | `/api/v1/market` | Price, history, batch, index, overview, stock detail, search, top fluctuation, trading summary |
 | Backtests | `/api/v1/backtests` | Queue, list, detail |
 | Positions | `/api/v1/positions` | Active positions |
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
@@ -165,7 +165,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | `/alerts` | Cảnh báo | Rules & lịch sử cảnh báo |
 | `/capital-flows` | Dòng tiền | Nạp/rút/cổ tức |
 | `/snapshots` | Lịch sử | Ảnh chụp & so sánh danh mục |
-| `/market-data` | Thị trường | Tra cứu giá, lịch sử, bảng giá nhanh |
+| `/market-data` | Thị trường | Chỉ số thị trường, tra cứu cổ phiếu chi tiết, tìm kiếm mã, top biến động, bảng giá nhanh, lịch sử giá |
 | `/backtesting` | Kiểm thử | Mô phỏng chiến lược |
 | `/monthly-review` | Tổng kết tháng | Review hiệu suất hàng tháng |
 

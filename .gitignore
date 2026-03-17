@@ -496,3 +496,4 @@ frontend/.angular/cache/
 # Angular build output
 frontend/dist/
 src/InvestmentApp.Api/appsettings.Development.json
+/src/InvestmentApp.Api/appsettings.Development.json

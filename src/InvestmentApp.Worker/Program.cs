@@ -3,8 +3,10 @@ using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Infrastructure.Repositories;
 using InvestmentApp.Infrastructure.Services;
+using InvestmentApp.Infrastructure.Services.Hmoney;
 using InvestmentApp.Worker;
 using InvestmentApp.Worker.Jobs;
+using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
@@ -59,7 +61,20 @@ builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 // Services
 builder.Services.AddScoped<IStockPriceService, StockPriceService>();
 builder.Services.AddScoped<IPnLService, PnLService>();
-builder.Services.AddScoped<IMarketDataProvider, MockMarketDataProvider>();
+
+// 24hmoney.vn market data provider (same as API project)
+builder.Services.AddMemoryCache();
+builder.Services.Configure<MarketDataProviderOptions>(
+    builder.Configuration.GetSection("MarketDataProvider"));
+var mdpConfig = builder.Configuration.GetSection("MarketDataProvider");
+builder.Services.AddHttpClient<HmoneyMarketDataProvider>(client =>
+{
+    client.BaseAddress = new Uri(mdpConfig["BaseUrl"]!);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+    client.Timeout = TimeSpan.FromSeconds(mdpConfig.GetValue<int>("TimeoutSeconds", 15));
+});
+builder.Services.AddScoped<IMarketDataProvider>(sp =>
+    sp.GetRequiredService<HmoneyMarketDataProvider>());
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<ICurrencyService, CurrencyService>();
