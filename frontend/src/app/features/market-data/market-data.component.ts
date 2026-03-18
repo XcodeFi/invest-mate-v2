@@ -99,7 +99,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
           </div>
 
           <!-- Price Grid -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div class="bg-gray-50 rounded p-2">
               <div class="text-xs text-gray-500">Tham chiếu</div>
               <div class="font-semibold text-yellow-600">{{ stockDetail.referencePrice | vndCurrency }}</div>
@@ -187,7 +187,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
             </button>
           </div>
         </div>
-        <div *ngIf="topFluctuations.length > 0" class="overflow-x-auto">
+        <div *ngIf="topFluctuations.length > 0" class="overflow-x-auto hidden md:block">
           <table class="min-w-full table-auto">
             <thead>
               <tr class="bg-gray-50 border-b">
@@ -222,6 +222,25 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
             </tbody>
           </table>
         </div>
+        <!-- Mobile cards for Top Fluctuation -->
+        <div *ngIf="topFluctuations.length > 0" class="md:hidden divide-y divide-gray-200">
+          <div *ngFor="let s of topFluctuations" class="p-4 space-y-2 cursor-pointer active:bg-gray-50" (click)="searchSymbol = s.symbol; lookupStock()">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-bold text-gray-800">{{ s.symbol }}</span>
+                <span *ngIf="s.shortName" class="text-xs text-gray-400 ml-1">{{ s.shortName }}</span>
+              </div>
+              <span class="font-semibold" [class.text-green-600]="s.change >= 0" [class.text-red-600]="s.change < 0">
+                {{ s.price | vndCurrency }}
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+              <div><span class="text-gray-500">+/-:</span> <span class="font-medium" [class.text-green-600]="s.change >= 0" [class.text-red-600]="s.change < 0">{{ s.change >= 0 ? '+' : '' }}{{ s.change | vndCurrency }}</span></div>
+              <div><span class="text-gray-500">%:</span> <span class="font-medium" [class.text-green-600]="s.changePercent >= 0" [class.text-red-600]="s.changePercent < 0">{{ s.changePercent >= 0 ? '+' : '' }}{{ s.changePercent.toFixed(2) }}%</span></div>
+              <div><span class="text-gray-500">KL:</span> <span class="font-medium text-gray-600">{{ formatVolume(s.volume) }}</span></div>
+            </div>
+          </div>
+        </div>
         <div *ngIf="loadingTop" class="text-center text-gray-400 py-4">Đang tải...</div>
       </div>
 
@@ -237,7 +256,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
             {{ loadingBatch ? 'Đang tải...' : 'Xem giá' }}
           </button>
         </div>
-        <div *ngIf="batchPrices.length > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div *ngIf="batchPrices.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <div *ngFor="let bp of batchPrices"
             class="border rounded-lg p-3 text-center hover:shadow-md transition-shadow cursor-pointer"
             (click)="searchSymbol = bp.symbol; lookupStock()">

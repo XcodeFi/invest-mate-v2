@@ -16,7 +16,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
       <!-- Header -->
       <div class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex justify-between items-center py-6">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-6">
             <div class="flex items-center">
               <button routerLink="/portfolios" class="mr-4 text-gray-500 hover:text-gray-700">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,7 +82,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
           <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-lg font-semibold text-gray-900">Vị thế đang nắm giữ</h2>
           </div>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto hidden md:block">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -112,6 +112,29 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
               </tbody>
             </table>
           </div>
+
+          <!-- Mobile Cards -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div *ngFor="let pos of pnl.positions" class="p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-gray-900">{{ pos.symbol }}</span>
+                <span class="text-sm font-bold" [class]="(pos.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                  {{ (pos.totalPnLPercent ?? 0).toFixed(2) }}%
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div><span class="text-gray-500">Số lượng:</span> <span class="font-medium">{{ pos.quantity }}</span></div>
+                <div><span class="text-gray-500">Giá TB:</span> <span class="font-medium">{{ pos.averageCost | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Giá hiện tại:</span> <span class="font-medium">{{ pos.currentPrice | vndCurrency }}</span></div>
+                <div>
+                  <span class="text-gray-500">Lãi/Lỗ:</span>
+                  <span class="font-medium" [class]="pos.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
+                    {{ pos.totalPnL | vndCurrency }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Recent Trades -->
@@ -122,7 +145,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
               Xem tất cả →
             </button>
           </div>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto hidden md:block">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -148,6 +171,24 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Cards -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div *ngFor="let trade of portfolio.trades.slice(0, 5)" class="p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-gray-900">{{ trade.symbol }}</span>
+                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                  [class]="getTradeTypeClass(trade.tradeType)">
+                  {{ getTradeTypeDisplay(trade.tradeType) }}
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div><span class="text-gray-500">Số lượng:</span> <span class="font-medium">{{ trade.quantity }}</span></div>
+                <div><span class="text-gray-500">Giá:</span> <span class="font-medium">{{ trade.price | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Ngày:</span> <span class="font-medium">{{ formatDate(trade.tradeDate) }}</span></div>
+              </div>
+            </div>
           </div>
         </div>
 

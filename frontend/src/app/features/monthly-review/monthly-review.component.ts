@@ -63,7 +63,7 @@ interface MonthlyReport {
             </span>
           </div>
 
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white/60 rounded-lg p-3">
               <div class="text-xs text-gray-500">Số giao dịch</div>
               <div class="text-2xl font-bold text-gray-800">{{ currentReport.totalTrades }}</div>
@@ -151,7 +151,7 @@ interface MonthlyReport {
         <!-- Summary Stats -->
         <div *ngIf="reports.length > 0" class="mt-8 bg-white rounded-lg shadow p-6">
           <h2 class="text-lg font-semibold text-gray-800 mb-4">Thống kê tổng hợp</h2>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
               <div class="text-xs text-gray-500">Tháng lãi</div>
               <div class="text-2xl font-bold text-green-600">{{ profitableMonths }}</div>

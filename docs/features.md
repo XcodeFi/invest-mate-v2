@@ -414,6 +414,28 @@ Visualize toàn bộ vòng đời kế hoạch giao dịch trên biểu đồ gi
 
 ---
 
+### Mobile Responsive (B1)
+
+**Mô tả:** Tối ưu toàn bộ giao diện cho mobile (320px–768px).
+
+**Thành phần:**
+
+| Cải tiến | Chi tiết |
+|----------|----------|
+| Bottom Navigation | `BottomNavComponent` — fixed bar 5 mục (Tổng quan, GD, Kế hoạch, Rủi ro, Thêm), hiện trên `< md` |
+| Mobile card layout | 14 bảng dữ liệu chuyển sang card layout trên mobile (`hidden md:block` table + `md:hidden` cards) |
+| Grid stacking | `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` trên ~15 component |
+| Tab overflow | Tab navigation cuộn ngang với `scrollbar-hide` trên mobile |
+| Header stacking | Page header xếp dọc trên mobile (`flex-col sm:flex-row`) |
+| Tooltip responsive | `max-width: calc(100vw - 2rem)` cho tooltip không bị tràn |
+| Content padding | `pb-14 md:pb-0` trên `<main>` tránh nội dung bị bottom nav che |
+
+**Components mới:** `shared/components/bottom-nav/bottom-nav.component.ts`
+
+**Files đã sửa:** ~20 component files + `styles.css` + `app.component.ts`
+
+---
+
 ## API Endpoints tổng hợp (Frontend → Backend)
 
 | Module | Endpoint | Auth |
@@ -471,7 +493,7 @@ Visualize toàn bộ vòng đời kế hoạch giao dịch trên biểu đồ gi
 
 | # | Tính năng | Độ ưu tiên |
 |---|-----------|:---:|
-| B1 | Mobile responsive | Cao |
+| ~~B1~~ | ~~Mobile responsive~~ | ✅ Done v2.11.0 |
 | B2 | Equity Curve vs Target CAGR overlay | Trung bình |
 | B3 | Export PDF/Excel | Trung bình |
 | B4 | Keyboard shortcuts | Thấp |
