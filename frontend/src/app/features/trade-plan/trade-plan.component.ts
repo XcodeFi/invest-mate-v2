@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil, catchError } from 'rxjs';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
@@ -66,20 +66,10 @@ interface TradePlanForm {
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Kế hoạch giao dịch (Trade Plan)</h1>
-        <div class="flex gap-2">
-          <button *ngIf="selectedPlanId" (click)="resetForm()"
-            class="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-            + Tạo mới
-          </button>
-          <button (click)="saveDraft()" [disabled]="saving || !plan.symbol"
-            class="px-4 py-2 border border-blue-300 hover:bg-blue-50 text-blue-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
-            {{ saving ? 'Đang lưu...' : (selectedPlanId ? 'Cập nhật nháp' : 'Lưu nháp') }}
-          </button>
-          <button (click)="saveAndReady()" [disabled]="saving || !plan.symbol || !canTrade"
-            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors">
-            {{ saving ? 'Đang lưu...' : 'Lưu & Sẵn sàng' }}
-          </button>
-        </div>
+        <button *ngIf="selectedPlanId" (click)="resetForm()"
+          class="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+          + Tạo mới
+        </button>
       </div>
 
       <!-- Saved Plans Panel -->
@@ -833,8 +823,25 @@ interface TradePlanForm {
               {{ getMissingCritical() }}
             </div>
 
-            <!-- Action buttons -->
+            <!-- Save buttons -->
             <div class="mt-4 space-y-2">
+              <button (click)="saveDraft()" [disabled]="saving || !plan.symbol"
+                class="block w-full text-center border-2 border-blue-400 hover:bg-blue-50 text-blue-700 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
+                {{ saving ? 'Đang lưu...' : (selectedPlanId ? 'Cập nhật nháp' : 'Lưu nháp') }}
+              </button>
+              <button (click)="saveAndReady()" [disabled]="saving || !plan.symbol || !canTrade"
+                class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
+                {{ saving ? 'Đang lưu...' : 'Lưu & Sẵn sàng' }}
+              </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <p class="text-xs text-gray-400 text-center mb-2">Đã có KH? Thực hiện ngay</p>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="space-y-2">
               <a [routerLink]="['/trade-wizard']"
                 [queryParams]="getWizardParams()"
                 class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
@@ -1009,7 +1016,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     private marketDataService: MarketDataService,
     private templateService: TradePlanTemplateService,
     private tradePlanService: TradePlanService,
-    private notification: NotificationService
+    private notification: NotificationService,
+    private route: ActivatedRoute
   ) {
     this.initChecklist();
   }
@@ -1019,6 +1027,13 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.portfolioService.getAll().subscribe({ next: d => this.portfolios = d });
     this.templateService.getAll().subscribe({ next: d => this.templates = d, error: () => {} });
     this.loadSavedPlans();
+
+    // Pre-fill symbol from query param (e.g. navigated from trades page)
+    const symbolParam = this.route.snapshot.queryParams['symbol'];
+    if (symbolParam) {
+      this.plan.symbol = symbolParam.toUpperCase().trim();
+      this.onSymbolInput();
+    }
 
     // Auto-fill: debounced symbol lookup
     this.symbolSubject.pipe(

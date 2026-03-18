@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.12.0] — 2026-03-18 · Trade Plan UX — Tạo kế hoạch từ trang giao dịch
+
+**Branch:** `feature/trade-plan-enhancements`
+
+### Thêm mới
+
+- **Nút "Tạo kế hoạch"** trên trang Lịch sử giao dịch: khi mã CP chưa có kế hoạch nào, hiện nút tạo KH thay vì chỉ hiện text "Không có KH" — navigate đến `/trade-plan?symbol=XXX`
+- **Pre-fill symbol** trên trang Kế hoạch: nhận query param `?symbol=` → tự điền mã CP + fetch giá hiện tại
+- **Nút lưu trong sidebar**: "Lưu nháp" và "Lưu & Sẵn sàng" chuyển từ header xuống cột phải (sidebar), đúng luồng UX cuộn xuống
+
+### Cải thiện
+
+- Mobile: thay text tĩnh "Chưa gắn KH" bằng link actionable "+ Tạo KH" / "Gắn KH"
+- Phân tách rõ khu vực Lưu kế hoạch vs Thực hiện giao dịch trong sidebar
+
+---
+
 ## [v2.11.0] — 2026-03-18 · Mobile Responsive — Tối ưu giao diện di động
 
 **Branch:** `feature/b1-mobile-responsive`
