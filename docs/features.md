@@ -331,6 +331,8 @@ Hai cơ chế song song trong project:
 - **Phiếu lệnh (Order Sheet)**: panel toggle hiển thị tóm tắt lệnh, nút copy clipboard, nút In (print), hiện danh mục + giá trị lệnh
 - **Saved plans**: danh sách kế hoạch đã lưu, filter trạng thái, lot progress bar, thực hiện từng lot
 - **Empty-when-zero placeholders**: các trường Giá vào, SL, TP, Số lượng hiện placeholder khi chưa nhập (không hiện "0")
+- **Query param pre-fill**: nhận `?symbol=XXX` → tự điền mã CP + fetch giá (liên kết từ trang trades)
+- **Save buttons trong sidebar**: nút "Lưu nháp" / "Lưu & Sẵn sàng" nằm ở cột phải (sidebar) thay vì header, đúng luồng UX cuộn xuống
 
 **Backend:** `TradePlan.cs` entity, `TradePlansController.cs`, lifecycle Draft→Ready→InProgress→Executed→Reviewed→Cancelled
 
@@ -355,7 +357,7 @@ Hai cơ chế song song trong project:
 - **Click symbol filter**: nhấn vào mã CK → tự fill ô filter, nút × clear
 - **Pagination fix**: sửa lỗi nextPage/previousPage reset về trang 1
 - Dùng shared TradeType utilities
-- **Link KH (v2.8)**: nút "Gắn KH" cho trade chưa liên kết plan, dropdown chọn KH theo symbol
+- **Link KH (v2.8)**: nút "Gắn KH" cho trade chưa liên kết plan, dropdown chọn KH theo symbol. Nếu chưa có KH cho mã đó → nút "Tạo kế hoạch" navigate đến `/trade-plan?symbol=XXX`
 - **Import CSV (v2.8)**: nút "Import CSV" → trang `/trades/import` — upload, preview, validate, bulk import
 
 ### Import CSV (`/trades/import`) — v2.8

@@ -179,8 +179,12 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                             <div class="font-medium text-gray-800">{{ plan.symbol }} - {{ plan.direction }}</div>
                             <div class="text-gray-500">{{ plan.entryPrice | number:'1.0-0' }}đ · {{ plan.status }} · {{ formatDate(plan.createdAt) }}</div>
                           </div>
-                          <div *ngIf="getMatchingPlans(trade.symbol).length === 0" class="px-3 py-3 text-xs text-gray-400 text-center">
-                            Không có KH cho {{ trade.symbol }}
+                          <div *ngIf="getMatchingPlans(trade.symbol).length === 0" class="px-3 py-3 text-center">
+                            <div class="text-xs text-gray-400 mb-2">Không có KH cho {{ trade.symbol }}</div>
+                            <a [routerLink]="['/trade-plan']" [queryParams]="{ symbol: trade.symbol }"
+                              class="inline-block text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium">
+                              + Tạo kế hoạch
+                            </a>
                           </div>
                         </div>
                       </div>
@@ -225,7 +229,11 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                     class="text-blue-600 hover:text-blue-800 font-medium text-xs">
                     Xem KH
                   </a>
-                  <span *ngIf="!trade.tradePlanId" class="text-xs text-gray-400">Chưa gắn KH</span>
+                  <a *ngIf="!trade.tradePlanId"
+                    [routerLink]="['/trade-plan']" [queryParams]="{ symbol: trade.symbol }"
+                    class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                    {{ getMatchingPlans(trade.symbol).length > 0 ? 'Gắn KH' : '+ Tạo KH' }}
+                  </a>
                 </div>
                 <button (click)="deleteTrade(trade.id)" class="text-red-600 hover:text-red-900 text-xs font-medium">Xóa</button>
               </div>
