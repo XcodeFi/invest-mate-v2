@@ -112,6 +112,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'daily-routine',
+    loadComponent: () => import('./features/daily-routine/daily-routine.component').then(m => m.DailyRoutineComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'changelog',
     loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent)
   },

@@ -24,6 +24,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Seed\Data\strategy_templates.json" />
     <EmbeddedResource Include="Seed\Data\risk_profile_templates.json" />
+    <EmbeddedResource Include="Seed\Data\routine_templates.json" />
   </ItemGroup>
 
 </Project>

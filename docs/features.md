@@ -1,6 +1,6 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-17
+> **Cập nhật lần cuối:** 2026-03-18
 > **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API
 
 ---
@@ -436,6 +436,53 @@ Visualize toàn bộ vòng đời kế hoạch giao dịch trên biểu đồ gi
 
 ---
 
+## Trader's Daily Todo List & Routine Templates
+
+### Tổng quan
+
+Widget ngay trên Dashboard (dưới Risk Alert Banner) + trang riêng `/daily-routine`.
+
+**5 Templates sẵn có:**
+
+| Template | Emoji | Thời gian | Bước | Mô tả |
+|----------|:-----:|:---------:|:----:|-------|
+| Swing Trading | 🌅 | ~30 phút | 12 | Sáng review → Trong phiên thực thi → Cuối ngày nhật ký |
+| DCA | 📈 | ~15 phút | 8 | Ngày mua DCA: kiểm tra giá → đặt lệnh → ghi nhận |
+| Research | 🔍 | ~45 phút | 10 | Cuối tuần: review hiệu suất → tìm mã mới → kế hoạch |
+| Onboarding | 🚀 | ~20 phút | 8 | Lần đầu: tạo danh mục → Risk Profile → chiến lược |
+| Crisis | ⚠️ | ~15 phút | 8 | Thị trường giảm mạnh: SL → drawdown → cắt lỗ → tâm lý |
+
+### Điểm đặc biệt
+
+- **Deep links**: Mỗi item có link đến trang tương ứng (click → navigate thẳng)
+- **Auto-suggest**: Template gợi ý dựa trên ngữ cảnh:
+  1. First-time user → Onboarding
+  2. VN-Index ≤ -3% → Crisis
+  3. Weekend (Sat/Sun) → Research
+  4. DCA day (Monday default) → DCA
+  5. Default → Swing Trading
+- **Streak counter**: Gamification đếm ngày liên tiếp hoàn thành (🔥 3, 5, 10, 30 ngày)
+- **Custom templates**: User tạo mẫu riêng, CRUD đầy đủ
+- **3 nhóm thời gian**: Sáng / Trong phiên / Cuối ngày
+- **History heatmap**: 30 ngày gần nhất (xanh=hoàn thành, vàng=một phần, xám=chưa làm)
+
+### Backend
+
+- **Domain:** `DailyRoutine` (AggregateRoot), `RoutineTemplate`, `RoutineItem`, `RoutineItemTemplate` (ValueObjects)
+- **Collection:** `daily_routines` (compound index UserId+Date, non-unique — soft-deleted docs are hard-deleted before insert), `routine_templates`
+- **CQRS:** GetOrCreateTodayRoutine, CompleteRoutineItem, SwitchTemplate, CreateCustomTemplate, UpdateCustomTemplate, DeleteCustomTemplate
+- **Queries:** GetTodayRoutine, GetRoutineHistory, GetRoutineTemplates, GetSuggestedTemplate
+- **Seed:** 5 built-in templates trong `routine_templates.json`
+
+### Frontend
+
+- **Service:** `daily-routine.service.ts`
+- **Full page:** `features/daily-routine/daily-routine.component.ts`
+- **Dashboard widget:** Compact card trong `dashboard.component.ts` (progress bar + next items + streak badge)
+- **Navigation:** Header (Quản lý group) + Bottom nav (moreItems)
+
+---
+
 ## API Endpoints tổng hợp (Frontend → Backend)
 
 | Module | Endpoint | Auth |
@@ -462,6 +509,12 @@ Visualize toàn bộ vòng đời kế hoạch giao dịch trên biểu đồ gi
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/stop-loss` | ✅ |
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/exit-targets/{level}/trigger` | ✅ |
 | **Positions** | `GET /api/v1/positions` | ✅ |
+| **Daily Routines** | `GET/POST /api/v1/daily-routines` | ✅ |
+| **Daily Routines** | `PATCH /api/v1/daily-routines/{id}/items/{index}` | ✅ |
+| **Daily Routines** | `POST /api/v1/daily-routines/switch-template` | ✅ |
+| **Daily Routines** | `GET /api/v1/daily-routines/history` | ✅ |
+| **Daily Routines** | `GET/POST/PUT/DELETE /api/v1/daily-routines/templates` | ✅ |
+| **Daily Routines** | `GET /api/v1/daily-routines/templates/suggest` | ✅ |
 
 ---
 
@@ -486,6 +539,7 @@ Visualize toàn bộ vòng đời kế hoạch giao dịch trên biểu đồ gi
 | `/trades` | `TradesComponent` | Lịch sử giao dịch |
 | `/trades/create` | `TradeCreateComponent` | Tạo giao dịch mới |
 | `/trade-replay/:id` | `TradeReplayComponent` | Replay kế hoạch giao dịch trên biểu đồ giá |
+| `/daily-routine` | `DailyRoutineComponent` | Nhiệm vụ hàng ngày & Routine Templates |
 
 ---
 

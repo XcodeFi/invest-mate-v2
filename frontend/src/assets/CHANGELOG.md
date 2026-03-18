@@ -2,6 +2,37 @@
 
 ---
 
+## [v2.12.0] — 2026-03-18 · Trader's Daily Todo List & Routine Templates
+
+**Branch:** `feature/trader-daily-todo`
+
+### Thêm mới
+
+- **Daily Routine Widget** trên Dashboard: hiển thị tiến độ nhiệm vụ hôm nay, streak badge (🔥), next uncompleted items với deep links
+- **Trang `/daily-routine`**: quản lý nhiệm vụ hàng ngày đầy đủ — checklist theo 3 nhóm (Sáng / Trong phiên / Cuối ngày), progress bar, streak counter
+- **5 Built-in Templates**: Swing Trading (12 bước), DCA (8 bước), Research (10 bước), Onboarding (8 bước), Crisis Checklist (8 bước)
+- **Auto-suggest**: Tự gợi ý template dựa trên ngữ cảnh (ngày DCA, cuối tuần, thị trường biến động, lần đầu sử dụng)
+- **Streak Gamification**: Đếm ngày liên tiếp hoàn thành, kỷ lục cá nhân, thông điệp động lực (3, 5, 10, 30 ngày)
+- **Custom Templates**: Tạo/sửa/xoá mẫu riêng với form dynamic items
+- **History Heatmap**: Lịch sử 30 ngày gần nhất (xanh/vàng/xám)
+- **Deep Links**: Mỗi item có link navigate thẳng đến trang liên quan
+
+### Backend
+
+- Domain entities: `DailyRoutine`, `RoutineTemplate`, `RoutineItem`, `RoutineItemTemplate`
+- API: `DailyRoutinesController` (`api/v1/daily-routines`) — 10 endpoints
+- MongoDB: `daily_routines` (compound index UserId+Date, soft-delete cleanup trước insert), `routine_templates`
+- Seed data: 5 built-in templates (Vietnamese có dấu đầy đủ)
+
+### Frontend
+
+- `DailyRoutineService` — 11 API methods
+- `DailyRoutineComponent` — standalone, inline template, Tailwind CSS
+- Dashboard widget tích hợp trong `DashboardComponent`
+- Navigation: Header (Quản lý group) + Bottom nav (moreItems)
+
+---
+
 ## [v2.11.0] — 2026-03-18 · Mobile Responsive — Tối ưu giao diện di động
 
 **Branch:** `feature/b1-mobile-responsive`
