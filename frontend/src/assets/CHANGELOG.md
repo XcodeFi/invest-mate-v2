@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.11.0] — 2026-03-18 · Mobile Responsive — Tối ưu giao diện di động
+
+**Branch:** `feature/b1-mobile-responsive`
+
+### Thêm mới
+
+- **Bottom Navigation** (`BottomNavComponent`): Thanh điều hướng cố định ở đáy màn hình trên mobile (< 768px) với 5 mục: Tổng quan, Giao dịch, Kế hoạch, Rủi ro, Thêm
+- **Mobile card layout**: 14 bảng dữ liệu (trades, trade-plan, risk, analytics, portfolio-detail, portfolio-trades, portfolio-analytics, capital-flows, market-data, snapshots) chuyển sang dạng card trên mobile
+- **Scrollable tabs**: Tab navigation cuộn ngang với ẩn scrollbar trên mobile (analytics, risk, snapshots)
+
+### Cải thiện
+
+- Grid summary cards xếp 1 cột trên mobile nhỏ (`grid-cols-1 sm:grid-cols-2`) — ~15 components
+- Page header xếp dọc trên mobile (trades, dashboard, portfolios, portfolio-detail, portfolio-trades)
+- Tooltip không bị tràn trên màn hình nhỏ (`max-width: calc(100vw - 2rem)`)
+- Content padding `pb-14` trên mobile tránh bị bottom nav che
+
+---
+
 ## [v2.10.0] — 2026-03-17 · Trade Replay — Xem lại giao dịch trên biểu đồ giá
 
 **Branch:** `feature/m2-and-enhancements`

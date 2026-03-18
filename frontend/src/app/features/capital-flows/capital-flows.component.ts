@@ -146,43 +146,73 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
           Chưa có dòng vốn nào được ghi nhận
         </div>
 
-        <div *ngIf="!loading && flowHistory && flowHistory.flows.length > 0" class="overflow-x-auto">
-          <table class="min-w-full table-auto">
-            <thead>
-              <tr class="bg-gray-50 border-b">
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loại</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số tiền</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiền tệ</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ghi chú</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let flow of flowHistory.flows" class="border-b hover:bg-gray-50">
-                <td class="px-4 py-3 text-sm">{{ flow.flowDate | date:'dd/MM/yyyy' }}</td>
-                <td class="px-4 py-3 text-sm">
-                  <span class="px-2 py-1 rounded text-xs font-medium"
-                    [ngClass]="getFlowTypeBadge(flow.type)">
-                    {{ getFlowTypeLabel(flow.type) }}
-                  </span>
-                </td>
-                <td class="px-4 py-3 text-sm text-right font-semibold"
+        <div *ngIf="!loading && flowHistory && flowHistory.flows.length > 0">
+          <div class="overflow-x-auto hidden md:block">
+            <table class="min-w-full table-auto">
+              <thead>
+                <tr class="bg-gray-50 border-b">
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loại</th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số tiền</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiền tệ</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ghi chú</th>
+                  <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let flow of flowHistory.flows" class="border-b hover:bg-gray-50">
+                  <td class="px-4 py-3 text-sm">{{ flow.flowDate | date:'dd/MM/yyyy' }}</td>
+                  <td class="px-4 py-3 text-sm">
+                    <span class="px-2 py-1 rounded text-xs font-medium"
+                      [ngClass]="getFlowTypeBadge(flow.type)">
+                      {{ getFlowTypeLabel(flow.type) }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-right font-semibold"
+                    [ngClass]="isInflow(flow.type) ? 'text-green-600' : 'text-red-600'">
+                    {{ isInflow(flow.type) ? '+' : '-' }}{{ flow.amount | vndCurrency }}
+                  </td>
+                  <td class="px-4 py-3 text-sm">{{ flow.currency }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-500">{{ flow.note || '-' }}</td>
+                  <td class="px-4 py-3 text-center">
+                    <button
+                      (click)="deleteFlow(flow.id)"
+                      class="text-red-500 hover:text-red-700 text-sm font-medium">
+                      Xoá
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Cards -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div *ngFor="let flow of flowHistory.flows" class="p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-1 rounded text-xs font-medium"
+                  [ngClass]="getFlowTypeBadge(flow.type)">
+                  {{ getFlowTypeLabel(flow.type) }}
+                </span>
+                <span class="text-sm text-gray-500">{{ flow.flowDate | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-base font-semibold"
                   [ngClass]="isInflow(flow.type) ? 'text-green-600' : 'text-red-600'">
                   {{ isInflow(flow.type) ? '+' : '-' }}{{ flow.amount | vndCurrency }}
-                </td>
-                <td class="px-4 py-3 text-sm">{{ flow.currency }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500">{{ flow.note || '-' }}</td>
-                <td class="px-4 py-3 text-center">
-                  <button
-                    (click)="deleteFlow(flow.id)"
-                    class="text-red-500 hover:text-red-700 text-sm font-medium">
-                    Xoá
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </span>
+                <span class="text-sm text-gray-500">{{ flow.currency }}</span>
+              </div>
+              <div *ngIf="flow.note" class="text-sm text-gray-500">{{ flow.note }}</div>
+              <div class="flex justify-end pt-1">
+                <button
+                  (click)="deleteFlow(flow.id)"
+                  class="text-red-500 hover:text-red-700 text-sm font-medium">
+                  Xoá
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

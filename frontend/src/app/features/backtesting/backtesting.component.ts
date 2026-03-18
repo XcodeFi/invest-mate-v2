@@ -133,7 +133,7 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/t
 
           <!-- Metrics Tab -->
           <div *ngIf="detailTab === 'metrics' && selectedDetail.result">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 text-center">
                 <div class="text-xs text-blue-600 font-medium">Giá trị cuối</div>
                 <div class="text-xl font-bold text-blue-800">{{ selectedDetail.result.finalValue | vndCurrency }}</div>
@@ -154,7 +154,7 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/t
                 <div class="text-xl font-bold text-orange-800">{{ selectedDetail.result.sharpeRatio | number:'1.2-2' }}</div>
               </div>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div class="border rounded-lg p-3 text-center">
                 <div class="text-xs text-gray-500">Max Drawdown</div>
                 <div class="text-lg font-bold text-red-600">{{ selectedDetail.result.maxDrawdown | number:'1.2-2' }}%</div>

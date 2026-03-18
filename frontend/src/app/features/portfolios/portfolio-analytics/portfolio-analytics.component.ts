@@ -112,7 +112,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
           <div class="px-6 py-4 border-b border-gray-200">
             <h3 class="text-lg font-semibold text-gray-900">Chi tiết từng cổ phiếu</h3>
           </div>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto hidden md:block">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -147,6 +147,24 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Cards -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div *ngFor="let pos of pnl.positions" class="p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-gray-900">{{ pos.symbol }}</span>
+                <span class="text-sm font-bold" [class]="pos.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
+                  {{ pos.totalPnL | vndCurrency }} ({{ (pos.totalPnLPercent ?? 0).toFixed(2) }}%)
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div><span class="text-gray-500">Số lượng:</span> <span class="font-medium">{{ pos.quantity }}</span></div>
+                <div><span class="text-gray-500">Giá TB:</span> <span class="font-medium">{{ pos.averageCost | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Giá hiện tại:</span> <span class="font-medium">{{ pos.currentPrice | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Giá trị TT:</span> <span class="font-medium">{{ pos.marketValue | vndCurrency }}</span></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

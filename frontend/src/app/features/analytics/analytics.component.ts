@@ -44,7 +44,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Performance Overview Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
             <div class="text-xs text-gray-500 uppercase tracking-wide">Tổng lợi nhuận</div>
             <div class="text-xl font-bold mt-1" [class]="totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'">
@@ -110,8 +110,8 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
         <!-- Tabs -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-          <div class="border-b border-gray-200">
-            <nav class="flex space-x-4 px-4">
+          <div class="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+            <nav class="flex space-x-4 px-4 min-w-max">
               <button *ngFor="let tab of tabs" (click)="onTabChange(tab.key)"
                 [class.border-blue-500]="activeTab === tab.key"
                 [class.text-blue-600]="activeTab === tab.key"
@@ -156,7 +156,8 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                 <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                   <h3 class="text-lg font-semibold text-gray-900">Cổ phiếu nắm giữ nhiều nhất</h3>
                 </div>
-                <div class="overflow-x-auto">
+                <!-- Desktop table -->
+                <div class="hidden md:block overflow-x-auto">
                   <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                       <tr>
@@ -195,6 +196,27 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                       </tr>
                     </tbody>
                   </table>
+                </div>
+                <!-- Mobile cards -->
+                <div class="md:hidden divide-y divide-gray-200">
+                  <div *ngFor="let holding of topHoldings" class="p-4 space-y-2">
+                    <div class="flex items-center justify-between">
+                      <span class="font-bold text-gray-900">{{ holding.symbol }}</span>
+                      <span class="text-sm font-semibold"
+                        [class]="(holding.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                        {{ (holding.totalPnLPercent ?? 0).toFixed(2) }}%
+                      </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      <div><span class="text-gray-500">SL:</span> <span class="font-medium">{{ holding.quantity }}</span></div>
+                      <div><span class="text-gray-500">Giá TB:</span> <span class="font-medium">{{ holding.averageCost | vndCurrency }}</span></div>
+                      <div><span class="text-gray-500">Giá HT:</span> <span class="font-medium">{{ holding.currentPrice | vndCurrency }}</span></div>
+                      <div><span class="text-gray-500">GT TT:</span> <span class="font-medium">{{ holding.marketValue | vndCurrency }}</span></div>
+                    </div>
+                    <div class="text-sm" [class]="(holding.totalPnL ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                      Lãi/Lỗ: {{ (holding.totalPnL ?? 0) | vndCurrency }}
+                    </div>
+                  </div>
                 </div>
               </div>
 

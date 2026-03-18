@@ -36,7 +36,7 @@ interface RiskAlert {
       <!-- Header -->
       <div class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex justify-between items-center py-6">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-6">
             <div>
               <h1 class="text-3xl font-bold text-gray-900">Investor Cockpit</h1>
               <p class="text-gray-600 mt-1">Chào mừng, {{ currentUser?.name }}</p>
@@ -57,7 +57,7 @@ interface RiskAlert {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <!-- Market Overview Strip -->
-        <div *ngIf="marketOverview.length > 0" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div *ngIf="marketOverview.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div *ngFor="let idx of marketOverview"
             class="bg-white rounded-lg border px-4 py-3 flex items-center justify-between"
             [class.border-l-green-500]="idx.change >= 0" [class.border-l-red-500]="idx.change < 0"
@@ -247,7 +247,7 @@ interface RiskAlert {
 
           <!-- Target Editor -->
           <div *ngIf="showTargetEditor" class="mb-4 bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">CAGR mục tiêu (%/năm)</label>
                 <input [(ngModel)]="cagrTarget" type="number" step="1" min="1" max="50"
@@ -473,7 +473,7 @@ interface RiskAlert {
           </button>
 
           <div *ngIf="qtExpanded" class="px-6 pb-6 border-t border-gray-100 pt-4">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <!-- Symbol -->
               <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Mã CP</label>
@@ -556,7 +556,7 @@ interface RiskAlert {
         <!-- Row 3: Quick Actions -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <a
               routerLink="/trade-wizard"
               class="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all duration-200 group cursor-pointer"

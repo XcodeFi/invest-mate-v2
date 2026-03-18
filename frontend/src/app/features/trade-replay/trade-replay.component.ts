@@ -76,7 +76,7 @@ interface TimelineEvent {
       <div *ngIf="!isLoading && !error && plan" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         <!-- Summary Cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Giá vào lệnh</div>
             <div class="text-lg font-bold text-gray-900">{{ actualAvgEntry | number:'1.0-0' }}đ</div>

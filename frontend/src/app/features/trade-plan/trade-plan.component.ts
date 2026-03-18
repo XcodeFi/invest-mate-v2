@@ -99,90 +99,164 @@ interface TradePlanForm {
         <div *ngIf="!savedPlansLoading && filteredSavedPlans.length === 0" class="px-4 py-6 text-center text-gray-400 text-sm">
           Chưa có kế hoạch nào{{ planFilterTab !== 'all' ? ' ở trạng thái này' : '' }}
         </div>
-        <div *ngIf="!savedPlansLoading && filteredSavedPlans.length > 0" class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
-              <tr>
-                <th class="px-4 py-2 text-left">Mã CK</th>
-                <th class="px-4 py-2 text-left">Hướng</th>
-                <th class="px-4 py-2 text-right">Giá vào</th>
-                <th class="px-4 py-2 text-right">SL / TP</th>
-                <th class="px-4 py-2 text-right">R:R</th>
-                <th class="px-4 py-2 text-center">Trạng thái</th>
-                <th class="px-4 py-2 text-left">Ngày tạo</th>
-                <th class="px-4 py-2 text-center">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y">
-              <tr *ngFor="let sp of filteredSavedPlans" class="hover:bg-gray-50 cursor-pointer"
-                [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
-                <td class="px-4 py-2 font-bold">{{ sp.symbol }}</td>
-                <td class="px-4 py-2">
+        <div *ngIf="!savedPlansLoading && filteredSavedPlans.length > 0">
+          <!-- Desktop table -->
+          <div class="hidden md:block overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr>
+                  <th class="px-4 py-2 text-left">Mã CK</th>
+                  <th class="px-4 py-2 text-left">Hướng</th>
+                  <th class="px-4 py-2 text-right">Giá vào</th>
+                  <th class="px-4 py-2 text-right">SL / TP</th>
+                  <th class="px-4 py-2 text-right">R:R</th>
+                  <th class="px-4 py-2 text-center">Trạng thái</th>
+                  <th class="px-4 py-2 text-left">Ngày tạo</th>
+                  <th class="px-4 py-2 text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                <tr *ngFor="let sp of filteredSavedPlans" class="hover:bg-gray-50 cursor-pointer"
+                  [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
+                  <td class="px-4 py-2 font-bold">{{ sp.symbol }}</td>
+                  <td class="px-4 py-2">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getTradeTypeClass(sp.direction)">
+                      {{ getTradeTypeDisplay(sp.direction) }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-2 text-right">{{ sp.entryPrice | number:'1.0-0' }}</td>
+                  <td class="px-4 py-2 text-right">
+                    <span class="text-red-500">{{ sp.stopLoss | number:'1.0-0' }}</span> /
+                    <span class="text-green-500">{{ sp.target | number:'1.0-0' }}</span>
+                  </td>
+                  <td class="px-4 py-2 text-right font-medium"
+                    [class.text-green-600]="getRR(sp) >= 2" [class.text-red-600]="getRR(sp) < 1">
+                    1:{{ getRR(sp) | number:'1.1-1' }}
+                  </td>
+                  <td class="px-4 py-2 text-center">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getStatusClass(sp.status)">
+                      {{ getStatusLabel(sp.status) }}
+                    </span>
+                    <div *ngIf="sp.lots && sp.lots.length > 0" class="mt-1">
+                      <div class="w-full bg-gray-200 rounded-full h-1.5">
+                        <div class="bg-amber-500 h-1.5 rounded-full" [style.width.%]="getLotProgress(sp)"></div>
+                      </div>
+                      <span class="text-xs text-amber-600">{{ getExecutedLotCount(sp) }}/{{ sp.lots.length }} lô</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-2 text-gray-500">{{ sp.createdAt | date:'dd/MM/yy HH:mm' }}</td>
+                  <td class="px-4 py-2 text-center" (click)="$event.stopPropagation()">
+                    <div class="flex items-center justify-center gap-1">
+                      <button *ngIf="sp.status === 'Draft' || sp.status === 'Ready'"
+                        (click)="deletePlan(sp)" title="Xoá"
+                        class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                      </button>
+                      <button *ngIf="sp.status === 'Draft'" (click)="markReady(sp)" title="Sẵn sàng"
+                        class="p-1 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                      </button>
+                      <a *ngIf="sp.status === 'Executed' || sp.status === 'Reviewed'"
+                        [routerLink]="['/trade-replay', sp.id]" title="Xem replay"
+                        class="p-1 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
+                        </svg>
+                      </a>
+                      <button *ngIf="sp.status === 'Executed'" (click)="markReviewed(sp)" title="Đã review"
+                        class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                      </button>
+                      <button *ngIf="sp.status !== 'Cancelled' && sp.status !== 'Executed' && sp.status !== 'Reviewed'"
+                        (click)="cancelPlan(sp)" title="Huỷ"
+                        class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Mobile cards -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div *ngFor="let sp of filteredSavedPlans" class="p-3 space-y-2 cursor-pointer"
+              [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-gray-900">{{ sp.symbol }}</span>
                   <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getTradeTypeClass(sp.direction)">
                     {{ getTradeTypeDisplay(sp.direction) }}
                   </span>
-                </td>
-                <td class="px-4 py-2 text-right">{{ sp.entryPrice | number:'1.0-0' }}</td>
-                <td class="px-4 py-2 text-right">
-                  <span class="text-red-500">{{ sp.stopLoss | number:'1.0-0' }}</span> /
-                  <span class="text-green-500">{{ sp.target | number:'1.0-0' }}</span>
-                </td>
-                <td class="px-4 py-2 text-right font-medium"
-                  [class.text-green-600]="getRR(sp) >= 2" [class.text-red-600]="getRR(sp) < 1">
-                  1:{{ getRR(sp) | number:'1.1-1' }}
-                </td>
-                <td class="px-4 py-2 text-center">
-                  <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getStatusClass(sp.status)">
-                    {{ getStatusLabel(sp.status) }}
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getStatusClass(sp.status)">
+                  {{ getStatusLabel(sp.status) }}
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div><span class="text-gray-500">Giá vào:</span> <span class="font-medium">{{ sp.entryPrice | number:'1.0-0' }}</span></div>
+                <div>
+                  <span class="font-medium" [class.text-green-600]="getRR(sp) >= 2" [class.text-red-600]="getRR(sp) < 1">
+                    R:R 1:{{ getRR(sp) | number:'1.1-1' }}
                   </span>
-                  <div *ngIf="sp.lots && sp.lots.length > 0" class="mt-1">
-                    <div class="w-full bg-gray-200 rounded-full h-1.5">
-                      <div class="bg-amber-500 h-1.5 rounded-full" [style.width.%]="getLotProgress(sp)"></div>
-                    </div>
-                    <span class="text-xs text-amber-600">{{ getExecutedLotCount(sp) }}/{{ sp.lots.length }} lô</span>
-                  </div>
-                </td>
-                <td class="px-4 py-2 text-gray-500">{{ sp.createdAt | date:'dd/MM/yy HH:mm' }}</td>
-                <td class="px-4 py-2 text-center" (click)="$event.stopPropagation()">
-                  <div class="flex items-center justify-center gap-1">
-                    <button *ngIf="sp.status === 'Draft' || sp.status === 'Ready'"
-                      (click)="deletePlan(sp)" title="Xoá"
-                      class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                      </svg>
-                    </button>
-                    <button *ngIf="sp.status === 'Draft'" (click)="markReady(sp)" title="Sẵn sàng"
-                      class="p-1 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                      </svg>
-                    </button>
-                    <a *ngIf="sp.status === 'Executed' || sp.status === 'Reviewed'"
-                      [routerLink]="['/trade-replay', sp.id]" title="Xem replay"
-                      class="p-1 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
-                      </svg>
-                    </a>
-                    <button *ngIf="sp.status === 'Executed'" (click)="markReviewed(sp)" title="Đã review"
-                      class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                    </button>
-                    <button *ngIf="sp.status !== 'Cancelled' && sp.status !== 'Executed' && sp.status !== 'Reviewed'"
-                      (click)="cancelPlan(sp)" title="Huỷ"
-                      class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+                <div><span class="text-red-500">SL:</span> <span class="font-medium">{{ sp.stopLoss | number:'1.0-0' }}</span></div>
+                <div><span class="text-green-500">TP:</span> <span class="font-medium">{{ sp.target | number:'1.0-0' }}</span></div>
+              </div>
+              <div *ngIf="sp.lots && sp.lots.length > 0" class="mt-1">
+                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                  <div class="bg-amber-500 h-1.5 rounded-full" [style.width.%]="getLotProgress(sp)"></div>
+                </div>
+                <span class="text-xs text-amber-600">{{ getExecutedLotCount(sp) }}/{{ sp.lots.length }} lô</span>
+              </div>
+              <div class="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-100" (click)="$event.stopPropagation()">
+                <span>{{ sp.createdAt | date:'dd/MM/yy HH:mm' }}</span>
+                <div class="flex items-center gap-1">
+                  <button *ngIf="sp.status === 'Draft' || sp.status === 'Ready'"
+                    (click)="deletePlan(sp)" title="Xoá"
+                    class="p-1 text-red-400 hover:text-red-600 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                  <a *ngIf="sp.status === 'Executed' || sp.status === 'Reviewed'"
+                    [routerLink]="['/trade-replay', sp.id]" title="Xem replay"
+                    class="p-1 text-indigo-400 hover:text-indigo-600 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
+                    </svg>
+                  </a>
+                  <button *ngIf="sp.status === 'Draft'" (click)="markReady(sp)" title="Sẵn sàng"
+                    class="p-1 text-emerald-400 hover:text-emerald-600 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </button>
+                  <button *ngIf="sp.status === 'Executed'" (click)="markReviewed(sp)" title="Đã review"
+                    class="p-1 text-blue-400 hover:text-blue-600 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </button>
+                  <button *ngIf="sp.status !== 'Cancelled' && sp.status !== 'Executed' && sp.status !== 'Reviewed'"
+                    (click)="cancelPlan(sp)" title="Huỷ"
+                    class="p-1 text-gray-400 hover:text-gray-600 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -246,7 +320,7 @@ interface TradePlanForm {
         <div class="lg:col-span-2 space-y-6">
           <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold mb-4">Thiết lập giao dịch</h2>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Mã cổ phiếu *</label>
                 <input [(ngModel)]="plan.symbol" type="text" appUppercase
@@ -397,7 +471,7 @@ interface TradePlanForm {
                 DCA — Trung bình giá (Dollar Cost Averaging)
               </h3>
               <p class="text-xs text-teal-600 mb-3">Mua đều đặn theo lịch, không cần dự đoán giá — phù hợp tích luỹ dài hạn</p>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <label class="block text-xs font-medium text-teal-700 mb-1">Số tiền mỗi lần</label>
                   <input [(ngModel)]="dcaForm.amountPerPeriod" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"
@@ -428,7 +502,7 @@ interface TradePlanForm {
                     class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm">
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-3 mt-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                 <div>
                   <label class="block text-xs font-medium text-teal-700 mb-1">Giá sàn (không mua nếu cao hơn)</label>
                   <input [(ngModel)]="dcaForm.maxPrice" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"

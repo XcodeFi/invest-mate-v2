@@ -53,7 +53,7 @@ interface StrategyScore {
 
       <div *ngIf="selectedPortfolioId && !loading">
         <!-- Top Row: Risk Overview Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div class="bg-white rounded-lg shadow p-4">
             <div class="text-xs text-gray-500 mb-1">Tổng giá trị</div>
             <div class="text-xl font-bold text-gray-800">{{ overview.totalValue | vndCurrency }}</div>
@@ -99,7 +99,7 @@ interface StrategyScore {
               [class.bg-yellow-500]="riskHealthScore >= 40 && riskHealthScore < 70"
               [class.bg-red-500]="riskHealthScore < 40"></div>
           </div>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-4">
             <div *ngFor="let item of healthItems" class="flex items-center gap-2 text-sm">
               <div class="w-3 h-3 rounded-full"
                 [class.bg-green-500]="item.status === 'good'"
@@ -214,7 +214,7 @@ interface StrategyScore {
           <h2 class="text-lg font-semibold mb-4">Stress Test — Mô phỏng kịch bản</h2>
           <p class="text-sm text-gray-500 mb-4">Ước tính ảnh hưởng lên danh mục nếu VNINDEX biến động mạnh (dựa trên beta ước tính)</p>
 
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             <button *ngFor="let scenario of stressScenarios"
               (click)="runStressTest(scenario.marketChange)"
               class="px-3 py-3 rounded-lg border-2 text-center transition-all text-sm font-medium"

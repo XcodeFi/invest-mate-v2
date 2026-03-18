@@ -64,7 +64,7 @@ interface PortfolioGroup {
       </div>
 
       <!-- Summary bar -->
-      <div *ngIf="!loading && positions.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div *ngIf="!loading && positions.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow p-4">
           <div class="text-xs text-gray-500">Tổng vị thế</div>
           <div class="text-xl font-bold text-gray-800">{{ positions.length }}</div>
