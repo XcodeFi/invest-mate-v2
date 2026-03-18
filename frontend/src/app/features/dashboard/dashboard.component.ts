@@ -9,6 +9,7 @@ import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/a
 import { MarketDataService, MarketOverview } from '../../core/services/market-data.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/services/daily-routine.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { isBuyTrade } from '../../shared/constants/trade-types';
@@ -102,6 +103,73 @@ interface RiskAlert {
               class="text-xs font-medium underline" [class.text-red-600]="hasDangerAlert" [class.text-amber-600]="!hasDangerAlert">
               Xem tất cả {{ riskAlerts.length }} cảnh báo →
             </a>
+          </div>
+        </div>
+
+        <!-- Daily Routine Widget -->
+        <div *ngIf="todayRoutine || suggestedRoutineTemplate" class="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <!-- Has routine -->
+          <div *ngIf="todayRoutine">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">📋</span>
+                <span class="font-bold text-sm text-gray-900">Nhiệm vụ hôm nay</span>
+                <span class="text-xs text-gray-500">{{ todayRoutine.templateName }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div *ngIf="todayRoutine.currentStreak >= 3"
+                  class="flex items-center gap-1 bg-orange-50 text-orange-600 text-xs font-bold px-2 py-1 rounded-full">
+                  <span>🔥</span> {{ todayRoutine.currentStreak }}
+                </div>
+                <a routerLink="/daily-routine" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem chi tiết →</a>
+              </div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
+              <div class="h-2 rounded-full transition-all duration-500"
+                [class.bg-emerald-500]="todayRoutine.progressPercent >= 50"
+                [class.bg-amber-500]="todayRoutine.progressPercent > 0 && todayRoutine.progressPercent < 50"
+                [style.width.%]="todayRoutine.progressPercent"></div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
+              <span>{{ todayRoutine.completedCount }}/{{ todayRoutine.totalCount }} bước</span>
+              <span *ngIf="todayRoutine.isFullyCompleted" class="text-emerald-600 font-medium">✅ Hoàn thành!</span>
+            </div>
+            <!-- Show next uncompleted items (max 3) -->
+            <div class="space-y-1.5">
+              <div *ngFor="let item of getNextRoutineItems()" class="flex items-center gap-2">
+                <button (click)="toggleRoutineItem(item)"
+                  class="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all"
+                  [class.bg-emerald-500]="item.isCompleted" [class.border-emerald-500]="item.isCompleted"
+                  [class.border-gray-300]="!item.isCompleted">
+                  <svg *ngIf="item.isCompleted" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </button>
+                <span *ngIf="item.emoji" class="text-sm">{{ item.emoji }}</span>
+                <span class="text-sm" [class.line-through]="item.isCompleted" [class.text-gray-400]="item.isCompleted"
+                  [class.text-gray-700]="!item.isCompleted">{{ item.label }}</span>
+                <a *ngIf="item.link && !item.isCompleted" [routerLink]="item.link"
+                  class="text-gray-400 hover:text-blue-600 ml-auto">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
+          <!-- No routine yet — suggestion -->
+          <div *ngIf="!todayRoutine && suggestedRoutineTemplate" class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">{{ suggestedRoutineTemplate.emoji }}</span>
+              <div>
+                <div class="text-sm font-bold text-gray-900">{{ suggestedRoutineTemplate.name }}</div>
+                <div class="text-xs text-gray-500">~{{ suggestedRoutineTemplate.estimatedMinutes }} phút · {{ suggestedRoutineTemplate.items.length }} bước</div>
+              </div>
+            </div>
+            <button (click)="startDailyRoutine(suggestedRoutineTemplate.id)"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              Bắt đầu
+            </button>
           </div>
         </div>
 
@@ -769,6 +837,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   qtOptimalShares = 0;
   qtRiskProfile: RiskProfile | null = null;
 
+  // ─── Daily Routine Widget ──────────────────────────────────────────────────
+  todayRoutine: DailyRoutine | null = null;
+  suggestedRoutineTemplate: RoutineTemplate | null = null;
+
   constructor(
     private authService: AuthService,
     private pnlService: PnlService,
@@ -777,6 +849,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private positionsService: PositionsService,
     private notificationService: NotificationService,
     private marketDataService: MarketDataService,
+    private dailyRoutineService: DailyRoutineService,
     private router: Router
   ) {}
 
@@ -787,6 +860,43 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadDashboardData();
     this.loadTopPositions();
     this.loadMarketOverview();
+    this.loadDailyRoutine();
+  }
+
+  // ─── Daily Routine Widget ──────────────────────────────────────────────────
+  private loadDailyRoutine(): void {
+    forkJoin({
+      routine: this.dailyRoutineService.getToday().pipe(catchError(() => of(null))),
+      suggested: this.dailyRoutineService.getSuggestedTemplate().pipe(catchError(() => of(null)))
+    }).subscribe(({ routine, suggested }) => {
+      this.todayRoutine = routine;
+      this.suggestedRoutineTemplate = suggested;
+    });
+  }
+
+  getNextRoutineItems(): any[] {
+    if (!this.todayRoutine) return [];
+    // Show up to 4 items: first uncompleted from each group, then fill remaining
+    const uncompleted = this.todayRoutine.items.filter(i => !i.isCompleted);
+    const completed = this.todayRoutine.items.filter(i => i.isCompleted).slice(-1);
+    return [...uncompleted.slice(0, 3), ...completed].slice(0, 4);
+  }
+
+  toggleRoutineItem(item: any): void {
+    if (!this.todayRoutine) return;
+    const newState = !item.isCompleted;
+    item.isCompleted = newState; // optimistic
+    this.dailyRoutineService.completeItem(this.todayRoutine.id, item.index, newState).subscribe({
+      next: (r) => { this.todayRoutine = r; },
+      error: () => { item.isCompleted = !newState; }
+    });
+  }
+
+  startDailyRoutine(templateId: string): void {
+    this.dailyRoutineService.getOrCreateToday(templateId).subscribe({
+      next: (r) => { this.todayRoutine = r; },
+      error: () => this.notificationService.error('Lỗi', 'Không thể tạo nhiệm vụ')
+    });
   }
 
   private loadMarketOverview(): void {

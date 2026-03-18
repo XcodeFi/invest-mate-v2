@@ -34,7 +34,13 @@ User (1)
  ├── Strategy (N)           ← Chiến lược giao dịch
  ├── TradeJournal (N)       ← Nhật ký giao dịch
  ├── AlertRule (N)          ← Cảnh báo giá/rủi ro
- └── Backtest (N)           ← Kiểm thử chiến lược
+ ├── Backtest (N)           ← Kiểm thử chiến lược
+ │
+ ├── DailyRoutine (N)       ← Nhiệm vụ hàng ngày (1 per user per day)
+ │    └── RoutineItem (N)   ← Các bước trong routine (embedded)
+ │
+ └── RoutineTemplate (N)    ← Mẫu routine (5 built-in + custom)
+      └── RoutineItemTemplate (N)
 ```
 
 ### Liên kết giữa entities
@@ -50,6 +56,9 @@ User (1)
 | RiskProfile | Portfolio | 1:1 | Mỗi danh mục 1 profile |
 | CapitalFlow | Portfolio | N:1 | Bắt buộc |
 | Snapshot | Portfolio | N:1 | Ảnh chụp hàng ngày |
+| DailyRoutine | User | N:1 | 1 routine/user/ngày |
+| DailyRoutine | RoutineTemplate | N:1 | Tạo từ template |
+| RoutineTemplate | User | N:1 | null = built-in, non-null = custom |
 
 ---
 

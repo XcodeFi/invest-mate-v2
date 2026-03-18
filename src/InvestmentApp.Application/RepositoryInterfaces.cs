@@ -124,6 +124,21 @@ public interface IBacktestRepository : IRepository<Backtest>
     Task<IEnumerable<Backtest>> GetPendingAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IDailyRoutineRepository : IRepository<DailyRoutine>
+{
+    Task<DailyRoutine?> GetByUserIdAndDateAsync(string userId, DateTime date, CancellationToken cancellationToken = default);
+    Task<DailyRoutine?> GetAnyByUserIdAndDateAsync(string userId, DateTime date, CancellationToken cancellationToken = default);
+    Task<IEnumerable<DailyRoutine>> GetByUserIdRangeAsync(string userId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<DailyRoutine?> GetLatestByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task HardDeleteAsync(string id, CancellationToken cancellationToken = default);
+}
+
+public interface IRoutineTemplateRepository : IRepository<RoutineTemplate>
+{
+    Task<IEnumerable<RoutineTemplate>> GetAllForUserAsync(string userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<RoutineTemplate>> GetBuiltInAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IFeeCalculationService
 {
     Money CalculateTransactionFee(Money transactionAmount, bool isBuy, bool isListed = true, SecurityType securityType = SecurityType.Stock);

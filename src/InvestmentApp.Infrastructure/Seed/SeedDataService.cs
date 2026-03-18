@@ -28,6 +28,7 @@ public class SeedDataService
 
         await SeedStrategyTemplatesAsync(cancellationToken);
         await SeedRiskProfileTemplatesAsync(cancellationToken);
+        await SeedRoutineTemplatesAsync(cancellationToken);
 
         _logger.LogInformation("Seed data initialization completed.");
     }
@@ -86,6 +87,34 @@ public class SeedDataService
             await collection.Indexes.CreateOneAsync(
                 new CreateIndexModel<RiskProfileTemplate>(indexKeys.Ascending(t => t.SortOrder)),
                 cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task SeedRoutineTemplatesAsync(CancellationToken cancellationToken)
+    {
+        var collection = _database.GetCollection<RoutineTemplate>("routine_templates");
+
+        var existingCount = await collection.CountDocumentsAsync(
+            FilterDefinition<RoutineTemplate>.Empty, cancellationToken: cancellationToken);
+
+        if (existingCount > 0)
+        {
+            _logger.LogInformation("Routine templates already seeded ({Count} found). Skipping.", existingCount);
+            return;
+        }
+
+        var templates = LoadEmbeddedJson<List<RoutineTemplate>>("routine_templates.json");
+        if (templates is { Count: > 0 })
+        {
+            await collection.InsertManyAsync(templates, cancellationToken: cancellationToken);
+            _logger.LogInformation("Seeded {Count} routine templates.", templates.Count);
+
+            var indexKeys = Builders<RoutineTemplate>.IndexKeys;
+            await collection.Indexes.CreateManyAsync(new[]
+            {
+                new CreateIndexModel<RoutineTemplate>(indexKeys.Ascending(t => t.SortOrder)),
+                new CreateIndexModel<RoutineTemplate>(indexKeys.Ascending(t => t.Category))
+            }, cancellationToken);
         }
     }
 
