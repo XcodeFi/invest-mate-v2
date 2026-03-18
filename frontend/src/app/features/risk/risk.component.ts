@@ -61,8 +61,8 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
 
         <!-- Tabs -->
         <div class="bg-white rounded-lg shadow mb-6">
-          <div class="border-b border-gray-200">
-            <nav class="flex space-x-4 px-4" aria-label="Tabs">
+          <div class="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+            <nav class="flex space-x-4 px-4 min-w-max" aria-label="Tabs">
               <button *ngFor="let tab of tabs" (click)="activeTab = tab.key"
                 [class.border-blue-500]="activeTab === tab.key"
                 [class.text-blue-600]="activeTab === tab.key"
@@ -78,7 +78,8 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
             <!-- Position Risk Tab -->
             <div *ngIf="activeTab === 'positions'">
               <h3 class="text-lg font-semibold mb-4">Rủi ro theo vị thế</h3>
-              <div class="overflow-x-auto">
+              <!-- Desktop table -->
+              <div class="hidden md:block overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
@@ -116,6 +117,31 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <!-- Mobile cards -->
+              <div class="md:hidden space-y-3">
+                <div *ngFor="let pos of riskSummary?.positions || []"
+                  class="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-blue-600">{{ pos.symbol }}</span>
+                    <span class="px-2 py-0.5 rounded text-xs font-medium"
+                      [class.bg-red-100]="pos.positionSizePercent > (riskProfile?.maxPositionSizePercent || 20)"
+                      [class.text-red-700]="pos.positionSizePercent > (riskProfile?.maxPositionSizePercent || 20)"
+                      [class.bg-green-100]="pos.positionSizePercent <= (riskProfile?.maxPositionSizePercent || 20)"
+                      [class.text-green-700]="pos.positionSizePercent <= (riskProfile?.maxPositionSizePercent || 20)">
+                      {{ pos.positionSizePercent | number:'1.1-1' }}%
+                    </span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div><span class="text-gray-500">KL:</span> <span class="font-medium">{{ pos.quantity | number:'1.0-0' }}</span></div>
+                    <div><span class="text-gray-500">Giá:</span> <span class="font-medium">{{ pos.currentPrice | vndCurrency }}</span></div>
+                    <div><span class="text-gray-500">GT:</span> <span class="font-medium">{{ pos.marketValue | vndCurrency }}</span></div>
+                    <div><span class="text-gray-500">R:R:</span> <span class="font-medium">{{ pos.riskRewardRatio ? (pos.riskRewardRatio | number:'1.1-1') : '-' }}</span></div>
+                    <div><span class="text-red-500">SL:</span> <span class="font-medium text-red-500">{{ pos.stopLossPrice ? (pos.stopLossPrice | vndCurrency) : '-' }}</span></div>
+                    <div><span class="text-green-500">TP:</span> <span class="font-medium text-green-500">{{ pos.targetPrice ? (pos.targetPrice | vndCurrency) : '-' }}</span></div>
+                  </div>
+                </div>
+                <div *ngIf="!riskSummary?.positions?.length" class="py-8 text-center text-gray-500">Chưa có vị thế nào</div>
               </div>
             </div>
 
@@ -174,8 +200,8 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                 </div>
               </div>
 
-              <!-- SL/TP Table -->
-              <div class="overflow-x-auto">
+              <!-- SL/TP Table (desktop) -->
+              <div class="hidden md:block overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
@@ -207,6 +233,25 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <!-- Mobile cards -->
+              <div class="md:hidden space-y-3">
+                <div *ngFor="let sl of slTargets?.items || []"
+                  class="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-blue-600">{{ sl.symbol }}</span>
+                    <span *ngIf="sl.isStopLossTriggered" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">SL Triggered</span>
+                    <span *ngIf="sl.isTargetTriggered" class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">TP Reached</span>
+                    <span *ngIf="!sl.isStopLossTriggered && !sl.isTargetTriggered" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">Active</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div><span class="text-gray-500">Giá vào:</span> <span class="font-medium">{{ sl.entryPrice | vndCurrency }}</span></div>
+                    <div><span class="text-gray-500">R:R:</span> <span class="font-medium">{{ sl.riskRewardRatio | number:'1.1-1' }}</span></div>
+                    <div><span class="text-red-500">SL:</span> <span class="font-medium text-red-500">{{ sl.stopLossPrice | vndCurrency }}</span></div>
+                    <div><span class="text-green-500">TP:</span> <span class="font-medium text-green-500">{{ sl.targetPrice | vndCurrency }}</span></div>
+                  </div>
+                </div>
+                <div *ngIf="!slTargets?.items?.length" class="py-8 text-center text-gray-500">Chưa thiết lập SL/TP nào</div>
               </div>
             </div>
 

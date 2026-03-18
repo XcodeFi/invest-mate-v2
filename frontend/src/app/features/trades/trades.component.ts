@@ -19,10 +19,10 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
       <!-- Header -->
       <div class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex justify-between items-center py-6">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-6">
             <div>
-              <h1 class="text-3xl font-bold text-gray-900">Lịch sử Giao dịch</h1>
-              <p class="text-gray-600 mt-1">Xem và quản lý tất cả giao dịch của bạn</p>
+              <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Lịch sử Giao dịch</h1>
+              <p class="text-gray-600 mt-1 text-sm sm:text-base">Xem và quản lý tất cả giao dịch của bạn</p>
             </div>
             <div class="flex space-x-3">
               <button
@@ -102,9 +102,9 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
           </div>
         </div>
 
-        <!-- Trades Table -->
+        <!-- Trades Table (desktop) -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div class="overflow-x-auto">
+          <div class="hidden md:block overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -197,6 +197,39 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Cards -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div *ngFor="let trade of filteredTrades" class="p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <button (click)="filterBySymbol(trade.symbol)"
+                  class="text-sm font-bold text-blue-600 hover:text-blue-800">
+                  {{ trade.symbol }}
+                </button>
+                <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full"
+                  [class]="getTradeTypeClass(trade.tradeType)">
+                  {{ getTradeTypeDisplay(trade.tradeType) }}
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div><span class="text-gray-500">SL:</span> <span class="font-medium">{{ trade.quantity }}</span></div>
+                <div><span class="text-gray-500">Giá:</span> <span class="font-medium">{{ trade.price | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Tổng:</span> <span class="font-medium">{{ trade.totalValue | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Ngày:</span> <span class="font-medium">{{ formatDate(trade.tradeDate) }}</span></div>
+              </div>
+              <div class="flex items-center justify-between pt-1 border-t border-gray-100 text-sm">
+                <div>
+                  <a *ngIf="trade.tradePlanId" [routerLink]="['/trade-plan']"
+                    [queryParams]="{ loadPlan: trade.tradePlanId }"
+                    class="text-blue-600 hover:text-blue-800 font-medium text-xs">
+                    Xem KH
+                  </a>
+                  <span *ngIf="!trade.tradePlanId" class="text-xs text-gray-400">Chưa gắn KH</span>
+                </div>
+                <button (click)="deleteTrade(trade.id)" class="text-red-600 hover:text-red-900 text-xs font-medium">Xóa</button>
+              </div>
+            </div>
           </div>
 
           <!-- Empty State -->

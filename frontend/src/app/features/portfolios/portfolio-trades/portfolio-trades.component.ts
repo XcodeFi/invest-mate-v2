@@ -18,7 +18,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
       <!-- Header -->
       <div class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex justify-between items-center py-6">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-6">
             <div class="flex items-center">
               <button [routerLink]="['/portfolios', portfolioId]" class="mr-4 text-gray-500 hover:text-gray-700">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +71,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
 
         <!-- Table -->
         <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto hidden md:block">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -107,6 +107,28 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Cards -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div *ngFor="let trade of trades" class="p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-gray-900">{{ trade.symbol }}</span>
+                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                  [class]="getTradeTypeClass(trade.tradeType)">
+                  {{ getTradeTypeDisplay(trade.tradeType) }}
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div><span class="text-gray-500">Số lượng:</span> <span class="font-medium">{{ trade.quantity }}</span></div>
+                <div><span class="text-gray-500">Giá:</span> <span class="font-medium">{{ trade.price | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Tổng giá trị:</span> <span class="font-medium">{{ trade.totalValue | vndCurrency }}</span></div>
+                <div><span class="text-gray-500">Ngày GD:</span> <span class="font-medium">{{ formatDate(trade.tradeDate) }}</span></div>
+              </div>
+              <div class="flex justify-end pt-1">
+                <button (click)="deleteTrade(trade.id)" class="text-red-600 hover:text-red-900 text-sm font-medium">Xóa</button>
+              </div>
+            </div>
           </div>
 
           <!-- Empty -->

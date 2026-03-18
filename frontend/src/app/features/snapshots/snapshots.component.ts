@@ -38,8 +38,8 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
       <!-- Tab Navigation -->
       <div *ngIf="selectedPortfolioId" class="bg-white rounded-lg shadow mb-6">
-        <div class="border-b border-gray-200">
-          <nav class="flex -mb-px">
+        <div class="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+          <nav class="flex -mb-px min-w-max">
             <button
               (click)="activeTab = 'timeline'"
               [ngClass]="activeTab === 'timeline' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
@@ -72,7 +72,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           <!-- Timeline Chart (simplified table view) -->
           <div *ngIf="!loadingTimeline && timeline.length > 0">
             <!-- Summary Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="border rounded-lg p-3">
                 <div class="text-xs text-gray-500">Giá trị hiện tại</div>
                 <div class="text-lg font-bold text-gray-800">{{ (latestSnapshot?.totalValue || 0) | vndCurrency }}</div>
@@ -98,7 +98,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             </div>
 
             <!-- Timeline Table -->
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto hidden md:block">
               <table class="min-w-full table-auto">
                 <thead>
                   <tr class="bg-gray-50 border-b">
@@ -132,6 +132,21 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                 </tbody>
               </table>
             </div>
+            <!-- Mobile cards for Timeline -->
+            <div class="md:hidden divide-y divide-gray-200">
+              <div *ngFor="let snap of timeline" class="p-4 space-y-2 cursor-pointer active:bg-gray-50" (click)="viewSnapshot(snap)">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">{{ snap.snapshotDate | date:'dd/MM/yyyy' }}</span>
+                  <span class="font-semibold">{{ snap.totalValue | vndCurrency }}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <div><span class="text-gray-500">Tiền mặt:</span> <span class="font-medium">{{ snap.cashBalance | vndCurrency }}</span></div>
+                  <div><span class="text-gray-500">Đầu tư:</span> <span class="font-medium">{{ snap.investedValue | vndCurrency }}</span></div>
+                  <div><span class="text-gray-500">Lợi suất:</span> <span class="font-medium" [ngClass]="snap.cumulativeReturn >= 0 ? 'text-green-600' : 'text-red-600'">{{ (snap.cumulativeReturn * 100).toFixed(2) }}%</span></div>
+                  <div><span class="text-gray-500">Vị thế:</span> <span class="font-medium">{{ snap.positions?.length || 0 }}</span></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -152,7 +167,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
           <div *ngIf="lookupSnapshot_result" class="space-y-6">
             <!-- Snapshot Overview -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div class="border rounded-lg p-4">
                 <div class="text-xs text-gray-500">Tổng giá trị</div>
                 <div class="text-xl font-bold">{{ lookupSnapshot_result.totalValue | vndCurrency }}</div>
@@ -176,34 +191,51 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             </div>
 
             <!-- Positions Table -->
-            <div *ngIf="lookupSnapshot_result.positions.length > 0" class="overflow-x-auto">
+            <div *ngIf="lookupSnapshot_result.positions.length > 0">
               <h3 class="text-md font-semibold text-gray-700 mb-3">Danh sách vị thế</h3>
-              <table class="min-w-full table-auto">
-                <thead>
-                  <tr class="bg-gray-50 border-b">
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã CP</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">SL</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá TB</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá TT</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">GT thị trường</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lãi/Lỗ</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tỷ trọng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let pos of lookupSnapshot_result.positions" class="border-b hover:bg-gray-50">
-                    <td class="px-4 py-3 text-sm font-bold">{{ pos.symbol }}</td>
-                    <td class="px-4 py-3 text-sm text-right">{{ pos.quantity | number }}</td>
-                    <td class="px-4 py-3 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
-                    <td class="px-4 py-3 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
-                    <td class="px-4 py-3 text-sm text-right font-semibold">{{ pos.marketValue | vndCurrency }}</td>
-                    <td class="px-4 py-3 text-sm text-right font-medium" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                      {{ pos.unrealizedPnL | vndCurrency }}
-                    </td>
-                    <td class="px-4 py-3 text-sm text-right">{{ (pos.weight * 100).toFixed(1) }}%</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="overflow-x-auto hidden md:block">
+                <table class="min-w-full table-auto">
+                  <thead>
+                    <tr class="bg-gray-50 border-b">
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã CP</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">SL</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá TB</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Giá TT</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">GT thị trường</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Lãi/Lỗ</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tỷ trọng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let pos of lookupSnapshot_result.positions" class="border-b hover:bg-gray-50">
+                      <td class="px-4 py-3 text-sm font-bold">{{ pos.symbol }}</td>
+                      <td class="px-4 py-3 text-sm text-right">{{ pos.quantity | number }}</td>
+                      <td class="px-4 py-3 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
+                      <td class="px-4 py-3 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
+                      <td class="px-4 py-3 text-sm text-right font-semibold">{{ pos.marketValue | vndCurrency }}</td>
+                      <td class="px-4 py-3 text-sm text-right font-medium" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
+                        {{ pos.unrealizedPnL | vndCurrency }}
+                      </td>
+                      <td class="px-4 py-3 text-sm text-right">{{ (pos.weight * 100).toFixed(1) }}%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <!-- Mobile cards for Positions Lookup -->
+              <div class="md:hidden divide-y divide-gray-200">
+                <div *ngFor="let pos of lookupSnapshot_result.positions" class="p-4 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-gray-800">{{ pos.symbol }}</span>
+                    <span class="font-medium" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">{{ pos.unrealizedPnL | vndCurrency }}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div><span class="text-gray-500">SL:</span> <span class="font-medium">{{ pos.quantity | number }}</span></div>
+                    <div><span class="text-gray-500">Giá TB:</span> <span class="font-medium">{{ pos.averageCost | vndCurrency }}</span></div>
+                    <div><span class="text-gray-500">GT thị trường:</span> <span class="font-medium">{{ pos.marketValue | vndCurrency }}</span></div>
+                    <div><span class="text-gray-500">Tỷ trọng:</span> <span class="font-medium">{{ (pos.weight * 100).toFixed(1) }}%</span></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -327,7 +359,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <button (click)="selectedSnapshot = null" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="border rounded p-3">
                 <div class="text-xs text-gray-500">Tổng GT</div>
                 <div class="font-bold">{{ selectedSnapshot.totalValue | vndCurrency }}</div>
@@ -350,33 +382,50 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               </div>
             </div>
 
-            <div *ngIf="selectedSnapshot.positions.length > 0" class="overflow-x-auto">
-              <table class="min-w-full table-auto">
-                <thead>
-                  <tr class="bg-gray-50 border-b">
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Mã CP</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">SL</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Giá TB</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Giá TT</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">GT TT</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Lãi/Lỗ</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Tỷ trọng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let pos of selectedSnapshot.positions" class="border-b">
-                    <td class="px-3 py-2 text-sm font-bold">{{ pos.symbol }}</td>
-                    <td class="px-3 py-2 text-sm text-right">{{ pos.quantity | number }}</td>
-                    <td class="px-3 py-2 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
-                    <td class="px-3 py-2 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
-                    <td class="px-3 py-2 text-sm text-right font-semibold">{{ pos.marketValue | vndCurrency }}</td>
-                    <td class="px-3 py-2 text-sm text-right" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
-                      {{ pos.unrealizedPnL | vndCurrency }}
-                    </td>
-                    <td class="px-3 py-2 text-sm text-right">{{ (pos.weight * 100).toFixed(1) }}%</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div *ngIf="selectedSnapshot.positions.length > 0">
+              <div class="overflow-x-auto hidden md:block">
+                <table class="min-w-full table-auto">
+                  <thead>
+                    <tr class="bg-gray-50 border-b">
+                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Mã CP</th>
+                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">SL</th>
+                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Giá TB</th>
+                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Giá TT</th>
+                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">GT TT</th>
+                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Lãi/Lỗ</th>
+                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Tỷ trọng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let pos of selectedSnapshot.positions" class="border-b">
+                      <td class="px-3 py-2 text-sm font-bold">{{ pos.symbol }}</td>
+                      <td class="px-3 py-2 text-sm text-right">{{ pos.quantity | number }}</td>
+                      <td class="px-3 py-2 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
+                      <td class="px-3 py-2 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
+                      <td class="px-3 py-2 text-sm text-right font-semibold">{{ pos.marketValue | vndCurrency }}</td>
+                      <td class="px-3 py-2 text-sm text-right" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
+                        {{ pos.unrealizedPnL | vndCurrency }}
+                      </td>
+                      <td class="px-3 py-2 text-sm text-right">{{ (pos.weight * 100).toFixed(1) }}%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <!-- Mobile cards for Modal Positions -->
+              <div class="md:hidden divide-y divide-gray-200">
+                <div *ngFor="let pos of selectedSnapshot.positions" class="p-4 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-gray-800">{{ pos.symbol }}</span>
+                    <span class="font-medium" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">{{ pos.unrealizedPnL | vndCurrency }}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div><span class="text-gray-500">SL:</span> <span class="font-medium">{{ pos.quantity | number }}</span></div>
+                    <div><span class="text-gray-500">Giá TB:</span> <span class="font-medium">{{ pos.averageCost | vndCurrency }}</span></div>
+                    <div><span class="text-gray-500">GT TT:</span> <span class="font-medium">{{ pos.marketValue | vndCurrency }}</span></div>
+                    <div><span class="text-gray-500">Tỷ trọng:</span> <span class="font-medium">{{ (pos.weight * 100).toFixed(1) }}%</span></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -15,7 +15,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
       <!-- Header -->
       <div class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex justify-between items-center py-6">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-6">
             <div>
               <h1 class="text-3xl font-bold text-gray-900">Quản lý Danh mục</h1>
               <p class="text-gray-600 mt-1">Quản lý tất cả danh mục đầu tư của bạn</p>

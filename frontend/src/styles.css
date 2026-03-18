@@ -52,6 +52,10 @@
   }
 }
 
+/* Scrollbar hide utility (for horizontal tab scrolling on mobile) */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Tooltip component */
 .tooltip-trigger {
   position: relative;
@@ -67,6 +71,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: 15rem;
+  max-width: calc(100vw - 2rem);
   background-color: #1f2937;
   color: #fff;
   font-size: 0.72rem;
