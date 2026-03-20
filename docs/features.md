@@ -101,6 +101,7 @@ Tabs:
 - **Top biến động**: Tab HOSE/HNX/UPCOM, bảng mã biến động mạnh nhất
 - **Bảng giá nhanh**: Nhập nhiều mã, xem giá close + KL
 - **Lịch sử giá**: Khoảng thời gian tùy chọn, bảng OHLCV
+- **Phân tích kỹ thuật (Smart Signals)**: Auto phân tích EMA20/50, RSI(14), MACD(12,26,9), Volume ratio, hỗ trợ/kháng cự (swing high/low). Tín hiệu tổng hợp: Mua mạnh/Mua/Chờ/Bán/Bán mạnh. Gợi ý giao dịch (entry, SL, TP, R:R). Link "Tạo Trade Plan từ gợi ý". Tín hiệu cũng hiển thị trên Watchlist.
 
 **Quy tắc giá:** API 24hmoney trả giá cổ phiếu ÷1000 → nhân ×1000 khi mapping. Chỉ số index giữ nguyên.
 
@@ -117,8 +118,9 @@ Tabs:
 | `GET` | `/market/search?keyword=` | Tìm kiếm mã/tên công ty |
 | `GET` | `/market/top-fluctuation?floor=` | Top biến động (10=HOSE, 02=HNX, 03=UPCOM) |
 | `GET` | `/market/stock/{symbol}/summary` | Biến động giá 1D/1W/1M/3M/6M |
+| `GET` | `/market/stock/{symbol}/analysis` | Phân tích kỹ thuật (EMA, RSI, MACD, Volume, S&R, Signal) |
 
-**Services:** `MarketDataService` (FE), `HmoneyMarketDataProvider` (BE — implements `IMarketDataProvider` + `IStockInfoProvider`)
+**Services:** `MarketDataService` (FE), `HmoneyMarketDataProvider` (BE — implements `IMarketDataProvider` + `IStockInfoProvider`), `TechnicalIndicatorService` (BE — implements `ITechnicalIndicatorService`)
 
 ---
 

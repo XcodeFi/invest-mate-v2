@@ -2,6 +2,33 @@
 
 ---
 
+## [v2.14.0] — 2026-03-20 · Smart Trade Signals
+
+**Branch:** `feature/smart-signals`
+
+### Thêm mới
+
+- **Phân tích kỹ thuật tự động**: Tra cứu cổ phiếu → tự động chạy phân tích EMA(20/50), RSI(14), MACD(12,26,9), Volume ratio, hỗ trợ/kháng cự
+- **Tín hiệu tổng hợp**: Mua mạnh / Mua / Chờ / Bán / Bán mạnh — dựa trên 4 chỉ báo kỹ thuật
+- **Gợi ý giao dịch**: Entry (hỗ trợ gần nhất), Stop-loss, Target (kháng cự gần nhất), Risk:Reward ratio
+- **"Tạo Trade Plan từ gợi ý"**: 1 click tạo Trade Plan từ kết quả phân tích kỹ thuật (pre-fill entry/SL/TP)
+- **Watchlist signal column**: Tín hiệu kỹ thuật hiển thị trên bảng watchlist (top 10 mã)
+
+### Backend
+
+- `ITechnicalIndicatorService` + `TechnicalIndicatorService` — engine phân tích kỹ thuật
+- `GetTechnicalAnalysisQuery` — CQRS query via MediatR
+- API endpoint: `GET /api/v1/market/stock/{symbol}/analysis`
+- Indicators: EMA, RSI (Wilder's smoothed), MACD with crossover, Volume ratio, Swing High/Low (5-window), Level clustering (2%)
+
+### Frontend
+
+- `TechnicalAnalysis` interface + `getTechnicalAnalysis()` method in `MarketDataService`
+- Analysis UI section in `MarketDataComponent`: indicators grid, S&R levels, trade suggestion card
+- Signal column in `WatchlistComponent` (desktop table + mobile cards)
+
+---
+
 ## [v2.13.0] — 2026-03-20 · Watchlist Thông minh
 
 **Branch:** `feature/watchlist`

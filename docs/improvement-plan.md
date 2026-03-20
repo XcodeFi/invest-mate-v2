@@ -11,7 +11,7 @@
 | # | Feature | Effort | Impact | Sẵn có % | Status |
 |---|---|---|---|---|---|
 | **1** | **Watchlist Thông minh** | Trung bình | Rất cao | 100% | ✅ Done |
-| **2** | **Smart Trade Signals** (phase 1) | Cao | Rất cao | 30% | ⏳ Planned |
+| **2** | **Smart Trade Signals** (phase 1) | Cao | Rất cao | 100% | ✅ Done |
 | **3** | **Portfolio Optimizer** (basic) | Cao | Cao | 40% | ⏳ Planned |
 | 4 | Push Notifications | Trung bình | Cao | 80% | ⏳ Planned |
 | 5 | PWA | Thấp | Trung bình | 70% | ⏳ Planned |
@@ -55,32 +55,33 @@
 
 ---
 
-### 2. Smart Trade Signals — Phân tích kỹ thuật tự động
+### 2. Smart Trade Signals — Phân tích kỹ thuật tự động ✅
 
-**Branch:** `feature/smart-signals` (sau Watchlist)
+**Branch:** `feature/smart-signals` | **Status:** Done
 
-**Mô tả:** Khi tra cứu mã CP → hiện section phân tích kỹ thuật tự động + gợi ý entry/SL/TP.
+**Đã triển khai:**
 
-**Phase 1 (đơn giản):**
-- EMA20/EMA50 crossover → xu hướng tăng/giảm
-- RSI(14) → oversold/overbought/neutral
-- MACD signal line crossover → tín hiệu mua/bán
-- Volume so với TB 20 phiên → volume đột biến
-- Support/Resistance bằng pivot points (High/Low/Close)
-- Tổng hợp signal: 🟢 MUA / 🟡 CHỜ / 🔴 BÁN
-- Nút "Tạo Trade Plan từ gợi ý" → pre-fill entry/SL/TP
+- EMA20/EMA50 → xu hướng tăng/giảm
+- RSI(14) Wilder's smoothed → oversold/overbought/neutral
+- MACD(12,26,9) crossover detection → tín hiệu mua/bán
+- Volume ratio vs TB 20 phiên → spike/high/normal/low
+- Support/Resistance bằng Swing High/Low (5-window) + clustering 2%
+- Tổng hợp 4 indicators → 🟢🟢 Mua mạnh / 🟢 Mua / 🟡 Chờ / 🔴 Bán / 🔴🔴 Bán mạnh
+- Gợi ý giao dịch: Entry (hỗ trợ), SL (hỗ trợ tiếp hoặc -5%), TP (kháng cự), R:R ratio
+- Nút "Tạo Trade Plan từ gợi ý" → pre-fill entry/SL/TP qua query params
 
 **Backend:**
-- Service: `TechnicalIndicatorService` (EMA, RSI, MACD, Volume, Pivot Points)
-- Query: `GetTechnicalAnalysis(symbol)` → DTO với tất cả indicators
-- Reuse: `HmoneyMarketDataProvider.GetPriceHistory()` cho OHLCV data
-- Reuse: `BacktestEngine` logic nếu có thể
+
+- `ITechnicalIndicatorService` + `TechnicalIndicatorService` (Infrastructure)
+- `GetTechnicalAnalysisQuery` (CQRS via MediatR)
+- API: `GET /api/v1/market/stock/{symbol}/analysis`
+- Reuse: `IMarketDataProvider.GetHistoricalPricesAsync()` (6 tháng data)
 
 **Frontend:**
-- Section mới trong `market-data.component.ts` (hoặc component riêng)
-- Card hiển thị indicators + signal tổng hợp
-- Nút navigate đến Trade Plan pre-filled
-- Tích hợp vào Watchlist: cột "Signal" cho mỗi mã
+
+- `TechnicalAnalysis` interface + `getTechnicalAnalysis()` in `MarketDataService`
+- Analysis section in `MarketDataComponent`: indicators grid, S&R levels, trade suggestion
+- Signal column in `WatchlistComponent` (top 10 mã, forkJoin parallel)
 
 ---
 

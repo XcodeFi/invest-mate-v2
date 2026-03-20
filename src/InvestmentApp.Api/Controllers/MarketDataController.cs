@@ -7,6 +7,8 @@ using InvestmentApp.Application.MarketData.Queries.GetMarketOverview;
 using InvestmentApp.Application.MarketData.Queries.SearchStocks;
 using InvestmentApp.Application.MarketData.Queries.GetTopFluctuation;
 using InvestmentApp.Application.MarketData.Queries.GetTradingHistorySummary;
+using InvestmentApp.Application.MarketData.Queries.GetTechnicalAnalysis;
+using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -184,5 +186,17 @@ public class MarketDataController : ControllerBase
         {
             return NotFound(new { message = $"Không tìm thấy thông tin giao dịch cho mã {symbol}" });
         }
+    }
+
+    /// <summary>
+    /// Get technical analysis (EMA, RSI, MACD, Volume, Support/Resistance, Signal)
+    /// </summary>
+    [HttpGet("stock/{symbol}/analysis")]
+    [ProducesResponseType(typeof(TechnicalAnalysisResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTechnicalAnalysis(string symbol)
+    {
+        var query = new GetTechnicalAnalysisQuery { Symbol = symbol };
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 }

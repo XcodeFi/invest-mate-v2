@@ -1,0 +1,56 @@
+namespace InvestmentApp.Application.Interfaces;
+
+public interface ITechnicalIndicatorService
+{
+    Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, CancellationToken cancellationToken = default);
+}
+
+public class TechnicalAnalysisResult
+{
+    public string Symbol { get; set; } = null!;
+    public DateTime AnalyzedAt { get; set; }
+    public int DataPoints { get; set; }
+
+    // Current price
+    public decimal CurrentPrice { get; set; }
+    public decimal PriceChange { get; set; }
+    public decimal PriceChangePercent { get; set; }
+    public long CurrentVolume { get; set; }
+
+    // Moving Averages
+    public decimal? Ema20 { get; set; }
+    public decimal? Ema50 { get; set; }
+    public string EmaTrend { get; set; } = "neutral"; // "bullish" | "bearish" | "neutral"
+
+    // RSI
+    public decimal? Rsi14 { get; set; }
+    public string RsiSignal { get; set; } = "neutral"; // "oversold" | "overbought" | "neutral"
+
+    // MACD
+    public decimal? MacdLine { get; set; }
+    public decimal? SignalLine { get; set; }
+    public decimal? MacdHistogram { get; set; }
+    public string MacdSignal { get; set; } = "neutral"; // "buy" | "sell" | "neutral"
+
+    // Volume
+    public decimal? AvgVolume20 { get; set; }
+    public decimal? VolumeRatio { get; set; } // current / avg20
+    public string VolumeSignal { get; set; } = "normal"; // "spike" | "high" | "normal" | "low"
+
+    // Support / Resistance (swing high/low based)
+    public List<decimal> SupportLevels { get; set; } = new();
+    public List<decimal> ResistanceLevels { get; set; } = new();
+
+    // Overall Signal
+    public string OverallSignal { get; set; } = "hold"; // "strong_buy" | "buy" | "hold" | "sell" | "strong_sell"
+    public string OverallSignalVi { get; set; } = "Chờ"; // Vietnamese label
+    public int BullishCount { get; set; }
+    public int BearishCount { get; set; }
+    public int NeutralCount { get; set; }
+
+    // Trade suggestion
+    public decimal? SuggestedEntry { get; set; }
+    public decimal? SuggestedStopLoss { get; set; }
+    public decimal? SuggestedTarget { get; set; }
+    public decimal? RiskRewardRatio { get; set; }
+}
