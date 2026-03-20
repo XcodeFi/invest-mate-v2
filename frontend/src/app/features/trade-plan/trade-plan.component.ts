@@ -1037,12 +1037,16 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.templateService.getAll().subscribe({ next: d => this.templates = d, error: () => {} });
     this.loadSavedPlans();
 
-    // Pre-fill symbol from query param (e.g. navigated from trades page)
-    const symbolParam = this.route.snapshot.queryParams['symbol'];
-    if (symbolParam) {
-      this.plan.symbol = symbolParam.toUpperCase().trim();
+    // Pre-fill from query params (e.g. navigated from market-data analysis)
+    const qp = this.route.snapshot.queryParams;
+    if (qp['symbol']) {
+      this.plan.symbol = qp['symbol'].toUpperCase().trim();
       this.onSymbolInput();
     }
+    if (qp['entry']) this.plan.entryPrice = +qp['entry'];
+    if (qp['sl']) this.plan.stopLoss = +qp['sl'];
+    if (qp['tp']) this.plan.target = +qp['tp'];
+    if (qp['entry'] || qp['sl'] || qp['tp']) this.recalculate();
 
     // Auto-fill: debounced symbol lookup
     this.symbolSubject.pipe(

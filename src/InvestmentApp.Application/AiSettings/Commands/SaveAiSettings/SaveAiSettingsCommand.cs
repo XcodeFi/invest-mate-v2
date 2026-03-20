@@ -45,21 +45,40 @@ public class SaveAiSettingsCommandHandler : IRequestHandler<SaveAiSettingsComman
         }
         else
         {
-            var provider = request.Provider ?? "claude";
-            var apiKey = provider == "gemini" ? request.GeminiApiKey : request.ClaudeApiKey;
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new Exception("API key là bắt buộc khi cấu hình lần đầu.");
+            // Check for soft-deleted record to reactivate (unique index on UserId prevents re-insert)
+            var deleted = await _repository.GetByUserIdIncludingDeletedAsync(request.UserId, cancellationToken);
+            if (deleted != null)
+            {
+                deleted.Restore();
+                if (!string.IsNullOrWhiteSpace(request.Provider))
+                    deleted.UpdateProvider(request.Provider);
+                if (!string.IsNullOrWhiteSpace(request.ClaudeApiKey))
+                    deleted.UpdateClaudeApiKey(_encryption.Encrypt(request.ClaudeApiKey));
+                if (!string.IsNullOrWhiteSpace(request.GeminiApiKey))
+                    deleted.UpdateGeminiApiKey(_encryption.Encrypt(request.GeminiApiKey));
+                if (!string.IsNullOrWhiteSpace(request.Model))
+                    deleted.UpdateModel(request.Model);
+                await _repository.UpdateAsync(deleted, cancellationToken);
+                existing = deleted;
+            }
+            else
+            {
+                var provider = request.Provider ?? "claude";
+                var apiKey = provider == "gemini" ? request.GeminiApiKey : request.ClaudeApiKey;
+                if (string.IsNullOrWhiteSpace(apiKey))
+                    throw new Exception("API key là bắt buộc khi cấu hình lần đầu.");
 
-            var model = request.Model ?? (provider == "gemini" ? "gemini-2.0-flash" : "claude-sonnet-4-6-20250514");
-            existing = Domain.Entities.AiSettings.Create(request.UserId, _encryption.Encrypt(apiKey), provider, model);
+                var model = request.Model ?? (provider == "gemini" ? "gemini-2.0-flash" : "claude-sonnet-4-6-20250514");
+                existing = Domain.Entities.AiSettings.Create(request.UserId, _encryption.Encrypt(apiKey), provider, model);
 
-            // Also save the other provider's key if provided
-            if (provider == "gemini" && !string.IsNullOrWhiteSpace(request.ClaudeApiKey))
-                existing.UpdateClaudeApiKey(_encryption.Encrypt(request.ClaudeApiKey));
-            else if (provider == "claude" && !string.IsNullOrWhiteSpace(request.GeminiApiKey))
-                existing.UpdateGeminiApiKey(_encryption.Encrypt(request.GeminiApiKey));
+                // Also save the other provider's key if provided
+                if (provider == "gemini" && !string.IsNullOrWhiteSpace(request.ClaudeApiKey))
+                    existing.UpdateClaudeApiKey(_encryption.Encrypt(request.ClaudeApiKey));
+                else if (provider == "claude" && !string.IsNullOrWhiteSpace(request.GeminiApiKey))
+                    existing.UpdateGeminiApiKey(_encryption.Encrypt(request.GeminiApiKey));
 
-            await _repository.AddAsync(existing, cancellationToken);
+                await _repository.AddAsync(existing, cancellationToken);
+            }
         }
 
         return MapToDto(existing);

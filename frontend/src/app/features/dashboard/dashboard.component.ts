@@ -107,8 +107,31 @@ interface RiskAlert {
           </div>
         </div>
 
+        <!-- Watchlist + Daily Routine side-by-side on desktop -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+
+        <!-- Watchlist Widget -->
+        <div *ngIf="watchlistTopMovers.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">⭐</span>
+              <span class="font-bold text-sm text-gray-900">Watchlist</span>
+              <span class="text-xs text-gray-500">{{ watchlistTopMovers.length }} mã</span>
+            </div>
+            <a routerLink="/watchlist" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem tất cả →</a>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <a *ngFor="let item of watchlistTopMovers.slice(0, 6)"
+              [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
+              class="p-2 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors text-center">
+              <div class="font-semibold text-sm text-gray-900">{{ item.symbol }}</div>
+              <div class="text-sm font-mono mt-0.5">{{ item.close | vndCurrency }}</div>
+            </a>
+          </div>
+        </div>
+
         <!-- Daily Routine Widget -->
-        <div *ngIf="todayRoutine || suggestedRoutineTemplate" class="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div *ngIf="todayRoutine || suggestedRoutineTemplate" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <!-- Has routine -->
           <div *ngIf="todayRoutine">
             <div class="flex items-center justify-between mb-3">
@@ -174,25 +197,7 @@ interface RiskAlert {
           </div>
         </div>
 
-        <!-- Watchlist Widget -->
-        <div *ngIf="watchlistTopMovers.length > 0" class="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">⭐</span>
-              <span class="font-bold text-sm text-gray-900">Watchlist</span>
-              <span class="text-xs text-gray-500">{{ watchlistTopMovers.length }} mã</span>
-            </div>
-            <a routerLink="/watchlist" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem tất cả →</a>
-          </div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            <a *ngFor="let item of watchlistTopMovers.slice(0, 5)"
-              [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
-              class="p-2 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors text-center">
-              <div class="font-semibold text-sm text-gray-900">{{ item.symbol }}</div>
-              <div class="text-sm font-mono mt-0.5">{{ item.close | vndCurrency }}</div>
-            </a>
-          </div>
-        </div>
+        </div> <!-- end Watchlist + Daily Routine grid -->
 
         <!-- Timeframe Switcher -->
         <div class="flex items-center gap-2 mb-6 flex-wrap">

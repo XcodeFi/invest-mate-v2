@@ -49,4 +49,9 @@ public class AiSettingsRepository : IAiSettingsRepository
     {
         return await _collection.Find(s => s.UserId == userId && !s.IsDeleted).FirstOrDefaultAsync(ct);
     }
+
+    public async Task<AiSettings?> GetByUserIdIncludingDeletedAsync(string userId, CancellationToken ct = default)
+    {
+        return await _collection.Find(s => s.UserId == userId).FirstOrDefaultAsync(ct);
+    }
 }

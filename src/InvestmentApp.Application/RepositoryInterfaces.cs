@@ -148,6 +148,7 @@ public interface IRoutineTemplateRepository : IRepository<RoutineTemplate>
 public interface IAiSettingsRepository : IRepository<Domain.Entities.AiSettings>
 {
     Task<Domain.Entities.AiSettings?> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<Domain.Entities.AiSettings?> GetByUserIdIncludingDeletedAsync(string userId, CancellationToken cancellationToken = default);
 }
 
 public interface IFeeCalculationService

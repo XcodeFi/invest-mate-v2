@@ -72,7 +72,7 @@ public class GeminiApiService : IAiChatService
                 System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden =>
                     "API key không hợp lệ. Vui lòng kiểm tra lại trong Cài đặt AI.",
                 System.Net.HttpStatusCode.TooManyRequests =>
-                    "Vượt giới hạn tốc độ API. Vui lòng thử lại sau.",
+                    $"Vượt giới hạn tốc độ API. {ParseErrorMessage(errorBody)}",
                 _ => $"Lỗi Gemini API ({(int)response.StatusCode}): {ParseErrorMessage(errorBody)}"
             };
             yield return new AiStreamChunk { Type = "error", ErrorMessage = errorMsg };

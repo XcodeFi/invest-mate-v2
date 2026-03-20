@@ -249,11 +249,13 @@ export class AiSettingsComponent implements OnInit {
       this.selectedModel = isClaude ? 'claude-sonnet-4-6-20250514' : 'gemini-2.0-flash';
     }
 
-    // Save provider + model to backend
-    this.aiService.saveSettings({ provider, model: this.selectedModel }).subscribe({
-      next: (s) => { this.settings = s; },
-      error: () => { this.notify.error('Lỗi', 'Không thể chuyển nhà cung cấp.'); }
-    });
+    // Only save to backend if at least one API key already exists
+    if (this.settings?.hasClaudeApiKey || this.settings?.hasGeminiApiKey) {
+      this.aiService.saveSettings({ provider, model: this.selectedModel }).subscribe({
+        next: (s) => { this.settings = s; },
+        error: () => { this.notify.error('Lỗi', 'Không thể chuyển nhà cung cấp.'); }
+      });
+    }
   }
 
   saveApiKey(): void {

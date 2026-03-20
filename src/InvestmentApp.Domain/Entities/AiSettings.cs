@@ -95,4 +95,11 @@ public class AiSettings : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
+
+    public void Restore()
+    {
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
 }
