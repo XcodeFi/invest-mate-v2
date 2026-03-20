@@ -230,6 +230,7 @@ export class HeaderComponent implements OnInit {
         { path: '/monthly-review', label: 'Báo cáo tháng', icon: '📅' },
         { path: '/backtesting', label: 'Backtest', icon: '🧪' },
         { path: '/market-data', label: 'Thị trường', icon: '🌐' },
+        { path: '/watchlist', label: 'Watchlist', icon: '⭐' },
         { path: '/snapshots', label: 'Lịch sử snapshot', icon: '📸' },
       ]
     },

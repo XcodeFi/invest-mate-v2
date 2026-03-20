@@ -1,0 +1,40 @@
+using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
+using InvestmentApp.Application.Watchlists.Dtos;
+using MediatR;
+
+namespace InvestmentApp.Application.Watchlists.Commands.UpdateWatchlistItem;
+
+public class UpdateWatchlistItemCommand : IRequest<WatchlistDetailDto>
+{
+    public string WatchlistId { get; set; } = null!;
+    public string UserId { get; set; } = null!;
+    public string Symbol { get; set; } = null!;
+    public string? Note { get; set; }
+    public decimal? TargetBuyPrice { get; set; }
+    public decimal? TargetSellPrice { get; set; }
+}
+
+public class UpdateWatchlistItemCommandHandler : IRequestHandler<UpdateWatchlistItemCommand, WatchlistDetailDto>
+{
+    private readonly IWatchlistRepository _repo;
+
+    public UpdateWatchlistItemCommandHandler(IWatchlistRepository repo)
+    {
+        _repo = repo;
+    }
+
+    public async Task<WatchlistDetailDto> Handle(UpdateWatchlistItemCommand request, CancellationToken ct)
+    {
+        var watchlist = await _repo.GetByIdAsync(request.WatchlistId, ct)
+            ?? throw new KeyNotFoundException($"Watchlist {request.WatchlistId} not found");
+
+        if (watchlist.UserId != request.UserId)
+            throw new UnauthorizedAccessException();
+
+        watchlist.UpdateItem(request.Symbol, request.Note, request.TargetBuyPrice, request.TargetSellPrice);
+        await _repo.UpdateAsync(watchlist, ct);
+
+        return AddWatchlistItemCommandHandler.MapToDetail(watchlist);
+    }
+}

@@ -1,6 +1,6 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-18
+> **Cập nhật lần cuối:** 2026-03-20
 > **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API
 
 ---
@@ -485,6 +485,38 @@ Widget ngay trên Dashboard (dưới Risk Alert Banner) + trang riêng `/daily-r
 
 ---
 
+## Watchlist Thông minh
+
+> **Branch:** `feature/watchlist` | **Trạng thái:** ✅ Done
+
+Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối Market Data → Trade Plan.
+
+### Tính năng chính
+
+- **CRUD watchlist**: Tạo/sửa/xoá nhiều danh sách (VD: "Cổ phiếu theo dõi", "Chờ mua", "VN30")
+- **Thêm/xoá mã**: Tìm kiếm symbol autocomplete (24hmoney API), thêm nhanh vào danh sách
+- **Giá realtime**: Batch price lookup hiển thị giá, % thay đổi, khối lượng cho mỗi mã
+- **Import VN30**: Nhập 30 mã VN30 bằng 1 click (tạo watchlist mới hoặc thêm vào watchlist hiện tại)
+- **Ghi chú & giá mục tiêu**: Note + target buy/sell price cho từng mã
+- **Deep link đến Trade Plan**: Nút [Tạo Plan] → `/trade-plan?symbol=X` pre-filled
+- **Dashboard widget**: Top 5 mã từ watchlist đầu tiên hiển thị trên Dashboard
+
+### Backend
+
+- **Entities:** `Watchlist` (AggregateRoot), `WatchlistItem` (ValueObject embedded)
+- **Collection:** `watchlists` (compound index UserId)
+- **API:** `WatchlistsController` (`api/v1/watchlists`) — 9 endpoints (CRUD + items + import-vn30)
+- **CQRS:** 7 commands (Create/Update/Delete watchlist, Add/Update/Remove item, ImportVn30) + 2 queries
+
+### Frontend
+
+- **Service:** `watchlist.service.ts`
+- **Full page:** `features/watchlist/watchlist.component.ts`
+- **Dashboard widget:** Top movers grid trong `dashboard.component.ts`
+- **Navigation:** Header (Phân tích group) + Bottom nav (moreItems)
+
+---
+
 ## API Endpoints tổng hợp (Frontend → Backend)
 
 | Module | Endpoint | Auth |
@@ -517,6 +549,11 @@ Widget ngay trên Dashboard (dưới Risk Alert Banner) + trang riêng `/daily-r
 | **Daily Routines** | `GET /api/v1/daily-routines/history` | ✅ |
 | **Daily Routines** | `GET/POST/PUT/DELETE /api/v1/daily-routines/templates` | ✅ |
 | **Daily Routines** | `GET /api/v1/daily-routines/templates/suggest` | ✅ |
+| **Watchlists** | `GET/POST /api/v1/watchlists` | ✅ |
+| **Watchlists** | `GET/PUT/DELETE /api/v1/watchlists/{id}` | ✅ |
+| **Watchlists** | `POST /api/v1/watchlists/{id}/items` | ✅ |
+| **Watchlists** | `PUT/DELETE /api/v1/watchlists/{id}/items/{symbol}` | ✅ |
+| **Watchlists** | `POST /api/v1/watchlists/import-vn30` | ✅ |
 
 ---
 
@@ -542,6 +579,7 @@ Widget ngay trên Dashboard (dưới Risk Alert Banner) + trang riêng `/daily-r
 | `/trades/create` | `TradeCreateComponent` | Tạo giao dịch mới |
 | `/trade-replay/:id` | `TradeReplayComponent` | Replay kế hoạch giao dịch trên biểu đồ giá |
 | `/daily-routine` | `DailyRoutineComponent` | Nhiệm vụ hàng ngày & Routine Templates |
+| `/watchlist` | `WatchlistComponent` | Theo dõi cổ phiếu & tìm cơ hội giao dịch |
 
 ---
 

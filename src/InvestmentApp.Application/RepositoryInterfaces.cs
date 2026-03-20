@@ -133,6 +133,12 @@ public interface IDailyRoutineRepository : IRepository<DailyRoutine>
     Task HardDeleteAsync(string id, CancellationToken cancellationToken = default);
 }
 
+public interface IWatchlistRepository : IRepository<Watchlist>
+{
+    Task<IEnumerable<Watchlist>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<Watchlist?> GetDefaultByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+}
+
 public interface IRoutineTemplateRepository : IRepository<RoutineTemplate>
 {
     Task<IEnumerable<RoutineTemplate>> GetAllForUserAsync(string userId, CancellationToken cancellationToken = default);

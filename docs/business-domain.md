@@ -1,7 +1,7 @@
 # Investment Mate v2 — Bản đồ Nghiệp vụ
 
 > Tài liệu tham chiếu nhanh cho AI agents và developers mới.
-> Cập nhật lần cuối: 2026-03-15
+> Cập nhật lần cuối: 2026-03-20
 
 ---
 
@@ -39,8 +39,11 @@ User (1)
  ├── DailyRoutine (N)       ← Nhiệm vụ hàng ngày (1 per user per day)
  │    └── RoutineItem (N)   ← Các bước trong routine (embedded)
  │
- └── RoutineTemplate (N)    ← Mẫu routine (5 built-in + custom)
-      └── RoutineItemTemplate (N)
+ ├── RoutineTemplate (N)    ← Mẫu routine (5 built-in + custom)
+ │    └── RoutineItemTemplate (N)
+ │
+ └── Watchlist (N)           ← Danh sách theo dõi cổ phiếu
+      └── WatchlistItem (N)  ← Mã CP + ghi chú + giá mục tiêu (embedded)
 ```
 
 ### Liên kết giữa entities
@@ -59,6 +62,8 @@ User (1)
 | DailyRoutine | User | N:1 | 1 routine/user/ngày |
 | DailyRoutine | RoutineTemplate | N:1 | Tạo từ template |
 | RoutineTemplate | User | N:1 | null = built-in, non-null = custom |
+| Watchlist | User | N:1 | Nhiều watchlist per user |
+| WatchlistItem | Watchlist | N:1 | Embedded, symbol + note + target prices |
 
 ---
 

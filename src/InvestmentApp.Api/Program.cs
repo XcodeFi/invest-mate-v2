@@ -115,6 +115,7 @@ builder.Services.AddScoped<IBacktestRepository, BacktestRepository>();
 builder.Services.AddScoped<ITradePlanRepository, TradePlanRepository>();
 builder.Services.AddScoped<IDailyRoutineRepository, DailyRoutineRepository>();
 builder.Services.AddScoped<IRoutineTemplateRepository, RoutineTemplateRepository>();
+builder.Services.AddScoped<IWatchlistRepository, WatchlistRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IAuditService, AuditService>();
