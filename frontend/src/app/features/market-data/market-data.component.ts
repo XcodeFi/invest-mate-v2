@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
   TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis
@@ -506,7 +506,8 @@ export class MarketDataComponent implements OnInit {
 
   constructor(
     private marketDataService: MarketDataService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
@@ -519,6 +520,15 @@ export class MarketDataComponent implements OnInit {
     thirtyDaysAgo.setDate(today.getDate() - 30);
     this.historyTo = today.toISOString().split('T')[0];
     this.historyFrom = thirtyDaysAgo.toISOString().split('T')[0];
+
+    // Auto-fill symbol from query param (e.g. /market-data?symbol=BVH)
+    this.route.queryParams.subscribe(params => {
+      const symbol = params['symbol']?.trim();
+      if (symbol) {
+        this.searchSymbol = symbol.toUpperCase();
+        this.lookupStock();
+      }
+    });
   }
 
   // --- Market Overview ---

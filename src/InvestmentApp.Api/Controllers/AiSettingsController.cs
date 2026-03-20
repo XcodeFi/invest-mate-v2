@@ -18,25 +18,25 @@ public class AiSettingsController : ControllerBase
     private readonly IMediator _mediator;
     private readonly IAiSettingsRepository _repository;
     private readonly IAiKeyEncryptionService _encryption;
-    private readonly IAiChatService _chatService;
+    private readonly IAiChatServiceFactory _chatServiceFactory;
 
     public AiSettingsController(
         IMediator mediator,
         IAiSettingsRepository repository,
         IAiKeyEncryptionService encryption,
-        IAiChatService chatService)
+        IAiChatServiceFactory chatServiceFactory)
     {
         _mediator = mediator;
         _repository = repository;
         _encryption = encryption;
-        _chatService = chatService;
+        _chatServiceFactory = chatServiceFactory;
     }
 
     private string GetUserId() =>
         User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException();
 
     /// <summary>
-    /// Get AI settings (masked API key + usage stats)
+    /// Get AI settings (masked API keys + usage stats)
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(AiSettingsDto), StatusCodes.Status200OK)]
@@ -48,7 +48,7 @@ public class AiSettingsController : ControllerBase
     }
 
     /// <summary>
-    /// Save/update API key and model preference
+    /// Save/update provider, API keys, and model preference
     /// </summary>
     [HttpPut]
     [ProducesResponseType(typeof(AiSettingsDto), StatusCodes.Status200OK)]
@@ -77,7 +77,7 @@ public class AiSettingsController : ControllerBase
     }
 
     /// <summary>
-    /// Test API key validity by sending a simple message to Claude
+    /// Test API key validity by sending a simple message to the active provider
     /// </summary>
     [HttpPost("test")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -86,19 +86,25 @@ public class AiSettingsController : ControllerBase
     {
         var userId = GetUserId();
         var settings = await _repository.GetByUserIdAsync(userId);
-        if (settings == null || string.IsNullOrEmpty(settings.EncryptedApiKey))
-            return BadRequest(new { message = "Chưa cấu hình API key." });
+        if (settings == null)
+            return BadRequest(new { message = "Chưa cấu hình AI." });
+
+        var provider = settings.Provider ?? "claude";
+        var encryptedKey = settings.GetActiveEncryptedApiKey();
+        if (string.IsNullOrEmpty(encryptedKey))
+            return BadRequest(new { message = $"Chưa cấu hình API key cho {(provider == "gemini" ? "Google Gemini" : "Anthropic Claude")}." });
 
         try
         {
-            var apiKey = _encryption.Decrypt(settings.EncryptedApiKey);
+            var apiKey = _encryption.Decrypt(encryptedKey);
+            var chatService = _chatServiceFactory.GetService(provider);
             var messages = new List<AiChatMessage>
             {
                 new() { Role = "user", Content = "Xin chào! Trả lời ngắn gọn 1 câu." }
             };
 
             string? responseText = null;
-            await foreach (var chunk in _chatService.StreamChatAsync(
+            await foreach (var chunk in chatService.StreamChatAsync(
                 apiKey, settings.Model, "Bạn là trợ lý AI.", messages))
             {
                 if (chunk.Type == "text" && chunk.Text != null)

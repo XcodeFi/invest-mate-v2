@@ -5,7 +5,7 @@ import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { marked } from 'marked';
-import { AiService, AiStreamChunk, AiChatMessage } from '../../../core/services/ai.service';
+import { AiService, AiStreamChunk, AiChatMessage, AiSettingsDto } from '../../../core/services/ai.service';
 
 @Component({
   selector: 'app-ai-chat-panel',
@@ -25,7 +25,19 @@ import { AiService, AiStreamChunk, AiChatMessage } from '../../../core/services/
               <span class="text-lg">✨</span>
               <h3 class="font-semibold text-white text-sm">{{ title }}</h3>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+              <!-- Model Selector -->
+              @if (availableModels.length > 1) {
+                <select [(ngModel)]="selectedModelId" (ngModelChange)="onModelChange($event)"
+                  class="bg-gray-700 text-gray-200 text-xs rounded-md px-2 py-1 border border-gray-600
+                         focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[160px] truncate">
+                  @for (m of availableModels; track m.id) {
+                    <option [value]="m.id">{{ m.label }}</option>
+                  }
+                </select>
+              } @else if (availableModels.length === 1) {
+                <span class="text-xs text-gray-400">{{ availableModels[0].label }}</span>
+              }
               @if (tokenUsage.input > 0 || tokenUsage.output > 0) {
                 <span class="text-xs text-gray-400" title="Tokens sử dụng">
                   🪙 {{ tokenUsage.input + tokenUsage.output | number }}
@@ -138,9 +150,21 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
   userInput = '';
   tokenUsage = { input: 0, output: 0 };
 
+  // Model selector
+  availableModels: { id: string; label: string; provider: string }[] = [];
+  selectedModelId = '';
+
   private streamSub: Subscription | null = null;
   private sanitizer = inject(DomSanitizer);
   private aiService = inject(AiService);
+
+  private static readonly ALL_MODELS: { id: string; label: string; provider: string }[] = [
+    { id: 'claude-sonnet-4-6-20250514', label: 'Sonnet 4.6', provider: 'claude' },
+    { id: 'claude-opus-4-6-20250514', label: 'Opus 4.6', provider: 'claude' },
+    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'gemini' },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'gemini' },
+    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'gemini' },
+  ];
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen'] && this.isOpen && !changes['isOpen'].previousValue) {
@@ -148,12 +172,32 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
       this.tokenUsage = { input: 0, output: 0 };
       this.errorMessage = null;
       this.currentStreamText = '';
+      this.loadModels();
 
       // Auto-start for non-chat use cases
       if (this.useCase !== 'chat') {
         this.startStream();
       }
     }
+  }
+
+  private loadModels(): void {
+    this.aiService.getSettings().subscribe({
+      next: (s) => {
+        this.availableModels = AiChatPanelComponent.ALL_MODELS.filter(m =>
+          (m.provider === 'claude' && s.hasClaudeApiKey) ||
+          (m.provider === 'gemini' && s.hasGeminiApiKey)
+        );
+        this.selectedModelId = s.model || this.availableModels[0]?.id || '';
+      },
+      error: () => { this.availableModels = []; }
+    });
+  }
+
+  onModelChange(modelId: string): void {
+    const model = AiChatPanelComponent.ALL_MODELS.find(m => m.id === modelId);
+    if (!model) return;
+    this.aiService.saveSettings({ provider: model.provider, model: modelId }).subscribe();
   }
 
   ngOnDestroy(): void {

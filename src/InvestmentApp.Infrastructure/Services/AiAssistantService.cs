@@ -12,7 +12,7 @@ public class AiAssistantService : IAiAssistantService
 {
     private readonly IAiSettingsRepository _settingsRepo;
     private readonly IAiKeyEncryptionService _encryption;
-    private readonly IAiChatService _chatService;
+    private readonly IAiChatServiceFactory _chatServiceFactory;
     private readonly ITradeJournalRepository _journalRepo;
     private readonly ITradeRepository _tradeRepo;
     private readonly IPortfolioRepository _portfolioRepo;
@@ -30,7 +30,7 @@ Quy tắc:
     public AiAssistantService(
         IAiSettingsRepository settingsRepo,
         IAiKeyEncryptionService encryption,
-        IAiChatService chatService,
+        IAiChatServiceFactory chatServiceFactory,
         ITradeJournalRepository journalRepo,
         ITradeRepository tradeRepo,
         IPortfolioRepository portfolioRepo,
@@ -39,7 +39,7 @@ Quy tắc:
     {
         _settingsRepo = settingsRepo;
         _encryption = encryption;
-        _chatService = chatService;
+        _chatServiceFactory = chatServiceFactory;
         _journalRepo = journalRepo;
         _tradeRepo = tradeRepo;
         _portfolioRepo = portfolioRepo;
@@ -51,7 +51,7 @@ Quy tắc:
         string userId, string? portfolioId, string? question,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var (apiKey, model, settings) = await GetUserSettings(userId, ct);
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
         if (apiKey == null)
         {
             yield return NoApiKeyError();
@@ -102,7 +102,7 @@ Nhiệm vụ: Phân tích nhật ký giao dịch của nhà đầu tư.
 
         var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
 
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, systemPrompt, messages, settings!, ct))
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
             yield return chunk;
     }
 
@@ -110,7 +110,7 @@ Nhiệm vụ: Phân tích nhật ký giao dịch của nhà đầu tư.
         string userId, string portfolioId, string? question,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var (apiKey, model, settings) = await GetUserSettings(userId, ct);
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
         if (apiKey == null)
         {
             yield return NoApiKeyError();
@@ -157,7 +157,7 @@ Nhiệm vụ: Đánh giá danh mục đầu tư.
         var userMessage = question ?? $"Đánh giá danh mục đầu tư:\n\n{contextSb}";
         var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
 
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, systemPrompt, messages, settings!, ct))
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
             yield return chunk;
     }
 
@@ -165,7 +165,7 @@ Nhiệm vụ: Đánh giá danh mục đầu tư.
         string userId, string tradePlanId, string? question,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var (apiKey, model, settings) = await GetUserSettings(userId, ct);
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
         if (apiKey == null)
         {
             yield return NoApiKeyError();
@@ -223,7 +223,7 @@ Nhiệm vụ: Tư vấn kế hoạch giao dịch.
         var userMessage = question ?? $"Đánh giá kế hoạch giao dịch:\n\n{contextSb}";
         var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
 
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, systemPrompt, messages, settings!, ct))
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
             yield return chunk;
     }
 
@@ -231,7 +231,7 @@ Nhiệm vụ: Tư vấn kế hoạch giao dịch.
         string userId, string message, List<AiChatMessage>? history,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var (apiKey, model, settings) = await GetUserSettings(userId, ct);
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
         if (apiKey == null)
         {
             yield return NoApiKeyError();
@@ -262,7 +262,7 @@ Bạn có thể trả lời về: chiến lược đầu tư, phân tích kỹ t
         if (messages.Count > 20)
             messages = messages.Skip(messages.Count - 20).ToList();
 
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, systemPrompt, messages, settings!, ct))
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
             yield return chunk;
     }
 
@@ -270,7 +270,7 @@ Bạn có thể trả lời về: chiến lược đầu tư, phân tích kỹ t
         string userId, string portfolioId, int year, int month,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var (apiKey, model, settings) = await GetUserSettings(userId, ct);
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
         if (apiKey == null)
         {
             yield return NoApiKeyError();
@@ -321,37 +321,42 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
         var userMessage = $"Tổng kết tháng {month:00}/{year}:\n\n{contextSb}";
         var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
 
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, systemPrompt, messages, settings!, ct))
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
             yield return chunk;
     }
 
     // --- Helpers ---
 
-    private async Task<(string? apiKey, string model, Domain.Entities.AiSettings? settings)> GetUserSettings(
+    private async Task<(string? apiKey, string model, string provider, Domain.Entities.AiSettings? settings)> GetUserSettings(
         string userId, CancellationToken ct)
     {
         var settings = await _settingsRepo.GetByUserIdAsync(userId, ct);
-        if (settings == null || string.IsNullOrEmpty(settings.EncryptedApiKey))
-            return (null, "", null);
+        if (settings == null)
+            return (null, "", "claude", null);
 
-        var apiKey = _encryption.Decrypt(settings.EncryptedApiKey);
-        return (apiKey, settings.Model, settings);
+        var encryptedKey = settings.GetActiveEncryptedApiKey();
+        if (string.IsNullOrEmpty(encryptedKey))
+            return (null, "", settings.Provider ?? "claude", null);
+
+        var apiKey = _encryption.Decrypt(encryptedKey);
+        return (apiKey, settings.Model, settings.Provider ?? "claude", settings);
     }
 
     private static AiStreamChunk NoApiKeyError() => new()
     {
         Type = "error",
-        ErrorMessage = "Chưa cấu hình API key. Vui lòng vào Cài đặt AI để nhập Anthropic API key."
+        ErrorMessage = "Chưa cấu hình API key cho nhà cung cấp AI đang chọn. Vui lòng vào Cài đặt AI để nhập API key."
     };
 
     private async IAsyncEnumerable<AiStreamChunk> StreamAndTrackUsage(
-        string apiKey, string model, string systemPrompt,
+        string apiKey, string model, string provider, string systemPrompt,
         List<AiChatMessage> messages, Domain.Entities.AiSettings settings,
         [EnumeratorCancellation] CancellationToken ct)
     {
+        var chatService = _chatServiceFactory.GetService(provider);
         int totalInput = 0, totalOutput = 0;
 
-        await foreach (var chunk in _chatService.StreamChatAsync(apiKey, model, systemPrompt, messages, ct))
+        await foreach (var chunk in chatService.StreamChatAsync(apiKey, model, systemPrompt, messages, ct))
         {
             if (chunk.InputTokens.HasValue) totalInput += chunk.InputTokens.Value;
             if (chunk.OutputTokens.HasValue) totalOutput += chunk.OutputTokens.Value;
@@ -361,26 +366,49 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
         // Track usage
         if (totalInput > 0 || totalOutput > 0)
         {
-            var cost = CalculateCost(model, totalInput, totalOutput);
+            var cost = CalculateCost(provider, model, totalInput, totalOutput);
             settings.AddTokenUsage(totalInput, totalOutput, cost);
             await _settingsRepo.UpdateAsync(settings, ct);
         }
     }
 
-    private static decimal CalculateCost(string model, int inputTokens, int outputTokens)
+    private static decimal CalculateCost(string provider, string model, int inputTokens, int outputTokens)
     {
         decimal inputPricePerMTok, outputPricePerMTok;
 
-        if (model.Contains("opus", StringComparison.OrdinalIgnoreCase))
+        if (provider == "gemini")
         {
-            inputPricePerMTok = 15m;
-            outputPricePerMTok = 75m;
+            if (model.Contains("2.5-pro", StringComparison.OrdinalIgnoreCase))
+            {
+                inputPricePerMTok = 1.25m;
+                outputPricePerMTok = 10m;
+            }
+            else if (model.Contains("2.5-flash", StringComparison.OrdinalIgnoreCase))
+            {
+                inputPricePerMTok = 0.15m;
+                outputPricePerMTok = 0.60m;
+            }
+            else
+            {
+                // Gemini 2.0 Flash (default)
+                inputPricePerMTok = 0.10m;
+                outputPricePerMTok = 0.40m;
+            }
         }
         else
         {
-            // Sonnet (default)
-            inputPricePerMTok = 3m;
-            outputPricePerMTok = 15m;
+            // Claude
+            if (model.Contains("opus", StringComparison.OrdinalIgnoreCase))
+            {
+                inputPricePerMTok = 15m;
+                outputPricePerMTok = 75m;
+            }
+            else
+            {
+                // Sonnet (default)
+                inputPricePerMTok = 3m;
+                outputPricePerMTok = 15m;
+            }
         }
 
         return (inputTokens / 1_000_000m * inputPricePerMTok) +

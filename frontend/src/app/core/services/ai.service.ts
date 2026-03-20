@@ -6,8 +6,11 @@ import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
 
 export interface AiSettingsDto {
-  hasApiKey: boolean;
-  maskedApiKey?: string;
+  provider: string;
+  hasClaudeApiKey: boolean;
+  maskedClaudeApiKey?: string;
+  hasGeminiApiKey: boolean;
+  maskedGeminiApiKey?: string;
   model: string;
   totalInputTokens: number;
   totalOutputTokens: number;
@@ -15,7 +18,9 @@ export interface AiSettingsDto {
 }
 
 export interface SaveAiSettingsRequest {
-  apiKey?: string;
+  provider?: string;
+  claudeApiKey?: string;
+  geminiApiKey?: string;
   model?: string;
 }
 

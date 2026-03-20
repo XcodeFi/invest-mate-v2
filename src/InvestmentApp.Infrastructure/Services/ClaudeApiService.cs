@@ -65,7 +65,7 @@ public class ClaudeApiService : IAiChatService
             var errorMsg = response.StatusCode switch
             {
                 System.Net.HttpStatusCode.Unauthorized => "API key không hợp lệ. Vui lòng kiểm tra lại trong Cài đặt AI.",
-                System.Net.HttpStatusCode.TooManyRequests => "Vượt giới hạn tốc độ API. Vui lòng thử lại sau.",
+                System.Net.HttpStatusCode.TooManyRequests => $"Vượt giới hạn tốc độ API. {ParseErrorMessage(errorBody)}",
                 System.Net.HttpStatusCode.BadRequest => $"Yêu cầu không hợp lệ: {ParseErrorMessage(errorBody)}",
                 _ => $"Lỗi API ({(int)response.StatusCode}): {ParseErrorMessage(errorBody)}"
             };

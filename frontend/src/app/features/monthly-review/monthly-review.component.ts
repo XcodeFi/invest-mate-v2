@@ -48,6 +48,7 @@ interface MonthlyReport {
           <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
         </select>
       </div>
+      </div>
 
       <div *ngIf="!selectedPortfolioId" class="text-center py-16 text-gray-400">
         Chọn danh mục để xem báo cáo
