@@ -155,6 +155,17 @@ builder.Services.AddScoped<IStrategyPerformanceService, StrategyPerformanceServi
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddTransient<SeedDataService>();
 
+// AI Services
+builder.Services.AddScoped<IAiSettingsRepository, AiSettingsRepository>();
+builder.Services.AddScoped<IAiKeyEncryptionService, AiKeyEncryptionService>();
+builder.Services.AddHttpClient<IAiChatService, ClaudeApiService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.anthropic.com/");
+    client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+builder.Services.AddScoped<IAiAssistantService, AiAssistantService>();
+
 // Configure Data Protection for OAuth state cookies
 builder.Services.AddDataProtection()
     .SetApplicationName("InvestmentApp");

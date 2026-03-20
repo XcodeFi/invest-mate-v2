@@ -6,11 +6,12 @@ import { PnlService, PortfolioPnL } from '../../../core/services/pnl.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { getTradeTypeDisplay, getTradeTypeClass } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
+import { AiChatPanelComponent } from '../../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 @Component({
   selector: 'app-portfolio-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -29,6 +30,10 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
               </div>
             </div>
             <div class="flex space-x-3" *ngIf="portfolio">
+              <button (click)="showAiPanel = true"
+                class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1">
+                🤖 AI Đánh giá
+              </button>
               <button [routerLink]="['/portfolios', portfolio.id, 'trades']" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium">
                 Giao dịch
               </button>
@@ -205,6 +210,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
         </div>
       </div>
     </div>
+    <app-ai-chat-panel [(isOpen)]="showAiPanel" title="AI Đánh giá Danh mục" useCase="portfolio-review" [contextData]="{ portfolioId: portfolioId }"></app-ai-chat-panel>
   `,
   styles: []
 })
@@ -212,7 +218,8 @@ export class PortfolioDetailComponent implements OnInit {
   portfolio: PortfolioDetail | null = null;
   pnl: PortfolioPnL | null = null;
   isLoading = true;
-  private portfolioId = '';
+  showAiPanel = false;
+  portfolioId = '';
 
   constructor(
     private route: ActivatedRoute,

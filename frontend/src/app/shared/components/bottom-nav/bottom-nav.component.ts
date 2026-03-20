@@ -93,6 +93,7 @@ export class BottomNavComponent {
 
   moreItems = [
     { path: '/daily-routine', label: 'Nhiệm vụ', emoji: '📋' },
+    { path: '/ai-settings', label: 'Cài đặt AI', emoji: '🤖' },
     { path: '/portfolios', label: 'Danh mục', emoji: '📁' },
     { path: '/positions', label: 'Vị thế', emoji: '📊' },
     { path: '/capital-flows', label: 'Dòng vốn', emoji: '💸' },

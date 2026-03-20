@@ -145,6 +145,11 @@ public interface IRoutineTemplateRepository : IRepository<RoutineTemplate>
     Task<IEnumerable<RoutineTemplate>> GetBuiltInAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IAiSettingsRepository : IRepository<Domain.Entities.AiSettings>
+{
+    Task<Domain.Entities.AiSettings?> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+}
+
 public interface IFeeCalculationService
 {
     Money CalculateTransactionFee(Money transactionAmount, bool isBuy, bool isListed = true, SecurityType securityType = SecurityType.Stock);

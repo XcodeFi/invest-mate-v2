@@ -42,8 +42,10 @@ User (1)
  ├── RoutineTemplate (N)    ← Mẫu routine (5 built-in + custom)
  │    └── RoutineItemTemplate (N)
  │
- └── Watchlist (N)           ← Danh sách theo dõi cổ phiếu
-      └── WatchlistItem (N)  ← Mã CP + ghi chú + giá mục tiêu (embedded)
+ ├── Watchlist (N)           ← Danh sách theo dõi cổ phiếu
+ │    └── WatchlistItem (N)  ← Mã CP + ghi chú + giá mục tiêu (embedded)
+ │
+ └── AiSettings (1)          ← Cấu hình AI Claude (API key, model, usage)
 ```
 
 ### Liên kết giữa entities
@@ -64,6 +66,7 @@ User (1)
 | RoutineTemplate | User | N:1 | null = built-in, non-null = custom |
 | Watchlist | User | N:1 | Nhiều watchlist per user |
 | WatchlistItem | Watchlist | N:1 | Embedded, symbol + note + target prices |
+| AiSettings | User | 1:1 | 1 cấu hình AI per user |
 
 ---
 
@@ -156,6 +159,8 @@ Bước 5: Nhật ký (update journal đã tạo)
 | Positions | `/api/v1/positions` | Active positions |
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
 | Fees | `/api/v1/fees` | Phí giao dịch |
+| AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (API key, model, usage) |
+| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary |
 
 ---
 
@@ -182,6 +187,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | `/market-data` | Thị trường | Chỉ số thị trường, tra cứu cổ phiếu chi tiết, **phân tích kỹ thuật (EMA/RSI/MACD/Volume/S&R)**, tìm kiếm mã, top biến động, bảng giá nhanh, lịch sử giá |
 | `/backtesting` | Kiểm thử | Mô phỏng chiến lược |
 | `/monthly-review` | Tổng kết tháng | Review hiệu suất hàng tháng |
+| `/ai-settings` | Cài đặt AI | API key, model, thống kê sử dụng |
 
 ---
 
