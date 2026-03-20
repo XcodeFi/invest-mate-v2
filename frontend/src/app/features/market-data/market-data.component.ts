@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
-  TopFluctuation, TradingHistorySummary, StockSearchResult
+  TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis
 } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
@@ -12,7 +13,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
+  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -174,6 +175,151 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
         </div>
       </div>
 
+      <!-- Technical Analysis Section -->
+      <div *ngIf="analysis" class="border rounded-lg p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">🤖</span>
+            <h3 class="font-bold text-gray-900">Phân tích kỹ thuật: {{ analysis.symbol }}</h3>
+          </div>
+          <span class="text-xs px-3 py-1.5 rounded-full font-bold"
+            [class.bg-green-100]="analysis.overallSignal === 'strong_buy' || analysis.overallSignal === 'buy'"
+            [class.text-green-700]="analysis.overallSignal === 'strong_buy' || analysis.overallSignal === 'buy'"
+            [class.bg-red-100]="analysis.overallSignal === 'strong_sell' || analysis.overallSignal === 'sell'"
+            [class.text-red-700]="analysis.overallSignal === 'strong_sell' || analysis.overallSignal === 'sell'"
+            [class.bg-amber-100]="analysis.overallSignal === 'hold'"
+            [class.text-amber-700]="analysis.overallSignal === 'hold'">
+            {{ getSignalEmoji(analysis.overallSignal) }} {{ analysis.overallSignalVi }}
+          </span>
+        </div>
+
+        <!-- Indicators Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <!-- EMA -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50)</div>
+            <div *ngIf="analysis.ema20 && analysis.ema50" class="text-sm">
+              <div>EMA20: <span class="font-mono font-medium">{{ analysis.ema20 | vndCurrency }}</span></div>
+              <div>EMA50: <span class="font-mono font-medium">{{ analysis.ema50 | vndCurrency }}</span></div>
+              <div class="mt-1 text-xs font-medium"
+                [class.text-green-600]="analysis.emaTrend === 'bullish'"
+                [class.text-red-600]="analysis.emaTrend === 'bearish'">
+                {{ analysis.emaTrend === 'bullish' ? '✅ Xu hướng TĂNG' : '❌ Xu hướng GIẢM' }}
+              </div>
+            </div>
+            <div *ngIf="!analysis.ema20" class="text-xs text-gray-400">Không đủ dữ liệu</div>
+          </div>
+
+          <!-- RSI -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">📈 RSI (14)</div>
+            <div *ngIf="analysis.rsi14" class="text-sm">
+              <div class="text-2xl font-bold"
+                [class.text-green-600]="analysis.rsiSignal === 'oversold'"
+                [class.text-red-600]="analysis.rsiSignal === 'overbought'"
+                [class.text-gray-700]="analysis.rsiSignal === 'neutral'">
+                {{ analysis.rsi14 | number:'1.1-1' }}
+              </div>
+              <div class="text-xs font-medium mt-1"
+                [class.text-green-600]="analysis.rsiSignal === 'oversold'"
+                [class.text-red-600]="analysis.rsiSignal === 'overbought'">
+                {{ analysis.rsiSignal === 'oversold' ? '🟢 Quá bán' : analysis.rsiSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- MACD -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">📉 MACD (12,26,9)</div>
+            <div *ngIf="analysis.macdLine !== null && analysis.macdLine !== undefined" class="text-sm">
+              <div>MACD: <span class="font-mono font-medium">{{ analysis.macdLine | number:'1.0-0' }}</span></div>
+              <div>Signal: <span class="font-mono font-medium">{{ analysis.signalLine | number:'1.0-0' }}</span></div>
+              <div class="mt-1 text-xs font-medium"
+                [class.text-green-600]="analysis.macdSignal === 'buy'"
+                [class.text-red-600]="analysis.macdSignal === 'sell'">
+                {{ analysis.macdSignal === 'buy' ? '✅ Tín hiệu MUA' : analysis.macdSignal === 'sell' ? '❌ Tín hiệu BÁN' : '🟡 Trung tính' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Volume -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">📊 Khối lượng</div>
+            <div *ngIf="analysis.volumeRatio" class="text-sm">
+              <div>KL/TB20: <span class="font-bold">{{ analysis.volumeRatio | number:'1.1-1' }}x</span></div>
+              <div class="mt-1 text-xs font-medium"
+                [class.text-green-600]="analysis.volumeSignal === 'spike' || analysis.volumeSignal === 'high'"
+                [class.text-amber-600]="analysis.volumeSignal === 'normal'"
+                [class.text-gray-500]="analysis.volumeSignal === 'low'">
+                {{ analysis.volumeSignal === 'spike' ? '🔥 Đột biến' : analysis.volumeSignal === 'high' ? '📈 Cao' : analysis.volumeSignal === 'low' ? '📉 Thấp' : '🟡 Bình thường' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Support / Resistance -->
+        <div *ngIf="analysis.supportLevels.length > 0 || analysis.resistanceLevels.length > 0"
+          class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-green-50 rounded-lg p-3">
+            <div class="text-xs text-green-600 font-medium mb-1">Hỗ trợ</div>
+            <div class="flex flex-wrap gap-2">
+              <span *ngFor="let s of analysis.supportLevels"
+                class="text-sm font-mono font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded">
+                {{ s | vndCurrency }}
+              </span>
+              <span *ngIf="analysis.supportLevels.length === 0" class="text-xs text-gray-400">Chưa xác định</span>
+            </div>
+          </div>
+          <div class="bg-red-50 rounded-lg p-3">
+            <div class="text-xs text-red-600 font-medium mb-1">Kháng cự</div>
+            <div class="flex flex-wrap gap-2">
+              <span *ngFor="let r of analysis.resistanceLevels"
+                class="text-sm font-mono font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded">
+                {{ r | vndCurrency }}
+              </span>
+              <span *ngIf="analysis.resistanceLevels.length === 0" class="text-xs text-gray-400">Chưa xác định</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trade Suggestion -->
+        <div *ngIf="analysis.suggestedEntry" class="bg-blue-50 rounded-lg p-4">
+          <div class="text-xs text-blue-600 font-medium mb-2">💡 Gợi ý giao dịch</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
+            <div>
+              <span class="text-gray-500">Entry:</span>
+              <span class="font-mono font-medium ml-1">{{ analysis.suggestedEntry | vndCurrency }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Stop-loss:</span>
+              <span class="font-mono font-medium text-red-600 ml-1">{{ analysis.suggestedStopLoss | vndCurrency }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Mục tiêu:</span>
+              <span class="font-mono font-medium text-green-600 ml-1">{{ analysis.suggestedTarget | vndCurrency }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">R:R:</span>
+              <span class="font-bold ml-1" [class.text-green-600]="(analysis.riskRewardRatio || 0) >= 2"
+                [class.text-amber-600]="(analysis.riskRewardRatio || 0) < 2">
+                1:{{ analysis.riskRewardRatio | number:'1.1-1' }}
+              </span>
+            </div>
+          </div>
+          <a [routerLink]="'/trade-plan'"
+            [queryParams]="{ symbol: analysis.symbol, entry: analysis.suggestedEntry, sl: analysis.suggestedStopLoss, tp: analysis.suggestedTarget }"
+            class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            📋 Tạo Trade Plan từ gợi ý
+          </a>
+        </div>
+      </div>
+
+      <!-- Analyzing spinner -->
+      <div *ngIf="analyzingSignal" class="border rounded-lg p-5 mb-6 text-center">
+        <div class="animate-spin w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+        <p class="text-sm text-gray-500 mt-2">Đang phân tích kỹ thuật...</p>
+      </div>
+
       <!-- Top Fluctuation -->
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
@@ -327,6 +473,10 @@ export class MarketDataComponent implements OnInit {
   tradingSummary: TradingHistorySummary | null = null;
   summaryItems: { label: string; value: number }[] = [];
 
+  // Technical Analysis
+  analysis: TechnicalAnalysis | null = null;
+  analyzingSignal = false;
+
   // Search suggestions
   searchResults: StockSearchResult[] = [];
   private searchTimeout: any;
@@ -416,6 +566,7 @@ export class MarketDataComponent implements OnInit {
     this.loadingDetail = true;
     this.stockDetail = null;
     this.tradingSummary = null;
+    this.analysis = null;
 
     this.marketDataService.getStockDetail(sym).subscribe({
       next: data => {
@@ -423,6 +574,7 @@ export class MarketDataComponent implements OnInit {
         this.loadingDetail = false;
         this.historySymbol = data.symbol;
         this.loadTradingSummary(data.symbol);
+        this.loadTechnicalAnalysis(data.symbol);
       },
       error: () => {
         this.notificationService.error('Lỗi', 'Không tìm thấy dữ liệu cho mã ' + sym);
@@ -445,6 +597,27 @@ export class MarketDataComponent implements OnInit {
       },
       error: () => {}
     });
+  }
+
+  // --- Technical Analysis ---
+
+  loadTechnicalAnalysis(symbol: string): void {
+    this.analyzingSignal = true;
+    this.analysis = null;
+    this.marketDataService.getTechnicalAnalysis(symbol).subscribe({
+      next: data => { this.analysis = data; this.analyzingSignal = false; },
+      error: () => { this.analyzingSignal = false; }
+    });
+  }
+
+  getSignalEmoji(signal: string): string {
+    switch (signal) {
+      case 'strong_buy': return '🟢🟢';
+      case 'buy': return '🟢';
+      case 'strong_sell': return '🔴🔴';
+      case 'sell': return '🔴';
+      default: return '🟡';
+    }
   }
 
   // --- Top Fluctuation ---

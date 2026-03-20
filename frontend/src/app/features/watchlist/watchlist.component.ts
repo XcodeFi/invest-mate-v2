@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { WatchlistService, WatchlistSummary, WatchlistDetail, WatchlistItem } from '../../core/services/watchlist.service';
-import { MarketDataService, BatchPrice, StockSearchResult } from '../../core/services/market-data.service';
+import { MarketDataService, BatchPrice, StockSearchResult, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { forkJoin, Subject } from 'rxjs';
@@ -15,6 +15,8 @@ interface WatchlistItemView extends WatchlistItem {
   changePercent?: number;
   volume?: number;
   loading?: boolean;
+  signal?: string;
+  signalVi?: string;
 }
 
 @Component({
@@ -139,6 +141,7 @@ interface WatchlistItemView extends WatchlistItem {
                   <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Giá</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">+/-</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">KL</th>
+                  <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Tín hiệu</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Mua tại</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Bán tại</th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Ghi chú</th>
@@ -168,6 +171,18 @@ interface WatchlistItemView extends WatchlistItem {
                   <td class="px-4 py-3 text-right text-sm text-gray-600 font-mono">
                     <span *ngIf="item.volume">{{ item.volume | number:'1.0-0' }}</span>
                     <span *ngIf="!item.volume" class="text-gray-400">—</span>
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    <span *ngIf="item.signal" class="text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap"
+                      [class.bg-green-100]="item.signal === 'strong_buy' || item.signal === 'buy'"
+                      [class.text-green-700]="item.signal === 'strong_buy' || item.signal === 'buy'"
+                      [class.bg-red-100]="item.signal === 'strong_sell' || item.signal === 'sell'"
+                      [class.text-red-700]="item.signal === 'strong_sell' || item.signal === 'sell'"
+                      [class.bg-amber-100]="item.signal === 'hold'"
+                      [class.text-amber-700]="item.signal === 'hold'">
+                      {{ item.signalVi }}
+                    </span>
+                    <span *ngIf="!item.signal" class="text-gray-400 text-xs">—</span>
                   </td>
                   <td class="px-4 py-3 text-right">
                     <span *ngIf="item.targetBuyPrice" class="text-sm font-mono text-green-600">
@@ -222,6 +237,15 @@ interface WatchlistItemView extends WatchlistItem {
               </div>
               <div class="flex items-center gap-4 text-xs text-gray-500 mb-2">
                 <span *ngIf="item.volume">KL: {{ item.volume | number:'1.0-0' }}</span>
+                <span *ngIf="item.signal" class="px-2 py-0.5 rounded-full font-semibold"
+                  [class.bg-green-100]="item.signal === 'strong_buy' || item.signal === 'buy'"
+                  [class.text-green-700]="item.signal === 'strong_buy' || item.signal === 'buy'"
+                  [class.bg-red-100]="item.signal === 'strong_sell' || item.signal === 'sell'"
+                  [class.text-red-700]="item.signal === 'strong_sell' || item.signal === 'sell'"
+                  [class.bg-amber-100]="item.signal === 'hold'"
+                  [class.text-amber-700]="item.signal === 'hold'">
+                  {{ item.signalVi }}
+                </span>
                 <span *ngIf="item.targetBuyPrice" class="text-green-600">Mua: {{ item.targetBuyPrice | vndCurrency }}</span>
                 <span *ngIf="item.targetSellPrice" class="text-red-600">Bán: {{ item.targetSellPrice | vndCurrency }}</span>
               </div>
@@ -439,6 +463,30 @@ export class WatchlistComponent implements OnInit {
             };
           }
         });
+        this.loadSignals();
+      }
+    });
+  }
+
+  loadSignals(): void {
+    // Load technical signals for up to 10 symbols
+    const items = this.itemViews.slice(0, 10);
+    if (items.length === 0) return;
+
+    const calls = items.map(item =>
+      this.marketDataService.getTechnicalAnalysis(item.symbol)
+    );
+    forkJoin(calls).subscribe({
+      next: (analyses) => {
+        analyses.forEach((a, i) => {
+          if (i < this.itemViews.length && a) {
+            this.itemViews[i] = {
+              ...this.itemViews[i],
+              signal: a.overallSignal,
+              signalVi: a.overallSignalVi
+            };
+          }
+        });
       }
     });
   }
@@ -483,7 +531,7 @@ export class WatchlistComponent implements OnInit {
         this.detail = updated;
         this.itemViews = updated.items.map(i => {
           const existing = this.itemViews.find(v => v.symbol === i.symbol);
-          return existing ? { ...i, price: existing.price, change: existing.change, changePercent: existing.changePercent, volume: existing.volume } : { ...i };
+          return existing ? { ...i, price: existing.price, change: existing.change, changePercent: existing.changePercent, volume: existing.volume, signal: existing.signal, signalVi: existing.signalVi } : { ...i };
         });
         this.refreshSummary();
       }
@@ -510,7 +558,7 @@ export class WatchlistComponent implements OnInit {
         this.detail = updated;
         this.itemViews = updated.items.map(i => {
           const existing = this.itemViews.find(v => v.symbol === i.symbol);
-          return existing ? { ...i, price: existing.price, change: existing.change, changePercent: existing.changePercent, volume: existing.volume } : { ...i };
+          return existing ? { ...i, price: existing.price, change: existing.change, changePercent: existing.changePercent, volume: existing.volume, signal: existing.signal, signalVi: existing.signalVi } : { ...i };
         });
         this.editingItem = null;
       }

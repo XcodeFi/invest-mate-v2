@@ -113,6 +113,39 @@ export interface TopFluctuation {
   referencePrice: number;
 }
 
+export interface TechnicalAnalysis {
+  symbol: string;
+  analyzedAt: string;
+  dataPoints: number;
+  currentPrice: number;
+  priceChange: number;
+  priceChangePercent: number;
+  currentVolume: number;
+  ema20?: number;
+  ema50?: number;
+  emaTrend: string;
+  rsi14?: number;
+  rsiSignal: string;
+  macdLine?: number;
+  signalLine?: number;
+  macdHistogram?: number;
+  macdSignal: string;
+  avgVolume20?: number;
+  volumeRatio?: number;
+  volumeSignal: string;
+  supportLevels: number[];
+  resistanceLevels: number[];
+  overallSignal: string;
+  overallSignalVi: string;
+  bullishCount: number;
+  bearishCount: number;
+  neutralCount: number;
+  suggestedEntry?: number;
+  suggestedStopLoss?: number;
+  suggestedTarget?: number;
+  riskRewardRatio?: number;
+}
+
 export interface TradingHistorySummary {
   symbol: string;
   changeDay: number;
@@ -200,6 +233,11 @@ export class MarketDataService {
       headers: this.getHeaders(),
       params
     }).pipe(catchError(this.handleError));
+  }
+
+  getTechnicalAnalysis(symbol: string): Observable<TechnicalAnalysis> {
+    return this.http.get<TechnicalAnalysis>(`${this.API_URL}/stock/${symbol}/analysis`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
   }
 
   getTradingSummary(symbol: string): Observable<TradingHistorySummary> {

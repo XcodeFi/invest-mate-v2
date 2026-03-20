@@ -144,6 +144,7 @@ builder.Services.AddScoped<ICashFlowAdjustedReturnService, CashFlowAdjustedRetur
 builder.Services.AddScoped<IRiskCalculationService, RiskCalculationService>();
 builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<BacktestEngine>();
+builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));

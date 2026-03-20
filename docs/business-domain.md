@@ -151,7 +151,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns |
 | Capital Flows | `/api/v1/capital-flows` | Record, history, TWR/MWR |
 | Snapshots | `/api/v1/snapshots` | Take, range, compare |
-| Market Data | `/api/v1/market` | Price, history, batch, index, overview, stock detail, search, top fluctuation, trading summary |
+| Market Data | `/api/v1/market` | Price, history, batch, index, overview, stock detail, search, top fluctuation, trading summary, **technical analysis** |
 | Backtests | `/api/v1/backtests` | Queue, list, detail |
 | Positions | `/api/v1/positions` | Active positions |
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
@@ -179,7 +179,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | `/alerts` | Cảnh báo | Rules & lịch sử cảnh báo |
 | `/capital-flows` | Dòng tiền | Nạp/rút/cổ tức |
 | `/snapshots` | Lịch sử | Ảnh chụp & so sánh danh mục |
-| `/market-data` | Thị trường | Chỉ số thị trường, tra cứu cổ phiếu chi tiết, tìm kiếm mã, top biến động, bảng giá nhanh, lịch sử giá |
+| `/market-data` | Thị trường | Chỉ số thị trường, tra cứu cổ phiếu chi tiết, **phân tích kỹ thuật (EMA/RSI/MACD/Volume/S&R)**, tìm kiếm mã, top biến động, bảng giá nhanh, lịch sử giá |
 | `/backtesting` | Kiểm thử | Mô phỏng chiến lược |
 | `/monthly-review` | Tổng kết tháng | Review hiệu suất hàng tháng |
 
