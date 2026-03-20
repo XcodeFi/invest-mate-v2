@@ -5,19 +5,26 @@ import { RouterModule } from '@angular/router';
 import { JournalService, TradeJournal, CreateJournalRequest, UpdateJournalRequest } from '../../core/services/journal.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 @Component({
   selector: 'app-journals',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Nhật ký Giao dịch</h1>
+        <div class="flex items-center gap-2">
+        <button (click)="showAiPanel = true"
+          class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1">
+          🤖 AI Phân tích
+        </button>
         <button (click)="showCreateForm = !showCreateForm"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
           {{ showCreateForm ? 'Đóng' : '+ Tạo nhật ký' }}
         </button>
+        </div>
       </div>
 
       <!-- Portfolio Filter -->
@@ -201,6 +208,7 @@ import { NotificationService } from '../../core/services/notification.service';
         </div>
       </div>
     </div>
+    <app-ai-chat-panel [(isOpen)]="showAiPanel" title="AI Phân tích Nhật ký" useCase="journal-review" [contextData]="{ portfolioId: selectedPortfolioId }"></app-ai-chat-panel>
   `
 })
 export class JournalsComponent implements OnInit {
@@ -209,6 +217,7 @@ export class JournalsComponent implements OnInit {
   selectedPortfolioId = '';
   loading = false;
   showCreateForm = false;
+  showAiPanel = false;
   tagsInput = '';
 
   newJournal: CreateJournalRequest = {

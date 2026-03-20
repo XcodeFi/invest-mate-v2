@@ -1,7 +1,8 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
 > **Cập nhật lần cuối:** 2026-03-20
-> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API
+> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude
+> **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
 
@@ -556,6 +557,13 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | **Watchlists** | `POST /api/v1/watchlists/{id}/items` | ✅ |
 | **Watchlists** | `PUT/DELETE /api/v1/watchlists/{id}/items/{symbol}` | ✅ |
 | **Watchlists** | `POST /api/v1/watchlists/import-vn30` | ✅ |
+| **AI Settings** | `GET/PUT/DELETE /api/v1/ai-settings` | ✅ |
+| **AI Settings** | `POST /api/v1/ai-settings/test` | ✅ |
+| **AI** | `POST /api/v1/ai/journal-review` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/portfolio-review` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/trade-plan-advisor` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/chat` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/monthly-summary` (SSE) | ✅ |
 
 ---
 
@@ -582,6 +590,48 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | `/trade-replay/:id` | `TradeReplayComponent` | Replay kế hoạch giao dịch trên biểu đồ giá |
 | `/daily-routine` | `DailyRoutineComponent` | Nhiệm vụ hàng ngày & Routine Templates |
 | `/watchlist` | `WatchlistComponent` | Theo dõi cổ phiếu & tìm cơ hội giao dịch |
+| `/ai-settings` | `AiSettingsComponent` | Cấu hình AI Claude (API key, model, usage) |
+
+---
+
+## Tích hợp AI Claude
+
+> **Branch:** `feature/ai-integration` | **Trạng thái:** ✅ Done
+
+Tích hợp Claude AI (Anthropic) làm trợ lý thông minh trong app — 5 use case, streaming SSE, mỗi user tự quản API key.
+
+### 5 Use Cases
+
+| # | Use Case | Trigger | Dữ liệu context |
+|---|----------|---------|------------------|
+| 1 | **AI Journal Review** | Nút "🤖 AI Phân tích" trên `/journals` | 20 nhật ký gần nhất + trades liên quan |
+| 2 | **AI Portfolio Review** | Nút "🤖 AI Đánh giá" trên portfolio detail | Vị thế, P&L, risk metrics |
+| 3 | **AI Trade Plan Advisor** | Nút "🤖 AI Tư vấn" trên `/trade-plan` | Full plan (entry/SL/TP/lots/exits) + portfolio balance |
+| 4 | **AI Chat Assistant** | Nút "AI" trên header | Brief portfolio summary + conversation history |
+| 5 | **AI Monthly Summary** | Nút "🤖 AI Tổng kết" trên `/monthly-review` | Trades in month, P&L, win rate, performance |
+
+### Backend
+
+- **Entity:** `AiSettings` — UserId, EncryptedApiKey, Model, TotalInputTokens, TotalOutputTokens, EstimatedCostUsd
+- **Encryption:** ASP.NET Data Protection (`AiKeyEncryptionService`)
+- **Low-level:** `ClaudeApiService` — gọi Anthropic Messages API (`stream: true`), parse SSE events
+- **High-level:** `AiAssistantService` — 5 use cases, gather context, build Vietnamese system prompts, track token usage
+- **API:** `AiSettingsController` (CRUD) + `AiController` (5 SSE streaming endpoints)
+- **Model support:** `claude-sonnet-4-6-20250514` (mặc định), `claude-opus-4-6-20250514`
+
+### Frontend
+
+- **Service:** `ai.service.ts` — CRUD settings (HttpClient) + streaming (fetch + ReadableStream → Observable)
+- **Reusable panel:** `AiChatPanelComponent` — sliding panel từ phải, markdown rendering (marked), follow-up questions, token usage display
+- **Settings page:** `/ai-settings` — nhập/thay đổi API key, chọn model, test kết nối, xem thống kê sử dụng, xóa key
+- **Integration points:** journals, portfolio-detail, trade-plan, monthly-review, header (global chat)
+
+### Chi phí token
+
+| Model | Input | Output |
+|-------|-------|--------|
+| Sonnet 4.6 | $3/M tokens | $15/M tokens |
+| Opus 4.6 | $15/M tokens | $75/M tokens |
 
 ---
 

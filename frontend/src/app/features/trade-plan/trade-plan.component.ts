@@ -14,6 +14,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 interface ChecklistItem {
   label: string;
@@ -61,7 +62,7 @@ interface TradePlanForm {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -137,6 +138,10 @@ interface TradePlanForm {
                   <td class="px-4 py-2 text-gray-500">{{ sp.createdAt | date:'dd/MM/yy HH:mm' }}</td>
                   <td class="px-4 py-2 text-center" (click)="$event.stopPropagation()">
                     <div class="flex items-center justify-center gap-1">
+                      <button (click)="aiTradePlanId = sp.id; showAiPanel = true" title="AI Tư vấn"
+                        class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1">
+                        🤖 AI Tư vấn
+                      </button>
                       <button *ngIf="sp.status === 'Draft' || sp.status === 'Ready'"
                         (click)="deletePlan(sp)" title="Xoá"
                         class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
@@ -910,12 +915,16 @@ interface TradePlanForm {
         </div>
       </div>
     </div>
+
+    <app-ai-chat-panel [(isOpen)]="showAiPanel" title="AI Tư vấn Kế hoạch" useCase="trade-plan-advisor" [contextData]="{ tradePlanId: aiTradePlanId }"></app-ai-chat-panel>
   `
 })
 export class TradePlanComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private symbolSubject = new Subject<string>();
 
+  showAiPanel = false;
+  aiTradePlanId = '';
   strategies: Strategy[] = [];
   portfolios: PortfolioSummary[] = [];
   selectedStrategy: Strategy | null = null;

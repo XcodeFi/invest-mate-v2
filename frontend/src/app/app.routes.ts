@@ -122,6 +122,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'ai-settings',
+    loadComponent: () => import('./features/ai-settings/ai-settings.component').then(m => m.AiSettingsComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'changelog',
     loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent)
   },

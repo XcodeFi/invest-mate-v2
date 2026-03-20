@@ -2,6 +2,39 @@
 
 ---
 
+## [v2.15.0] — 2026-03-20 · Tích hợp AI Claude
+
+**Branch:** `feature/ai-integration`
+
+### Thêm mới
+
+- **Trợ lý AI Claude**: Tích hợp 5 use case AI streaming (SSE) vào ứng dụng
+  - **AI Journal Review**: Phân tích nhật ký giao dịch — nhận diện tâm lý (FOMO, revenge trading), đánh giá kỷ luật, gợi ý cải thiện
+  - **AI Portfolio Review**: Đánh giá danh mục — đa dạng hóa, hiệu suất, rủi ro, gợi ý cân bằng
+  - **AI Trade Plan Advisor**: Tư vấn kế hoạch giao dịch — chấm điểm entry/SL/TP, position sizing, R:R
+  - **AI Chat Assistant**: Trợ lý tổng hợp — chiến lược, phân tích kỹ thuật, quản lý rủi ro (nút AI trên header)
+  - **AI Monthly Summary**: Tổng kết hiệu suất tháng — giao dịch nổi bật, pattern, gợi ý tháng tới
+- **Trang `/ai-settings`**: Cấu hình AI — nhập API key Anthropic (mã hóa), chọn model (Sonnet/Opus), test kết nối, xem thống kê sử dụng (tokens + chi phí USD)
+- **AI Chat Panel**: Component tái sử dụng — sliding panel từ phải, markdown rendering, follow-up questions, token usage display
+
+### Backend
+
+- `AiSettings` entity (Domain) — lưu API key mã hóa, model, token usage per user
+- `AiKeyEncryptionService` — mã hóa API key bằng ASP.NET Data Protection
+- `ClaudeApiService` — gọi Anthropic Messages API với streaming SSE
+- `AiAssistantService` — orchestrate 5 use cases: gather context, build Vietnamese system prompts, track usage
+- `AiSettingsController` (`api/v1/ai-settings`) — GET/PUT/DELETE + test connection
+- `AiController` (`api/v1/ai`) — 5 SSE streaming endpoints
+
+### Frontend
+
+- `AiService` — CRUD settings (HttpClient) + streaming (fetch + ReadableStream → Observable)
+- `AiChatPanelComponent` — reusable sliding panel, markdown (marked), auto-start + follow-up
+- `AiSettingsComponent` — settings page: API key, model select, usage stats, danger zone
+- Integration: nút AI trên journals, portfolio-detail, trade-plan, monthly-review, header
+
+---
+
 ## [v2.14.0] — 2026-03-20 · Smart Trade Signals
 
 **Branch:** `feature/smart-signals`

@@ -8,6 +8,7 @@ import { PnlService, PortfolioPnL } from '../../core/services/pnl.service';
 import { AdvancedAnalyticsService, PerformanceSummary, MonthlyReturnItem } from '../../core/services/advanced-analytics.service';
 import { RiskService } from '../../core/services/risk.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 interface MonthlyReport {
   month: number;
@@ -28,7 +29,7 @@ interface MonthlyReport {
 @Component({
   selector: 'app-monthly-review',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -36,6 +37,11 @@ interface MonthlyReport {
           <h1 class="text-2xl font-bold text-gray-800">Báo cáo tháng</h1>
           <p class="text-sm text-gray-500 mt-1">Tự động tổng hợp hiệu suất giao dịch theo tháng</p>
         </div>
+        <div class="flex items-center gap-2">
+          <button *ngIf="currentReport" (click)="showAiPanel = true"
+            class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1">
+            🤖 AI Tổng kết
+          </button>
         <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="loadReview()"
           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           <option value="">-- Chọn danh mục --</option>
@@ -179,10 +185,15 @@ interface MonthlyReport {
         </div>
       </div>
     </div>
+
+    <app-ai-chat-panel [(isOpen)]="showAiPanel" title="AI Tổng kết Tháng" useCase="monthly-summary"
+      [contextData]="{ portfolioId: selectedPortfolioId, year: currentReport?.year, month: currentReport?.month }">
+    </app-ai-chat-panel>
   `
 })
 export class MonthlyReviewComponent implements OnInit {
   Math = Math;
+  showAiPanel = false;
   portfolios: PortfolioSummary[] = [];
   selectedPortfolioId = '';
   loading = false;

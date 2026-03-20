@@ -5,6 +5,7 @@ import { AuthService, User } from '../../../core/services/auth.service';
 import { PnlService } from '../../../core/services/pnl.service';
 import { RiskService } from '../../../core/services/risk.service';
 import { forkJoin } from 'rxjs';
+import { AiChatPanelComponent } from '../ai-chat-panel/ai-chat-panel.component';
 
 interface NavGroup {
   label: string;
@@ -15,7 +16,7 @@ interface NavGroup {
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, AiChatPanelComponent],
   template: `
     <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <nav class="container mx-auto px-4">
@@ -59,6 +60,16 @@ interface NavGroup {
 
           <!-- Right side: Risk Score + User + Mobile hamburger -->
           <div class="flex items-center gap-3">
+            <!-- AI Chat Button -->
+            <button (click)="showAiPanel = true"
+              class="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+              title="Trợ lý AI">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+              </svg>
+              AI
+            </button>
+
             <!-- DEV Changelog Badge -->
             <a routerLink="/changelog"
               class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-gray-800 text-gray-200 hover:bg-gray-700 transition-colors"
@@ -185,6 +196,10 @@ interface NavGroup {
     <!-- Mobile overlay -->
     <div *ngIf="mobileMenuOpen" (click)="mobileMenuOpen = false"
       class="lg:hidden fixed inset-0 bg-black/20 z-40" style="top: 3.5rem;"></div>
+
+    <app-ai-chat-panel [(isOpen)]="showAiPanel" title="Trợ lý AI" useCase="chat"
+      [contextData]="{}">
+    </app-ai-chat-panel>
   `,
   styles: [`
     .nav-item {
@@ -210,6 +225,7 @@ export class HeaderComponent implements OnInit {
   openDropdown: string | null = null;
   mobileOpenGroup: string | null = null;
   riskScore = -1; // -1 = not loaded yet
+  showAiPanel = false;
 
   navGroups: NavGroup[] = [
     {
@@ -246,6 +262,7 @@ export class HeaderComponent implements OnInit {
         { path: '/trade-plan', label: 'Kế hoạch GD', icon: '📑' },
         { path: '/journals', label: 'Nhật ký', icon: '📝' },
         { path: '/alerts', label: 'Cảnh báo', icon: '🔔' },
+        { path: '/ai-settings', label: 'Cài đặt AI', icon: '🤖' },
       ]
     }
   ];
