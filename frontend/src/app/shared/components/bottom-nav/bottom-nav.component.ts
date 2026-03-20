@@ -99,6 +99,7 @@ export class BottomNavComponent {
     { path: '/analytics', label: 'Phân tích', emoji: '📈' },
     { path: '/monthly-review', label: 'Báo cáo tháng', emoji: '📅' },
     { path: '/backtesting', label: 'Backtest', emoji: '🧪' },
+    { path: '/watchlist', label: 'Watchlist', emoji: '⭐' },
     { path: '/market-data', label: 'Thị trường', emoji: '🌐' },
     { path: '/snapshots', label: 'Snapshot', emoji: '📸' },
     { path: '/trade-wizard', label: 'Wizard GD', emoji: '🧙' },

@@ -6,10 +6,11 @@ import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
 import { RiskService, PortfolioRiskSummary, PositionRiskItem, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
-import { MarketDataService, MarketOverview } from '../../core/services/market-data.service';
+import { MarketDataService, MarketOverview, BatchPrice } from '../../core/services/market-data.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/services/daily-routine.service';
+import { WatchlistService } from '../../core/services/watchlist.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { isBuyTrade } from '../../shared/constants/trade-types';
@@ -170,6 +171,26 @@ interface RiskAlert {
               class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
               Bắt đầu
             </button>
+          </div>
+        </div>
+
+        <!-- Watchlist Widget -->
+        <div *ngIf="watchlistTopMovers.length > 0" class="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">⭐</span>
+              <span class="font-bold text-sm text-gray-900">Watchlist</span>
+              <span class="text-xs text-gray-500">{{ watchlistTopMovers.length }} mã</span>
+            </div>
+            <a routerLink="/watchlist" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem tất cả →</a>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+            <a *ngFor="let item of watchlistTopMovers.slice(0, 5)"
+              [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
+              class="p-2 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors text-center">
+              <div class="font-semibold text-sm text-gray-900">{{ item.symbol }}</div>
+              <div class="text-sm font-mono mt-0.5">{{ item.close | vndCurrency }}</div>
+            </a>
           </div>
         </div>
 
@@ -841,6 +862,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   todayRoutine: DailyRoutine | null = null;
   suggestedRoutineTemplate: RoutineTemplate | null = null;
 
+  // ─── Watchlist Widget ──────────────────────────────────────────────────
+  watchlistTopMovers: BatchPrice[] = [];
+
   constructor(
     private authService: AuthService,
     private pnlService: PnlService,
@@ -850,6 +874,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private notificationService: NotificationService,
     private marketDataService: MarketDataService,
     private dailyRoutineService: DailyRoutineService,
+    private watchlistService: WatchlistService,
     private router: Router
   ) {}
 
@@ -861,6 +886,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadTopPositions();
     this.loadMarketOverview();
     this.loadDailyRoutine();
+    this.loadWatchlistWidget();
   }
 
   // ─── Daily Routine Widget ──────────────────────────────────────────────────
@@ -896,6 +922,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.dailyRoutineService.getOrCreateToday(templateId).subscribe({
       next: (r) => { this.todayRoutine = r; },
       error: () => this.notificationService.error('Lỗi', 'Không thể tạo nhiệm vụ')
+    });
+  }
+
+  // ─── Watchlist Widget ──────────────────────────────────────────────────
+  private loadWatchlistWidget(): void {
+    this.watchlistService.getAll().pipe(catchError(() => of([]))).subscribe(lists => {
+      if (lists.length === 0) return;
+      // Load detail of first watchlist
+      const first = lists[0];
+      this.watchlistService.getDetail(first.id).pipe(catchError(() => of(null))).subscribe(detail => {
+        if (!detail || detail.items.length === 0) return;
+        const symbols = detail.items.map(i => i.symbol).slice(0, 10);
+        this.marketDataService.getBatchPrices(symbols).pipe(catchError(() => of([]))).subscribe(prices => {
+          this.watchlistTopMovers = prices;
+        });
+      });
     });
   }
 

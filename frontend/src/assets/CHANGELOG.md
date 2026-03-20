@@ -2,6 +2,35 @@
 
 ---
 
+## [v2.13.0] — 2026-03-20 · Watchlist Thông minh
+
+**Branch:** `feature/watchlist`
+
+### Thêm mới
+
+- **Trang `/watchlist`**: Theo dõi cổ phiếu quan tâm — bảng giá live, ghi chú, giá mục tiêu mua/bán, deep link đến Trade Plan
+- **CRUD Watchlist**: Tạo/sửa/xoá nhiều danh sách với emoji tuỳ chỉnh
+- **Import VN30**: Nhập 30 mã VN30 bằng 1 click
+- **Symbol autocomplete**: Tìm kiếm mã qua 24hmoney API (debounced)
+- **Dashboard widget**: Top 5 mã từ watchlist hiển thị ngay trên Tổng quan
+- **Navigation**: Header (Phân tích group) + Bottom nav (moreItems)
+
+### Backend
+
+- Domain entities: `Watchlist` (AggregateRoot), `WatchlistItem` (ValueObject embedded)
+- API: `WatchlistsController` (`api/v1/watchlists`) — 9 endpoints
+- MongoDB: `watchlists` (compound index UserId)
+- CQRS: 7 commands + 2 queries
+
+### Frontend
+
+- `WatchlistService` — 9 API methods
+- `WatchlistComponent` — standalone, inline template, Tailwind CSS
+- Dashboard widget tích hợp trong `DashboardComponent`
+- Responsive: desktop table + mobile cards
+
+---
+
 ## [v2.12.0] — 2026-03-18 · Trade Plan UX — Tạo kế hoạch từ trang giao dịch
 
 **Branch:** `feature/trade-plan-enhancements`
