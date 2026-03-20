@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.AiSettings.Commands.SaveAiSettings;
 using InvestmentApp.Application.AiSettings.Dtos;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
@@ -25,20 +26,6 @@ public class GetAiSettingsQueryHandler : IRequestHandler<GetAiSettingsQuery, AiS
         var settings = await _repository.GetByUserIdAsync(request.UserId, cancellationToken);
         if (settings == null) return null;
 
-        string? masked = null;
-        if (!string.IsNullOrEmpty(settings.EncryptedApiKey))
-        {
-            masked = "sk-ant-•••••••";
-        }
-
-        return new AiSettingsDto
-        {
-            HasApiKey = !string.IsNullOrEmpty(settings.EncryptedApiKey),
-            MaskedApiKey = masked,
-            Model = settings.Model,
-            TotalInputTokens = settings.TotalInputTokens,
-            TotalOutputTokens = settings.TotalOutputTokens,
-            EstimatedCostUsd = settings.EstimatedCostUsd
-        };
+        return SaveAiSettingsCommandHandler.MapToDto(settings);
     }
 }

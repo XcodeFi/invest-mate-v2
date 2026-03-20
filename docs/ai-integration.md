@@ -1,4 +1,4 @@
-# AI Claude Integration — Tài liệu Kỹ thuật
+# AI Integration (Multi-provider) — Tài liệu Kỹ thuật
 
 > **Branch:** `feature/ai-integration`
 > **Cập nhật lần cuối:** 2026-03-20
@@ -8,7 +8,7 @@
 
 ## 1. Tổng quan
 
-Tích hợp Claude AI (Anthropic) làm trợ lý thông minh trong Investment Mate — 5 use case streaming SSE, mỗi user tự quản API key (mã hóa server-side).
+Tích hợp AI đa nhà cung cấp (Claude + Gemini) làm trợ lý thông minh trong Investment Mate — 5 use case streaming SSE, mỗi user tự quản API key (mã hóa server-side, mỗi provider riêng).
 
 ### Kiến trúc tổng thể
 
@@ -26,22 +26,23 @@ Tích hợp Claude AI (Anthropic) làm trợ lý thông minh trong Investment Ma
 ┌─────────────────────────────────────────────────────────────────┐
 │  BACKEND (.NET 9)                                               │
 │                                                                 │
-│  AiController ──► AiAssistantService ──► ClaudeApiService      │
-│  (SSE writer)    (context builder,       (Anthropic Messages API│
-│                   system prompts,         stream: true,         │
-│                   token tracking)         SSE event parser)     │
-│                       │                                         │
+│  AiController ──► AiAssistantService ──► IAiChatServiceFactory │
+│  (SSE writer)    (context builder,       ├─► ClaudeApiService  │
+│                   system prompts,        │   (Anthropic API)   │
+│                   token tracking)        └─► GeminiApiService  │
+│                       │                      (Google AI API)   │
 │                       ▼                                         │
 │                  AiSettings (MongoDB)                           │
-│                  (encrypted key, model, usage stats)            │
+│                  (provider, encrypted keys, model, usage stats) │
 └─────────────────────────────────────────────────────────────────┘
                                │
-                               ▼
-                  ┌──────────────────────┐
-                  │  Anthropic Claude API │
-                  │  POST /v1/messages    │
-                  │  stream: true         │
-                  └──────────────────────┘
+                      ┌────────┴────────┐
+                      ▼                 ▼
+         ┌──────────────────┐  ┌──────────────────┐
+         │ Anthropic Claude  │  │ Google Gemini     │
+         │ POST /v1/messages │  │ Streaming API     │
+         │ stream: true      │  │ stream: true      │
+         └──────────────────┘  └──────────────────┘
 ```
 
 ### 5 Use Cases
@@ -66,7 +67,9 @@ Tích hợp Claude AI (Anthropic) làm trợ lý thông minh trong Investment Ma
 ```
 AiSettings : AggregateRoot
 ├── UserId (string)
-├── EncryptedApiKey (string)          ← ASP.NET Data Protection
+├── Provider (string)                 ← "claude" | "gemini"
+├── EncryptedClaudeApiKey (string)    ← ASP.NET Data Protection (BsonElement backward compat với EncryptedApiKey)
+├── EncryptedGeminiApiKey (string?)   ← nullable, ASP.NET Data Protection
 ├── Model (string)                    ← default "claude-sonnet-4-6-20250514"
 ├── TotalInputTokens (long)
 ├── TotalOutputTokens (long)
@@ -78,12 +81,15 @@ AiSettings : AggregateRoot
 
 **Methods:**
 - `Create(userId, encryptedApiKey, model)` — static factory
-- `UpdateApiKey(encryptedApiKey)` — thay đổi API key
-- `UpdateModel(model)` — đổi model (Sonnet ↔ Opus)
+- `UpdateProvider(provider)` — chuyển đổi provider ("claude" | "gemini")
+- `UpdateClaudeApiKey(encryptedApiKey)` — thay đổi API key Claude
+- `UpdateGeminiApiKey(encryptedApiKey)` — thay đổi API key Gemini
+- `UpdateModel(model)` — đổi model
+- `GetActiveEncryptedApiKey()` — trả về encrypted key của provider đang chọn
 - `AddTokenUsage(inputTokens, outputTokens, costUsd)` — cộng dồn usage
 - `SoftDelete()` — xóa mềm
 
-**Quan hệ:** `User (1) ──── AiSettings (1)` — mỗi user 1 bản ghi cấu hình AI.
+**Quan hệ:** `User (1) ──── AiSettings (1)` — mỗi user 1 bản ghi cấu hình AI (multi-provider: Claude + Gemini).
 
 ---
 
@@ -91,7 +97,7 @@ AiSettings : AggregateRoot
 
 ### 3.1. Application Layer (Interfaces)
 
-#### IAiChatService — Low-level Claude API
+#### IAiChatService — Low-level AI API (per provider)
 
 **File:** `src/InvestmentApp.Application/Common/Interfaces/IAiChatService.cs`
 
@@ -114,6 +120,22 @@ public class AiStreamChunk
     public string? ErrorMessage { get; set; }
 }
 ```
+
+#### IAiChatServiceFactory — Factory Pattern (Multi-provider)
+
+**File:** `src/InvestmentApp.Application/Common/Interfaces/IAiChatServiceFactory.cs`
+
+```csharp
+public interface IAiChatServiceFactory
+{
+    IAiChatService Create(string provider); // "claude" | "gemini"
+}
+```
+
+Factory resolve đúng implementation theo provider:
+
+- `"claude"` → `ClaudeApiService`
+- `"gemini"` → `GeminiApiService`
 
 #### IAiAssistantService — High-level Use Cases
 
@@ -191,6 +213,30 @@ src/InvestmentApp.Application/AiSettings/
 | HTTP 429 | `{ type: "error", errorMessage: "Rate limit..." }` |
 | HTTP error khác | `{ type: "error", errorMessage }` |
 
+#### GeminiApiService — Google Gemini SSE Client
+
+**File:** `src/InvestmentApp.Infrastructure/Services/GeminiApiService.cs`
+
+**HTTP Configuration:**
+
+- Base URL: `https://generativelanguage.googleapis.com/`
+- Endpoint: `POST /v1beta/models/{model}:streamGenerateContent?alt=sse&key={apiKey}`
+- Body: `{ contents, systemInstruction, generationConfig: { maxOutputTokens: 4096 } }`
+- `HttpCompletionOption.ResponseHeadersRead` — đọc stream ngay khi có header
+
+**Role Mapping:** Gemini dùng `"model"` thay vì `"assistant"` → service tự map khi build request.
+
+**SSE Event Parsing:**
+
+| Gemini Event | Yield |
+| --- | --- |
+| `candidates[].content.parts[].text` | `{ type: "text", text }` |
+| `usageMetadata.promptTokenCount` | `{ type: "usage", inputTokens }` |
+| `usageMetadata.candidatesTokenCount` | `{ type: "usage", outputTokens }` |
+| HTTP 400/401 | `{ type: "error", errorMessage }` |
+
+---
+
 #### AiAssistantService — Use Case Orchestrator
 
 **File:** `src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs`
@@ -207,12 +253,13 @@ src/InvestmentApp.Application/AiSettings/
 4. Gọi `IAiChatService.StreamChatAsync()` → forward chunks
 5. Sau stream kết thúc: cập nhật token usage vào `AiSettings`
 
-**Chi phí token (CalculateCost):**
+**Chi phí token (CalculateCost — per provider):**
 
-| Model | Input | Output |
-|-------|-------|--------|
-| Sonnet 4.6 (`claude-sonnet-4-6-*`) | $3 / 1M tokens | $15 / 1M tokens |
-| Opus 4.6 (`claude-opus-4-6-*`) | $15 / 1M tokens | $75 / 1M tokens |
+| Provider | Model | Input | Output |
+| --- | --- | --- | --- |
+| Claude | Sonnet 4.6 (`claude-sonnet-4-6-*`) | $3 / 1M tokens | $15 / 1M tokens |
+| Claude | Opus 4.6 (`claude-opus-4-6-*`) | $15 / 1M tokens | $75 / 1M tokens |
+| Gemini | 2.0 Flash, 2.5 Flash, 2.5 Pro | Theo pricing Google AI Studio | Theo pricing Google AI Studio |
 
 #### AiSettingsRepository
 
@@ -277,12 +324,24 @@ data: [DONE]
 ```csharp
 builder.Services.AddScoped<IAiSettingsRepository, AiSettingsRepository>();
 builder.Services.AddScoped<IAiKeyEncryptionService, AiKeyEncryptionService>();
-builder.Services.AddHttpClient<IAiChatService, ClaudeApiService>(client =>
+
+// Claude provider
+builder.Services.AddHttpClient<ClaudeApiService>(client =>
 {
     client.BaseAddress = new Uri("https://api.anthropic.com/");
     client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
     client.Timeout = TimeSpan.FromMinutes(5);
 });
+
+// Gemini provider
+builder.Services.AddHttpClient<GeminiApiService>(client =>
+{
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+
+// Factory pattern — resolve đúng provider
+builder.Services.AddScoped<IAiChatServiceFactory, AiChatServiceFactory>();
 builder.Services.AddScoped<IAiAssistantService, AiAssistantService>();
 ```
 
@@ -511,10 +570,11 @@ userInput = '';
 #### Sections
 
 | Section | Mô tả |
-|---------|-------|
-| Khóa API Anthropic | Input (password type) + show/hide, save, change |
-| Kiểm tra kết nối | Test API key với Claude |
-| Mô hình AI | Dropdown: Sonnet 4.6 (mặc định) / Opus 4.6 |
+| --- | --- |
+| Nhà cung cấp AI | Provider tabs: Claude / Gemini — chuyển đổi provider đang hoạt động |
+| Khóa API | Input (password type) + show/hide, save, change — riêng cho từng provider |
+| Kiểm tra kết nối | Test API key với provider đang chọn |
+| Mô hình AI | Dropdown model theo provider: Claude (Sonnet/Opus) hoặc Gemini (2.0 Flash/2.5 Flash/2.5 Pro) |
 | Thống kê sử dụng | Input tokens, Output tokens, Chi phí ước tính (USD) |
 | Vùng nguy hiểm | Xóa API key với confirm dialog |
 
@@ -547,15 +607,27 @@ userInput = '';
 
 ## 7. Model Support
 
+### Claude (Anthropic)
+
 | Model ID | Tên hiển thị | Giá Input | Giá Output | Ghi chú |
-|----------|-------------|-----------|------------|---------|
+| --- | --- | --- | --- | --- |
 | `claude-sonnet-4-6-20250514` | Claude Sonnet 4.6 | $3/M tokens | $15/M tokens | Mặc định, nhanh, tiết kiệm |
 | `claude-opus-4-6-20250514` | Claude Opus 4.6 | $15/M tokens | $75/M tokens | Sâu hơn, chính xác hơn |
 
+### Gemini (Google)
+
+| Model ID | Tên hiển thị | Ghi chú |
+| --- | --- | --- |
+| `gemini-2.0-flash` | Gemini 2.0 Flash | Nhanh, tiết kiệm |
+| `gemini-2.5-flash` | Gemini 2.5 Flash | Cân bằng tốc độ/chất lượng |
+| `gemini-2.5-pro` | Gemini 2.5 Pro | Chất lượng cao nhất |
+
 **Ước tính chi phí:**
+
 - Context ~2000 tokens/request, response ~500 tokens
-- 100 câu hỏi/ngày với Sonnet ≈ **$0.10/ngày ≈ $3/tháng**
-- Token usage được tích lũy và hiển thị trên `/ai-settings`
+- 100 câu hỏi/ngày với Claude Sonnet ≈ **$0.10/ngày ≈ $3/tháng**
+- Gemini: chi phí theo pricing Google AI Studio (khác nhau theo model và tier)
+- Token usage được tích lũy và hiển thị trên `/ai-settings` (per provider)
 
 ---
 
@@ -566,7 +638,8 @@ userInput = '';
 | File | Layer | Mô tả |
 |------|-------|-------|
 | `Domain/Entities/AiSettings.cs` | Domain | Entity lưu cấu hình AI per user |
-| `Application/Common/Interfaces/IAiChatService.cs` | Application | Interface + types cho Claude API |
+| `Application/Common/Interfaces/IAiChatService.cs` | Application | Interface + types cho AI API (per provider) |
+| `Application/Common/Interfaces/IAiChatServiceFactory.cs` | Application | Factory interface — resolve provider |
 | `Application/Common/Interfaces/IAiAssistantService.cs` | Application | Interface 5 use cases |
 | `Application/Common/Interfaces/IAiKeyEncryptionService.cs` | Application | Interface mã hóa API key |
 | `Application/AiSettings/Commands/SaveAiSettings/` | Application | MediatR command upsert settings |
@@ -575,6 +648,8 @@ userInput = '';
 | `Infrastructure/Repositories/AiSettingsRepository.cs` | Infrastructure | MongoDB repository |
 | `Infrastructure/Services/AiKeyEncryptionService.cs` | Infrastructure | Data Protection encryption |
 | `Infrastructure/Services/ClaudeApiService.cs` | Infrastructure | Anthropic SSE streaming client |
+| `Infrastructure/Services/GeminiApiService.cs` | Infrastructure | Google Gemini SSE streaming client |
+| `Infrastructure/Services/AiChatServiceFactory.cs` | Infrastructure | Factory: resolve ClaudeApiService hoặc GeminiApiService theo provider |
 | `Infrastructure/Services/AiAssistantService.cs` | Infrastructure | 5 use cases + prompts + tracking |
 | `Api/Controllers/AiSettingsController.cs` | API | CRUD settings endpoints |
 | `Api/Controllers/AiController.cs` | API | 5 SSE streaming endpoints |

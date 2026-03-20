@@ -158,12 +158,18 @@ builder.Services.AddTransient<SeedDataService>();
 // AI Services
 builder.Services.AddScoped<IAiSettingsRepository, AiSettingsRepository>();
 builder.Services.AddScoped<IAiKeyEncryptionService, AiKeyEncryptionService>();
-builder.Services.AddHttpClient<IAiChatService, ClaudeApiService>(client =>
+builder.Services.AddHttpClient<ClaudeApiService>(client =>
 {
     client.BaseAddress = new Uri("https://api.anthropic.com/");
     client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
     client.Timeout = TimeSpan.FromMinutes(5);
 });
+builder.Services.AddHttpClient<GeminiApiService>(client =>
+{
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+builder.Services.AddScoped<IAiChatServiceFactory, AiChatServiceFactory>();
 builder.Services.AddScoped<IAiAssistantService, AiAssistantService>();
 
 // Configure Data Protection for OAuth state cookies

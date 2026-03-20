@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
 > **Cập nhật lần cuối:** 2026-03-20
-> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude
+> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -590,15 +590,23 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | `/trade-replay/:id` | `TradeReplayComponent` | Replay kế hoạch giao dịch trên biểu đồ giá |
 | `/daily-routine` | `DailyRoutineComponent` | Nhiệm vụ hàng ngày & Routine Templates |
 | `/watchlist` | `WatchlistComponent` | Theo dõi cổ phiếu & tìm cơ hội giao dịch |
-| `/ai-settings` | `AiSettingsComponent` | Cấu hình AI Claude (API key, model, usage) |
+| `/ai-settings` | `AiSettingsComponent` | Cấu hình AI đa nhà cung cấp (Claude/Gemini, API keys, model, usage) |
 
 ---
 
-## Tích hợp AI Claude
+## Tích hợp AI Claude + Gemini (Multi-provider)
 
 > **Branch:** `feature/ai-integration` | **Trạng thái:** ✅ Done
 
-Tích hợp Claude AI (Anthropic) làm trợ lý thông minh trong app — 5 use case, streaming SSE, mỗi user tự quản API key.
+Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung cấp: **Claude (Anthropic)** + **Gemini (Google)**. 5 use case, streaming SSE, mỗi user tự quản API key (mã hóa, mỗi provider riêng).
+
+### Multi-provider Architecture
+
+- **Provider support:** Claude (Anthropic) + Gemini (Google)
+- **Provider tabs trong settings UI:** chuyển đổi giữa Claude / Gemini, lưu API key riêng cho từng provider
+- **Dual API key storage:** `EncryptedClaudeApiKey` + `EncryptedGeminiApiKey` (mã hóa, mỗi provider riêng)
+- **Factory pattern:** `IAiChatServiceFactory` resolve đúng service theo provider đang chọn (`ClaudeApiService` | `GeminiApiService`)
+- **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 
 ### 5 Use Cases
 
@@ -612,26 +620,33 @@ Tích hợp Claude AI (Anthropic) làm trợ lý thông minh trong app — 5 use
 
 ### Backend
 
-- **Entity:** `AiSettings` — UserId, EncryptedApiKey, Model, TotalInputTokens, TotalOutputTokens, EstimatedCostUsd
+- **Entity:** `AiSettings` — UserId, Provider ("claude" | "gemini"), EncryptedClaudeApiKey, EncryptedGeminiApiKey (nullable), Model, TotalInputTokens, TotalOutputTokens, EstimatedCostUsd
 - **Encryption:** ASP.NET Data Protection (`AiKeyEncryptionService`)
-- **Low-level:** `ClaudeApiService` — gọi Anthropic Messages API (`stream: true`), parse SSE events
+- **Factory:** `IAiChatServiceFactory` → resolve `ClaudeApiService` hoặc `GeminiApiService` theo provider
+- **Low-level Claude:** `ClaudeApiService` — gọi Anthropic Messages API (`stream: true`), parse SSE events
+- **Low-level Gemini:** `GeminiApiService` — gọi Gemini streaming API, role mapping "assistant" → "model", SSE format
 - **High-level:** `AiAssistantService` — 5 use cases, gather context, build Vietnamese system prompts, track token usage
 - **API:** `AiSettingsController` (CRUD) + `AiController` (5 SSE streaming endpoints)
-- **Model support:** `claude-sonnet-4-6-20250514` (mặc định), `claude-opus-4-6-20250514`
+- **Claude models:** `claude-sonnet-4-6-20250514` (mặc định), `claude-opus-4-6-20250514`
+- **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 
 ### Frontend
 
 - **Service:** `ai.service.ts` — CRUD settings (HttpClient) + streaming (fetch + ReadableStream → Observable)
 - **Reusable panel:** `AiChatPanelComponent` — sliding panel từ phải, markdown rendering (marked), follow-up questions, token usage display
-- **Settings page:** `/ai-settings` — nhập/thay đổi API key, chọn model, test kết nối, xem thống kê sử dụng, xóa key
+- **Settings page:** `/ai-settings` — provider tabs (Claude / Gemini), nhập/thay đổi API key cho từng provider, chọn model, test kết nối, xem thống kê sử dụng, xóa key
 - **Integration points:** journals, portfolio-detail, trade-plan, monthly-review, header (global chat)
 
 ### Chi phí token
+
+**Claude (Anthropic):**
 
 | Model | Input | Output |
 |-------|-------|--------|
 | Sonnet 4.6 | $3/M tokens | $15/M tokens |
 | Opus 4.6 | $15/M tokens | $75/M tokens |
+
+**Gemini (Google):** Chi phí tính theo pricing của Google AI Studio, khác nhau theo model và tier.
 
 ---
 

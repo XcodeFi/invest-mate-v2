@@ -2,6 +2,34 @@
 
 ---
 
+## [v2.16.0] — 2026-03-20 · Thêm Google Gemini — Hỗ trợ đa nhà cung cấp AI
+
+**Branch:** `feature/ai-integration`
+
+### Thêm mới
+
+- **Google Gemini (nhà cung cấp AI thứ 2)**: Hỗ trợ đa nhà cung cấp AI — Claude (Anthropic) + Gemini (Google) trong cùng hệ thống
+  - **Provider tabs**: Chuyển đổi giữa Claude / Gemini trên trang `/ai-settings`
+  - **Dual API key**: Lưu trữ API key riêng cho từng provider (mã hóa, BsonElement backward compat)
+  - **Gemini models**: `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
+  - **Factory pattern**: `IAiChatServiceFactory` resolve đúng service theo provider (`ClaudeApiService` | `GeminiApiService`)
+
+### Backend
+
+- `AiSettings` entity: thêm `Provider` ("claude" | "gemini"), đổi tên `EncryptedApiKey` → `EncryptedClaudeApiKey` (BsonElement backward compat), thêm `EncryptedGeminiApiKey` (nullable)
+- `AiSettings` methods mới: `UpdateProvider()`, `UpdateClaudeApiKey()`, `UpdateGeminiApiKey()`, `GetActiveEncryptedApiKey()`
+- `GeminiApiService` — gọi Google Gemini streaming API, role mapping "assistant" → "model", SSE format
+- `IAiChatServiceFactory` + `AiChatServiceFactory` — factory pattern resolve đúng provider
+- DI: `AddHttpClient` riêng cho từng provider (Anthropic + Google), factory registration
+- Chi phí token tính theo provider
+
+### Frontend
+
+- Provider tabs UI trên `/ai-settings`: chuyển đổi Claude / Gemini, nhập API key riêng, model dropdown theo provider
+- `AiService` cập nhật: hỗ trợ provider field trong settings CRUD
+
+---
+
 ## [v2.15.0] — 2026-03-20 · Tích hợp AI Claude
 
 **Branch:** `feature/ai-integration`
