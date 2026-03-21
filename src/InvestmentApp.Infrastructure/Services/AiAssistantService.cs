@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Portfolios.Queries;
 using InvestmentApp.Application.Services;
 using InvestmentApp.Domain.Entities;
 
@@ -254,35 +255,79 @@ Nhiệm vụ: Phân tích nhật ký giao dịch của nhà đầu tư.
         var trades = await _tradeRepo.GetByPortfolioIdAsync(portfolioId, ct);
         var tradeList = trades.ToList();
 
+        // Get PnL summary with current prices
+        PortfolioPnLSummary? pnl = null;
+        try { pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, ct); }
+        catch { /* PnL may fail if market data unavailable */ }
+
         var sb = new StringBuilder();
         sb.AppendLine("<portfolio>");
         sb.AppendLine($"  <name>{portfolio.Name}</name>");
         sb.AppendLine($"  <initial_capital>{portfolio.InitialCapital:N0} VND</initial_capital>");
         sb.AppendLine($"  <total_trades>{tradeList.Count}</total_trades>");
+        if (pnl != null)
+        {
+            sb.AppendLine($"  <total_invested>{pnl.TotalInvested:N0} VND</total_invested>");
+            sb.AppendLine($"  <market_value>{pnl.TotalMarketValue:N0} VND</market_value>");
+            sb.AppendLine($"  <realized_pnl>{pnl.TotalRealizedPnL:+#,0;-#,0} VND</realized_pnl>");
+            sb.AppendLine($"  <unrealized_pnl>{pnl.TotalUnrealizedPnL:+#,0;-#,0} VND</unrealized_pnl>");
+            sb.AppendLine($"  <total_return>{pnl.TotalReturnPercentage:+0.0;-0.0}%</total_return>");
+        }
         sb.AppendLine("</portfolio>");
 
-        var symbols = tradeList.GroupBy(t => t.Symbol).ToList();
-        sb.AppendLine();
-        sb.AppendLine("<positions>");
-        sb.AppendLine("| Mã | Mua | Bán | Còn | Giá TB mua |");
-        sb.AppendLine("|-----|-----|-----|-----|------------|");
-        foreach (var group in symbols)
+        // Positions with PnL detail
+        if (pnl?.Positions.Count > 0)
         {
-            var buys = group.Where(t => t.TradeType == TradeType.BUY).Sum(t => t.Quantity);
-            var sells = group.Where(t => t.TradeType == TradeType.SELL).Sum(t => t.Quantity);
-            var net = buys - sells;
-            var avgBuy = group.Where(t => t.TradeType == TradeType.BUY).Select(t => t.Price).DefaultIfEmpty(0).Average();
-            sb.AppendLine($"| {group.Key} | {buys} | {sells} | {net} | {avgBuy:N0} VND |");
+            sb.AppendLine();
+            sb.AppendLine("<positions>");
+            sb.AppendLine("| Mã | SL | Giá TB | Giá hiện tại | Giá trị | Lãi/Lỗ | % |");
+            sb.AppendLine("|-----|-----|--------|-------------|---------|--------|-----|");
+            foreach (var pos in pnl.Positions.OrderByDescending(p => Math.Abs(p.TotalPnL)))
+            {
+                sb.AppendLine($"| {pos.Symbol} | {pos.Quantity:N0} | {pos.AverageCost:N0} | {pos.CurrentPrice:N0} | {pos.MarketValue:N0} | {pos.TotalPnL:+#,0;-#,0} | {pos.TotalPnLPercent:+0.0;-0.0}% |");
+            }
+            sb.AppendLine("</positions>");
         }
-        sb.AppendLine("</positions>");
+        else
+        {
+            // Fallback: positions from trade data only
+            var symbols = tradeList.GroupBy(t => t.Symbol).ToList();
+            sb.AppendLine();
+            sb.AppendLine("<positions>");
+            sb.AppendLine("| Mã | Mua | Bán | Còn | Giá TB mua |");
+            sb.AppendLine("|-----|-----|-----|-----|------------|");
+            foreach (var group in symbols)
+            {
+                var buys = group.Where(t => t.TradeType == TradeType.BUY).Sum(t => t.Quantity);
+                var sells = group.Where(t => t.TradeType == TradeType.SELL).Sum(t => t.Quantity);
+                var net = buys - sells;
+                var avgBuy = group.Where(t => t.TradeType == TradeType.BUY).Select(t => t.Price).DefaultIfEmpty(0).Average();
+                sb.AppendLine($"| {group.Key} | {buys} | {sells} | {net} | {avgBuy:N0} VND |");
+            }
+            sb.AppendLine("</positions>");
+        }
+
+        // Recent trades
+        var recentTrades = tradeList.OrderByDescending(t => t.CreatedAt).Take(10).ToList();
+        if (recentTrades.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<recent_trades>");
+            sb.AppendLine("| Ngày | Loại | Mã | SL | Giá | Phí |");
+            sb.AppendLine("|------|------|-----|-----|------|-----|");
+            foreach (var t in recentTrades)
+                sb.AppendLine($"| {t.CreatedAt:dd/MM/yyyy} | {t.TradeType} | {t.Symbol} | {t.Quantity} | {t.Price:N0} | {t.Fee:N0} |");
+            sb.AppendLine("</recent_trades>");
+        }
 
         var systemPrompt = BasePrompt + @"
 
 Nhiệm vụ: Đánh giá danh mục đầu tư.
-1. **Đa dạng hóa**: Cảnh báo nếu 1 mã chiếm > 30% danh mục
-2. **Hiệu suất**: P&L, vị thế đang lỗ
-3. **Rủi ro**: Drawdown, vị thế gần stop-loss, tập trung ngành
-4. **Gợi ý**: Cân bằng lại, chốt lời/cắt lỗ, đa dạng hóa";
+1. **Tổng quan hiệu suất**: Tổng P&L, return %, so sánh với vốn ban đầu
+2. **Phân tích vị thế**: Mã nào đang lãi/lỗ nhiều nhất, tỷ trọng từng mã
+3. **Đa dạng hóa**: Cảnh báo nếu 1 mã chiếm > 30% danh mục, tập trung ngành
+4. **Rủi ro**: Vị thế đang lỗ nặng, drawdown, gợi ý cắt lỗ nếu cần
+5. **Gợi ý cụ thể**: Cân bằng lại, chốt lời/cắt lỗ, mã nên thêm/giảm";
 
         var userMessage = question ?? $"Đánh giá danh mục đầu tư:\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
@@ -389,16 +434,23 @@ Bạn có thể trả lời về: chiến lược đầu tư, phân tích kỹ t
         {
             var buys = monthTrades.Where(t => t.TradeType == TradeType.BUY).ToList();
             var sells = monthTrades.Where(t => t.TradeType == TradeType.SELL).ToList();
-            sb.AppendLine($"  <buys>{buys.Count}</buys>");
-            sb.AppendLine($"  <sells>{sells.Count}</sells>");
+            var totalBuyAmount = buys.Sum(t => t.Price * t.Quantity);
+            var totalSellAmount = sells.Sum(t => t.Price * t.Quantity);
+            var totalFees = monthTrades.Sum(t => t.Fee);
+            var totalTax = monthTrades.Sum(t => t.Tax);
+            sb.AppendLine($"  <buys>{buys.Count} lệnh — {totalBuyAmount:N0} VND</buys>");
+            sb.AppendLine($"  <sells>{sells.Count} lệnh — {totalSellAmount:N0} VND</sells>");
+            sb.AppendLine($"  <fees>{totalFees:N0} VND</fees>");
+            sb.AppendLine($"  <tax>{totalTax:N0} VND</tax>");
+            sb.AppendLine($"  <symbols_traded>{string.Join(", ", monthTrades.Select(t => t.Symbol).Distinct())}</symbols_traded>");
             sb.AppendLine("</monthly_report>");
 
             sb.AppendLine();
             sb.AppendLine("<transactions>");
-            sb.AppendLine("| Ngày | Loại | Mã | SL | Giá |");
-            sb.AppendLine("|------|------|-----|-----|------|");
+            sb.AppendLine("| Ngày | Loại | Mã | SL | Giá | Phí | Thuế |");
+            sb.AppendLine("|------|------|-----|-----|------|-----|------|");
             foreach (var t in monthTrades.OrderBy(t => t.CreatedAt))
-                sb.AppendLine($"| {t.CreatedAt:dd/MM} | {t.TradeType} | {t.Symbol} | {t.Quantity} | {t.Price:N0} VND |");
+                sb.AppendLine($"| {t.CreatedAt:dd/MM} | {t.TradeType} | {t.Symbol} | {t.Quantity} | {t.Price:N0} | {t.Fee:N0} | {t.Tax:N0} |");
             sb.AppendLine("</transactions>");
         }
         else

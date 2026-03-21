@@ -5,7 +5,7 @@ import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { marked } from 'marked';
-import { AiService, AiStreamChunk, AiChatMessage, AiSettingsDto } from '../../../core/services/ai.service';
+import { AiService, AiStreamChunk, AiChatMessage, AiSettingsDto, AiContextResult } from '../../../core/services/ai.service';
 import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
@@ -22,76 +22,154 @@ import { NotificationService } from '../../../core/services/notification.service
         <div class="relative w-full max-w-lg bg-gray-900 shadow-2xl flex flex-col h-full border-l border-gray-700">
           <!-- Header -->
           <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 min-w-0">
               <span class="text-lg">✨</span>
-              <h3 class="font-semibold text-white text-sm">{{ title }}</h3>
+              <h3 class="font-semibold text-white text-sm truncate">{{ title }}</h3>
             </div>
-            <div class="flex items-center gap-2">
-              <!-- Model Selector -->
-              @if (availableModels.length > 1) {
+            <div class="flex items-center gap-2 shrink-0">
+              @if (useApiStreaming && availableModels.length > 1) {
                 <select [(ngModel)]="selectedModelId" (ngModelChange)="onModelChange($event)"
                   class="bg-gray-700 text-gray-200 text-xs rounded-md px-2 py-1 border border-gray-600
-                         focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[160px] truncate">
+                         focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[140px] truncate">
                   @for (m of availableModels; track m.id) {
                     <option [value]="m.id">{{ m.label }}</option>
                   }
                 </select>
-              } @else if (availableModels.length === 1) {
-                <span class="text-xs text-gray-400">{{ availableModels[0].label }}</span>
               }
               @if (tokenUsage.input > 0 || tokenUsage.output > 0) {
                 <span class="text-xs text-gray-400" title="Tokens sử dụng">
                   🪙 {{ tokenUsage.input + tokenUsage.output | number }}
                 </span>
               }
-              <!-- Copy Prompt Button -->
-              <button (click)="copyContext()" [disabled]="isCopying"
-                class="text-gray-400 hover:text-green-400 transition-colors text-sm leading-none disabled:opacity-50"
-                [title]="isCopying ? 'Đang copy...' : 'Copy prompt để dùng với Claude/Gemini client'">
-                {{ isCopying ? '...' : '📋' }}
-              </button>
               <button (click)="close()" class="text-gray-400 hover:text-white transition-colors text-lg leading-none">&times;</button>
             </div>
           </div>
 
-          <!-- Messages -->
+          <!-- Content area -->
           <div #messagesContainer class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-            @for (msg of messages; track $index) {
-              @if (msg.role === 'user') {
-                <div class="flex justify-end">
-                  <div class="bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2 max-w-[85%] text-sm">
-                    {{ msg.content }}
+
+            <!-- Prompt Section (always shown for non-chat) -->
+            @if (useCase !== 'chat') {
+              <!-- Loading prompt -->
+              @if (isLoadingPrompt) {
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                  <div class="flex items-center gap-2 text-gray-400 text-sm">
+                    <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                    Đang tạo prompt...
                   </div>
                 </div>
-              } @else {
-                <div class="flex justify-start">
-                  <div class="bg-gray-800 text-gray-100 rounded-2xl rounded-bl-md px-4 py-3 max-w-[90%] text-sm prose prose-sm prose-invert max-w-none
-                              [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold
-                              [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5
-                              [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs
-                              [&_pre]:bg-gray-950 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:text-xs
-                              [&_strong]:text-blue-300 [&_a]:text-blue-400"
-                       [innerHTML]="renderMarkdown(msg.content)">
+              }
+
+              <!-- Prompt display -->
+              @if (promptResult && !isLoadingPrompt) {
+                <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                  <!-- Prompt header -->
+                  <div class="flex items-center justify-between px-4 py-2.5 bg-gray-750 border-b border-gray-700">
+                    <button (click)="promptCollapsed = !promptCollapsed"
+                            class="flex items-center gap-2 text-sm font-medium text-gray-200 hover:text-white transition-colors">
+                      <span class="text-xs transition-transform" [class.rotate-90]="!promptCollapsed">▶</span>
+                      Prompt
+                      <span class="text-xs text-gray-500 font-normal">{{ promptCollapsed ? '(thu gọn)' : '' }}</span>
+                    </button>
+                    <div class="flex items-center gap-1.5">
+                      <button (click)="copyPrompt()"
+                              [disabled]="isCopying"
+                              class="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md transition-colors
+                                     disabled:opacity-50"
+                              [class]="copySuccess
+                                ? 'bg-emerald-600/20 text-emerald-400'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'">
+                        {{ copySuccess ? '✓ Đã copy' : (isCopying ? '...' : '📋 Copy') }}
+                      </button>
+                    </div>
                   </div>
+
+                  <!-- Prompt body -->
+                  @if (!promptCollapsed) {
+                    <div class="px-4 py-3 max-h-[60vh] overflow-y-auto">
+                      <!-- System Prompt -->
+                      <div class="mb-3">
+                        <p class="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-2">System Prompt</p>
+                        <div class="prose prose-sm prose-invert max-w-none text-sm
+                                    [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold
+                                    [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5
+                                    [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs
+                                    [&_pre]:bg-gray-950 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:text-xs
+                                    [&_strong]:text-blue-300 [&_a]:text-blue-400
+                                    [&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1
+                                    [&_th]:bg-gray-700 [&_th]:text-gray-200 [&_td]:border-t [&_td]:border-gray-700"
+                             [innerHTML]="renderMarkdown(promptResult.systemPrompt)">
+                        </div>
+                      </div>
+                      <!-- Divider -->
+                      <hr class="border-gray-700 my-3" />
+                      <!-- User Message -->
+                      <div>
+                        <p class="text-xs font-semibold text-emerald-400 uppercase tracking-wide mb-2">User Message</p>
+                        <div class="prose prose-sm prose-invert max-w-none text-sm
+                                    [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold
+                                    [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5
+                                    [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs
+                                    [&_pre]:bg-gray-950 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:text-xs
+                                    [&_strong]:text-blue-300 [&_a]:text-blue-400
+                                    [&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1
+                                    [&_th]:bg-gray-700 [&_th]:text-gray-200 [&_td]:border-t [&_td]:border-gray-700"
+                             [innerHTML]="renderMarkdown(promptResult.userMessage)">
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- Prompt error -->
+              @if (promptError) {
+                <div class="bg-red-900/40 border border-red-700 rounded-xl px-4 py-3 text-sm text-red-200">
+                  <p class="font-semibold mb-1">Lỗi tạo prompt</p>
+                  <p>{{ promptError }}</p>
                 </div>
               }
             }
 
-            <!-- Streaming message -->
-            @if (isStreaming) {
-              <div class="flex justify-start">
-                <div class="bg-gray-800 text-gray-100 rounded-2xl rounded-bl-md px-4 py-3 max-w-[90%] text-sm prose prose-sm prose-invert max-w-none
-                            [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold
-                            [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5
-                            [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs
-                            [&_pre]:bg-gray-950 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:text-xs
-                            [&_strong]:text-blue-300 [&_a]:text-blue-400">
-                  @if (currentStreamText) {
-                    <span [innerHTML]="renderMarkdown(currentStreamText)"></span>
-                  }
-                  <span class="inline-block w-2 h-4 bg-blue-400 animate-pulse ml-0.5"></span>
+            <!-- Streaming Chat Messages (only when API mode is on) -->
+            @if (useApiStreaming) {
+              @for (msg of messages; track $index) {
+                @if (msg.role === 'user') {
+                  <div class="flex justify-end">
+                    <div class="bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2 max-w-[85%] text-sm">
+                      {{ msg.content }}
+                    </div>
+                  </div>
+                } @else {
+                  <div class="flex justify-start">
+                    <div class="bg-gray-800 text-gray-100 rounded-2xl rounded-bl-md px-4 py-3 max-w-[90%] text-sm prose prose-sm prose-invert
+                                [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold
+                                [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5
+                                [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs
+                                [&_pre]:bg-gray-950 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:text-xs
+                                [&_strong]:text-blue-300 [&_a]:text-blue-400"
+                         [innerHTML]="renderMarkdown(msg.content)">
+                    </div>
+                  </div>
+                }
+              }
+
+              <!-- Streaming message -->
+              @if (isStreaming) {
+                <div class="flex justify-start">
+                  <div class="bg-gray-800 text-gray-100 rounded-2xl rounded-bl-md px-4 py-3 max-w-[90%] text-sm prose prose-sm prose-invert
+                              [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold
+                              [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5
+                              [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs
+                              [&_pre]:bg-gray-950 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:text-xs
+                              [&_strong]:text-blue-300 [&_a]:text-blue-400">
+                    @if (currentStreamText) {
+                      <span [innerHTML]="renderMarkdown(currentStreamText)"></span>
+                    }
+                    <span class="inline-block w-2 h-4 bg-blue-400 animate-pulse ml-0.5"></span>
+                  </div>
                 </div>
-              </div>
+              }
             }
 
             <!-- Error -->
@@ -107,7 +185,7 @@ import { NotificationService } from '../../../core/services/notification.service
               </div>
             }
 
-            <!-- Empty state -->
+            <!-- Empty state (chat mode only) -->
             @if (messages.length === 0 && !isStreaming && !errorMessage && useCase === 'chat') {
               <div class="text-center text-gray-500 py-8">
                 <span class="text-3xl block mb-2">✨</span>
@@ -118,28 +196,40 @@ import { NotificationService } from '../../../core/services/notification.service
 
           <!-- Input -->
           <div class="px-4 py-3 border-t border-gray-700 bg-gray-800">
-            <div class="flex gap-2">
-              <input
-                [(ngModel)]="userInput"
-                (keydown.enter)="sendFollowUp()"
-                [placeholder]="isStreaming ? 'Đang phân tích...' : 'Nhập câu hỏi...'"
-                [disabled]="isStreaming"
-                class="flex-1 bg-gray-700 text-white text-sm rounded-lg px-3 py-2 placeholder-gray-400
-                       focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-              />
-              <button
-                (click)="sendFollowUp()"
-                [disabled]="isStreaming || !userInput.trim()"
-                class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm font-medium
-                       rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
-                Gửi
-              </button>
-            </div>
+            @if (useApiStreaming || useCase === 'chat') {
+              <div class="flex gap-2">
+                <input
+                  [(ngModel)]="userInput"
+                  (keydown.enter)="sendFollowUp()"
+                  [placeholder]="isStreaming ? 'Đang phân tích...' : 'Nhập câu hỏi...'"
+                  [disabled]="isStreaming"
+                  class="flex-1 bg-gray-700 text-white text-sm rounded-lg px-3 py-2 placeholder-gray-400
+                         focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                />
+                <button
+                  (click)="sendFollowUp()"
+                  [disabled]="isStreaming || !userInput.trim()"
+                  class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm font-medium
+                         rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+                  Gửi
+                </button>
+              </div>
+            } @else {
+              <p class="text-xs text-gray-500 text-center">
+                Bật "Tích hợp API" trong <a routerLink="/ai-settings" (click)="close()" class="text-blue-400 hover:underline">Cài đặt AI</a> để chat trực tiếp.
+              </p>
+            }
           </div>
         </div>
       </div>
     }
-  `
+  `,
+  styles: [`
+    :host ::ng-deep .prose table { width: 100%; border-collapse: collapse; }
+    :host ::ng-deep .prose th { text-align: left; }
+    :host ::ng-deep .prose tr:hover td { background: rgba(55,65,81,0.5); }
+    :host ::ng-deep .rotate-90 { transform: rotate(90deg); }
+  `]
 })
 export class AiChatPanelComponent implements OnChanges, OnDestroy {
   @Input() isOpen = false;
@@ -150,15 +240,24 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
 
   @ViewChild('messagesContainer') messagesContainer?: ElementRef;
 
+  // Prompt mode
+  promptResult: AiContextResult | null = null;
+  isLoadingPrompt = false;
+  promptError: string | null = null;
+  promptCollapsed = false;
+  isCopying = false;
+  copySuccess = false;
+
+  // Streaming mode
   messages: AiChatMessage[] = [];
   isStreaming = false;
   currentStreamText = '';
   errorMessage: string | null = null;
   userInput = '';
   tokenUsage = { input: 0, output: 0 };
-  isCopying = false;
 
-  // Model selector
+  // Settings
+  useApiStreaming = false;
   availableModels: { id: string; label: string; provider: string }[] = [];
   selectedModelId = '';
 
@@ -177,17 +276,70 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen'] && this.isOpen && !changes['isOpen'].previousValue) {
-      this.messages = [];
-      this.tokenUsage = { input: 0, output: 0 };
-      this.errorMessage = null;
-      this.currentStreamText = '';
-      this.loadModels();
+      this.resetState();
+      this.useApiStreaming = localStorage.getItem('ai_use_api_streaming') === 'true';
 
-      // Auto-start for non-chat use cases
+      if (this.useApiStreaming) {
+        this.loadModels();
+      }
+
+      // For non-chat use cases, auto-build prompt
       if (this.useCase !== 'chat') {
-        this.startStream();
+        this.buildPrompt();
+
+        // If API streaming is on, also auto-start streaming
+        if (this.useApiStreaming) {
+          this.startStream();
+        }
       }
     }
+  }
+
+  private resetState(): void {
+    this.messages = [];
+    this.tokenUsage = { input: 0, output: 0 };
+    this.errorMessage = null;
+    this.currentStreamText = '';
+    this.promptResult = null;
+    this.promptError = null;
+    this.promptCollapsed = false;
+    this.isLoadingPrompt = false;
+    this.copySuccess = false;
+  }
+
+  private buildPrompt(): void {
+    this.isLoadingPrompt = true;
+    this.promptError = null;
+
+    const ctx = this.contextData || {};
+    this.aiService.buildContext(this.useCase, ctx).subscribe({
+      next: (result) => {
+        this.promptResult = result;
+        this.isLoadingPrompt = false;
+        this.scrollToBottom();
+      },
+      error: (err) => {
+        this.promptError = err?.error?.error || err?.message || 'Không thể tạo prompt.';
+        this.isLoadingPrompt = false;
+      }
+    });
+  }
+
+  copyPrompt(): void {
+    if (this.isCopying || !this.promptResult) return;
+    this.isCopying = true;
+    this.copySuccess = false;
+
+    const prompt = `--- SYSTEM PROMPT ---\n${this.promptResult.systemPrompt}\n\n--- USER MESSAGE ---\n${this.promptResult.userMessage}`;
+    navigator.clipboard.writeText(prompt).then(() => {
+      this.isCopying = false;
+      this.copySuccess = true;
+      this.notificationService.success('Đã copy', 'Prompt đã được copy vào clipboard.');
+      setTimeout(() => this.copySuccess = false, 2000);
+    }).catch(() => {
+      this.isCopying = false;
+      this.notificationService.error('Lỗi', 'Không thể copy vào clipboard.');
+    });
   }
 
   private loadModels(): void {
@@ -223,41 +375,12 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
     const text = this.userInput.trim();
     if (!text || this.isStreaming) return;
 
+    if (!this.useApiStreaming && this.useCase !== 'chat') return;
+
     this.userInput = '';
     this.messages.push({ role: 'user', content: text });
     this.errorMessage = null;
     this.startStream(text);
-  }
-
-  copyContext(): void {
-    if (this.isCopying) return;
-    this.isCopying = true;
-
-    const ctx = this.contextData || {};
-    const contextPayload: any = { ...ctx };
-
-    // Map useCase-specific fields
-    if (this.useCase === 'chat') {
-      contextPayload.message = this.userInput || 'Xin chào';
-      contextPayload.history = this.messages;
-    }
-
-    this.aiService.buildContext(this.useCase, contextPayload).subscribe({
-      next: (result) => {
-        const prompt = `--- SYSTEM PROMPT ---\n${result.systemPrompt}\n\n--- USER MESSAGE ---\n${result.userMessage}`;
-        navigator.clipboard.writeText(prompt).then(() => {
-          this.notificationService.success('Đã copy', 'Prompt đã được copy vào clipboard. Paste vào Claude/Gemini client để sử dụng.');
-          this.isCopying = false;
-        }).catch(() => {
-          this.notificationService.error('Lỗi', 'Không thể copy vào clipboard.');
-          this.isCopying = false;
-        });
-      },
-      error: (err) => {
-        this.notificationService.error('Lỗi', err?.error?.error || 'Không thể tạo prompt.');
-        this.isCopying = false;
-      }
-    });
   }
 
   renderMarkdown(text: string): SafeHtml {
