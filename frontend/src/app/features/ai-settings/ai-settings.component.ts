@@ -12,7 +12,7 @@ import { NotificationService } from '../../core/services/notification.service';
   template: `
     <div class="max-w-2xl mx-auto px-4 py-6 space-y-6">
       <!-- Header -->
-      <div>
+      <div class="bg-gray-800 rounded-xl px-5 py-4 border border-gray-700">
         <h1 class="text-xl font-bold text-white flex items-center gap-2">
           🤖 Cài đặt AI
         </h1>
