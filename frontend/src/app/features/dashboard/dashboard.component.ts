@@ -13,6 +13,7 @@ import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/s
 import { WatchlistService } from '../../core/services/watchlist.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { isBuyTrade } from '../../shared/constants/trade-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -32,7 +33,7 @@ interface RiskAlert {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -49,6 +50,10 @@ interface RiskAlert {
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
               >
                 + Tạo Danh mục mới
+              </button>
+              <button (click)="showAiPanel = true"
+                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-1">
+                🤖 AI Bản tin Hôm nay
               </button>
             </div>
           </div>
@@ -675,6 +680,13 @@ interface RiskAlert {
 
       </div>
     </div>
+
+    <app-ai-chat-panel
+      [(isOpen)]="showAiPanel"
+      title="Bản tin Đầu tư Hôm nay"
+      useCase="daily-briefing"
+      [contextData]="{}">
+    </app-ai-chat-panel>
   `,
   styles: []
 })
@@ -682,6 +694,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   @ViewChild('miniEquityCanvas') miniEquityCanvas!: ElementRef<HTMLCanvasElement>;
   private miniEquityChart: Chart | null = null;
 
+  showAiPanel = false;
   currentUser: User | null = null;
   summary: OverallPnLSummary | null = null;
   isLoading = true;

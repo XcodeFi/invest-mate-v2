@@ -7,6 +7,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { TradePlanService } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
 
 interface PortfolioGroup {
@@ -21,7 +22,7 @@ interface PortfolioGroup {
 @Component({
   selector: 'app-positions',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -42,6 +43,10 @@ interface PortfolioGroup {
             <option value="">Tất cả danh mục</option>
             <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
           </select>
+          <button (click)="showAiPanel = true"
+            class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors flex items-center gap-1">
+            🤖 AI Tư vấn
+          </button>
           <button (click)="loadPositions()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors">
             Làm mới
           </button>
@@ -287,11 +292,19 @@ interface PortfolioGroup {
         {{ error }}
       </div>
     </div>
+
+    <app-ai-chat-panel
+      [(isOpen)]="showAiPanel"
+      title="AI Tư vấn Vị thế"
+      useCase="position-advisor"
+      [contextData]="{ portfolioId: selectedPortfolioId }">
+    </app-ai-chat-panel>
   `
 })
 export class PositionsComponent implements OnInit {
   positions: ActivePosition[] = [];
   groupedPositions: PortfolioGroup[] = [];
+  showAiPanel = false;
   portfolios: PortfolioSummary[] = [];
   selectedPortfolioId = '';
   sortBy = 'value';

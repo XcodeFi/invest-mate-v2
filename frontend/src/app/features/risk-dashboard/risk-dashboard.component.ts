@@ -7,6 +7,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary, DrawdownResult, CorrelationPair, StopLossTargetItem } from '../../core/services/risk.service';
 import { StrategyService, Strategy, StrategyPerformance } from '../../core/services/strategy.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 interface RiskOverview {
   totalValue: number;
@@ -33,16 +34,22 @@ interface StrategyScore {
 @Component({
   selector: 'app-risk-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Quản lý Rủi ro</h1>
-        <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="loadDashboard()"
-          class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-          <option value="">-- Chọn danh mục --</option>
-          <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
-        </select>
+        <div class="flex items-center gap-3">
+          <button *ngIf="selectedPortfolioId" (click)="showAiPanel = true"
+            class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg px-3 py-2 transition-colors flex items-center gap-1">
+            🤖 AI Phân tích Rủi ro
+          </button>
+          <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="loadDashboard()"
+            class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <option value="">-- Chọn danh mục --</option>
+            <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
+          </select>
+        </div>
       </div>
 
       <div *ngIf="!selectedPortfolioId" class="text-center py-16 text-gray-400">
@@ -337,11 +344,19 @@ interface StrategyScore {
         </div>
       </div>
     </div>
+
+    <app-ai-chat-panel
+      [(isOpen)]="showAiPanel"
+      title="AI Phân tích Rủi ro"
+      useCase="risk-assessment"
+      [contextData]="{ portfolioId: selectedPortfolioId }">
+    </app-ai-chat-panel>
   `
 })
 export class RiskDashboardComponent implements OnInit {
   portfolios: PortfolioSummary[] = [];
   selectedPortfolioId = '';
+  showAiPanel = false;
   loading = false;
   riskProfile: RiskProfile | null = null;
   Math = Math;

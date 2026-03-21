@@ -9,11 +9,12 @@ import { NotificationService } from '../../core/services/notification.service';
 import { TradeType, getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } from '../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 @Component({
   selector: 'app-trades',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -25,6 +26,10 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
               <p class="text-gray-600 mt-1 text-sm sm:text-base">Xem và quản lý tất cả giao dịch của bạn</p>
             </div>
             <div class="flex space-x-3">
+              <button (click)="showAiPanel = true"
+                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-1">
+                🤖 AI Phân tích
+              </button>
               <button
                 routerLink="/trades/import"
                 class="border border-blue-300 text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg font-medium transition-colors duration-200 group relative"
@@ -287,12 +292,20 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
         </div>
       </div>
     </div>
+
+    <app-ai-chat-panel
+      [(isOpen)]="showAiPanel"
+      title="AI Phân tích Giao dịch"
+      useCase="trade-analysis"
+      [contextData]="{}">
+    </app-ai-chat-panel>
   `,
   styles: []
 })
 export class TradesComponent implements OnInit {
   allTrades: TradeResponseItem[] = [];
   filteredTrades: TradeResponseItem[] = [];
+  showAiPanel = false;
   portfolios: PortfolioSummary[] = [];
   currentPage: number = 1;
   pageSize: number = 10;

@@ -58,6 +58,35 @@ public class AiController : ControllerBase
         public string? Question { get; set; }
     }
 
+    public class RiskAssessmentRequest
+    {
+        public string PortfolioId { get; set; } = null!;
+        public string? Question { get; set; }
+    }
+
+    public class PositionAdvisorRequest
+    {
+        public string? PortfolioId { get; set; }
+        public string? Question { get; set; }
+    }
+
+    public class TradeAnalysisRequest
+    {
+        public string? PortfolioId { get; set; }
+        public string? Question { get; set; }
+    }
+
+    public class WatchlistScannerRequest
+    {
+        public string WatchlistId { get; set; } = null!;
+        public string? Question { get; set; }
+    }
+
+    public class DailyBriefingRequest
+    {
+        public string? Question { get; set; }
+    }
+
     public class BuildContextRequest
     {
         public string UseCase { get; set; } = null!;
@@ -69,6 +98,7 @@ public class AiController : ControllerBase
         public int? Month { get; set; }
         public string? Message { get; set; }
         public List<AiChatMessage>? History { get; set; }
+        public string? WatchlistId { get; set; }
     }
 
     [HttpPost("journal-review")]
@@ -113,6 +143,41 @@ public class AiController : ControllerBase
             GetUserId(), request.Symbol, request.Question, HttpContext.RequestAborted));
     }
 
+    [HttpPost("risk-assessment")]
+    public async Task StreamRiskAssessment([FromBody] RiskAssessmentRequest request)
+    {
+        await StreamResponse(_aiAssistant.AssessRiskAsync(
+            GetUserId(), request.PortfolioId, request.Question, HttpContext.RequestAborted));
+    }
+
+    [HttpPost("position-advisor")]
+    public async Task StreamPositionAdvisor([FromBody] PositionAdvisorRequest request)
+    {
+        await StreamResponse(_aiAssistant.AdvisePositionsAsync(
+            GetUserId(), request.PortfolioId, request.Question, HttpContext.RequestAborted));
+    }
+
+    [HttpPost("trade-analysis")]
+    public async Task StreamTradeAnalysis([FromBody] TradeAnalysisRequest request)
+    {
+        await StreamResponse(_aiAssistant.AnalyzeTradesAsync(
+            GetUserId(), request.PortfolioId, request.Question, HttpContext.RequestAborted));
+    }
+
+    [HttpPost("watchlist-scanner")]
+    public async Task StreamWatchlistScanner([FromBody] WatchlistScannerRequest request)
+    {
+        await StreamResponse(_aiAssistant.ScanWatchlistAsync(
+            GetUserId(), request.WatchlistId, request.Question, HttpContext.RequestAborted));
+    }
+
+    [HttpPost("daily-briefing")]
+    public async Task StreamDailyBriefing([FromBody] DailyBriefingRequest request)
+    {
+        await StreamResponse(_aiAssistant.DailyBriefingAsync(
+            GetUserId(), request.Question, HttpContext.RequestAborted));
+    }
+
     [HttpPost("build-context")]
     public async Task<IActionResult> BuildContext([FromBody] BuildContextRequest request)
     {
@@ -120,6 +185,7 @@ public class AiController : ControllerBase
             request.UseCase, GetUserId(),
             request.PortfolioId, request.TradePlanId, request.Symbol, request.Question,
             request.Year, request.Month, request.Message, request.History,
+            request.WatchlistId,
             HttpContext.RequestAborted);
 
         if (result.ErrorMessage != null)

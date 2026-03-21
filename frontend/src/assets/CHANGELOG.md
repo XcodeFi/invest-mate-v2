@@ -2,6 +2,43 @@
 
 ---
 
+## [v2.18.0] — 2026-03-21 · Enhance AI Prompts & Deep Integration (11 Use Cases)
+
+**Branch:** `feature/enhance-ai-prompts`
+
+### Thêm mới
+
+- **5 AI use case mới** — tổng cộng 11 use case, tích hợp sâu vào mọi trang chính:
+  - **AI Risk Assessment** (`/risk-dashboard`): Phân tích sức khỏe rủi ro — health score 0-100, vi phạm giới hạn, correlation risk, drawdown, 3 hành động giảm rủi ro cụ thể
+  - **AI Position Advisor** (`/positions`): Tư vấn vị thế — vị thế nguy hiểm, cơ hội chốt lời, kế hoạch bị thiếu, hành động ưu tiên
+  - **AI Trade Analysis** (`/trades`): Phân tích giao dịch — win rate & expectancy, hiệu suất theo mã, kỷ luật theo kế hoạch, pattern hành vi
+  - **AI Watchlist Scanner** (`/watchlist`): Quét watchlist — cơ hội mua gần giá mục tiêu, tín hiệu kỹ thuật, xếp hạng ưu tiên, action plan top 3
+  - **AI Daily Briefing** (`/dashboard`): Bản tin hôm nay — tóm tắt buổi sáng, hành động khẩn cấp, cơ hội hôm nay, cảnh báo rủi ro, checklist
+
+### Cải tiến
+
+- **Enriched prompts cho 6 use case hiện có** — cross-reference data giữa các domain:
+  - **Trade Plan Advisor**: + market data real-time, technical signals (RSI/MACD/EMA/S&R), risk compliance, historical trades trên cùng mã
+  - **Portfolio Review**: + risk profile, risk summary, active trade plans count
+  - **Monthly Summary**: + performance metrics (win/loss/win rate/realized P&L), so sánh tháng trước, per-symbol P&L
+  - **Journal Review**: + thống kê journal (avg confidence, avg rating, emotion distribution), portfolio context, tăng từ 5→10 entries
+  - **Chat Assistant**: + active positions (top 5), watchlist summary, current date
+  - **Stock Evaluation**: + user position nếu đang nắm giữ, watchlist target prices, active trade plan
+
+### Backend
+
+- `AiAssistantService`: thêm 3 dependencies (`IRiskCalculationService`, `IRiskProfileRepository`, `IWatchlistRepository`), 5 context builders mới, 5 streaming methods mới, enhance 6 builders hiện có
+- `IAiAssistantService`: 5 method signatures mới + `watchlistId` parameter cho `BuildContextAsync`
+- `AiController`: 5 endpoints mới (risk-assessment, position-advisor, trade-analysis, watchlist-scanner, daily-briefing) + 5 Request DTOs
+
+### Frontend
+
+- `AiService`: 5 stream methods mới (`streamRiskAssessment`, `streamPositionAdvisor`, `streamTradeAnalysis`, `streamWatchlistScanner`, `streamDailyBriefing`)
+- `AiChatPanelComponent`: 5 cases mới trong `getStream()` switch
+- Tích hợp `AiChatPanelComponent` vào 5 trang: risk-dashboard, positions, trades, watchlist, dashboard — mỗi trang có nút AI và sliding panel
+
+---
+
 ## [v2.17.0] — 2026-03-21 · AI Đánh giá Nhanh Mã + Copy Prompt + XML Tagging
 
 **Branch:** `feature/ai-context-copy`

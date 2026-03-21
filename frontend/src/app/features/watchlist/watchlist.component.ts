@@ -6,6 +6,7 @@ import { WatchlistService, WatchlistSummary, WatchlistDetail, WatchlistItem } fr
 import { MarketDataService, BatchPrice, StockSearchResult, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { forkJoin, Subject } from 'rxjs';
 import { debounceTime, switchMap } from 'rxjs/operators';
 
@@ -22,7 +23,7 @@ interface WatchlistItemView extends WatchlistItem {
 @Component({
   selector: 'app-watchlist',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, UppercaseDirective, VndCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterModule, UppercaseDirective, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6 max-w-6xl pb-20 md:pb-6">
       <!-- Header -->
@@ -35,6 +36,10 @@ interface WatchlistItemView extends WatchlistItem {
           <button (click)="showImportVn30()"
             class="px-3 py-2 text-sm bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors font-medium">
             🏆 Nhập VN30
+          </button>
+          <button *ngIf="selectedWatchlist" (click)="showAiPanel = true"
+            class="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-1">
+            🤖 AI Quét Watchlist
           </button>
           <button (click)="showCreateForm = true"
             class="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
@@ -334,6 +339,13 @@ interface WatchlistItemView extends WatchlistItem {
         </div>
       </div>
     </div>
+
+    <app-ai-chat-panel
+      [(isOpen)]="showAiPanel"
+      title="AI Quét Watchlist"
+      useCase="watchlist-scanner"
+      [contextData]="{ watchlistId: selectedWatchlist?.id }">
+    </app-ai-chat-panel>
   `,
   styles: [`
     .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -343,6 +355,7 @@ interface WatchlistItemView extends WatchlistItem {
 export class WatchlistComponent implements OnInit {
   watchlists: WatchlistSummary[] = [];
   selectedWatchlist: WatchlistSummary | null = null;
+  showAiPanel = false;
   detail: WatchlistDetail | null = null;
   itemViews: WatchlistItemView[] = [];
   loading = false;
