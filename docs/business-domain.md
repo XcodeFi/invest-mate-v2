@@ -1,7 +1,7 @@
 # Investment Mate v2 — Bản đồ Nghiệp vụ
 
 > Tài liệu tham chiếu nhanh cho AI agents và developers mới.
-> Cập nhật lần cuối: 2026-03-20
+> Cập nhật lần cuối: 2026-03-21
 
 ---
 
@@ -137,6 +137,26 @@ Bước 5: Nhật ký (update journal đã tạo)
 - Chạy mô phỏng chiến lược trên dữ liệu lịch sử
 - Trả về equity curve, simulated trades, metrics
 
+### 3.10. Đánh giá Nhanh Mã Cổ phiếu (Stock Evaluation)
+- Kết hợp **phân tích cơ bản** (P/E, P/B, EPS, ROE, ROA, D/E, tăng trưởng DT/LN) + **phân tích kỹ thuật** (EMA/RSI/MACD/Volume/S&R)
+- Dữ liệu cơ bản từ **TCBS API** (`apipubaws.tcbs.com.vn`), cache 5 phút
+- Dữ liệu kỹ thuật từ **24hmoney API** (đã có sẵn)
+- Prompt AI dùng **XML tagging** + **markdown tables** cho dữ liệu có cấu trúc → AI parse chính xác hơn
+- Hỗ trợ 2 mode: **Gửi AI** (streaming SSE, cần API key) hoặc **Copy Prompt** (clipboard, dùng client app)
+
+### 3.11. Copy AI Prompt (Clipboard)
+- Tạo prompt hoàn chỉnh (system prompt + user message + context data) cho bất kỳ use case nào
+- **Không cần API key** — chỉ đọc data từ app, format thành prompt
+- User paste vào Claude Max / Gemini client app bên ngoài
+- Endpoint: `POST /api/v1/ai/build-context` → trả JSON `{ systemPrompt, userMessage }`
+
+### 3.12. External Data Providers
+
+| Provider | URL | Dữ liệu | Interface | Cache |
+|----------|-----|----------|-----------|-------|
+| **24hmoney** | `api-finance-t19.24hmoney.vn` | Giá real-time, lịch sử giá, chỉ số thị trường, order book, NN, top biến động | `IMarketDataProvider` + `IStockInfoProvider` | 15-30s |
+| **TCBS** | `apipubaws.tcbs.com.vn` | Fundamental: P/E, P/B, EPS, ROE, ROA, D/E, doanh thu, lợi nhuận, vốn hóa | `IFundamentalDataProvider` | 5 phút |
+
 ---
 
 ## 4. API Endpoints (tóm tắt)
@@ -160,7 +180,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
 | Fees | `/api/v1/fees` | Phí giao dịch |
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
-| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary |
+| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, **stock-evaluation** + JSON: **build-context** (copy prompt) |
 
 ---
 
@@ -184,7 +204,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | `/alerts` | Cảnh báo | Rules & lịch sử cảnh báo |
 | `/capital-flows` | Dòng tiền | Nạp/rút/cổ tức |
 | `/snapshots` | Lịch sử | Ảnh chụp & so sánh danh mục |
-| `/market-data` | Thị trường | Chỉ số thị trường, tra cứu cổ phiếu chi tiết, **phân tích kỹ thuật (EMA/RSI/MACD/Volume/S&R)**, tìm kiếm mã, top biến động, bảng giá nhanh, lịch sử giá |
+| `/market-data` | Thị trường | Chỉ số thị trường, tra cứu cổ phiếu chi tiết, **phân tích kỹ thuật (EMA/RSI/MACD/Volume/S&R)**, **AI đánh giá nhanh mã (fundamental + technical)**, tìm kiếm mã, top biến động, bảng giá nhanh, lịch sử giá |
 | `/backtesting` | Kiểm thử | Mô phỏng chiến lược |
 | `/monthly-review` | Tổng kết tháng | Review hiệu suất hàng tháng |
 | `/ai-settings` | Cài đặt AI | Provider (Claude/Gemini), API keys, model, thống kê sử dụng |

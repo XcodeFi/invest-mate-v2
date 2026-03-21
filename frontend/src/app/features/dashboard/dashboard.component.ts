@@ -100,9 +100,11 @@ interface RiskAlert {
               [class.text-red-700]="alert.severity === 'danger'" [class.text-amber-700]="alert.severity === 'warning'">
               <span class="font-medium">{{ alert.symbol }}:</span> {{ alert.message }}
             </div>
-            <a *ngIf="riskAlerts.length > 3" routerLink="/risk-dashboard"
-              class="text-xs font-medium underline" [class.text-red-600]="hasDangerAlert" [class.text-amber-600]="!hasDangerAlert">
-              Xem tất cả {{ riskAlerts.length }} cảnh báo →
+            <a routerLink="/risk-dashboard"
+              class="inline-block mt-2 text-sm font-medium transition-colors"
+              [class.text-red-700]="hasDangerAlert" [class.hover:text-red-900]="hasDangerAlert"
+              [class.text-amber-700]="!hasDangerAlert" [class.hover:text-amber-900]="!hasDangerAlert">
+              Quản lý Rủi ro →
             </a>
           </div>
         </div>
@@ -424,82 +426,83 @@ interface RiskAlert {
           </div>
         </div>
 
-        <!-- Row 2: Allocation + Risk Alerts -->
+        <!-- Row 2: Allocation + Top Positions -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <!-- Phân bổ Danh mục -->
+          <!-- Danh mục của bạn -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Phân bổ Danh mục</h2>
-            <div *ngIf="portfolios.length === 0" class="text-center py-8 text-gray-400">
-              Chưa có danh mục nào
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Danh mục của bạn</h2>
+            <div *ngIf="portfolios.length === 0" class="flex flex-col items-center justify-center py-8 text-gray-400">
+              <p class="text-sm mb-3">Chưa có danh mục nào</p>
+              <button routerLink="/portfolios/create"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+                Tạo danh mục đầu tiên
+              </button>
             </div>
-            <div *ngIf="portfolios.length > 0" class="space-y-4">
-              <div *ngFor="let p of portfolios; let i = index">
+            <div *ngIf="portfolios.length > 0" class="space-y-3">
+              <div *ngFor="let portfolio of portfolios"
+                class="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                [routerLink]="['/portfolios', portfolio.portfolioId]">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-sm font-medium text-gray-700 truncate mr-2">{{ p.portfolioName }}</span>
-                  <span class="text-sm text-gray-500 whitespace-nowrap">{{ getAllocationPercent(p).toFixed(1) }}%</span>
-                </div>
-                <div class="w-full bg-gray-100 rounded-full h-3">
-                  <div
-                    class="h-3 rounded-full transition-all duration-500"
-                    [style.width.%]="getAllocationPercent(p)"
-                    [style.background-color]="allocationColors[i % allocationColors.length]"
-                  ></div>
-                </div>
-                <div class="flex items-center justify-between mt-1">
-                  <span class="text-xs text-gray-400">{{ safeNumber(p.totalMarketValue) | vndCurrency }}</span>
-                  <span
-                    class="text-xs font-medium"
-                    [class.text-emerald-600]="safeNumber(p.totalPnL) >= 0"
-                    [class.text-red-600]="safeNumber(p.totalPnL) < 0"
-                  >
-                    {{ safeNumber(p.totalPnL) >= 0 ? '+' : '' }}{{ safeNumber(p.totalPnLPercent).toFixed(2) }}%
+                  <h3 class="text-sm font-semibold text-gray-900 truncate mr-2">{{ portfolio.portfolioName }}</h3>
+                  <span class="text-sm font-bold whitespace-nowrap"
+                    [class.text-emerald-600]="safeNumber(portfolio.totalPnL) >= 0"
+                    [class.text-red-600]="safeNumber(portfolio.totalPnL) < 0">
+                    {{ safeNumber(portfolio.totalPnL) >= 0 ? '+' : '' }}{{ safeNumber(portfolio.totalPnLPercent).toFixed(2) }}%
                   </span>
+                </div>
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                  <span>{{ safeNumber(portfolio.totalMarketValue) | vndCurrency }}</span>
+                  <span>Vốn: {{ portfolio.initialCapital | vndCurrency }}</span>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="text-xs text-gray-400 whitespace-nowrap">{{ getAllocationPercent(portfolio).toFixed(1) }}%</span>
+                  <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+                    <div class="h-1.5 rounded-full transition-all duration-500"
+                      [style.width.%]="getAllocationPercent(portfolio)"
+                      [style.background-color]="allocationColors[portfolios.indexOf(portfolio) % allocationColors.length]">
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Cảnh báo Rủi ro -->
+          <!-- Vị thế nổi bật -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Cảnh báo Rủi ro</h2>
-            <div *ngIf="riskAlerts.length === 0" class="flex flex-col items-center justify-center py-8 text-gray-400">
-              <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-              </svg>
-              <p class="text-sm">Không có cảnh báo</p>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-semibold text-gray-900">Vị thế nổi bật</h2>
+                <span *ngIf="topPositions.length > 0" class="text-xs text-gray-400">(Top {{ topPositions.length }})</span>
+              </div>
+              <a routerLink="/positions" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Xem tất cả</a>
             </div>
-            <div *ngIf="riskAlerts.length > 0" class="space-y-3">
-              <div
-                *ngFor="let alert of riskAlerts"
-                class="flex items-start p-3 rounded-lg"
-                [class.bg-red-50]="alert.severity === 'danger'"
-                [class.border-red-200]="alert.severity === 'danger'"
-                [class.bg-amber-50]="alert.severity === 'warning'"
-                [class.border-amber-200]="alert.severity === 'warning'"
-                [class.border]="true"
-              >
-                <svg
-                  class="w-5 h-5 mt-0.5 flex-shrink-0"
-                  [class.text-red-500]="alert.severity === 'danger'"
-                  [class.text-amber-500]="alert.severity === 'warning'"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                </svg>
-                <div class="ml-3">
-                  <p class="text-sm font-semibold" [class.text-red-800]="alert.severity === 'danger'" [class.text-amber-800]="alert.severity === 'warning'">
-                    {{ alert.symbol }} <span class="font-normal text-gray-500">- {{ alert.portfolioName }}</span>
-                  </p>
-                  <p class="text-sm mt-0.5" [class.text-red-700]="alert.severity === 'danger'" [class.text-amber-700]="alert.severity === 'warning'">
-                    {{ alert.message }}
-                  </p>
+            <div *ngIf="topPositions.length === 0" class="text-center py-8 text-gray-400">
+              Chưa có vị thế nào
+            </div>
+            <div *ngIf="topPositions.length > 0" class="space-y-3">
+              <div *ngFor="let pos of topPositions"
+                class="border rounded-lg p-3 hover:shadow-sm transition-shadow"
+                [class.border-green-200]="pos.unrealizedPnL >= 0"
+                [class.border-red-200]="pos.unrealizedPnL < 0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-bold text-sm text-gray-800">{{ pos.symbol }}</span>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                    [class.bg-green-100]="pos.unrealizedPnL >= 0" [class.text-green-700]="pos.unrealizedPnL >= 0"
+                    [class.bg-red-100]="pos.unrealizedPnL < 0" [class.text-red-700]="pos.unrealizedPnL < 0">
+                    {{ pos.unrealizedPnL >= 0 ? '+' : '' }}{{ pos.unrealizedPnLPercent | number:'1.1-1' }}%
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500">{{ pos.quantity | number:'1.0-0' }} CP &#64; {{ pos.averageCost | number:'1.0-0' }}</div>
+                <div class="text-xs mt-1">
+                  <span class="text-gray-500">Giá trị:</span>
+                  <span class="font-medium ml-1">{{ pos.marketValue | vndCurrency }}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Row 2.5: Mini Equity Curve -->
+        <!-- Mini Equity Curve -->
         <div *ngIf="equityCurveData && equityCurveData.points.length > 1" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-900">Equity Curve</h2>
@@ -517,37 +520,6 @@ interface RiskAlert {
           </div>
           <div class="h-48">
             <canvas #miniEquityCanvas></canvas>
-          </div>
-        </div>
-
-        <!-- Top Positions Widget -->
-        <div *ngIf="topPositions.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-2">
-              <h2 class="text-base font-semibold text-gray-900">Vị thế nổi bật</h2>
-              <span class="text-xs text-gray-400">(Top {{ topPositions.length }})</span>
-            </div>
-            <a routerLink="/positions" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Xem tất cả</a>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div *ngFor="let pos of topPositions"
-              class="border rounded-lg p-3 hover:shadow-sm transition-shadow"
-              [class.border-green-200]="pos.unrealizedPnL >= 0"
-              [class.border-red-200]="pos.unrealizedPnL < 0">
-              <div class="flex items-center justify-between mb-1">
-                <span class="font-bold text-sm text-gray-800">{{ pos.symbol }}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-medium"
-                  [class.bg-green-100]="pos.unrealizedPnL >= 0" [class.text-green-700]="pos.unrealizedPnL >= 0"
-                  [class.bg-red-100]="pos.unrealizedPnL < 0" [class.text-red-700]="pos.unrealizedPnL < 0">
-                  {{ pos.unrealizedPnL >= 0 ? '+' : '' }}{{ pos.unrealizedPnLPercent | number:'1.1-1' }}%
-                </span>
-              </div>
-              <div class="text-xs text-gray-500">{{ pos.quantity | number:'1.0-0' }} CP &#64; {{ pos.averageCost | number:'1.0-0' }}</div>
-              <div class="text-xs mt-1">
-                <span class="text-gray-500">Giá trị:</span>
-                <span class="font-medium ml-1">{{ pos.marketValue | vndCurrency }}</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -701,71 +673,6 @@ interface RiskAlert {
           </div>
         </div>
 
-        <!-- Row 4: Portfolio List -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Danh mục của bạn</h2>
-          </div>
-          <div class="divide-y divide-gray-200">
-            <div *ngFor="let portfolio of portfolios" class="px-6 py-5 hover:bg-gray-50 transition-colors duration-200">
-              <div class="flex items-center justify-between">
-                <div class="flex-1 min-w-0">
-                  <h3 class="text-lg font-medium text-gray-900">{{ portfolio.portfolioName }}</h3>
-                  <p class="text-sm text-gray-500 mt-0.5">Vốn ban đầu: {{ portfolio.initialCapital | vndCurrency }}</p>
-                </div>
-                <div class="text-right mx-4">
-                  <p class="text-xl font-bold text-gray-900">{{ safeNumber(portfolio.totalMarketValue) | vndCurrency }}</p>
-                  <p
-                    class="text-sm font-medium"
-                    [class.text-emerald-600]="safeNumber(portfolio.totalPnL) >= 0"
-                    [class.text-red-600]="safeNumber(portfolio.totalPnL) < 0"
-                  >
-                    {{ safeNumber(portfolio.totalPnL) >= 0 ? '+' : '' }}{{ safeNumber(portfolio.totalPnL) | vndCurrency }}
-                    ({{ safeNumber(portfolio.totalPnLPercent).toFixed(2) }}%)
-                  </p>
-                </div>
-                <div class="ml-4">
-                  <button
-                    [routerLink]="['/portfolios', portfolio.portfolioId]"
-                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors duration-200 text-sm"
-                  >
-                    Xem chi tiết
-                  </button>
-                </div>
-              </div>
-              <!-- Performance progress bar -->
-              <div class="mt-3" *ngIf="portfolio.initialCapital > 0">
-                <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
-                  <span>Hiệu suất so với vốn</span>
-                  <span>{{ getPerformancePercent(portfolio).toFixed(1) }}%</span>
-                </div>
-                <div class="w-full bg-gray-100 rounded-full h-2">
-                  <div
-                    class="h-2 rounded-full transition-all duration-500"
-                    [style.width.%]="getClampedPerformance(portfolio)"
-                    [class.bg-emerald-500]="safeNumber(portfolio.totalMarketValue) >= portfolio.initialCapital"
-                    [class.bg-red-400]="safeNumber(portfolio.totalMarketValue) < portfolio.initialCapital"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <div *ngIf="portfolios.length === 0" class="px-6 py-12 text-center">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-              </svg>
-              <h3 class="mt-2 text-sm font-medium text-gray-900">Chưa có danh mục nào</h3>
-              <p class="mt-1 text-sm text-gray-500">Bắt đầu bằng cách tạo danh mục đầu tư đầu tiên của bạn.</p>
-              <div class="mt-6">
-                <button
-                  routerLink="/portfolios/create"
-                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-                >
-                  Tạo danh mục đầu tiên
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   `,

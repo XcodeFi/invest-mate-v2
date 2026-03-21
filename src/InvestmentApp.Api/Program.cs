@@ -146,6 +146,17 @@ builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 
+// TCBS fundamental data provider
+var externalApis = builder.Configuration.GetSection("ExternalApis");
+builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>(client =>
+{
+    client.BaseAddress = new Uri(externalApis["Tcbs:BaseUrl"]!);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+    client.Timeout = TimeSpan.FromSeconds(externalApis.GetValue("Tcbs:TimeoutSeconds", 15));
+});
+builder.Services.AddScoped<IFundamentalDataProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>());
+
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));
 builder.Services.AddScoped<IFeeConfiguration, FeeConfiguration>();
@@ -160,13 +171,13 @@ builder.Services.AddScoped<IAiSettingsRepository, AiSettingsRepository>();
 builder.Services.AddScoped<IAiKeyEncryptionService, AiKeyEncryptionService>();
 builder.Services.AddHttpClient<ClaudeApiService>(client =>
 {
-    client.BaseAddress = new Uri("https://api.anthropic.com/");
+    client.BaseAddress = new Uri(externalApis["Anthropic:BaseUrl"]!);
     client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
     client.Timeout = TimeSpan.FromMinutes(5);
 });
 builder.Services.AddHttpClient<GeminiApiService>(client =>
 {
-    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+    client.BaseAddress = new Uri(externalApis["Google:BaseUrl"]!);
     client.Timeout = TimeSpan.FromMinutes(5);
 });
 builder.Services.AddScoped<IAiChatServiceFactory, AiChatServiceFactory>();

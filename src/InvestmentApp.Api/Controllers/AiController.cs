@@ -52,6 +52,25 @@ public class AiController : ControllerBase
         public int Month { get; set; }
     }
 
+    public class StockEvaluationRequest
+    {
+        public string Symbol { get; set; } = null!;
+        public string? Question { get; set; }
+    }
+
+    public class BuildContextRequest
+    {
+        public string UseCase { get; set; } = null!;
+        public string? PortfolioId { get; set; }
+        public string? TradePlanId { get; set; }
+        public string? Symbol { get; set; }
+        public string? Question { get; set; }
+        public int? Year { get; set; }
+        public int? Month { get; set; }
+        public string? Message { get; set; }
+        public List<AiChatMessage>? History { get; set; }
+    }
+
     [HttpPost("journal-review")]
     public async Task StreamJournalReview([FromBody] JournalReviewRequest request)
     {
@@ -85,6 +104,28 @@ public class AiController : ControllerBase
     {
         await StreamResponse(_aiAssistant.MonthlySummaryAsync(
             GetUserId(), request.PortfolioId, request.Year, request.Month, HttpContext.RequestAborted));
+    }
+
+    [HttpPost("stock-evaluation")]
+    public async Task StreamStockEvaluation([FromBody] StockEvaluationRequest request)
+    {
+        await StreamResponse(_aiAssistant.EvaluateStockAsync(
+            GetUserId(), request.Symbol, request.Question, HttpContext.RequestAborted));
+    }
+
+    [HttpPost("build-context")]
+    public async Task<IActionResult> BuildContext([FromBody] BuildContextRequest request)
+    {
+        var result = await _aiAssistant.BuildContextAsync(
+            request.UseCase, GetUserId(),
+            request.PortfolioId, request.TradePlanId, request.Symbol, request.Question,
+            request.Year, request.Month, request.Message, request.History,
+            HttpContext.RequestAborted);
+
+        if (result.ErrorMessage != null)
+            return BadRequest(new { error = result.ErrorMessage });
+
+        return Ok(result);
     }
 
     private async Task StreamResponse(IAsyncEnumerable<AiStreamChunk> stream)

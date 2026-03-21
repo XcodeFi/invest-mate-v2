@@ -2,6 +2,44 @@
 
 ---
 
+## [v2.17.0] — 2026-03-21 · AI Đánh giá Nhanh Mã + Copy Prompt + XML Tagging
+
+**Branch:** `feature/ai-context-copy`
+
+### Thêm mới
+
+- **AI Đánh giá Nhanh Mã (use case #6)**: Đánh giá toàn diện cổ phiếu kết hợp phân tích cơ bản (P/E, EPS, ROE, D/E) + kỹ thuật (EMA/RSI/MACD/S&R)
+  - Nút "✨ AI Đánh giá" trên trang `/market-data` (cạnh "Tạo Trade Plan từ gợi ý")
+  - Tích hợp **TCBS API** (`apipubaws.tcbs.com.vn`) cho dữ liệu fundamental: P/E, P/B, EPS, ROE, ROA, Nợ/Vốn, tăng trưởng doanh thu & lợi nhuận, vốn hóa, cổ tức, SHNN
+  - Interface `IFundamentalDataProvider` + `TcbsFundamentalDataProvider` (cache 5 phút)
+- **Copy Prompt to Clipboard**: Nút 📋 trong AI panel header → tạo prompt hoàn chỉnh (system prompt + user message + XML-tagged data) → copy vào clipboard
+  - Dùng với Claude Max / Gemini client app bên ngoài, **không cần API key**
+  - Endpoint: `POST /api/v1/ai/build-context` → JSON (không SSE)
+  - Hoạt động cho tất cả 6 use cases
+
+### Cải tiến
+
+- **XML Tagging cho tất cả prompt**: Áp dụng XML tags (`<portfolio>`, `<positions>`, `<fundamental_metrics>`, `<technical_signals>`, `<trade_plan>`, `<trade_journals>`, etc.) + markdown tables → AI parse dữ liệu chính xác hơn
+- **Refactor `AiAssistantService`**: Tách thành private context builders cho mỗi use case, dùng chung cho cả streaming lẫn copy-prompt
+- **Model selector trong AI panel**: Dropdown chọn model (Sonnet/Opus/Gemini) trực tiếp trong header chat panel
+
+### Backend
+
+- `IFundamentalDataProvider` interface + `StockFundamentalData` DTO (Application layer)
+- `TcbsFundamentalDataProvider` — TCBS API integration, `TcbsApiModels` response DTOs
+- `AiContextResult` DTO — `{ SystemPrompt, UserMessage, ErrorMessage }`
+- `AiAssistantService` refactored: 6 private `BuildXxxContext()` methods + public `BuildContextAsync` dispatcher + `EvaluateStockAsync` streaming
+- `AiController`: thêm `POST /ai/stock-evaluation` (SSE) + `POST /ai/build-context` (JSON)
+- DI: register `TcbsFundamentalDataProvider` với HttpClient
+
+### Frontend
+
+- `AiService`: thêm `streamStockEvaluation()`, `buildContext()`
+- `AiChatPanelComponent`: nút 📋 Copy Prompt, `stock-evaluation` case
+- `MarketDataComponent`: import `AiChatPanelComponent`, nút "✨ AI Đánh giá", `isAiOpen` state
+
+---
+
 ## [v2.16.0] — 2026-03-20 · Thêm Google Gemini — Hỗ trợ đa nhà cung cấp AI
 
 **Branch:** `feature/ai-integration`
