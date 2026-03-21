@@ -146,6 +146,16 @@ builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 
+// TCBS fundamental data provider
+builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://apipubaws.tcbs.com.vn/");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddScoped<IFundamentalDataProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>());
+
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));
 builder.Services.AddScoped<IFeeConfiguration, FeeConfiguration>();

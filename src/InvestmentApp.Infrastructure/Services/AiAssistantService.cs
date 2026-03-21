@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Services;
@@ -18,6 +17,9 @@ public class AiAssistantService : IAiAssistantService
     private readonly IPortfolioRepository _portfolioRepo;
     private readonly IPnLService _pnlService;
     private readonly ITradePlanRepository _tradePlanRepo;
+    private readonly IFundamentalDataProvider _fundamentalProvider;
+    private readonly IStockInfoProvider _stockInfoProvider;
+    private readonly ITechnicalIndicatorService _technicalService;
 
     private const string BasePrompt = @"Bạn là trợ lý AI tích hợp trong Investment Mate — ứng dụng quản lý danh mục đầu tư chứng khoán Việt Nam.
 Quy tắc:
@@ -35,7 +37,10 @@ Quy tắc:
         ITradeRepository tradeRepo,
         IPortfolioRepository portfolioRepo,
         IPnLService pnlService,
-        ITradePlanRepository tradePlanRepo)
+        ITradePlanRepository tradePlanRepo,
+        IFundamentalDataProvider fundamentalProvider,
+        IStockInfoProvider stockInfoProvider,
+        ITechnicalIndicatorService technicalService)
     {
         _settingsRepo = settingsRepo;
         _encryption = encryption;
@@ -45,20 +50,153 @@ Quy tắc:
         _portfolioRepo = portfolioRepo;
         _pnlService = pnlService;
         _tradePlanRepo = tradePlanRepo;
+        _fundamentalProvider = fundamentalProvider;
+        _stockInfoProvider = stockInfoProvider;
+        _technicalService = technicalService;
     }
+
+    // =============================================
+    // Streaming methods (API integration)
+    // =============================================
 
     public async IAsyncEnumerable<AiStreamChunk> ReviewJournalAsync(
         string userId, string? portfolioId, string? question,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
-        if (apiKey == null)
-        {
-            yield return NoApiKeyError();
-            yield break;
-        }
+        if (apiKey == null) { yield return NoApiKeyError(); yield break; }
 
-        // Gather journal context
+        var context = await BuildJournalReviewContext(userId, portfolioId, question, ct);
+        if (context.ErrorMessage != null) { yield return new AiStreamChunk { Type = "error", ErrorMessage = context.ErrorMessage }; yield break; }
+
+        var messages = new List<AiChatMessage> { new() { Role = "user", Content = context.UserMessage } };
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, context.SystemPrompt, messages, settings!, ct))
+            yield return chunk;
+    }
+
+    public async IAsyncEnumerable<AiStreamChunk> ReviewPortfolioAsync(
+        string userId, string portfolioId, string? question,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
+        if (apiKey == null) { yield return NoApiKeyError(); yield break; }
+
+        var context = await BuildPortfolioReviewContext(userId, portfolioId, question, ct);
+        if (context.ErrorMessage != null) { yield return new AiStreamChunk { Type = "error", ErrorMessage = context.ErrorMessage }; yield break; }
+
+        var messages = new List<AiChatMessage> { new() { Role = "user", Content = context.UserMessage } };
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, context.SystemPrompt, messages, settings!, ct))
+            yield return chunk;
+    }
+
+    public async IAsyncEnumerable<AiStreamChunk> AdviseTradePlanAsync(
+        string userId, string tradePlanId, string? question,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
+        if (apiKey == null) { yield return NoApiKeyError(); yield break; }
+
+        var context = await BuildTradePlanAdvisorContext(userId, tradePlanId, question, ct);
+        if (context.ErrorMessage != null) { yield return new AiStreamChunk { Type = "error", ErrorMessage = context.ErrorMessage }; yield break; }
+
+        var messages = new List<AiChatMessage> { new() { Role = "user", Content = context.UserMessage } };
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, context.SystemPrompt, messages, settings!, ct))
+            yield return chunk;
+    }
+
+    public async IAsyncEnumerable<AiStreamChunk> ChatAsync(
+        string userId, string message, List<AiChatMessage>? history,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
+        if (apiKey == null) { yield return NoApiKeyError(); yield break; }
+
+        var context = await BuildChatContext(userId, message, history, ct);
+
+        var messages = history?.ToList() ?? new List<AiChatMessage>();
+        messages.Add(new AiChatMessage { Role = "user", Content = message });
+        if (messages.Count > 20)
+            messages = messages.Skip(messages.Count - 20).ToList();
+
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, context.SystemPrompt, messages, settings!, ct))
+            yield return chunk;
+    }
+
+    public async IAsyncEnumerable<AiStreamChunk> MonthlySummaryAsync(
+        string userId, string portfolioId, int year, int month,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
+        if (apiKey == null) { yield return NoApiKeyError(); yield break; }
+
+        var context = await BuildMonthlySummaryContext(userId, portfolioId, year, month, ct);
+        if (context.ErrorMessage != null) { yield return new AiStreamChunk { Type = "error", ErrorMessage = context.ErrorMessage }; yield break; }
+
+        var messages = new List<AiChatMessage> { new() { Role = "user", Content = context.UserMessage } };
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, context.SystemPrompt, messages, settings!, ct))
+            yield return chunk;
+    }
+
+    public async IAsyncEnumerable<AiStreamChunk> EvaluateStockAsync(
+        string userId, string symbol, string? question,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
+        if (apiKey == null) { yield return NoApiKeyError(); yield break; }
+
+        var context = await BuildStockEvaluationContext(userId, symbol, question, ct);
+        if (context.ErrorMessage != null) { yield return new AiStreamChunk { Type = "error", ErrorMessage = context.ErrorMessage }; yield break; }
+
+        var messages = new List<AiChatMessage> { new() { Role = "user", Content = context.UserMessage } };
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, context.SystemPrompt, messages, settings!, ct))
+            yield return chunk;
+    }
+
+    // =============================================
+    // BuildContextAsync — public, no API key needed
+    // =============================================
+
+    public async Task<AiContextResult> BuildContextAsync(string useCase, string userId,
+        string? portfolioId, string? tradePlanId, string? symbol, string? question,
+        int? year, int? month, string? message, List<AiChatMessage>? history,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            return useCase switch
+            {
+                "journal-review" => await BuildJournalReviewContext(userId, portfolioId, question, ct),
+                "portfolio-review" when !string.IsNullOrEmpty(portfolioId) =>
+                    await BuildPortfolioReviewContext(userId, portfolioId, question, ct),
+                "trade-plan-advisor" when !string.IsNullOrEmpty(tradePlanId) =>
+                    await BuildTradePlanAdvisorContext(userId, tradePlanId, question, ct),
+                "chat" => await BuildChatContext(userId, message ?? "", history, ct),
+                "monthly-summary" when !string.IsNullOrEmpty(portfolioId) =>
+                    await BuildMonthlySummaryContext(userId, portfolioId, year ?? DateTime.UtcNow.Year, month ?? DateTime.UtcNow.Month, ct),
+                "stock-evaluation" when !string.IsNullOrEmpty(symbol) =>
+                    await BuildStockEvaluationContext(userId, symbol, question, ct),
+                "portfolio-review" or "monthly-summary" =>
+                    new AiContextResult { ErrorMessage = "Thiếu portfolioId." },
+                "trade-plan-advisor" =>
+                    new AiContextResult { ErrorMessage = "Thiếu tradePlanId." },
+                "stock-evaluation" =>
+                    new AiContextResult { ErrorMessage = "Thiếu mã cổ phiếu (symbol)." },
+                _ => new AiContextResult { ErrorMessage = $"Use case không hợp lệ: {useCase}" }
+            };
+        }
+        catch (Exception ex)
+        {
+            return new AiContextResult { ErrorMessage = $"Lỗi khi tạo context: {ex.Message}" };
+        }
+    }
+
+    // =============================================
+    // Private context builders (XML-tagged)
+    // =============================================
+
+    private async Task<AiContextResult> BuildJournalReviewContext(
+        string userId, string? portfolioId, string? question, CancellationToken ct)
+    {
         IEnumerable<TradeJournal> journals;
         if (!string.IsNullOrEmpty(portfolioId))
             journals = await _journalRepo.GetByPortfolioIdAsync(portfolioId, ct);
@@ -67,28 +205,31 @@ Quy tắc:
 
         var journalList = journals.OrderByDescending(j => j.CreatedAt).Take(20).ToList();
         if (journalList.Count == 0)
-        {
-            yield return new AiStreamChunk { Type = "error", ErrorMessage = "Chưa có nhật ký giao dịch nào để phân tích." };
-            yield break;
-        }
+            return new AiContextResult { ErrorMessage = "Chưa có nhật ký giao dịch nào để phân tích." };
 
-        var contextSb = new StringBuilder();
+        var sb = new StringBuilder();
+        sb.AppendLine("<trade_journals>");
+        sb.AppendLine("| Ngày | Lý do vào lệnh | Cảm xúc | Tự tin | Đánh giá | Bài học |");
+        sb.AppendLine("|------|----------------|---------|--------|----------|--------|");
         foreach (var j in journalList)
         {
-            contextSb.AppendLine($"---\nNgày: {j.CreatedAt:dd/MM/yyyy}");
-            contextSb.AppendLine($"Lý do vào lệnh: {j.EntryReason}");
-            contextSb.AppendLine($"Bối cảnh thị trường: {j.MarketContext}");
-            contextSb.AppendLine($"Setup kỹ thuật: {j.TechnicalSetup}");
-            contextSb.AppendLine($"Cảm xúc: {j.EmotionalState}");
-            contextSb.AppendLine($"Độ tự tin: {j.ConfidenceLevel}/10");
-            if (!string.IsNullOrEmpty(j.PostTradeReview))
-                contextSb.AppendLine($"Đánh giá sau GD: {j.PostTradeReview}");
-            if (!string.IsNullOrEmpty(j.LessonsLearned))
-                contextSb.AppendLine($"Bài học: {j.LessonsLearned}");
-            contextSb.AppendLine($"Đánh giá: {j.Rating}/5 sao");
-            if (j.Tags.Count > 0)
-                contextSb.AppendLine($"Tags: {string.Join(", ", j.Tags)}");
+            var lessons = !string.IsNullOrEmpty(j.LessonsLearned) ? j.LessonsLearned.Replace("|", "/") : "—";
+            var reason = (j.EntryReason ?? "—").Replace("|", "/");
+            sb.AppendLine($"| {j.CreatedAt:dd/MM/yyyy} | {reason} | {j.EmotionalState} | {j.ConfidenceLevel}/10 | {j.Rating}/5 | {lessons} |");
         }
+        sb.AppendLine("</trade_journals>");
+
+        sb.AppendLine();
+        sb.AppendLine("<journal_details>");
+        foreach (var j in journalList.Take(5))
+        {
+            sb.AppendLine($"--- Ngày: {j.CreatedAt:dd/MM/yyyy} ---");
+            if (!string.IsNullOrEmpty(j.MarketContext)) sb.AppendLine($"Bối cảnh thị trường: {j.MarketContext}");
+            if (!string.IsNullOrEmpty(j.TechnicalSetup)) sb.AppendLine($"Setup kỹ thuật: {j.TechnicalSetup}");
+            if (!string.IsNullOrEmpty(j.PostTradeReview)) sb.AppendLine($"Đánh giá sau GD: {j.PostTradeReview}");
+            if (j.Tags?.Count > 0) sb.AppendLine($"Tags: {string.Join(", ", j.Tags)}");
+        }
+        sb.AppendLine("</journal_details>");
 
         var systemPrompt = BasePrompt + @"
 
@@ -98,53 +239,42 @@ Nhiệm vụ: Phân tích nhật ký giao dịch của nhà đầu tư.
 3. **Điểm mạnh & yếu**: Quyết định tốt vs sai lầm lặp lại
 4. **Gợi ý cải thiện**: Hành động cụ thể để cải thiện";
 
-        var userMessage = question ?? $"Phân tích {journalList.Count} nhật ký giao dịch gần nhất:\n\n{contextSb}";
+        var userMessage = question ?? $"Phân tích {journalList.Count} nhật ký giao dịch gần nhất:\n\n{sb}";
 
-        var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
-
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
-            yield return chunk;
+        return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
     }
 
-    public async IAsyncEnumerable<AiStreamChunk> ReviewPortfolioAsync(
-        string userId, string portfolioId, string? question,
-        [EnumeratorCancellation] CancellationToken ct = default)
+    private async Task<AiContextResult> BuildPortfolioReviewContext(
+        string userId, string portfolioId, string? question, CancellationToken ct)
     {
-        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
-        if (apiKey == null)
-        {
-            yield return NoApiKeyError();
-            yield break;
-        }
-
         var portfolio = await _portfolioRepo.GetByIdAsync(portfolioId, ct);
         if (portfolio == null)
-        {
-            yield return new AiStreamChunk { Type = "error", ErrorMessage = "Không tìm thấy danh mục." };
-            yield break;
-        }
+            return new AiContextResult { ErrorMessage = "Không tìm thấy danh mục." };
 
         var trades = await _tradeRepo.GetByPortfolioIdAsync(portfolioId, ct);
         var tradeList = trades.ToList();
 
-        // Build positions summary from trades
-        var contextSb = new StringBuilder();
-        contextSb.AppendLine($"Danh mục: {portfolio.Name}");
-        contextSb.AppendLine($"Vốn ban đầu: {portfolio.InitialCapital:N0} VND");
-        contextSb.AppendLine($"Tổng giao dịch: {tradeList.Count}");
-        contextSb.AppendLine();
+        var sb = new StringBuilder();
+        sb.AppendLine("<portfolio>");
+        sb.AppendLine($"  <name>{portfolio.Name}</name>");
+        sb.AppendLine($"  <initial_capital>{portfolio.InitialCapital:N0} VND</initial_capital>");
+        sb.AppendLine($"  <total_trades>{tradeList.Count}</total_trades>");
+        sb.AppendLine("</portfolio>");
 
-        // Group trades by symbol to show positions
         var symbols = tradeList.GroupBy(t => t.Symbol).ToList();
-        contextSb.AppendLine("Các mã đang giao dịch:");
+        sb.AppendLine();
+        sb.AppendLine("<positions>");
+        sb.AppendLine("| Mã | Mua | Bán | Còn | Giá TB mua |");
+        sb.AppendLine("|-----|-----|-----|-----|------------|");
         foreach (var group in symbols)
         {
-            var buys = group.Where(t => t.TradeType.ToString() == "Buy").Sum(t => t.Quantity);
-            var sells = group.Where(t => t.TradeType.ToString() == "Sell").Sum(t => t.Quantity);
+            var buys = group.Where(t => t.TradeType == TradeType.BUY).Sum(t => t.Quantity);
+            var sells = group.Where(t => t.TradeType == TradeType.SELL).Sum(t => t.Quantity);
             var net = buys - sells;
-            var avgBuy = group.Where(t => t.TradeType.ToString() == "Buy").Select(t => t.Price).DefaultIfEmpty(0).Average();
-            contextSb.AppendLine($"- {group.Key}: Mua {buys}, Bán {sells}, Còn {net} CP, Giá TB mua: {avgBuy:N0} VND");
+            var avgBuy = group.Where(t => t.TradeType == TradeType.BUY).Select(t => t.Price).DefaultIfEmpty(0).Average();
+            sb.AppendLine($"| {group.Key} | {buys} | {sells} | {net} | {avgBuy:N0} VND |");
         }
+        sb.AppendLine("</positions>");
 
         var systemPrompt = BasePrompt + @"
 
@@ -154,61 +284,51 @@ Nhiệm vụ: Đánh giá danh mục đầu tư.
 3. **Rủi ro**: Drawdown, vị thế gần stop-loss, tập trung ngành
 4. **Gợi ý**: Cân bằng lại, chốt lời/cắt lỗ, đa dạng hóa";
 
-        var userMessage = question ?? $"Đánh giá danh mục đầu tư:\n\n{contextSb}";
-        var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
-
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
-            yield return chunk;
+        var userMessage = question ?? $"Đánh giá danh mục đầu tư:\n\n{sb}";
+        return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
     }
 
-    public async IAsyncEnumerable<AiStreamChunk> AdviseTradePlanAsync(
-        string userId, string tradePlanId, string? question,
-        [EnumeratorCancellation] CancellationToken ct = default)
+    private async Task<AiContextResult> BuildTradePlanAdvisorContext(
+        string userId, string tradePlanId, string? question, CancellationToken ct)
     {
-        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
-        if (apiKey == null)
-        {
-            yield return NoApiKeyError();
-            yield break;
-        }
-
         var plan = await _tradePlanRepo.GetByIdAsync(tradePlanId, ct);
         if (plan == null)
-        {
-            yield return new AiStreamChunk { Type = "error", ErrorMessage = "Không tìm thấy kế hoạch giao dịch." };
-            yield break;
-        }
+            return new AiContextResult { ErrorMessage = "Không tìm thấy kế hoạch giao dịch." };
 
-        var contextSb = new StringBuilder();
-        contextSb.AppendLine($"Mã: {plan.Symbol}");
-        contextSb.AppendLine($"Hướng: {plan.Direction}");
-        contextSb.AppendLine($"Giá entry: {plan.EntryPrice:N0} VND");
-        contextSb.AppendLine($"Stop-loss: {plan.StopLoss:N0} VND");
-        contextSb.AppendLine($"Take-profit: {plan.Target:N0} VND");
-        contextSb.AppendLine($"Số lượng: {plan.Quantity}");
-        contextSb.AppendLine($"Chế độ vào lệnh: {plan.EntryMode}");
-        contextSb.AppendLine($"Trạng thái: {plan.Status}");
+        var sb = new StringBuilder();
+        sb.AppendLine("<trade_plan>");
+        sb.AppendLine($"  <symbol>{plan.Symbol}</symbol>");
+        sb.AppendLine($"  <direction>{plan.Direction}</direction>");
+        sb.AppendLine($"  <entry_price>{plan.EntryPrice:N0} VND</entry_price>");
+        sb.AppendLine($"  <stop_loss>{plan.StopLoss:N0} VND</stop_loss>");
+        sb.AppendLine($"  <take_profit>{plan.Target:N0} VND</take_profit>");
+        sb.AppendLine($"  <quantity>{plan.Quantity}</quantity>");
+        sb.AppendLine($"  <entry_mode>{plan.EntryMode}</entry_mode>");
+        sb.AppendLine($"  <status>{plan.Status}</status>");
+        sb.AppendLine($"  <confidence>{plan.ConfidenceLevel}/10</confidence>");
         if (!string.IsNullOrEmpty(plan.Reason))
-            contextSb.AppendLine($"Lý do vào lệnh: {plan.Reason}");
+            sb.AppendLine($"  <reason>{plan.Reason}</reason>");
         if (!string.IsNullOrEmpty(plan.MarketCondition))
-            contextSb.AppendLine($"Điều kiện thị trường: {plan.MarketCondition}");
-        contextSb.AppendLine($"Độ tự tin: {plan.ConfidenceLevel}/10");
+            sb.AppendLine($"  <market_condition>{plan.MarketCondition}</market_condition>");
 
-        // Calculate R:R
         if (plan.EntryPrice > 0 && plan.StopLoss > 0 && plan.Target > 0)
         {
             var risk = Math.Abs(plan.EntryPrice - plan.StopLoss);
             var reward = Math.Abs(plan.Target - plan.EntryPrice);
             var rr = risk > 0 ? reward / risk : 0;
-            contextSb.AppendLine($"Risk:Reward = 1:{rr:F1}");
+            sb.AppendLine($"  <risk_reward>1:{rr:F1}</risk_reward>");
         }
+        sb.AppendLine("</trade_plan>");
 
-        // Exit targets
-        if (plan.ExitTargets.Count > 0)
+        if (plan.ExitTargets?.Count > 0)
         {
-            contextSb.AppendLine("Mục tiêu thoát:");
+            sb.AppendLine();
+            sb.AppendLine("<exit_targets>");
+            sb.AppendLine("| Hành động | Giá | % vị thế |");
+            sb.AppendLine("|-----------|-----|----------|");
             foreach (var t in plan.ExitTargets)
-                contextSb.AppendLine($"  - {t.ActionType}: Giá {t.Price:N0}, {t.PercentOfPosition}% vị thế");
+                sb.AppendLine($"| {t.ActionType} | {t.Price:N0} VND | {t.PercentOfPosition}% |");
+            sb.AppendLine("</exit_targets>");
         }
 
         var systemPrompt = BasePrompt + @"
@@ -220,94 +340,71 @@ Nhiệm vụ: Tư vấn kế hoạch giao dịch.
 4. **Position sizing**: Kích thước vị thế có phù hợp?
 5. **Chấm điểm** (1-10) và gợi ý điều chỉnh";
 
-        var userMessage = question ?? $"Đánh giá kế hoạch giao dịch:\n\n{contextSb}";
-        var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
-
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
-            yield return chunk;
+        var userMessage = question ?? $"Đánh giá kế hoạch giao dịch:\n\n{sb}";
+        return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
     }
 
-    public async IAsyncEnumerable<AiStreamChunk> ChatAsync(
-        string userId, string message, List<AiChatMessage>? history,
-        [EnumeratorCancellation] CancellationToken ct = default)
+    private async Task<AiContextResult> BuildChatContext(
+        string userId, string message, List<AiChatMessage>? history, CancellationToken ct)
     {
-        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
-        if (apiKey == null)
-        {
-            yield return NoApiKeyError();
-            yield break;
-        }
-
-        // Brief portfolio context
         var portfolios = await _portfolioRepo.GetByUserIdAsync(userId, ct);
         var portfolioList = portfolios.ToList();
 
-        var contextSb = new StringBuilder();
+        var sb = new StringBuilder();
         if (portfolioList.Count > 0)
         {
-            contextSb.AppendLine($"Người dùng có {portfolioList.Count} danh mục:");
+            sb.AppendLine("<user_portfolios>");
             foreach (var p in portfolioList)
-                contextSb.AppendLine($"- {p.Name} (vốn: {p.InitialCapital:N0} VND)");
+                sb.AppendLine($"  <portfolio name=\"{p.Name}\" capital=\"{p.InitialCapital:N0} VND\" />");
+            sb.AppendLine("</user_portfolios>");
         }
 
         var systemPrompt = BasePrompt + @"
 
 Bạn có thể trả lời về: chiến lược đầu tư, phân tích kỹ thuật, quản lý rủi ro, cách sử dụng app Investment Mate, thị trường chứng khoán Việt Nam.
-" + (contextSb.Length > 0 ? $"\nThông tin danh mục:\n{contextSb}" : "");
+" + (sb.Length > 0 ? $"\n{sb}" : "");
 
-        var messages = history?.ToList() ?? new List<AiChatMessage>();
-        messages.Add(new AiChatMessage { Role = "user", Content = message });
-
-        // Keep only last 20 messages to avoid context overflow
-        if (messages.Count > 20)
-            messages = messages.Skip(messages.Count - 20).ToList();
-
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
-            yield return chunk;
+        return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = message };
     }
 
-    public async IAsyncEnumerable<AiStreamChunk> MonthlySummaryAsync(
-        string userId, string portfolioId, int year, int month,
-        [EnumeratorCancellation] CancellationToken ct = default)
+    private async Task<AiContextResult> BuildMonthlySummaryContext(
+        string userId, string portfolioId, int year, int month, CancellationToken ct)
     {
-        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
-        if (apiKey == null)
-        {
-            yield return NoApiKeyError();
-            yield break;
-        }
-
         var portfolio = await _portfolioRepo.GetByIdAsync(portfolioId, ct);
         if (portfolio == null)
-        {
-            yield return new AiStreamChunk { Type = "error", ErrorMessage = "Không tìm thấy danh mục." };
-            yield break;
-        }
+            return new AiContextResult { ErrorMessage = "Không tìm thấy danh mục." };
 
         var trades = await _tradeRepo.GetByPortfolioIdAsync(portfolioId, ct);
         var monthStart = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
         var monthEnd = monthStart.AddMonths(1);
         var monthTrades = trades.Where(t => t.CreatedAt >= monthStart && t.CreatedAt < monthEnd).ToList();
 
-        var contextSb = new StringBuilder();
-        contextSb.AppendLine($"Danh mục: {portfolio.Name}");
-        contextSb.AppendLine($"Tháng: {month:00}/{year}");
-        contextSb.AppendLine($"Số giao dịch trong tháng: {monthTrades.Count}");
+        var sb = new StringBuilder();
+        sb.AppendLine("<monthly_report>");
+        sb.AppendLine($"  <portfolio>{portfolio.Name}</portfolio>");
+        sb.AppendLine($"  <period>{month:00}/{year}</period>");
+        sb.AppendLine($"  <total_trades>{monthTrades.Count}</total_trades>");
 
         if (monthTrades.Count > 0)
         {
-            var buys = monthTrades.Where(t => t.TradeType.ToString() == "Buy").ToList();
-            var sells = monthTrades.Where(t => t.TradeType.ToString() == "Sell").ToList();
-            contextSb.AppendLine($"Lệnh mua: {buys.Count}, Lệnh bán: {sells.Count}");
-            contextSb.AppendLine("Chi tiết giao dịch:");
+            var buys = monthTrades.Where(t => t.TradeType == TradeType.BUY).ToList();
+            var sells = monthTrades.Where(t => t.TradeType == TradeType.SELL).ToList();
+            sb.AppendLine($"  <buys>{buys.Count}</buys>");
+            sb.AppendLine($"  <sells>{sells.Count}</sells>");
+            sb.AppendLine("</monthly_report>");
+
+            sb.AppendLine();
+            sb.AppendLine("<transactions>");
+            sb.AppendLine("| Ngày | Loại | Mã | SL | Giá |");
+            sb.AppendLine("|------|------|-----|-----|------|");
             foreach (var t in monthTrades.OrderBy(t => t.CreatedAt))
-            {
-                contextSb.AppendLine($"  - {t.CreatedAt:dd/MM} {t.TradeType} {t.Symbol} x{t.Quantity} @ {t.Price:N0} VND");
-            }
+                sb.AppendLine($"| {t.CreatedAt:dd/MM} | {t.TradeType} | {t.Symbol} | {t.Quantity} | {t.Price:N0} VND |");
+            sb.AppendLine("</transactions>");
         }
         else
         {
-            contextSb.AppendLine("Không có giao dịch nào trong tháng này.");
+            sb.AppendLine("  <note>Không có giao dịch nào trong tháng này.</note>");
+            sb.AppendLine("</monthly_report>");
         }
 
         var systemPrompt = BasePrompt + $@"
@@ -318,16 +415,131 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
 3. **Pattern**: Xu hướng hành vi, sai lầm lặp lại
 4. **Gợi ý tháng tới**: Mục tiêu cụ thể để cải thiện";
 
-        var userMessage = $"Tổng kết tháng {month:00}/{year}:\n\n{contextSb}";
-        var messages = new List<AiChatMessage> { new() { Role = "user", Content = userMessage } };
-
-        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, systemPrompt, messages, settings!, ct))
-            yield return chunk;
+        var userMessage = $"Tổng kết tháng {month:00}/{year}:\n\n{sb}";
+        return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
     }
 
-    // --- Helpers ---
+    private async Task<AiContextResult> BuildStockEvaluationContext(
+        string userId, string symbol, string? question, CancellationToken ct)
+    {
+        symbol = symbol.ToUpper().Trim();
 
-    private async Task<(string? apiKey, string model, string provider, Domain.Entities.AiSettings? settings)> GetUserSettings(
+        // Fetch all data in parallel — individual failures should not crash the whole request
+        var fundamentalTask = _fundamentalProvider.GetFundamentalsAsync(symbol, ct);
+        var stockDetailTask = _stockInfoProvider.GetStockDetailAsync(symbol, ct);
+        var technicalTask = _technicalService.AnalyzeAsync(symbol, ct);
+
+        // Wait for all, even if some fail
+        await Task.WhenAll(
+            fundamentalTask.ContinueWith(_ => { }),
+            stockDetailTask.ContinueWith(_ => { }),
+            technicalTask.ContinueWith(_ => { })
+        );
+
+        var fundamental = fundamentalTask.IsCompletedSuccessfully ? fundamentalTask.Result : null;
+        var stockDetail = stockDetailTask.IsCompletedSuccessfully ? stockDetailTask.Result : null;
+        var technical = technicalTask.IsCompletedSuccessfully ? technicalTask.Result : null;
+
+        if (stockDetail == null && fundamental == null)
+            return new AiContextResult { ErrorMessage = $"Không tìm thấy dữ liệu cho mã {symbol}." };
+
+        var sb = new StringBuilder();
+
+        // Stock info
+        sb.AppendLine("<stock_info>");
+        sb.AppendLine($"  <symbol>{symbol}</symbol>");
+        if (stockDetail != null)
+        {
+            sb.AppendLine($"  <company>{stockDetail.CompanyName}</company>");
+            sb.AppendLine($"  <exchange>{stockDetail.Exchange}</exchange>");
+            sb.AppendLine($"  <price>{stockDetail.Price:N0} VND</price>");
+            sb.AppendLine($"  <change>{stockDetail.ChangePercent:+0.00;-0.00}%</change>");
+            sb.AppendLine($"  <volume>{stockDetail.Volume:N0}</volume>");
+        }
+        if (fundamental?.Industry != null)
+            sb.AppendLine($"  <industry>{fundamental.Industry}</industry>");
+        sb.AppendLine("</stock_info>");
+
+        // Fundamental metrics
+        if (fundamental != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<fundamental_metrics>");
+            sb.AppendLine("| Chỉ số | Giá trị |");
+            sb.AppendLine("|--------|---------|");
+            if (fundamental.PE.HasValue) sb.AppendLine($"| P/E | {fundamental.PE:F1} |");
+            if (fundamental.PB.HasValue) sb.AppendLine($"| P/B | {fundamental.PB:F1} |");
+            if (fundamental.EPS.HasValue) sb.AppendLine($"| EPS | {fundamental.EPS:N0} VND |");
+            if (fundamental.ROE.HasValue) sb.AppendLine($"| ROE | {fundamental.ROE:F1}% |");
+            if (fundamental.ROA.HasValue) sb.AppendLine($"| ROA | {fundamental.ROA:F1}% |");
+            if (fundamental.DebtToEquity.HasValue) sb.AppendLine($"| Nợ/Vốn | {fundamental.DebtToEquity:F2} |");
+            if (fundamental.MarketCap.HasValue) sb.AppendLine($"| Vốn hóa | {fundamental.MarketCap:N0} tỷ VND |");
+            if (fundamental.DividendYield.HasValue) sb.AppendLine($"| Cổ tức | {fundamental.DividendYield:F1}% |");
+            if (fundamental.RevenueGrowth.HasValue) sb.AppendLine($"| Tăng trưởng DT | {fundamental.RevenueGrowth:+0.0;-0.0}% |");
+            if (fundamental.NetProfitGrowth.HasValue) sb.AppendLine($"| Tăng trưởng LN | {fundamental.NetProfitGrowth:+0.0;-0.0}% |");
+            if (fundamental.ForeignPercent.HasValue) sb.AppendLine($"| SHNN | {fundamental.ForeignPercent:F1}% |");
+            sb.AppendLine("</fundamental_metrics>");
+        }
+
+        // Technical signals
+        if (technical != null && technical.DataPoints >= 20)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<technical_signals>");
+            sb.AppendLine("| Chỉ báo | Giá trị | Tín hiệu |");
+            sb.AppendLine("|---------|---------|-----------|");
+            if (technical.Ema20.HasValue)
+                sb.AppendLine($"| EMA20 | {technical.Ema20:N0} | {technical.EmaTrend} |");
+            if (technical.Ema50.HasValue)
+                sb.AppendLine($"| EMA50 | {technical.Ema50:N0} | — |");
+            if (technical.Rsi14.HasValue)
+                sb.AppendLine($"| RSI(14) | {technical.Rsi14:F1} | {technical.RsiSignal} |");
+            sb.AppendLine($"| MACD | {technical.MacdLine:F2} | {technical.MacdSignal} |");
+            sb.AppendLine($"| Khối lượng | {technical.VolumeRatio:F1}x avg | {technical.VolumeSignal} |");
+            sb.AppendLine($"| **Tổng hợp** | **{technical.OverallSignalVi}** | {technical.BullishCount}↑ {technical.BearishCount}↓ {technical.NeutralCount}— |");
+            sb.AppendLine("</technical_signals>");
+
+            if (technical.SupportLevels.Count > 0 || technical.ResistanceLevels.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<support_resistance>");
+                if (technical.SupportLevels.Count > 0)
+                    sb.AppendLine($"  <supports>{string.Join(" | ", technical.SupportLevels.Select(s => $"{s:N0}"))}</supports>");
+                if (technical.ResistanceLevels.Count > 0)
+                    sb.AppendLine($"  <resistances>{string.Join(" | ", technical.ResistanceLevels.Select(r => $"{r:N0}"))}</resistances>");
+                sb.AppendLine("</support_resistance>");
+            }
+
+            if (technical.SuggestedEntry.HasValue)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<trade_suggestion>");
+                sb.AppendLine($"  <entry>{technical.SuggestedEntry:N0} VND</entry>");
+                sb.AppendLine($"  <stop_loss>{technical.SuggestedStopLoss:N0} VND</stop_loss>");
+                sb.AppendLine($"  <target>{technical.SuggestedTarget:N0} VND</target>");
+                sb.AppendLine($"  <risk_reward>1:{technical.RiskRewardRatio:F1}</risk_reward>");
+                sb.AppendLine("</trade_suggestion>");
+            }
+        }
+
+        var systemPrompt = BasePrompt + @"
+
+Nhiệm vụ: Đánh giá toàn diện mã cổ phiếu dựa trên dữ liệu cơ bản và kỹ thuật.
+1. **Sức khỏe tài chính**: Đánh giá P/E, ROE, EPS, Nợ/Vốn — đang đắt hay rẻ so với ngành
+2. **Tăng trưởng**: Doanh thu, lợi nhuận có bền vững không
+3. **Phân tích kỹ thuật**: Xu hướng, tín hiệu mua/bán, hỗ trợ/kháng cự
+4. **Rủi ro**: Nêu 2-3 rủi ro lớn nhất khi đầu tư vào mã này
+5. **Kết luận**: Đánh giá tổng thể (Hấp dẫn / Trung bình / Rủi ro cao) và gợi ý hành động";
+
+        var userMessage = question ?? $"Đánh giá toàn diện mã cổ phiếu {symbol}:\n\n{sb}";
+        return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
+    }
+
+    // =============================================
+    // Helpers
+    // =============================================
+
+    private async Task<(string? apiKey, string model, string provider, AiSettings? settings)> GetUserSettings(
         string userId, CancellationToken ct)
     {
         var settings = await _settingsRepo.GetByUserIdAsync(userId, ct);
@@ -350,7 +562,7 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
 
     private async IAsyncEnumerable<AiStreamChunk> StreamAndTrackUsage(
         string apiKey, string model, string provider, string systemPrompt,
-        List<AiChatMessage> messages, Domain.Entities.AiSettings settings,
+        List<AiChatMessage> messages, AiSettings settings,
         [EnumeratorCancellation] CancellationToken ct)
     {
         var chatService = _chatServiceFactory.GetService(provider);
@@ -363,7 +575,6 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
             yield return chunk;
         }
 
-        // Track usage
         if (totalInput > 0 || totalOutput > 0)
         {
             var cost = CalculateCost(provider, model, totalInput, totalOutput);
@@ -379,36 +590,18 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
         if (provider == "gemini")
         {
             if (model.Contains("2.5-pro", StringComparison.OrdinalIgnoreCase))
-            {
-                inputPricePerMTok = 1.25m;
-                outputPricePerMTok = 10m;
-            }
+            { inputPricePerMTok = 1.25m; outputPricePerMTok = 10m; }
             else if (model.Contains("2.5-flash", StringComparison.OrdinalIgnoreCase))
-            {
-                inputPricePerMTok = 0.15m;
-                outputPricePerMTok = 0.60m;
-            }
+            { inputPricePerMTok = 0.15m; outputPricePerMTok = 0.60m; }
             else
-            {
-                // Gemini 2.0 Flash (default)
-                inputPricePerMTok = 0.10m;
-                outputPricePerMTok = 0.40m;
-            }
+            { inputPricePerMTok = 0.10m; outputPricePerMTok = 0.40m; }
         }
         else
         {
-            // Claude
             if (model.Contains("opus", StringComparison.OrdinalIgnoreCase))
-            {
-                inputPricePerMTok = 15m;
-                outputPricePerMTok = 75m;
-            }
+            { inputPricePerMTok = 15m; outputPricePerMTok = 75m; }
             else
-            {
-                // Sonnet (default)
-                inputPricePerMTok = 3m;
-                outputPricePerMTok = 15m;
-            }
+            { inputPricePerMTok = 3m; outputPricePerMTok = 15m; }
         }
 
         return (inputTokens / 1_000_000m * inputPricePerMTok) +

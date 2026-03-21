@@ -6,6 +6,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { marked } from 'marked';
 import { AiService, AiStreamChunk, AiChatMessage, AiSettingsDto } from '../../../core/services/ai.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-ai-chat-panel',
@@ -43,6 +44,12 @@ import { AiService, AiStreamChunk, AiChatMessage, AiSettingsDto } from '../../..
                   🪙 {{ tokenUsage.input + tokenUsage.output | number }}
                 </span>
               }
+              <!-- Copy Prompt Button -->
+              <button (click)="copyContext()" [disabled]="isCopying"
+                class="text-gray-400 hover:text-green-400 transition-colors text-sm leading-none disabled:opacity-50"
+                [title]="isCopying ? 'Đang copy...' : 'Copy prompt để dùng với Claude/Gemini client'">
+                {{ isCopying ? '...' : '📋' }}
+              </button>
               <button (click)="close()" class="text-gray-400 hover:text-white transition-colors text-lg leading-none">&times;</button>
             </div>
           </div>
@@ -149,6 +156,7 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
   errorMessage: string | null = null;
   userInput = '';
   tokenUsage = { input: 0, output: 0 };
+  isCopying = false;
 
   // Model selector
   availableModels: { id: string; label: string; provider: string }[] = [];
@@ -157,6 +165,7 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
   private streamSub: Subscription | null = null;
   private sanitizer = inject(DomSanitizer);
   private aiService = inject(AiService);
+  private notificationService = inject(NotificationService);
 
   private static readonly ALL_MODELS: { id: string; label: string; provider: string }[] = [
     { id: 'claude-sonnet-4-6-20250514', label: 'Sonnet 4.6', provider: 'claude' },
@@ -220,6 +229,37 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
     this.startStream(text);
   }
 
+  copyContext(): void {
+    if (this.isCopying) return;
+    this.isCopying = true;
+
+    const ctx = this.contextData || {};
+    const contextPayload: any = { ...ctx };
+
+    // Map useCase-specific fields
+    if (this.useCase === 'chat') {
+      contextPayload.message = this.userInput || 'Xin chào';
+      contextPayload.history = this.messages;
+    }
+
+    this.aiService.buildContext(this.useCase, contextPayload).subscribe({
+      next: (result) => {
+        const prompt = `--- SYSTEM PROMPT ---\n${result.systemPrompt}\n\n--- USER MESSAGE ---\n${result.userMessage}`;
+        navigator.clipboard.writeText(prompt).then(() => {
+          this.notificationService.success('Đã copy', 'Prompt đã được copy vào clipboard. Paste vào Claude/Gemini client để sử dụng.');
+          this.isCopying = false;
+        }).catch(() => {
+          this.notificationService.error('Lỗi', 'Không thể copy vào clipboard.');
+          this.isCopying = false;
+        });
+      },
+      error: (err) => {
+        this.notificationService.error('Lỗi', err?.error?.error || 'Không thể tạo prompt.');
+        this.isCopying = false;
+      }
+    });
+  }
+
   renderMarkdown(text: string): SafeHtml {
     const html = marked.parse(text, { async: false }) as string;
     return this.sanitizer.bypassSecurityTrustHtml(html);
@@ -272,6 +312,8 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
         return this.aiService.streamTradePlanAdvisor(ctx.tradePlanId, question);
       case 'monthly-summary':
         return this.aiService.streamMonthlySummary(ctx.portfolioId, ctx.year, ctx.month);
+      case 'stock-evaluation':
+        return this.aiService.streamStockEvaluation(ctx.symbol, question);
       case 'chat':
       default:
         return this.aiService.streamChat(

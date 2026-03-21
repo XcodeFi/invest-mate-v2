@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-20
-> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini
+> **Cập nhật lần cuối:** 2026-03-21
+> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -564,6 +564,8 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | **AI** | `POST /api/v1/ai/trade-plan-advisor` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/chat` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/monthly-summary` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/stock-evaluation` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/build-context` (JSON) | ✅ |
 
 ---
 
@@ -598,7 +600,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 
 > **Branch:** `feature/ai-integration` | **Trạng thái:** ✅ Done
 
-Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung cấp: **Claude (Anthropic)** + **Gemini (Google)**. 5 use case, streaming SSE, mỗi user tự quản API key (mã hóa, mỗi provider riêng).
+Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung cấp: **Claude (Anthropic)** + **Gemini (Google)**. 6 use case, streaming SSE, mỗi user tự quản API key (mã hóa, mỗi provider riêng). Hỗ trợ **Copy Prompt** để dùng với Claude/Gemini client app (không cần API key).
 
 ### Multi-provider Architecture
 
@@ -608,7 +610,7 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Factory pattern:** `IAiChatServiceFactory` resolve đúng service theo provider đang chọn (`ClaudeApiService` | `GeminiApiService`)
 - **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 
-### 5 Use Cases
+### 6 Use Cases
 
 | # | Use Case | Trigger | Dữ liệu context |
 |---|----------|---------|------------------|
@@ -617,6 +619,7 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 | 3 | **AI Trade Plan Advisor** | Nút "🤖 AI Tư vấn" trên `/trade-plan` | Full plan (entry/SL/TP/lots/exits) + portfolio balance |
 | 4 | **AI Chat Assistant** | Nút "AI" trên header | Brief portfolio summary + conversation history |
 | 5 | **AI Monthly Summary** | Nút "🤖 AI Tổng kết" trên `/monthly-review` | Trades in month, P&L, win rate, performance |
+| 6 | **AI Stock Evaluation** | Nút "✨ AI Đánh giá" trên `/market-data` | Fundamental (P/E, EPS, ROE, D/E từ TCBS) + Technical (EMA/RSI/MACD/S&R) + Stock detail |
 
 ### Backend
 
@@ -625,17 +628,21 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Factory:** `IAiChatServiceFactory` → resolve `ClaudeApiService` hoặc `GeminiApiService` theo provider
 - **Low-level Claude:** `ClaudeApiService` — gọi Anthropic Messages API (`stream: true`), parse SSE events
 - **Low-level Gemini:** `GeminiApiService` — gọi Gemini streaming API, role mapping "assistant" → "model", SSE format
-- **High-level:** `AiAssistantService` — 5 use cases, gather context, build Vietnamese system prompts, track token usage
-- **API:** `AiSettingsController` (CRUD) + `AiController` (5 SSE streaming endpoints)
+- **High-level:** `AiAssistantService` — 6 use cases, gather context, build Vietnamese system prompts with XML tagging, track token usage
+- **Context builders:** Refactored — mỗi use case có private `BuildXxxContext()` method trả về `AiContextResult` (systemPrompt + userMessage), dùng chung cho cả streaming lẫn copy-prompt
+- **XML tagging:** Tất cả prompt dùng XML tags (`<portfolio>`, `<positions>`, `<fundamental_metrics>`, `<technical_signals>`, `<trade_plan>`, etc.) + markdown tables cho dữ liệu có cấu trúc → AI parse chính xác hơn
+- **Fundamental data:** `IFundamentalDataProvider` + `TcbsFundamentalDataProvider` — lấy P/E, P/B, EPS, ROE, ROA, D/E, revenue growth, net profit growth từ TCBS API (`apipubaws.tcbs.com.vn`)
+- **API:** `AiSettingsController` (CRUD) + `AiController` (6 SSE streaming endpoints + 1 JSON build-context endpoint)
 - **Claude models:** `claude-sonnet-4-6-20250514` (mặc định), `claude-opus-4-6-20250514`
 - **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 
 ### Frontend
 
 - **Service:** `ai.service.ts` — CRUD settings (HttpClient) + streaming (fetch + ReadableStream → Observable)
-- **Reusable panel:** `AiChatPanelComponent` — sliding panel từ phải, markdown rendering (marked), follow-up questions, token usage display
+- **Reusable panel:** `AiChatPanelComponent` — sliding panel từ phải, markdown rendering (marked), follow-up questions, token usage display, model selector dropdown, **📋 Copy Prompt button**
+- **Copy Prompt (clipboard):** Nút 📋 trong AI panel header → gọi `POST /ai/build-context` → format system prompt + user message → copy vào clipboard. **Không cần API key** — dùng với Claude Max / Gemini client app bên ngoài
 - **Settings page:** `/ai-settings` — provider tabs (Claude / Gemini), nhập/thay đổi API key cho từng provider, chọn model, test kết nối, xem thống kê sử dụng, xóa key
-- **Integration points:** journals, portfolio-detail, trade-plan, monthly-review, header (global chat)
+- **Integration points:** journals, portfolio-detail, trade-plan, monthly-review, **market-data** (stock evaluation), header (global chat)
 
 ### Chi phí token
 

@@ -9,11 +9,12 @@ import {
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
+import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective],
+  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -306,11 +307,17 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
               </span>
             </div>
           </div>
-          <a [routerLink]="'/trade-plan'"
-            [queryParams]="{ symbol: analysis.symbol, entry: analysis.suggestedEntry, sl: analysis.suggestedStopLoss, tp: analysis.suggestedTarget }"
-            class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-            📋 Tạo Trade Plan từ gợi ý
-          </a>
+          <div class="flex gap-2">
+            <a [routerLink]="'/trade-plan'"
+              [queryParams]="{ symbol: analysis.symbol, entry: analysis.suggestedEntry, sl: analysis.suggestedStopLoss, tp: analysis.suggestedTarget }"
+              class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+              📋 Tạo Trade Plan từ gợi ý
+            </a>
+            <button (click)="openAiEvaluation()"
+              class="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors">
+              ✨ AI Đánh giá
+            </button>
+          </div>
         </div>
       </div>
 
@@ -459,6 +466,14 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
         </div>
       </div>
     </div>
+
+    <!-- AI Evaluation Panel -->
+    <app-ai-chat-panel
+      [(isOpen)]="isAiOpen"
+      [title]="'AI Đánh giá: ' + searchSymbol"
+      [useCase]="'stock-evaluation'"
+      [contextData]="{ symbol: searchSymbol }">
+    </app-ai-chat-panel>
   `
 })
 export class MarketDataComponent implements OnInit {
@@ -476,6 +491,9 @@ export class MarketDataComponent implements OnInit {
   // Technical Analysis
   analysis: TechnicalAnalysis | null = null;
   analyzingSignal = false;
+
+  // AI Evaluation
+  isAiOpen = false;
 
   // Search suggestions
   searchResults: StockSearchResult[] = [];
@@ -544,6 +562,12 @@ export class MarketDataComponent implements OnInit {
   selectIndex(symbol: string): void {
     this.searchSymbol = symbol;
     // Index symbols can't be looked up via stock detail — just show as selected
+  }
+
+  // --- AI Evaluation ---
+
+  openAiEvaluation(): void {
+    this.isAiOpen = true;
   }
 
   // --- Stock Lookup ---

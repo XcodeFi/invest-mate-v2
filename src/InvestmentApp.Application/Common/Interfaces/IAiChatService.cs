@@ -24,3 +24,10 @@ public class AiStreamChunk
     public int? OutputTokens { get; set; }
     public string? ErrorMessage { get; set; }
 }
+
+public class AiContextResult
+{
+    public string SystemPrompt { get; set; } = string.Empty;
+    public string UserMessage { get; set; } = string.Empty;
+    public string? ErrorMessage { get; set; }
+}

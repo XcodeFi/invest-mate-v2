@@ -37,6 +37,12 @@ export interface AiChatMessage {
   content: string;
 }
 
+export interface AiContextResult {
+  systemPrompt: string;
+  userMessage: string;
+  errorMessage?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AiService {
   private SETTINGS_URL = `${environment.apiUrl}/ai-settings`;
@@ -95,6 +101,19 @@ export class AiService {
 
   streamMonthlySummary(portfolioId: string, year: number, month: number): Observable<AiStreamChunk> {
     return this.streamRequest('monthly-summary', { portfolioId, year, month });
+  }
+
+  streamStockEvaluation(symbol: string, question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('stock-evaluation', { symbol, question });
+  }
+
+  // --- Build Context (for copy-to-clipboard, no API key needed) ---
+
+  buildContext(useCase: string, contextData: any): Observable<AiContextResult> {
+    return this.http.post<AiContextResult>(`${this.AI_URL}/build-context`, {
+      useCase,
+      ...contextData
+    }, { headers: this.getHeaders() }).pipe(catchError(this.handleError));
   }
 
   private streamRequest(endpoint: string, body: any): Observable<AiStreamChunk> {
