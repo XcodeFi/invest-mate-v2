@@ -107,6 +107,26 @@ export class AiService {
     return this.streamRequest('stock-evaluation', { symbol, question });
   }
 
+  streamRiskAssessment(portfolioId: string, question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('risk-assessment', { portfolioId, question });
+  }
+
+  streamPositionAdvisor(portfolioId?: string, question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('position-advisor', { portfolioId, question });
+  }
+
+  streamTradeAnalysis(portfolioId?: string, question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('trade-analysis', { portfolioId, question });
+  }
+
+  streamWatchlistScanner(watchlistId: string, question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('watchlist-scanner', { watchlistId, question });
+  }
+
+  streamDailyBriefing(question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('daily-briefing', { question });
+  }
+
   // --- Build Context (for copy-to-clipboard, no API key needed) ---
 
   buildContext(useCase: string, contextData: any): Observable<AiContextResult> {

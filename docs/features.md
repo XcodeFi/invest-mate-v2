@@ -565,6 +565,11 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | **AI** | `POST /api/v1/ai/chat` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/monthly-summary` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/stock-evaluation` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/risk-assessment` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/position-advisor` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/trade-analysis` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/watchlist-scanner` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/daily-briefing` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/build-context` (JSON) | ✅ |
 
 ---
@@ -598,9 +603,9 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 
 ## Tích hợp AI Claude + Gemini (Multi-provider)
 
-> **Branch:** `feature/ai-integration` | **Trạng thái:** ✅ Done
+> **Branch:** `feature/ai-integration`, `feature/enhance-ai-prompts` | **Trạng thái:** ✅ Done
 
-Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung cấp: **Claude (Anthropic)** + **Gemini (Google)**. 6 use case, streaming SSE, mỗi user tự quản API key (mã hóa, mỗi provider riêng). Hỗ trợ **Copy Prompt** để dùng với Claude/Gemini client app (không cần API key).
+Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung cấp: **Claude (Anthropic)** + **Gemini (Google)**. 11 use case, streaming SSE, mỗi user tự quản API key (mã hóa, mỗi provider riêng). Hỗ trợ **Copy Prompt** để dùng với Claude/Gemini client app (không cần API key). Prompt được làm giàu với cross-referencing data: market data, technical signals, risk profile, historical trades.
 
 ### Multi-provider Architecture
 
@@ -610,16 +615,21 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Factory pattern:** `IAiChatServiceFactory` resolve đúng service theo provider đang chọn (`ClaudeApiService` | `GeminiApiService`)
 - **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 
-### 6 Use Cases
+### 11 Use Cases
 
 | # | Use Case | Trigger | Dữ liệu context |
 |---|----------|---------|------------------|
-| 1 | **AI Journal Review** | Nút "🤖 AI Phân tích" trên `/journals` | 20 nhật ký gần nhất + trades liên quan |
-| 2 | **AI Portfolio Review** | Nút "🤖 AI Đánh giá" trên portfolio detail | Vị thế, P&L, risk metrics |
-| 3 | **AI Trade Plan Advisor** | Nút "🤖 AI Tư vấn" trên `/trade-plan` | Full plan (entry/SL/TP/lots/exits) + portfolio balance |
-| 4 | **AI Chat Assistant** | Nút "AI" trên header | Brief portfolio summary + conversation history |
-| 5 | **AI Monthly Summary** | Nút "🤖 AI Tổng kết" trên `/monthly-review` | Trades in month, P&L, win rate, performance |
-| 6 | **AI Stock Evaluation** | Nút "✨ AI Đánh giá" trên `/market-data` | Fundamental (P/E, EPS, ROE, D/E từ TCBS) + Technical (EMA/RSI/MACD/S&R) + Stock detail |
+| 1 | **AI Journal Review** | Nút "🤖 AI Phân tích" trên `/journals` | 20 nhật ký gần nhất + trades liên quan + thống kê (avg confidence, avg rating, emotion distribution) + portfolio context |
+| 2 | **AI Portfolio Review** | Nút "🤖 AI Đánh giá" trên portfolio detail | Vị thế, P&L, risk metrics + risk profile + risk summary + active trade plans count |
+| 3 | **AI Trade Plan Advisor** | Nút "🤖 AI Tư vấn" trên `/trade-plan` | Full plan (entry/SL/TP/lots/exits) + portfolio balance + **current market data** + **technical signals** (RSI/MACD/EMA/S&R) + **risk compliance** + **historical trades on symbol** |
+| 4 | **AI Chat Assistant** | Nút "AI" trên header | Active positions (top 5) + watchlist summary + portfolio summary + conversation history + current date |
+| 5 | **AI Monthly Summary** | Nút "🤖 AI Tổng kết" trên `/monthly-review` | Trades in month + **performance metrics** (win/loss/win rate/realized P&L) + **previous month comparison** + **per-symbol P&L** |
+| 6 | **AI Stock Evaluation** | Nút "✨ AI Đánh giá" trên `/market-data` | Fundamental (P/E, EPS, ROE, D/E từ TCBS) + Technical (EMA/RSI/MACD/S&R) + Stock detail + **user position** + **watchlist target prices** + **active trade plan** |
+| 7 | **AI Risk Assessment** | Nút "🤖 AI Phân tích Rủi ro" trên `/risk-dashboard` | Portfolio risk summary, drawdown, correlation, risk profile, compliance violations |
+| 8 | **AI Position Advisor** | Nút "🤖 AI Tư vấn" trên `/positions` | Active positions với PnL, linked trade plans, technical signals cho top 5 |
+| 9 | **AI Trade Analysis** | Nút "🤖 AI Phân tích" trên `/trades` | Trades grouped by symbol, win/loss stats, profit factor, plan adherence |
+| 10 | **AI Watchlist Scanner** | Nút "🤖 AI Quét Watchlist" trên `/watchlist` | Watchlist items + current prices + technical signals (top 15) + fundamentals (top 10) |
+| 11 | **AI Daily Briefing** | Nút "🤖 AI Bản tin Hôm nay" trên `/dashboard` | Overall PnL, top positions, risk alerts, pending trade plans, watchlist alerts |
 
 ### Backend
 
@@ -628,11 +638,12 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Factory:** `IAiChatServiceFactory` → resolve `ClaudeApiService` hoặc `GeminiApiService` theo provider
 - **Low-level Claude:** `ClaudeApiService` — gọi Anthropic Messages API (`stream: true`), parse SSE events
 - **Low-level Gemini:** `GeminiApiService` — gọi Gemini streaming API, role mapping "assistant" → "model", SSE format
-- **High-level:** `AiAssistantService` — 6 use cases, gather context, build Vietnamese system prompts with XML tagging, track token usage
+- **High-level:** `AiAssistantService` — 11 use cases, gather context, build Vietnamese system prompts with XML tagging, track token usage. Enriched prompts with cross-referencing data (market data, technicals, risk profile, historical trades)
 - **Context builders:** Refactored — mỗi use case có private `BuildXxxContext()` method trả về `AiContextResult` (systemPrompt + userMessage), dùng chung cho cả streaming lẫn copy-prompt
+- **New dependencies:** `IRiskCalculationService`, `IRiskProfileRepository`, `IWatchlistRepository` — cho phép cross-reference data giữa các domain
 - **XML tagging:** Tất cả prompt dùng XML tags (`<portfolio>`, `<positions>`, `<fundamental_metrics>`, `<technical_signals>`, `<trade_plan>`, etc.) + markdown tables cho dữ liệu có cấu trúc → AI parse chính xác hơn
 - **Fundamental data:** `IFundamentalDataProvider` + `TcbsFundamentalDataProvider` — lấy P/E, P/B, EPS, ROE, ROA, D/E, revenue growth, net profit growth từ TCBS API (`apipubaws.tcbs.com.vn`)
-- **API:** `AiSettingsController` (CRUD) + `AiController` (6 SSE streaming endpoints + 1 JSON build-context endpoint)
+- **API:** `AiSettingsController` (CRUD) + `AiController` (11 SSE streaming endpoints + 1 JSON build-context endpoint)
 - **Claude models:** `claude-sonnet-4-6-20250514` (mặc định), `claude-opus-4-6-20250514`
 - **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 
@@ -642,7 +653,7 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Reusable panel:** `AiChatPanelComponent` — sliding panel từ phải, markdown rendering (marked), follow-up questions, token usage display, model selector dropdown, **📋 Copy Prompt button**
 - **Copy Prompt (clipboard):** Nút 📋 trong AI panel header → gọi `POST /ai/build-context` → format system prompt + user message → copy vào clipboard. **Không cần API key** — dùng với Claude Max / Gemini client app bên ngoài
 - **Settings page:** `/ai-settings` — provider tabs (Claude / Gemini), nhập/thay đổi API key cho từng provider, chọn model, test kết nối, xem thống kê sử dụng, xóa key
-- **Integration points:** journals, portfolio-detail, trade-plan, monthly-review, **market-data** (stock evaluation), header (global chat)
+- **Integration points:** journals, portfolio-detail, trade-plan, monthly-review, **market-data** (stock evaluation), header (global chat), **risk-dashboard**, **positions**, **trades**, **watchlist**, **dashboard** (daily briefing)
 
 ### Chi phí token
 

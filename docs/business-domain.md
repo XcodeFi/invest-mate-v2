@@ -180,7 +180,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
 | Fees | `/api/v1/fees` | Phí giao dịch |
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
-| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, **stock-evaluation** + JSON: **build-context** (copy prompt) |
+| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing** + JSON: build-context (copy prompt) |
 
 ---
 
