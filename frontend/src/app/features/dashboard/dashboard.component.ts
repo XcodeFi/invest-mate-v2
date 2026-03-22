@@ -685,7 +685,7 @@ interface RiskAlert {
       [(isOpen)]="showAiPanel"
       title="Bản tin Đầu tư Hôm nay"
       useCase="daily-briefing"
-      [contextData]="{}">
+      [contextData]="emptyContext">
     </app-ai-chat-panel>
   `,
   styles: []
@@ -695,6 +695,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private miniEquityChart: Chart | null = null;
 
   showAiPanel = false;
+  readonly emptyContext = {};
   currentUser: User | null = null;
   summary: OverallPnLSummary | null = null;
   isLoading = true;

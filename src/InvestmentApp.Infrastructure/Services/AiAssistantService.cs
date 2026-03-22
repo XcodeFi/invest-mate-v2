@@ -1167,6 +1167,7 @@ Nhiệm vụ: Đánh giá rủi ro danh mục đầu tư toàn diện.
     private async Task<AiContextResult> BuildPositionAdvisorContext(
         string userId, string? portfolioId, string? question, CancellationToken ct)
     {
+        var timeout = TimeSpan.FromSeconds(10);
         var portfolios = await _portfolioRepo.GetByUserIdAsync(userId, ct);
         var portfolioList = portfolios.ToList();
         if (portfolioList.Count == 0)
@@ -1175,20 +1176,30 @@ Nhiệm vụ: Đánh giá rủi ro danh mục đầu tư toàn diện.
         var sb = new StringBuilder();
         var allPositions = new List<(string PortfolioName, PositionPnL Pos)>();
 
-        // Get positions from all portfolios (or filtered)
+        // Get positions from all portfolios (or filtered) — parallel
         var targetPortfolios = !string.IsNullOrEmpty(portfolioId)
             ? portfolioList.Where(p => p.Id == portfolioId).ToList()
             : portfolioList;
 
-        foreach (var p in targetPortfolios)
+        var pnlTasks = targetPortfolios.Select(p =>
+            _pnlService.CalculatePortfolioPnLAsync(p.Id, ct)
+                .ContinueWith(t => t.IsCompletedSuccessfully ? (Name: p.Name, Pnl: t.Result) : (Name: p.Name, Pnl: (PortfolioPnLSummary?)null), TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+        var plansTask = _tradePlanRepo.GetActiveByUserIdAsync(userId, ct)
+            .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : Enumerable.Empty<TradePlan>(), TaskContinuationOptions.ExecuteSynchronously);
+
+        try
         {
-            try
-            {
-                var pnl = await _pnlService.CalculatePortfolioPnLAsync(p.Id, ct);
-                if (pnl?.Positions.Count > 0)
-                    allPositions.AddRange(pnl.Positions.Select(pos => (p.Name, pos)));
-            }
-            catch { /* Skip */ }
+            await Task.WhenAll(pnlTasks.Cast<Task>().Append(plansTask)).WaitAsync(timeout, ct);
+        }
+        catch (TimeoutException) { /* Continue with whatever completed */ }
+
+        foreach (var task in pnlTasks)
+        {
+            if (!task.IsCompletedSuccessfully) continue;
+            var result = task.Result;
+            if (result.Pnl?.Positions.Count > 0)
+                allPositions.AddRange(result.Pnl.Positions.Select(pos => (result.Name, pos)));
         }
 
         if (allPositions.Count == 0)
@@ -1210,9 +1221,8 @@ Nhiệm vụ: Đánh giá rủi ro danh mục đầu tư toàn diện.
         }
         sb.AppendLine("</positions>");
 
-        // Check linked trade plans
-        var plans = await _tradePlanRepo.GetActiveByUserIdAsync(userId, ct);
-        var plansList = plans.ToList();
+        // Check linked trade plans (already fetched in parallel)
+        var plansList = plansTask.IsCompletedSuccessfully ? plansTask.Result.ToList() : new List<TradePlan>();
         var posSymbols = allPositions.Select(p => p.Pos.Symbol).Distinct().ToList();
         var withPlan = posSymbols.Where(s => plansList.Any(p => p.Symbol.Equals(s, StringComparison.OrdinalIgnoreCase))).ToList();
         var withoutPlan = posSymbols.Except(withPlan).ToList();
@@ -1223,13 +1233,22 @@ Nhiệm vụ: Đánh giá rủi ro danh mục đầu tư toàn diện.
             sb.AppendLine($"<missing_plans>{string.Join(", ", withoutPlan)}</missing_plans>");
         }
 
-        // Technical signals for top 5 by value
+        // Technical signals for top 5 by value — parallel with timeout
         var top5Symbols = allPositions.OrderByDescending(p => p.Pos.MarketValue).Select(p => p.Pos.Symbol).Distinct().Take(5).ToList();
+        var techTasks = top5Symbols.Select(sym =>
+            _technicalService.AnalyzeAsync(sym, ct)
+                .ContinueWith(t => (Symbol: sym, Tech: t.IsCompletedSuccessfully ? (dynamic?)t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+
+        try { await Task.WhenAll(techTasks).WaitAsync(timeout, ct); }
+        catch (TimeoutException) { /* Continue with whatever completed */ }
+
         var technicals = new List<(string Symbol, dynamic? Tech)>();
-        foreach (var sym in top5Symbols)
+        foreach (var task in techTasks)
         {
-            try { var t = await _technicalService.AnalyzeAsync(sym, ct); technicals.Add((sym, t)); }
-            catch { /* Skip */ }
+            if (!task.IsCompletedSuccessfully) continue;
+            var result = task.Result;
+            if (result.Tech != null) technicals.Add((result.Symbol, result.Tech));
         }
 
         if (technicals.Count > 0)
@@ -1240,8 +1259,8 @@ Nhiệm vụ: Đánh giá rủi ro danh mục đầu tư toàn diện.
             sb.AppendLine("|-----|------|------|----------|----------|");
             foreach (var (sym, tech) in technicals)
             {
-                if (tech != null && tech.DataPoints >= 20)
-                    sb.AppendLine($"| {sym} | {tech.Rsi14:F1} | {tech.MacdSignal} | {tech.EmaTrend} | {tech.OverallSignalVi} |");
+                if (tech?.DataPoints >= 20)
+                    sb.AppendLine($"| {sym} | {tech!.Rsi14:F1} | {tech.MacdSignal} | {tech.EmaTrend} | {tech.OverallSignalVi} |");
             }
             sb.AppendLine("</technical_signals>");
         }
@@ -1272,12 +1291,15 @@ Nhiệm vụ: Tư vấn quản lý vị thế đang mở.
         else
         {
             var portfolios = await _portfolioRepo.GetByUserIdAsync(userId, ct);
+            var tradeTasks = portfolios.Select(p =>
+                _tradeRepo.GetByPortfolioIdAsync(p.Id, ct)
+                    .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : Enumerable.Empty<Trade>(), TaskContinuationOptions.ExecuteSynchronously)
+            ).ToList();
+            try { await Task.WhenAll(tradeTasks).WaitAsync(TimeSpan.FromSeconds(10), ct); }
+            catch (TimeoutException) { /* Continue with whatever completed */ }
             allTrades = new List<Trade>();
-            foreach (var p in portfolios)
-            {
-                var trades = await _tradeRepo.GetByPortfolioIdAsync(p.Id, ct);
-                allTrades.AddRange(trades);
-            }
+            foreach (var task in tradeTasks)
+                if (task.IsCompletedSuccessfully) allTrades.AddRange(task.Result);
         }
 
         if (allTrades.Count == 0)
@@ -1389,8 +1411,26 @@ Nhiệm vụ: Phân tích giao dịch toàn diện.
         var sb = new StringBuilder();
         sb.AppendLine($"<watchlist name=\"{watchlist.Name}\" count=\"{watchlist.Items.Count}\">");
 
-        // Fetch current prices and technical signals
+        // Fetch current prices and technical signals — parallel
         var items = watchlist.Items.Take(15).ToList();
+
+        var detailTasks = items.Select(item =>
+            _stockInfoProvider.GetStockDetailAsync(item.Symbol, ct)
+                .ContinueWith(t => (item.Symbol, Detail: t.IsCompletedSuccessfully ? t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+        var techTasks = items.Select(item =>
+            _technicalService.AnalyzeAsync(item.Symbol, ct)
+                .ContinueWith(t => (item.Symbol, Tech: t.IsCompletedSuccessfully ? (dynamic?)t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+
+        try { await Task.WhenAll(detailTasks.Cast<Task>().Concat(techTasks)).WaitAsync(TimeSpan.FromSeconds(10), ct); }
+        catch (TimeoutException) { /* Continue with whatever completed */ }
+
+        var detailMap = new Dictionary<string, StockDetailInfo>();
+        foreach (var t in detailTasks) { if (t.IsCompletedSuccessfully) { var r = t.Result; if (r.Detail != null) detailMap[r.Symbol] = r.Detail; } }
+        var techMap = new Dictionary<string, dynamic>();
+        foreach (var t in techTasks) { if (t.IsCompletedSuccessfully) { var r = t.Result; if (r.Tech != null) techMap[r.Symbol] = r.Tech; } }
+
         sb.AppendLine();
         sb.AppendLine("| Mã | Ghi chú | Giá mua mục tiêu | Giá bán mục tiêu | Giá hiện tại | Thay đổi | Tín hiệu |");
         sb.AppendLine("|-----|---------|------------------|------------------|-------------|----------|----------|");
@@ -1401,24 +1441,14 @@ Nhiệm vụ: Phân tích giao dịch toàn diện.
             var change = "—";
             var signal = "—";
 
-            try
+            if (detailMap.TryGetValue(item.Symbol, out var detail))
             {
-                var detail = await _stockInfoProvider.GetStockDetailAsync(item.Symbol, ct);
-                if (detail != null)
-                {
-                    price = $"{detail.Price:N0}";
-                    change = $"{detail.ChangePercent:+0.0;-0.0}%";
-                }
+                price = $"{detail.Price:N0}";
+                change = $"{detail.ChangePercent:+0.0;-0.0}%";
             }
-            catch { /* Skip */ }
 
-            try
-            {
-                var tech = await _technicalService.AnalyzeAsync(item.Symbol, ct);
-                if (tech != null && tech.DataPoints >= 20)
-                    signal = tech.OverallSignalVi;
-            }
-            catch { /* Skip */ }
+            if (techMap.TryGetValue(item.Symbol, out var tech) && tech?.DataPoints >= 20)
+                signal = tech!.OverallSignalVi;
 
             var note = item.Note?.Replace("|", "/") ?? "—";
             var targetBuy = item.TargetBuyPrice.HasValue ? $"{item.TargetBuyPrice:N0}" : "—";
@@ -1443,8 +1473,28 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
     private async Task<AiContextResult> BuildDailyBriefingContext(
         string userId, string? question, CancellationToken ct)
     {
+        var timeout = TimeSpan.FromSeconds(10);
+
         var portfolios = await _portfolioRepo.GetByUserIdAsync(userId, ct);
         var portfolioList = portfolios.ToList();
+
+        // Parallel: fetch PnL for all portfolios + trade plans + watchlists at once
+        // Use WaitAsync to force timeout — downstream services don't always respect CancellationToken
+        var pnlTasks = portfolioList.Select(p =>
+            _pnlService.CalculatePortfolioPnLAsync(p.Id, ct)
+                .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : null, TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+        var plansTask = _tradePlanRepo.GetActiveByUserIdAsync(userId, ct)
+            .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : Enumerable.Empty<TradePlan>(), TaskContinuationOptions.ExecuteSynchronously);
+        var watchlistsTask = _watchlistRepo.GetByUserIdAsync(userId, ct)
+            .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : Enumerable.Empty<Watchlist>(), TaskContinuationOptions.ExecuteSynchronously);
+
+        try
+        {
+            await Task.WhenAll(pnlTasks.Cast<Task>().Append(plansTask).Append(watchlistsTask))
+                .WaitAsync(timeout, ct);
+        }
+        catch (TimeoutException) { /* Continue with whatever completed */ }
 
         var sb = new StringBuilder();
         sb.AppendLine($"<date>{DateTime.UtcNow:dd/MM/yyyy (dddd)}</date>");
@@ -1453,11 +1503,11 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
         decimal totalInvested = 0, totalValue = 0, totalPnL = 0;
         var allPositions = new List<PositionPnL>();
 
-        foreach (var p in portfolioList)
+        foreach (var task in pnlTasks)
         {
-            try
+            if (task.IsCompletedSuccessfully)
             {
-                var pnl = await _pnlService.CalculatePortfolioPnLAsync(p.Id, ct);
+                var pnl = task.Result;
                 if (pnl != null)
                 {
                     totalInvested += pnl.TotalInvested;
@@ -1466,7 +1516,6 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
                     allPositions.AddRange(pnl.Positions);
                 }
             }
-            catch { /* Skip */ }
         }
 
         sb.AppendLine();
@@ -1503,54 +1552,73 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
         }
 
         // Pending trade plans
-        try
+        if (plansTask.IsCompletedSuccessfully)
         {
-            var plans = await _tradePlanRepo.GetActiveByUserIdAsync(userId, ct);
-            var pendingPlans = plans.Where(p => p.Status.ToString() == "Draft" || p.Status.ToString() == "Ready").ToList();
-            if (pendingPlans.Count > 0)
+            try
             {
-                sb.AppendLine();
-                sb.AppendLine("<pending_plans>");
-                foreach (var p in pendingPlans.Take(5))
-                    sb.AppendLine($"  {p.Symbol} ({p.Direction}) — Entry: {p.EntryPrice:N0}, Status: {p.Status}");
-                sb.AppendLine("</pending_plans>");
-            }
-        }
-        catch { /* Skip */ }
-
-        // Watchlist alerts
-        try
-        {
-            var watchlists = await _watchlistRepo.GetByUserIdAsync(userId, ct);
-            var alertItems = new List<string>();
-            foreach (var wl in watchlists)
-            {
-                foreach (var item in wl.Items.Where(i => i.TargetBuyPrice.HasValue || i.TargetSellPrice.HasValue).Take(10))
+                var plans = plansTask.Result;
+                var pendingPlans = plans.Where(p => p.Status.ToString() == "Draft" || p.Status.ToString() == "Ready").ToList();
+                if (pendingPlans.Count > 0)
                 {
-                    try
-                    {
-                        var detail = await _stockInfoProvider.GetStockDetailAsync(item.Symbol, ct);
-                        if (detail != null)
-                        {
-                            if (item.TargetBuyPrice.HasValue && detail.Price <= item.TargetBuyPrice.Value)
-                                alertItems.Add($"📉 {item.Symbol}: giá {detail.Price:N0} ≤ mục tiêu mua {item.TargetBuyPrice:N0}");
-                            if (item.TargetSellPrice.HasValue && detail.Price >= item.TargetSellPrice.Value)
-                                alertItems.Add($"📈 {item.Symbol}: giá {detail.Price:N0} ≥ mục tiêu bán {item.TargetSellPrice:N0}");
-                        }
-                    }
-                    catch { /* Skip */ }
+                    sb.AppendLine();
+                    sb.AppendLine("<pending_plans>");
+                    foreach (var p in pendingPlans.Take(5))
+                        sb.AppendLine($"  {p.Symbol} ({p.Direction}) — Entry: {p.EntryPrice:N0}, Status: {p.Status}");
+                    sb.AppendLine("</pending_plans>");
                 }
             }
-            if (alertItems.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("<watchlist_alerts>");
-                foreach (var a in alertItems)
-                    sb.AppendLine($"  {a}");
-                sb.AppendLine("</watchlist_alerts>");
-            }
+            catch { /* Skip */ }
         }
-        catch { /* Skip */ }
+
+        // Watchlist alerts — parallel stock detail fetches with timeout
+        if (watchlistsTask.IsCompletedSuccessfully)
+        {
+            try
+            {
+                var watchlists = watchlistsTask.Result;
+                var targetItems = watchlists
+                    .SelectMany(wl => wl.Items)
+                    .Where(i => i.TargetBuyPrice.HasValue || i.TargetSellPrice.HasValue)
+                    .Take(10)
+                    .ToList();
+
+                if (targetItems.Count > 0)
+                {
+                    var detailTasks = targetItems.Select(item =>
+                        _stockInfoProvider.GetStockDetailAsync(item.Symbol, ct)
+                            .ContinueWith(t => (item, detail: t.IsCompletedSuccessfully ? t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
+                    ).ToList();
+
+                    try
+                    {
+                        await Task.WhenAll(detailTasks).WaitAsync(timeout, ct);
+                    }
+                    catch (TimeoutException) { /* Continue with whatever completed */ }
+
+                    var alertItems = new List<string>();
+                    foreach (var task in detailTasks)
+                    {
+                        if (!task.IsCompletedSuccessfully) continue;
+                        var (item, detail) = task.Result;
+                        if (detail == null) continue;
+                        if (item.TargetBuyPrice.HasValue && detail.Price <= item.TargetBuyPrice.Value)
+                            alertItems.Add($"📉 {item.Symbol}: giá {detail.Price:N0} ≤ mục tiêu mua {item.TargetBuyPrice:N0}");
+                        if (item.TargetSellPrice.HasValue && detail.Price >= item.TargetSellPrice.Value)
+                            alertItems.Add($"📈 {item.Symbol}: giá {detail.Price:N0} ≥ mục tiêu bán {item.TargetSellPrice:N0}");
+                    }
+
+                    if (alertItems.Count > 0)
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine("<watchlist_alerts>");
+                        foreach (var a in alertItems)
+                            sb.AppendLine($"  {a}");
+                        sb.AppendLine("</watchlist_alerts>");
+                    }
+                }
+            }
+            catch { /* Skip */ }
+        }
 
         var systemPrompt = BasePrompt + @"
 
