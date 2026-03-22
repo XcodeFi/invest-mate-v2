@@ -318,6 +318,7 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
     this.promptCollapsed = false;
     this.isLoadingPrompt = false;
     this.copySuccess = false;
+    this.mdCache.clear();
   }
 
   private buildPrompt(): void {
@@ -410,9 +411,16 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
     this.startStream(text);
   }
 
+  private mdCache = new Map<string, SafeHtml>();
+
   renderMarkdown(text: string): SafeHtml {
-    const html = marked.parse(text, { async: false }) as string;
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+    let cached = this.mdCache.get(text);
+    if (!cached) {
+      const html = marked.parse(text, { async: false }) as string;
+      cached = this.sanitizer.bypassSecurityTrustHtml(html);
+      this.mdCache.set(text, cached);
+    }
+    return cached;
   }
 
   private startStream(question?: string): void {

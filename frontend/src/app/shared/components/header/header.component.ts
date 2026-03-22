@@ -198,7 +198,7 @@ interface NavGroup {
       class="lg:hidden fixed inset-0 bg-black/20 z-40" style="top: 3.5rem;"></div>
 
     <app-ai-chat-panel [(isOpen)]="showAiPanel" title="Trợ lý AI" useCase="chat"
-      [contextData]="{}">
+      [contextData]="emptyContext">
     </app-ai-chat-panel>
   `,
   styles: [`
@@ -226,6 +226,7 @@ export class HeaderComponent implements OnInit {
   mobileOpenGroup: string | null = null;
   riskScore = -1; // -1 = not loaded yet
   showAiPanel = false;
+  readonly emptyContext = {};
 
   navGroups: NavGroup[] = [
     {

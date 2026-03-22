@@ -297,7 +297,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
       [(isOpen)]="showAiPanel"
       title="AI Phân tích Giao dịch"
       useCase="trade-analysis"
-      [contextData]="{}">
+      [contextData]="emptyContext">
     </app-ai-chat-panel>
   `,
   styles: []
@@ -306,6 +306,7 @@ export class TradesComponent implements OnInit {
   allTrades: TradeResponseItem[] = [];
   filteredTrades: TradeResponseItem[] = [];
   showAiPanel = false;
+  readonly emptyContext = {};
   portfolios: PortfolioSummary[] = [];
   currentPage: number = 1;
   pageSize: number = 10;
