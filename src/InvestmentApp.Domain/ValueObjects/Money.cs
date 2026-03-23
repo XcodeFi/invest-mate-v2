@@ -31,7 +31,7 @@ public class Money : IEquatable<Money>
 
     public bool Equals(Money? other)
     {
-        return other != null && Amount == other.Amount && Currency == other.Currency;
+        return other is not null && Amount == other.Amount && Currency == other.Currency;
     }
 
     public override bool Equals(object? obj) => Equals(obj as Money);

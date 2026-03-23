@@ -25,6 +25,20 @@
 - **Shared directives:** `NumMaskDirective` (số có dấu phân cách), `UppercaseDirective` (uppercase symbol)
 - **Pipes:** `VndCurrencyPipe` (format tiền VND)
 
+## TDD (Test-Driven Development)
+
+- **Bắt buộc viết unit test trước** khi thêm feature mới hoặc thay đổi business logic.
+- Quy trình: **Red → Green → Refactor**
+  1. Viết test cho behavior mong muốn (test fail)
+  2. Implement code để pass test
+  3. Refactor nếu cần
+- **Backend tests:** xUnit + FluentAssertions + Moq, trong thư mục `tests/`
+  - `InvestmentApp.Domain.Tests` — entity, value object tests
+  - `InvestmentApp.Application.Tests` — command/query handler tests (Moq repositories)
+  - `InvestmentApp.Infrastructure.Tests` — service tests (Moq dependencies)
+- **Frontend tests:** Karma + Jasmine (`.spec.ts` files)
+- Chạy `dotnet test` trước khi commit để đảm bảo tất cả tests pass.
+
 ## Code Conventions
 
 - Inline templates trong `@Component({ template: \`...\` })` — không dùng file `.html` riêng.
