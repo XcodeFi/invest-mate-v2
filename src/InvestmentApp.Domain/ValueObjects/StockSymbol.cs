@@ -16,7 +16,7 @@ public class StockSymbol : IEquatable<StockSymbol>
 
     public bool Equals(StockSymbol? other)
     {
-        return other != null && Value == other.Value;
+        return other is not null && Value == other.Value;
     }
 
     public override bool Equals(object? obj) => Equals(obj as StockSymbol);
