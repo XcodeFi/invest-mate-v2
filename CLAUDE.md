@@ -1,10 +1,12 @@
 # Project Guidelines — Investment Mate v2
 
-## Tài liệu tham chiếu
+## Tài liệu tham chiếu (đọc theo thứ tự ưu tiên)
 
-- **Nghiệp vụ & Entity map:** [`docs/business-domain.md`](docs/business-domain.md) — đọc file này trước khi làm bất kỳ thay đổi nào liên quan đến logic nghiệp vụ.
-- **Tính năng theo phase:** [`docs/features.md`](docs/features.md)
-- **Architecture & patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+1. **Architecture & codebase map:** [`docs/architecture.md`](docs/architecture.md) — đọc TRƯỚC khi làm bất kỳ thay đổi nào. Chứa directory structure, key files, service dependencies, API endpoints.
+2. **Nghiệp vụ & Entity map:** [`docs/business-domain.md`](docs/business-domain.md) — entity relationships, business rules, external APIs.
+3. **Project context & decisions:** [`docs/project-context.md`](docs/project-context.md) — goals, UX decisions, improvement plan, known pitfalls.
+4. **Tính năng theo phase:** [`docs/features.md`](docs/features.md)
+5. **Coding patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
 
 ## Vietnamese Text (UI)
 
@@ -38,6 +40,7 @@
   - `InvestmentApp.Infrastructure.Tests` — service tests (Moq dependencies)
 - **Frontend tests:** Karma + Jasmine (`.spec.ts` files)
 - Chạy `dotnet test` trước khi commit để đảm bảo tất cả tests pass.
+- **Sau mỗi fix bug hoặc thêm feature:** chạy lại tests liên quan để verify không regression. Nếu sửa Domain → chạy `dotnet test tests/InvestmentApp.Domain.Tests`, sửa Application → chạy `dotnet test tests/InvestmentApp.Application.Tests`, sửa Infrastructure → chạy `dotnet test tests/InvestmentApp.Infrastructure.Tests`.
 
 ## Code Conventions
 
@@ -53,3 +56,6 @@
   - Thêm/sửa convention, directive, pipe → update `CLAUDE.md` (file này)
   - Release/bugfix → update [`frontend/src/assets/CHANGELOG.md`](frontend/src/assets/CHANGELOG.md)
 - Không commit nếu tài liệu chưa đồng bộ với code.
+
+- **Cập nhật architecture** — thêm/xóa service, controller, repository, feature page, shared component, external integration → update [`docs/architecture.md`](docs/architecture.md)
+- **Cập nhật project context** — phát hiện bug pattern mới, hoàn thành improvement plan item, quyết định UX/architecture quan trọng → update [`docs/project-context.md`](docs/project-context.md)
