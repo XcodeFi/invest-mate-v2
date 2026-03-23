@@ -1,10 +1,12 @@
 # Project Guidelines — Investment Mate v2
 
-## Tài liệu tham chiếu
+## Tài liệu tham chiếu (đọc theo thứ tự ưu tiên)
 
-- **Nghiệp vụ & Entity map:** [`docs/business-domain.md`](docs/business-domain.md) — đọc file này trước khi làm bất kỳ thay đổi nào liên quan đến logic nghiệp vụ.
-- **Tính năng theo phase:** [`docs/features.md`](docs/features.md)
-- **Architecture & patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+1. **Architecture & codebase map:** [`docs/architecture.md`](docs/architecture.md) — đọc TRƯỚC khi làm bất kỳ thay đổi nào. Chứa directory structure, key files, service dependencies, API endpoints.
+2. **Nghiệp vụ & Entity map:** [`docs/business-domain.md`](docs/business-domain.md) — entity relationships, business rules, external APIs.
+3. **Project context & decisions:** [`docs/project-context.md`](docs/project-context.md) — goals, UX decisions, improvement plan, known pitfalls.
+4. **Tính năng theo phase:** [`docs/features.md`](docs/features.md)
+5. **Coding patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
 
 ## Vietnamese Text (UI)
 
