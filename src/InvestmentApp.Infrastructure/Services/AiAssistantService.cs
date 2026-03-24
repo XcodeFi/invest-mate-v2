@@ -24,6 +24,7 @@ public class AiAssistantService : IAiAssistantService
     private readonly IRiskCalculationService _riskService;
     private readonly IRiskProfileRepository _riskProfileRepo;
     private readonly IWatchlistRepository _watchlistRepo;
+    private readonly IComprehensiveStockDataProvider _comprehensiveProvider;
 
     private const string BasePrompt = @"Bạn là trợ lý AI tích hợp trong Investment Mate — ứng dụng quản lý danh mục đầu tư chứng khoán Việt Nam.
 Quy tắc:
@@ -47,7 +48,8 @@ Quy tắc:
         ITechnicalIndicatorService technicalService,
         IRiskCalculationService riskService,
         IRiskProfileRepository riskProfileRepo,
-        IWatchlistRepository watchlistRepo)
+        IWatchlistRepository watchlistRepo,
+        IComprehensiveStockDataProvider comprehensiveProvider)
     {
         _settingsRepo = settingsRepo;
         _encryption = encryption;
@@ -63,6 +65,7 @@ Quy tắc:
         _riskService = riskService;
         _riskProfileRepo = riskProfileRepo;
         _watchlistRepo = watchlistRepo;
+        _comprehensiveProvider = comprehensiveProvider;
     }
 
     // =============================================
@@ -237,6 +240,21 @@ Quy tắc:
             yield return chunk;
     }
 
+    public async IAsyncEnumerable<AiStreamChunk> ComprehensiveAnalysisAsync(
+        string userId, string symbol, string? question,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var (apiKey, model, provider, settings) = await GetUserSettings(userId, ct);
+        if (apiKey == null) { yield return NoApiKeyError(); yield break; }
+
+        var context = await BuildComprehensiveAnalysisContext(userId, symbol, question, ct);
+        if (context.ErrorMessage != null) { yield return new AiStreamChunk { Type = "error", ErrorMessage = context.ErrorMessage }; yield break; }
+
+        var messages = new List<AiChatMessage> { new() { Role = "user", Content = context.UserMessage } };
+        await foreach (var chunk in StreamAndTrackUsage(apiKey, model, provider, context.SystemPrompt, messages, settings!, ct))
+            yield return chunk;
+    }
+
     // =============================================
     // BuildContextAsync — public, no API key needed
     // =============================================
@@ -268,6 +286,10 @@ Quy tắc:
                 "watchlist-scanner" when !string.IsNullOrEmpty(watchlistId) =>
                     await BuildWatchlistScannerContext(userId, watchlistId, question, ct),
                 "daily-briefing" => await BuildDailyBriefingContext(userId, question, ct),
+                "comprehensive-analysis" when !string.IsNullOrEmpty(symbol) =>
+                    await BuildComprehensiveAnalysisContext(userId, symbol, question, ct),
+                "comprehensive-analysis" =>
+                    new AiContextResult { ErrorMessage = "Thiếu mã cổ phiếu (symbol)." },
                 "portfolio-review" or "monthly-summary" or "risk-assessment" =>
                     new AiContextResult { ErrorMessage = "Thiếu portfolioId." },
                 "trade-plan-advisor" =>
@@ -1630,6 +1652,300 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
 5. **Checklist hôm nay**: 3-5 việc cụ thể nhà đầu tư nên làm hôm nay";
 
         var userMessage = question ?? $"Bản tin đầu tư hôm nay:\n\n{sb}";
+        return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
+    }
+
+    private async Task<AiContextResult> BuildComprehensiveAnalysisContext(
+        string userId, string symbol, string? question, CancellationToken ct)
+    {
+        symbol = symbol.ToUpper().Trim();
+
+        // Fetch comprehensive data + technical analysis in parallel
+        var dataTask = _comprehensiveProvider.GetComprehensiveDataAsync(symbol, ct);
+        var technicalTask = _technicalService.AnalyzeAsync(symbol, ct);
+        var stockDetailTask = _stockInfoProvider.GetStockDetailAsync(symbol, ct);
+
+        await Task.WhenAll(
+            dataTask.ContinueWith(_ => { }),
+            technicalTask.ContinueWith(_ => { }),
+            stockDetailTask.ContinueWith(_ => { })
+        );
+
+        var data = dataTask.IsCompletedSuccessfully ? dataTask.Result : null;
+        var technical = technicalTask.IsCompletedSuccessfully ? technicalTask.Result : null;
+        var stockDetail = stockDetailTask.IsCompletedSuccessfully ? stockDetailTask.Result : null;
+
+        if (data == null)
+            return new AiContextResult { ErrorMessage = $"Không tìm thấy dữ liệu tổng hợp cho mã {symbol}." };
+
+        var sb = new StringBuilder();
+
+        // === Section 1: Company Overview ===
+        sb.AppendLine("<company_overview>");
+        sb.AppendLine($"  <symbol>{symbol}</symbol>");
+        if (data.Company != null)
+        {
+            sb.AppendLine($"  <name>{data.Company.CompanyName}</name>");
+            sb.AppendLine($"  <short_name>{data.Company.ShortName}</short_name>");
+            sb.AppendLine($"  <exchange>{data.Company.Exchange}</exchange>");
+            sb.AppendLine($"  <industry>{data.Company.Industry}</industry>");
+            if (data.Company.ListedShares.HasValue)
+                sb.AppendLine($"  <listed_shares>{data.Company.ListedShares:N0}</listed_shares>");
+            if (data.Company.OutstandingShares.HasValue)
+                sb.AppendLine($"  <outstanding_shares>{data.Company.OutstandingShares:N0}</outstanding_shares>");
+            if (data.Company.FreeFloatRate.HasValue)
+                sb.AppendLine($"  <free_float>{data.Company.FreeFloatRate:F0}%</free_float>");
+
+            if (data.Company.MajorShareholders.Count > 0)
+            {
+                sb.AppendLine("  <major_shareholders>");
+                foreach (var sh in data.Company.MajorShareholders)
+                    sb.AppendLine($"    {sh.Name} — {sh.Position} — {sh.Quantity:N0} CP ({sh.Percentage:F2}%)");
+                sb.AppendLine("  </major_shareholders>");
+            }
+
+            if (data.Company.Leaders.Count > 0)
+            {
+                sb.AppendLine("  <leadership>");
+                foreach (var l in data.Company.Leaders)
+                    sb.AppendLine($"    {l.Name} — {l.Position}");
+                sb.AppendLine("  </leadership>");
+            }
+        }
+        if (stockDetail != null)
+        {
+            sb.AppendLine($"  <current_price>{stockDetail.Price:N0} VND</current_price>");
+            sb.AppendLine($"  <change>{stockDetail.ChangePercent:+0.00;-0.00}%</change>");
+            sb.AppendLine($"  <volume>{stockDetail.Volume:N0}</volume>");
+        }
+        sb.AppendLine("</company_overview>");
+
+        // === Section 2: Financial Indicators ===
+        if (data.Indicators != null)
+        {
+            var ind = data.Indicators;
+            sb.AppendLine();
+            sb.AppendLine("<financial_indicators>");
+            sb.AppendLine("| Chỉ số | Năm | 4 quý gần nhất |");
+            sb.AppendLine("|--------|-----|----------------|");
+            if (ind.PE.HasValue) sb.AppendLine($"| P/E | {ind.PE:F2} | {ind.PE4Q:F2} |");
+            if (ind.PB.HasValue) sb.AppendLine($"| P/B | {ind.PB:F2} | {ind.PB4Q:F2} |");
+            if (ind.EPS.HasValue) sb.AppendLine($"| EPS (VND) | {ind.EPS:N0} | {ind.EPS4Q:N0} |");
+            if (ind.ROE.HasValue) sb.AppendLine($"| ROE (%) | {ind.ROE:F2} | {ind.ROE4Q:F2} |");
+            if (ind.ROA.HasValue) sb.AppendLine($"| ROA (%) | {ind.ROA:F2} | {ind.ROA4Q:F2} |");
+            if (ind.EvPerEbitda.HasValue) sb.AppendLine($"| EV/EBITDA | {ind.EvPerEbitda:F2} | — |");
+            if (ind.EvPerEbit.HasValue) sb.AppendLine($"| EV/EBIT | {ind.EvPerEbit:F2} | — |");
+            if (ind.BookValue.HasValue) sb.AppendLine($"| Giá trị sổ sách (VND) | {ind.BookValue:N0} | — |");
+            if (ind.Beta.HasValue) sb.AppendLine($"| Beta | {ind.Beta:F2} | — |");
+            if (ind.MarketCap.HasValue) sb.AppendLine($"| Vốn hóa | {ind.MarketCap / 1_000_000_000_000m:F1} nghìn tỷ VND | — |");
+            if (ind.Min52W.HasValue && ind.Max52W.HasValue)
+                sb.AppendLine($"| Giá 52 tuần | Thấp: {ind.Min52W:N0} | Cao: {ind.Max52W:N0} |");
+            if (ind.AuditFirmName != null)
+                sb.AppendLine($"| Kiểm toán | {ind.AuditFirmName} | Big4: {(ind.AuditIsBig4 == true ? "Có" : "Không")} |");
+            sb.AppendLine("</financial_indicators>");
+        }
+
+        // === Section 3: Quarterly Income Statement ===
+        if (data.IncomeStatements.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<quarterly_income>");
+            sb.AppendLine("| Quý | Doanh thu (tỷ) | LN ròng (tỷ) | LN gộp (tỷ) |");
+            sb.AppendLine("|------|----------------|--------------|-------------|");
+            foreach (var item in data.IncomeStatements)
+            {
+                var rev = item.Revenue.HasValue ? $"{item.Revenue:N0}" : "—";
+                var np = item.NetProfit.HasValue ? $"{item.NetProfit:N0}" : "—";
+                var gp = item.GrossProfit.HasValue ? $"{item.GrossProfit:N0}" : "—";
+                sb.AppendLine($"| {item.Period} | {rev} | {np} | {gp} |");
+            }
+            sb.AppendLine("</quarterly_income>");
+        }
+
+        // === Section 4: Technical Analysis ===
+        if (technical != null && technical.DataPoints >= 20)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<technical_analysis>");
+            sb.AppendLine("| Chỉ báo | Giá trị | Tín hiệu |");
+            sb.AppendLine("|---------|---------|-----------|");
+            if (technical.Ema20.HasValue)
+                sb.AppendLine($"| EMA20 | {technical.Ema20:N0} | {technical.EmaTrend} |");
+            if (technical.Ema50.HasValue)
+                sb.AppendLine($"| EMA50 | {technical.Ema50:N0} | — |");
+            if (technical.Rsi14.HasValue)
+                sb.AppendLine($"| RSI(14) | {technical.Rsi14:F1} | {technical.RsiSignal} |");
+            sb.AppendLine($"| MACD | {technical.MacdLine:F2} | {technical.MacdSignal} |");
+            sb.AppendLine($"| Khối lượng | {technical.VolumeRatio:F1}x avg | {technical.VolumeSignal} |");
+            sb.AppendLine($"| **Tổng hợp** | **{technical.OverallSignalVi}** | {technical.BullishCount}↑ {technical.BearishCount}↓ {technical.NeutralCount}— |");
+            sb.AppendLine("</technical_analysis>");
+
+            if (technical.SupportLevels.Count > 0 || technical.ResistanceLevels.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<support_resistance>");
+                if (technical.SupportLevels.Count > 0)
+                    sb.AppendLine($"  <supports>{string.Join(" | ", technical.SupportLevels.Select(s => $"{s:N0}"))}</supports>");
+                if (technical.ResistanceLevels.Count > 0)
+                    sb.AppendLine($"  <resistances>{string.Join(" | ", technical.ResistanceLevels.Select(r => $"{r:N0}"))}</resistances>");
+                sb.AppendLine("</support_resistance>");
+            }
+        }
+
+        // === Section 5: Peer Comparison ===
+        if (data.Peers.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<peer_comparison>");
+            sb.AppendLine("| Mã | Tên | Giá | P/E | P/B | Vốn hóa (tỷ) | Thay đổi |");
+            sb.AppendLine("|-----|-----|------|------|------|--------------|----------|");
+            foreach (var peer in data.Peers)
+            {
+                var priceStr = peer.Price.HasValue ? $"{peer.Price:N0}" : "—";
+                var peStr = peer.PE.HasValue ? $"{peer.PE:F1}" : "—";
+                var pbStr = peer.PB.HasValue ? $"{peer.PB:F1}" : "—";
+                var mcStr = peer.MarketCap.HasValue ? $"{peer.MarketCap:N0}" : "—";
+                var chgStr = peer.ChangePercent.HasValue ? $"{peer.ChangePercent:+0.0;-0.0}%" : "—";
+                sb.AppendLine($"| {peer.Symbol} | {peer.CompanyName} | {priceStr} | {peStr} | {pbStr} | {mcStr} | {chgStr} |");
+            }
+            sb.AppendLine("</peer_comparison>");
+        }
+
+        // === Section 6: News & Events ===
+        if (data.DividendEvents.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<dividend_events>");
+            foreach (var ev in data.DividendEvents.Take(5))
+                sb.AppendLine($"  [{ev.EventType}] {ev.Description} — Ex: {ev.ExDate}, Pay: {ev.PayDate}");
+            sb.AppendLine("</dividend_events>");
+        }
+
+        if (data.BusinessPlan != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<business_plan>");
+            sb.AppendLine($"  <year>{data.BusinessPlan.Year}</year>");
+            if (data.BusinessPlan.RevenuePlan.HasValue)
+                sb.AppendLine($"  <revenue_target>{data.BusinessPlan.RevenuePlan:N0} tỷ VND</revenue_target>");
+            if (data.BusinessPlan.ProfitPlan.HasValue)
+                sb.AppendLine($"  <profit_target>{data.BusinessPlan.ProfitPlan:N0} tỷ VND</profit_target>");
+            if (data.BusinessPlan.DividendPlan.HasValue)
+                sb.AppendLine($"  <dividend_plan>{data.BusinessPlan.DividendPlan}%</dividend_plan>");
+            sb.AppendLine("</business_plan>");
+        }
+
+        if (data.AnalystReports.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<analyst_reports>");
+            foreach (var r in data.AnalystReports)
+            {
+                sb.AppendLine($"  [{r.Source} - {r.PublishDate}] {r.Title}");
+                if (!string.IsNullOrEmpty(r.Summary))
+                    sb.AppendLine($"    Tóm tắt: {r.Summary}");
+            }
+            sb.AppendLine("</analyst_reports>");
+        }
+
+        // === Section 7: Foreign Trading ===
+        if (data.ForeignTrading.Count > 0)
+        {
+            var totalNetBuy = data.ForeignTrading.Sum(f => f.NetVolume);
+            sb.AppendLine();
+            sb.AppendLine("<foreign_trading>");
+            sb.AppendLine($"  <net_20_sessions>{totalNetBuy:N0} CP ({(totalNetBuy >= 0 ? "MUA RÒNG" : "BÁN RÒNG")})</net_20_sessions>");
+            sb.AppendLine("  <recent_5_days>");
+            foreach (var day in data.ForeignTrading.TakeLast(5))
+                sb.AppendLine($"    {day.Date}: Mua {day.BuyVolume:N0} | Bán {day.SellVolume:N0} | Net {day.NetVolume:+#,0;-#,0}");
+            sb.AppendLine("  </recent_5_days>");
+            sb.AppendLine("</foreign_trading>");
+        }
+
+        // === Section 8: VN-Index Macro ===
+        if (data.MarketIndex != null)
+        {
+            var idx = data.MarketIndex;
+            sb.AppendLine();
+            sb.AppendLine("<vn_index>");
+            sb.AppendLine($"  <value>{idx.Value:F2}</value>");
+            sb.AppendLine($"  <change>{idx.Change:+0.00;-0.00} ({idx.ChangePercent:+0.00;-0.00}%)</change>");
+            sb.AppendLine($"  <advance_decline>{idx.Advances}↑ {idx.Declines}↓ {idx.NoChange}—</advance_decline>");
+            sb.AppendLine($"  <total_volume>{idx.TotalVolume:F1} triệu CP</total_volume>");
+            sb.AppendLine($"  <total_value>{idx.TotalValue:N0} tỷ VND</total_value>");
+            var foreignNet = (idx.ForeignBuyValue ?? 0) - (idx.ForeignSellValue ?? 0);
+            sb.AppendLine($"  <foreign_net>{foreignNet:+#,0;-#,0} tỷ VND</foreign_net>");
+            sb.AppendLine("</vn_index>");
+        }
+
+        // === User position context ===
+        try
+        {
+            var portfolios = await _portfolioRepo.GetByUserIdAsync(userId, ct);
+            foreach (var portfolio in portfolios)
+            {
+                var pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolio.Id, ct);
+                var pos = pnl?.Positions.FirstOrDefault(p => p.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
+                if (pos != null)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("<user_position>");
+                    sb.AppendLine($"  <portfolio>{portfolio.Name}</portfolio>");
+                    sb.AppendLine($"  <quantity>{pos.Quantity:N0}</quantity>");
+                    sb.AppendLine($"  <avg_cost>{pos.AverageCost:N0} VND</avg_cost>");
+                    sb.AppendLine($"  <unrealized_pnl>{pos.TotalPnL:+#,0;-#,0} VND ({pos.TotalPnLPercent:+0.0;-0.0}%)</unrealized_pnl>");
+                    sb.AppendLine("</user_position>");
+                    break;
+                }
+            }
+        }
+        catch { /* Skip if PnL unavailable */ }
+
+        var systemPrompt = BasePrompt + @"
+
+Nhiệm vụ: Tạo BÁO CÁO PHÂN TÍCH TOÀN DIỆN cho mã cổ phiếu. Bắt buộc tuân theo cấu trúc 7 phần:
+
+## 1. TỔNG QUAN DOANH NGHIỆP
+- Mô tả ngắn gọn hoạt động kinh doanh, ngành nghề
+- Cơ cấu cổ đông lớn, ban lãnh đạo chủ chốt
+- Đánh giá chất lượng quản trị (dựa trên kiểm toán, cổ đông)
+
+## 2. PHÂN TÍCH TÀI CHÍNH
+- Đánh giá P/E, P/B so với ngành và thị trường
+- EPS, ROE, ROA — xu hướng tăng hay giảm
+- Doanh thu và lợi nhuận theo quý — tăng trưởng bền vững hay không
+- EV/EBITDA, giá trị sổ sách — định giá hợp lý hay đắt/rẻ
+
+## 3. PHÂN TÍCH KỸ THUẬT
+- Xu hướng ngắn/trung hạn (MA, EMA, MACD)
+- RSI — quá mua/quá bán
+- Vùng hỗ trợ và kháng cự quan trọng
+- Tín hiệu mua/bán cụ thể
+
+## 4. SO SÁNH CÙNG NGÀNH
+- So sánh P/E, P/B với 5 doanh nghiệp cùng ngành
+- Nhận xét vị thế cạnh tranh, điểm mạnh/yếu
+
+## 5. TIN TỨC & SỰ KIỆN
+- ĐHCĐ, chia cổ tức, sự kiện quan trọng sắp tới
+- Kế hoạch kinh doanh mới nhất
+- Tóm tắt báo cáo phân tích từ các CTCK
+
+## 6. YẾU TỐ VĨ MÔ
+- VN-Index hiện tại, xu hướng thị trường
+- Dòng vốn ngoại (mua ròng/bán ròng)
+- Ảnh hưởng macro lên cổ phiếu này
+
+## 7. KẾ HOẠCH GIAO DỊCH
+- **Điểm đánh giá tổng thể**: Chấm 0-100 điểm
+- **Ngắn hạn** (1-2 tuần): Entry, SL, TP, R:R
+- **Trung hạn** (1-3 tháng): Entry, SL, TP, R:R
+- **Khuyến nghị**: MUA / NẮM GIỮ / BÁN — kèm lý do cụ thể
+- **Rủi ro chính**: 3 rủi ro lớn nhất
+
+Yêu cầu: Phân tích dựa trên DỮ LIỆU THỰC được cung cấp, không bịa số liệu. Nếu thiếu dữ liệu, ghi rõ.";
+
+        var userMessage = question ?? $"Phân tích toàn diện mã cổ phiếu {symbol}:\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
     }
 

@@ -127,6 +127,10 @@ export class AiService {
     return this.streamRequest('daily-briefing', { question });
   }
 
+  streamComprehensiveAnalysis(symbol: string, question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('comprehensive-analysis', { symbol, question });
+  }
+
   // --- Build Context (for copy-to-clipboard, no API key needed) ---
 
   buildContext(useCase: string, contextData: any): Observable<AiContextResult> {
