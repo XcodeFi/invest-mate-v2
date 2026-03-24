@@ -16,6 +16,7 @@ public interface IAiAssistantService
     IAsyncEnumerable<AiStreamChunk> AnalyzeTradesAsync(string userId, string? portfolioId, string? question, CancellationToken ct = default);
     IAsyncEnumerable<AiStreamChunk> ScanWatchlistAsync(string userId, string watchlistId, string? question, CancellationToken ct = default);
     IAsyncEnumerable<AiStreamChunk> DailyBriefingAsync(string userId, string? question, CancellationToken ct = default);
+    IAsyncEnumerable<AiStreamChunk> ComprehensiveAnalysisAsync(string userId, string symbol, string? question, CancellationToken ct = default);
 
     // Build context only (for copy-to-clipboard, no API key needed)
     Task<AiContextResult> BuildContextAsync(string useCase, string userId,

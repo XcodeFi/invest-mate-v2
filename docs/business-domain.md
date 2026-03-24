@@ -1,7 +1,7 @@
 # Investment Mate v2 — Bản đồ Nghiệp vụ
 
 > Tài liệu tham chiếu nhanh cho AI agents và developers mới.
-> Cập nhật lần cuối: 2026-03-21
+> Cập nhật lần cuối: 2026-03-24
 
 ---
 
@@ -155,7 +155,21 @@ Bước 5: Nhật ký (update journal đã tạo)
 | Provider | URL | Dữ liệu | Interface | Cache |
 |----------|-----|----------|-----------|-------|
 | **24hmoney** | `api-finance-t19.24hmoney.vn` | Giá real-time, lịch sử giá, chỉ số thị trường, order book, NN, top biến động | `IMarketDataProvider` + `IStockInfoProvider` | 15-30s |
+| **24hmoney (comprehensive)** | `api-finance-t19.24hmoney.vn` | Chỉ số tài chính (P/E, P/B, ROE, ROA, EPS, Beta, MarketCap), BCTC, kế hoạch kinh doanh, cổ tức, cổ phiếu cùng ngành, giao dịch NN, báo cáo phân tích | `IComprehensiveStockDataProvider` | 5 phút |
 | **TCBS** | `apipubaws.tcbs.com.vn` | Fundamental: P/E, P/B, EPS, ROE, ROA, D/E, doanh thu, lợi nhuận, vốn hóa | `IFundamentalDataProvider` | 5 phút |
+
+**24hmoney Comprehensive Endpoints:**
+
+| Endpoint | Mô tả |
+|----------|--------|
+| `/v2/ios/companies/index` | Chỉ số tài chính: P/E, P/B, ROE, ROA, EPS, Beta, MarketCap |
+| `/api/v2/web/company/detail` | Thông tin chi tiết công ty |
+| `/api/v2/web/company/financial-report` | Báo cáo tài chính (BCTC) |
+| `/api/v2/web/company/plan` | Kế hoạch kinh doanh |
+| `/api/v2/web/announcement/dividend-events` | Sự kiện cổ tức |
+| `/api/v2/web/stock-recommend/get_stock_related_bussiness` | Cổ phiếu cùng ngành |
+| `/api/v2/web/stock/foreign-trading-series` | Chuỗi giao dịch nước ngoài |
+| `/api/v2/web/announcement/report-analytics` | Báo cáo phân tích từ CTCK |
 
 ---
 
@@ -180,7 +194,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
 | Fees | `/api/v1/fees` | Phí giao dịch |
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
-| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing** + JSON: build-context (copy prompt) |
+| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis** + JSON: build-context (copy prompt) |
 
 ---
 

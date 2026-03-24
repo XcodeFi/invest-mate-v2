@@ -146,16 +146,31 @@ builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 
-// TCBS fundamental data provider
-var externalApis = builder.Configuration.GetSection("ExternalApis");
-builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>(client =>
+// TCBS fundamental data provider — disabled (API down since 2026-03).
+// Code kept in Infrastructure/Services/Tcbs/ as fallback if 24hmoney becomes unavailable.
+// To re-enable: uncomment the block below and remove the no-op registration.
+// var externalApis = builder.Configuration.GetSection("ExternalApis");
+// builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>(client =>
+// {
+//     client.BaseAddress = new Uri(externalApis["Tcbs:BaseUrl"]!);
+//     client.DefaultRequestHeaders.Add("Accept", "application/json");
+//     client.Timeout = TimeSpan.FromSeconds(externalApis.GetValue("Tcbs:TimeoutSeconds", 15));
+// });
+// builder.Services.AddScoped<IFundamentalDataProvider>(sp =>
+//     sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>());
+
+// No-op fallback — satisfies DI for AiAssistantService._fundamentalProvider
+builder.Services.AddScoped<IFundamentalDataProvider, InvestmentApp.Infrastructure.Services.NoOpFundamentalDataProvider>();
+
+// 24hmoney comprehensive data provider (for AI comprehensive analysis)
+builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyComprehensiveDataProvider>(client =>
 {
-    client.BaseAddress = new Uri(externalApis["Tcbs:BaseUrl"]!);
+    client.BaseAddress = new Uri(mdpConfig["BaseUrl"]!);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
-    client.Timeout = TimeSpan.FromSeconds(externalApis.GetValue("Tcbs:TimeoutSeconds", 15));
+    client.Timeout = TimeSpan.FromSeconds(mdpConfig.GetValue<int>("TimeoutSeconds", 15));
 });
-builder.Services.AddScoped<IFundamentalDataProvider>(sp =>
-    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Tcbs.TcbsFundamentalDataProvider>());
+builder.Services.AddScoped<IComprehensiveStockDataProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyComprehensiveDataProvider>());
 
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));
@@ -167,6 +182,7 @@ builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddTransient<SeedDataService>();
 
 // AI Services
+var externalApis = builder.Configuration.GetSection("ExternalApis");
 builder.Services.AddScoped<IAiSettingsRepository, AiSettingsRepository>();
 builder.Services.AddScoped<IAiKeyEncryptionService, AiKeyEncryptionService>();
 builder.Services.AddHttpClient<ClaudeApiService>(client =>

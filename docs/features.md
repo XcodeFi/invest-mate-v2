@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-21
-> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation
+> **Cập nhật lần cuối:** 2026-03-24
+> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation + Comprehensive Stock Analysis
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -570,6 +570,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | **AI** | `POST /api/v1/ai/trade-analysis` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/watchlist-scanner` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/daily-briefing` (SSE) | ✅ |
+| **AI** | `POST /api/v1/ai/comprehensive-analysis` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/build-context` (JSON) | ✅ |
 
 ---
@@ -605,7 +606,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 
 > **Branch:** `feature/ai-integration`, `feature/enhance-ai-prompts` | **Trạng thái:** ✅ Done
 
-Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung cấp: **Claude (Anthropic)** + **Gemini (Google)**. 11 use case, streaming SSE, mỗi user tự quản API key (mã hóa, mỗi provider riêng). Hỗ trợ **Copy Prompt** để dùng với Claude/Gemini client app (không cần API key). Prompt được làm giàu với cross-referencing data: market data, technical signals, risk profile, historical trades.
+Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung cấp: **Claude (Anthropic)** + **Gemini (Google)**. 12 use case, streaming SSE, mỗi user tự quản API key (mã hóa, mỗi provider riêng). Hỗ trợ **Copy Prompt** để dùng với Claude/Gemini client app (không cần API key). Prompt được làm giàu với cross-referencing data: market data, technical signals, risk profile, historical trades, comprehensive stock data.
 
 ### Multi-provider Architecture
 
@@ -615,7 +616,7 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Factory pattern:** `IAiChatServiceFactory` resolve đúng service theo provider đang chọn (`ClaudeApiService` | `GeminiApiService`)
 - **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 
-### 11 Use Cases
+### 12 Use Cases
 
 | # | Use Case | Trigger | Dữ liệu context |
 |---|----------|---------|------------------|
@@ -630,6 +631,7 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 | 9 | **AI Trade Analysis** | Nút "🤖 AI Phân tích" trên `/trades` | Trades grouped by symbol, win/loss stats, profit factor, plan adherence |
 | 10 | **AI Watchlist Scanner** | Nút "🤖 AI Quét Watchlist" trên `/watchlist` | Watchlist items + current prices + technical signals (top 15) + fundamentals (top 10) |
 | 11 | **AI Daily Briefing** | Nút "🤖 AI Bản tin Hôm nay" trên `/dashboard` | Overall PnL, top positions, risk alerts, pending trade plans, watchlist alerts |
+| 12 | **AI Comprehensive Analysis** | Nút "🤖 AI Phân tích Toàn diện" trên `/market-data` | Chỉ số tài chính (P/E, P/B, ROE, ROA, EPS, Beta, MarketCap), BCTC, kế hoạch kinh doanh, cổ tức, cổ phiếu cùng ngành, giao dịch NN, báo cáo phân tích từ CTCK — dữ liệu toàn diện từ 24hmoney |
 
 ### Backend
 
@@ -638,12 +640,13 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Factory:** `IAiChatServiceFactory` → resolve `ClaudeApiService` hoặc `GeminiApiService` theo provider
 - **Low-level Claude:** `ClaudeApiService` — gọi Anthropic Messages API (`stream: true`), parse SSE events
 - **Low-level Gemini:** `GeminiApiService` — gọi Gemini streaming API, role mapping "assistant" → "model", SSE format
-- **High-level:** `AiAssistantService` — 11 use cases, gather context, build Vietnamese system prompts with XML tagging, track token usage. Enriched prompts with cross-referencing data (market data, technicals, risk profile, historical trades)
+- **High-level:** `AiAssistantService` — 12 use cases, gather context, build Vietnamese system prompts with XML tagging, track token usage. Enriched prompts with cross-referencing data (market data, technicals, risk profile, historical trades, comprehensive stock data)
 - **Context builders:** Refactored — mỗi use case có private `BuildXxxContext()` method trả về `AiContextResult` (systemPrompt + userMessage), dùng chung cho cả streaming lẫn copy-prompt
 - **New dependencies:** `IRiskCalculationService`, `IRiskProfileRepository`, `IWatchlistRepository` — cho phép cross-reference data giữa các domain
 - **XML tagging:** Tất cả prompt dùng XML tags (`<portfolio>`, `<positions>`, `<fundamental_metrics>`, `<technical_signals>`, `<trade_plan>`, etc.) + markdown tables cho dữ liệu có cấu trúc → AI parse chính xác hơn
 - **Fundamental data:** `IFundamentalDataProvider` + `TcbsFundamentalDataProvider` — lấy P/E, P/B, EPS, ROE, ROA, D/E, revenue growth, net profit growth từ TCBS API (`apipubaws.tcbs.com.vn`)
-- **API:** `AiSettingsController` (CRUD) + `AiController` (11 SSE streaming endpoints + 1 JSON build-context endpoint)
+- **Comprehensive stock data:** `IComprehensiveStockDataProvider` + `HmoneyComprehensiveDataProvider` — lấy chỉ số tài chính (P/E, P/B, ROE, ROA, EPS, Beta, MarketCap), BCTC, kế hoạch kinh doanh, cổ tức, cổ phiếu cùng ngành, giao dịch NN, báo cáo phân tích từ 24hmoney API. Models: `HmoneyComprehensiveApiModels.cs`
+- **API:** `AiSettingsController` (CRUD) + `AiController` (12 SSE streaming endpoints + 1 JSON build-context endpoint)
 - **Claude models:** `claude-sonnet-4-6-20250514` (mặc định), `claude-opus-4-6-20250514`
 - **Gemini models:** `gemini-2.0-flash`, `gemini-2.5-flash`, `gemini-2.5-pro`
 

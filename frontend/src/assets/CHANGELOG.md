@@ -2,6 +2,34 @@
 
 ---
 
+## [v2.19.0] — 2026-03-24 · Comprehensive Stock Analysis (12th AI Use Case)
+
+**Branch:** `feature/comprehensive-stock-analysis`
+
+### Thêm mới
+
+- **AI Comprehensive Stock Analysis (use case #12)**: Phân tích toàn diện cổ phiếu kết hợp đa nguồn dữ liệu từ 24hmoney — chỉ số tài chính, báo cáo tài chính, kế hoạch kinh doanh, cổ tức, cổ phiếu cùng ngành, giao dịch nước ngoài, báo cáo phân tích từ CTCK
+  - Nút "🤖 AI Phân tích Toàn diện" trên trang `/market-data`
+  - Endpoint: `POST /api/v1/ai/comprehensive-analysis` (SSE streaming)
+
+### Backend
+
+- `IComprehensiveStockDataProvider` interface (Application layer) — định nghĩa contract cho dữ liệu phân tích toàn diện
+- `HmoneyComprehensiveDataProvider` (Infrastructure/Services/Hmoney/) — tích hợp 8 endpoint 24hmoney:
+  - `/v2/ios/companies/index` — chỉ số tài chính: P/E, P/B, ROE, ROA, EPS, Beta, MarketCap
+  - `/api/v2/web/company/detail` — thông tin chi tiết công ty
+  - `/api/v2/web/company/financial-report` — báo cáo tài chính (BCTC)
+  - `/api/v2/web/company/plan` — kế hoạch kinh doanh
+  - `/api/v2/web/announcement/dividend-events` — sự kiện cổ tức
+  - `/api/v2/web/stock-recommend/get_stock_related_bussiness` — cổ phiếu cùng ngành
+  - `/api/v2/web/stock/foreign-trading-series` — chuỗi giao dịch nước ngoài
+  - `/api/v2/web/announcement/report-analytics` — báo cáo phân tích từ CTCK
+- `HmoneyComprehensiveApiModels.cs` — response DTOs cho các endpoint trên
+- `AiAssistantService`: thêm context builder + streaming method cho comprehensive-analysis (nâng tổng lên 12 use cases)
+- `AiController`: thêm endpoint `POST /ai/comprehensive-analysis` (SSE)
+
+---
+
 ## [v2.18.0] — 2026-03-21 · Enhance AI Prompts & Deep Integration (11 Use Cases)
 
 **Branch:** `feature/enhance-ai-prompts`
