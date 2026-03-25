@@ -1,4 +1,6 @@
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
+using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -18,6 +20,8 @@ public class RiskCalculationService : IRiskCalculationService
     private readonly IStockPriceRepository _stockPriceRepository;
     private readonly IPnLService _pnlService;
     private readonly ICapitalFlowRepository _capitalFlowRepository;
+    private readonly IRiskProfileRepository _riskProfileRepository;
+    private readonly IFundamentalDataProvider _fundamentalDataProvider;
     private readonly ILogger<RiskCalculationService> _logger;
 
     public RiskCalculationService(
@@ -29,6 +33,8 @@ public class RiskCalculationService : IRiskCalculationService
         IStockPriceRepository stockPriceRepository,
         IPnLService pnlService,
         ICapitalFlowRepository capitalFlowRepository,
+        IRiskProfileRepository riskProfileRepository,
+        IFundamentalDataProvider fundamentalDataProvider,
         ILogger<RiskCalculationService> logger)
     {
         _portfolioRepository = portfolioRepository;
@@ -39,6 +45,8 @@ public class RiskCalculationService : IRiskCalculationService
         _stockPriceRepository = stockPriceRepository;
         _pnlService = pnlService;
         _capitalFlowRepository = capitalFlowRepository;
+        _riskProfileRepository = riskProfileRepository;
+        _fundamentalDataProvider = fundamentalDataProvider;
         _logger = logger;
     }
 
@@ -281,6 +289,269 @@ public class RiskCalculationService : IRiskCalculationService
 
         result.Pairs = pairs;
         return result;
+    }
+
+    public async Task<PortfolioOptimizationResult> GetPortfolioOptimizationAsync(string portfolioId, CancellationToken cancellationToken = default)
+    {
+        var result = new PortfolioOptimizationResult { PortfolioId = portfolioId };
+
+        // Get risk profile (or use defaults)
+        var riskProfile = await _riskProfileRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var maxPositionSize = riskProfile?.MaxPositionSizePercent ?? 20m;
+        var maxSectorExposure = riskProfile?.MaxSectorExposurePercent ?? 40m;
+
+        // Get trades and build position data
+        var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var symbols = trades.Select(t => t.Symbol).Distinct().ToList();
+
+        if (!symbols.Any())
+        {
+            result.DiversificationScore = 0m;
+            return result;
+        }
+
+        // Calculate portfolio value
+        var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
+        var totalFlows = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
+        var cashBalance = (portfolio?.InitialCapital ?? 0) + totalFlows - pnlSummary.TotalInvested;
+        var totalValue = Math.Max(pnlSummary.TotalPortfolioValue + cashBalance, pnlSummary.TotalPortfolioValue);
+        result.TotalValue = totalValue;
+
+        if (totalValue <= 0)
+        {
+            result.DiversificationScore = 0m;
+            return result;
+        }
+
+        // Build position data with sector info
+        var positionData = new List<(string Symbol, decimal MarketValue, decimal PositionPercent, string? Sector)>();
+        foreach (var symbol in symbols)
+        {
+            try
+            {
+                var positionPnl = await _pnlService.CalculatePositionPnLAsync(
+                    portfolioId, new StockSymbol(symbol), cancellationToken);
+                if (positionPnl.Quantity <= 0) continue;
+
+                var positionPercent = (positionPnl.MarketValue / totalValue) * 100;
+
+                // Fetch sector data
+                string? sector = null;
+                try
+                {
+                    var fundamentals = await _fundamentalDataProvider.GetFundamentalsAsync(symbol, cancellationToken);
+                    sector = fundamentals?.Industry;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch fundamentals for {Symbol}", symbol);
+                }
+
+                positionData.Add((symbol, positionPnl.MarketValue, positionPercent, sector));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error calculating optimization for {Symbol}", symbol);
+            }
+        }
+
+        // 1. Concentration alerts
+        foreach (var pos in positionData)
+        {
+            if (pos.PositionPercent > maxPositionSize)
+            {
+                var severity = pos.PositionPercent > maxPositionSize * 1.5m ? "danger" : "warning";
+                result.ConcentrationAlerts.Add(new ConcentrationAlert
+                {
+                    Symbol = pos.Symbol,
+                    PositionPercent = Math.Round(pos.PositionPercent, 2),
+                    Limit = maxPositionSize,
+                    Severity = severity
+                });
+            }
+        }
+
+        // 2. Sector diversification
+        var sectorGroups = positionData
+            .Where(p => !string.IsNullOrEmpty(p.Sector))
+            .GroupBy(p => p.Sector!)
+            .ToList();
+
+        foreach (var group in sectorGroups)
+        {
+            var sectorValue = group.Sum(p => p.MarketValue);
+            var exposurePercent = (sectorValue / totalValue) * 100;
+            result.SectorExposures.Add(new SectorExposure
+            {
+                Sector = group.Key,
+                Symbols = group.Select(p => p.Symbol).ToList(),
+                TotalValue = sectorValue,
+                ExposurePercent = Math.Round(exposurePercent, 2),
+                Limit = maxSectorExposure,
+                IsOverweight = exposurePercent > maxSectorExposure
+            });
+        }
+
+        // Add "Không xác định" sector for positions without sector data
+        var unknownSector = positionData.Where(p => string.IsNullOrEmpty(p.Sector)).ToList();
+        if (unknownSector.Any())
+        {
+            var sectorValue = unknownSector.Sum(p => p.MarketValue);
+            result.SectorExposures.Add(new SectorExposure
+            {
+                Sector = "Không xác định",
+                Symbols = unknownSector.Select(p => p.Symbol).ToList(),
+                TotalValue = sectorValue,
+                ExposurePercent = Math.Round((sectorValue / totalValue) * 100, 2),
+                Limit = maxSectorExposure,
+                IsOverweight = false
+            });
+        }
+
+        // 3. Correlation warnings
+        var correlationMatrix = await CalculateCorrelationMatrixAsync(portfolioId, cancellationToken);
+        foreach (var pair in correlationMatrix.Pairs)
+        {
+            if (Math.Abs(pair.Correlation) > 0.5m)
+            {
+                result.CorrelationWarnings.Add(new CorrelationWarning
+                {
+                    Symbol1 = pair.Symbol1,
+                    Symbol2 = pair.Symbol2,
+                    Correlation = Math.Round(pair.Correlation, 4),
+                    RiskLevel = Math.Abs(pair.Correlation) > 0.7m ? "high" : "medium"
+                });
+            }
+        }
+
+        // 4. Diversification score (0-100)
+        result.DiversificationScore = CalculateDiversificationScore(
+            positionData, sectorGroups.Count, result.CorrelationWarnings.Count,
+            result.ConcentrationAlerts.Count, result.SectorExposures.Count(s => s.IsOverweight));
+
+        // 5. Recommendations
+        result.Recommendations = GenerateRecommendations(result, maxPositionSize, maxSectorExposure);
+
+        return result;
+    }
+
+    public async Task<TrailingStopAlertsResult> GetTrailingStopAlertsAsync(string portfolioId, CancellationToken cancellationToken = default)
+    {
+        var result = new TrailingStopAlertsResult { PortfolioId = portfolioId };
+
+        var slTargets = await _stopLossTargetRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+
+        // Filter to active trailing stops only
+        var activeTrailingStops = slTargets
+            .Where(s => s.TrailingStopPercent.HasValue && s.TrailingStopPercent > 0
+                        && !s.IsStopLossTriggered && !s.IsTargetTriggered)
+            .ToList();
+
+        result.TotalActiveTrailingStops = activeTrailingStops.Count;
+
+        foreach (var target in activeTrailingStops)
+        {
+            try
+            {
+                var currentPriceMoney = await _stockPriceService.GetCurrentPriceAsync(
+                    new StockSymbol(target.Symbol));
+                var currentPrice = currentPriceMoney.Amount;
+
+                if (currentPrice <= 0 || !target.TrailingStopPrice.HasValue) continue;
+
+                var trailingStopPrice = target.TrailingStopPrice.Value;
+                var distancePercent = currentPrice > 0
+                    ? ((currentPrice - trailingStopPrice) / currentPrice) * 100
+                    : 0;
+
+                // Check if price has risen → suggest new trailing stop
+                var newTrailingStopPrice = currentPrice * (1 - target.TrailingStopPercent!.Value / 100);
+                var shouldUpdate = newTrailingStopPrice > trailingStopPrice;
+
+                var severity = distancePercent <= 2 ? "danger" : distancePercent <= 5 ? "warning" : "safe";
+
+                result.Alerts.Add(new TrailingStopAlert
+                {
+                    Symbol = target.Symbol,
+                    TradeId = target.TradeId,
+                    EntryPrice = target.EntryPrice,
+                    CurrentPrice = currentPrice,
+                    TrailingStopPercent = target.TrailingStopPercent.Value,
+                    TrailingStopPrice = trailingStopPrice,
+                    DistancePercent = Math.Round(distancePercent, 2),
+                    Severity = severity,
+                    ShouldUpdatePrice = shouldUpdate,
+                    NewTrailingStopPrice = shouldUpdate ? Math.Round(newTrailingStopPrice, 0) : null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error checking trailing stop for {Symbol}", target.Symbol);
+            }
+        }
+
+        result.AlertCount = result.Alerts.Count(a => a.Severity != "safe");
+        return result;
+    }
+
+    private static decimal CalculateDiversificationScore(
+        List<(string Symbol, decimal MarketValue, decimal PositionPercent, string? Sector)> positions,
+        int sectorCount, int highCorrelationCount, int concentrationAlertCount, int overweightSectorCount)
+    {
+        if (!positions.Any()) return 0m;
+
+        decimal score = 100m;
+
+        // Penalize for concentration (each alert costs 15 points)
+        score -= concentrationAlertCount * 15m;
+
+        // Penalize for sector overweight (each costs 10 points)
+        score -= overweightSectorCount * 10m;
+
+        // Penalize for high correlation (each costs 5 points)
+        score -= highCorrelationCount * 5m;
+
+        // Bonus for sector diversity (more unique sectors = better)
+        if (sectorCount >= 4) score = Math.Min(score + 10m, 100m);
+        else if (sectorCount >= 3) score = Math.Min(score + 5m, 100m);
+
+        // Bonus for number of positions (3-8 is ideal)
+        if (positions.Count >= 3 && positions.Count <= 8) score = Math.Min(score + 5m, 100m);
+
+        // Penalize for too few positions
+        if (positions.Count == 1) score -= 20m;
+
+        return Math.Max(0m, Math.Min(100m, Math.Round(score, 1)));
+    }
+
+    private static List<string> GenerateRecommendations(
+        PortfolioOptimizationResult result, decimal maxPositionSize, decimal maxSectorExposure)
+    {
+        var recommendations = new List<string>();
+
+        foreach (var alert in result.ConcentrationAlerts)
+        {
+            recommendations.Add(
+                $"Giảm tỷ trọng {alert.Symbol} ({alert.PositionPercent:F1}% > giới hạn {maxPositionSize:F0}%)");
+        }
+
+        foreach (var sector in result.SectorExposures.Where(s => s.IsOverweight))
+        {
+            recommendations.Add(
+                $"Ngành {sector.Sector} chiếm {sector.ExposurePercent:F1}% danh mục (giới hạn {maxSectorExposure:F0}%), cân nhắc đa dạng hóa");
+        }
+
+        foreach (var warning in result.CorrelationWarnings.Where(w => w.RiskLevel == "high"))
+        {
+            recommendations.Add(
+                $"{warning.Symbol1} và {warning.Symbol2} tương quan cao ({warning.Correlation:F2}), rủi ro tập trung");
+        }
+
+        if (result.DiversificationScore >= 80)
+            recommendations.Add("Danh mục đa dạng hóa tốt");
+
+        return recommendations;
     }
 
     private static decimal CalculateCorrelation(List<decimal> x, List<decimal> y)

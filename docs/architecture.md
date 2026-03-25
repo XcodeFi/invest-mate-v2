@@ -85,7 +85,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | Service | Responsibility | Key Dependencies |
 |---------|---------------|-----------------|
 | PnLService | FIFO P&L calculation (realized + unrealized) | ITradeRepository, IStockPriceService |
-| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix | IPnLService, ISnapshotRepo |
+| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider |
 | PerformanceMetricsService | CAGR, Sharpe, Sortino, win rate, profit factor, equity curve | ISnapshotRepo, ITradeRepo |
 | TechnicalIndicatorService | EMA(20/50), RSI(14), MACD(12,26,9), support/resistance | IMarketDataProvider |
 | AiAssistantService | AI prompt building for 12 use cases, streaming responses | 12+ repos and services |

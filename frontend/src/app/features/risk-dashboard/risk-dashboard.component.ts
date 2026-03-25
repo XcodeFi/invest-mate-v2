@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile, PortfolioRiskSummary, DrawdownResult, CorrelationPair, StopLossTargetItem } from '../../core/services/risk.service';
+import { RiskService, RiskProfile, PortfolioRiskSummary, DrawdownResult, CorrelationPair, StopLossTargetItem, PortfolioOptimizationResult, ConcentrationAlert, SectorExposure, CorrelationWarning, TrailingStopAlertsResult, TrailingStopAlert } from '../../core/services/risk.service';
 import { StrategyService, Strategy, StrategyPerformance } from '../../core/services/strategy.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -113,6 +113,144 @@ interface StrategyScore {
                 [class.bg-yellow-500]="item.status === 'warning'"
                 [class.bg-red-500]="item.status === 'danger'"></div>
               <span class="text-gray-600">{{ item.label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Portfolio Optimizer -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6" *ngIf="optimization">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">Tối ưu hóa danh mục</h2>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-500">Điểm đa dạng hóa:</span>
+              <span class="px-3 py-1 rounded-full text-sm font-bold"
+                [class.bg-green-100]="optimization.diversificationScore >= 70"
+                [class.text-green-700]="optimization.diversificationScore >= 70"
+                [class.bg-yellow-100]="optimization.diversificationScore >= 40 && optimization.diversificationScore < 70"
+                [class.text-yellow-700]="optimization.diversificationScore >= 40 && optimization.diversificationScore < 70"
+                [class.bg-red-100]="optimization.diversificationScore < 40"
+                [class.text-red-700]="optimization.diversificationScore < 40">
+                {{ optimization.diversificationScore | number:'1.0-0' }}/100
+              </span>
+            </div>
+          </div>
+
+          <!-- Concentration Alerts -->
+          <div *ngIf="optimization.concentrationAlerts.length > 0" class="mb-4">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Cảnh báo tập trung</h3>
+            <div class="space-y-2">
+              <div *ngFor="let alert of optimization.concentrationAlerts"
+                class="flex items-center justify-between p-3 rounded-lg"
+                [class.bg-red-50]="alert.severity === 'danger'"
+                [class.bg-yellow-50]="alert.severity === 'warning'">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sm">{{ alert.symbol }}</span>
+                  <span class="text-sm text-gray-600">chiếm {{ alert.positionPercent | number:'1.1-1' }}%</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-500">Giới hạn {{ alert.limit | number:'1.0-0' }}%</span>
+                  <span class="px-2 py-0.5 rounded text-xs font-bold"
+                    [class.bg-red-200]="alert.severity === 'danger'" [class.text-red-800]="alert.severity === 'danger'"
+                    [class.bg-yellow-200]="alert.severity === 'warning'" [class.text-yellow-800]="alert.severity === 'warning'">
+                    {{ alert.severity === 'danger' ? 'Nguy hiểm' : 'Cảnh báo' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sector Diversification -->
+          <div class="mb-4">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Phân bổ theo ngành</h3>
+            <div class="space-y-2">
+              <div *ngFor="let sector of optimization.sectorExposures" class="space-y-1">
+                <div class="flex justify-between text-sm">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium" [class.text-red-600]="sector.isOverweight">{{ sector.sector }}</span>
+                    <span class="text-xs text-gray-400">({{ sector.symbols.join(', ') }})</span>
+                  </div>
+                  <span class="font-medium" [class.text-red-600]="sector.isOverweight" [class.text-green-600]="!sector.isOverweight">
+                    {{ sector.exposurePercent | number:'1.1-1' }}%
+                  </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div class="h-2 rounded-full transition-all"
+                    [style.width.%]="Math.min(sector.exposurePercent, 100)"
+                    [class.bg-red-500]="sector.isOverweight" [class.bg-blue-500]="!sector.isOverweight">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Correlation Warnings (from optimization) -->
+          <div *ngIf="optimization.correlationWarnings.length > 0" class="mb-4">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Cặp tương quan cao</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div *ngFor="let w of optimization.correlationWarnings"
+                class="flex justify-between items-center p-2 rounded-lg text-sm"
+                [class.bg-red-50]="w.riskLevel === 'high'" [class.bg-yellow-50]="w.riskLevel === 'medium'">
+                <span class="font-medium">{{ w.symbol1 }} — {{ w.symbol2 }}</span>
+                <span class="font-bold" [class.text-red-700]="w.riskLevel === 'high'" [class.text-yellow-700]="w.riskLevel === 'medium'">
+                  {{ w.correlation | number:'1.2-2' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recommendations -->
+          <div *ngIf="optimization.recommendations.length > 0">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Gợi ý tối ưu</h3>
+            <div class="space-y-1">
+              <div *ngFor="let rec of optimization.recommendations" class="flex items-start gap-2 text-sm text-gray-700">
+                <span class="text-blue-500 mt-0.5">•</span>
+                <span>{{ rec }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="optimizationLoading" class="bg-white rounded-lg shadow p-6 mb-6 text-center text-gray-400">
+          Đang phân tích tối ưu hóa danh mục...
+        </div>
+
+        <!-- Trailing Stop Monitoring -->
+        <div *ngIf="trailingStopAlerts && trailingStopAlerts.alerts.length > 0" class="bg-white rounded-lg shadow p-6 mb-6">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">Giám sát Trailing Stop</h2>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">
+                {{ trailingStopAlerts.totalActiveTrailingStops }} hoạt động
+              </span>
+              <span *ngIf="trailingStopAlerts.alertCount > 0"
+                class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">
+                {{ trailingStopAlerts.alertCount }} cảnh báo
+              </span>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div *ngFor="let alert of trailingStopAlerts.alerts"
+              class="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg gap-2"
+              [class.bg-red-50]="alert.severity === 'danger'"
+              [class.bg-yellow-50]="alert.severity === 'warning'"
+              [class.bg-green-50]="alert.severity === 'safe'">
+              <div class="flex items-center gap-3">
+                <span class="font-bold">{{ alert.symbol }}</span>
+                <span class="text-sm text-gray-600">Giá: {{ alert.currentPrice | number:'1.0-0' }}</span>
+                <span class="text-sm text-gray-600">TS: {{ alert.trailingStopPrice | number:'1.0-0' }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium"
+                  [class.text-red-700]="alert.severity === 'danger'"
+                  [class.text-yellow-700]="alert.severity === 'warning'"
+                  [class.text-green-700]="alert.severity === 'safe'">
+                  {{ alert.distancePercent | number:'1.1-1' }}% tới trigger
+                </span>
+                <span *ngIf="alert.shouldUpdatePrice"
+                  class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                  Nâng TS → {{ alert.newTrailingStopPrice | number:'1.0-0' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -375,6 +513,13 @@ export class RiskDashboardComponent implements OnInit {
   closestSLPercent = 0;
   strategyScores: StrategyScore[] = [];
 
+  // Portfolio Optimization
+  optimization: PortfolioOptimizationResult | null = null;
+  optimizationLoading = false;
+
+  // Trailing Stop Alerts
+  trailingStopAlerts: TrailingStopAlertsResult | null = null;
+
   // Stress Test
   stressScenarios = [
     { label: 'Sập mạnh', marketChange: -20 },
@@ -476,6 +621,25 @@ export class RiskDashboardComponent implements OnInit {
 
     // Load strategy scores
     this.loadStrategyScores();
+
+    // Load portfolio optimization
+    this.optimizationLoading = true;
+    this.riskService.getPortfolioOptimization(this.selectedPortfolioId).subscribe({
+      next: (data) => {
+        this.optimization = data;
+        this.optimizationLoading = false;
+      },
+      error: () => {
+        this.optimization = null;
+        this.optimizationLoading = false;
+      }
+    });
+
+    // Load trailing stop alerts
+    this.riskService.getTrailingStopAlerts(this.selectedPortfolioId).subscribe({
+      next: (data) => this.trailingStopAlerts = data,
+      error: () => this.trailingStopAlerts = null
+    });
   }
 
   buildCompliance(risk: PortfolioRiskSummary, profile: RiskProfile): void {
