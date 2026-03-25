@@ -23,16 +23,16 @@ Transform from "trade recorder" to "opportunity finder":
 
 ## Current Improvement Plan (Round 9, score 9.4/10 → target 10/10)
 
-### Tier 1 — In Progress
+### Tier 1 — Done
 
-1. **Watchlist** — CRUD, batch live prices, VN30 import, target prices, deep link to Trade Plan
-2. **Smart Trade Signals** — EMA/RSI/MACD/Volume analysis, support/resistance, signal summary
-3. **Portfolio Optimizer** — Concentration alerts (>30%), sector diversification, correlation matrix
+1. **Watchlist** — ✅ CRUD, batch live prices, VN30 import, target prices, deep link to Trade Plan
+2. **Smart Trade Signals** — ✅ EMA/RSI/MACD/Volume analysis, support/resistance, signal summary
+3. **Portfolio Optimizer** — ✅ Concentration alerts, sector diversification (via IFundamentalDataProvider), correlation warnings, diversification score, recommendations
 
-### Tier 2 — Planned
+### Tier 2 — Done
 
-4. AI Prompt Enhancement — Richer context for all 11 AI use cases
-5. Risk Dashboard improvements — Position-level risk, trailing stop monitoring
+4. AI Prompt Enhancement — ✅ Richer context for all 12 AI use cases
+5. Risk Dashboard improvements — ✅ Position-level risk (beta, sector, positionVaR), trailing stop monitoring with real-time alerts
 
 ## Common Pitfalls (từ past bugs)
 

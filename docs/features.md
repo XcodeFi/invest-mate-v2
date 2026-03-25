@@ -532,6 +532,8 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | Advanced Analytics | `GET /api/v1/analytics/portfolio/{id}/equity-curve` | ✅ |
 | Risk | `GET/POST /api/v1/risk/portfolio/{id}/profile` | ✅ |
 | Risk | `GET /api/v1/risk/portfolio/{id}/summary` | ✅ |
+| **Risk** | `GET /api/v1/risk/portfolio/{id}/optimization` | ✅ |
+| **Risk** | `GET /api/v1/risk/portfolio/{id}/trailing-stop-alerts` | ✅ |
 | Market Data | `GET /api/v1/market/price/{symbol}` | ✅ |
 | Market Data | `GET /api/v1/market/prices?symbols=...` | ✅ |
 | Market Data | `GET /api/v1/market/index/{symbol}` | ✅ |
@@ -668,6 +670,45 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 | Opus 4.6 | $15/M tokens | $75/M tokens |
 
 **Gemini (Google):** Chi phí tính theo pricing của Google AI Studio, khác nhau theo model và tier.
+
+---
+
+## Portfolio Optimizer & Risk Dashboard Improvements
+
+> **Branch:** `feat/portfolio-optimizer-risk-dashboard` | **Trạng thái:** ✅ Done
+
+### Portfolio Optimizer (`/risk-dashboard`)
+
+Phân tích tối ưu hóa danh mục tích hợp trong trang Risk Dashboard:
+
+- **Concentration Alerts**: Cảnh báo khi vị thế vượt giới hạn MaxPositionSizePercent (từ Risk Profile). Severity: warning (<1.5× limit) / danger (≥1.5× limit)
+- **Sector Diversification**: Nhóm vị thế theo ngành (từ `IFundamentalDataProvider`), tính exposure %, cảnh báo khi vượt MaxSectorExposurePercent
+- **Correlation Warnings**: Hiển thị cặp cổ phiếu tương quan cao (>0.5), phân loại high (>0.7) / medium (>0.5)
+- **Diversification Score**: Điểm 0-100 dựa trên concentration, sector diversity, correlation, số vị thế
+- **Recommendations**: Gợi ý giảm tỷ trọng, đa dạng hóa ngành, cảnh báo tương quan cao
+
+### Risk Dashboard Improvements
+
+- **PositionRiskItem mở rộng**: Thêm `sector`, `beta`, `positionVaR` cho từng vị thế
+- **Trailing Stop Monitoring**: Giám sát trailing stop real-time, cảnh báo khi giá gần trigger (danger ≤2%, warning ≤5%), gợi ý nâng trailing stop khi giá tăng
+
+### Backend
+
+- **CQRS:** `GetPortfolioOptimizationQuery`, `GetTrailingStopAlertsQuery`
+- **Service:** `RiskCalculationService.GetPortfolioOptimizationAsync()`, `GetTrailingStopAlertsAsync()`
+- **Dependencies mới:** `IRiskProfileRepository`, `IFundamentalDataProvider` (inject vào RiskCalculationService)
+
+**API Endpoints:**
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `GET` | `/api/v1/risk/portfolio/{portfolioId}/optimization` | Phân tích tối ưu hóa danh mục |
+| `GET` | `/api/v1/risk/portfolio/{portfolioId}/trailing-stop-alerts` | Cảnh báo trailing stop real-time |
+
+### Frontend
+
+- **Service:** `RiskService` — thêm `getPortfolioOptimization()`, `getTrailingStopAlerts()`
+- **UI:** Tích hợp trong `risk-dashboard.component.ts` — section Tối ưu hóa danh mục + Giám sát Trailing Stop
 
 ---
 

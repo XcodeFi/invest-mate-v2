@@ -5,6 +5,8 @@ using InvestmentApp.Application.Risk.Queries.GetPortfolioRisk;
 using InvestmentApp.Application.Risk.Queries.GetDrawdown;
 using InvestmentApp.Application.Risk.Queries.GetStopLossTargets;
 using InvestmentApp.Application.Risk.Queries.GetCorrelation;
+using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
+using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -134,5 +136,37 @@ public class RiskController : ControllerBase
         command.UserId = GetUserId();
         var id = await _mediator.Send(command);
         return Ok(new { id });
+    }
+
+    /// <summary>
+    /// Get portfolio optimization analysis (concentration, sector diversification, correlation warnings)
+    /// </summary>
+    [HttpGet("portfolio/{portfolioId}/optimization")]
+    [ProducesResponseType(typeof(PortfolioOptimizationResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPortfolioOptimization(string portfolioId)
+    {
+        var query = new GetPortfolioOptimizationQuery
+        {
+            PortfolioId = portfolioId,
+            UserId = GetUserId()
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get trailing stop alerts with real-time price monitoring
+    /// </summary>
+    [HttpGet("portfolio/{portfolioId}/trailing-stop-alerts")]
+    [ProducesResponseType(typeof(TrailingStopAlertsResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTrailingStopAlerts(string portfolioId)
+    {
+        var query = new GetTrailingStopAlertsQuery
+        {
+            PortfolioId = portfolioId,
+            UserId = GetUserId()
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 }

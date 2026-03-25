@@ -2,6 +2,42 @@
 
 ---
 
+## [v2.20.0] — 2026-03-25 · Portfolio Optimizer & Risk Dashboard Improvements
+
+**Branch:** `feat/portfolio-optimizer-risk-dashboard`
+
+### Thêm mới
+
+- **Portfolio Optimizer** — phân tích tối ưu hóa danh mục trên trang `/risk-dashboard`:
+  - **Cảnh báo tập trung**: cảnh báo khi vị thế vượt giới hạn MaxPositionSizePercent (warning/danger)
+  - **Phân bổ theo ngành**: nhóm vị thế theo ngành từ `IFundamentalDataProvider`, cảnh báo khi vượt MaxSectorExposurePercent
+  - **Cặp tương quan cao**: cảnh báo cặp CP tương quan >0.5 (medium) / >0.7 (high)
+  - **Điểm đa dạng hóa**: score 0-100 dựa trên concentration, sector, correlation, số vị thế
+  - **Gợi ý tối ưu**: khuyến nghị giảm tỷ trọng, đa dạng hóa ngành
+- **Trailing Stop Monitoring** — giám sát trailing stop real-time trên `/risk-dashboard`:
+  - Cảnh báo theo severity: danger (≤2%), warning (≤5%), safe (>5%)
+  - Gợi ý nâng trailing stop khi giá tăng cao hơn mức cũ
+- **PositionRiskItem mở rộng** — thêm `sector`, `beta`, `positionVaR` cho từng vị thế
+
+### Backend
+
+- `GetPortfolioOptimizationQuery` + handler (CQRS) — phân tích tối ưu hóa danh mục
+- `GetTrailingStopAlertsQuery` + handler (CQRS) — cảnh báo trailing stop
+- `RiskCalculationService` — thêm `GetPortfolioOptimizationAsync()`, `GetTrailingStopAlertsAsync()`; inject thêm `IRiskProfileRepository`, `IFundamentalDataProvider`
+- API mới: `GET /api/v1/risk/portfolio/{id}/optimization`, `GET /api/v1/risk/portfolio/{id}/trailing-stop-alerts`
+
+### Frontend
+
+- `RiskService` — 7 interfaces mới + 2 methods (`getPortfolioOptimization`, `getTrailingStopAlerts`)
+- `RiskDashboardComponent` — 2 sections mới: Tối ưu hóa danh mục + Giám sát Trailing Stop
+
+### Tests
+
+- 8 application handler tests (optimization + trailing stop queries)
+- 13 infrastructure service tests (concentration, sector, correlation, diversification score, trailing stop alerts)
+
+---
+
 ## [v2.19.0] — 2026-03-25 · Progressive Web App (PWA)
 
 **Branch:** `feat/pwa`

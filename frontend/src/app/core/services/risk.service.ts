@@ -40,6 +40,9 @@ export interface PositionRiskItem {
   riskAmount: number | null;
   distanceToStopLossPercent: number;
   distanceToTargetPercent: number;
+  sector: string | null;
+  beta: number | null;
+  positionVaR: number | null;
 }
 
 export interface PortfolioRiskSummary {
@@ -116,6 +119,61 @@ export interface SetStopLossTargetRequest {
   trailingStopPercent?: number;
 }
 
+// Portfolio Optimization
+export interface ConcentrationAlert {
+  symbol: string;
+  positionPercent: number;
+  limit: number;
+  severity: 'warning' | 'danger';
+}
+
+export interface SectorExposure {
+  sector: string;
+  symbols: string[];
+  totalValue: number;
+  exposurePercent: number;
+  limit: number;
+  isOverweight: boolean;
+}
+
+export interface CorrelationWarning {
+  symbol1: string;
+  symbol2: string;
+  correlation: number;
+  riskLevel: 'high' | 'medium';
+}
+
+export interface PortfolioOptimizationResult {
+  portfolioId: string;
+  totalValue: number;
+  diversificationScore: number;
+  concentrationAlerts: ConcentrationAlert[];
+  sectorExposures: SectorExposure[];
+  correlationWarnings: CorrelationWarning[];
+  recommendations: string[];
+}
+
+// Trailing Stop Alerts
+export interface TrailingStopAlert {
+  symbol: string;
+  tradeId: string;
+  entryPrice: number;
+  currentPrice: number;
+  trailingStopPercent: number;
+  trailingStopPrice: number;
+  distancePercent: number;
+  severity: 'danger' | 'warning' | 'safe';
+  shouldUpdatePrice: boolean;
+  newTrailingStopPrice: number | null;
+}
+
+export interface TrailingStopAlertsResult {
+  portfolioId: string;
+  alerts: TrailingStopAlert[];
+  totalActiveTrailingStops: number;
+  alertCount: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -167,6 +225,16 @@ export class RiskService {
 
   setStopLossTarget(data: SetStopLossTargetRequest): Observable<{ id: string }> {
     return this.http.post<{ id: string }>(`${this.API_URL}/stop-loss`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getPortfolioOptimization(portfolioId: string): Observable<PortfolioOptimizationResult> {
+    return this.http.get<PortfolioOptimizationResult>(`${this.API_URL}/portfolio/${portfolioId}/optimization`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getTrailingStopAlerts(portfolioId: string): Observable<TrailingStopAlertsResult> {
+    return this.http.get<TrailingStopAlertsResult>(`${this.API_URL}/portfolio/${portfolioId}/trailing-stop-alerts`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

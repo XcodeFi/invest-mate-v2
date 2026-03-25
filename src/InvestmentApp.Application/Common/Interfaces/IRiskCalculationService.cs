@@ -1,3 +1,6 @@
+using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
+using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
+
 namespace InvestmentApp.Application.Interfaces;
 
 /// <summary>
@@ -29,6 +32,16 @@ public interface IRiskCalculationService
     /// Calculates symbol correlation matrix for portfolio positions.
     /// </summary>
     Task<CorrelationMatrix> CalculateCorrelationMatrixAsync(string portfolioId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Analyzes portfolio for optimization: concentration, sector diversification, correlation warnings.
+    /// </summary>
+    Task<PortfolioOptimizationResult> GetPortfolioOptimizationAsync(string portfolioId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets trailing stop alerts with real-time price comparison.
+    /// </summary>
+    Task<TrailingStopAlertsResult> GetTrailingStopAlertsAsync(string portfolioId, CancellationToken cancellationToken = default);
 }
 
 public class PortfolioRiskSummary
@@ -56,6 +69,9 @@ public class PositionRiskItem
     public decimal? RiskAmount { get; set; }
     public decimal DistanceToStopLossPercent { get; set; }
     public decimal DistanceToTargetPercent { get; set; }
+    public string? Sector { get; set; }
+    public decimal? Beta { get; set; }
+    public decimal? PositionVaR { get; set; }
 }
 
 public class DrawdownResult
