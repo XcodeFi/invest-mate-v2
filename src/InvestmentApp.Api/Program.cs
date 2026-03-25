@@ -183,9 +183,15 @@ builder.Services.AddHttpClient<GeminiApiService>(client =>
 builder.Services.AddScoped<IAiChatServiceFactory, AiChatServiceFactory>();
 builder.Services.AddScoped<IAiAssistantService, AiAssistantService>();
 
-// Configure Data Protection for OAuth state cookies
+// Configure Data Protection — persist keys to MongoDB so they survive Cloud Run restarts/deploys
+var dpMongoClient = new MongoClient(builder.Configuration.GetConnectionString("MongoDb"));
+var dpMongoDb = dpMongoClient.GetDatabase(builder.Configuration["MongoDb:DatabaseName"] ?? "InvestmentApp");
 builder.Services.AddDataProtection()
-    .SetApplicationName("InvestmentApp");
+    .SetApplicationName("InvestmentApp")
+    .AddKeyManagementOptions(options =>
+    {
+        options.XmlRepository = new InvestmentApp.Infrastructure.Services.MongoDbXmlRepository(dpMongoDb);
+    });
 
 // Configure Authentication & Authorization
 var isDevelopment = builder.Environment.IsDevelopment();
