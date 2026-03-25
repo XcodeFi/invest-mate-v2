@@ -41,7 +41,7 @@ project/
 │       │   ├── risk-dashboard/         # Risk score, drawdown, VaR
 │       │   └── ...                     # (20 more feature pages)
 │       └── shared/
-│           ├── components/             # AiChatPanel, Header, etc.
+│           ├── components/             # AiChatPanel, Header, PwaInstallBanner, etc.
 │           ├── directives/             # UppercaseDirective, NumMaskDirective
 │           └── pipes/                  # VndCurrencyPipe
 │
@@ -135,8 +135,18 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 - **Tailwind CSS** for styling
 - **Services** in `core/services/` call backend API via HttpClient
 - **AiChatPanel** shared component used on multiple pages with different use cases
+- **PwaInstallBannerComponent** — install prompt + update notification banner
+- **PwaService** (`core/services/pwa.service.ts`) — install prompt management, SW update detection
 - **Key directives:** `appUppercase` (symbol input), `appNumMask` (number formatting)
 - **Key pipes:** `VndCurrencyPipe` (format tiền VND)
+
+## PWA
+
+- **Service Worker:** `@angular/service-worker` (ngsw), enabled in production + staging builds
+- **Manifest:** `frontend/src/manifest.webmanifest` — display: standalone, theme: #2563eb
+- **Icons:** `frontend/src/assets/icons/` — SVG icons 72→512px
+- **Caching strategy:** App shell prefetch; API data groups with freshness/performance strategies
+- **ngsw-config:** `frontend/ngsw-config.json`
 
 ## Database
 

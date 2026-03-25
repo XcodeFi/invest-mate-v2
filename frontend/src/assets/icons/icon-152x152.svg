@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background rounded rectangle -->
+  <rect width="512" height="512" rx="96" fill="#2563eb"/>
+  <!-- Chart bars -->
+  <rect x="80" y="320" width="64" height="112" rx="8" fill="#93c5fd"/>
+  <rect x="176" y="240" width="64" height="192" rx="8" fill="#bfdbfe"/>
+  <rect x="272" y="176" width="64" height="256" rx="8" fill="#dbeafe"/>
+  <rect x="368" y="96" width="64" height="336" rx="8" fill="white"/>
+  <!-- Trend line -->
+  <polyline points="112,304 208,224 304,160 400,80" stroke="#fbbf24" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Dots on trend line -->
+  <circle cx="112" cy="304" r="10" fill="#fbbf24"/>
+  <circle cx="208" cy="224" r="10" fill="#fbbf24"/>
+  <circle cx="304" cy="160" r="10" fill="#fbbf24"/>
+  <circle cx="400" cy="80" r="10" fill="#fbbf24"/>
+</svg>
