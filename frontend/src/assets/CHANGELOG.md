@@ -2,6 +2,35 @@
 
 ---
 
+## [v2.19.0] — 2026-03-25 · Progressive Web App (PWA)
+
+**Branch:** `feat/pwa`
+
+### Thêm mới
+
+- **PWA support** — cài đặt ứng dụng lên màn hình chính trên mobile/desktop
+  - `manifest.webmanifest` — app metadata, icons, shortcuts (Dashboard, Danh mục)
+  - `@angular/service-worker` — service worker caching với ngsw
+  - **Offline caching** — shell app cache tự động; API cache theo nhóm:
+    - Market data: 15 giây (freshness)
+    - Portfolio/Positions/PnL: 1 phút (freshness)
+    - Analytics/Risk/Snapshots: 5 phút (performance)
+    - Watchlist/Strategies/Journals: 2 phút (freshness)
+  - **Tự động cập nhật** — banner thông báo khi có phiên bản mới
+  - **Banner cài đặt** — gợi ý cài đặt ứng dụng (có thể bỏ qua, nhớ lựa chọn)
+  - **App icons** — SVG icons cho tất cả kích thước (72→512px)
+  - **Meta tags** — theme-color, apple-mobile-web-app, viewport-fit=cover
+
+### Frontend
+
+- `PwaService` — quản lý install prompt, lắng nghe SW update events
+- `PwaInstallBannerComponent` — banner cài đặt + banner cập nhật
+- `app.component.ts` — thêm `PwaInstallBannerComponent`
+- `main.ts` — `provideServiceWorker` (chỉ bật ở production/staging)
+- `angular.json` — `serviceWorker: ngsw-config.json` cho production + staging
+
+---
+
 ## [v2.19.0] — 2026-03-24 · Comprehensive Stock Analysis (12th AI Use Case)
 
 **Branch:** `feature/comprehensive-stock-analysis`

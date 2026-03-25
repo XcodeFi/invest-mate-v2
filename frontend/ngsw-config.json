@@ -1,0 +1,89 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app-shell",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/favicon.ico",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/*.css",
+          "/*.js"
+        ]
+      }
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/assets/**",
+          "/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"
+        ]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "api-market",
+      "urls": [
+        "/api/v1/market/**"
+      ],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "15s",
+        "timeout": "5s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-portfolio",
+      "urls": [
+        "/api/v1/portfolios/**",
+        "/api/v1/trades/**",
+        "/api/v1/pnl/**",
+        "/api/v1/positions/**"
+      ],
+      "cacheConfig": {
+        "maxSize": 100,
+        "maxAge": "1m",
+        "timeout": "8s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-analytics",
+      "urls": [
+        "/api/v1/analytics/**",
+        "/api/v1/risk/**",
+        "/api/v1/snapshots/**"
+      ],
+      "cacheConfig": {
+        "maxSize": 50,
+        "maxAge": "5m",
+        "timeout": "10s",
+        "strategy": "performance"
+      }
+    },
+    {
+      "name": "api-static",
+      "urls": [
+        "/api/v1/watchlists/**",
+        "/api/v1/strategies/**",
+        "/api/v1/journals/**",
+        "/api/v1/daily-routines/**"
+      ],
+      "cacheConfig": {
+        "maxSize": 100,
+        "maxAge": "2m",
+        "timeout": "8s",
+        "strategy": "freshness"
+      }
+    }
+  ]
+}
