@@ -186,12 +186,14 @@ builder.Services.AddScoped<IAiAssistantService, AiAssistantService>();
 // Configure Data Protection — persist keys to MongoDB so they survive Cloud Run restarts/deploys
 var dpMongoClient = new MongoClient(builder.Configuration.GetConnectionString("MongoDb"));
 var dpMongoDb = dpMongoClient.GetDatabase(builder.Configuration["MongoDb:DatabaseName"] ?? "InvestmentApp");
+var mongoXmlRepository = new InvestmentApp.Infrastructure.Services.MongoDbXmlRepository(dpMongoDb);
 builder.Services.AddDataProtection()
-    .SetApplicationName("InvestmentApp")
-    .AddKeyManagementOptions(options =>
-    {
-        options.XmlRepository = new InvestmentApp.Infrastructure.Services.MongoDbXmlRepository(dpMongoDb);
-    });
+    .SetApplicationName("InvestmentApp");
+// PostConfigure runs AFTER all Configure<T> registrations, ensuring it overrides the default FileSystem repo
+builder.Services.PostConfigure<Microsoft.AspNetCore.DataProtection.KeyManagement.KeyManagementOptions>(options =>
+{
+    options.XmlRepository = mongoXmlRepository;
+});
 
 // Configure Authentication & Authorization
 var isDevelopment = builder.Environment.IsDevelopment();
