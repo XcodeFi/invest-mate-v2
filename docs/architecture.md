@@ -13,13 +13,15 @@ project/
 │   ├── InvestmentApp.Application/      # CQRS handlers, interfaces, DTOs (depends on Domain)
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
-│   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market)
+│   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData)
 │   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~20)
 │   │   └── Services/                   # FeeCalculationService (app-level)
 │   │
 │   ├── InvestmentApp.Infrastructure/   # Implementations (depends on Application + Domain)
 │   │   ├── Services/                   # 20+ service implementations
-│   │   │   ├── Hmoney/                 # 24hmoney market data provider
+│   │   │   ├── Hmoney/                 # 24hmoney market data + comprehensive stock data provider
+│   │   │   │   ├── HmoneyComprehensiveDataProvider.cs  # Comprehensive stock analysis data
+│   │   │   │   └── HmoneyComprehensiveApiModels.cs     # API response models
 │   │   │   └── Tcbs/                   # TCBS fundamental data provider
 │   │   └── Repositories/              # 20 MongoDB repositories
 │   │
@@ -86,7 +88,8 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix | IPnLService, ISnapshotRepo |
 | PerformanceMetricsService | CAGR, Sharpe, Sortino, win rate, profit factor, equity curve | ISnapshotRepo, ITradeRepo |
 | TechnicalIndicatorService | EMA(20/50), RSI(14), MACD(12,26,9), support/resistance | IMarketDataProvider |
-| AiAssistantService | AI prompt building for 11 use cases, streaming responses | 12+ repos and services |
+| AiAssistantService | AI prompt building for 12 use cases, streaming responses | 12+ repos and services |
+| HmoneyComprehensiveDataProvider | Comprehensive stock data from 24hmoney (financials, reports, dividends, foreign trading, recommendations) | HttpClient, IMemoryCache |
 | HmoneyMarketDataProvider | Real-time prices from 24hmoney.vn (prices ×1000 scaling) | HttpClient, IMemoryCache |
 | TcbsFundamentalDataProvider | P/E, EPS, ROE from TCBS API | HttpClient, IMemoryCache |
 | SnapshotService | Daily portfolio snapshots with position weights | IPnLService |
@@ -104,7 +107,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | PnL | `/api/v1/pnl` | Portfolio/position P&L |
 | Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets |
 | Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns |
-| Ai | `/api/v1/ai` | Build context, stream responses, daily briefing |
+| Ai | `/api/v1/ai` | Build context, stream responses, daily briefing, comprehensive analysis |
 | AiSettings | `/api/v1/ai-settings` | Provider/key management |
 | Alerts | `/api/v1/alerts` | Rules CRUD, history, unread count |
 | Watchlists | `/api/v1/watchlists` | CRUD, items, VN30 import |

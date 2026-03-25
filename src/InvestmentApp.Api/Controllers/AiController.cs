@@ -87,6 +87,12 @@ public class AiController : ControllerBase
         public string? Question { get; set; }
     }
 
+    public class ComprehensiveAnalysisRequest
+    {
+        public string Symbol { get; set; } = null!;
+        public string? Question { get; set; }
+    }
+
     public class BuildContextRequest
     {
         public string UseCase { get; set; } = null!;
@@ -176,6 +182,13 @@ public class AiController : ControllerBase
     {
         await StreamResponse(_aiAssistant.DailyBriefingAsync(
             GetUserId(), request.Question, HttpContext.RequestAborted));
+    }
+
+    [HttpPost("comprehensive-analysis")]
+    public async Task StreamComprehensiveAnalysis([FromBody] ComprehensiveAnalysisRequest request)
+    {
+        await StreamResponse(_aiAssistant.ComprehensiveAnalysisAsync(
+            GetUserId(), request.Symbol, request.Question, HttpContext.RequestAborted));
     }
 
     [HttpPost("build-context")]

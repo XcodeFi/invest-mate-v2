@@ -38,7 +38,36 @@
       "Bash(where gh:*)",
       "Read(//c/Program Files/**)",
       "Read(//c/Program Files \\(x86\\)/**)",
-      "mcp__github__create_pull_request"
+      "mcp__github__create_pull_request",
+      "Bash(dotnet test:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(ls d:/invest-mate-v2/project/*.sln)",
+      "mcp__plugin_code-review-graph_code-review-graph__list_graph_stats_tool",
+      "mcp__plugin_code-review-graph_code-review-graph__build_or_update_graph_tool",
+      "Bash($API_URL)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -qiE '(thêm|add |feature|tính năng|implement|tạo |viết|new )' && printf '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"TDD REMINDER: Write unit test FIRST before implementing. Process: Red (test fail) -> Green (pass) -> Refactor. Backend: dotnet test. Frontend: ng test. Run tests after every change.\"}}' || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -qE 'git (commit|push)' && echo '{\"systemMessage\": \"Nhớ cập nhật docs nếu có thay đổi architecture/entity/API/feature/convention:\\ndocs/architecture.md | docs/business-domain.md | docs/features.md | docs/project-context.md | CHANGELOG.md\"}' || true"
+          }
+        ]
+      }
     ]
   }
 }

@@ -173,6 +173,14 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
               </span>
             </div>
           </div>
+
+          <!-- AI Đánh giá button — always visible when stock detail is loaded -->
+          <div class="border-t pt-3 mt-3">
+            <button (click)="openComprehensiveAnalysis()"
+              class="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors">
+              ✨ AI Đánh giá
+            </button>
+          </div>
         </div>
       </div>
 
@@ -313,10 +321,6 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
               class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
               📋 Tạo Trade Plan từ gợi ý
             </a>
-            <button (click)="openAiEvaluation()"
-              class="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors">
-              ✨ AI Đánh giá
-            </button>
           </div>
         </div>
       </div>
@@ -470,8 +474,8 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
     <!-- AI Evaluation Panel -->
     <app-ai-chat-panel
       [(isOpen)]="isAiOpen"
-      [title]="'AI Đánh giá: ' + searchSymbol"
-      [useCase]="'stock-evaluation'"
+      [title]="aiPanelTitle"
+      [useCase]="aiPanelUseCase"
       [contextData]="{ symbol: searchSymbol }">
     </app-ai-chat-panel>
   `
@@ -494,6 +498,8 @@ export class MarketDataComponent implements OnInit {
 
   // AI Evaluation
   isAiOpen = false;
+  aiPanelUseCase = 'stock-evaluation';
+  aiPanelTitle = '';
 
   // Search suggestions
   searchResults: StockSearchResult[] = [];
@@ -566,7 +572,9 @@ export class MarketDataComponent implements OnInit {
 
   // --- AI Evaluation ---
 
-  openAiEvaluation(): void {
+  openComprehensiveAnalysis(): void {
+    this.aiPanelUseCase = 'comprehensive-analysis';
+    this.aiPanelTitle = 'AI Đánh giá: ' + this.searchSymbol;
     this.isAiOpen = true;
   }
 
