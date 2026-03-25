@@ -303,16 +303,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline
-
-// MUST be first: trust X-Forwarded-Proto from Cloud Run / reverse proxies
-// KnownNetworks/KnownProxies cleared so all upstream proxies (GCP load balancer) are trusted
-var forwardedOptions = new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-};
-forwardedOptions.KnownNetworks.Clear();
-forwardedOptions.KnownProxies.Clear();
-app.UseForwardedHeaders(forwardedOptions);
+// Note: ForwardedHeaders handled via ASPNETCORE_FORWARDEDHEADERS_ENABLED env var on Cloud Run
 
 if (!app.Environment.IsDevelopment())
 {
