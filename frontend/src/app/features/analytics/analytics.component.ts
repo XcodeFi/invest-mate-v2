@@ -13,7 +13,9 @@ import {
   MonthlyReturnsData
 } from '../../core/services/advanced-analytics.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
+import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { catchError, of } from 'rxjs';
 
 @Component({
   selector: 'app-analytics',
@@ -104,6 +106,51 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               [class.text-green-600]="advPerformance && advPerformance.winRate >= 50"
               [class.text-red-600]="advPerformance && advPerformance.winRate < 50">
               {{ advPerformance ? (advPerformance.winRate | number:'1.1-1') + '%' : '--' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- TWR/MWR - Hiệu suất điều chỉnh dòng vốn -->
+        <div *ngIf="adjustedReturn && adjustedReturn.flowCount > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-8">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-6">
+              <div class="text-center">
+                <div class="tooltip-trigger text-xs text-gray-500 uppercase tracking-wide">
+                  TWR <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                  <div class="tooltip-box"><strong>TWR — Time-Weighted Return:</strong> Đo hiệu suất chiến lược đầu tư, loại bỏ ảnh hưởng của nạp/rút tiền. Dùng để đánh giá kỹ năng chọn mã, thời điểm mua bán.</div>
+                </div>
+                <div class="text-xl font-bold mt-1"
+                  [class.text-green-600]="adjustedReturn.timeWeightedReturn >= 0"
+                  [class.text-red-600]="adjustedReturn.timeWeightedReturn < 0">
+                  {{ adjustedReturn.timeWeightedReturn >= 0 ? '+' : '' }}{{ adjustedReturn.timeWeightedReturn.toFixed(2) }}%
+                </div>
+                <div class="text-xs text-gray-400 mt-0.5">Kỹ năng đầu tư</div>
+              </div>
+              <div class="text-gray-300 text-lg">vs</div>
+              <div class="text-center">
+                <div class="tooltip-trigger text-xs text-gray-500 uppercase tracking-wide">
+                  MWR <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                  <div class="tooltip-box"><strong>MWR — Money-Weighted Return:</strong> Lợi nhuận thực tế bao gồm ảnh hưởng thời điểm nạp/rút tiền. Nếu nạp tiền đúng lúc thị trường thấp → MWR cao hơn TWR.</div>
+                </div>
+                <div class="text-xl font-bold mt-1"
+                  [class.text-green-600]="adjustedReturn.moneyWeightedReturn >= 0"
+                  [class.text-red-600]="adjustedReturn.moneyWeightedReturn < 0">
+                  {{ adjustedReturn.moneyWeightedReturn >= 0 ? '+' : '' }}{{ adjustedReturn.moneyWeightedReturn.toFixed(2) }}%
+                </div>
+                <div class="text-xs text-gray-400 mt-0.5">Lợi nhuận thực tế</div>
+              </div>
+            </div>
+            <div class="text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2 max-w-md">
+              <span *ngIf="adjustedReturn.timeWeightedReturn > adjustedReturn.moneyWeightedReturn" class="text-amber-600">
+                TWR > MWR: Bạn nạp tiền vào lúc thị trường cao hoặc rút khi thấp
+              </span>
+              <span *ngIf="adjustedReturn.timeWeightedReturn < adjustedReturn.moneyWeightedReturn" class="text-emerald-600">
+                MWR > TWR: Bạn nạp tiền đúng lúc thị trường thấp, timing tốt!
+              </span>
+              <span *ngIf="adjustedReturn.timeWeightedReturn === adjustedReturn.moneyWeightedReturn" class="text-gray-500">
+                TWR = MWR: Dòng vốn không ảnh hưởng đáng kể đến hiệu suất
+              </span>
+              <span class="block text-xs text-gray-400 mt-1">{{ adjustedReturn.flowCount }} lần nạp/rút · Dòng vốn ròng: {{ adjustedReturn.netCashFlow >= 0 ? '+' : '' }}{{ (adjustedReturn.netCashFlow / 1000000).toFixed(1) }} triệu</span>
             </div>
           </div>
         </div>
@@ -451,6 +498,8 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   advPerformance: AdvPerformanceSummary | null = null;
   equityCurve: EquityCurveData | null = null;
   monthlyReturns: MonthlyReturnsData | null = null;
+  adjustedReturn: AdjustedReturn | null = null;
+  flowHistory: CapitalFlowItem[] = [];
   activeTab = 'overview';
 
   tabs = [
@@ -467,7 +516,8 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     private pnlService: PnlService,
     private analyticsService: AnalyticsService,
     private advancedAnalyticsService: AdvancedAnalyticsService,
-    private portfolioService: PortfolioService
+    private portfolioService: PortfolioService,
+    private capitalFlowService: CapitalFlowService
   ) {}
 
   ngOnInit(): void {
@@ -539,6 +589,19 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         if (this.activeTab === 'monthly') setTimeout(() => this.renderMonthlyBarChart());
       },
       error: () => this.monthlyReturns = null
+    });
+
+    // Load TWR/MWR
+    this.capitalFlowService.getTimeWeightedReturn(portfolioId).pipe(catchError(() => of(null))).subscribe(data => {
+      this.adjustedReturn = data;
+    });
+
+    // Load flow history for equity curve markers
+    this.capitalFlowService.getFlowHistory(portfolioId).pipe(catchError(() => of(null))).subscribe(history => {
+      this.flowHistory = history?.flows || [];
+      if (this.activeTab === 'equity' && this.equityCurve) {
+        setTimeout(() => this.renderEquityCurveChart());
+      }
     });
   }
 
@@ -711,21 +774,57 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     const labels = points.map(p => new Date(p.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }));
     const values = points.map(p => p.portfolioValue);
 
+    // Build datasets with flow markers
+    const datasets: any[] = [{
+      label: 'Giá trị danh mục',
+      data: values,
+      borderColor: '#3B82F6',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: points.length > 30 ? 0 : 3,
+      pointHoverRadius: 5,
+      borderWidth: 2
+    }];
+
+    if (this.flowHistory.length > 0) {
+      const depositData: (number | null)[] = new Array(labels.length).fill(null);
+      const withdrawData: (number | null)[] = new Array(labels.length).fill(null);
+      for (const flow of this.flowHistory) {
+        const flowLabel = new Date(flow.flowDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        const idx = labels.indexOf(flowLabel);
+        if (idx === -1) continue;
+        const isInflow = ['Deposit', 'Dividend', 'Interest'].includes(flow.type);
+        if (isInflow) depositData[idx] = values[idx];
+        else withdrawData[idx] = values[idx];
+      }
+      if (depositData.some(d => d !== null)) {
+        datasets.push({
+          label: 'Nạp tiền / Cổ tức',
+          data: depositData,
+          pointRadius: 7, pointHoverRadius: 9,
+          pointStyle: 'triangle',
+          backgroundColor: '#10b981', borderColor: '#059669',
+          showLine: false, borderWidth: 1
+        });
+      }
+      if (withdrawData.some(d => d !== null)) {
+        datasets.push({
+          label: 'Rút tiền / Phí',
+          data: withdrawData,
+          pointRadius: 7, pointHoverRadius: 9,
+          pointStyle: 'triangle', rotation: 180,
+          backgroundColor: '#ef4444', borderColor: '#dc2626',
+          showLine: false, borderWidth: 1
+        });
+      }
+    }
+
     this.equityCurveChart = new Chart(this.equityCurveCanvas.nativeElement, {
       type: 'line',
       data: {
         labels,
-        datasets: [{
-          label: 'Giá trị danh mục',
-          data: values,
-          borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: points.length > 30 ? 0 : 3,
-          pointHoverRadius: 5,
-          borderWidth: 2
-        }]
+        datasets
       },
       options: {
         responsive: true,

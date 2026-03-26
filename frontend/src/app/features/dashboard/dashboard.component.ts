@@ -11,6 +11,7 @@ import { PositionsService, ActivePosition } from '../../core/services/positions.
 import { NotificationService } from '../../core/services/notification.service';
 import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/services/daily-routine.service';
 import { WatchlistService } from '../../core/services/watchlist.service';
+import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -112,6 +113,22 @@ interface RiskAlert {
               Quản lý Rủi ro →
             </a>
           </div>
+        </div>
+
+        <!-- Smart Nudge: Capital Flow -->
+        <div *ngIf="capitalFlowNudge.show" class="mb-6 bg-blue-50 rounded-xl p-4 border border-blue-200 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💰</span>
+            <div>
+              <p class="text-sm font-medium text-blue-800">{{ capitalFlowNudge.message }}</p>
+              <a routerLink="/capital-flows" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Ghi nhận dòng vốn →</a>
+            </div>
+          </div>
+          <button (click)="dismissNudge()" class="text-gray-400 hover:text-gray-600 ml-4">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
 
         <!-- Watchlist + Daily Routine side-by-side on desktop -->
@@ -242,7 +259,7 @@ interface RiskAlert {
         </div>
 
         <!-- Row 1: Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <!-- Tổng Giá trị -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-2">
@@ -263,6 +280,24 @@ interface RiskAlert {
                 {{ totalChangePercent >= 0 ? '+' : '' }}{{ totalChangePercent.toFixed(2) }}%
               </span>
               <span class="text-gray-400 ml-1">so với vốn</span>
+            </div>
+          </div>
+
+          <!-- Tiền mặt khả dụng -->
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-sm font-medium text-gray-500">Tiền mặt khả dụng</p>
+              <div class="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+              </div>
+            </div>
+            <p class="text-2xl font-bold" [class.text-cyan-700]="cashBalance >= 0" [class.text-red-600]="cashBalance < 0">
+              {{ cashBalance | vndCurrency }}
+            </p>
+            <div class="mt-2 text-sm">
+              <a routerLink="/capital-flows" class="text-cyan-600 hover:text-cyan-800 font-medium">Quản lý dòng vốn →</a>
             </div>
           </div>
 
@@ -312,6 +347,12 @@ interface RiskAlert {
             <div class="mt-2 text-sm text-gray-400">
               Thực hiện: {{ pnlSummary.totalRealizedPnL | vndCurrency }}
             </div>
+            <div *ngIf="adjustedReturn" class="mt-1 text-xs">
+              <span class="text-gray-400">TWR: </span>
+              <span class="font-medium" [class.text-emerald-600]="adjustedReturn.timeWeightedReturn >= 0" [class.text-red-500]="adjustedReturn.timeWeightedReturn < 0">
+                {{ adjustedReturn.timeWeightedReturn >= 0 ? '+' : '' }}{{ adjustedReturn.timeWeightedReturn.toFixed(2) }}%
+              </span>
+            </div>
           </div>
 
           <!-- CAGR -->
@@ -339,7 +380,10 @@ interface RiskAlert {
         <!-- Compound Growth Tracker -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Lãi kép (Compound Growth)</h2>
+            <h2 class="tooltip-trigger text-lg font-semibold text-gray-900">Lãi kép (Compound Growth)
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-400 inline-block ml-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+              <div class="tooltip-box"><strong>CAGR — Tăng trưởng kép hàng năm:</strong> Mức lợi nhuận trung bình mỗi năm nếu danh mục tăng trưởng đều đặn. VD: CAGR 15% = vốn nhân đôi sau ~5 năm. Dùng CAGR để đặt mục tiêu dài hạn và so sánh với lãi suất tiết kiệm (~6%) hay VN-Index (~12%/năm).</div>
+            </h2>
             <button (click)="showTargetEditor = !showTargetEditor"
               class="text-xs text-blue-600 hover:text-blue-800 font-medium">
               {{ showTargetEditor ? 'Đóng' : 'Đặt mục tiêu' }}
@@ -791,6 +835,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Watchlist Widget ──────────────────────────────────────────────────
   watchlistTopMovers: BatchPrice[] = [];
 
+  // ─── Capital Flow Visibility ──────────────────────────────────────────
+  cashBalance = 0;
+  adjustedReturn: AdjustedReturn | null = null;
+  capitalFlowNudge: { show: boolean; message: string } = { show: false, message: '' };
+  flowHistory: CapitalFlowItem[] = [];
+
   constructor(
     private authService: AuthService,
     private pnlService: PnlService,
@@ -801,6 +851,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private marketDataService: MarketDataService,
     private dailyRoutineService: DailyRoutineService,
     private watchlistService: WatchlistService,
+    private capitalFlowService: CapitalFlowService,
     private router: Router
   ) {}
 
@@ -867,6 +918,64 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ─── Capital Flow Visibility ──────────────────────────────────────────
+  private loadCapitalFlowData(): void {
+    if (!this.summary?.portfolios?.length) return;
+    const firstPortfolio = this.summary.portfolios[0];
+    const portfolioId = firstPortfolio.portfolioId;
+
+    // Load TWR/MWR
+    this.capitalFlowService.getTimeWeightedReturn(portfolioId).pipe(catchError(() => of(null))).subscribe(data => {
+      this.adjustedReturn = data;
+      if (data) {
+        this.cashBalance = (firstPortfolio.initialCapital || 0) + data.netCashFlow - this.pnlSummary.totalInvested;
+      }
+    });
+
+    // Load flow history for chart markers + smart nudge
+    this.capitalFlowService.getFlowHistory(portfolioId).pipe(catchError(() => of(null))).subscribe(history => {
+      if (history) {
+        this.flowHistory = history.flows || [];
+        // Re-render chart with flow markers
+        if (this.equityCurveData) {
+          setTimeout(() => this.renderMiniEquityChart());
+        }
+        // Smart nudge: check if large equity change without recent flow
+        this.checkSmartNudge(history.flows || []);
+      }
+    });
+  }
+
+  private checkSmartNudge(flows: CapitalFlowItem[]): void {
+    if (!this.equityCurveData?.points?.length || this.equityCurveData.points.length < 2) return;
+    const points = this.equityCurveData.points;
+    const last = points[points.length - 1];
+    const prev = points[points.length - 2];
+    if (!prev.portfolioValue || prev.portfolioValue <= 0) return;
+
+    const changePct = Math.abs((last.portfolioValue - prev.portfolioValue) / prev.portfolioValue) * 100;
+    if (changePct < 20) return; // Only nudge for >20% daily change
+
+    // Check if there's a recent flow (within 3 days)
+    const lastDate = new Date(last.date);
+    const hasRecentFlow = flows.some(f => {
+      const fd = new Date(f.flowDate);
+      return Math.abs(lastDate.getTime() - fd.getTime()) < 3 * 86400000;
+    });
+
+    if (!hasRecentFlow) {
+      const direction = last.portfolioValue > prev.portfolioValue ? 'tăng' : 'giảm';
+      this.capitalFlowNudge = {
+        show: true,
+        message: `Giá trị danh mục ${direction} ${changePct.toFixed(1)}% trong ngày gần nhất. Bạn có nạp/rút tiền không?`
+      };
+    }
+  }
+
+  dismissNudge(): void {
+    this.capitalFlowNudge = { show: false, message: '' };
+  }
+
   private loadMarketOverview(): void {
     this.marketDataService.getMarketOverview().subscribe({
       next: data => this.marketOverview = data,
@@ -911,6 +1020,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cagrValue = 0; // Will be set by equity curve or backend CAGR
         this.loadRiskAlerts(data);
         this.loadEquityCurve();
+        this.loadCapitalFlowData();
       },
       error: () => {
         this.isLoading = false;
@@ -1083,9 +1193,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (perf.cagr !== 0 && isFinite(perf.cagr)) {
           this.cagrValue = Math.max(-99.99, Math.min(9999.99, perf.cagr));
           this.calculateProjections();
+        } else {
+          // Fallback: tính CAGR đơn giản từ P&L khi không có snapshots
+          this.calculateCagr();
         }
       },
-      error: () => {}
+      error: () => {
+        // Fallback: tính CAGR đơn giản từ P&L
+        this.calculateCagr();
+      }
     });
   }
 
@@ -1207,20 +1323,56 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const values = points.map(p => p.portfolioValue);
     const isPositive = values[values.length - 1] >= values[0];
 
+    // Build capital flow scatter data
+    const datasets: any[] = [{
+      data: values,
+      borderColor: isPositive ? '#10b981' : '#ef4444',
+      backgroundColor: isPositive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      borderWidth: 2
+    }];
+
+    if (this.flowHistory.length > 0) {
+      const depositData: (number | null)[] = new Array(labels.length).fill(null);
+      const withdrawData: (number | null)[] = new Array(labels.length).fill(null);
+      for (const flow of this.flowHistory) {
+        const flowLabel = new Date(flow.flowDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        const idx = labels.indexOf(flowLabel);
+        if (idx === -1) continue;
+        const isInflow = ['Deposit', 'Dividend', 'Interest'].includes(flow.type);
+        if (isInflow) depositData[idx] = values[idx];
+        else withdrawData[idx] = values[idx];
+      }
+      if (depositData.some(d => d !== null)) {
+        datasets.push({
+          label: 'Nạp tiền',
+          data: depositData,
+          pointRadius: 6, pointHoverRadius: 8,
+          pointStyle: 'triangle',
+          backgroundColor: '#10b981', borderColor: '#10b981',
+          showLine: false, borderWidth: 0
+        });
+      }
+      if (withdrawData.some(d => d !== null)) {
+        datasets.push({
+          label: 'Rút tiền',
+          data: withdrawData,
+          pointRadius: 6, pointHoverRadius: 8,
+          pointStyle: 'triangle', rotation: 180,
+          backgroundColor: '#ef4444', borderColor: '#ef4444',
+          showLine: false, borderWidth: 0
+        });
+      }
+    }
+
     this.miniEquityChart = new Chart(this.miniEquityCanvas.nativeElement, {
       type: 'line',
       data: {
         labels,
-        datasets: [{
-          data: values,
-          borderColor: isPositive ? '#10b981' : '#ef4444',
-          backgroundColor: isPositive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          borderWidth: 2
-        }]
+        datasets
       },
       options: {
         responsive: true,
@@ -1231,9 +1383,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
             callbacks: {
               label: (ctx) => {
                 const v = ctx.parsed.y ?? 0;
-                if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(1) + ' tỷ';
-                if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1) + ' tr';
-                return v.toLocaleString('vi-VN') + ' đ';
+                const prefix = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
+                if (Math.abs(v) >= 1e9) return prefix + (v / 1e9).toFixed(1) + ' tỷ';
+                if (Math.abs(v) >= 1e6) return prefix + (v / 1e6).toFixed(1) + ' tr';
+                return prefix + v.toLocaleString('vi-VN') + ' đ';
               }
             }
           }

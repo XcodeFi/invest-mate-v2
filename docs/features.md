@@ -673,6 +673,33 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 
 ---
 
+## Capital Flows Visibility
+
+> **Branch:** `feat/capital-flows-visibility` | **Trạng thái:** ✅ Done
+
+Nâng cao vai trò của Capital Flows — từ trang riêng lẻ thành dữ liệu hiển thị xuyên suốt app.
+
+### Dashboard Integration
+
+- **Card "Tiền mặt khả dụng"**: Grid 5 cột, hiển thị cash balance = InitialCapital + NetCashFlow - TotalInvested
+- **TWR % dưới Lãi/Lỗ**: So sánh P&L thô với hiệu suất điều chỉnh dòng vốn
+- **Flow markers trên Equity Curve**: Scatter points tam giác xanh ▲ (Deposit/Dividend/Interest) và đỏ ▼ (Withdraw/Fee)
+- **Smart Nudge banner**: Tự động phát hiện thay đổi giá trị >20% mà không có flow gần đây → gợi ý ghi nhận
+
+### Analytics Integration
+
+- **TWR vs MWR card**: So sánh song song, giải thích context (TWR > MWR = timing kém, MWR > TWR = timing tốt)
+- **Flow markers trên Equity Curve**: Cùng logic với Dashboard, kích thước marker lớn hơn
+
+### Components sửa đổi
+
+| Component                | Thay đổi                                                          |
+|--------------------------|-------------------------------------------------------------------|
+| `dashboard.component.ts` | +CapitalFlowService, +cashBalance card, +TWR, +flow markers, +nudge |
+| `analytics.component.ts` | +CapitalFlowService, +TWR/MWR card, +flow markers                 |
+
+---
+
 ## Portfolio Optimizer & Risk Dashboard Improvements
 
 > **Branch:** `feat/portfolio-optimizer-risk-dashboard` | **Trạng thái:** ✅ Done

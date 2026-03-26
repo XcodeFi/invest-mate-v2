@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.21.0] — 2026-03-26 · Capital Flows Visibility
+
+**Branch:** `feat/capital-flows-visibility`
+
+### Thêm mới
+
+- **Dashboard — Tiền mặt khả dụng**: Card mới hiển thị cash balance (Vốn ban đầu + Dòng vốn ròng - Đã đầu tư), link đến `/capital-flows`
+- **Dashboard — TWR dưới Lãi/Lỗ**: Hiển thị Time-Weighted Return % bên dưới card Tổng Lãi/Lỗ, cho thấy hiệu suất chiến lược thực sự
+- **Analytics — TWR vs MWR card**: So sánh TWR (kỹ năng đầu tư) với MWR (lợi nhuận thực tế), giải thích tự động khi TWR ≠ MWR (timing nạp/rút tiền)
+- **Equity Curve — Flow markers**: Điểm tam giác xanh ▲ (nạp tiền/cổ tức) và đỏ ▼ (rút tiền/phí) overlay trên biểu đồ equity curve ở cả Dashboard và Analytics
+- **Smart Nudge**: Banner gợi ý ghi nhận dòng vốn khi phát hiện giá trị danh mục thay đổi >20% mà không có giao dịch tương ứng
+
+### Frontend
+
+- `dashboard.component.ts` — thêm cash balance card, TWR, flow markers trên mini equity chart, smart nudge banner; inject `CapitalFlowService`
+- `analytics.component.ts` — thêm TWR/MWR comparison card, flow markers trên equity curve chart; inject `CapitalFlowService`
+
+---
+
 ## [v2.20.0] — 2026-03-25 · Portfolio Optimizer & Risk Dashboard Improvements
 
 **Branch:** `feat/portfolio-optimizer-risk-dashboard`
