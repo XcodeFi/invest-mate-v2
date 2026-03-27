@@ -34,6 +34,20 @@
 - Services: `JournalEntryService`, `MarketEventService`
 - Dependency: `lightweight-charts` v4.2.2
 
+### Cải thiện (Code Review)
+
+- Fix memory leak: ResizeObserver disconnect khi destroy component
+- Fix race condition: takeUntil cleanup cho tất cả HTTP subscriptions
+- Fix bảo mật: thêm `rel="noopener noreferrer"` cho link ngoài
+- Fix hiệu năng: gộp N+1 trade query → 1 query `GetByUserPortfoliosAndSymbolAsync`
+- Fix hiệu năng: alert history filter tại DB thay vì load toàn bộ vào memory
+- Fix logic: BUY đầu tiên giờ xuất hiện trong HoldingPeriod.Changes
+- Fix type: `decimal` thay `int` cho Quantity trong holding period DTOs
+- Fix casing: normalize PascalCase → camelCase 1 lần khi nhận data, xóa 25+ fallback patterns
+- Thêm soft delete + UpdatedAt cho MarketEvent entity
+- Thêm validation null cho `symbol` query param (trả 400 thay vì 500)
+- Tách SymbolTimelineController ra file riêng
+
 ### Tests
 
 - Domain: 47 tests (JournalEntry: 30, MarketEvent: 17)
