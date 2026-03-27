@@ -119,6 +119,8 @@ interface PortfolioGroup {
                 [class.border-l-red-500]="pos.unrealizedPnL < 0">
                 <div class="flex items-center gap-3">
                   <span class="text-lg font-bold text-gray-800">{{ pos.symbol }}</span>
+                  <a [routerLink]="['/symbol-timeline', pos.symbol]"
+                    class="text-indigo-600 hover:text-indigo-800 text-xs" title="Xem timeline">📊</a>
                   <span *ngIf="pos.linkedPlan" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
                     Có KH
                   </span>

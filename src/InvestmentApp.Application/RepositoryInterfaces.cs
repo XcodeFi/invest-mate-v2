@@ -25,6 +25,7 @@ public interface ITradeRepository : IRepository<Trade>
 {
     Task<IEnumerable<Trade>> GetByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByPortfolioIdAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Trade>> GetByUserPortfoliosAndSymbolAsync(IEnumerable<string> portfolioIds, string symbol, CancellationToken cancellationToken = default);
 }
 
 public interface IUserRepository : IRepository<User>
@@ -108,6 +109,7 @@ public interface IAlertRuleRepository : IRepository<AlertRule>
 public interface IAlertHistoryRepository : IRepository<AlertHistory>
 {
     Task<IEnumerable<AlertHistory>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<AlertHistory>> GetByUserIdAndSymbolAsync(string userId, string symbol, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default);
     Task<IEnumerable<AlertHistory>> GetUnreadByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(string userId, CancellationToken cancellationToken = default);
 }
@@ -144,6 +146,18 @@ public interface IRoutineTemplateRepository : IRepository<RoutineTemplate>
 {
     Task<IEnumerable<RoutineTemplate>> GetAllForUserAsync(string userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<RoutineTemplate>> GetBuiltInAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IJournalEntryRepository : IRepository<JournalEntry>
+{
+    Task<IEnumerable<JournalEntry>> GetByUserIdAndSymbolAsync(string userId, string symbol, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default);
+    Task<IEnumerable<JournalEntry>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<JournalEntry>> GetByTradeIdAsync(string tradeId, CancellationToken cancellationToken = default);
+}
+
+public interface IMarketEventRepository : IRepository<MarketEvent>
+{
+    Task<IEnumerable<MarketEvent>> GetBySymbolAsync(string symbol, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default);
 }
 
 public interface IAiSettingsRepository : IRepository<Domain.Entities.AiSettings>

@@ -2,6 +2,45 @@
 
 ---
 
+## [v2.23.0] — 2026-03-27 · Symbol Timeline (P7)
+
+**Branch:** `feat/p7-symbol-timeline`
+
+### Thêm mới
+
+- **Symbol Timeline**: Trang dòng thời gian cho mỗi mã CK — biểu đồ nến + nhật ký + giao dịch + sự kiện trên cùng 1 timeline
+- **JournalEntry (standalone)**: Ghi nhật ký bất kỳ lúc nào gắn với symbol — không cần có giao dịch (5 loại: Quan sát / Trước GD / Đang GD / Sau GD / Tổng kết)
+- **MarketEvent**: Thêm sự kiện thị trường (KQKD, cổ tức, tin tức, vĩ mô...) hiển thị trên biểu đồ
+- **Candlestick chart**: Biểu đồ nến với lightweight-charts, markers cho nhật ký/giao dịch/sự kiện/cảnh báo
+- **Emotion Ribbon**: Sub-chart cảm xúc bên dưới biểu đồ nến — màu theo cảm xúc, độ cao theo mức tự tin
+- **Emotion Summary**: Phân tích phân bố cảm xúc, tự tin trung bình, cảm xúc chính
+- **AI Timeline Review**: AI phân tích pattern cảm xúc ↔ giao dịch ↔ kết quả
+- **Unified Timeline API**: Gom nhật ký + giao dịch + sự kiện + cảnh báo, tính holding periods + emotion summary
+- **Quick-add forms**: Ghi nhật ký và thêm sự kiện inline trên trang timeline
+- **Timeline links**: Nút 📊 trên Watchlist, Positions, Trades → navigate đến Symbol Timeline
+
+### Backend
+
+- Entity: `JournalEntry` (Domain) — 5 loại, cảm xúc, snapshot giá, tags, rating
+- Entity: `MarketEvent` (Domain) — 7 loại sự kiện thị trường
+- Repository: `JournalEntryRepository`, `MarketEventRepository` (MongoDB)
+- CQRS: Create/Update/Delete JournalEntry, GetBySymbol, GetSymbolTimeline
+- CQRS: CreateMarketEvent, GetMarketEvents
+- API: `/api/v1/journal-entries`, `/api/v1/symbols/{symbol}/timeline`, `/api/v1/market-events`
+
+### Frontend
+
+- Component: `SymbolTimelineComponent` (`/symbol-timeline/:symbol`)
+- Services: `JournalEntryService`, `MarketEventService`
+- Dependency: `lightweight-charts` v4.2.2
+
+### Tests
+
+- Domain: 47 tests (JournalEntry: 30, MarketEvent: 17)
+- Application: 9 tests (CreateJournalEntryCommandHandler: 5, GetSymbolTimelineQueryHandler: 4)
+
+---
+
 ## [v2.22.0] — 2026-03-27 · Scenario Playbook
 
 **Branch:** `feat/capital-flows-visibility`

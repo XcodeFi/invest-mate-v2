@@ -56,6 +56,17 @@ public class TradeRepository : ITradeRepository
         return await _collection.Find(filter).ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<Trade>> GetByUserPortfoliosAndSymbolAsync(
+        IEnumerable<string> portfolioIds, string symbol, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<Trade>.Filter.And(
+            Builders<Trade>.Filter.In(t => t.PortfolioId, portfolioIds),
+            Builders<Trade>.Filter.Eq(t => t.Symbol, symbol.ToUpper().Trim()));
+        return await _collection.Find(filter)
+            .SortBy(t => t.TradeDate)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Trade entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

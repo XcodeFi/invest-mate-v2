@@ -122,6 +122,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'symbol-timeline/:symbol',
+    loadComponent: () => import('./features/symbol-timeline/symbol-timeline.component').then(m => m.SymbolTimelineComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'ai-settings',
     loadComponent: () => import('./features/ai-settings/ai-settings.component').then(m => m.AiSettingsComponent),
     canActivate: [AuthGuard]

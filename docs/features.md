@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
 > **Cập nhật lần cuối:** 2026-03-26
-> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation + Comprehensive Stock Analysis + Scenario Playbook
+> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation + Comprehensive Stock Analysis + Scenario Playbook + Symbol Timeline (P7)
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -810,6 +810,66 @@ Mỗi node gồm:
 | `TradePlanScenarioTests.cs` (Domain) | 20 |
 | `TriggerScenarioNodeCommandHandlerTests.cs` (Application) | 3 |
 | `ScenarioEvaluationServiceTests.cs` (Infrastructure) | 10 |
+
+---
+
+## P7: Symbol Timeline — Nhật ký trên Biểu đồ Giá
+
+**Branch:** `feat/p7-symbol-timeline`
+
+### Phase 7A: Standalone Journal Entry + Candlestick Chart
+
+**Backend:**
+- `JournalEntry` entity — nhật ký standalone gắn symbol, không cần Trade
+  - 5 loại: Observation / PreTrade / DuringTrade / PostTrade / Review
+  - Cảm xúc (7 trạng thái) + ConfidenceLevel (1-10) + snapshot giá + VN-Index
+  - Optional link: TradeId, TradePlanId, PortfolioId
+- `IJournalEntryRepository` + MongoDB implementation (collection: `journal_entries`)
+- CQRS: CreateJournalEntry, UpdateJournalEntry, DeleteJournalEntry
+- Query: GetJournalEntriesBySymbol, GetSymbolTimeline (unified timeline)
+- API: `POST/PUT/DELETE /api/v1/journal-entries`, `GET /api/v1/symbols/{symbol}/timeline`
+
+**Frontend:**
+- `JournalEntryService` — HTTP service cho JournalEntry + Timeline
+- `SymbolTimelineComponent` (`/symbol-timeline/:symbol`) — trang chính:
+  - Biểu đồ nến (lightweight-charts v4) với OHLCV data
+  - Journal markers (📓), Trade markers (▲/▼), Alert markers (⚠️) trên chart
+  - Holding period zones tính từ BUY/SELL trades
+  - Quick-add form: nhật ký inline với auto-fill giá
+  - Date range selector: 1T / 3T / 6T / 1N
+  - Timeline detail list phía dưới chart
+
+### Phase 7B: Event/News Overlay
+
+**Backend:**
+- `MarketEvent` entity — sự kiện thị trường (7 loại: Earnings, Dividend, RightsIssue, ShareholderMtg, InsiderTrade, News, Macro)
+- `IMarketEventRepository` + MongoDB (collection: `market_events`)
+- API: `POST /api/v1/market-events`, `GET /api/v1/market-events?symbol=...`
+- Events được merge vào Unified Timeline API response
+
+**Frontend:**
+- `MarketEventService` — HTTP service cho sự kiện
+- Event markers trên chart (📊/💰/📰/🏦) với icon theo loại
+- Quick-add event form
+- Filter checkboxes: toggle Nhật ký / Giao dịch / Sự kiện / Cảnh báo
+
+### Phase 7C: Emotion Analytics & AI Review
+
+**Emotion Ribbon (7C.1):**
+- Histogram sub-chart bên dưới candlestick
+- Color mapping: Tự tin=🟢, Bình tĩnh=🔵, Hào hứng=🟡, Lo lắng=🟠, Sợ hãi=🔴, Tham lam=🟣, FOMO=⚫
+- Height = confidence level
+
+**Emotion Summary Panel (7C.2):**
+- Tổng nhật ký, Tự tin TB, Cảm xúc chính
+- Distribution bars theo cảm xúc
+
+**AI Timeline Review (7C.3):**
+- AI chat panel use case `timeline-review`
+- Context: journals + trades + emotion distribution + holding periods
+- AI phân tích pattern cảm xúc → giao dịch → kết quả
+
+**Entry points:** Watchlist 📊, Positions 📊, Trades 📊 → navigate đến Symbol Timeline
 
 ---
 

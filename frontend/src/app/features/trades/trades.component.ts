@@ -132,6 +132,8 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
                       class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">
                       {{ trade.symbol }}
                     </button>
+                    <a [routerLink]="['/symbol-timeline', trade.symbol]"
+                      class="text-indigo-600 hover:text-indigo-800 text-xs ml-1" title="Xem timeline">📊</a>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -212,10 +214,14 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
           <div class="md:hidden divide-y divide-gray-200">
             <div *ngFor="let trade of filteredTrades" class="p-4 space-y-2">
               <div class="flex items-center justify-between">
-                <button (click)="filterBySymbol(trade.symbol)"
-                  class="text-sm font-bold text-blue-600 hover:text-blue-800">
-                  {{ trade.symbol }}
-                </button>
+                <div class="flex items-center gap-1">
+                  <button (click)="filterBySymbol(trade.symbol)"
+                    class="text-sm font-bold text-blue-600 hover:text-blue-800">
+                    {{ trade.symbol }}
+                  </button>
+                  <a [routerLink]="['/symbol-timeline', trade.symbol]"
+                    class="text-indigo-600 hover:text-indigo-800 text-xs" title="Xem timeline">📊</a>
+                </div>
                 <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full"
                   [class]="getTradeTypeClass(trade.tradeType)">
                   {{ getTradeTypeDisplay(trade.tradeType) }}

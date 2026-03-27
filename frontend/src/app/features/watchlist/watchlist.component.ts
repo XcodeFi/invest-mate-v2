@@ -159,6 +159,8 @@ interface WatchlistItemView extends WatchlistItem {
                   <td class="px-4 py-3">
                     <a [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
                       class="font-semibold text-blue-600 hover:underline">{{ item.symbol }}</a>
+                    <a [routerLink]="['/symbol-timeline', item.symbol]"
+                      class="text-indigo-600 hover:text-indigo-800 text-xs ml-1" title="Xem timeline">📊</a>
                   </td>
                   <td class="px-4 py-3 text-right font-mono text-sm">
                     <span *ngIf="item.price">{{ item.price | vndCurrency }}</span>
@@ -229,8 +231,12 @@ interface WatchlistItemView extends WatchlistItem {
           <div class="md:hidden divide-y divide-gray-100">
             <div *ngFor="let item of itemViews" class="p-4">
               <div class="flex items-center justify-between mb-2">
-                <a [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
-                  class="font-semibold text-blue-600 text-lg">{{ item.symbol }}</a>
+                <div class="flex items-center gap-1">
+                  <a [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
+                    class="font-semibold text-blue-600 text-lg">{{ item.symbol }}</a>
+                  <a [routerLink]="['/symbol-timeline', item.symbol]"
+                    class="text-indigo-600 hover:text-indigo-800 text-xs" title="Xem timeline">📊</a>
+                </div>
                 <span class="text-sm font-medium"
                   [class.text-green-600]="(item.changePercent || 0) > 0"
                   [class.text-red-600]="(item.changePercent || 0) < 0">

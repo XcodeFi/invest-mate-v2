@@ -46,6 +46,12 @@ User (1)
  ├── Watchlist (N)           ← Danh sách theo dõi cổ phiếu
  │    └── WatchlistItem (N)  ← Mã CP + ghi chú + giá mục tiêu (embedded)
  │
+ ├── JournalEntry (N)        ← Nhật ký symbol (standalone, không cần Trade)
+ │                              5 loại: Observation/PreTrade/DuringTrade/PostTrade/Review
+ │
+ ├── MarketEvent (N)         ← Sự kiện thị trường (KQKD, cổ tức, tin tức...)
+ │                              7 loại: Earnings/Dividend/RightsIssue/ShareholderMtg/InsiderTrade/News/Macro
+ │
  └── AiSettings (1)          ← Cấu hình AI đa nhà cung cấp (Claude + Gemini)
 ```
 
@@ -68,6 +74,8 @@ User (1)
 | Watchlist | User | N:1 | Nhiều watchlist per user |
 | WatchlistItem | Watchlist | N:1 | Embedded, symbol + note + target prices |
 | AiSettings | User | 1:1 | 1 cấu hình AI per user (multi-provider: Claude + Gemini) |
+| JournalEntry | User+Symbol | N:1 | Standalone, optional link Trade/TradePlan/Portfolio |
+| MarketEvent | Symbol | N:1 | Sự kiện thị trường (manual + auto) |
 
 ---
 
