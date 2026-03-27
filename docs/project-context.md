@@ -34,6 +34,11 @@ Transform from "trade recorder" to "opportunity finder":
 4. AI Prompt Enhancement — ✅ Richer context for all 12 AI use cases
 5. Risk Dashboard improvements — ✅ Position-level risk (beta, sector, positionVaR), trailing stop monitoring with real-time alerts
 
+### Tier 3 — Planned
+
+6. **Capital Flows Visibility** — 🔄 In Progress: TWR/MWR trên Dashboard + Analytics, flow markers trên equity curve, smart nudge, cash balance card
+7. **Tài chính cá nhân** — 📋 Planned: Net Worth overview (4 loại tài khoản: CK/Tiết kiệm/Dự phòng/Nhàn rỗi), Financial Rules compliance (quỹ dự phòng, tỷ lệ đầu tư, tiết kiệm), health scorecard 0-100, Dashboard widget + trang `/personal-finance`. Chi tiết: [`docs/plans/personal-finance.md`](plans/personal-finance.md)
+
 ## Common Pitfalls (từ past bugs)
 
 - **`[contextData]="{}"` in Angular templates** — Creates new object reference every change detection cycle, causes infinite loop. Use `readonly emptyContext = {}` as stable reference.

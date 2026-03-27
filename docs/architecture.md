@@ -7,13 +7,13 @@ project/
 ├── src/
 │   ├── InvestmentApp.Domain/           # Entities, Value Objects, Events (zero dependencies)
 │   │   ├── Entities/                   # 20 aggregate roots + nested classes
-│   │   ├── ValueObjects/               # Money, StockSymbol, Position, WatchlistItem, RoutineItem
-│   │   └── Events/                     # 12 domain event types
+│   │   ├── ValueObjects/               # Money, StockSymbol, Position, WatchlistItem, RoutineItem, ScenarioNode, TrailingStopConfig
+│   │   └── Events/                     # 13 domain event types
 │   │
 │   ├── InvestmentApp.Application/      # CQRS handlers, interfaces, DTOs (depends on Domain)
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
-│   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData)
+│   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation)
 │   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~20)
 │   │   └── Services/                   # FeeCalculationService (app-level)
 │   │
@@ -29,7 +29,7 @@ project/
 │   │   ├── Controllers/               # 22 API controllers
 │   │   └── Program.cs                 # DI registration, middleware pipeline
 │   │
-│   └── InvestmentApp.Worker/           # Background jobs (snapshots, alerts)
+│   └── InvestmentApp.Worker/           # Background jobs (snapshots, alerts, scenario evaluation)
 │
 ├── frontend/                           # Angular 18 SPA
 │   └── src/app/
@@ -48,9 +48,9 @@ project/
 │           └── pipes/                  # VndCurrencyPipe
 │
 ├── tests/
-│   ├── InvestmentApp.Domain.Tests/     # 512 tests (xUnit + FluentAssertions)
-│   ├── InvestmentApp.Application.Tests/# 14 tests (+ Moq)
-│   └── InvestmentApp.Infrastructure.Tests/ # 29 tests
+│   ├── InvestmentApp.Domain.Tests/     # 532 tests (xUnit + FluentAssertions)
+│   ├── InvestmentApp.Application.Tests/# 17 tests (+ Moq)
+│   └── InvestmentApp.Infrastructure.Tests/ # 39 tests
 │
 └── docs/
     ├── architecture.md                 # This file
@@ -72,7 +72,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 |--------|-------------------|
 | Portfolio | Trade management, domain events |
 | Trade | Symbol normalization (ToUpper), fee/tax tracking |
-| TradePlan | State machine (Draft→Ready→InProgress→Executed→Reviewed), multi-lot entry, exit targets, SL history |
+| TradePlan | State machine (Draft→Ready→InProgress→Executed→Reviewed), multi-lot entry, exit targets, SL history, scenario playbook (Simple/Advanced mode, ScenarioNodes decision tree) |
 | CapitalFlow | SignedAmount (Deposit/Dividend=+, Withdraw/Fee=-) |
 | Watchlist | Duplicate detection, bulk import, target prices |
 | DailyRoutine | Streak tracking, completion management, template-based creation |
@@ -94,6 +94,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | TcbsFundamentalDataProvider | P/E, EPS, ROE from TCBS API | HttpClient, IMemoryCache |
 | SnapshotService | Daily portfolio snapshots with position weights | IPnLService |
 | AlertEvaluationService | Price/drawdown/portfolio value alerts | ISnapshotRepo, IStockPriceRepo |
+| ScenarioEvaluationService | Auto-evaluate scenario playbooks every 15 min, trigger actions, create AlertHistory | ITradePlanRepo, IStockPriceService |
 
 ## API Endpoints (22 Controllers)
 
@@ -102,7 +103,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | Auth | `/api/v1/auth` | Google OAuth, JWT token |
 | Portfolios | `/api/v1/portfolios` | CRUD, list by user |
 | Trades | `/api/v1/trades` | CRUD, bulk create, link to plan/strategy |
-| TradePlans | `/api/v1/trade-plans` | CRUD, status transitions, lot execution |
+| TradePlans | `/api/v1/trade-plans` | CRUD, status transitions, lot execution, scenario node trigger, scenario templates |
 | MarketData | `/api/v1/market` | Price, batch prices, search, overview, top fluctuation |
 | PnL | `/api/v1/pnl` | Portfolio/position P&L |
 | Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets |
@@ -160,6 +161,6 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (556 tests)
+- **Backend:** xUnit + FluentAssertions + Moq (588 tests)
 - **Frontend:** Karma + Jasmine (configured, tests pending)
 - Run `dotnet test` before commit

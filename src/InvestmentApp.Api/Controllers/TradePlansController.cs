@@ -5,7 +5,9 @@ using InvestmentApp.Application.TradePlans.Commands.DeleteTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.ExecuteLot;
 using InvestmentApp.Application.TradePlans.Commands.UpdateStopLoss;
 using InvestmentApp.Application.TradePlans.Commands.TriggerExitTarget;
+using InvestmentApp.Application.TradePlans.Commands.TriggerScenarioNode;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
+using InvestmentApp.Application.TradePlans.Queries.GetScenarioTemplates;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -37,6 +39,17 @@ public class TradePlansController : ControllerBase
     {
         var query = new GetTradePlansQuery { UserId = GetUserId(), ActiveOnly = activeOnly };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get scenario preset templates
+    /// </summary>
+    [HttpGet("scenario-templates")]
+    [ProducesResponseType(typeof(List<ScenarioPresetDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetScenarioTemplates()
+    {
+        var result = await _mediator.Send(new GetScenarioTemplatesQuery());
         return Ok(result);
     }
 
@@ -128,6 +141,21 @@ public class TradePlansController : ControllerBase
     {
         command.PlanId = id;
         command.Level = level;
+        command.UserId = GetUserId();
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Trigger a scenario node (manual or auto)
+    /// </summary>
+    [HttpPatch("{id}/scenario-nodes/{nodeId}/trigger")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> TriggerScenarioNode(string id, string nodeId,
+        [FromBody] TriggerScenarioNodeCommand command)
+    {
+        command.PlanId = id;
+        command.NodeId = nodeId;
         command.UserId = GetUserId();
         await _mediator.Send(command);
         return NoContent();

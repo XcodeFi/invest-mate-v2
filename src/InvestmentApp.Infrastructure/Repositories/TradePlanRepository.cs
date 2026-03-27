@@ -67,6 +67,16 @@ public class TradePlanRepository : ITradePlanRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<TradePlan>> GetAdvancedInProgressAsync(CancellationToken cancellationToken = default)
+    {
+        return await _collection.Find(p =>
+                p.ExitStrategyMode == ExitStrategyMode.Advanced &&
+                p.Status == TradePlanStatus.InProgress &&
+                !p.IsDeleted &&
+                p.ScenarioNodes != null)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(TradePlan entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

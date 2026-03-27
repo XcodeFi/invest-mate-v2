@@ -179,6 +179,7 @@ builder.Services.AddScoped<IFeeCalculationService, FeeCalculationService>();
 builder.Services.AddScoped<IPerformanceMetricsService, PerformanceMetricsService>();
 builder.Services.AddScoped<IStrategyPerformanceService, StrategyPerformanceService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
+builder.Services.AddScoped<IScenarioEvaluationService, ScenarioEvaluationService>();
 builder.Services.AddTransient<SeedDataService>();
 
 // AI Services

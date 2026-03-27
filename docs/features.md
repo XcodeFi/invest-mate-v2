@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-24
-> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation + Comprehensive Stock Analysis
+> **Cập nhật lần cuối:** 2026-03-26
+> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation + Comprehensive Stock Analysis + Scenario Playbook
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -67,14 +67,9 @@ Flow 5 bước dẫn dắt giao dịch có kỷ luật:
 
 ### Trade Plan (`/trade-plan`)
 
-Form lập kế hoạch đầy đủ với:
-- Auto-fill giá khi nhập mã CP (debounce 500ms → MarketDataService)
-- Mini stock info card (Open/High/Low/Close/Volume)
-- Position Sizing tự động từ Risk Profile
-- Checklist 13 mục (4 danh mục: Phân tích, Quản lý rủi ro, Tâm lý, Xác nhận)
-- Risk violations enforcement với override confirmation
-- Quick Reference Table (0.5% → 5% risk levels)
-- **Template save/load** (Phase 6)
+> **Tài liệu chi tiết:** [Trade Plans — Tài liệu chi tiết](trade-plans.md)
+
+Module lập kế hoạch giao dịch đầy đủ: Auto-fill giá, Position Sizing, Checklist 13 mục, Multi-lot (ScalingIn/DCA), Exit Targets, **Scenario Playbook** (kịch bản nâng cao với decision tree + tự động đánh giá), Template save/load, Risk enforcement, Order Sheet.
 
 ---
 
@@ -547,6 +542,8 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/lots/{lotNumber}/execute` | ✅ |
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/stop-loss` | ✅ |
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/exit-targets/{level}/trigger` | ✅ |
+| **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/scenario-nodes/{nodeId}/trigger` | ✅ |
+| **Trade Plans** | `GET /api/v1/trade-plans/scenario-templates` | ✅ |
 | **Positions** | `GET /api/v1/positions` | ✅ |
 | **Daily Routines** | `GET/POST /api/v1/daily-routines` | ✅ |
 | **Daily Routines** | `PATCH /api/v1/daily-routines/{id}/items/{index}` | ✅ |
@@ -739,13 +736,91 @@ Phân tích tối ưu hóa danh mục tích hợp trong trang Risk Dashboard:
 
 ---
 
+## Scenario Playbook cho Trade Plan
+
+> **Branch:** `feat/capital-flows-visibility` | **Trạng thái:** ✅ Done
+
+Mở rộng Trade Plan với chế độ kịch bản nâng cao — cây quyết định tự động đánh giá và kích hoạt hành động dựa trên điều kiện thị trường.
+
+### Hai chế độ thoát lệnh (ExitStrategyMode)
+
+| Chế độ | Mô tả |
+|--------|--------|
+| **Cơ bản (Simple)** | Mục tiêu thoát hiện tại (ExitTarget: TP/CL/Trailing) — không thay đổi |
+| **Nâng cao (Advanced)** | Cây kịch bản (ScenarioNodes) với điều kiện + hành động tự động |
+
+### ScenarioNode — Cây quyết định
+
+Mỗi node gồm:
+- **Condition**: Điều kiện kích hoạt — `PriceAbove`, `PriceBelow`, `PricePercentChange`, `TrailingStopHit`, `TimeElapsed`
+- **Action**: Hành động thực thi — `SellPercent`, `SellAll`, `MoveStopLoss`, `MoveStopToBreakeven`, `ActivateTrailingStop`, `AddPosition`, `SendNotification`
+- **Children**: Các node con (đệ quy) — tạo thành cây quyết định nhiều tầng
+
+### TrailingStopConfig
+
+| Thuộc tính | Mô tả |
+|------------|--------|
+| Method | `Percentage`, `ATR`, `FixedAmount` |
+| TrailValue | Giá trị trail (%, ATR multiplier, hoặc số tiền cố định) |
+| ActivationPrice | Giá kích hoạt trailing stop |
+| StepSize | Bước nhảy tối thiểu khi nâng stop |
+
+### 3 Preset Templates
+
+| Template | Mô tả |
+|----------|--------|
+| **An toàn** | Ưu tiên bảo toàn vốn, SL chặt, chốt lời sớm |
+| **Cân bằng** | Cân đối rủi ro/lợi nhuận, trailing stop vừa phải |
+| **Tích cực** | Chấp nhận rủi ro cao hơn, trailing rộng, chốt lời muộn |
+
+### Tự động đánh giá (Worker)
+
+- `ScenarioEvaluationService` chạy trong Worker mỗi **15 phút**
+- Duyệt tất cả TradePlan có `ExitStrategyMode = Advanced` và `Status = InProgress`
+- So sánh giá hiện tại với điều kiện từng ScenarioNode
+- Khi điều kiện khớp → kích hoạt hành động + tạo `AlertHistory` entry
+- Phát domain event `ScenarioNodeTriggeredEvent`
+
+### Backend
+
+- **Domain:** `TradePlan` entity — thêm `ExitStrategyMode`, `ScenarioNodes` properties + methods `SetExitStrategyMode()`, `SetScenarioNodes()`, `TriggerScenarioNode()`
+- **Domain Events:** `ScenarioNodeTriggeredEvent`
+- **Value Objects:** `ScenarioNode` (Condition, Action, Children), `TrailingStopConfig` (Method, TrailValue, ActivationPrice, StepSize)
+- **CQRS:** `TriggerScenarioNodeCommand`, `GetScenarioTemplatesQuery`
+- **Service:** `IScenarioEvaluationService` + `ScenarioEvaluationService` — đánh giá cây kịch bản
+- **Worker:** `EvaluateScenarioPlaybooksAsync` task (15 phút)
+
+**API Endpoints:**
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `PATCH` | `/api/v1/trade-plans/{id}/scenario-nodes/{nodeId}/trigger` | Kích hoạt scenario node thủ công |
+| `GET` | `/api/v1/trade-plans/scenario-templates` | Lấy danh sách preset templates |
+
+### Frontend
+
+- **Toggle mode:** Chuyển đổi Cơ bản / Nâng cao trong form Trade Plan
+- **Tree editor:** Giao diện soạn cây kịch bản (thêm/xoá node, chọn condition/action)
+- **Preset templates:** Chọn template An toàn / Cân bằng / Tích cực → điền sẵn cây kịch bản
+
+### Tests
+
+| Test file | Số test |
+|-----------|:-------:|
+| `TradePlanScenarioTests.cs` (Domain) | 20 |
+| `TriggerScenarioNodeCommandHandlerTests.cs` (Application) | 3 |
+| `ScenarioEvaluationServiceTests.cs` (Infrastructure) | 10 |
+
+---
+
 ## Backlog (chưa implement)
 
-| # | Tính năng | Độ ưu tiên |
-|---|-----------|:---:|
-| ~~B1~~ | ~~Mobile responsive~~ | ✅ Done v2.11.0 |
-| B2 | Equity Curve vs Target CAGR overlay | Trung bình |
-| B3 | Export PDF/Excel | Trung bình |
-| B4 | Keyboard shortcuts | Thấp |
-| B5 | Dark mode | Thấp |
-| B6 | ~~Multi-timeframe Dashboard~~ | ✅ Done v2.2.0 |
+| # | Tính năng | Độ ưu tiên | Kế hoạch |
+|---|-----------|:---:|----------|
+| ~~B1~~ | ~~Mobile responsive~~ | ✅ Done v2.11.0 | |
+| B2 | Equity Curve vs Target CAGR overlay | Trung bình | |
+| B3 | Export PDF/Excel | Trung bình | |
+| B4 | Keyboard shortcuts | Thấp | |
+| B5 | Dark mode | Thấp | |
+| ~~B6~~ | ~~Multi-timeframe Dashboard~~ | ✅ Done v2.2.0 | |
+| **B7** | **Tài chính cá nhân** | **Cao** | [`docs/plans/personal-finance.md`](plans/personal-finance.md) — Net Worth overview, Financial Rules compliance, Health Score, Dashboard widget + `/personal-finance` |

@@ -88,6 +88,31 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             Reason = s.Reason,
             ChangedAt = s.ChangedAt
         }).ToList(),
+        ExitStrategyMode = p.ExitStrategyMode.ToString(),
+        ScenarioNodes = p.ScenarioNodes?.Select(n => new ScenarioNodeDto
+        {
+            NodeId = n.NodeId,
+            ParentId = n.ParentId,
+            Order = n.Order,
+            Label = n.Label,
+            ConditionType = n.ConditionType.ToString(),
+            ConditionValue = n.ConditionValue,
+            ConditionNote = n.ConditionNote,
+            ActionType = n.ActionType.ToString(),
+            ActionValue = n.ActionValue,
+            TrailingStopConfig = n.TrailingStopConfig != null ? new TrailingStopConfigDto
+            {
+                Method = n.TrailingStopConfig.Method.ToString(),
+                TrailValue = n.TrailingStopConfig.TrailValue,
+                ActivationPrice = n.TrailingStopConfig.ActivationPrice,
+                StepSize = n.TrailingStopConfig.StepSize,
+                CurrentTrailingStop = n.TrailingStopConfig.CurrentTrailingStop,
+                HighestPrice = n.TrailingStopConfig.HighestPrice
+            } : null,
+            Status = n.Status.ToString(),
+            TriggeredAt = n.TriggeredAt,
+            TradeId = n.TradeId
+        }).ToList(),
         Status = p.Status.ToString(),
         TradeId = p.TradeId,
         TradeIds = p.TradeIds,
@@ -147,6 +172,8 @@ public class TradePlanDto
     public List<PlanLotDto>? Lots { get; set; }
     public List<ExitTargetDto>? ExitTargets { get; set; }
     public List<StopLossHistoryDto>? StopLossHistory { get; set; }
+    public string ExitStrategyMode { get; set; } = "Simple";
+    public List<ScenarioNodeDto>? ScenarioNodes { get; set; }
     public string Status { get; set; } = "Draft";
     public string? TradeId { get; set; }
     public List<string>? TradeIds { get; set; }
@@ -187,4 +214,31 @@ public class StopLossHistoryDto
     public decimal NewPrice { get; set; }
     public string? Reason { get; set; }
     public DateTime ChangedAt { get; set; }
+}
+
+public class ScenarioNodeDto
+{
+    public string NodeId { get; set; } = null!;
+    public string? ParentId { get; set; }
+    public int Order { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public string ConditionType { get; set; } = "PriceAbove";
+    public decimal? ConditionValue { get; set; }
+    public string? ConditionNote { get; set; }
+    public string ActionType { get; set; } = "SellPercent";
+    public decimal? ActionValue { get; set; }
+    public TrailingStopConfigDto? TrailingStopConfig { get; set; }
+    public string Status { get; set; } = "Pending";
+    public DateTime? TriggeredAt { get; set; }
+    public string? TradeId { get; set; }
+}
+
+public class TrailingStopConfigDto
+{
+    public string Method { get; set; } = "Percentage";
+    public decimal TrailValue { get; set; }
+    public decimal? ActivationPrice { get; set; }
+    public decimal? StepSize { get; set; }
+    public decimal? CurrentTrailingStop { get; set; }
+    public decimal? HighestPrice { get; set; }
 }

@@ -44,6 +44,39 @@ export interface StopLossHistoryDto {
   changedAt: string;
 }
 
+export interface TrailingStopConfigDto {
+  method: string;
+  trailValue: number;
+  activationPrice?: number;
+  stepSize?: number;
+  currentTrailingStop?: number;
+  highestPrice?: number;
+}
+
+export interface ScenarioNodeDto {
+  nodeId: string;
+  parentId: string | null;
+  order: number;
+  label: string;
+  conditionType: string;
+  conditionValue: number | null;
+  conditionNote: string | null;
+  actionType: string;
+  actionValue: number | null;
+  trailingStopConfig: TrailingStopConfigDto | null;
+  status: string;
+  triggeredAt: string | null;
+  tradeId: string | null;
+}
+
+export interface ScenarioPreset {
+  id: string;
+  name: string;
+  nameVi: string;
+  description: string;
+  nodes: ScenarioNodeDto[];
+}
+
 export interface TradePlan {
   id: string;
   portfolioId?: string;
@@ -66,6 +99,8 @@ export interface TradePlan {
   lots?: PlanLotDto[];
   exitTargets?: ExitTargetDto[];
   stopLossHistory?: StopLossHistoryDto[];
+  exitStrategyMode?: string;
+  scenarioNodes?: ScenarioNodeDto[];
   status: string;
   tradeId?: string;
   tradeIds?: string[];
@@ -94,6 +129,8 @@ export interface CreateTradePlanRequest {
   entryMode?: string;
   lots?: PlanLotDto[];
   exitTargets?: ExitTargetDto[];
+  exitStrategyMode?: string;
+  scenarioNodes?: ScenarioNodeDto[];
   status?: string;
   tradeId?: string;
 }
@@ -118,6 +155,8 @@ export interface UpdateTradePlanRequest {
   entryMode?: string;
   lots?: PlanLotDto[];
   exitTargets?: ExitTargetDto[];
+  exitStrategyMode?: string;
+  scenarioNodes?: ScenarioNodeDto[];
 }
 
 export interface UpdateTradePlanStatusRequest {
@@ -185,6 +224,16 @@ export class TradePlanService {
 
   triggerExitTarget(planId: string, level: number, data: { tradeId: string }): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/${planId}/exit-targets/${level}/trigger`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  triggerScenarioNode(planId: string, nodeId: string, data: { tradeId?: string }): Observable<void> {
+    return this.http.patch<void>(`${this.API_URL}/${planId}/scenario-nodes/${nodeId}/trigger`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getScenarioTemplates(): Observable<ScenarioPreset[]> {
+    return this.http.get<ScenarioPreset[]>(`${this.API_URL}/scenario-templates`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

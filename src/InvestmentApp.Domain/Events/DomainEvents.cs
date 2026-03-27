@@ -185,3 +185,21 @@ public class AlertTriggeredEvent : IDomainEvent
         OccurredOn = DateTime.UtcNow;
     }
 }
+
+public class ScenarioNodeTriggeredEvent : IDomainEvent
+{
+    public string TradePlanId { get; }
+    public string NodeId { get; }
+    public string ActionType { get; }
+    public string UserId { get; }
+    public DateTime OccurredOn { get; }
+
+    public ScenarioNodeTriggeredEvent(string tradePlanId, string nodeId, string actionType, string userId)
+    {
+        TradePlanId = tradePlanId;
+        NodeId = nodeId;
+        ActionType = actionType;
+        UserId = userId;
+        OccurredOn = DateTime.UtcNow;
+    }
+}

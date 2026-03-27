@@ -27,6 +27,7 @@ public class Worker : BackgroundService
             {
                 await ProcessPortfolioSnapshotsAsync(stoppingToken);
                 await FetchMarketPricesAsync(stoppingToken);
+                await EvaluateScenarioPlaybooksAsync(stoppingToken);
                 await CleanupExpiredTokensAsync(stoppingToken);
 
                 // Run every 15 minutes
@@ -121,6 +122,26 @@ public class Worker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching market prices");
+        }
+    }
+
+    /// <summary>
+    /// Evaluates scenario playbook nodes for active trade plans.
+    /// </summary>
+    private async Task EvaluateScenarioPlaybooksAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+
+        try
+        {
+            var evaluator = scope.ServiceProvider.GetRequiredService<Application.Common.Interfaces.IScenarioEvaluationService>();
+            var results = await evaluator.EvaluateAllAsync(cancellationToken);
+            if (results.Count > 0)
+                _logger.LogInformation("Scenario evaluation triggered {Count} nodes", results.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error evaluating scenario playbooks");
         }
     }
 

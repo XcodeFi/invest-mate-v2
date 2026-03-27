@@ -8,7 +8,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
-import { TradePlanService, TradePlan as TradePlanDto } from '../../core/services/trade-plan.service';
+import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -38,6 +38,20 @@ interface ExitTargetForm {
   price: number;
   percentOfPosition: number;
   label: string;
+}
+
+interface ScenarioNodeForm {
+  nodeId: string;
+  parentId: string | null;
+  order: number;
+  label: string;
+  conditionType: string;
+  conditionValue: number;
+  conditionNote: string;
+  actionType: string;
+  actionValue: number;
+  trailingStopConfig: { method: string; trailValue: number; activationPrice: number; stepSize: number };
+  status: string;
 }
 
 interface TradePlanForm {
@@ -554,33 +568,137 @@ interface TradePlanForm {
               </div>
             </div>
 
-            <!-- Exit Targets -->
+            <!-- Exit Strategy -->
             <div class="mt-4 bg-violet-50 border border-violet-200 rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-semibold text-violet-800">Thoát lệnh ({{ plan.exitTargets.length }} mục tiêu)</h3>
-                <button (click)="addExitTarget()" class="px-2 py-0.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded">+ Thêm</button>
+                <h3 class="text-sm font-semibold text-violet-800">Chiến lược thoát lệnh</h3>
+                <div class="flex items-center gap-1">
+                  <button (click)="exitStrategyMode = 'Simple'"
+                    class="px-3 py-1 rounded-l-lg text-xs font-medium transition-colors"
+                    [class.bg-violet-600]="exitStrategyMode === 'Simple'" [class.text-white]="exitStrategyMode === 'Simple'"
+                    [class.bg-violet-100]="exitStrategyMode !== 'Simple'" [class.text-violet-600]="exitStrategyMode !== 'Simple'">
+                    Cơ bản
+                  </button>
+                  <button (click)="exitStrategyMode = 'Advanced'; loadScenarioPresets()"
+                    class="px-3 py-1 rounded-r-lg text-xs font-medium transition-colors"
+                    [class.bg-violet-600]="exitStrategyMode === 'Advanced'" [class.text-white]="exitStrategyMode === 'Advanced'"
+                    [class.bg-violet-100]="exitStrategyMode !== 'Advanced'" [class.text-violet-600]="exitStrategyMode !== 'Advanced'">
+                    Nâng cao
+                  </button>
+                </div>
               </div>
-              <div *ngFor="let et of plan.exitTargets; let i = index" class="flex items-center gap-2 mb-2">
-                <select [(ngModel)]="et.actionType" class="px-2 py-1 border border-violet-300 rounded text-sm w-32">
-                  <option value="TakeProfit">Chốt lời</option>
-                  <option value="CutLoss">Cắt lỗ</option>
-                  <option value="TrailingStop">Trailing Stop</option>
-                  <option value="PartialExit">Bán một phần</option>
-                </select>
-                <input [(ngModel)]="et.price" type="text" inputmode="numeric" appNumMask placeholder="Giá"
-                  class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-28">
-                <input [(ngModel)]="et.percentOfPosition" type="number" placeholder="% vị thế" min="1" max="100"
-                  class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-20">
-                <span class="text-xs text-violet-500">%</span>
-                <input [(ngModel)]="et.label" type="text" placeholder="Ghi chú" class="px-2 py-1 border border-violet-300 rounded text-sm flex-1">
-                <button (click)="removeExitTarget(i)" class="text-red-400 hover:text-red-600">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
+
+              <!-- SIMPLE MODE: flat exit targets -->
+              <div *ngIf="exitStrategyMode === 'Simple'">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs text-violet-600">{{ plan.exitTargets.length }} mục tiêu</span>
+                  <button (click)="addExitTarget()" class="px-2 py-0.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded">+ Thêm</button>
+                </div>
+                <div *ngFor="let et of plan.exitTargets; let i = index" class="flex items-center gap-2 mb-2">
+                  <select [(ngModel)]="et.actionType" class="px-2 py-1 border border-violet-300 rounded text-sm w-32">
+                    <option value="TakeProfit">Chốt lời</option>
+                    <option value="CutLoss">Cắt lỗ</option>
+                    <option value="TrailingStop">Trailing Stop</option>
+                    <option value="PartialExit">Bán một phần</option>
+                  </select>
+                  <input [(ngModel)]="et.price" type="text" inputmode="numeric" appNumMask placeholder="Giá"
+                    class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-28">
+                  <input [(ngModel)]="et.percentOfPosition" type="number" placeholder="% vị thế" min="1" max="100"
+                    class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-20">
+                  <span class="text-xs text-violet-500">%</span>
+                  <input [(ngModel)]="et.label" type="text" placeholder="Ghi chú" class="px-2 py-1 border border-violet-300 rounded text-sm flex-1">
+                  <button (click)="removeExitTarget(i)" class="text-red-400 hover:text-red-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+                <div *ngIf="plan.exitTargets.length === 0" class="text-xs text-violet-400">Chưa có mục tiêu thoát lệnh. TP hiện tại: {{ plan.target | number:'1.0-0' }}đ</div>
+              </div>
+
+              <!-- ADVANCED MODE: Scenario Playbook -->
+              <div *ngIf="exitStrategyMode === 'Advanced'">
+                <div class="flex items-center gap-2 mb-3">
+                  <select [(ngModel)]="selectedPresetId" class="px-2 py-1 border border-violet-300 rounded text-xs flex-1">
+                    <option value="">-- Chọn mẫu kịch bản --</option>
+                    <option *ngFor="let p of scenarioPresets" [value]="p.id">{{ p.nameVi }} — {{ p.description }}</option>
+                  </select>
+                  <button (click)="applyScenarioPreset()" [disabled]="!selectedPresetId"
+                    class="px-3 py-1 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded disabled:opacity-50">Áp dụng</button>
+                </div>
+
+                <!-- Scenario Tree -->
+                <div class="space-y-2">
+                  <ng-container *ngFor="let node of getScenarioRootNodes()">
+                    <ng-container *ngTemplateOutlet="scenarioNodeTpl; context: { $implicit: node, depth: 0 }"></ng-container>
+                  </ng-container>
+                </div>
+
+                <button (click)="addScenarioNode(null)" class="mt-3 px-3 py-1 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded">
+                  + Thêm kịch bản gốc
                 </button>
+
+                <div *ngIf="scenarioNodes.length === 0" class="text-xs text-violet-400 mt-2">
+                  Chưa có kịch bản nào. Chọn mẫu hoặc thêm kịch bản gốc.
+                </div>
               </div>
-              <div *ngIf="plan.exitTargets.length === 0" class="text-xs text-violet-400">Chưa có mục tiêu thoát lệnh. TP hiện tại: {{ plan.target | number:'1.0-0' }}đ</div>
             </div>
+
+            <!-- Scenario Node Template (recursive) -->
+            <ng-template #scenarioNodeTpl let-node let-depth="depth">
+              <div class="border border-indigo-200 rounded-lg p-3 bg-white" [style.margin-left.px]="depth * 20">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-xs font-bold text-indigo-500">NẾU</span>
+                  <select [(ngModel)]="node.conditionType" class="px-1.5 py-1 border border-indigo-300 rounded text-xs">
+                    <option value="PriceAbove">Giá >=</option>
+                    <option value="PriceBelow">Giá <=</option>
+                    <option value="PricePercentChange">Thay đổi %</option>
+                    <option value="TrailingStopHit">Chạm trailing</option>
+                    <option value="TimeElapsed">Sau N ngày</option>
+                  </select>
+                  <input *ngIf="node.conditionType !== 'TrailingStopHit'" [(ngModel)]="node.conditionValue" type="text" inputmode="numeric" appNumMask
+                    class="w-24 px-1.5 py-1 border border-indigo-300 rounded text-xs text-right"
+                    [placeholder]="node.conditionType === 'PricePercentChange' ? '%' : node.conditionType === 'TimeElapsed' ? 'ngày' : 'đ'">
+                  <span class="text-xs text-indigo-400 font-bold">&#8594;</span>
+                  <select [(ngModel)]="node.actionType" class="px-1.5 py-1 border border-indigo-300 rounded text-xs">
+                    <option value="SellPercent">Bán % vị thế</option>
+                    <option value="SellAll">Bán tất cả</option>
+                    <option value="MoveStopLoss">Dời SL</option>
+                    <option value="MoveStopToBreakeven">SL về hòa vốn</option>
+                    <option value="ActivateTrailingStop">Bật trailing stop</option>
+                    <option value="AddPosition">Thêm vị thế</option>
+                    <option value="SendNotification">Chỉ thông báo</option>
+                  </select>
+                  <input *ngIf="node.actionType === 'SellPercent' || node.actionType === 'AddPosition' || node.actionType === 'MoveStopLoss'"
+                    [(ngModel)]="node.actionValue" type="text" inputmode="numeric" appNumMask
+                    class="w-16 px-1.5 py-1 border border-indigo-300 rounded text-xs text-right"
+                    [placeholder]="node.actionType === 'MoveStopLoss' ? 'đ' : '%'">
+                  <span *ngIf="node.status === 'Triggered'" class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Đã kích hoạt</span>
+                  <button (click)="addScenarioNode(node.nodeId)" class="text-indigo-400 hover:text-indigo-600 text-xs font-medium" title="Thêm kịch bản con">+Con</button>
+                  <button (click)="removeScenarioNode(node.nodeId)" class="text-red-400 hover:text-red-600">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+                <!-- Trailing Stop Config (inline) -->
+                <div *ngIf="node.actionType === 'ActivateTrailingStop'" class="mt-2 pl-4 flex items-center gap-2 text-xs">
+                  <select [(ngModel)]="node.trailingStopConfig.method" class="px-1 py-0.5 border rounded text-xs">
+                    <option value="Percentage">%</option>
+                    <option value="ATR">ATR (ước tính)</option>
+                    <option value="FixedAmount">Cố định (VNĐ)</option>
+                  </select>
+                  <input [(ngModel)]="node.trailingStopConfig.trailValue" type="number" placeholder="Giá trị" class="w-16 px-1 py-0.5 border rounded text-xs text-right">
+                  <span class="text-indigo-400">Kích hoạt:</span>
+                  <input [(ngModel)]="node.trailingStopConfig.activationPrice" type="text" inputmode="numeric" appNumMask placeholder="Giá" class="w-24 px-1 py-0.5 border rounded text-xs text-right">
+                </div>
+                <input [(ngModel)]="node.label" type="text" placeholder="Ghi chú kịch bản..." class="mt-1.5 w-full px-2 py-1 border border-indigo-200 rounded text-xs">
+                <!-- Children -->
+                <ng-container *ngFor="let child of getScenarioChildNodes(node.nodeId)">
+                  <ng-container *ngTemplateOutlet="scenarioNodeTpl; context: { $implicit: child, depth: depth + 1 }"></ng-container>
+                </ng-container>
+              </div>
+            </ng-template>
 
             <div class="mt-4">
               <label class="block text-sm font-medium text-gray-700 mb-1">Lý do vào lệnh</label>
@@ -997,6 +1115,15 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   showSaveTemplate = false;
   newTemplateName = '';
   savingTemplate = false;
+
+  // Scenario Playbook
+  exitStrategyMode: 'Simple' | 'Advanced' = 'Simple';
+  scenarioNodes: ScenarioNodeForm[] = [];
+  scenarioPresets: ScenarioPreset[] = [];
+  selectedPresetId = '';
+  private _cachedRootNodes: ScenarioNodeForm[] = [];
+  private _cachedChildMap = new Map<string, ScenarioNodeForm[]>();
+  private _scenarioVersion = 0;
 
   // Order sheet
   showOrderSheet = false;
@@ -1441,6 +1568,24 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       percentOfPosition: e.percentOfPosition ?? 0,
       label: e.label ?? ''
     }));
+    // Scenario Playbook
+    this.exitStrategyMode = (sp.exitStrategyMode === 'Advanced') ? 'Advanced' : 'Simple';
+    this.scenarioNodes = (sp.scenarioNodes || []).map(n => ({
+      nodeId: n.nodeId,
+      parentId: n.parentId,
+      order: n.order,
+      label: n.label,
+      conditionType: n.conditionType,
+      conditionValue: n.conditionValue || 0,
+      conditionNote: n.conditionNote || '',
+      actionType: n.actionType,
+      actionValue: n.actionValue || 0,
+      trailingStopConfig: n.trailingStopConfig
+        ? { method: n.trailingStopConfig.method, trailValue: n.trailingStopConfig.trailValue, activationPrice: n.trailingStopConfig.activationPrice || 0, stepSize: n.trailingStopConfig.stepSize || 0 }
+        : { method: 'Percentage', trailValue: 5, activationPrice: 0, stepSize: 0 },
+      status: n.status
+    }));
+    this.invalidateScenarioCache();
     if (sp.checklist && sp.checklist.length > 0) {
       this.plan.checklist = sp.checklist.map(c => ({
         label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint
@@ -1465,6 +1610,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     };
     this.showOrderSheet = false;
     this.manualQuantity = false;
+    this.exitStrategyMode = 'Simple';
+    this.scenarioNodes = [];
+    this.selectedPresetId = '';
+    this.invalidateScenarioCache();
     this.selectedStrategy = null;
     this.riskProfile = null;
     this.stockPrice = null;
@@ -1515,7 +1664,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         exitTargets: this.plan.exitTargets.length > 0 ? this.plan.exitTargets.map(e => ({
           level: e.level, actionType: e.actionType, price: e.price,
           percentOfPosition: e.percentOfPosition, label: e.label, isTriggered: false
-        })) : undefined
+        })) : undefined,
+        exitStrategyMode: this.exitStrategyMode,
+        scenarioNodes: this.buildScenarioPayload()
       }).subscribe({
         next: () => {
           // If status changed (e.g., Draft → Ready), update status separately
@@ -1572,7 +1723,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         exitTargets: this.plan.exitTargets.length > 0 ? this.plan.exitTargets.map(e => ({
           level: e.level, actionType: e.actionType, price: e.price,
           percentOfPosition: e.percentOfPosition, label: e.label, isTriggered: false
-        })) : undefined
+        })) : undefined,
+        exitStrategyMode: this.exitStrategyMode,
+        scenarioNodes: this.buildScenarioPayload()
       }).subscribe({
         next: (res) => {
           this.saving = false;
@@ -1826,6 +1979,121 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   removeExitTarget(index: number): void {
     this.plan.exitTargets.splice(index, 1);
     this.plan.exitTargets.forEach((e, i) => e.level = i + 1);
+  }
+
+  // --- Scenario Playbook Methods ---
+
+  loadScenarioPresets(): void {
+    if (this.scenarioPresets.length > 0) return;
+    this.tradePlanService.getScenarioTemplates().subscribe({
+      next: (presets) => this.scenarioPresets = presets,
+      error: () => this.notification.error('Lỗi', 'Không thể tải mẫu kịch bản')
+    });
+  }
+
+  private invalidateScenarioCache(): void {
+    this._scenarioVersion++;
+    this._cachedRootNodes = this.scenarioNodes.filter(n => !n.parentId).sort((a, b) => a.order - b.order);
+    this._cachedChildMap.clear();
+    for (const node of this.scenarioNodes) {
+      if (node.parentId) {
+        const siblings = this._cachedChildMap.get(node.parentId) || [];
+        siblings.push(node);
+        this._cachedChildMap.set(node.parentId, siblings);
+      }
+    }
+    this._cachedChildMap.forEach(arr => arr.sort((a, b) => a.order - b.order));
+  }
+
+  getScenarioRootNodes(): ScenarioNodeForm[] {
+    return this._cachedRootNodes;
+  }
+
+  getScenarioChildNodes(parentId: string): ScenarioNodeForm[] {
+    return this._cachedChildMap.get(parentId) || [];
+  }
+
+  addScenarioNode(parentId: string | null): void {
+    this.scenarioNodes.push({
+      nodeId: crypto.randomUUID(),
+      parentId,
+      order: this.scenarioNodes.filter(n => n.parentId === parentId).length,
+      label: '',
+      conditionType: parentId ? 'PriceAbove' : 'PriceAbove',
+      conditionValue: 0,
+      conditionNote: '',
+      actionType: 'SellPercent',
+      actionValue: 30,
+      trailingStopConfig: { method: 'Percentage', trailValue: 5, activationPrice: 0, stepSize: 0 },
+      status: 'Pending'
+    });
+    this.invalidateScenarioCache();
+  }
+
+  removeScenarioNode(nodeId: string): void {
+    const toRemove = new Set<string>();
+    const collect = (id: string) => {
+      toRemove.add(id);
+      this.scenarioNodes.filter(n => n.parentId === id).forEach(c => collect(c.nodeId));
+    };
+    collect(nodeId);
+    this.scenarioNodes = this.scenarioNodes.filter(n => !toRemove.has(n.nodeId));
+    this.invalidateScenarioCache();
+  }
+
+  applyScenarioPreset(): void {
+    const preset = this.scenarioPresets.find(p => p.id === this.selectedPresetId);
+    if (!preset) return;
+    // Build old->new ID map for parent references
+    const idMap = new Map<string, string>();
+    preset.nodes.forEach(n => idMap.set(n.nodeId, crypto.randomUUID()));
+
+    this.scenarioNodes = preset.nodes.map(n => ({
+      nodeId: idMap.get(n.nodeId)!,
+      parentId: n.parentId ? (idMap.get(n.parentId) ?? null) : null,
+      order: n.order,
+      label: n.label,
+      conditionType: n.conditionType,
+      conditionValue: this.substitutePresetValue(n.conditionValue, n.conditionType),
+      conditionNote: n.conditionNote || '',
+      actionType: n.actionType,
+      actionValue: n.actionValue || 0,
+      trailingStopConfig: n.trailingStopConfig
+        ? { method: n.trailingStopConfig.method, trailValue: n.trailingStopConfig.trailValue, activationPrice: n.trailingStopConfig.activationPrice || 0, stepSize: n.trailingStopConfig.stepSize || 0 }
+        : { method: 'Percentage', trailValue: 5, activationPrice: 0, stepSize: 0 },
+      status: 'Pending'
+    }));
+    this.invalidateScenarioCache();
+    this.notification.success('Kịch bản', `Đã áp dụng mẫu "${preset.nameVi}"`);
+  }
+
+  private substitutePresetValue(value: number | null, conditionType: string): number {
+    if (value === null || value === 0) {
+      // For PriceBelow with 0 value → use stopLoss
+      if (conditionType === 'PriceBelow') return this.plan.stopLoss || 0;
+      return 0;
+    }
+    // PricePercentChange values are relative percentages already
+    if (conditionType === 'PricePercentChange') return value;
+    // For PriceAbove/PriceBelow, values might be absolute
+    return value;
+  }
+
+  private buildScenarioPayload(): ScenarioNodeDto[] | undefined {
+    if (this.exitStrategyMode !== 'Advanced' || this.scenarioNodes.length === 0) return undefined;
+    return this.scenarioNodes.map(n => ({
+      nodeId: n.nodeId, parentId: n.parentId, order: n.order, label: n.label,
+      conditionType: n.conditionType, conditionValue: n.conditionValue || null,
+      conditionNote: n.conditionNote || null,
+      actionType: n.actionType, actionValue: n.actionValue || null,
+      trailingStopConfig: n.actionType === 'ActivateTrailingStop' ? {
+        method: n.trailingStopConfig.method, trailValue: n.trailingStopConfig.trailValue,
+        activationPrice: n.trailingStopConfig.activationPrice || undefined,
+        stepSize: n.trailingStopConfig.stepSize || undefined,
+        currentTrailingStop: undefined, highestPrice: undefined
+      } as TrailingStopConfigDto : null,
+      status: 'Pending', triggeredAt: null, tradeId: null
+    }) as ScenarioNodeDto);
   }
 
   // --- Order Sheet ---

@@ -32,6 +32,8 @@ public class UpdateTradePlanCommand : IRequest<Unit>
     public string? EntryMode { get; set; }
     public List<PlanLotDto>? Lots { get; set; }
     public List<ExitTargetDto>? ExitTargets { get; set; }
+    public string? ExitStrategyMode { get; set; }
+    public List<ScenarioNodeDto>? ScenarioNodes { get; set; }
 }
 
 public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanCommand, Unit>
@@ -97,6 +99,18 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
                 Label = e.Label
             }).ToList();
             plan.SetExitTargets(targets);
+        }
+
+        // Scenario Playbook
+        if (request.ExitStrategyMode != null)
+        {
+            var mode = Enum.Parse<ExitStrategyMode>(request.ExitStrategyMode, ignoreCase: true);
+            plan.SetExitStrategyMode(mode);
+        }
+        if (request.ScenarioNodes != null && plan.ExitStrategyMode == ExitStrategyMode.Advanced)
+        {
+            var nodes = request.ScenarioNodes.Select(CreateTradePlanCommandHandler.MapToScenarioNode).ToList();
+            plan.SetScenarioNodes(nodes);
         }
 
         await _tradePlanRepository.UpdateAsync(plan, cancellationToken);
