@@ -43,6 +43,24 @@ public class AlertHistoryRepository : IAlertHistoryRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<AlertHistory>> GetByUserIdAndSymbolAsync(
+        string userId, string symbol, DateTime? from = null, DateTime? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<AlertHistory>.Filter.And(
+            Builders<AlertHistory>.Filter.Eq(h => h.UserId, userId),
+            Builders<AlertHistory>.Filter.Eq(h => h.Symbol, symbol.ToUpper().Trim()));
+
+        if (from.HasValue)
+            filter &= Builders<AlertHistory>.Filter.Gte(h => h.TriggeredAt, from.Value);
+        if (to.HasValue)
+            filter &= Builders<AlertHistory>.Filter.Lte(h => h.TriggeredAt, to.Value);
+
+        return await _collection.Find(filter)
+            .SortBy(h => h.TriggeredAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IEnumerable<AlertHistory>> GetUnreadByUserIdAsync(string userId, CancellationToken cancellationToken = default)
     {
         return await _collection.Find(h => h.UserId == userId && !h.IsRead)

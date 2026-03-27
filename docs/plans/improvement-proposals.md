@@ -40,7 +40,7 @@ Plan này sắp xếp lại thứ tự ưu tiên dựa trên **giá trị thực
 | P4 | Risk Budgeting (daily limits) | M | Pending | Mở rộng RiskProfile entity có sẵn |
 | P5 | Push Notifications (Web Push) | L | Pending | Cần entity mới, service mới, SW integration |
 | P6 | Backtesting Strategy Rules | L | Pending | DSL design phức tạp, buy-and-hold vẫn có giá trị |
-| P7 | Symbol Timeline — Nhật ký trên Biểu đồ Giá | L-XL | Pending | Biến journal thành timeline trực quan gắn giá + cảm xúc + sự kiện |
+| P7 | Symbol Timeline — Nhật ký trên Biểu đồ Giá | L-XL | ✅ Done | Biến journal thành timeline trực quan gắn giá + cảm xúc + sự kiện |
 
 ---
 

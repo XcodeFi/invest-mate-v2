@@ -6,7 +6,7 @@
 project/
 ├── src/
 │   ├── InvestmentApp.Domain/           # Entities, Value Objects, Events (zero dependencies)
-│   │   ├── Entities/                   # 20 aggregate roots + nested classes
+│   │   ├── Entities/                   # 22 aggregate roots + nested classes
 │   │   ├── ValueObjects/               # Money, StockSymbol, Position, WatchlistItem, RoutineItem, ScenarioNode, TrailingStopConfig
 │   │   └── Events/                     # 13 domain event types
 │   │
@@ -14,7 +14,7 @@ project/
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
 │   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation)
-│   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~20)
+│   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~22)
 │   │   └── Services/                   # FeeCalculationService (app-level)
 │   │
 │   ├── InvestmentApp.Infrastructure/   # Implementations (depends on Application + Domain)
@@ -23,18 +23,18 @@ project/
 │   │   │   │   ├── HmoneyComprehensiveDataProvider.cs  # Comprehensive stock analysis data
 │   │   │   │   └── HmoneyComprehensiveApiModels.cs     # API response models
 │   │   │   └── Tcbs/                   # TCBS fundamental data provider
-│   │   └── Repositories/              # 20 MongoDB repositories
+│   │   └── Repositories/              # 22 MongoDB repositories
 │   │
 │   ├── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
-│   │   ├── Controllers/               # 22 API controllers
+│   │   ├── Controllers/               # 25 API controllers
 │   │   └── Program.cs                 # DI registration, middleware pipeline
 │   │
 │   └── InvestmentApp.Worker/           # Background jobs (snapshots, alerts, scenario evaluation)
 │
 ├── frontend/                           # Angular 18 SPA
 │   └── src/app/
-│       ├── core/services/              # 23 Angular services (HTTP clients)
-│       ├── features/                   # 25 page components (standalone, inline templates)
+│       ├── core/services/              # 25 Angular services (HTTP clients)
+│       ├── features/                   # 26 page components (standalone, inline templates)
 │       │   ├── dashboard/              # Investor Cockpit (main page)
 │       │   ├── trade-wizard/           # 5-step disciplined trading flow
 │       │   ├── trade-plan/             # Entry/SL/TP planning with checklist
@@ -48,9 +48,9 @@ project/
 │           └── pipes/                  # VndCurrencyPipe
 │
 ├── tests/
-│   ├── InvestmentApp.Domain.Tests/     # 532 tests (xUnit + FluentAssertions)
-│   ├── InvestmentApp.Application.Tests/# 17 tests (+ Moq)
-│   └── InvestmentApp.Infrastructure.Tests/ # 39 tests
+│   ├── InvestmentApp.Domain.Tests/     # 579 tests (xUnit + FluentAssertions)
+│   ├── InvestmentApp.Application.Tests/# 34 tests (+ Moq)
+│   └── InvestmentApp.Infrastructure.Tests/ # 57 tests
 │
 └── docs/
     ├── architecture.md                 # This file
@@ -79,6 +79,8 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | StopLossTarget | R:R ratio calculation, trailing stop |
 | AiSettings | Multi-provider (Claude/Gemini), encrypted API keys, token usage tracking |
 | RiskProfile | Position size limits, drawdown alerts, sector exposure |
+| JournalEntry | Standalone journal (không cần Trade), 5 loại entry, cảm xúc, snapshot giá |
+| MarketEvent | Sự kiện thị trường (7 loại: Earnings/Dividend/News/Macro...) |
 
 ## Key Services (Infrastructure Layer)
 
@@ -96,7 +98,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | AlertEvaluationService | Price/drawdown/portfolio value alerts | ISnapshotRepo, IStockPriceRepo |
 | ScenarioEvaluationService | Auto-evaluate scenario playbooks every 15 min, trigger actions, create AlertHistory | ITradePlanRepo, IStockPriceService |
 
-## API Endpoints (22 Controllers)
+## API Endpoints (25 Controllers)
 
 | Controller | Base Route | Key Operations |
 |-----------|-----------|----------------|
@@ -122,6 +124,9 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | Currency | `/api/v1/currency` | Exchange rates, conversion |
 | Backtests | `/api/v1/backtests` | Run, list, results |
 | Templates | `/api/v1/templates` | Strategy templates, risk profile templates |
+| JournalEntries | `/api/v1/journal-entries` | CRUD standalone journal entries |
+| SymbolTimeline | `/api/v1/symbols/{symbol}/timeline` | Unified timeline (journals + trades + events + alerts) |
+| MarketEvents | `/api/v1/market-events` | CRUD market events per symbol |
 
 ## External Integrations
 
@@ -161,6 +166,6 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (588 tests)
+- **Backend:** xUnit + FluentAssertions + Moq (671 tests)
 - **Frontend:** Karma + Jasmine (configured, tests pending)
 - Run `dotnet test` before commit

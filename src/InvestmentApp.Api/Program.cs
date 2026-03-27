@@ -116,6 +116,8 @@ builder.Services.AddScoped<ITradePlanRepository, TradePlanRepository>();
 builder.Services.AddScoped<IDailyRoutineRepository, DailyRoutineRepository>();
 builder.Services.AddScoped<IRoutineTemplateRepository, RoutineTemplateRepository>();
 builder.Services.AddScoped<IWatchlistRepository, WatchlistRepository>();
+builder.Services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
+builder.Services.AddScoped<IMarketEventRepository, MarketEventRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IAuditService, AuditService>();
