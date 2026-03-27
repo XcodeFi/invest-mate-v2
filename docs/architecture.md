@@ -108,7 +108,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | TradePlans | `/api/v1/trade-plans` | CRUD, status transitions, lot execution, scenario node trigger, scenario templates |
 | MarketData | `/api/v1/market` | Price, batch prices, search, overview, top fluctuation |
 | PnL | `/api/v1/pnl` | Portfolio/position P&L |
-| Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets |
+| Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets, **stress-test (P2)**, **budget (P4)** |
 | Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns |
 | Ai | `/api/v1/ai` | Build context, stream responses, daily briefing, comprehensive analysis |
 | AiSettings | `/api/v1/ai-settings` | Provider/key management |
@@ -124,7 +124,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | Currency | `/api/v1/currency` | Exchange rates, conversion |
 | Backtests | `/api/v1/backtests` | Run, list, results |
 | Templates | `/api/v1/templates` | Strategy templates, risk profile templates |
-| JournalEntries | `/api/v1/journal-entries` | CRUD standalone journal entries |
+| JournalEntries | `/api/v1/journal-entries` | CRUD standalone journal entries, **pending-review (P1)** |
 | SymbolTimeline | `/api/v1/symbols/{symbol}/timeline` | Unified timeline (journals + trades + events + alerts) |
 | MarketEvents | `/api/v1/market-events` | CRUD market events per symbol |
 

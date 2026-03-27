@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, ActivatedRoute } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioSummary, TradeResponseItem } from '../../core/services/portfolio.service';
 import { TradeService } from '../../core/services/trade.service';
@@ -10,6 +10,7 @@ import { TradeType, getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OP
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
+import { JournalEntryService, PendingReviewTrade } from '../../core/services/journal-entry.service';
 
 @Component({
   selector: 'app-trades',
@@ -122,6 +123,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thuế</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày giao dịch</th>
                   <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Kế hoạch</th>
+                  <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nhật ký</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
@@ -196,6 +198,14 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
                         </div>
                       </div>
                     </div>
+                  </td>
+                  <td class="px-3 py-4 whitespace-nowrap text-sm">
+                    @if (hasPostTradeReview(trade)) {
+                      <span class="text-emerald-600 cursor-pointer" title="Đã đánh giá" (click)="openJournal(trade)">&#10003;</span>
+                    } @else if (trade.tradeType === 'SELL') {
+                      <a [routerLink]="['/symbol-timeline']" [queryParams]="{symbol: trade.symbol}"
+                         class="text-amber-500 hover:text-amber-700" title="Chưa đánh giá">&#9998;</a>
+                    }
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
@@ -331,12 +341,17 @@ export class TradesComponent implements OnInit {
   allPlans: TradePlan[] = [];
   linkingTradeId: string | null = null;
 
+  pendingReviewTradeIds: Set<string> = new Set();
+  pendingReviewLoaded = false;
+
   constructor(
     private portfolioService: PortfolioService,
     private tradeService: TradeService,
     private tradePlanService: TradePlanService,
     private notificationService: NotificationService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private journalEntryService: JournalEntryService,
+    private router: Router
   ) {}
 
   // Trade type utility functions
@@ -391,6 +406,10 @@ export class TradesComponent implements OnInit {
             this.allTrades.sort((a, b) => new Date(b.tradeDate).getTime() - new Date(a.tradeDate).getTime());
             this.applyFilters();
             this.isLoading = false;
+            this.journalEntryService.getPendingReview().subscribe({
+              next: (pending) => { this.pendingReviewTradeIds = new Set(pending.map(p => p.tradeId)); this.pendingReviewLoaded = true; },
+              error: () => { this.pendingReviewLoaded = true; }
+            });
           }
         },
         error: () => {
@@ -497,6 +516,14 @@ export class TradesComponent implements OnInit {
         this.notificationService.error('Lỗi', 'Không thể gắn kế hoạch');
       }
     });
+  }
+
+  hasPostTradeReview(trade: any): boolean {
+    return this.pendingReviewLoaded && trade.tradeType === 'SELL' && !this.pendingReviewTradeIds.has(trade.id);
+  }
+
+  openJournal(trade: any): void {
+    this.router.navigate(['/symbol-timeline'], { queryParams: { symbol: trade.symbol } });
   }
 
   min(a: number, b: number): number {

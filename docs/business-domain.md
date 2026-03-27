@@ -137,10 +137,13 @@ Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cance
 - **MWR** (Money-Weighted Return / IRR): tính cả dòng tiền
 
 ### 3.5. Quản lý Rủi ro (Risk)
-- **RiskProfile**: maxPositionSize%, maxDrawdownAlert%, defaultRR
+
+- **RiskProfile**: maxPositionSize%, maxDrawdownAlert%, defaultRR, maxDailyTrades, dailyLossLimitPercent (P4)
 - **Position Sizing**: `positionSize = accountBalance × riskPercent / (entry - stopLoss)`
 - **Stop-loss tracking**: lịch sử thay đổi SL, cảnh báo khi giá gần SL
 - **Correlation matrix**: tương quan giữa các cổ phiếu trong danh mục
+- **Stress Test (P2)**: dynamic beta từ API, fallback correlation VN-INDEX, fallback 1.0
+- **Risk Budget (P4)**: giới hạn số lệnh/ngày, giới hạn lỗ/ngày (%)
 
 ### 3.6. Phân tích Hiệu suất (Analytics)
 - **CAGR**: tính từ equity curve (ưu tiên) hoặc backend AdvancedAnalytics

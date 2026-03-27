@@ -34,43 +34,67 @@ Plan này sắp xếp lại thứ tự ưu tiên dựa trên **giá trị thực
 | # | Đề xuất | Size | Trạng thái | Lý do ưu tiên |
 |---|---------|------|:---:|---------------|
 | **P0** | **Scenario Playbook (Trade Plan)** | **M** | **✅ Done** | **Decision tree + auto-evaluation + trailing stop** |
-| P1 | Post-Trade Review Workflow | S-M | Pending | Model + API có sẵn, chỉ thêm workflow frontend |
-| P2 | Stress Test — Dynamic Beta | M | Pending | UI có sẵn, chỉ thêm backend endpoint + thay hardcoded betas |
-| P3 | Technical Indicators (Bollinger, ATR) | S-M | Pending | Architecture extensible, follow pattern có sẵn |
-| P4 | Risk Budgeting (daily limits) | M | Pending | Mở rộng RiskProfile entity có sẵn |
+| P0+ | [P0 Improvements](p0-scenario-playbook-improvements.md) | S-L | 📋 Planned | History dashboard, custom templates, visual flowchart, auto-execute |
+| P1 | Post-Trade Review Workflow | S-M | ✅ Done | Model + API có sẵn, dùng JournalEntry (P7) thay TradeJournal |
+| P2 | Stress Test — Dynamic Beta | M | ✅ Done | UI có sẵn, chỉ thêm backend endpoint + thay hardcoded betas |
+| P3 | Technical Indicators (Bollinger, ATR) | S-M | ✅ Done | Architecture extensible, follow pattern có sẵn |
+| P4 | Risk Budgeting (daily limits) | M | ✅ Done | Mở rộng RiskProfile entity có sẵn |
 | P5 | Push Notifications (Web Push) | L | Pending | Cần entity mới, service mới, SW integration |
 | P6 | Backtesting Strategy Rules | L | Pending | DSL design phức tạp, buy-and-hold vẫn có giá trị |
 | P7 | Symbol Timeline — Nhật ký trên Biểu đồ Giá | L-XL | ✅ Done | Biến journal thành timeline trực quan gắn giá + cảm xúc + sự kiện |
+| P7+ | [P7 Improvements](p7-symbol-timeline-improvements.md) | S-M | 📋 Planned | Emotion-P&L correlation, behavioral patterns, chart UX, AI review |
 
 ---
 
 ## P1: Post-Trade Review Workflow (S-M)
 
-**Vấn đề:** `TradeJournal` entity có `PostTradeReview`, `LessonsLearned`, `Rating`, `Tags` — nhưng không có workflow tự động. User phải tự navigate đến `/journals` và tự tạo. Trades list không link đến journal.
+**Vấn đề:** Trades list không link đến journal, không có workflow nhắc user review sau khi bán. User phải tự navigate đến `/journals` và tự tạo.
+
+> **⚠️ Điều chỉnh sau P7:** P7 đã tạo entity `JournalEntry` (symbol-scoped, linh hoạt, có `JournalEntryType.PostTrade`) cùng tồn tại với `TradeJournal` (trade-scoped, 1:1). P1 sẽ **dùng `JournalEntry`** thay vì `TradeJournal` vì:
+> - `JournalEntry` đã tích hợp Symbol Timeline, có snapshot giá, VN-Index
+> - `JournalEntry` có `EntryType = PostTrade` phù hợp semantic
+> - `IJournalEntryRepository.GetByTradeIdAsync()` đã có sẵn
+> - Tránh duplicate 2 hệ thống journal cùng mục đích
 
 ### Backend
-1. **New query** `GetTradesWithoutJournalQuery` — lấy SELL trades chưa có journal
+1. **New query** `GetTradesPendingReviewQuery` — lấy SELL trades chưa có `JournalEntry(EntryType=PostTrade)`
    - File: `src/InvestmentApp.Application/Journals/Queries/GetTradesPendingReview/GetTradesPendingReviewQuery.cs`
-   - Logic: lấy trades (type=SELL) → cross-reference `ITradeJournalRepository.GetByTradeIdAsync()` → trả về trades chưa có journal
+   - Logic:
+     1. Lấy portfolios của user → lấy trades (type=SELL) theo portfolioId (optional filter)
+     2. Lấy tất cả `JournalEntry` của user có `EntryType = PostTrade` và `TradeId != null`
+     3. Cross-reference: trades SELL mà không có JournalEntry PostTrade nào trỏ đến
+   - Dependencies: `ITradeRepository`, `IPortfolioRepository`, `IJournalEntryRepository`
+   - Returns: `IEnumerable<PendingReviewTradeDto>` (TradeId, Symbol, TradeDate, Price, Quantity, PortfolioName)
    - Test: `tests/InvestmentApp.Application.Tests/Journals/GetTradesPendingReviewQueryHandlerTests.cs`
 
-2. **New endpoint** `GET /api/v1/journals/pending-review?portfolioId={id}`
-   - File: `src/InvestmentApp.Api/Controllers/JournalsController.cs`
+2. **New endpoint** `GET /api/v1/journal-entries/pending-review?portfolioId={id}`
+   - File: `src/InvestmentApp.Api/Controllers/JournalEntriesController.cs` (thêm vào controller P7 đã tạo)
+   - **Không dùng** `JournalsController` (cái đó là của `TradeJournal` cũ)
 
 ### Frontend
-3. **Dashboard widget "Chờ đánh giá"** — hiển thị số SELL trades chưa có journal + link
+
+1. **Dashboard widget "Chờ đánh giá"** — hiển thị số SELL trades chưa có PostTrade journal + link
    - File: `frontend/src/app/features/dashboard/dashboard.component.ts`
+   - Dùng `JournalEntryService` (P7) thay vì `JournalService` (TradeJournal cũ)
+   - Thêm method `getPendingReview(portfolioId?)` vào `journal-entry.service.ts`
 
-4. **Trades list — cột "Nhật ký"** — icon check/pencil, click mở journal
+2. **Trades list — cột "Nhật ký"** — icon ✓ (đã review) / ✏️ (chưa review), click mở/tạo journal
    - File: `frontend/src/app/features/trades/trades.component.ts`
+   - Thêm cột sau cột "Kế hoạch" hiện tại
+   - Click vào ✏️ → navigate đến Symbol Timeline (`/symbol-timeline?symbol=X`) với pre-fill PostTrade form
+   - Click vào ✓ → mở journal entry đã có
 
-5. **Plan vs Actual** — khi journal có TradePlanId, hiển thị so sánh planned vs actual entry/exit/R:R
-   - File: `frontend/src/app/features/journals/journals.component.ts`
+3. **Plan vs Actual** — khi SELL trade có `TradePlanId`, hiển thị so sánh trong Symbol Timeline
+   - File: `frontend/src/app/features/symbol-timeline/symbol-timeline.component.ts` (P7 đã tạo)
+   - **Không tạo UI mới** — tích hợp vào timeline đã có: hiển thị planned entry/exit/R:R vs actual bên cạnh trade marker
+   - Dữ liệu lấy từ `TradePlan` entity (đã có `entryPrice`, `stopLoss`, `targetPrice`, `riskRewardRatio`)
 
 ### TDD
-- Test: handler trả về đúng trades SELL chưa có journal
-- Test: handler trả về empty khi tất cả trades đã có journal
+- Test: handler trả về đúng trades SELL chưa có JournalEntry PostTrade
+- Test: handler trả về empty khi tất cả trades đã có JournalEntry PostTrade
 - Test: handler filter đúng theo portfolioId
+- Test: trades với JournalEntry loại khác (Observation, PreTrade) vẫn nằm trong pending
+- Test: chỉ SELL trades, BUY trades không nằm trong pending review
 
 ---
 
@@ -95,7 +119,8 @@ Plan này sắp xếp lại thứ tự ưu tiên dựa trên **giá trị thực
    - Returns: `StressTestResult { positions[], totalImpact, totalImpactPercent }`
 
 ### Frontend
-3. **Replace hardcoded betas** — gọi API thay vì dùng `estimatedBetas` dictionary
+
+1. **Replace hardcoded betas** — gọi API thay vì dùng `estimatedBetas` dictionary
    - File: `frontend/src/app/features/risk-dashboard/risk-dashboard.component.ts` — xóa `estimatedBetas`, gọi `riskService.stressTest()`
    - File: `frontend/src/app/core/services/risk.service.ts` — thêm `stressTest()` method
 
@@ -130,7 +155,8 @@ Plan này sắp xếp lại thứ tự ưu tiên dựa trên **giá trị thực
    - File: `TechnicalIndicatorService.cs` lines 124-153
 
 ### Frontend
-5. **Display mới** trong market-data component
+
+1. **Display mới** trong market-data component
    - File: `frontend/src/app/features/market-data/market-data.component.ts`
    - Thêm rows cho Bollinger Bands + ATR theo pattern hiện tại
 
@@ -147,34 +173,55 @@ Plan này sắp xếp lại thứ tự ưu tiên dựa trên **giá trị thực
 
 **Vấn đề:** `RiskProfile` có 5 fields (max position, sector, drawdown, R:R, portfolio risk) nhưng không giới hạn tần suất giao dịch.
 
-### Backend
-1. **Extend RiskProfile** — thêm fields nullable (backward compatible)
-   - File: `src/InvestmentApp.Domain/Entities/RiskProfile.cs`
-   - Fields: `MaxDailyTrades` (int?), `DailyLossLimitPercent` (decimal?), `MaxOpenPositions` (int?)
-   - Update `Update()` method
+> **⚠️ Điều chỉnh:** Kế hoạch gốc đề xuất `MaxOpenPositions` nhưng thực tế `GetPortfolioRiskSummaryAsync` đã tính open positions count. Chỉ cần thêm `MaxDailyTrades` và `DailyLossLimitPercent`. Ngoài ra `ITradeRepository` hiện không có method filter theo ngày — cần thêm `GetByPortfolioIdAndDateRangeAsync`.
 
-2. **New method** `CheckRiskBudgetAsync(portfolioId)` trong `IRiskCalculationService`
+### Backend
+
+1. **Extend RiskProfile** — thêm 2 fields nullable (backward compatible)
+   - File: `src/InvestmentApp.Domain/Entities/RiskProfile.cs`
+   - Fields: `MaxDailyTrades` (int?), `DailyLossLimitPercent` (decimal?)
+   - Bỏ `MaxOpenPositions` — logic đếm positions đã có sẵn trong `GetPortfolioRiskSummaryAsync`
+   - Update `Update()` method: thêm 2 params
+   - Update constructor: thêm 2 optional params, defaults null
+
+2. **New repo method** `GetByPortfolioIdAndDateRangeAsync` trong `ITradeRepository`
+   - File: `src/InvestmentApp.Application/RepositoryInterfaces.cs` — thêm method signature
+   - File: `src/InvestmentApp.Infrastructure/Repositories/TradeRepository.cs` — implement
+   - Logic: filter by portfolioId + TradeDate range
+   - Cần thiết vì hiện tại chỉ có `GetByPortfolioIdAsync` (load tất cả, không filter date)
+   - Index `TradeDate` đã có sẵn trong TradeRepository constructor
+
+3. **New method** `CheckRiskBudgetAsync(portfolioId)` trong `IRiskCalculationService`
    - File: `src/InvestmentApp.Application/Common/Interfaces/IRiskCalculationService.cs` — thêm DTO `RiskBudgetStatus`
    - File: `src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs`
-   - Logic: đếm trades hôm nay, tính daily P&L, so với limits
-   - Returns: `{ tradesToday, maxDaily, dailyPnL, dailyLossLimit, isLocked }`
+   - Logic: dùng `GetByPortfolioIdAndDateRangeAsync(today, today)` đếm trades hôm nay, tính daily P&L, so với limits từ RiskProfile
+   - Returns: `{ tradesToday, maxDailyTrades, dailyPnl, dailyLossLimitPercent, isLocked, lockReason }`
+   - `isLocked = true` khi tradesToday >= maxDailyTrades HOẶC dailyPnl vượt lossLimit
+   - `isLocked = false` khi limits null (unlimited — user chưa set)
 
-3. **New endpoint** `GET /api/v1/risk/portfolio/{id}/budget`
+4. **New endpoint** `GET /api/v1/risk/portfolio/{id}/budget`
    - File: `src/InvestmentApp.Api/Controllers/RiskController.cs`
 
 ### Frontend
-4. **Risk budget card** — "Ngân sách rủi ro hôm nay" trên risk dashboard
-   - File: `frontend/src/app/features/risk-dashboard/risk-dashboard.component.ts`
-   - Hiển thị: trades used/limit, daily P&L vs limit, color status
 
-5. **Risk profile form** — thêm fields mới
+1. **Risk budget card** — "Ngân sách rủi ro hôm nay" trên risk dashboard
+   - File: `frontend/src/app/features/risk-dashboard/risk-dashboard.component.ts`
+   - Hiển thị: trades used/limit, daily P&L vs limit, color status (xanh/vàng/đỏ)
+   - Thêm `getRiskBudget()` vào `risk.service.ts`
+
+2. **Risk profile form** — thêm 2 fields mới vào form hiện tại
    - File: `frontend/src/app/features/risk-dashboard/risk-dashboard.component.ts` (form section)
+   - Thêm: "Số lệnh tối đa/ngày" (MaxDailyTrades), "Giới hạn lỗ/ngày (%)" (DailyLossLimitPercent)
+   - Cập nhật `riskProfileForm` object và `saveRiskProfile()` method
 
 ### TDD
+
 - Test: RiskProfile constructor chấp nhận nullable params, defaults null
-- Test: `Update()` cập nhật đúng fields mới
+- Test: `Update()` cập nhật đúng 2 fields mới
+- Test: `GetByPortfolioIdAndDateRangeAsync` trả về đúng trades trong khoảng ngày
 - Test: budget trả về đúng trade count cho ngày hôm nay
-- Test: isLocked = true khi daily loss vượt limit
+- Test: isLocked = true khi tradesToday >= maxDailyTrades
+- Test: isLocked = true khi daily loss vượt DailyLossLimitPercent
 - Test: isLocked = false khi limits null (unlimited)
 
 ---

@@ -18,6 +18,8 @@ public class RiskProfileDto
     public decimal MaxDrawdownAlertPercent { get; set; }
     public decimal DefaultRiskRewardRatio { get; set; }
     public decimal MaxPortfolioRiskPercent { get; set; }
+    public int? MaxDailyTrades { get; set; }
+    public decimal? DailyLossLimitPercent { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -53,6 +55,8 @@ public class GetRiskProfileQueryHandler : IRequestHandler<GetRiskProfileQuery, R
             MaxDrawdownAlertPercent = profile.MaxDrawdownAlertPercent,
             DefaultRiskRewardRatio = profile.DefaultRiskRewardRatio,
             MaxPortfolioRiskPercent = profile.MaxPortfolioRiskPercent,
+            MaxDailyTrades = profile.MaxDailyTrades,
+            DailyLossLimitPercent = profile.DailyLossLimitPercent,
             CreatedAt = profile.CreatedAt,
             UpdatedAt = profile.UpdatedAt
         };

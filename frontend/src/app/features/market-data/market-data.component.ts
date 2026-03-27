@@ -203,7 +203,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         </div>
 
         <!-- Indicators Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- EMA -->
           <div class="bg-gray-50 rounded-lg p-3">
             <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50)</div>
@@ -264,6 +264,47 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
               </div>
             </div>
           </div>
+
+            <!-- Bollinger Bands -->
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500 font-medium mb-1">📊 Bollinger Bands (20,2)</div>
+              @if (analysis.bollingerMiddle) {
+                <div class="text-sm font-semibold">
+                  <span class="text-red-500">{{ analysis.bollingerUpper | number:'1.0-0' }}</span> /
+                  <span class="text-gray-700">{{ analysis.bollingerMiddle | number:'1.0-0' }}</span> /
+                  <span class="text-emerald-500">{{ analysis.bollingerLower | number:'1.0-0' }}</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">Bandwidth: {{ analysis.bollingerBandwidth | number:'1.2-2' }}% · %B: {{ analysis.bollingerPercentB | number:'1.3-3' }}</div>
+                <div class="text-xs font-medium mt-1"
+                  [class.text-amber-600]="analysis.bollingerSignal === 'squeeze'"
+                  [class.text-emerald-600]="analysis.bollingerSignal === 'breakout_up'"
+                  [class.text-red-600]="analysis.bollingerSignal === 'breakout_down'"
+                  [class.text-gray-500]="analysis.bollingerSignal === 'neutral'">
+                  {{ analysis.bollingerSignal === 'squeeze' ? 'Nén (Squeeze)' :
+                     analysis.bollingerSignal === 'breakout_up' ? 'Phá lên' :
+                     analysis.bollingerSignal === 'breakout_down' ? 'Phá xuống' : 'Trung tính' }}
+                </div>
+              } @else {
+                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+              }
+            </div>
+
+            <!-- ATR -->
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500 font-medium mb-1">📏 ATR (14)</div>
+              @if (analysis.atr14) {
+                <div class="text-2xl font-bold text-gray-900">{{ analysis.atr14 | number:'1.0-0' }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ analysis.atrPercent | number:'1.2-2' }}% giá hiện tại</div>
+                <div class="text-xs font-medium mt-1"
+                  [class.text-red-600]="analysis.atrPercent! > 3"
+                  [class.text-amber-600]="analysis.atrPercent! > 2 && analysis.atrPercent! <= 3"
+                  [class.text-emerald-600]="analysis.atrPercent! <= 2">
+                  {{ analysis.atrPercent! > 3 ? 'Biến động cao' : analysis.atrPercent! > 2 ? 'Biến động TB' : 'Biến động thấp' }}
+                </div>
+              } @else {
+                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+              }
+            </div>
         </div>
 
         <!-- Support / Resistance -->

@@ -120,7 +120,45 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         result.SupportLevels = supports.Where(s => s < current.Close).OrderByDescending(s => s).Take(3).ToList();
         result.ResistanceLevels = resistances.Where(r => r > current.Close).OrderBy(r => r).Take(3).ToList();
 
-        // --- Overall Signal ---
+        // --- Bollinger Bands(20, 2) ---
+        var (bbMiddle, bbUpper, bbLower) = CalculateBollingerBands(closes, 20, 2m);
+        result.BollingerMiddle = bbMiddle;
+        result.BollingerUpper = bbUpper;
+        result.BollingerLower = bbLower;
+
+        if (bbMiddle.HasValue && bbUpper.HasValue && bbLower.HasValue)
+        {
+            var bandwidth = bbMiddle.Value > 0
+                ? (bbUpper.Value - bbLower.Value) / bbMiddle.Value * 100
+                : 0;
+            result.BollingerBandwidth = Math.Round(bandwidth, 2);
+
+            var range = bbUpper.Value - bbLower.Value;
+            result.BollingerPercentB = range > 0
+                ? Math.Round((current.Close - bbLower.Value) / range, 3)
+                : 0.5m;
+
+            // Signal: squeeze when bandwidth < 4%, breakout when price outside bands
+            if (bandwidth < 4m)
+                result.BollingerSignal = "squeeze";
+            else if (current.Close > bbUpper.Value)
+                result.BollingerSignal = "breakout_up";
+            else if (current.Close < bbLower.Value)
+                result.BollingerSignal = "breakout_down";
+            else
+                result.BollingerSignal = "neutral";
+        }
+
+        // --- ATR(14) ---
+        var highs = prices.Select(p => p.High).ToList();
+        var lows = prices.Select(p => p.Low).ToList();
+        var atr = CalculateAtr(highs, lows, closes, 14);
+        result.Atr14 = atr;
+
+        if (atr.HasValue && current.Close > 0)
+            result.AtrPercent = Math.Round(atr.Value / current.Close * 100, 2);
+
+        // --- Overall Signal (6 indicators) ---
         int bullish = 0, bearish = 0, neutral = 0;
 
         // EMA trend
@@ -139,16 +177,25 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         }
         else neutral++;
 
+        // Bollinger Bands
+        if (result.BollingerSignal == "breakout_up") bullish++;
+        else if (result.BollingerSignal == "breakout_down") bearish++;
+        else neutral++;
+
+        // ATR — high volatility (ATR% > 3%) is bearish (risky), low is neutral
+        if (result.AtrPercent.HasValue && result.AtrPercent > 3m) bearish++;
+        else neutral++;
+
         result.BullishCount = bullish;
         result.BearishCount = bearish;
         result.NeutralCount = neutral;
 
         (result.OverallSignal, result.OverallSignalVi) = (bullish, bearish) switch
         {
-            ( >= 3, _) => ("strong_buy", "Mua mạnh"),
-            ( >= 2, 0) => ("buy", "Mua"),
-            (_, >= 3) => ("strong_sell", "Bán mạnh"),
-            (0, >= 2) => ("sell", "Bán"),
+            ( >= 4, _) => ("strong_buy", "Mua mạnh"),
+            ( >= 3, 0 or 1) => ("buy", "Mua"),
+            (_, >= 4) => ("strong_sell", "Bán mạnh"),
+            (0 or 1, >= 3) => ("sell", "Bán"),
             _ => ("hold", "Chờ")
         };
 
@@ -257,6 +304,52 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         var histogram = macdLine - signalLine.Value;
         return (Math.Round(macdLine, 0), Math.Round(signalLine.Value, 0), Math.Round(histogram, 0));
+    }
+
+    private static (decimal? middle, decimal? upper, decimal? lower) CalculateBollingerBands(
+        List<decimal> data, int period, decimal multiplier)
+    {
+        if (data.Count < period) return (null, null, null);
+
+        var last = data.TakeLast(period).ToList();
+        var mean = last.Average();
+        var sma = Math.Round(mean, 0);
+
+        var variance = last.Average(p => (p - mean) * (p - mean));
+        var stddev = (decimal)Math.Sqrt((double)variance);
+
+        var upper = Math.Round(sma + multiplier * stddev, 0);
+        var lower = Math.Round(sma - multiplier * stddev, 0);
+
+        return (sma, upper, lower);
+    }
+
+    private static decimal? CalculateAtr(List<decimal> highs, List<decimal> lows, List<decimal> closes, int period)
+    {
+        if (highs.Count < period + 1) return null;
+
+        // Calculate True Range series
+        var trueRanges = new List<decimal>();
+        for (int i = 1; i < highs.Count; i++)
+        {
+            var highLow = highs[i] - lows[i];
+            var highPrevClose = Math.Abs(highs[i] - closes[i - 1]);
+            var lowPrevClose = Math.Abs(lows[i] - closes[i - 1]);
+            trueRanges.Add(Math.Max(highLow, Math.Max(highPrevClose, lowPrevClose)));
+        }
+
+        if (trueRanges.Count < period) return null;
+
+        // Initial ATR = simple average of first `period` true ranges
+        decimal atr = trueRanges.Take(period).Average();
+
+        // Smoothed ATR
+        for (int i = period; i < trueRanges.Count; i++)
+        {
+            atr = (atr * (period - 1) + trueRanges[i]) / period;
+        }
+
+        return Math.Round(atr, 0);
     }
 
     private static (List<decimal> supports, List<decimal> resistances) CalculateSwingLevels(List<decimal> closes)

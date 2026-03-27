@@ -26,6 +26,7 @@ public interface ITradeRepository : IRepository<Trade>
     Task<IEnumerable<Trade>> GetByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByPortfolioIdAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByUserPortfoliosAndSymbolAsync(IEnumerable<string> portfolioIds, string symbol, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Trade>> GetByPortfolioIdAndDateRangeAsync(string portfolioId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
 }
 
 public interface IUserRepository : IRepository<User>

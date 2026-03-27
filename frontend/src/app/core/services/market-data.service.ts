@@ -140,6 +140,14 @@ export interface TechnicalAnalysis {
   bullishCount: number;
   bearishCount: number;
   neutralCount: number;
+  bollingerUpper?: number;
+  bollingerMiddle?: number;
+  bollingerLower?: number;
+  bollingerBandwidth?: number;
+  bollingerPercentB?: number;
+  bollingerSignal?: string;
+  atr14?: number;
+  atrPercent?: number;
   suggestedEntry?: number;
   suggestedStopLoss?: number;
   suggestedTarget?: number;

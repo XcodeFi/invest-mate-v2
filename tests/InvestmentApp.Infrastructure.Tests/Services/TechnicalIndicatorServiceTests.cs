@@ -452,8 +452,8 @@ public class TechnicalIndicatorServiceTests
         result.CurrentPrice.Should().Be(prices.Last().Close);
         result.CurrentVolume.Should().Be(prices.Last().Volume);
 
-        // Signal counts should add up to 4 (EMA, RSI, MACD, Volume)
-        (result.BullishCount + result.BearishCount + result.NeutralCount).Should().Be(4);
+        // Signal counts should add up to 6 (EMA, RSI, MACD, Volume, Bollinger, ATR)
+        (result.BullishCount + result.BearishCount + result.NeutralCount).Should().Be(6);
 
         // Overall signal should be one of the valid values
         result.OverallSignal.Should().BeOneOf("strong_buy", "buy", "hold", "sell", "strong_sell");

@@ -14,6 +14,8 @@ public class RiskProfile : AggregateRoot
     public decimal MaxDrawdownAlertPercent { get; private set; }
     public decimal DefaultRiskRewardRatio { get; private set; }
     public decimal MaxPortfolioRiskPercent { get; private set; }
+    public int? MaxDailyTrades { get; private set; }
+    public decimal? DailyLossLimitPercent { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -25,7 +27,9 @@ public class RiskProfile : AggregateRoot
         decimal maxSectorExposurePercent = 40m,
         decimal maxDrawdownAlertPercent = 10m,
         decimal defaultRiskRewardRatio = 2.0m,
-        decimal maxPortfolioRiskPercent = 5m)
+        decimal maxPortfolioRiskPercent = 5m,
+        int? maxDailyTrades = null,
+        decimal? dailyLossLimitPercent = null)
     {
         Id = Guid.NewGuid().ToString();
         PortfolioId = portfolioId ?? throw new ArgumentNullException(nameof(portfolioId));
@@ -35,6 +39,8 @@ public class RiskProfile : AggregateRoot
         MaxDrawdownAlertPercent = maxDrawdownAlertPercent;
         DefaultRiskRewardRatio = defaultRiskRewardRatio;
         MaxPortfolioRiskPercent = maxPortfolioRiskPercent;
+        MaxDailyTrades = maxDailyTrades;
+        DailyLossLimitPercent = dailyLossLimitPercent;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
@@ -44,13 +50,17 @@ public class RiskProfile : AggregateRoot
         decimal? maxSectorExposurePercent = null,
         decimal? maxDrawdownAlertPercent = null,
         decimal? defaultRiskRewardRatio = null,
-        decimal? maxPortfolioRiskPercent = null)
+        decimal? maxPortfolioRiskPercent = null,
+        int? maxDailyTrades = null,
+        decimal? dailyLossLimitPercent = null)
     {
         if (maxPositionSizePercent.HasValue) MaxPositionSizePercent = maxPositionSizePercent.Value;
         if (maxSectorExposurePercent.HasValue) MaxSectorExposurePercent = maxSectorExposurePercent.Value;
         if (maxDrawdownAlertPercent.HasValue) MaxDrawdownAlertPercent = maxDrawdownAlertPercent.Value;
         if (defaultRiskRewardRatio.HasValue) DefaultRiskRewardRatio = defaultRiskRewardRatio.Value;
         if (maxPortfolioRiskPercent.HasValue) MaxPortfolioRiskPercent = maxPortfolioRiskPercent.Value;
+        if (maxDailyTrades.HasValue) MaxDailyTrades = maxDailyTrades.Value;
+        if (dailyLossLimitPercent.HasValue) DailyLossLimitPercent = dailyLossLimitPercent.Value;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }

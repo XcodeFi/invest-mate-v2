@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile, PortfolioRiskSummary, DrawdownResult, CorrelationPair, StopLossTargetItem, PortfolioOptimizationResult, ConcentrationAlert, SectorExposure, CorrelationWarning, TrailingStopAlertsResult, TrailingStopAlert } from '../../core/services/risk.service';
+import { RiskService, RiskProfile, PortfolioRiskSummary, DrawdownResult, CorrelationPair, StopLossTargetItem, PortfolioOptimizationResult, ConcentrationAlert, SectorExposure, CorrelationWarning, TrailingStopAlertsResult, TrailingStopAlert, StressTestResult, RiskBudgetStatus } from '../../core/services/risk.service';
 import { StrategyService, Strategy, StrategyPerformance } from '../../core/services/strategy.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -354,6 +354,36 @@ interface StrategyScore {
           </div>
         </div>
 
+        <!-- Risk Budget -->
+        @if (riskBudget) {
+        <div class="bg-white rounded-xl shadow-sm border p-6 mb-6" [class.border-red-300]="riskBudget.isLocked" [class.border-gray-200]="!riskBudget.isLocked">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Ngân sách rủi ro hôm nay</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="text-center">
+              <div class="text-2xl font-bold" [class.text-red-600]="riskBudget.isLocked" [class.text-gray-900]="!riskBudget.isLocked">
+                {{ riskBudget.tradesToday }}{{ riskBudget.maxDailyTrades ? '/' + riskBudget.maxDailyTrades : '' }}
+              </div>
+              <div class="text-sm text-gray-500">Số lệnh hôm nay</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold" [class.text-red-600]="riskBudget.dailyPnl < 0" [class.text-emerald-600]="riskBudget.dailyPnl >= 0">
+                {{ riskBudget.dailyPnl | number:'1.0-0' }}
+              </div>
+              <div class="text-sm text-gray-500">P&L hôm nay{{ riskBudget.dailyLossLimitPercent ? ' (giới hạn ' + riskBudget.dailyLossLimitPercent + '%)' : '' }}</div>
+            </div>
+            <div class="text-center">
+              @if (riskBudget.isLocked) {
+                <div class="text-lg font-bold text-red-600">Tạm khóa</div>
+                <div class="text-xs text-red-500">{{ riskBudget.lockReason }}</div>
+              } @else {
+                <div class="text-lg font-bold text-emerald-600">Bình thường</div>
+                <div class="text-xs text-gray-500">Tiếp tục giao dịch</div>
+              }
+            </div>
+          </div>
+        </div>
+        }
+
         <!-- Stress Test / What-If -->
         <div class="bg-white rounded-lg shadow p-6 mt-6">
           <h2 class="text-lg font-semibold mb-4">Stress Test — Mô phỏng kịch bản</h2>
@@ -363,10 +393,10 @@ interface StrategyScore {
             <button *ngFor="let scenario of stressScenarios"
               (click)="runStressTest(scenario.marketChange)"
               class="px-3 py-3 rounded-lg border-2 text-center transition-all text-sm font-medium"
-              [class.border-blue-500]="selectedScenario === scenario.marketChange"
-              [class.bg-blue-50]="selectedScenario === scenario.marketChange"
-              [class.border-gray-200]="selectedScenario !== scenario.marketChange"
-              [class.hover:border-gray-400]="selectedScenario !== scenario.marketChange">
+              [class.border-blue-500]="stressScenario === scenario.marketChange"
+              [class.bg-blue-50]="stressScenario === scenario.marketChange"
+              [class.border-gray-200]="stressScenario !== scenario.marketChange"
+              [class.hover:border-gray-400]="stressScenario !== scenario.marketChange">
               <div class="font-bold" [class.text-red-600]="scenario.marketChange < 0" [class.text-green-600]="scenario.marketChange > 0">
                 {{ scenario.marketChange > 0 ? '+' : '' }}{{ scenario.marketChange }}%
               </div>
@@ -423,7 +453,7 @@ interface StrategyScore {
             </table>
           </div>
 
-          <div *ngIf="stressResults.length === 0 && selectedScenario !== null" class="text-center py-4 text-gray-400">
+          <div *ngIf="stressResults.length === 0 && stressScenario !== null" class="text-center py-4 text-gray-400">
             Không có vị thế nào để mô phỏng
           </div>
         </div>
@@ -457,6 +487,18 @@ interface StrategyScore {
               <input [(ngModel)]="riskProfileForm.defaultRiskRewardRatio" type="number" step="0.5" min="1" max="10"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               <div class="text-xs text-gray-400 mt-1">Tỷ lệ Risk/Reward tối thiểu</div>
+            </div>
+            <!-- Số lệnh tối đa/ngày -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Số lệnh tối đa/ngày</label>
+              <input type="number" [(ngModel)]="riskProfileForm.maxDailyTrades" placeholder="Không giới hạn"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <!-- Giới hạn lỗ/ngày (%) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Giới hạn lỗ/ngày (%)</label>
+              <input type="number" [(ngModel)]="riskProfileForm.dailyLossLimitPercent" placeholder="Không giới hạn" step="0.5"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
           </div>
 
@@ -520,6 +562,9 @@ export class RiskDashboardComponent implements OnInit {
   // Trailing Stop Alerts
   trailingStopAlerts: TrailingStopAlertsResult | null = null;
 
+  // Risk Budget
+  riskBudget: { tradesToday: number; maxDailyTrades?: number; dailyPnl: number; dailyLossLimitPercent?: number; isLocked: boolean; lockReason?: string } | null = null;
+
   // Stress Test
   stressScenarios = [
     { label: 'Sập mạnh', marketChange: -20 },
@@ -528,7 +573,7 @@ export class RiskDashboardComponent implements OnInit {
     { label: 'Hồi phục', marketChange: 5 },
     { label: 'Tăng mạnh', marketChange: 15 },
   ];
-  selectedScenario: number | null = null;
+  stressScenario: number | null = null;
   customScenarioChange = -10;
   stressResults: { symbol: string; currentValue: number; beta: number; impact: number; afterValue: number }[] = [];
   stressTotalImpact = 0;
@@ -536,7 +581,7 @@ export class RiskDashboardComponent implements OnInit {
   private lastRiskSummary: PortfolioRiskSummary | null = null;
 
   // Risk Profile Form
-  riskProfileForm = { maxPositionSizePercent: 20, maxPortfolioRiskPercent: 2, maxDrawdownAlertPercent: 15, defaultRiskRewardRatio: 2 };
+  riskProfileForm = { maxPositionSizePercent: 20, maxPortfolioRiskPercent: 2, maxDrawdownAlertPercent: 15, defaultRiskRewardRatio: 2, maxDailyTrades: null as number | null, dailyLossLimitPercent: null as number | null };
   savingProfile = false;
   profileSaved = false;
 
@@ -604,7 +649,11 @@ export class RiskDashboardComponent implements OnInit {
               maxPortfolioRiskPercent: profile.maxPortfolioRiskPercent,
               maxDrawdownAlertPercent: profile.maxDrawdownAlertPercent,
               defaultRiskRewardRatio: profile.defaultRiskRewardRatio,
+              maxDailyTrades: null as number | null,
+              dailyLossLimitPercent: null as number | null,
             };
+            this.riskProfileForm.maxDailyTrades = profile.maxDailyTrades ?? null;
+            this.riskProfileForm.dailyLossLimitPercent = profile.dailyLossLimitPercent ?? null;
             this.buildCompliance(risk, profile);
             this.calculateHealthScore(risk, drawdown, profile);
           },
@@ -639,6 +688,12 @@ export class RiskDashboardComponent implements OnInit {
     this.riskService.getTrailingStopAlerts(this.selectedPortfolioId).subscribe({
       next: (data) => this.trailingStopAlerts = data,
       error: () => this.trailingStopAlerts = null
+    });
+
+    // Load risk budget
+    this.riskService.getRiskBudget(this.selectedPortfolioId).subscribe({
+      next: (budget) => this.riskBudget = budget,
+      error: () => this.riskBudget = null
     });
   }
 
@@ -765,38 +820,27 @@ export class RiskDashboardComponent implements OnInit {
   }
 
   // --- Stress Test ---
-  // Estimated betas for common VN stocks (simplified — in production, calculate from price history)
-  private estimatedBetas: Record<string, number> = {
-    VIC: 1.2, VNM: 0.7, FPT: 1.1, VCB: 0.9, HPG: 1.4,
-    MWG: 1.3, TCB: 1.1, VHM: 1.3, MSN: 1.0, VRE: 0.8,
-    SSI: 1.5, ACB: 1.0, MBB: 1.1, BID: 0.9, CTG: 0.9,
-    GAS: 0.8, PLX: 0.7, SAB: 0.6, PNJ: 0.9, REE: 1.0,
-  };
-
   runStressTest(marketChangePercent: number): void {
-    this.selectedScenario = marketChangePercent;
-    if (!this.lastRiskSummary?.positions?.length) {
-      this.stressResults = [];
-      return;
-    }
-
-    const change = marketChangePercent / 100;
-    this.stressResults = this.lastRiskSummary.positions.map(pos => {
-      const beta = this.estimatedBetas[pos.symbol.toUpperCase()] ?? 1.0;
-      const positionChange = change * beta;
-      const impact = pos.marketValue * positionChange;
-      return {
-        symbol: pos.symbol,
-        currentValue: pos.marketValue,
-        beta,
-        impact,
-        afterValue: pos.marketValue + impact,
-      };
+    if (!this.selectedPortfolioId) return;
+    this.stressScenario = marketChangePercent;
+    this.riskService.stressTest(this.selectedPortfolioId, marketChangePercent).subscribe({
+      next: (result) => {
+        this.stressResults = result.positions.map(p => ({
+          symbol: p.symbol,
+          currentValue: p.marketValue,
+          beta: p.beta,
+          impact: p.impact,
+          afterValue: p.valueAfter
+        }));
+        this.stressTotalImpact = result.totalImpact;
+        this.stressTotalImpactPercent = result.totalImpactPercent;
+      },
+      error: () => {
+        this.stressResults = [];
+        this.stressTotalImpact = 0;
+        this.stressTotalImpactPercent = 0;
+      }
     });
-
-    this.stressTotalImpact = this.stressResults.reduce((sum, r) => sum + r.impact, 0);
-    this.stressTotalImpactPercent = this.lastRiskSummary.totalValue > 0
-      ? (this.stressTotalImpact / this.lastRiskSummary.totalValue) * 100 : 0;
   }
 
   // --- Risk Profile Save ---
@@ -805,7 +849,11 @@ export class RiskDashboardComponent implements OnInit {
     this.savingProfile = true;
     this.profileSaved = false;
 
-    this.riskService.setRiskProfile(this.selectedPortfolioId, this.riskProfileForm).subscribe({
+    this.riskService.setRiskProfile(this.selectedPortfolioId, {
+      ...this.riskProfileForm,
+      maxDailyTrades: this.riskProfileForm.maxDailyTrades ?? undefined,
+      dailyLossLimitPercent: this.riskProfileForm.dailyLossLimitPercent ?? undefined,
+    }).subscribe({
       next: () => {
         this.savingProfile = false;
         this.profileSaved = true;

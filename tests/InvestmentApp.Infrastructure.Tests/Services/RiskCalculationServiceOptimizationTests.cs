@@ -21,6 +21,8 @@ public class RiskCalculationServiceOptimizationTests
     private readonly Mock<ICapitalFlowRepository> _capitalFlowRepo;
     private readonly Mock<IRiskProfileRepository> _riskProfileRepo;
     private readonly Mock<IFundamentalDataProvider> _fundamentalProvider;
+    private readonly Mock<IComprehensiveStockDataProvider> _comprehensiveProvider;
+    private readonly Mock<IMarketDataProvider> _marketDataProvider;
     private readonly Mock<ILogger<RiskCalculationService>> _logger;
     private readonly RiskCalculationService _sut;
 
@@ -39,6 +41,8 @@ public class RiskCalculationServiceOptimizationTests
         _capitalFlowRepo = new Mock<ICapitalFlowRepository>();
         _riskProfileRepo = new Mock<IRiskProfileRepository>();
         _fundamentalProvider = new Mock<IFundamentalDataProvider>();
+        _comprehensiveProvider = new Mock<IComprehensiveStockDataProvider>();
+        _marketDataProvider = new Mock<IMarketDataProvider>();
         _logger = new Mock<ILogger<RiskCalculationService>>();
 
         _sut = new RiskCalculationService(
@@ -52,6 +56,8 @@ public class RiskCalculationServiceOptimizationTests
             _capitalFlowRepo.Object,
             _riskProfileRepo.Object,
             _fundamentalProvider.Object,
+            _comprehensiveProvider.Object,
+            _marketDataProvider.Object,
             _logger.Object);
     }
 
