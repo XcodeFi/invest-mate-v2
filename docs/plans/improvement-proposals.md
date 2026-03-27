@@ -697,27 +697,29 @@ public enum MarketEventType
 ### Sub-phase implementation order
 
 ```
-Phase 7A (M-L) — Foundation:
-  7A.1  JournalEntry entity + enum           ← backend domain
-  7A.2  Repository + CQRS + API              ← backend application/infra/api
-  7A.3  Candlestick chart + markers          ← frontend, cần lightweight-charts
-  7A.4  JournalEntry service + quick-add     ← frontend service + form
-  7A.5  Tests                                ← TDD cho tất cả trên
+Phase 7A (M-L) — Foundation:                    ✅ Done (2026-03-27)
+  7A.1  JournalEntry entity + enum           ✅ backend domain
+  7A.2  Repository + CQRS + API              ✅ backend application/infra/api
+  7A.3  Candlestick chart + markers          ✅ frontend, lightweight-charts v4.2.2
+  7A.4  JournalEntry service + quick-add     ✅ frontend service + form
+  7A.5  Tests                                ✅ 56 tests (TDD)
 
-Phase 7B (M) — Events layer:
-  7B.1  MarketEvent entity                   ← backend domain
-  7B.2  Event ingestion (manual + auto)      ← backend + worker
-  7B.3  Event markers trên chart             ← frontend overlay
-  7B.4  Tests
+Phase 7B (M) — Events layer:                    ✅ Done (2026-03-27)
+  7B.1  MarketEvent entity                   ✅ backend domain
+  7B.2  Event ingestion (manual only)        ✅ manual add qua API + form
+  7B.3  Event markers trên chart             ✅ frontend overlay + filter toggles
+  7B.4  Tests                                ✅
 
-Phase 7C (M) — Insights:
-  7C.1  Emotion ribbon trên chart            ← frontend sub-chart
-  7C.2  Emotion summary panel                ← frontend analytics
-  7C.3  AI timeline review                   ← AI integration
-  7C.4  Tests
+Phase 7C (M) — Insights:                        ✅ Done (2026-03-27)
+  7C.1  Emotion ribbon trên chart            ✅ histogram sub-chart
+  7C.2  Emotion summary panel                ✅ distribution bars + stats
+  7C.3  AI timeline review                   ✅ AiChatPanel use case timeline-review
+  7C.4  Tests                                ✅
 ```
 
-**Điều kiện tiên quyết:** P1 (Post-Trade Review Workflow) nên hoàn thành trước vì P7 mở rộng từ journal concept.
+**Branch:** `feat/p7-symbol-timeline` · **PR:** #41
+
+**Ghi chú:** Phase 7B.2 auto-fetch (Worker job) chưa implement — chỉ có manual add. Có thể bổ sung sau nếu cần.
 
 ---
 
