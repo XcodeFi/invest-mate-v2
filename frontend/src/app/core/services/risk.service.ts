@@ -14,6 +14,8 @@ export interface RiskProfile {
   maxDrawdownAlertPercent: number;
   defaultRiskRewardRatio: number;
   maxPortfolioRiskPercent: number;
+  maxDailyTrades?: number;
+  dailyLossLimitPercent?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +26,37 @@ export interface SetRiskProfileRequest {
   maxDrawdownAlertPercent?: number;
   defaultRiskRewardRatio?: number;
   maxPortfolioRiskPercent?: number;
+  maxDailyTrades?: number;
+  dailyLossLimitPercent?: number;
+}
+
+// Stress Test
+export interface StressTestPositionItem {
+  symbol: string;
+  marketValue: number;
+  beta: number;
+  impact: number;
+  valueAfter: number;
+}
+
+export interface StressTestResult {
+  portfolioId: string;
+  marketChangePercent: number;
+  positions: StressTestPositionItem[];
+  totalImpact: number;
+  totalImpactPercent: number;
+  totalValueBefore: number;
+  totalValueAfter: number;
+}
+
+// Risk Budget
+export interface RiskBudgetStatus {
+  tradesToday: number;
+  maxDailyTrades?: number;
+  dailyPnl: number;
+  dailyLossLimitPercent?: number;
+  isLocked: boolean;
+  lockReason?: string;
 }
 
 // Position Risk
@@ -235,6 +268,17 @@ export class RiskService {
 
   getTrailingStopAlerts(portfolioId: string): Observable<TrailingStopAlertsResult> {
     return this.http.get<TrailingStopAlertsResult>(`${this.API_URL}/portfolio/${portfolioId}/trailing-stop-alerts`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  stressTest(portfolioId: string, marketChangePercent: number): Observable<StressTestResult> {
+    return this.http.post<StressTestResult>(`${this.API_URL}/portfolio/${portfolioId}/stress-test`,
+      { marketChangePercent }, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getRiskBudget(portfolioId: string): Observable<RiskBudgetStatus> {
+    return this.http.get<RiskBudgetStatus>(`${this.API_URL}/portfolio/${portfolioId}/budget`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

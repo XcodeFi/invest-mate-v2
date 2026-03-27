@@ -91,6 +91,16 @@ export interface EmotionSummary {
   totalEntries: number;
 }
 
+export interface PendingReviewTrade {
+  tradeId: string;
+  symbol: string;
+  portfolioId: string;
+  portfolioName: string;
+  price: number;
+  quantity: number;
+  tradeDate: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -109,6 +119,14 @@ export class JournalEntryService {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     });
+  }
+
+  getPendingReview(portfolioId?: string): Observable<PendingReviewTrade[]> {
+    let params = new HttpParams();
+    if (portfolioId) params = params.set('portfolioId', portfolioId);
+    return this.http.get<PendingReviewTrade[]>(`${this.API_URL}/pending-review`,
+      { headers: this.getHeaders(), params })
+      .pipe(catchError(this.handleError));
   }
 
   getBySymbol(symbol: string, from?: string, to?: string): Observable<JournalEntry[]> {

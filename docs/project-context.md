@@ -39,6 +39,13 @@ Transform from "trade recorder" to "opportunity finder":
 6. **Capital Flows Visibility** — 🔄 In Progress: TWR/MWR trên Dashboard + Analytics, flow markers trên equity curve, smart nudge, cash balance card
 7. **Tài chính cá nhân** — 📋 Planned: Net Worth overview (4 loại tài khoản: CK/Tiết kiệm/Dự phòng/Nhàn rỗi), Financial Rules compliance (quỹ dự phòng, tỷ lệ đầu tư, tiết kiệm), health scorecard 0-100, Dashboard widget + trang `/personal-finance`. Chi tiết: [`docs/plans/personal-finance.md`](plans/personal-finance.md)
 
+### Improvement Proposals (P1-P4) — Done
+
+1. **P1: Post-Trade Review Workflow** — ✅ Pending review query, dashboard widget, trades journal column (dùng JournalEntry thay TradeJournal)
+2. **P2: Stress Test Dynamic Beta** — ✅ Dynamic beta từ API, thay hardcoded estimatedBetas
+3. **P3: Bollinger Bands + ATR** — ✅ 2 indicator mới, signal scoring 6 votes
+4. **P4: Risk Budgeting** — ✅ MaxDailyTrades, DailyLossLimitPercent, budget card, form fields
+
 ## Common Pitfalls (từ past bugs)
 
 - **`[contextData]="{}"` in Angular templates** — Creates new object reference every change detection cycle, causes infinite loop. Use `readonly emptyContext = {}` as stable reference.

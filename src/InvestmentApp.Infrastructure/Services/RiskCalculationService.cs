@@ -22,6 +22,8 @@ public class RiskCalculationService : IRiskCalculationService
     private readonly ICapitalFlowRepository _capitalFlowRepository;
     private readonly IRiskProfileRepository _riskProfileRepository;
     private readonly IFundamentalDataProvider _fundamentalDataProvider;
+    private readonly IComprehensiveStockDataProvider _comprehensiveProvider;
+    private readonly IMarketDataProvider _marketDataProvider;
     private readonly ILogger<RiskCalculationService> _logger;
 
     public RiskCalculationService(
@@ -35,6 +37,8 @@ public class RiskCalculationService : IRiskCalculationService
         ICapitalFlowRepository capitalFlowRepository,
         IRiskProfileRepository riskProfileRepository,
         IFundamentalDataProvider fundamentalDataProvider,
+        IComprehensiveStockDataProvider comprehensiveProvider,
+        IMarketDataProvider marketDataProvider,
         ILogger<RiskCalculationService> logger)
     {
         _portfolioRepository = portfolioRepository;
@@ -47,6 +51,8 @@ public class RiskCalculationService : IRiskCalculationService
         _capitalFlowRepository = capitalFlowRepository;
         _riskProfileRepository = riskProfileRepository;
         _fundamentalDataProvider = fundamentalDataProvider;
+        _comprehensiveProvider = comprehensiveProvider;
+        _marketDataProvider = marketDataProvider;
         _logger = logger;
     }
 
@@ -493,6 +499,209 @@ public class RiskCalculationService : IRiskCalculationService
 
         result.AlertCount = result.Alerts.Count(a => a.Severity != "safe");
         return result;
+    }
+
+    public async Task<StressTestResult> CalculateStressTestAsync(
+        string portfolioId, decimal marketChangePercent, CancellationToken cancellationToken = default)
+    {
+        var result = new StressTestResult
+        {
+            PortfolioId = portfolioId,
+            MarketChangePercent = marketChangePercent
+        };
+
+        // Get positions from trades
+        var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var positionMap = new Dictionary<string, decimal>(); // symbol → net qty
+        foreach (var trade in trades)
+        {
+            if (!positionMap.ContainsKey(trade.Symbol)) positionMap[trade.Symbol] = 0;
+            positionMap[trade.Symbol] += trade.TradeType == Domain.Entities.TradeType.BUY ? trade.Quantity : -trade.Quantity;
+        }
+
+        // Pre-fetch VN-INDEX prices once for beta fallback calculation
+        List<decimal>? cachedIndexReturns = null;
+        try
+        {
+            var from = DateTime.UtcNow.AddMonths(-6);
+            var to = DateTime.UtcNow;
+            var indexPrices = await _marketDataProvider.GetHistoricalPricesAsync("VNINDEX", from, to, cancellationToken);
+            if (indexPrices.Count >= 20)
+                cachedIndexReturns = indexPrices.Zip(indexPrices.Skip(1), (a, b) => b.Close / a.Close - 1).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to pre-fetch VN-INDEX prices for beta calculation");
+        }
+
+        decimal totalValueBefore = 0;
+        decimal totalImpact = 0;
+
+        foreach (var (symbol, qty) in positionMap.Where(p => p.Value > 0))
+        {
+            try
+            {
+                var currentPriceMoney = await _stockPriceService.GetCurrentPriceAsync(
+                    new Domain.ValueObjects.StockSymbol(symbol));
+                var currentPrice = currentPriceMoney.Amount;
+                var marketValue = qty * currentPrice;
+
+                // Get beta: try comprehensive provider → fallback correlation → fallback 1.0
+                var beta = await GetBetaForSymbolAsync(symbol, cachedIndexReturns, cancellationToken);
+
+                var impact = marketValue * (marketChangePercent / 100m) * beta;
+
+                result.Positions.Add(new StressTestPositionItem
+                {
+                    Symbol = symbol,
+                    MarketValue = marketValue,
+                    Beta = beta,
+                    Impact = impact,
+                    ValueAfter = marketValue + impact
+                });
+
+                totalValueBefore += marketValue;
+                totalImpact += impact;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error calculating stress test for {Symbol}", symbol);
+            }
+        }
+
+        result.TotalValueBefore = totalValueBefore;
+        result.TotalImpact = totalImpact;
+        result.TotalValueAfter = totalValueBefore + totalImpact;
+        result.TotalImpactPercent = totalValueBefore > 0
+            ? Math.Round(totalImpact / totalValueBefore * 100, 2)
+            : 0;
+
+        return result;
+    }
+
+    public async Task<RiskBudgetStatus> CheckRiskBudgetAsync(
+        string portfolioId, CancellationToken cancellationToken = default)
+    {
+        var today = DateTime.UtcNow.Date;
+        var tradesToday = (await _tradeRepository.GetByPortfolioIdAndDateRangeAsync(
+            portfolioId, today, today, cancellationToken)).ToList();
+
+        var profile = await _riskProfileRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+
+        var status = new RiskBudgetStatus
+        {
+            TradesToday = tradesToday.Count,
+            MaxDailyTrades = profile?.MaxDailyTrades,
+            DailyLossLimitPercent = profile?.DailyLossLimitPercent
+        };
+
+        // Check trade count limit
+        if (profile?.MaxDailyTrades.HasValue == true && tradesToday.Count >= profile.MaxDailyTrades.Value)
+        {
+            status.IsLocked = true;
+            status.LockReason = $"Đã đạt giới hạn {profile.MaxDailyTrades} lệnh/ngày";
+        }
+
+        // Calculate daily P&L from today's SELL trades
+        var sellTrades = tradesToday.Where(t => t.TradeType == Domain.Entities.TradeType.SELL).ToList();
+        if (sellTrades.Any())
+        {
+            // Simple P&L: sum of (sell price - avg buy price) * quantity for today's sells
+            var allTrades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+            decimal dailyPnl = 0;
+
+            foreach (var sell in sellTrades)
+            {
+                var buys = allTrades
+                    .Where(t => t.Symbol == sell.Symbol && t.TradeType == Domain.Entities.TradeType.BUY && t.TradeDate < sell.TradeDate)
+                    .OrderBy(t => t.TradeDate)
+                    .ToList();
+
+                if (buys.Any())
+                {
+                    var avgBuyPrice = buys.Average(b => b.Price);
+                    dailyPnl += (sell.Price - avgBuyPrice) * sell.Quantity;
+                }
+            }
+            status.DailyPnl = dailyPnl;
+
+            // Check loss limit
+            if (profile?.DailyLossLimitPercent.HasValue == true && dailyPnl < 0)
+            {
+                try
+                {
+                    var portfolioPnl = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
+                    if (portfolioPnl.TotalPortfolioValue > 0)
+                    {
+                        var lossPercent = Math.Abs(dailyPnl) / portfolioPnl.TotalPortfolioValue * 100;
+                        if (lossPercent >= profile.DailyLossLimitPercent.Value)
+                        {
+                            status.IsLocked = true;
+                            status.LockReason = $"Lỗ trong ngày ({lossPercent:F1}%) vượt giới hạn {profile.DailyLossLimitPercent}%";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error calculating portfolio value for budget check");
+                }
+            }
+        }
+
+        return status;
+    }
+
+    private async Task<decimal> GetBetaForSymbolAsync(
+        string symbol, List<decimal>? cachedIndexReturns, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var data = await _comprehensiveProvider.GetComprehensiveDataAsync(symbol, cancellationToken);
+            if (data?.Indicators?.Beta.HasValue == true)
+                return data.Indicators.Beta.Value;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get beta from comprehensive provider for {Symbol}", symbol);
+        }
+
+        // Fallback: calculate from price correlation with VN-INDEX (using cached index returns)
+        if (cachedIndexReturns != null)
+        {
+            try
+            {
+                var from = DateTime.UtcNow.AddMonths(-6);
+                var to = DateTime.UtcNow;
+                var stockPrices = await _marketDataProvider.GetHistoricalPricesAsync(symbol, from, to, cancellationToken);
+
+                if (stockPrices.Count >= 20)
+                {
+                    var stockReturns = stockPrices.Zip(stockPrices.Skip(1), (a, b) => b.Close / a.Close - 1).ToList();
+                    var n = Math.Min(stockReturns.Count, cachedIndexReturns.Count);
+
+                    if (n >= 10)
+                    {
+                        var sr = stockReturns.TakeLast(n).ToList();
+                        var ir = cachedIndexReturns.TakeLast(n).ToList();
+                        var meanI = ir.Average();
+                        var varI = ir.Sum(r => (r - meanI) * (r - meanI)) / n;
+                        if (varI > 0)
+                        {
+                            var meanS = sr.Average();
+                            var covSI = sr.Zip(ir, (s, i) => (s - meanS) * (i - meanI)).Sum() / n;
+                            var beta = covSI / varI;
+                            return Math.Round(Math.Max(0.1m, Math.Min(3.0m, beta)), 2);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to calculate beta from price history for {Symbol}", symbol);
+            }
+        }
+
+        return 1.0m; // Final fallback
     }
 
     private static decimal CalculateDiversificationScore(

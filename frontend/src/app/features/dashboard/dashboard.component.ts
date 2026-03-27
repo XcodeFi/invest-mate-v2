@@ -12,6 +12,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/services/daily-routine.service';
 import { WatchlistService } from '../../core/services/watchlist.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
+import { JournalEntryService, PendingReviewTrade } from '../../core/services/journal-entry.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -668,6 +669,33 @@ interface RiskAlert {
           </div>
         </div>
 
+        <!-- Row 2.5: Chờ đánh giá -->
+        @if (pendingReviewTrades.length > 0) {
+        <div class="bg-white rounded-xl shadow-sm border border-amber-200 p-6 mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Chờ đánh giá
+              <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ pendingReviewTrades.length }}</span>
+            </h2>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            @for (trade of pendingReviewTrades.slice(0, 6); track trade.tradeId) {
+            <a [routerLink]="['/symbol-timeline']" [queryParams]="{symbol: trade.symbol}"
+               class="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-amber-300 hover:bg-amber-50 transition-all cursor-pointer">
+              <div>
+                <span class="font-semibold text-gray-900">{{ trade.symbol }}</span>
+                <span class="text-xs text-gray-500 ml-2">{{ trade.tradeDate | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="text-xs text-amber-600 font-medium">Đánh giá</div>
+            </a>
+            }
+          </div>
+        </div>
+        }
+
         <!-- Row 3: Quick Actions -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
@@ -835,6 +863,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Watchlist Widget ──────────────────────────────────────────────────
   watchlistTopMovers: BatchPrice[] = [];
 
+  // ─── Pending Review Widget ──────────────────────────────────────────
+  pendingReviewTrades: PendingReviewTrade[] = [];
+
   // ─── Capital Flow Visibility ──────────────────────────────────────────
   cashBalance = 0;
   adjustedReturn: AdjustedReturn | null = null;
@@ -852,6 +883,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private dailyRoutineService: DailyRoutineService,
     private watchlistService: WatchlistService,
     private capitalFlowService: CapitalFlowService,
+    private journalEntryService: JournalEntryService,
     private router: Router
   ) {}
 
@@ -864,6 +896,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadMarketOverview();
     this.loadDailyRoutine();
     this.loadWatchlistWidget();
+    this.loadPendingReview();
   }
 
   // ─── Daily Routine Widget ──────────────────────────────────────────────────
@@ -915,6 +948,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.watchlistTopMovers = prices;
         });
       });
+    });
+  }
+
+  private loadPendingReview(): void {
+    this.journalEntryService.getPendingReview().subscribe({
+      next: (trades) => this.pendingReviewTrades = trades,
+      error: () => this.pendingReviewTrades = []
     });
   }
 

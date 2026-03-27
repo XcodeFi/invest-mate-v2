@@ -16,6 +16,8 @@ public class SetRiskProfileCommand : IRequest<string>
     public decimal? MaxDrawdownAlertPercent { get; set; }
     public decimal? DefaultRiskRewardRatio { get; set; }
     public decimal? MaxPortfolioRiskPercent { get; set; }
+    public int? MaxDailyTrades { get; set; }
+    public decimal? DailyLossLimitPercent { get; set; }
 }
 
 public class SetRiskProfileCommandHandler : IRequestHandler<SetRiskProfileCommand, string>
@@ -46,7 +48,9 @@ public class SetRiskProfileCommandHandler : IRequestHandler<SetRiskProfileComman
                 request.MaxSectorExposurePercent,
                 request.MaxDrawdownAlertPercent,
                 request.DefaultRiskRewardRatio,
-                request.MaxPortfolioRiskPercent);
+                request.MaxPortfolioRiskPercent,
+                request.MaxDailyTrades,
+                request.DailyLossLimitPercent);
             await _riskProfileRepository.UpsertAsync(existing, cancellationToken);
             return existing.Id;
         }
@@ -59,7 +63,9 @@ public class SetRiskProfileCommandHandler : IRequestHandler<SetRiskProfileComman
                 request.MaxSectorExposurePercent ?? 40m,
                 request.MaxDrawdownAlertPercent ?? 10m,
                 request.DefaultRiskRewardRatio ?? 2.0m,
-                request.MaxPortfolioRiskPercent ?? 5m);
+                request.MaxPortfolioRiskPercent ?? 5m,
+                request.MaxDailyTrades,
+                request.DailyLossLimitPercent);
             await _riskProfileRepository.UpsertAsync(riskProfile, cancellationToken);
             return riskProfile.Id;
         }

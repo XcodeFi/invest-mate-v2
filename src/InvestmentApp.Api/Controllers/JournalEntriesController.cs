@@ -2,6 +2,7 @@ using InvestmentApp.Application.JournalEntries.Commands.CreateJournalEntry;
 using InvestmentApp.Application.JournalEntries.Commands.UpdateJournalEntry;
 using InvestmentApp.Application.JournalEntries.Commands.DeleteJournalEntry;
 using InvestmentApp.Application.JournalEntries.Queries.GetJournalEntriesBySymbol;
+using InvestmentApp.Application.Journals.Queries.GetTradesPendingReview;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -55,6 +56,19 @@ public class JournalEntriesController : ControllerBase
         var result = await _mediator.Send(command);
         if (!result) return NotFound();
         return NoContent();
+    }
+
+    [HttpGet("pending-review")]
+    [ProducesResponseType(typeof(List<PendingReviewTradeDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPendingReview([FromQuery] string? portfolioId)
+    {
+        var query = new GetTradesPendingReviewQuery
+        {
+            UserId = GetUserId(),
+            PortfolioId = portfolioId
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     [HttpGet]

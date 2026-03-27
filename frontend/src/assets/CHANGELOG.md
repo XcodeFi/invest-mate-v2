@@ -2,6 +2,48 @@
 
 ---
 
+## [v2.24.0] — 2026-03-27 · P1-P4 Improvements
+
+**Branch:** `feat/p1-post-trade-review`
+
+### P1: Post-Trade Review Workflow
+
+- **Pending review query**: Lấy SELL trades chưa có JournalEntry PostTrade
+- **Dashboard widget "Chờ đánh giá"**: Hiện SELL trades chưa review, click → Symbol Timeline
+- **Trades list cột "Nhật ký"**: Icon check (đã review) / pencil (chưa review) cho mỗi SELL trade
+- Endpoint: `GET /api/v1/journal-entries/pending-review`
+
+### P2: Stress Test — Dynamic Beta
+
+- **Dynamic beta**: Lấy beta từ API, fallback tính từ correlation VN-INDEX, fallback cuối 1.0
+- Thay thế `estimatedBetas` hardcoded (~20 mã) bằng API call
+- Endpoint: `POST /api/v1/risk/portfolio/{id}/stress-test`
+
+### P3: Technical Indicators — Bollinger Bands + ATR
+
+- **Bollinger Bands(20, 2)**: Upper, middle (SMA20), lower, bandwidth, %B, signal (squeeze/breakout)
+- **ATR(14)**: Giá trị ATR, ATR% (% giá hiện tại)
+- Signal scoring mở rộng: 6 indicators (thêm Bollinger + ATR)
+- 2 indicator cards mới trong market-data component
+
+### P4: Risk Budgeting — Daily Trade Limits
+
+- **RiskProfile mở rộng**: `MaxDailyTrades`, `DailyLossLimitPercent`
+- **Risk budget card**: "Ngân sách rủi ro hôm nay" — trades/limit, P&L, trạng thái khóa
+- **Risk profile form**: 2 fields mới (số lệnh tối đa/ngày, giới hạn lỗ/ngày)
+- `ITradeRepository.GetByPortfolioIdAndDateRangeAsync` — filter trades theo ngày
+- Endpoint: `GET /api/v1/risk/portfolio/{id}/budget`
+
+### Tests
+
+- 702 tests pass (Domain: 584, Application: 39, Infrastructure: 78, Api: 1)
+- P1: 5 test cases cho GetTradesPendingReviewQueryHandler
+- P2: 5 test cases cho CalculateStressTestAsync
+- P3: 8 test cases cho Bollinger Bands + ATR
+- P4: 10 test cases cho RiskProfile entity + CheckRiskBudget
+
+---
+
 ## [v2.23.0] — 2026-03-27 · Symbol Timeline (P7)
 
 **Branch:** `feat/p7-symbol-timeline`

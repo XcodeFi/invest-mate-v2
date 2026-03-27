@@ -48,6 +48,18 @@ public class TechnicalAnalysisResult
     public int BearishCount { get; set; }
     public int NeutralCount { get; set; }
 
+    // Bollinger Bands(20, 2)
+    public decimal? BollingerUpper { get; set; }
+    public decimal? BollingerMiddle { get; set; }
+    public decimal? BollingerLower { get; set; }
+    public decimal? BollingerBandwidth { get; set; }
+    public decimal? BollingerPercentB { get; set; }
+    public string? BollingerSignal { get; set; } // "squeeze" | "breakout_up" | "breakout_down" | "neutral"
+
+    // ATR(14)
+    public decimal? Atr14 { get; set; }
+    public decimal? AtrPercent { get; set; } // ATR as % of current price
+
     // Trade suggestion
     public decimal? SuggestedEntry { get; set; }
     public decimal? SuggestedStopLoss { get; set; }

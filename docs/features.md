@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
 > **Cập nhật lần cuối:** 2026-03-26
-> **Trạng thái:** Phase 7 đang tiếp tục + Tích hợp 24hmoney API + AI Claude + Gemini + Copy Prompt + Stock Evaluation + Comprehensive Stock Analysis + Scenario Playbook + Symbol Timeline (P7)
+> **Trạng thái:** Phase 7 đang tiếp tục + P1-P4 (Post-Trade Review, Stress Test, Bollinger/ATR, Risk Budget) + Symbol Timeline (P7)
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -870,6 +870,71 @@ Mỗi node gồm:
 - AI phân tích pattern cảm xúc → giao dịch → kết quả
 
 **Entry points:** Watchlist 📊, Positions 📊, Trades 📊 → navigate đến Symbol Timeline
+
+---
+
+## P1: Post-Trade Review Workflow
+
+**Branch:** `feat/p1-post-trade-review`
+
+**Backend:**
+
+- `GetTradesPendingReviewQuery` — lấy SELL trades chưa có JournalEntry PostTrade
+- Endpoint: `GET /api/v1/journal-entries/pending-review?portfolioId={id}`
+
+**Frontend:**
+
+- Dashboard widget "Chờ đánh giá" — hiện SELL trades chưa review, click → Symbol Timeline
+- Trades list cột "Nhật ký" — icon check/pencil cho mỗi SELL trade
+
+---
+
+## P2: Stress Test — Dynamic Beta
+
+**Branch:** `feat/p1-post-trade-review`
+
+**Backend:**
+
+- `CalculateStressTestAsync` trong `IRiskCalculationService` — dynamic beta từ API, fallback tính từ price correlation, fallback cuối 1.0
+- Endpoint: `POST /api/v1/risk/portfolio/{id}/stress-test`
+
+**Frontend:**
+
+- Thay thế `estimatedBetas` hardcoded bằng API call `riskService.stressTest()`
+
+---
+
+## P3: Technical Indicators — Bollinger Bands + ATR
+
+**Branch:** `feat/p1-post-trade-review`
+
+**Backend:**
+
+- Bollinger Bands(20, 2): upper, middle (SMA20), lower, bandwidth, %B, signal (squeeze/breakout)
+- ATR(14): giá trị, ATR% (% giá hiện tại)
+- Signal scoring: 6 indicators (EMA, RSI, MACD, Volume, Bollinger, ATR)
+
+**Frontend:**
+
+- 2 indicator cards mới trong market-data component
+
+---
+
+## P4: Risk Budgeting — Daily Trade Limits
+
+**Branch:** `feat/p1-post-trade-review`
+
+**Backend:**
+
+- RiskProfile mở rộng: `MaxDailyTrades`, `DailyLossLimitPercent`
+- `CheckRiskBudgetAsync` — đếm trades hôm nay, tính daily P&L
+- Endpoint: `GET /api/v1/risk/portfolio/{id}/budget`
+- `ITradeRepository.GetByPortfolioIdAndDateRangeAsync` — filter trades theo ngày
+
+**Frontend:**
+
+- Risk budget card "Ngân sách rủi ro hôm nay" — trades/limit, P&L, trạng thái khóa
+- Risk profile form: 2 fields mới (số lệnh/ngày, giới hạn lỗ/ngày)
 
 ---
 

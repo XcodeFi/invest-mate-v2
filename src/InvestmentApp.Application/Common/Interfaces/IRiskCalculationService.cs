@@ -42,6 +42,16 @@ public interface IRiskCalculationService
     /// Gets trailing stop alerts with real-time price comparison.
     /// </summary>
     Task<TrailingStopAlertsResult> GetTrailingStopAlertsAsync(string portfolioId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Calculates stress test impact using dynamic beta for each position.
+    /// </summary>
+    Task<StressTestResult> CalculateStressTestAsync(string portfolioId, decimal marketChangePercent, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks daily risk budget: trade count and daily P&L against limits.
+    /// </summary>
+    Task<RiskBudgetStatus> CheckRiskBudgetAsync(string portfolioId, CancellationToken cancellationToken = default);
 }
 
 public class PortfolioRiskSummary
@@ -106,4 +116,34 @@ public class CorrelationPair
     public string Symbol1 { get; set; } = null!;
     public string Symbol2 { get; set; } = null!;
     public decimal Correlation { get; set; }
+}
+
+public class StressTestResult
+{
+    public string PortfolioId { get; set; } = null!;
+    public decimal MarketChangePercent { get; set; }
+    public List<StressTestPositionItem> Positions { get; set; } = new();
+    public decimal TotalImpact { get; set; }
+    public decimal TotalImpactPercent { get; set; }
+    public decimal TotalValueBefore { get; set; }
+    public decimal TotalValueAfter { get; set; }
+}
+
+public class StressTestPositionItem
+{
+    public string Symbol { get; set; } = null!;
+    public decimal MarketValue { get; set; }
+    public decimal Beta { get; set; }
+    public decimal Impact { get; set; }
+    public decimal ValueAfter { get; set; }
+}
+
+public class RiskBudgetStatus
+{
+    public int TradesToday { get; set; }
+    public int? MaxDailyTrades { get; set; }
+    public decimal DailyPnl { get; set; }
+    public decimal? DailyLossLimitPercent { get; set; }
+    public bool IsLocked { get; set; }
+    public string? LockReason { get; set; }
 }

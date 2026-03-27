@@ -7,6 +7,8 @@ using InvestmentApp.Application.Risk.Queries.GetStopLossTargets;
 using InvestmentApp.Application.Risk.Queries.GetCorrelation;
 using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
 using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
+using InvestmentApp.Application.Risk.Queries.GetStressTest;
+using InvestmentApp.Application.Risk.Queries.GetRiskBudget;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -169,4 +171,42 @@ public class RiskController : ControllerBase
         var result = await _mediator.Send(query);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Run stress test with dynamic beta per position
+    /// </summary>
+    [HttpPost("portfolio/{portfolioId}/stress-test")]
+    [ProducesResponseType(typeof(StressTestResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RunStressTest(string portfolioId, [FromBody] StressTestRequest request)
+    {
+        var query = new GetStressTestQuery
+        {
+            PortfolioId = portfolioId,
+            UserId = GetUserId(),
+            MarketChangePercent = request.MarketChangePercent
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get daily risk budget status (trade count and loss limits)
+    /// </summary>
+    [HttpGet("portfolio/{portfolioId}/budget")]
+    [ProducesResponseType(typeof(RiskBudgetStatus), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRiskBudget(string portfolioId)
+    {
+        var query = new GetRiskBudgetQuery
+        {
+            PortfolioId = portfolioId,
+            UserId = GetUserId()
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+}
+
+public class StressTestRequest
+{
+    public decimal MarketChangePercent { get; set; }
 }
