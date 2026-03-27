@@ -1,7 +1,7 @@
 # Investment Mate v2 — Bản đồ Nghiệp vụ
 
 > Tài liệu tham chiếu nhanh cho AI agents và developers mới.
-> Cập nhật lần cuối: 2026-03-24
+> Cập nhật lần cuối: 2026-03-26
 
 ---
 
@@ -29,6 +29,7 @@ User (1)
  ├── TradePlan (N)          ← Kế hoạch giao dịch
  │    ├── PlanLot (N)       ← Các lô mua (ScalingIn/DCA)
  │    ├── ExitTarget (N)    ← Mục tiêu thoát (TP/CL/Trailing)
+ │    ├── ScenarioNode (N)  ← Cây kịch bản (Advanced mode)
  │    └── Checklist (N)     ← Danh sách kiểm tra
  │
  ├── Strategy (N)           ← Chiến lược giao dịch
@@ -91,6 +92,28 @@ Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cance
 **Mục tiêu thoát (ExitTarget):**
 - TakeProfit, CutLoss, TrailingStop, PartialExit
 - Mỗi target có `price`, `percentOfPosition`, `isTriggered`
+
+**Chế độ thoát lệnh (ExitStrategyMode):**
+
+| Mode | Mô tả |
+|------|--------|
+| Simple | Dùng ExitTarget truyền thống (TP/CL/Trailing) |
+| Advanced | Dùng cây kịch bản ScenarioNodes |
+
+**Kịch bản nâng cao (ScenarioNode):**
+- Cây quyết định đệ quy: mỗi node có Condition, Action, Children
+- **Condition (enum):** `PriceAbove`, `PriceBelow`, `PricePercentChange`, `TrailingStopHit`, `TimeElapsed`
+- **Action (enum):** `SellPercent`, `SellAll`, `MoveStopLoss`, `MoveStopToBreakeven`, `ActivateTrailingStop`, `AddPosition`, `SendNotification`
+- Worker tự động đánh giá mỗi 15 phút → kích hoạt hành động + tạo AlertHistory
+- Domain event: `ScenarioNodeTriggeredEvent`
+
+**TrailingStopConfig (Value Object):**
+- `Method`: `Percentage` | `ATR` | `FixedAmount`
+- `TrailValue`: giá trị trail tương ứng method
+- `ActivationPrice`: giá kích hoạt trailing stop
+- `StepSize`: bước nhảy tối thiểu khi nâng stop
+
+**3 preset templates:** An toàn (bảo toàn vốn), Cân bằng (cân đối rủi ro/lợi nhuận), Tích cực (chấp nhận rủi ro cao)
 
 ### 3.3. Giao dịch (Trade)
 - Loại: BUY / SELL (sử dụng shared `TradeType` enum)
@@ -180,7 +203,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | Auth | `/api/v1/auth` | Đăng nhập, đăng ký, JWT |
 | Portfolios | `/api/v1/portfolios` | CRUD danh mục |
 | Trades | `/api/v1/trades` | CRUD giao dịch, bulk import, link plan |
-| TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL |
+| TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates |
 | Strategies | `/api/v1/strategies` | CRUD chiến lược, performance |
 | Journals | `/api/v1/journals` | CRUD nhật ký |
 | Risk | `/api/v1/risk` | Profile, summary, drawdown, correlation |

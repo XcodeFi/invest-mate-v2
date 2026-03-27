@@ -1,3 +1,4 @@
+using InvestmentApp.Domain.Events;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace InvestmentApp.Domain.Entities;
@@ -35,6 +36,10 @@ public class TradePlan : AggregateRoot
     // Exit planning
     public List<ExitTarget>? ExitTargets { get; private set; }
     public List<StopLossHistoryEntry>? StopLossHistory { get; private set; }
+
+    // Scenario Playbook (Advanced exit strategy)
+    public ExitStrategyMode ExitStrategyMode { get; private set; } = ExitStrategyMode.Simple;
+    public List<ScenarioNode>? ScenarioNodes { get; private set; }
 
     // Lifecycle
     public TradePlanStatus Status { get; private set; }
@@ -247,6 +252,56 @@ public class TradePlan : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
+
+    // --- Scenario Playbook methods ---
+
+    public void SetExitStrategyMode(ExitStrategyMode mode)
+    {
+        if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed)
+            throw new InvalidOperationException("Cannot change exit strategy mode on executed/reviewed plan");
+        ExitStrategyMode = mode;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    public void SetScenarioNodes(List<ScenarioNode> nodes)
+    {
+        if (ExitStrategyMode != ExitStrategyMode.Advanced)
+            throw new InvalidOperationException("Cannot set scenario nodes in Simple mode");
+        if (!nodes.Any(n => n.ParentId == null))
+            throw new ArgumentException("Scenario tree must have at least one root node");
+        var nodeIds = nodes.Select(n => n.NodeId).ToHashSet();
+        if (nodes.Any(n => n.ParentId != null && !nodeIds.Contains(n.ParentId)))
+            throw new ArgumentException("ScenarioNode references a non-existent parent");
+        ScenarioNodes = nodes;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    public void TriggerScenarioNode(string nodeId, string? tradeId = null)
+    {
+        var node = ScenarioNodes?.FirstOrDefault(n => n.NodeId == nodeId)
+            ?? throw new ArgumentException($"Scenario node {nodeId} not found");
+        if (node.Status != ScenarioNodeStatus.Pending)
+            throw new InvalidOperationException($"Scenario node {nodeId} is not pending");
+        if (node.ParentId != null)
+        {
+            var parent = ScenarioNodes!.First(n => n.NodeId == node.ParentId);
+            if (parent.Status != ScenarioNodeStatus.Triggered)
+                throw new InvalidOperationException("Parent scenario must be triggered first");
+        }
+        node.Status = ScenarioNodeStatus.Triggered;
+        node.TriggeredAt = DateTime.UtcNow;
+        node.TradeId = tradeId;
+        if (tradeId != null)
+        {
+            TradeIds ??= new List<string>();
+            TradeIds.Add(tradeId);
+        }
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+        AddDomainEvent(new ScenarioNodeTriggeredEvent(Id, nodeId, node.ActionType.ToString(), UserId));
+    }
 }
 
 public class ChecklistItem
@@ -322,4 +377,80 @@ public class StopLossHistoryEntry
     public decimal NewPrice { get; set; }
     public string? Reason { get; set; }
     public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+}
+
+// --- Scenario Playbook types ---
+
+public enum ExitStrategyMode
+{
+    Simple,
+    Advanced
+}
+
+public enum ScenarioConditionType
+{
+    PriceAbove,
+    PriceBelow,
+    PricePercentChange,
+    TrailingStopHit,
+    TimeElapsed
+}
+
+public enum ScenarioActionType
+{
+    SellPercent,
+    SellAll,
+    MoveStopLoss,
+    MoveStopToBreakeven,
+    ActivateTrailingStop,
+    AddPosition,
+    SendNotification
+}
+
+public enum ScenarioNodeStatus
+{
+    Pending,
+    Triggered,
+    Skipped,
+    Expired
+}
+
+public enum TrailingStopMethod
+{
+    Percentage,
+    ATR,
+    FixedAmount
+}
+
+public class TrailingStopConfig
+{
+    public TrailingStopMethod Method { get; set; } = TrailingStopMethod.Percentage;
+    public decimal TrailValue { get; set; }
+    public decimal? ActivationPrice { get; set; }
+    public decimal? StepSize { get; set; }
+    public decimal? CurrentTrailingStop { get; set; }
+    public decimal? HighestPrice { get; set; }
+}
+
+public class ScenarioNode
+{
+    public string NodeId { get; set; } = Guid.NewGuid().ToString();
+    public string? ParentId { get; set; }
+    public int Order { get; set; }
+    public string Label { get; set; } = string.Empty;
+
+    // Condition
+    public ScenarioConditionType ConditionType { get; set; }
+    public decimal? ConditionValue { get; set; }
+    public string? ConditionNote { get; set; }
+
+    // Action
+    public ScenarioActionType ActionType { get; set; }
+    public decimal? ActionValue { get; set; }
+    public TrailingStopConfig? TrailingStopConfig { get; set; }
+
+    // Status
+    public ScenarioNodeStatus Status { get; set; } = ScenarioNodeStatus.Pending;
+    public DateTime? TriggeredAt { get; set; }
+    public string? TradeId { get; set; }
 }

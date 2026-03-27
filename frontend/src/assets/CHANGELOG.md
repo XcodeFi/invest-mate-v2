@@ -2,6 +2,39 @@
 
 ---
 
+## [v2.22.0] — 2026-03-27 · Scenario Playbook
+
+**Branch:** `feat/capital-flows-visibility`
+
+### Thêm mới
+
+- **Scenario Playbook**: Chế độ nâng cao cho Trade Plan — cây quyết định (decision tree) với điều kiện + hành động liên kết
+- **2 chế độ thoát lệnh**: Toggle Cơ bản (exit targets cũ) / Nâng cao (scenario tree) — backward compatible
+- **5 loại điều kiện**: Giá >=, Giá <=, Thay đổi %, Chạm trailing stop, Sau N ngày
+- **7 loại hành động**: Bán %, Bán tất cả, Dời SL, SL về hòa vốn, Bật trailing stop, Thêm vị thế, Thông báo
+- **Trailing Stop chi tiết**: 3 phương pháp (%, ATR ước tính, Cố định VNĐ) + giá kích hoạt + bước tối thiểu
+- **3 mẫu kịch bản**: An toàn, Cân bằng, Tích cực — áp dụng 1 click
+- **Tự động đánh giá**: Worker mỗi 15 phút evaluate scenarios + tạo AlertHistory thông báo
+
+### Backend
+
+- `TradePlan.cs` — thêm ExitStrategyMode, ScenarioNodes, TrailingStopConfig + 3 domain methods + ScenarioNodeTriggeredEvent
+- `ScenarioEvaluationService.cs` — tự động evaluate conditions, update trailing stops, tạo alert
+- `TradePlanRepository.cs` — thêm `GetAdvancedInProgressAsync` (filtered tại MongoDB)
+- `TradePlansController.cs` — 2 endpoints mới: trigger scenario node, get preset templates
+- `Worker.cs` — thêm `EvaluateScenarioPlaybooksAsync`
+
+### Frontend
+
+- `trade-plan.component.ts` — toggle Cơ bản/Nâng cao, scenario tree editor (recursive ng-template), preset selector, trailing stop config inline
+- `trade-plan.service.ts` — thêm interfaces ScenarioNodeDto, TrailingStopConfigDto, ScenarioPreset + 2 API methods
+
+### Tests
+
+- 33 tests mới: Domain (20) + Application (3) + Infrastructure (10)
+
+---
+
 ## [v2.21.0] — 2026-03-26 · Capital Flows Visibility
 
 **Branch:** `feat/capital-flows-visibility`

@@ -29,6 +29,8 @@ public class CreateTradePlanCommand : IRequest<string>
     public string? EntryMode { get; set; }
     public List<PlanLotDto>? Lots { get; set; }
     public List<ExitTargetDto>? ExitTargets { get; set; }
+    public string? ExitStrategyMode { get; set; }
+    public List<ScenarioNodeDto>? ScenarioNodes { get; set; }
     public string? Status { get; set; }
     public string? TradeId { get; set; }
 }
@@ -103,6 +105,17 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
             plan.SetExitTargets(targets);
         }
 
+        // Scenario Playbook
+        if (request.ExitStrategyMode?.Equals("Advanced", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
+            if (request.ScenarioNodes != null && request.ScenarioNodes.Count > 0)
+            {
+                var nodes = request.ScenarioNodes.Select(MapToScenarioNode).ToList();
+                plan.SetScenarioNodes(nodes);
+            }
+        }
+
         // Handle initial status if provided (e.g., "Ready" or "Executed" from wizard)
         if (request.Status == "Ready")
             plan.MarkReady();
@@ -124,4 +137,24 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 
         return plan.Id;
     }
+
+    internal static ScenarioNode MapToScenarioNode(ScenarioNodeDto dto) => new()
+    {
+        NodeId = dto.NodeId,
+        ParentId = dto.ParentId,
+        Order = dto.Order,
+        Label = dto.Label,
+        ConditionType = Enum.Parse<ScenarioConditionType>(dto.ConditionType, ignoreCase: true),
+        ConditionValue = dto.ConditionValue,
+        ConditionNote = dto.ConditionNote,
+        ActionType = Enum.Parse<ScenarioActionType>(dto.ActionType, ignoreCase: true),
+        ActionValue = dto.ActionValue,
+        TrailingStopConfig = dto.TrailingStopConfig != null ? new TrailingStopConfig
+        {
+            Method = Enum.Parse<TrailingStopMethod>(dto.TrailingStopConfig.Method, ignoreCase: true),
+            TrailValue = dto.TrailingStopConfig.TrailValue,
+            ActivationPrice = dto.TrailingStopConfig.ActivationPrice,
+            StepSize = dto.TrailingStopConfig.StepSize
+        } : null
+    };
 }

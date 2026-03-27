@@ -95,6 +95,7 @@ public interface ITradePlanRepository : IRepository<TradePlan>
     Task<TradePlan?> GetByTradeIdAsync(string tradeId, CancellationToken cancellationToken = default);
     Task<IEnumerable<TradePlan>> GetActiveByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<TradePlan?> GetActiveByPortfolioAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
+    Task<IEnumerable<TradePlan>> GetAdvancedInProgressAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IAlertRuleRepository : IRepository<AlertRule>
