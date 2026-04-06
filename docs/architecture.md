@@ -97,6 +97,8 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | SnapshotService | Daily portfolio snapshots with position weights | IPnLService |
 | AlertEvaluationService | Price/drawdown/portfolio value alerts | ISnapshotRepo, IStockPriceRepo |
 | ScenarioEvaluationService | Auto-evaluate scenario playbooks every 15 min, trigger actions, create AlertHistory | ITradePlanRepo, IStockPriceService |
+| BehavioralAnalysisService | Detect FOMO, panic sell, revenge trading, overtrading patterns | JournalEntry, Trade data |
+| VietstockEventProvider | Crawl news + corporate events from Vietstock API (CSRF token flow) | HttpClient |
 
 ## API Endpoints (25 Controllers)
 
@@ -126,7 +128,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | Templates | `/api/v1/templates` | Strategy templates, risk profile templates |
 | JournalEntries | `/api/v1/journal-entries` | CRUD standalone journal entries, **pending-review (P1)** |
 | SymbolTimeline | `/api/v1/symbols/{symbol}/timeline` | Unified timeline (journals + trades + events + alerts) |
-| MarketEvents | `/api/v1/market-events` | CRUD market events per symbol |
+| MarketEvents | `/api/v1/market-events` | CRUD market events per symbol, crawl from Vietstock |
 
 ## External Integrations
 

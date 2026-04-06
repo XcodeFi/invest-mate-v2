@@ -147,6 +147,17 @@ builder.Services.AddScoped<IRiskCalculationService, RiskCalculationService>();
 builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
+builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBehavioralAnalysisService, BehavioralAnalysisService>();
+
+// Vietstock event crawl provider
+builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Vietstock.VietstockEventProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://finance.vietstock.vn");
+    client.DefaultRequestHeaders.Add("Accept", "text/html,application/json");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IVietstockEventProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Vietstock.VietstockEventProvider>());
 
 // TCBS fundamental data provider — disabled (API down since 2026-03).
 // Code kept in Infrastructure/Services/Tcbs/ as fallback if 24hmoney becomes unavailable.

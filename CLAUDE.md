@@ -22,8 +22,8 @@
 
 ## Tech Stack
 
-- **Frontend:** Angular 18, standalone components, inline templates, Tailwind CSS, ngModel (template-driven forms)
-- **Backend:** .NET 9, Clean Architecture (Domain → Application → Infrastructure → Api), MongoDB
+- **Frontend:** Angular 19, standalone components, inline templates, Tailwind CSS, ngModel (template-driven forms)
+- **Backend:** .NET 9, Clean Architecture (Domain → Application → Infrastructure → Api), MongoDB (Driver 3.6.0)
 - **Shared directives:** `NumMaskDirective` (số có dấu phân cách), `UppercaseDirective` (uppercase symbol)
 - **Pipes:** `VndCurrencyPipe` (format tiền VND)
 
