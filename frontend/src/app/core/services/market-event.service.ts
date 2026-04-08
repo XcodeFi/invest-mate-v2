@@ -16,6 +16,12 @@ export interface MarketEvent {
   createdAt: string;
 }
 
+export interface CrawlResult {
+  newsAdded: number;
+  eventsAdded: number;
+  duplicatesSkipped: number;
+}
+
 export interface CreateMarketEventRequest {
   symbol: string;
   eventType: string;
@@ -54,6 +60,12 @@ export class MarketEventService {
 
   create(data: CreateMarketEventRequest): Observable<{ id: string }> {
     return this.http.post<{ id: string }>(this.API_URL, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  crawl(symbol: string, crawlNews = true, crawlEvents = true): Observable<CrawlResult> {
+    return this.http.post<CrawlResult>(`${this.API_URL}/crawl`,
+      { symbol, crawlNews, crawlEvents }, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

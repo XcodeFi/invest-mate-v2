@@ -46,6 +46,17 @@ Transform from "trade recorder" to "opportunity finder":
 3. **P3: Bollinger Bands + ATR** — ✅ 2 indicator mới, signal scoring 6 votes
 4. **P4: Risk Budgeting** — ✅ MaxDailyTrades, DailyLossLimitPercent, budget card, form fields
 
+### P7 Symbol Timeline Improvements — Done
+
+1. **P7.1: Emotion ↔ P&L Correlation** — ✅ Correlation table, insight text
+2. **P7.2: Confidence Calibration** — ✅ Calibration widget (Phù hợp/Quá tự tin/Chưa tự tin)
+3. **P7.3: Behavioral Pattern Detection** — ✅ FOMO, PanicSell, RevengeTrading, Overtrading
+4. **P7.4: Chart UX** — ✅ LineSeries thay CandlestickSeries
+5. **P7.5: AI Timeline Review** — ✅ Rich context (correlation + calibration + patterns)
+6. **P7.6: Emotion Trend** — ✅ Stacked bar theo tháng, trend insight
+7. **P7.7: Export Timeline** — ✅ CSV export, clipboard copy
+8. **P7.8: Vietstock Event Crawl** — ✅ Auto-crawl news + events, CSRF flow, dedup
+
 ## Common Pitfalls (từ past bugs)
 
 - **`[contextData]="{}"` in Angular templates** — Creates new object reference every change detection cycle, causes infinite loop. Use `readonly emptyContext = {}` as stable reference.

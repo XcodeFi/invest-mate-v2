@@ -2,6 +2,47 @@
 
 ---
 
+## [v2.25.0] — 2026-03-27 · P7 Symbol Timeline Improvements
+
+**Branch:** `feat/p7-improvements`
+
+### P7.1: Emotion ↔ P&L Correlation
+- **Correlation cảm xúc → kết quả GD:** Tính trung bình P&L %, win rate cho mỗi cảm xúc
+- **Insight text:** Highlight cảm xúc tốt nhất/tệ nhất với win rate và P&L TB
+
+### P7.2: Confidence Calibration
+- **Hiệu chuẩn mức tự tin:** So sánh confidence level ranges (Low/Med/High/Very High) với win rate thực tế
+- **Calibration widget:** Thanh ngang với trạng thái Phù hợp/Quá tự tin/Chưa tự tin
+
+### P7.3: Behavioral Pattern Detection
+- **4 patterns:** FOMO Entry, Panic Sell, Revenge Trading, Overtrading
+- **Pattern alerts panel:** Cards severity (Critical/Warning) + mô tả + ngày
+- **IBehavioralAnalysisService** tích hợp vào timeline response
+
+### P7.4: Chart UX Enhancements
+- **Chuyển sang LineSeries:** Thay CandlestickSeries bằng LineSeries (match thực tế hiển thị)
+
+### P7.5: Dedicated AI Timeline Review
+- **Rich AI context:** Gồm correlation, calibration, behavioral patterns, full journal/trade history
+- **Prompt template** chuyên biệt cho trading psychology coach
+
+### P7.6: Emotion Trend Over Time
+- **Xu hướng cảm xúc theo tháng:** Stacked bar chart, dominant emotion, average confidence
+- **Trend insight:** So sánh tháng gần nhất vs tháng trước
+
+### P7.7: Export Timeline
+- **Xuất CSV:** Tải file CSV với tất cả timeline items (Ngày, Loại, Tiêu đề, Cảm xúc...)
+- **Sao chép tóm tắt:** Copy text summary vào clipboard
+
+### P7.8: Vietstock Event Crawl
+- **Auto-crawl tin tức + sự kiện DN** từ Vietstock API (GetNews + EventsTypeData)
+- **CSRF token flow**, `/Date(ms)/` parser, ChannelID → MarketEventType mapping
+- **Dedup:** Bỏ qua events trùng (Symbol + Title + Date)
+- **Nút "Cập nhật tin tức"** trên Symbol Timeline page
+- **API:** `POST /api/v1/market-events/crawl`
+
+---
+
 ## [v2.24.0] — 2026-03-27 · P1-P4 Improvements
 
 **Branch:** `feat/p1-post-trade-review`

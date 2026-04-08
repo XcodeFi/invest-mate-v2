@@ -1,4 +1,5 @@
 using InvestmentApp.Application.MarketEvents.Commands.CreateMarketEvent;
+using InvestmentApp.Application.MarketEvents.Commands.CrawlVietstockEvents;
 using InvestmentApp.Application.MarketEvents.Queries.GetMarketEvents;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -50,6 +51,18 @@ public class MarketEventsController : ControllerBase
             To = to
         };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    [HttpPost("crawl")]
+    [ProducesResponseType(typeof(CrawlResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CrawlVietstockEvents([FromBody] CrawlVietstockEventsCommand command)
+    {
+        if (string.IsNullOrWhiteSpace(command.Symbol))
+            return BadRequest(new { error = "Symbol is required" });
+
+        var result = await _mediator.Send(command);
         return Ok(result);
     }
 }

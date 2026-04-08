@@ -61,6 +61,16 @@ export interface SymbolTimeline {
   items: TimelineItem[];
   holdingPeriods: HoldingPeriod[];
   emotionSummary?: EmotionSummary;
+  behavioralPatterns: BehavioralPattern[];
+}
+
+export interface BehavioralPattern {
+  patternType: string;
+  severity: string;
+  description: string;
+  occurredAt: string;
+  relatedTradeId?: string;
+  relatedJournalId?: string;
 }
 
 export interface TimelineItem {
@@ -89,6 +99,37 @@ export interface EmotionSummary {
   distribution: { [key: string]: number };
   averageConfidence?: number;
   totalEntries: number;
+  // P7.1: Emotion ↔ P&L Correlation
+  correlations: EmotionCorrelation[];
+  // P7.2: Confidence Calibration
+  confidenceCalibration: ConfidenceCalibration[];
+  // P7.6: Emotion Trend Over Time
+  trends: EmotionTrend[];
+}
+
+export interface EmotionCorrelation {
+  emotion: string;
+  tradeCount: number;
+  averagePnlPercent: number;
+  winRate: number;
+  totalPnl: number;
+}
+
+export interface ConfidenceCalibration {
+  range: string;
+  entryCount: number;
+  tradeCount: number;
+  winRate: number;
+  averagePnlPercent: number;
+  isCalibrated: boolean;
+}
+
+export interface EmotionTrend {
+  period: string;
+  dominantEmotion: string;
+  averageConfidence: number;
+  entryCount: number;
+  distribution: { [key: string]: number };
 }
 
 export interface PendingReviewTrade {

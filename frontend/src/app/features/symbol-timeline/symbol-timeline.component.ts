@@ -2,9 +2,9 @@ import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, SeriesMarker, LineData } from 'lightweight-charts';
+import { Subject, of } from 'rxjs';
+import { takeUntil, switchMap, catchError } from 'rxjs/operators';
+import { createChart, IChartApi, ISeriesApi, Time, SeriesMarker, LineData } from 'lightweight-charts';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
 import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
@@ -79,10 +79,27 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
             class="px-4 py-1.5 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700">
             + Sự kiện
           </button>
+          <button (click)="crawlVietstock()" [disabled]="crawling"
+            class="px-4 py-1.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+            {{ crawling ? 'Đang tải...' : 'Cập nhật tin tức' }}
+          </button>
           <button (click)="showAiPanel = !showAiPanel"
             class="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
             AI Review
           </button>
+          <div class="relative" *ngIf="timeline">
+            <button (click)="showExportMenu = !showExportMenu"
+              class="px-4 py-1.5 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
+              Xuất dữ liệu
+            </button>
+            <div *ngIf="showExportMenu"
+              class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 w-44">
+              <button (click)="exportCsv(); showExportMenu = false"
+                class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Xuất CSV</button>
+              <button (click)="copySummary(); showExportMenu = false"
+                class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Sao chép tóm tắt</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -207,8 +224,11 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       </div>
 
       <!-- Chart -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 relative">
         <div #chartContainer class="w-full" style="height: 420px;"></div>
+        <div #chartTooltip class="absolute pointer-events-none bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-50 max-w-xs hidden"
+          style="transition: opacity 0.15s ease;">
+        </div>
 
         <!-- Emotion Ribbon Legend -->
         <div class="flex gap-3 mt-3 flex-wrap text-xs" *ngIf="timeline?.emotionSummary">
@@ -253,6 +273,124 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
             </div>
             <span class="text-sm text-gray-500 w-12">{{ item.count }}</span>
           </div>
+        </div>
+      </div>
+
+      <!-- P7.1: Emotion ↔ P&L Correlation -->
+      <div *ngIf="timeline?.emotionSummary?.correlations?.length" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Cảm xúc ↔ Kết quả giao dịch</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200">
+                <th class="text-left py-2 px-3 font-medium text-gray-600">Cảm xúc</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-600">Số GD</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-600">Win Rate</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-600">P&L TB (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of timeline!.emotionSummary!.correlations" class="border-b border-gray-100">
+                <td class="py-2 px-3 font-medium" [style.color]="getEmotionColor(c.emotion)">{{ c.emotion }}</td>
+                <td class="text-right py-2 px-3">{{ c.tradeCount }}</td>
+                <td class="text-right py-2 px-3 font-medium"
+                  [class]="c.winRate >= 60 ? 'text-green-600' : c.winRate < 40 ? 'text-red-600' : 'text-gray-700'">
+                  {{ c.winRate | number:'1.0-1' }}%
+                </td>
+                <td class="text-right py-2 px-3 font-medium"
+                  [class]="c.averagePnlPercent >= 0 ? 'text-green-600' : 'text-red-600'">
+                  {{ c.averagePnlPercent >= 0 ? '+' : '' }}{{ c.averagePnlPercent | number:'1.1-1' }}%
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Top insight -->
+        <div class="mt-3 text-sm" *ngIf="correlationInsight">
+          <p class="text-gray-600" [innerHTML]="correlationInsight"></p>
+        </div>
+      </div>
+
+      <!-- P7.2: Confidence Calibration -->
+      <div *ngIf="timeline?.emotionSummary?.confidenceCalibration?.length" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Hiệu chuẩn mức tự tin</h3>
+        <div class="space-y-3">
+          <div *ngFor="let cal of timeline!.emotionSummary!.confidenceCalibration" class="flex items-center gap-3">
+            <span class="w-28 text-sm text-gray-600 text-right flex-shrink-0">{{ cal.range }}</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden relative">
+              <div class="h-full rounded-full transition-all duration-300"
+                [style.width.%]="cal.winRate"
+                [class]="cal.isCalibrated ? 'bg-green-500' : 'bg-amber-500'"></div>
+              <span class="absolute inset-0 flex items-center justify-center text-xs font-medium">
+                {{ cal.winRate | number:'1.0-0' }}% win
+              </span>
+            </div>
+            <span class="text-xs w-20 flex-shrink-0"
+              [class]="cal.isCalibrated ? 'text-green-600' : 'text-amber-600'">
+              {{ cal.isCalibrated ? 'Phù hợp' : (cal.winRate < 50 ? 'Quá tự tin' : 'Chưa tự tin') }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- P7.3: Behavioral Pattern Detection -->
+      <div *ngIf="timeline?.behavioralPatterns?.length" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">Mẫu hành vi phát hiện</h3>
+        <div class="flex gap-3 mb-3 text-sm text-gray-500">
+          <span *ngIf="patternCount('FOMO')">FOMO: {{ patternCount('FOMO') }}</span>
+          <span *ngIf="patternCount('PanicSell')">Bán panic: {{ patternCount('PanicSell') }}</span>
+          <span *ngIf="patternCount('RevengeTrading')">Revenge: {{ patternCount('RevengeTrading') }}</span>
+          <span *ngIf="patternCount('Overtrading')">Overtrading: {{ patternCount('Overtrading') }}</span>
+        </div>
+        <div class="space-y-2">
+          <div *ngFor="let p of timeline!.behavioralPatterns" class="flex items-start gap-3 p-3 rounded-lg"
+            [class]="p.severity === 'Critical' ? 'bg-red-50 border border-red-200' : p.severity === 'Warning' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'">
+            <span class="text-lg flex-shrink-0">{{ p.severity === 'Critical' ? '\uD83D\uDD34' : p.severity === 'Warning' ? '\u26A0\uFE0F' : '\u2139\uFE0F' }}</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                  [class]="p.severity === 'Critical' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'">
+                  {{ getPatternLabel(p.patternType) }}
+                </span>
+                <span class="text-xs text-gray-500">{{ formatDate(p.occurredAt) }}</span>
+              </div>
+              <p class="text-sm text-gray-700 mt-1">{{ p.description }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P7.6: Emotion Trend Over Time -->
+      <div *ngIf="timeline?.emotionSummary?.trends?.length" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Xu hướng cảm xúc theo tháng</h3>
+        <div class="space-y-3">
+          <div *ngFor="let trend of timeline!.emotionSummary!.trends" class="border-b border-gray-100 pb-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-medium text-gray-700">{{ trend.period }}</span>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="font-medium" [style.color]="getEmotionColor(trend.dominantEmotion)">
+                  {{ trend.dominantEmotion }}
+                </span>
+                <span class="text-gray-400">·</span>
+                <span class="text-gray-500">{{ trend.entryCount }} nhật ký</span>
+                <span class="text-gray-400">·</span>
+                <span class="text-indigo-600">Tự tin: {{ trend.averageConfidence | number:'1.1-1' }}</span>
+              </div>
+            </div>
+            <!-- Stacked bar for emotion distribution -->
+            <div class="flex h-4 rounded-full overflow-hidden bg-gray-100">
+              <div *ngFor="let item of getTrendDistribution(trend)"
+                [style.width.%]="item.percent"
+                [style.background-color]="getEmotionColor(item.label)"
+                class="transition-all duration-300"
+                [title]="item.label + ': ' + item.count">
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Trend insight -->
+        <div class="mt-3 text-sm text-gray-600" *ngIf="trendInsight">
+          {{ trendInsight }}
         </div>
       </div>
 
@@ -387,10 +525,13 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
 })
 export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('chartContainer') chartContainer!: ElementRef;
+  @ViewChild('chartTooltip') chartTooltip!: ElementRef;
 
   symbol = '';
   timeline: SymbolTimeline | null = null;
   priceHistory: StockPrice[] = [];
+  currentPrice: StockPrice | null = null;
+  private tooltipItemsByDate = new Map<string, TimelineItem[]>();
   loading = false;
   selectedRange = 3; // months
   selectedItemIndex = -1;
@@ -401,6 +542,8 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   showAiPanel = false;
   creatingEntry = false;
   creatingEvent = false;
+  crawling = false;
+  showExportMenu = false;
 
   emotions = EMOTIONS;
 
@@ -446,12 +589,14 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
 
   // Chart
   private chart: IChartApi | null = null;
-  private candleSeries: ISeriesApi<'Candlestick'> | null = null;
+  private priceSeries: ISeriesApi<'Line'> | null = null;
   private emotionSeries: ISeriesApi<'Histogram'> | null = null;
 
   // Derived
   topEmotion = '';
   emotionDistribution: { label: string; count: number; percent: number }[] = [];
+  correlationInsight = '';
+  trendInsight = '';
 
   // AI context (7C.3)
   aiContext = '';
@@ -520,12 +665,16 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       });
 
     this.marketDataService.getPriceHistory(this.symbol, fromStr, toStr)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (prices) => {
+      .pipe(
+        takeUntil(this.destroy$),
+        switchMap(prices => {
           this.priceHistory = prices;
-          this.updateChartData();
-        },
+          return this.marketDataService.getCurrentPrice(this.symbol)
+            .pipe(catchError(() => of(null)));
+        })
+      )
+      .subscribe({
+        next: (current) => { this.currentPrice = current; this.updateChartData(); },
         error: () => {
           this.notificationService.error('Lỗi', 'Không thể tải dữ liệu giá');
         }
@@ -556,13 +705,11 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       height: 380
     });
 
-    this.candleSeries = this.chart.addCandlestickSeries({
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      borderUpColor: '#16a34a',
-      borderDownColor: '#dc2626',
-      wickUpColor: '#16a34a',
-      wickDownColor: '#dc2626'
+    this.priceSeries = this.chart.addLineSeries({
+      color: '#6366f1',
+      lineWidth: 2,
+      priceLineVisible: true,
+      lastValueVisible: true
     });
 
     // Emotion histogram (7C.1)
@@ -572,6 +719,50 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
     });
     this.chart.priceScale('emotion').applyOptions({
       scaleMargins: { top: 0.85, bottom: 0 }
+    });
+
+    // Tooltip on crosshair move
+    this.chart.subscribeCrosshairMove((param) => {
+      const tooltip = this.chartTooltip?.nativeElement;
+      if (!tooltip) return;
+
+      if (!param.time || !param.point) {
+        tooltip.classList.add('hidden');
+        return;
+      }
+
+      const day = param.time as string;
+      const items = this.tooltipItemsByDate.get(day);
+      if (!items || items.length === 0) {
+        tooltip.classList.add('hidden');
+        return;
+      }
+
+      // Build tooltip content — escape dynamic text to prevent XSS
+      const lines = items.map(item => {
+        if (item.type === 'trade') {
+          const side = item.data.tradeType === 'BUY' ? 'MUA' : 'BÁN';
+          return `<div class="flex items-center gap-1.5"><span class="font-bold ${item.data.tradeType === 'BUY' ? 'text-green-400' : 'text-red-400'}">${side}</span> ${item.data.quantity} × ${(item.data.price ?? 0).toLocaleString()}đ</div>`;
+        }
+        if (item.type === 'journal')
+          return `<div class="flex items-center gap-1.5"><span class="text-indigo-400 font-bold">J</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
+        if (item.type === 'event')
+          return `<div class="flex items-center gap-1.5"><span class="text-amber-400 font-bold">E</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
+        return `<div class="flex items-center gap-1.5"><span class="text-orange-400 font-bold">A</span> ${this.escapeHtml(this.truncate(item.data.title ?? 'Cảnh báo', 40))}</div>`;
+      });
+
+      tooltip.innerHTML = `<div class="font-medium text-gray-300 mb-1">${day}</div>${lines.join('')}`;
+      tooltip.classList.remove('hidden');
+
+      // Position tooltip near crosshair
+      const chartRect = this.chartContainer.nativeElement.getBoundingClientRect();
+      const x = param.point.x;
+      const y = param.point.y;
+      const tooltipW = tooltip.offsetWidth;
+      const left = x + tooltipW + 20 > chartRect.width ? x - tooltipW - 10 : x + 10;
+      const top = Math.max(0, Math.min(y - 10, chartRect.height - tooltip.offsetHeight));
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
     });
 
     // Responsive
@@ -586,73 +777,98 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private updateChartData() {
-    if (!this.candleSeries || this.priceHistory.length === 0) return;
+    if (!this.priceSeries || this.priceHistory.length === 0) return;
 
-    const candles: CandlestickData[] = this.priceHistory
+    const lineData: LineData[] = this.priceHistory
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(p => ({
         time: p.date.split('T')[0] as Time,
-        open: p.open,
-        high: p.high,
-        low: p.low,
-        close: p.close
+        value: p.close
       }));
 
-    this.candleSeries.setData(candles);
+    // Extend chart to today using current market price
+    const today = new Date().toISOString().split('T')[0];
+    const lastDay = lineData.length > 0 ? lineData[lineData.length - 1].time as string : '';
+    if (lastDay && lastDay < today) {
+      const todayPrice = this.currentPrice?.close ?? lineData[lineData.length - 1].value;
+      lineData.push({ time: today as Time, value: todayPrice });
+    }
+
+    this.priceSeries.setData(lineData);
     this.chart?.timeScale().fitContent();
     this.updateChartMarkers();
     this.updateEmotionRibbon();
   }
 
   private updateChartMarkers() {
-    if (!this.candleSeries || !this.timeline) return;
+    if (!this.priceSeries || !this.timeline) return;
+
+    // Group items by date
+    const byDate = new Map<string, TimelineItem[]>();
+    for (const item of this.timeline.items) {
+      const day = item.timestamp.split('T')[0];
+      if (!byDate.has(day)) byDate.set(day, []);
+      byDate.get(day)!.push(item);
+    }
+    this.tooltipItemsByDate = byDate;
 
     const markers: SeriesMarker<Time>[] = [];
 
-    for (const item of this.timeline.items) {
-      const time = item.timestamp.split('T')[0] as Time;
+    for (const [day, items] of byDate) {
+      const time = day as Time;
 
-      if (item.type === 'journal') {
-        markers.push({
-          time,
-          position: 'aboveBar',
-          color: '#6366f1',
-          shape: 'circle',
-          text: '📓'
-        });
-      } else if (item.type === 'trade') {
-        const isBuy = (item.data.tradeType) === 'BUY';
+      // Trades — T marker (BUY below green, SELL above red)
+      const trades = items.filter(i => i.type === 'trade');
+      for (const t of trades) {
+        const isBuy = t.data.tradeType === 'BUY';
         markers.push({
           time,
           position: isBuy ? 'belowBar' : 'aboveBar',
           color: isBuy ? '#22c55e' : '#ef4444',
           shape: isBuy ? 'arrowUp' : 'arrowDown',
-          text: isBuy
-            ? `MUA ${item.data.quantity}`
-            : `BÁN ${item.data.quantity}`
+          text: isBuy ? 'T' : 'T'
         });
-      } else if (item.type === 'event') {
+      }
+
+      // Journals — J marker (indigo)
+      const journals = items.filter(i => i.type === 'journal');
+      if (journals.length > 0) {
+        markers.push({
+          time,
+          position: 'aboveBar',
+          color: '#6366f1',
+          shape: 'circle',
+          text: journals.length > 1 ? `J${journals.length}` : 'J'
+        });
+      }
+
+      // Events — E marker, Alerts — A marker (amber)
+      const events = items.filter(i => i.type === 'event');
+      if (events.length > 0) {
         markers.push({
           time,
           position: 'aboveBar',
           color: '#f59e0b',
           shape: 'square',
-          text: this.getEventIcon(item.data.eventType)
+          text: events.length > 1 ? `E${events.length}` : 'E'
         });
-      } else if (item.type === 'alert') {
+      }
+
+      const alerts = items.filter(i => i.type === 'alert');
+      if (alerts.length > 0) {
         markers.push({
           time,
           position: 'aboveBar',
           color: '#f97316',
           shape: 'square',
-          text: '⚠️'
+          text: alerts.length > 1 ? `A${alerts.length}` : 'A'
         });
       }
     }
 
     // Sort markers by time (required by lightweight-charts)
     markers.sort((a, b) => (a.time as string).localeCompare(b.time as string));
-    this.candleSeries.setMarkers(markers);
+    this.priceSeries.setMarkers(markers);
   }
 
   // 7C.1 — Emotion Ribbon
@@ -684,7 +900,9 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   applyFilters() {
     if (!this.timeline) return;
     const activeTypes = this.filterOptions.filter(f => f.checked).map(f => f.type);
-    this.filteredItems = this.timeline.items.filter(item => activeTypes.includes(item.type));
+    this.filteredItems = this.timeline.items
+      .filter(item => activeTypes.includes(item.type))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
   // ===== Journal Entry CRUD =====
@@ -769,7 +987,93 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  // ===== Export (P7.7) =====
+
+  exportCsv() {
+    if (!this.timeline) return;
+    const headers = ['Ngày', 'Loại', 'Tiêu đề', 'Cảm xúc', 'Confidence', 'Giá', 'Ghi chú'];
+    const rows = this.filteredItems.map(item => {
+      const d = item.data;
+      switch (item.type) {
+        case 'journal':
+          return [this.formatDate(item.timestamp), this.getEntryTypeLabel(d.entryType), d.title,
+            d.emotionalState || '', d.confidenceLevel || '', d.priceAtTime || '', d.content?.substring(0, 100) || ''];
+        case 'trade':
+          return [this.formatDate(item.timestamp), d.tradeType === 'BUY' ? 'MUA' : 'BÁN',
+            `${d.quantity} cp @ ${d.price}`, '', '', d.price, ''];
+        case 'event':
+          return [this.formatDate(item.timestamp), d.eventType, d.title, '', '', '', d.description || ''];
+        case 'alert':
+          return [this.formatDate(item.timestamp), 'Cảnh báo', d.message, '', '', '', ''];
+        default:
+          return [];
+      }
+    });
+
+    const csv = [headers, ...rows].map(r => r.map((c: any) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `timeline-${this.symbol}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.notificationService.success('Xuất CSV', 'Đã tải file CSV');
+  }
+
+  copySummary() {
+    if (!this.timeline) return;
+    const parts: string[] = [
+      `Timeline ${this.symbol}`,
+      `Tổng sự kiện: ${this.timeline.items.length}`,
+      `Đợt nắm giữ: ${this.timeline.holdingPeriods.length}`
+    ];
+    if (this.timeline.emotionSummary) {
+      parts.push(`Cảm xúc chính: ${this.topEmotion}`);
+      parts.push(`Tự tin TB: ${this.timeline.emotionSummary.averageConfidence?.toFixed(1) || 'N/A'}`);
+    }
+    if (this.timeline.behavioralPatterns?.length) {
+      parts.push(`Cảnh báo hành vi: ${this.timeline.behavioralPatterns.length}`);
+    }
+    navigator.clipboard.writeText(parts.join('\n')).then(() => {
+      this.notificationService.success('Đã sao chép', 'Tóm tắt đã được sao chép vào clipboard');
+    });
+  }
+
+  // ===== Vietstock Crawl (P7.8) =====
+
+  crawlVietstock() {
+    this.crawling = true;
+    this.marketEventService.crawl(this.symbol).subscribe({
+      next: (result) => {
+        const parts: string[] = [];
+        if (result.newsAdded > 0) parts.push(`${result.newsAdded} tin tức`);
+        if (result.eventsAdded > 0) parts.push(`${result.eventsAdded} sự kiện`);
+        if (result.duplicatesSkipped > 0) parts.push(`bỏ qua ${result.duplicatesSkipped} trùng lặp`);
+        const msg = parts.length > 0 ? `Đã thêm ${parts.join(', ')}.` : 'Không có tin tức mới.';
+        this.notificationService.success('Cập nhật tin tức', msg);
+        this.crawling = false;
+        this.loadData();
+      },
+      error: () => {
+        this.notificationService.error('Lỗi', 'Không thể tải tin tức từ Vietstock');
+        this.crawling = false;
+      }
+    });
+  }
+
   // ===== Helpers =====
+
+  private truncate(text: string | undefined, max: number): string {
+    if (!text) return '(không có tiêu đề)';
+    return text.length > max ? text.substring(0, max) + '…' : text;
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
 
   selectTimelineItem(index: number) {
     this.selectedItemIndex = index;
@@ -781,6 +1085,21 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
 
   getEventIcon(type: string): string {
     return EVENT_ICONS[type] || '📰';
+  }
+
+  // P7.3: Pattern helpers
+  patternCount(type: string): number {
+    return this.timeline?.behavioralPatterns?.filter(p => p.patternType === type).length ?? 0;
+  }
+
+  getPatternLabel(type: string): string {
+    const labels: { [key: string]: string } = {
+      'FOMO': 'FOMO',
+      'PanicSell': 'Bán panic',
+      'RevengeTrading': 'Giao dịch trả thù',
+      'Overtrading': 'Giao dịch quá mức'
+    };
+    return labels[type] || type;
   }
 
   getEmotionColor(emotion: string): string {
@@ -806,27 +1125,112 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       }));
 
     this.topEmotion = this.emotionDistribution.length > 0 ? this.emotionDistribution[0].label : '';
+    this.computeCorrelationInsight();
+    this.computeTrendInsight();
   }
 
-  // 7C.3 — Build AI context
+  // P7.1: Generate correlation insight text
+  private computeCorrelationInsight() {
+    const corr = this.timeline?.emotionSummary?.correlations;
+    if (!corr?.length) { this.correlationInsight = ''; return; }
+
+    const best = corr.reduce((a, b) => a.winRate > b.winRate ? a : b);
+    const worst = corr.reduce((a, b) => a.winRate < b.winRate ? a : b);
+
+    const parts: string[] = [];
+    if (best.winRate > 50) {
+      parts.push(`Khi <strong style="color:${this.getEmotionColor(best.emotion)}">${best.emotion}</strong> → Win rate ${best.winRate.toFixed(0)}%, P&L TB ${best.averagePnlPercent >= 0 ? '+' : ''}${best.averagePnlPercent.toFixed(1)}%`);
+    }
+    if (worst.emotion !== best.emotion && worst.winRate < 50) {
+      parts.push(`Khi <strong style="color:${this.getEmotionColor(worst.emotion)}">${worst.emotion}</strong> → Win rate chỉ ${worst.winRate.toFixed(0)}%, P&L TB ${worst.averagePnlPercent >= 0 ? '+' : ''}${worst.averagePnlPercent.toFixed(1)}%`);
+    }
+    this.correlationInsight = parts.join(' · ');
+  }
+
+  // P7.6: Generate trend insight text
+  private computeTrendInsight() {
+    const trends = this.timeline?.emotionSummary?.trends;
+    if (!trends || trends.length < 2) { this.trendInsight = ''; return; }
+
+    const latest = trends[trends.length - 1];
+    const prev = trends[trends.length - 2];
+    const parts: string[] = [];
+
+    if (latest.averageConfidence > prev.averageConfidence) {
+      parts.push(`Tự tin tăng từ ${prev.averageConfidence.toFixed(1)} → ${latest.averageConfidence.toFixed(1)}`);
+    } else if (latest.averageConfidence < prev.averageConfidence) {
+      parts.push(`Tự tin giảm từ ${prev.averageConfidence.toFixed(1)} → ${latest.averageConfidence.toFixed(1)}`);
+    }
+    if (latest.dominantEmotion !== prev.dominantEmotion) {
+      parts.push(`Cảm xúc chính: ${prev.dominantEmotion} → ${latest.dominantEmotion}`);
+    }
+    this.trendInsight = parts.length > 0 ? `Xu hướng: ${parts.join(' · ')}` : '';
+  }
+
+  // P7.6: Convert trend distribution to array for stacked bar
+  getTrendDistribution(trend: any): { label: string; count: number; percent: number }[] {
+    if (!trend.distribution) return [];
+    const total = Object.values(trend.distribution as { [k: string]: number }).reduce((s: number, v) => s + (v as number), 0);
+    if (total === 0) return [];
+    return Object.entries(trend.distribution)
+      .sort((a, b) => (b[1] as number) - (a[1] as number))
+      .map(([label, count]) => ({
+        label,
+        count: count as number,
+        percent: ((count as number) / total) * 100
+      }));
+  }
+
+  // P7.5 — Build rich AI context for timeline review
   private buildAiContext() {
     if (!this.timeline) return;
     const parts: string[] = [
-      `Symbol: ${this.symbol}`,
-      `Tổng sự kiện: ${this.timeline.items.length}`,
-      `Đợt nắm giữ: ${this.timeline.holdingPeriods.length}`
+      `Bạn là huấn luyện viên tâm lý giao dịch (trading psychology coach).`,
+      `Phân tích timeline giao dịch của nhà đầu tư cho mã ${this.symbol}:\n`,
+      `## Tổng quan`,
+      `- Tổng sự kiện: ${this.timeline.items.length}`,
+      `- Đợt nắm giữ: ${this.timeline.holdingPeriods.length}`
     ];
 
+    // Emotion summary
     if (this.timeline.emotionSummary) {
-      parts.push(`Tự tin TB: ${this.timeline.emotionSummary.averageConfidence?.toFixed(1) || 'N/A'}`);
-      parts.push(`Phân bố cảm xúc: ${JSON.stringify(this.timeline.emotionSummary.distribution)}`);
+      parts.push(`- Tự tin TB: ${this.timeline.emotionSummary.averageConfidence?.toFixed(1) || 'N/A'}`);
+      parts.push(`- Phân bố cảm xúc: ${JSON.stringify(this.timeline.emotionSummary.distribution)}`);
+
+      // P7.1: Correlation data
+      const corr = this.timeline.emotionSummary.correlations;
+      if (corr?.length) {
+        parts.push('\n## Dữ liệu cảm xúc ↔ P&L');
+        parts.push('| Cảm xúc | Số GD | Win Rate | P&L TB (%) |');
+        parts.push('|---------|-------|----------|------------|');
+        for (const c of corr) {
+          parts.push(`| ${c.emotion} | ${c.tradeCount} | ${c.winRate.toFixed(0)}% | ${c.averagePnlPercent >= 0 ? '+' : ''}${c.averagePnlPercent.toFixed(1)}% |`);
+        }
+      }
+
+      // P7.2: Calibration data
+      const cal = this.timeline.emotionSummary.confidenceCalibration;
+      if (cal?.length) {
+        parts.push('\n## Confidence Calibration');
+        for (const c of cal) {
+          parts.push(`- ${c.range}: Win rate ${c.winRate.toFixed(0)}%, ${c.isCalibrated ? 'Phù hợp' : 'Lệch'}`);
+        }
+      }
     }
 
-    // Include journal entries for AI
+    // P7.3: Behavioral patterns
+    if (this.timeline.behavioralPatterns?.length) {
+      parts.push('\n## Mẫu hành vi phát hiện');
+      for (const p of this.timeline.behavioralPatterns) {
+        parts.push(`- [${p.severity}] ${this.getPatternLabel(p.patternType)}: ${p.description} (${this.formatDate(p.occurredAt)})`);
+      }
+    }
+
+    // Journal entries (all, not just last 10)
     const journals = this.timeline.items.filter(i => i.type === 'journal');
     if (journals.length > 0) {
-      parts.push('\n--- Nhật ký gần nhất ---');
-      for (const j of journals.slice(-10)) {
+      parts.push('\n## Timeline chi tiết — Nhật ký');
+      for (const j of journals) {
         const d = j.data;
         parts.push(
           `[${this.formatDate(j.timestamp)}] ${d.entryType}: ${d.title}` +
@@ -836,17 +1240,22 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       }
     }
 
-    // Include trades for AI
+    // Trades
     const trades = this.timeline.items.filter(i => i.type === 'trade');
     if (trades.length > 0) {
-      parts.push('\n--- Giao dịch ---');
+      parts.push('\n## Giao dịch');
       for (const t of trades) {
         const d = t.data;
-        parts.push(
-          `[${this.formatDate(t.timestamp)}] ${d.tradeType} ${d.quantity} cp @ ${d.price}`
-        );
+        parts.push(`[${this.formatDate(t.timestamp)}] ${d.tradeType} ${d.quantity} cp @ ${d.price}`);
       }
     }
+
+    parts.push('\n## Yêu cầu phân tích');
+    parts.push('1. Mẫu cảm xúc lặp lại và ảnh hưởng đến P&L');
+    parts.push('2. Bias hành vi cần khắc phục (ưu tiên severity cao)');
+    parts.push('3. Điểm mạnh cần phát huy');
+    parts.push('4. 3 hành động cụ thể để cải thiện kỷ luật giao dịch');
+    parts.push('5. Đánh giá tổng thể: điểm kỷ luật (0-10), xu hướng cải thiện hay xấu đi');
 
     this.aiContext = parts.join('\n');
   }
