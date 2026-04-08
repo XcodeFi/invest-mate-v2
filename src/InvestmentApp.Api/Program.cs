@@ -1,3 +1,4 @@
+using System.Net;
 using InvestmentApp.Api.Controllers;
 using InvestmentApp.Api.Middleware;
 using InvestmentApp.Application.Interfaces;
@@ -154,7 +155,12 @@ builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Vietstock.V
 {
     client.BaseAddress = new Uri("https://finance.vietstock.vn");
     client.DefaultRequestHeaders.Add("Accept", "text/html,application/json");
+    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36");
     client.Timeout = TimeSpan.FromSeconds(30);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    CookieContainer = new CookieContainer(),
+    UseCookies = true
 });
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IVietstockEventProvider>(sp =>
     sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Vietstock.VietstockEventProvider>());

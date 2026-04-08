@@ -2,8 +2,8 @@ import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, of } from 'rxjs';
+import { takeUntil, switchMap, catchError } from 'rxjs/operators';
 import { createChart, IChartApi, ISeriesApi, Time, SeriesMarker, LineData } from 'lightweight-charts';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
@@ -224,8 +224,11 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       </div>
 
       <!-- Chart -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 relative">
         <div #chartContainer class="w-full" style="height: 420px;"></div>
+        <div #chartTooltip class="absolute pointer-events-none bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-50 max-w-xs hidden"
+          style="transition: opacity 0.15s ease;">
+        </div>
 
         <!-- Emotion Ribbon Legend -->
         <div class="flex gap-3 mt-3 flex-wrap text-xs" *ngIf="timeline?.emotionSummary">
@@ -522,10 +525,13 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
 })
 export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('chartContainer') chartContainer!: ElementRef;
+  @ViewChild('chartTooltip') chartTooltip!: ElementRef;
 
   symbol = '';
   timeline: SymbolTimeline | null = null;
   priceHistory: StockPrice[] = [];
+  currentPrice: StockPrice | null = null;
+  private tooltipItemsByDate = new Map<string, TimelineItem[]>();
   loading = false;
   selectedRange = 3; // months
   selectedItemIndex = -1;
@@ -659,12 +665,16 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       });
 
     this.marketDataService.getPriceHistory(this.symbol, fromStr, toStr)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (prices) => {
+      .pipe(
+        takeUntil(this.destroy$),
+        switchMap(prices => {
           this.priceHistory = prices;
-          this.updateChartData();
-        },
+          return this.marketDataService.getCurrentPrice(this.symbol)
+            .pipe(catchError(() => of(null)));
+        })
+      )
+      .subscribe({
+        next: (current) => { this.currentPrice = current; this.updateChartData(); },
         error: () => {
           this.notificationService.error('Lỗi', 'Không thể tải dữ liệu giá');
         }
@@ -711,6 +721,50 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       scaleMargins: { top: 0.85, bottom: 0 }
     });
 
+    // Tooltip on crosshair move
+    this.chart.subscribeCrosshairMove((param) => {
+      const tooltip = this.chartTooltip?.nativeElement;
+      if (!tooltip) return;
+
+      if (!param.time || !param.point) {
+        tooltip.classList.add('hidden');
+        return;
+      }
+
+      const day = param.time as string;
+      const items = this.tooltipItemsByDate.get(day);
+      if (!items || items.length === 0) {
+        tooltip.classList.add('hidden');
+        return;
+      }
+
+      // Build tooltip content — escape dynamic text to prevent XSS
+      const lines = items.map(item => {
+        if (item.type === 'trade') {
+          const side = item.data.tradeType === 'BUY' ? 'MUA' : 'BÁN';
+          return `<div class="flex items-center gap-1.5"><span class="font-bold ${item.data.tradeType === 'BUY' ? 'text-green-400' : 'text-red-400'}">${side}</span> ${item.data.quantity} × ${(item.data.price ?? 0).toLocaleString()}đ</div>`;
+        }
+        if (item.type === 'journal')
+          return `<div class="flex items-center gap-1.5"><span class="text-indigo-400 font-bold">J</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
+        if (item.type === 'event')
+          return `<div class="flex items-center gap-1.5"><span class="text-amber-400 font-bold">E</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
+        return `<div class="flex items-center gap-1.5"><span class="text-orange-400 font-bold">A</span> ${this.escapeHtml(this.truncate(item.data.title ?? 'Cảnh báo', 40))}</div>`;
+      });
+
+      tooltip.innerHTML = `<div class="font-medium text-gray-300 mb-1">${day}</div>${lines.join('')}`;
+      tooltip.classList.remove('hidden');
+
+      // Position tooltip near crosshair
+      const chartRect = this.chartContainer.nativeElement.getBoundingClientRect();
+      const x = param.point.x;
+      const y = param.point.y;
+      const tooltipW = tooltip.offsetWidth;
+      const left = x + tooltipW + 20 > chartRect.width ? x - tooltipW - 10 : x + 10;
+      const top = Math.max(0, Math.min(y - 10, chartRect.height - tooltip.offsetHeight));
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+    });
+
     // Responsive
     this.resizeObserver = new ResizeObserver(() => {
       if (this.chart && this.chartContainer?.nativeElement) {
@@ -732,6 +786,14 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
         value: p.close
       }));
 
+    // Extend chart to today using current market price
+    const today = new Date().toISOString().split('T')[0];
+    const lastDay = lineData.length > 0 ? lineData[lineData.length - 1].time as string : '';
+    if (lastDay && lastDay < today) {
+      const todayPrice = this.currentPrice?.close ?? lineData[lineData.length - 1].value;
+      lineData.push({ time: today as Time, value: todayPrice });
+    }
+
     this.priceSeries.setData(lineData);
     this.chart?.timeScale().fitContent();
     this.updateChartMarkers();
@@ -741,45 +803,65 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   private updateChartMarkers() {
     if (!this.priceSeries || !this.timeline) return;
 
+    // Group items by date
+    const byDate = new Map<string, TimelineItem[]>();
+    for (const item of this.timeline.items) {
+      const day = item.timestamp.split('T')[0];
+      if (!byDate.has(day)) byDate.set(day, []);
+      byDate.get(day)!.push(item);
+    }
+    this.tooltipItemsByDate = byDate;
+
     const markers: SeriesMarker<Time>[] = [];
 
-    for (const item of this.timeline.items) {
-      const time = item.timestamp.split('T')[0] as Time;
+    for (const [day, items] of byDate) {
+      const time = day as Time;
 
-      if (item.type === 'journal') {
-        markers.push({
-          time,
-          position: 'aboveBar',
-          color: '#6366f1',
-          shape: 'circle',
-          text: '📓'
-        });
-      } else if (item.type === 'trade') {
-        const isBuy = (item.data.tradeType) === 'BUY';
+      // Trades — T marker (BUY below green, SELL above red)
+      const trades = items.filter(i => i.type === 'trade');
+      for (const t of trades) {
+        const isBuy = t.data.tradeType === 'BUY';
         markers.push({
           time,
           position: isBuy ? 'belowBar' : 'aboveBar',
           color: isBuy ? '#22c55e' : '#ef4444',
           shape: isBuy ? 'arrowUp' : 'arrowDown',
-          text: isBuy
-            ? `MUA ${item.data.quantity}`
-            : `BÁN ${item.data.quantity}`
+          text: isBuy ? 'T' : 'T'
         });
-      } else if (item.type === 'event') {
+      }
+
+      // Journals — J marker (indigo)
+      const journals = items.filter(i => i.type === 'journal');
+      if (journals.length > 0) {
+        markers.push({
+          time,
+          position: 'aboveBar',
+          color: '#6366f1',
+          shape: 'circle',
+          text: journals.length > 1 ? `J${journals.length}` : 'J'
+        });
+      }
+
+      // Events — E marker, Alerts — A marker (amber)
+      const events = items.filter(i => i.type === 'event');
+      if (events.length > 0) {
         markers.push({
           time,
           position: 'aboveBar',
           color: '#f59e0b',
           shape: 'square',
-          text: this.getEventIcon(item.data.eventType)
+          text: events.length > 1 ? `E${events.length}` : 'E'
         });
-      } else if (item.type === 'alert') {
+      }
+
+      const alerts = items.filter(i => i.type === 'alert');
+      if (alerts.length > 0) {
         markers.push({
           time,
           position: 'aboveBar',
           color: '#f97316',
           shape: 'square',
-          text: '⚠️'
+          text: alerts.length > 1 ? `A${alerts.length}` : 'A'
         });
       }
     }
@@ -818,7 +900,9 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   applyFilters() {
     if (!this.timeline) return;
     const activeTypes = this.filterOptions.filter(f => f.checked).map(f => f.type);
-    this.filteredItems = this.timeline.items.filter(item => activeTypes.includes(item.type));
+    this.filteredItems = this.timeline.items
+      .filter(item => activeTypes.includes(item.type))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
   // ===== Journal Entry CRUD =====
@@ -979,6 +1063,17 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   // ===== Helpers =====
+
+  private truncate(text: string | undefined, max: number): string {
+    if (!text) return '(không có tiêu đề)';
+    return text.length > max ? text.substring(0, max) + '…' : text;
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
 
   selectTimelineItem(index: number) {
     this.selectedItemIndex = index;

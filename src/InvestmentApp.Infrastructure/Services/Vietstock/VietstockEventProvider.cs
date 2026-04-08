@@ -14,9 +14,14 @@ public class VietstockEventProvider : IVietstockEventProvider
     private DateTime _csrfTokenExpiry = DateTime.MinValue;
     private static readonly Regex DateRegex = new(@"/Date\((\d+)\)/", RegexOptions.Compiled);
     private static readonly Regex CsrfInputRegex = new(
-        @"<input[^>]*name=""__RequestVerificationToken""[^>]*value=""([^""]+)""", RegexOptions.Compiled);
+        @"name=""?__RequestVerificationToken""?\s[^>]*value=""?([^""\s>]+)", RegexOptions.Compiled);
+    private static readonly Regex CsrfFallbackRegex = new(
+        @"__CHART_AjaxAntiForgeryForm[^<]*<input[^>]*value=([^\s>""]+)", RegexOptions.Compiled);
+    private static readonly Regex CsrfLastResortRegex = new(
+        @"__RequestVerificationToken[^>]*value=(?:""?)([^""\s>]+)", RegexOptions.Compiled);
 
     private const string BaseUrl = "https://finance.vietstock.vn";
+    private const string PageUrl = "https://vietstock.vn";
 
     public VietstockEventProvider(HttpClient httpClient, ILogger<VietstockEventProvider> logger)
     {
@@ -42,6 +47,8 @@ public class VietstockEventProvider : IVietstockEventProvider
         {
             Content = formData
         };
+        request.Headers.Add("Referer", $"{BaseUrl}/{symbol.ToLower()}/tin-tuc-su-kien.htm");
+        request.Headers.Add("X-Requested-With", "XMLHttpRequest");
 
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
@@ -59,7 +66,7 @@ public class VietstockEventProvider : IVietstockEventProvider
             Title = item.Title ?? "",
             Head = item.Head,
             PublishTime = ParseDotNetDate(item.PublishTime),
-            Url = item.URL != null ? $"{BaseUrl}{item.URL}" : null,
+            Url = item.URL != null ? $"{PageUrl}{item.URL}" : null,
             Source = item.Source
         });
     }
@@ -86,6 +93,8 @@ public class VietstockEventProvider : IVietstockEventProvider
         {
             Content = formData
         };
+        request.Headers.Add("Referer", $"{BaseUrl}/{symbol.ToLower()}/tin-tuc-su-kien.htm");
+        request.Headers.Add("X-Requested-With", "XMLHttpRequest");
 
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
@@ -136,16 +145,35 @@ public class VietstockEventProvider : IVietstockEventProvider
 
         var html = await response.Content.ReadAsStringAsync(ct);
 
-        // Parse token from hidden input
+        // Parse token from hidden input — try multiple patterns
+        // Pattern 1: with quotes: value="token"
+        // Pattern 2: without quotes: value=token>
         var match = CsrfInputRegex.Match(html);
         if (!match.Success)
         {
-            _logger.LogWarning("Failed to parse CSRF token from Vietstock HTML");
+            var fallback = CsrfFallbackRegex.Match(html);
+            if (fallback.Success)
+            {
+                match = fallback;
+            }
+            else
+            {
+                var lastResort = CsrfLastResortRegex.Match(html);
+                if (lastResort.Success)
+                    match = lastResort;
+            }
+        }
+
+        if (!match.Success)
+        {
+            var sample = html.Length > 500 ? html.Substring(0, 500) : html;
+            _logger.LogWarning("Failed to parse CSRF token from Vietstock HTML. Sample: {Sample}", sample);
             throw new InvalidOperationException("Cannot obtain Vietstock CSRF token");
         }
 
         _csrfToken = match.Groups[1].Value;
         _csrfTokenExpiry = DateTime.UtcNow.AddMinutes(30);
+        _logger.LogInformation("Obtained Vietstock CSRF token ({Length} chars)", _csrfToken.Length);
     }
 
     public static DateTime ParseDotNetDate(string? dateStr)
