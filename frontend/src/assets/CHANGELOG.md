@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.25.1] — 2026-04-09 · P7 Bugfix & Chart UX Polish
+
+**Branch:** `feat/p7-improvements`
+
+### Vietstock Crawl Fix
+- **Fix CSRF token parsing:** Regex fallback 3 tầng cho unquoted HTML attributes
+- **Fix 403:** Thêm User-Agent, CookieContainer, Referer, X-Requested-With headers
+- **Fix URL bài viết:** Dùng `vietstock.vn` thay vì `finance.vietstock.vn`
+
+### Chart UX Improvements
+- **Sắp xếp timeline newest-first** (mới nhất lên đầu)
+- **Mở rộng chart đến ngày hiện tại** sử dụng giá real-time
+- **Thay emoji markers bằng ký tự ngắn** (T/J/E/A) kèm số lượng
+- **Crosshair tooltip:** Hiển thị chi tiết sự kiện khi hover
+- **Sanitize tooltip innerHTML** chống XSS từ dữ liệu API
+- **Refactor nested subscribe → switchMap** (RxJS best practice)
+
+### Tests
+- 732 tests pass (Domain: 584, Application: 54, Infrastructure: 94)
+
+---
+
 ## [v2.25.0] — 2026-03-27 · P7 Symbol Timeline Improvements
 
 **Branch:** `feat/p7-improvements`
