@@ -305,6 +305,96 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
                 <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
               }
             </div>
+
+            <!-- Stochastic Oscillator -->
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500 font-medium mb-1">🔀 Stochastic (14,3,3)</div>
+              @if (analysis.stochasticK != null) {
+                <div class="text-sm">
+                  <span class="text-2xl font-bold"
+                    [class.text-green-600]="analysis.stochasticSignal === 'oversold'"
+                    [class.text-red-600]="analysis.stochasticSignal === 'overbought'"
+                    [class.text-gray-700]="analysis.stochasticSignal === 'neutral'">
+                    {{ analysis.stochasticK | number:'1.1-1' }}
+                  </span>
+                  <span class="text-xs text-gray-500 ml-1">%K</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">%D: {{ analysis.stochasticD | number:'1.1-1' }}</div>
+                <div class="text-xs font-medium mt-1"
+                  [class.text-green-600]="analysis.stochasticSignal === 'oversold'"
+                  [class.text-red-600]="analysis.stochasticSignal === 'overbought'">
+                  {{ analysis.stochasticSignal === 'oversold' ? '🟢 Quá bán' : analysis.stochasticSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
+                </div>
+              } @else {
+                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+              }
+            </div>
+
+            <!-- ADX -->
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500 font-medium mb-1">💪 ADX (14)</div>
+              @if (analysis.adx14 != null) {
+                <div class="text-2xl font-bold"
+                  [class.text-emerald-600]="analysis.adxSignal === 'strong_trend'"
+                  [class.text-blue-600]="analysis.adxSignal === 'trending'"
+                  [class.text-amber-600]="analysis.adxSignal === 'sideway'"
+                  [class.text-gray-700]="analysis.adxSignal === 'neutral'">
+                  {{ analysis.adx14 | number:'1.1-1' }}
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                  +DI: <span class="text-green-600 font-mono">{{ analysis.plusDi | number:'1.1-1' }}</span>
+                  · -DI: <span class="text-red-600 font-mono">{{ analysis.minusDi | number:'1.1-1' }}</span>
+                </div>
+                <div class="text-xs font-medium mt-1"
+                  [class.text-emerald-600]="analysis.adxSignal === 'strong_trend'"
+                  [class.text-blue-600]="analysis.adxSignal === 'trending'"
+                  [class.text-amber-600]="analysis.adxSignal === 'sideway'">
+                  {{ analysis.adxSignal === 'strong_trend' ? '🔥 Xu hướng rất mạnh' :
+                     analysis.adxSignal === 'trending' ? '📈 Có xu hướng' :
+                     analysis.adxSignal === 'sideway' ? '↔️ Đi ngang' : '🟡 Trung tính' }}
+                </div>
+              } @else {
+                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+              }
+            </div>
+
+            <!-- OBV -->
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500 font-medium mb-1">💰 OBV (Dòng tiền)</div>
+              @if (analysis.obv != null) {
+                <div class="text-sm font-mono font-medium text-gray-900">
+                  {{ formatObv(analysis.obv!) }}
+                </div>
+                <div class="text-xs font-medium mt-1"
+                  [class.text-green-600]="analysis.obvSignal === 'rising'"
+                  [class.text-red-600]="analysis.obvSignal === 'falling'">
+                  {{ analysis.obvSignal === 'rising' ? '📈 Dòng tiền vào' :
+                     analysis.obvSignal === 'falling' ? '📉 Dòng tiền ra' : '🟡 Trung tính' }}
+                </div>
+              } @else {
+                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+              }
+            </div>
+
+            <!-- MFI -->
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500 font-medium mb-1">🌊 MFI (14)</div>
+              @if (analysis.mfi14 != null) {
+                <div class="text-2xl font-bold"
+                  [class.text-green-600]="analysis.mfiSignal === 'oversold'"
+                  [class.text-red-600]="analysis.mfiSignal === 'overbought'"
+                  [class.text-gray-700]="analysis.mfiSignal === 'neutral'">
+                  {{ analysis.mfi14 | number:'1.1-1' }}
+                </div>
+                <div class="text-xs font-medium mt-1"
+                  [class.text-green-600]="analysis.mfiSignal === 'oversold'"
+                  [class.text-red-600]="analysis.mfiSignal === 'overbought'">
+                  {{ analysis.mfiSignal === 'oversold' ? '🟢 Quá bán' : analysis.mfiSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
+                </div>
+              } @else {
+                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+              }
+            </div>
         </div>
 
         <!-- Support / Resistance -->
@@ -701,6 +791,14 @@ export class MarketDataComponent implements OnInit {
       case 'sell': return '🔴';
       default: return '🟡';
     }
+  }
+
+  formatObv(obv: number): string {
+    const abs = Math.abs(obv);
+    const sign = obv < 0 ? '-' : '';
+    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${sign}${Math.round(abs / 1_000)}K`;
+    return obv.toFixed(0);
   }
 
   // --- Top Fluctuation ---

@@ -57,7 +57,14 @@ project/
     ├── architecture.md                 # This file
     ├── business-domain.md              # Entity map, business rules, API endpoints
     ├── features.md                     # Feature list by phase
-    └── project-context.md              # Project goals, decisions, improvement plan
+    ├── project-context.md              # Project goals, decisions, improvement plan
+    ├── plans/
+    │   └── technical-analysis-features.md  # Lộ trình mở rộng TA & chiến lược (6 phases)
+    └── references/                     # Tài liệu tham chiếu kiến thức giao dịch
+        ├── README.md                   # Index + hướng dẫn sử dụng
+        ├── Phan-Loai-Chi-Bao-Muc-Dich-Cach-Dung.md      # 10 nhóm chỉ báo kỹ thuật
+        ├── Chien-Luoc-Giao-Dich-Va-Quan-Ly-Rui-Ro.md    # 7 chiến lược + quản lý rủi ro
+        └── Phan-Tich-Ky-Thuat-Giao-Dich-Ngan-Han.md     # Công thức chi tiết + hệ thống hoàn chỉnh
 ```
 
 ## Layer Dependencies
@@ -90,7 +97,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | PnLService | FIFO P&L calculation (realized + unrealized) | ITradeRepository, IStockPriceService |
 | RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider |
 | PerformanceMetricsService | CAGR, Sharpe, Sortino, win rate, profit factor, equity curve | ISnapshotRepo, ITradeRepo |
-| TechnicalIndicatorService | EMA(20/50), RSI(14), MACD(12,26,9), support/resistance | IMarketDataProvider |
+| TechnicalIndicatorService | 10 indicators: EMA(20/50/200), RSI(14), MACD(12,26,9), Stochastic(14,3,3), ADX(14)+DI, OBV, MFI(14), Bollinger(20,2), ATR(14), Volume ratio. S/R, Fibonacci, 10-indicator voting signal | IMarketDataProvider |
 | AiAssistantService | AI prompt building for 12 use cases, streaming responses | 12+ repos and services |
 | HmoneyComprehensiveDataProvider | Comprehensive stock data from 24hmoney (financials, reports, dividends, foreign trading, recommendations) | HttpClient, IMemoryCache |
 | HmoneyMarketDataProvider | Real-time prices from 24hmoney.vn (prices ×1000 scaling) | HttpClient, IMemoryCache |
@@ -170,6 +177,6 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (796 tests)
+- **Backend:** xUnit + FluentAssertions + Moq (820 tests)
 - **Frontend:** Karma + Jasmine (configured, tests pending)
 - Run `dotnet test` before commit

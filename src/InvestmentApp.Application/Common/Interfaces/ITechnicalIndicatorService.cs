@@ -60,6 +60,25 @@ public class TechnicalAnalysisResult
     public decimal? Atr14 { get; set; }
     public decimal? AtrPercent { get; set; } // ATR as % of current price
 
+    // Stochastic Oscillator (14,3,3)
+    public decimal? StochasticK { get; set; }
+    public decimal? StochasticD { get; set; }
+    public string StochasticSignal { get; set; } = "neutral"; // "oversold" | "overbought" | "neutral"
+
+    // ADX (14) + Directional Indicators
+    public decimal? Adx14 { get; set; }
+    public decimal? PlusDi { get; set; }
+    public decimal? MinusDi { get; set; }
+    public string AdxSignal { get; set; } = "neutral"; // "trending" | "strong_trend" | "sideway" | "neutral"
+
+    // OBV (On-Balance Volume)
+    public decimal? Obv { get; set; }
+    public string ObvSignal { get; set; } = "neutral"; // "rising" | "falling" | "neutral"
+
+    // MFI (Money Flow Index, 14)
+    public decimal? Mfi14 { get; set; }
+    public string MfiSignal { get; set; } = "neutral"; // "oversold" | "overbought" | "neutral"
+
     // EMA200
     public decimal? Ema200 { get; set; }
 

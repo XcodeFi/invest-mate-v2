@@ -2,6 +2,30 @@
 
 ---
 
+## [v2.31.0] — 2026-04-10 · Mở rộng Technical Indicators — Stochastic, ADX, OBV, MFI
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### Chỉ báo kỹ thuật mới (4 indicators)
+- **Stochastic Oscillator (14,3,3):** Slow Stochastic %K/%D, tín hiệu quá mua (>80) / quá bán (<20)
+- **ADX (14) + Directional Indicators:** Đo sức mạnh xu hướng (trending >25 / strong >40 / sideway <20), +DI/-DI xác định hướng
+- **OBV (On-Balance Volume):** Theo dõi dòng tiền tích lũy, tín hiệu rising/falling
+- **MFI (14) — Money Flow Index:** RSI có volume, quá mua (>80) / quá bán (<20)
+
+### Cải thiện hệ thống tín hiệu
+- **Voting system:** Nâng từ 6 lên 10 chỉ báo tham gia bỏ phiếu (EMA, RSI, MACD, Volume, Bollinger, ATR, Stochastic, ADX+DI, OBV, MFI)
+- **Signal thresholds:** Điều chỉnh ngưỡng cho 10 indicators (strong_buy ≥6, buy ≥4, sell ≥4, strong_sell ≥6)
+
+### Frontend
+- 4 indicator cards mới trong Smart Signals grid: Stochastic, ADX (+DI/-DI), OBV (dòng tiền), MFI
+- OBV formatting: Hỗ trợ giá trị âm (e.g., -45M)
+
+### Tests
+- 820 tests pass (Domain: 603, Application: 65, Infrastructure: 151, Api: 1)
+- 24 test mới cho Stochastic, ADX, OBV, MFI, voting system
+
+---
+
 ## [v2.30.0] — 2026-04-10 · Auto-suggest 2 chiều Portfolio ↔ Symbol
 
 **Branch:** `fix/user-feedback-updates`

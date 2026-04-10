@@ -160,6 +160,21 @@ export interface TechnicalAnalysis {
   };
   atr14?: number;
   atrPercent?: number;
+  // Stochastic Oscillator (14,3,3)
+  stochasticK?: number;
+  stochasticD?: number;
+  stochasticSignal?: string;
+  // ADX (14) + Directional Indicators
+  adx14?: number;
+  plusDi?: number;
+  minusDi?: number;
+  adxSignal?: string;
+  // OBV (On-Balance Volume)
+  obv?: number;
+  obvSignal?: string;
+  // MFI (Money Flow Index, 14)
+  mfi14?: number;
+  mfiSignal?: string;
   suggestedEntry?: number;
   suggestedStopLoss?: number;
   suggestedTarget?: number;
