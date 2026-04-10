@@ -54,6 +54,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         // --- EMA ---
         result.Ema20 = CalculateEma(closes, 20);
         result.Ema50 = CalculateEma(closes, 50);
+        result.Ema200 = CalculateEma(closes, 200);
 
         if (result.Ema20.HasValue && result.Ema50.HasValue)
         {
@@ -119,6 +120,9 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         var (supports, resistances) = CalculateSwingLevels(closes);
         result.SupportLevels = supports.Where(s => s < current.Close).OrderByDescending(s => s).Take(3).ToList();
         result.ResistanceLevels = resistances.Where(r => r > current.Close).OrderBy(r => r).Take(3).ToList();
+
+        // --- Fibonacci Retracement / Extension ---
+        result.Fibonacci = CalculateFibonacciLevels(supports, resistances);
 
         // --- Bollinger Bands(20, 2) ---
         var (bbMiddle, bbUpper, bbLower) = CalculateBollingerBands(closes, 20, 2m);
@@ -406,5 +410,39 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         }
 
         return clustered;
+    }
+
+    private static FibonacciLevels? CalculateFibonacciLevels(
+        List<decimal> supports, List<decimal> resistances)
+    {
+        // Need at least one swing low and one swing high
+        if (supports.Count == 0 || resistances.Count == 0)
+            return null;
+
+        var swingLow = supports.Min();
+        var swingHigh = resistances.Max();
+
+        // Swing high must be meaningfully greater than swing low (at least 1% range)
+        if (swingHigh <= swingLow)
+            return null;
+
+        var rangePercent = (swingHigh - swingLow) / swingHigh * 100;
+        if (rangePercent < 1m)
+            return null;
+
+        var range = swingHigh - swingLow;
+
+        return new FibonacciLevels
+        {
+            SwingHigh = Math.Round(swingHigh, 0),
+            SwingLow = Math.Round(swingLow, 0),
+            Retracement236 = Math.Round(swingLow + range * 0.236m, 0),
+            Retracement382 = Math.Round(swingLow + range * 0.382m, 0),
+            Retracement500 = Math.Round(swingLow + range * 0.500m, 0),
+            Retracement618 = Math.Round(swingLow + range * 0.618m, 0),
+            Retracement786 = Math.Round(swingLow + range * 0.786m, 0),
+            Extension1272 = Math.Round(swingHigh + range * 0.272m, 0),
+            Extension1618 = Math.Round(swingHigh + range * 0.618m, 0)
+        };
     }
 }
