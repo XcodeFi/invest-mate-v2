@@ -70,6 +70,13 @@ interface NavGroup {
               AI
             </button>
 
+            <!-- Help Button -->
+            <a routerLink="/help"
+              class="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+              title="Hướng dẫn sử dụng">
+              ❓ Hướng dẫn
+            </a>
+
             <!-- DEV Changelog Badge -->
             <a routerLink="/changelog"
               class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-gray-800 text-gray-200 hover:bg-gray-700 transition-colors"

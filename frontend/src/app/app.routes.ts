@@ -137,6 +137,10 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'help',
+    loadComponent: () => import('./features/help/help.component').then(m => m.HelpComponent)
+  },
+  {
     path: 'changelog',
     loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent)
   },
