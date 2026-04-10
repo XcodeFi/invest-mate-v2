@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.30.0] — 2026-04-10 · Auto-suggest 2 chiều Portfolio ↔ Symbol
+
+**Branch:** `fix/user-feedback-updates`
+
+### Trade Create UX Improvements
+- **Auto-suggest danh mục → cổ phiếu:** Chọn danh mục → hiện chips các cổ phiếu đang có vị thế (click chọn nhanh)
+- **Auto-suggest cổ phiếu → danh mục:** Chọn/nhập symbol → auto-select danh mục chứa vị thế (nếu duy nhất), highlight "Có vị thế" trong dropdown (nếu nhiều)
+- **BÁN — mismatch detection:** Alert banner đỏ nổi bật + disable nút bán khi symbol không có vị thế trong danh mục đã chọn
+- **BÁN — smart filtering:** Chips chỉ hiện cổ phiếu có quantity > 0 (bán được)
+- **MUA — convenience:** Chips hiện tất cả cổ phiếu trong danh mục (tiện mua thêm), không giới hạn mã mới
+
+### Code Quality
+- Fix: impure method call trong `*ngFor` → cache `matchingPortfolioIds` dạng `Set<string>`
+- Fix: symbol blur handler — trigger auto-suggest khi user gõ trực tiếp
+- Fix: loại bỏ redundant `.toUpperCase()` theo convention `appUppercase` directive
+
+### Tests
+- 22 frontend tests (Jasmine/Karma) covering bidirectional auto-suggest logic
+- Fix `tsconfig.spec.json` — thêm `polyfills.ts` cho Karma test runner
+
+---
+
 ## [v2.29.0] — 2026-04-10 · P0.7 Campaign Review — Đóng chiến dịch & Phân tích hiệu suất
 
 **Branch:** `feat/p7-improvements`
