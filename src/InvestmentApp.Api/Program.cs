@@ -150,6 +150,7 @@ builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBehavioralAnalysisService, BehavioralAnalysisService>();
+builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IScenarioConsultantService, ScenarioConsultantService>();
 
 // Vietstock event crawl provider
 builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Vietstock.VietstockEventProvider>(client =>
@@ -200,6 +201,7 @@ builder.Services.AddScoped<IPerformanceMetricsService, PerformanceMetricsService
 builder.Services.AddScoped<IStrategyPerformanceService, StrategyPerformanceService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<IScenarioEvaluationService, ScenarioEvaluationService>();
+builder.Services.AddScoped<IScenarioAdvisoryService, ScenarioAdvisoryService>();
 builder.Services.AddTransient<SeedDataService>();
 
 // AI Services

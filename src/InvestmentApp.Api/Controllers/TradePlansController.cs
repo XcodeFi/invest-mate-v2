@@ -11,6 +11,9 @@ using InvestmentApp.Application.TradePlans.Commands.DeleteScenarioTemplate;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioTemplates;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioHistory;
+using InvestmentApp.Application.TradePlans.Queries.GetScenarioSuggestion;
+using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
+using InvestmentApp.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -42,6 +45,43 @@ public class TradePlansController : ControllerBase
     {
         var query = new GetTradePlansQuery { UserId = GetUserId(), ActiveOnly = activeOnly };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get AI-driven scenario suggestion based on technical indicators
+    /// </summary>
+    [HttpGet("scenario-suggestion")]
+    [ProducesResponseType(typeof(ScenarioSuggestionDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetScenarioSuggestion(
+        [FromQuery] string symbol,
+        [FromQuery] decimal entryPrice,
+        [FromQuery] TimeHorizon timeHorizon = TimeHorizon.Medium,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(symbol) || entryPrice <= 0)
+            return BadRequest(new { message = "Symbol and entryPrice (> 0) are required" });
+
+        var query = new GetScenarioSuggestionQuery
+        {
+            Symbol = symbol.Trim().ToUpper(),
+            EntryPrice = entryPrice,
+            TimeHorizon = timeHorizon,
+            UserId = GetUserId()
+        };
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get scenario advisories for all active advanced plans (Dashboard use)
+    /// </summary>
+    [HttpGet("advisories")]
+    [ProducesResponseType(typeof(List<ScenarioAdvisory>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetScenarioAdvisories(CancellationToken cancellationToken = default)
+    {
+        var query = new GetScenarioAdvisoriesQuery { UserId = GetUserId() };
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
