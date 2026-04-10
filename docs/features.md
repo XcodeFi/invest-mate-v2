@@ -105,6 +105,55 @@ Tabs:
   - **Hỗ trợ/Kháng cự:** Swing high/low, Fibonacci Retracement/Extension
   - Tín hiệu tổng hợp 10 chỉ báo: Mua mạnh/Mua/Chờ/Bán/Bán mạnh. Gợi ý giao dịch (entry, SL, TP, R:R). Link "Tạo Trade Plan từ gợi ý". Tín hiệu cũng hiển thị trên Watchlist.
 
+**Cách đọc 10 chỉ báo:**
+
+| Card | Giá trị | Ý nghĩa |
+|------|---------|---------|
+| **EMA (20/50)** | Xu hướng TĂNG / GIẢM | EMA20 > EMA50 = uptrend, ngược lại = downtrend |
+| **RSI (14)** | 0–100 | < 30 = quá bán (cơ hội mua), > 70 = quá mua (cẩn trọng) |
+| **MACD (12,26,9)** | Tín hiệu MUA / BÁN | MACD cắt lên Signal = mua, cắt xuống = bán |
+| **Khối lượng** | Đột biến / Cao / Thấp | Volume spike xác nhận tín hiệu, thấp = thiếu dòng tiền |
+| **Bollinger (20,2)** | Nén / Phá lên / Phá xuống | Squeeze = sắp biến động mạnh, phá dải = xu hướng mạnh |
+| **ATR (14)** | Biến động cao / TB / thấp | Dùng tính SL: SL = Entry ± k × ATR (k=1.5–3) |
+| **Stochastic (14,3,3)** | %K / %D, Quá mua / Quá bán | < 20 = quá bán, > 80 = quá mua. Nhạy hơn RSI, timing vào lệnh |
+| **ADX (14)** | Trending / Đi ngang / Rất mạnh | > 25 = có xu hướng rõ, < 20 = sideway. +DI > -DI = hướng tăng |
+| **OBV** | Dòng tiền vào / ra | OBV tăng = smart money mua, OBV giảm = smart money bán |
+| **MFI (14)** | 0–100, Quá mua / Quá bán | Giống RSI nhưng tính cả volume → phản ánh dòng tiền thực tế hơn |
+
+**Flow đọc kết hợp (khuyến nghị):**
+
+```
+Bước 1: ADX → Thị trường có xu hướng hay đi ngang?
+  └─ ADX > 25 → Có xu hướng → dùng chiến lược Trend Following
+  └─ ADX < 20 → Đi ngang → dùng chiến lược Mean Reversion
+
+Bước 2: EMA + ADX DI → Hướng đi?
+  └─ EMA20 > EMA50 + (+DI > -DI) → Xu hướng TĂNG → tìm MUA
+  └─ EMA20 < EMA50 + (-DI > +DI) → Xu hướng GIẢM → tìm BÁN
+
+Bước 3: RSI / Stochastic → Timing vào lệnh?
+  └─ RSI pullback về 40–50 rồi bật lên (uptrend) → MUA
+  └─ Stochastic < 20 + %K cắt lên %D → MUA
+
+Bước 4: OBV / MFI → Dòng tiền có ủng hộ?
+  └─ OBV rising + MFI chưa quá mua → Xác nhận ✅
+  └─ OBV falling hoặc MFI > 80 → Cẩn trọng ⚠️
+
+Bước 5: ATR → Đặt SL ở đâu?
+  └─ SL = Entry - 2 × ATR (swing trading)
+  └─ Bollinger Squeeze → chuẩn bị breakout, chờ hướng rồi vào
+```
+
+**Ví dụ thực tế:** Tra mã FPT, kết quả:
+- ADX = 35 (trending) + +DI > -DI → **hướng tăng, xu hướng rõ**
+- EMA20 > EMA50 → **xác nhận uptrend**
+- RSI = 45 → **chưa quá mua, còn room tăng**
+- OBV rising + MFI = 55 → **dòng tiền vào, chưa quá nóng** ✅
+- ATR = 1,200đ → SL = Entry - 2 × 1,200 = Entry - 2,400đ
+- → Tín hiệu tổng hợp: **"Mua"** → Click "Tạo Trade Plan từ gợi ý" → auto-fill Entry/SL/TP
+
+**Tham chiếu công thức & chiến lược:** [`docs/references/`](references/README.md) — 3 tài liệu kiến thức nền tảng
+
 **Quy tắc giá:** API 24hmoney trả giá cổ phiếu ÷1000 → nhân ×1000 khi mapping. Chỉ số index giữ nguyên.
 
 **API endpoints:**
