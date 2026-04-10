@@ -115,6 +115,8 @@ export interface TradePlan {
   stopLossHistory?: StopLossHistoryDto[];
   exitStrategyMode?: string;
   scenarioNodes?: ScenarioNodeDto[];
+  timeHorizon?: string;
+  reviewData?: CampaignReviewDataDto;
   status: string;
   tradeId?: string;
   tradeIds?: string[];
@@ -145,6 +147,7 @@ export interface CreateTradePlanRequest {
   exitTargets?: ExitTargetDto[];
   exitStrategyMode?: string;
   scenarioNodes?: ScenarioNodeDto[];
+  timeHorizon?: string;
   status?: string;
   tradeId?: string;
 }
@@ -171,6 +174,7 @@ export interface UpdateTradePlanRequest {
   exitTargets?: ExitTargetDto[];
   exitStrategyMode?: string;
   scenarioNodes?: ScenarioNodeDto[];
+  timeHorizon?: string;
 }
 
 export interface UpdateTradePlanStatusRequest {
@@ -208,6 +212,67 @@ export interface ScenarioSuggestionDto {
     atr14?: number;
   };
   nodes: SuggestedNodeDto[];
+}
+
+export interface CampaignReviewDataDto {
+  pnLAmount: number;
+  pnLPercent: number;
+  holdingDays: number;
+  pnLPerDay: number;
+  annualizedReturnPercent: number;
+  targetAchievementPercent: number;
+  totalInvested: number;
+  totalReturned: number;
+  totalFees: number;
+  lessonsLearned?: string;
+  reviewedAt: string;
+}
+
+export interface CampaignReviewDto {
+  pnLAmount: number;
+  pnLPercent: number;
+  holdingDays: number;
+  pnLPerDay: number;
+  annualizedReturnPercent: number;
+  targetAchievementPercent: number;
+  totalInvested: number;
+  totalReturned: number;
+  totalFees: number;
+  lessonsLearned?: string;
+  reviewedAt: string;
+}
+
+export interface CampaignAnalyticsDto {
+  totalCampaigns: number;
+  winningCampaigns: number;
+  losingCampaigns: number;
+  winRate: number;
+  averagePnLPercent: number;
+  averagePnLPerDay: number;
+  totalAccumulatedPnL: number;
+  averageHoldingDays: number;
+  bestCampaign?: CampaignSummaryDto;
+  worstCampaign?: CampaignSummaryDto;
+  trend: CampaignTrendDto[];
+}
+
+export interface CampaignSummaryDto {
+  planId: string;
+  symbol: string;
+  pnLAmount: number;
+  pnLPercent: number;
+  pnLPerDay: number;
+  holdingDays: number;
+  timeHorizon?: string;
+  reviewedAt: string;
+}
+
+export interface CampaignTrendDto {
+  planId: string;
+  symbol: string;
+  reviewedAt: string;
+  pnLPercent: number;
+  cumulativePnL: number;
 }
 
 export interface ScenarioAdvisoryDto {
@@ -325,6 +390,35 @@ export class TradePlanService {
 
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/${id}`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  // --- Campaign Review ---
+
+  previewReview(planId: string): Observable<CampaignReviewDto> {
+    return this.http.get<CampaignReviewDto>(`${this.API_URL}/${planId}/review/preview`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  submitReview(planId: string, data: { lessonsLearned?: string }): Observable<CampaignReviewDto> {
+    return this.http.post<CampaignReviewDto>(`${this.API_URL}/${planId}/review`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  updateReviewLessons(planId: string, data: { lessonsLearned: string }): Observable<void> {
+    return this.http.patch<void>(`${this.API_URL}/${planId}/review/lessons`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getPendingReview(): Observable<TradePlan[]> {
+    return this.http.get<TradePlan[]>(`${this.API_URL}/pending-review`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getCampaignAnalytics(timeHorizon?: string): Observable<CampaignAnalyticsDto> {
+    let params = new HttpParams();
+    if (timeHorizon) params = params.set('timeHorizon', timeHorizon);
+    return this.http.get<CampaignAnalyticsDto>(`${this.API_URL}/campaign-analytics`, { headers: this.getHeaders(), params })
       .pipe(catchError(this.handleError));
   }
 

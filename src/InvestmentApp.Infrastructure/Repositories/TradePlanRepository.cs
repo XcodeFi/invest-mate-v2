@@ -77,6 +77,31 @@ public class TradePlanRepository : ITradePlanRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<TradePlan>> GetExecutedByUserIdAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        return await _collection.Find(p =>
+                p.UserId == userId && !p.IsDeleted &&
+                p.Status == TradePlanStatus.Executed)
+            .SortByDescending(p => p.ExecutedAt).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<TradePlan>> GetReviewedByUserIdAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        return await _collection.Find(p =>
+                p.UserId == userId && !p.IsDeleted &&
+                p.Status == TradePlanStatus.Reviewed)
+            .SortByDescending(p => p.UpdatedAt).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<TradePlan>> GetReviewedByUserIdAndTimeHorizonAsync(string userId, TimeHorizon horizon, CancellationToken cancellationToken = default)
+    {
+        return await _collection.Find(p =>
+                p.UserId == userId && !p.IsDeleted &&
+                p.Status == TradePlanStatus.Reviewed &&
+                p.TimeHorizon == horizon)
+            .SortByDescending(p => p.UpdatedAt).ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(TradePlan entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

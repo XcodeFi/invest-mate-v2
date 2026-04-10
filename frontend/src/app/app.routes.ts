@@ -87,6 +87,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'campaign-analytics',
+    loadComponent: () => import('./features/campaign-analytics/campaign-analytics.component').then(m => m.CampaignAnalyticsComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'positions',
     loadComponent: () => import('./features/positions/positions.component').then(m => m.PositionsComponent),
     canActivate: [AuthGuard]

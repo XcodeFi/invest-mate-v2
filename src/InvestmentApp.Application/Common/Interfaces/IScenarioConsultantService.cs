@@ -1,4 +1,5 @@
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Domain.Entities;
 
 namespace InvestmentApp.Application.Common.Interfaces;
 
@@ -6,8 +7,6 @@ public interface IScenarioConsultantService
 {
     Task<ScenarioSuggestion> SuggestAsync(string symbol, decimal entryPrice, TimeHorizon timeHorizon, CancellationToken ct = default);
 }
-
-public enum TimeHorizon { Short, Medium, Long }
 
 public class ScenarioSuggestion
 {

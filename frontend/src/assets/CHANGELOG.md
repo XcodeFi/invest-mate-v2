@@ -2,6 +2,37 @@
 
 ---
 
+## [v2.29.0] — 2026-04-10 · P0.7 Campaign Review — Đóng chiến dịch & Phân tích hiệu suất
+
+**Branch:** `feat/p7-improvements`
+
+### P0.7 — Campaign Review (đóng chiến dịch với auto-metrics)
+- **CampaignReviewService:** Auto-calculate P&L metrics từ trades thực tế (P&L amount, %, VND/ngày, annualized return, target achievement)
+- **TimeHorizon:** Dropdown tầm nhìn đầu tư (Ngắn hạn / Trung hạn / Dài hạn) trên TradePlan
+- **Review workflow:** Preview metrics → Confirm → Đóng chiến dịch (Executed → Reviewed)
+- **Update lessons:** Cập nhật bài học rút ra sau review
+- **Pending review:** Danh sách plans Executed chờ review
+- **Campaign Analytics page:** `/campaign-analytics` — summary cards, comparison table, best/worst plan, lessons feed
+- **API endpoints:**
+  - `POST /api/v1/trade-plans/{id}/review` — đóng chiến dịch
+  - `GET /api/v1/trade-plans/{id}/review/preview` — xem trước metrics
+  - `PATCH /api/v1/trade-plans/{id}/review/lessons` — cập nhật bài học
+  - `GET /api/v1/trade-plans/pending-review` — danh sách chờ review
+  - `GET /api/v1/trade-plans/campaign-analytics?timeHorizon=ShortTerm` — phân tích cross-plan
+
+### Domain Changes
+- **TimeHorizon enum:** ShortTerm / MediumTerm / LongTerm
+- **CampaignReviewData value object:** Embedded trong TradePlan
+- **MarkReviewed(CampaignReviewData):** Bắt buộc truyền review data khi đóng
+- **PlanReviewedEvent:** Domain event mới
+
+### Tests
+- 796 tests pass (Domain: 603, Application: 65, Infrastructure: 127)
+- 24 new domain tests (TradePlanReviewTests.cs)
+- 9 new infrastructure tests (CampaignReviewServiceTests.cs)
+
+---
+
 ## [v2.28.0] — 2026-04-10 · P0 Phase 4 — Scenario Consultant & Advisory System
 
 **Branch:** `feat/p0-phase4-advisory`

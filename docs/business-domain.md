@@ -1,7 +1,7 @@
 # Investment Mate v2 — Bản đồ Nghiệp vụ
 
 > Tài liệu tham chiếu nhanh cho AI agents và developers mới.
-> Cập nhật lần cuối: 2026-03-26
+> Cập nhật lần cuối: 2026-04-10
 
 ---
 
@@ -30,7 +30,9 @@ User (1)
  │    ├── PlanLot (N)       ← Các lô mua (ScalingIn/DCA)
  │    ├── ExitTarget (N)    ← Mục tiêu thoát (TP/CL/Trailing)
  │    ├── ScenarioNode (N)  ← Cây kịch bản (Advanced mode)
- │    └── Checklist (N)     ← Danh sách kiểm tra
+ │    ├── Checklist (N)     ← Danh sách kiểm tra
+ │    ├── CampaignReviewData (0..1) ← Kết quả review chiến dịch (P0.7, embedded)
+ │    └── TimeHorizon       ← Tầm nhìn đầu tư: ShortTerm / MediumTerm / LongTerm
  │
  ├── Strategy (N)           ← Chiến lược giao dịch
  ├── TradeJournal (N)       ← Nhật ký giao dịch
@@ -88,6 +90,10 @@ User (1)
 
 ### 3.2. Kế hoạch Giao dịch (TradePlan)
 Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cancelled`
+
+**TimeHorizon (P0.7):** `ShortTerm` (< 3 tháng) / `MediumTerm` (3-12 tháng) / `LongTerm` (> 1 năm)
+
+**CampaignReviewData (P0.7):** Value object embedded trong TradePlan khi chuyển sang Reviewed — chứa auto-calculated metrics: P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons learned
 
 **3 chế độ vào lệnh (EntryMode):**
 
@@ -214,7 +220,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | Auth | `/api/v1/auth` | Đăng nhập, đăng ký, JWT |
 | Portfolios | `/api/v1/portfolios` | CRUD danh mục |
 | Trades | `/api/v1/trades` | CRUD giao dịch, bulk import, link plan |
-| TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates |
+| TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates, **campaign review (P0.7)**: close + preview + update lessons + pending-review + analytics |
 | Strategies | `/api/v1/strategies` | CRUD chiến lược, performance |
 | Journals | `/api/v1/journals` | CRUD nhật ký |
 | Risk | `/api/v1/risk` | Profile, summary, drawdown, correlation |
@@ -256,6 +262,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | `/backtesting` | Kiểm thử | Mô phỏng chiến lược |
 | `/monthly-review` | Tổng kết tháng | Review hiệu suất hàng tháng |
 | `/ai-settings` | Cài đặt AI | Provider (Claude/Gemini), API keys, model, thống kê sử dụng |
+| `/campaign-analytics` | Phân tích chiến dịch | Tổng hợp hiệu suất cross-plan: summary cards, so sánh, best/worst, lessons feed (P0.7) |
 
 ---
 
@@ -269,3 +276,4 @@ Bước 5: Nhật ký (update journal đã tạo)
 6. **Soft delete**: Entities dùng `isDeleted` flag, không xóa vĩnh viễn
 7. **Tiền tệ**: Mặc định VND, format bằng `VndCurrencyPipe`
 8. **Ngôn ngữ UI**: Tiếng Việt có dấu đầy đủ
+9. **MarkReviewed requires CampaignReviewData**: Chuyển TradePlan sang Reviewed phải kèm `CampaignReviewData` với auto-calculated metrics (P&L, %, VND/ngày, annualized return). Không cho phép review "trống" — `CampaignReviewService` tính toán tự động từ trades thực tế

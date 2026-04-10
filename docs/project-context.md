@@ -46,6 +46,10 @@ Transform from "trade recorder" to "opportunity finder":
 3. **P3: Bollinger Bands + ATR** — ✅ 2 indicator mới, signal scoring 6 votes
 4. **P4: Risk Budgeting** — ✅ MaxDailyTrades, DailyLossLimitPercent, budget card, form fields
 
+### P0.7 Campaign Review — Done
+
+1. **P0.7: Campaign Review** — ✅ Đóng chiến dịch (TradePlan Executed → Reviewed) với auto-calculated P&L metrics, preview trước khi đóng, update lessons, pending-review list, cross-plan analytics page (`/campaign-analytics`), TimeHorizon enum, CampaignReviewData value object, CampaignReviewService, 33 new tests
+
 ### P7 Symbol Timeline Improvements — Done
 
 1. **P7.1: Emotion ↔ P&L Correlation** — ✅ Correlation table, insight text

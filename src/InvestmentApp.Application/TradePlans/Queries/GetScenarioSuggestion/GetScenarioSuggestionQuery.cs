@@ -1,5 +1,6 @@
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Domain.Entities;
 using MediatR;
 
 namespace InvestmentApp.Application.TradePlans.Queries.GetScenarioSuggestion;
@@ -8,7 +9,7 @@ public class GetScenarioSuggestionQuery : IRequest<ScenarioSuggestionDto>
 {
     public string Symbol { get; set; } = null!;
     public decimal EntryPrice { get; set; }
-    public TimeHorizon TimeHorizon { get; set; } = TimeHorizon.Medium;
+    public TimeHorizon TimeHorizon { get; set; } = TimeHorizon.MediumTerm;
     public string UserId { get; set; } = null!;
 }
 

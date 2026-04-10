@@ -27,6 +27,7 @@ public interface ITradeRepository : IRepository<Trade>
     Task<IEnumerable<Trade>> GetByPortfolioIdAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByUserPortfoliosAndSymbolAsync(IEnumerable<string> portfolioIds, string symbol, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByPortfolioIdAndDateRangeAsync(string portfolioId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Trade>> GetByTradePlanIdAsync(string tradePlanId, CancellationToken cancellationToken = default);
 }
 
 public interface IUserRepository : IRepository<User>
@@ -98,6 +99,9 @@ public interface ITradePlanRepository : IRepository<TradePlan>
     Task<IEnumerable<TradePlan>> GetActiveByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<TradePlan?> GetActiveByPortfolioAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
     Task<IEnumerable<TradePlan>> GetAdvancedInProgressAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<TradePlan>> GetExecutedByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<TradePlan>> GetReviewedByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<TradePlan>> GetReviewedByUserIdAndTimeHorizonAsync(string userId, TimeHorizon horizon, CancellationToken cancellationToken = default);
 }
 
 public interface IAlertRuleRepository : IRepository<AlertRule>

@@ -41,6 +41,12 @@ public class TradePlan : AggregateRoot
     public ExitStrategyMode ExitStrategyMode { get; private set; } = ExitStrategyMode.Simple;
     public List<ScenarioNode>? ScenarioNodes { get; private set; }
 
+    // Time horizon (for campaign comparison)
+    public TimeHorizon? TimeHorizon { get; private set; }
+
+    // Campaign review data (set when plan is reviewed/closed)
+    public CampaignReviewData? ReviewData { get; private set; }
+
     // Lifecycle
     public TradePlanStatus Status { get; private set; }
     public string? TradeId { get; private set; }
@@ -61,7 +67,8 @@ public class TradePlan : AggregateRoot
         string? marketCondition = null, string? reason = null, string? notes = null,
         decimal? riskPercent = null, decimal? accountBalance = null,
         decimal? riskRewardRatio = null, int confidenceLevel = 5,
-        List<ChecklistItem>? checklist = null)
+        List<ChecklistItem>? checklist = null,
+        TimeHorizon? timeHorizon = null)
     {
         Id = Guid.NewGuid().ToString();
         UserId = userId ?? throw new ArgumentNullException(nameof(userId));
@@ -81,6 +88,7 @@ public class TradePlan : AggregateRoot
         RiskRewardRatio = riskRewardRatio;
         ConfidenceLevel = Math.Clamp(confidenceLevel, 1, 10);
         Checklist = checklist ?? new List<ChecklistItem>();
+        TimeHorizon = timeHorizon;
         Status = TradePlanStatus.Draft;
         IsDeleted = false;
         CreatedAt = DateTime.UtcNow;
@@ -93,7 +101,8 @@ public class TradePlan : AggregateRoot
         string? marketCondition = null, string? reason = null, string? notes = null,
         decimal? riskPercent = null, decimal? accountBalance = null,
         decimal? riskRewardRatio = null, int? confidenceLevel = null,
-        List<ChecklistItem>? checklist = null)
+        List<ChecklistItem>? checklist = null,
+        TimeHorizon? timeHorizon = null)
     {
         if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed)
             throw new InvalidOperationException("Cannot update an executed or reviewed plan");
@@ -114,6 +123,7 @@ public class TradePlan : AggregateRoot
         if (riskRewardRatio.HasValue) RiskRewardRatio = riskRewardRatio;
         if (confidenceLevel.HasValue) ConfidenceLevel = Math.Clamp(confidenceLevel.Value, 1, 10);
         if (checklist != null) Checklist = checklist;
+        if (timeHorizon.HasValue) TimeHorizon = timeHorizon.Value;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -145,11 +155,31 @@ public class TradePlan : AggregateRoot
         IncrementVersion();
     }
 
-    public void MarkReviewed()
+    public void MarkReviewed(CampaignReviewData reviewData)
     {
         if (Status != TradePlanStatus.Executed)
             throw new InvalidOperationException("Only executed plans can be reviewed");
+        ReviewData = reviewData ?? throw new ArgumentNullException(nameof(reviewData));
         Status = TradePlanStatus.Reviewed;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+        AddDomainEvent(new PlanReviewedEvent(Id, UserId, reviewData.PnLPercent));
+    }
+
+    public void UpdateReviewLessons(string lessonsLearned)
+    {
+        if (Status != TradePlanStatus.Reviewed || ReviewData == null)
+            throw new InvalidOperationException("Can only update lessons on a reviewed plan");
+        ReviewData.LessonsLearned = lessonsLearned;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    public void SetTimeHorizon(TimeHorizon horizon)
+    {
+        if (Status == TradePlanStatus.Reviewed)
+            throw new InvalidOperationException("Cannot change time horizon on a reviewed plan");
+        TimeHorizon = horizon;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -377,6 +407,32 @@ public class StopLossHistoryEntry
     public decimal NewPrice { get; set; }
     public string? Reason { get; set; }
     public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+}
+
+// --- Time Horizon ---
+
+public enum TimeHorizon
+{
+    ShortTerm,    // 1-4 weeks
+    MediumTerm,   // 1-6 months
+    LongTerm      // 6+ months
+}
+
+// --- Campaign Review ---
+
+public class CampaignReviewData
+{
+    public decimal PnLAmount { get; set; }
+    public decimal PnLPercent { get; set; }
+    public int HoldingDays { get; set; }
+    public decimal PnLPerDay { get; set; }
+    public decimal AnnualizedReturnPercent { get; set; }
+    public decimal TargetAchievementPercent { get; set; }
+    public decimal TotalInvested { get; set; }
+    public decimal TotalReturned { get; set; }
+    public decimal TotalFees { get; set; }
+    public string? LessonsLearned { get; set; }
+    public DateTime ReviewedAt { get; set; }
 }
 
 // --- Scenario Playbook types ---

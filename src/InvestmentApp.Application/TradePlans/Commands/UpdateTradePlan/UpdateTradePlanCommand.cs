@@ -34,6 +34,7 @@ public class UpdateTradePlanCommand : IRequest<Unit>
     public List<ExitTargetDto>? ExitTargets { get; set; }
     public string? ExitStrategyMode { get; set; }
     public List<ScenarioNodeDto>? ScenarioNodes { get; set; }
+    public string? TimeHorizon { get; set; }
 }
 
 public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanCommand, Unit>
@@ -62,13 +63,17 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
             Hint = c.Hint
         }).ToList();
 
+        TimeHorizon? timeHorizon = request.TimeHorizon != null
+            && Enum.TryParse<TimeHorizon>(request.TimeHorizon, ignoreCase: true, out var th) ? th : null;
+
         plan.Update(
             request.Symbol, request.Direction, request.EntryPrice,
             request.StopLoss, request.Target, request.Quantity,
             request.PortfolioId, request.StrategyId, request.MarketCondition,
             request.Reason, request.Notes, request.RiskPercent,
             request.AccountBalance, request.RiskRewardRatio,
-            request.ConfidenceLevel, checklist
+            request.ConfidenceLevel, checklist,
+            timeHorizon
         );
 
         // Multi-lot support

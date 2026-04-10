@@ -8,12 +8,18 @@ using InvestmentApp.Application.TradePlans.Commands.TriggerExitTarget;
 using InvestmentApp.Application.TradePlans.Commands.TriggerScenarioNode;
 using InvestmentApp.Application.TradePlans.Commands.SaveScenarioTemplate;
 using InvestmentApp.Application.TradePlans.Commands.DeleteScenarioTemplate;
+using InvestmentApp.Application.TradePlans.Commands.ReviewTradePlan;
+using InvestmentApp.Application.TradePlans.Commands.UpdateReviewLessons;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioTemplates;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioHistory;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioSuggestion;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
+using InvestmentApp.Application.TradePlans.Queries.PreviewPlanReview;
+using InvestmentApp.Application.TradePlans.Queries.GetExecutedPlansForReview;
+using InvestmentApp.Application.TradePlans.Queries.GetCampaignAnalytics;
 using InvestmentApp.Application.Common.Interfaces;
+using InvestmentApp.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -56,7 +62,7 @@ public class TradePlansController : ControllerBase
     public async Task<IActionResult> GetScenarioSuggestion(
         [FromQuery] string symbol,
         [FromQuery] decimal entryPrice,
-        [FromQuery] TimeHorizon timeHorizon = TimeHorizon.Medium,
+        [FromQuery] TimeHorizon timeHorizon = TimeHorizon.MediumTerm,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(symbol) || entryPrice <= 0)
@@ -265,5 +271,75 @@ public class TradePlansController : ControllerBase
         var command = new DeleteTradePlanCommand { Id = id, UserId = GetUserId() };
         await _mediator.Send(command);
         return NoContent();
+    }
+
+    // ============================================================
+    // Campaign Review
+    // ============================================================
+
+    /// <summary>
+    /// Preview review metrics before committing (does not change status)
+    /// </summary>
+    [HttpGet("{id}/review/preview")]
+    [ProducesResponseType(typeof(CampaignReviewDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewReview(string id)
+    {
+        var query = new PreviewPlanReviewQuery { PlanId = id, UserId = GetUserId() };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Submit campaign review — auto-calculates P&L metrics and closes the campaign
+    /// </summary>
+    [HttpPost("{id}/review")]
+    [ProducesResponseType(typeof(CampaignReviewDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReviewTradePlan(string id, [FromBody] ReviewTradePlanCommand command)
+    {
+        command.PlanId = id;
+        command.UserId = GetUserId();
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Update lessons learned on a reviewed plan
+    /// </summary>
+    [HttpPatch("{id}/review/lessons")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UpdateReviewLessons(string id, [FromBody] UpdateReviewLessonsCommand command)
+    {
+        command.PlanId = id;
+        command.UserId = GetUserId();
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// List executed plans pending review
+    /// </summary>
+    [HttpGet("pending-review")]
+    [ProducesResponseType(typeof(List<TradePlanDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPendingReview()
+    {
+        var query = new GetExecutedPlansForReviewQuery { UserId = GetUserId() };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cross-plan campaign analytics with optional TimeHorizon filter
+    /// </summary>
+    [HttpGet("campaign-analytics")]
+    [ProducesResponseType(typeof(CampaignAnalyticsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampaignAnalytics([FromQuery] string? timeHorizon = null)
+    {
+        var query = new GetCampaignAnalyticsQuery
+        {
+            UserId = GetUserId(),
+            TimeHorizon = timeHorizon
+        };
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 }
