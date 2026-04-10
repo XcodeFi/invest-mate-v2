@@ -42,8 +42,6 @@
       "Bash(dotnet test:*)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(ls d:/invest-mate-v2/project/*.sln)",
-      "mcp__plugin_code-review-graph_code-review-graph__list_graph_stats_tool",
-      "mcp__plugin_code-review-graph_code-review-graph__build_or_update_graph_tool",
       "Bash($API_URL)"
     ]
   },
