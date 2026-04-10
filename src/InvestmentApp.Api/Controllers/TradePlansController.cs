@@ -11,6 +11,8 @@ using InvestmentApp.Application.TradePlans.Commands.DeleteScenarioTemplate;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioTemplates;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioHistory;
+using InvestmentApp.Application.TradePlans.Queries.GetScenarioSuggestion;
+using InvestmentApp.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -41,6 +43,26 @@ public class TradePlansController : ControllerBase
     public async Task<IActionResult> GetTradePlans([FromQuery] bool activeOnly = false)
     {
         var query = new GetTradePlansQuery { UserId = GetUserId(), ActiveOnly = activeOnly };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get AI-driven scenario suggestion based on technical indicators
+    /// </summary>
+    [HttpGet("scenario-suggestion")]
+    [ProducesResponseType(typeof(ScenarioSuggestionDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetScenarioSuggestion(
+        [FromQuery] string symbol,
+        [FromQuery] decimal entryPrice,
+        [FromQuery] TimeHorizon timeHorizon = TimeHorizon.Medium)
+    {
+        var query = new GetScenarioSuggestionQuery
+        {
+            Symbol = symbol,
+            EntryPrice = entryPrice,
+            TimeHorizon = timeHorizon
+        };
         var result = await _mediator.Send(query);
         return Ok(result);
     }
