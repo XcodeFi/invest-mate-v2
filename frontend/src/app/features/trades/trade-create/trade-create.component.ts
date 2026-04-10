@@ -8,7 +8,7 @@ import { TradeService, CreateTradeRequest } from '../../../core/services/trade.s
 import { PortfolioService, PortfolioSummary } from '../../../core/services/portfolio.service';
 import { FeeService, FeeCalculationRequest, FeeCalculationResponse } from '../../../core/services/fee.service';
 import { TradePlanService } from '../../../core/services/trade-plan.service';
-import { PnlService, PositionPnL } from '../../../core/services/pnl.service';
+import { PnlService, PositionPnL, OverallPnLSummary } from '../../../core/services/pnl.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { MarketDataService, StockSearchResult } from '../../../core/services/market-data.service';
 import { TradeType, isSellTrade } from '../../../shared/constants/trade-types';
@@ -41,16 +41,24 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
       <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <form (ngSubmit)="onSubmit()" #tradeForm="ngForm">
+            <!-- Sell Mismatch Alert Banner -->
+            <div *ngIf="sellMismatchAlert" class="mb-6 bg-red-50 border border-red-300 rounded-lg p-4 flex items-start gap-3">
+              <svg class="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+              <p class="text-sm text-red-700 font-medium">{{ sellMismatchAlert }}</p>
+            </div>
+
             <div class="space-y-6">
               <!-- Portfolio Selection -->
               <div>
                 <label for="portfolioId" class="block text-sm font-medium text-gray-700 mb-1">Danh mục <span class="text-red-500">*</span></label>
                 <select id="portfolioId" name="portfolioId" [(ngModel)]="form.portfolioId" required
-                  (ngModelChange)="loadPositionInfo()"
+                  (ngModelChange)="loadPositionInfo(); updatePortfolioPositions()"
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   #portfolioInput="ngModel">
                   <option value="">-- Chọn danh mục --</option>
-                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} — {{ p.initialCapital | vndCurrency }}</option>
+                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} — {{ p.initialCapital | vndCurrency }}{{ matchingPortfolioIds.has(p.id) ? ' ✓ Có vị thế' : '' }}</option>
                 </select>
                 <p *ngIf="portfolioInput.invalid && portfolioInput.touched" class="mt-1 text-sm text-red-600">Vui lòng chọn danh mục</p>
               </div>
@@ -60,14 +68,14 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                 <label class="block text-sm font-medium text-gray-700 mb-2">Loại giao dịch <span class="text-red-500">*</span></label>
                 <div class="flex space-x-4">
                   <label class="flex-1 cursor-pointer">
-                    <input type="radio" name="tradeType" [value]="TradeType.BUY" [(ngModel)]="form.tradeType" required class="sr-only" (change)="onFormChange(); validateQuantity()" />
+                    <input type="radio" name="tradeType" [value]="TradeType.BUY" [(ngModel)]="form.tradeType" required class="sr-only" (change)="onFormChange(); validateQuantity(); updatePortfolioPositions()" />
                     <div class="text-center py-3 px-4 rounded-lg border-2 transition-colors"
                       [class]="form.tradeType === TradeType.BUY ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-300 hover:border-gray-400'">
                       <span class="font-semibold text-lg">MUA</span>
                     </div>
                   </label>
                   <label class="flex-1 cursor-pointer">
-                    <input type="radio" name="tradeType" [value]="TradeType.SELL" [(ngModel)]="form.tradeType" required class="sr-only" (change)="onFormChange(); validateQuantity()" />
+                    <input type="radio" name="tradeType" [value]="TradeType.SELL" [(ngModel)]="form.tradeType" required class="sr-only" (change)="onFormChange(); validateQuantity(); updatePortfolioPositions()" />
                     <div class="text-center py-3 px-4 rounded-lg border-2 transition-colors"
                       [class]="form.tradeType === TradeType.SELL ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-300 hover:border-gray-400'">
                       <span class="font-semibold text-lg">BÁN</span>
@@ -83,9 +91,9 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                   <input type="text" id="symbol" name="symbol" [(ngModel)]="form.symbol" required appUppercase
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="VD: VNM, VIC, FPT..."
-                    (input)="onSymbolInput($event); onFormChange()"
+                    (input)="onSymbolInput(); onFormChange()"
                     (focus)="onSymbolFocus()"
-                    (blur)="hideDropdownDelayed()"
+                    (blur)="onSymbolBlur()"
                     autocomplete="off"
                     #symbolInput="ngModel" />
                   <div *ngIf="isSearchingSymbol" class="absolute right-3 top-1/2 -translate-y-1/2">
@@ -107,6 +115,20 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                     <span class="text-xs text-gray-400 ml-auto pl-2 shrink-0">{{ s.exchange }}</span>
                   </div>
                 </div>
+              </div>
+
+              <!-- Position Chips (auto-suggest from portfolio) -->
+              <div *ngIf="currentPortfolioPositions.length > 0" class="flex flex-wrap gap-2 -mt-3">
+                <span class="text-xs text-gray-500 w-full">{{ form.tradeType === TradeType.SELL ? 'Cổ phiếu có thể bán:' : 'Cổ phiếu trong danh mục:' }}</span>
+                <button *ngFor="let pos of currentPortfolioPositions" type="button"
+                  (click)="selectPositionChip(pos.symbol)"
+                  class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+                  [class]="form.symbol === pos.symbol
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200'">
+                  <span class="font-bold">{{ pos.symbol }}</span>
+                  <span class="opacity-75">{{ pos.quantity | number:'1.0-0' }} CP</span>
+                </button>
               </div>
 
               <!-- Position Info (when selling) -->
@@ -222,7 +244,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                 <button type="button" routerLink="/trades" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">
                   Hủy
                 </button>
-                <button type="submit" [disabled]="tradeForm.invalid || isSubmitting || !!quantityError"
+                <button type="submit" [disabled]="tradeForm.invalid || isSubmitting || !!quantityError || isSellMismatch"
                   class="px-6 py-2 rounded-lg font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   [class]="form.tradeType === TradeType.SELL ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'">
                   {{ isSubmitting ? 'Đang xử lý...' : (form.tradeType === TradeType.SELL ? 'Đặt lệnh BÁN' : 'Đặt lệnh MUA') }}
@@ -268,6 +290,14 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
   positionLoading = false;
   quantityError = '';
 
+  // Bidirectional auto-suggest
+  portfolioSymbolsMap = new Map<string, PositionPnL[]>();
+  symbolPortfoliosMap = new Map<string, string[]>();
+  currentPortfolioPositions: PositionPnL[] = [];
+  matchingPortfolioIds = new Set<string>();
+  sellMismatchAlert = '';
+  isSellMismatch = false;
+
   constructor(
     private tradeService: TradeService,
     private portfolioService: PortfolioService,
@@ -288,6 +318,12 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
     this.portfolioService.getAll().subscribe({
       next: (data) => this.portfolios = data,
       error: () => this.notificationService.error('Lỗi', 'Không thể tải danh sách danh mục')
+    });
+
+    // Load PnL summary for bidirectional auto-suggest
+    this.pnlService.getSummary().subscribe({
+      next: (summary) => this.buildPortfolioSymbolMaps(summary),
+      error: () => {} // Non-critical, auto-suggest just won't work
     });
 
     // Setup symbol search with debounce
@@ -336,9 +372,9 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
     this.searchSub?.unsubscribe();
   }
 
-  onSymbolInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value.toUpperCase();
-    if (value.length > 0) {
+  onSymbolInput(): void {
+    const value = this.form.symbol; // already uppercased by appUppercase directive
+    if (value && value.length > 0) {
       this.symbolSearch$.next(value);
     } else {
       this.filteredSymbols = [];
@@ -359,8 +395,23 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
     this.form.symbol = symbol;
     this.filteredSymbols = [];
     this.showSymbolDropdown = false;
+    this.updateMatchingPortfolioIds();
+    this.autoSuggestPortfolio();
+    this.checkSellMismatch();
     this.onFormChange();
     this.loadPositionInfo();
+  }
+
+  onSymbolBlur(): void {
+    this.hideDropdownDelayed();
+    // Trigger auto-suggest and mismatch check when user types symbol directly
+    setTimeout(() => {
+      if (this.form.symbol) {
+        this.updateMatchingPortfolioIds();
+        this.autoSuggestPortfolio();
+        this.checkSellMismatch();
+      }
+    }, 250);
   }
 
   hideDropdownDelayed(): void {
@@ -441,6 +492,84 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
         this.quantityError = `Vượt quá số lượng đang nắm giữ (${this.positionInfo.quantity.toLocaleString('vi-VN')} CP)`;
       }
     }
+  }
+
+  // --- Bidirectional auto-suggest ---
+
+  buildPortfolioSymbolMaps(summary: OverallPnLSummary): void {
+    this.portfolioSymbolsMap.clear();
+    this.symbolPortfoliosMap.clear();
+    for (const portfolio of summary.portfolios) {
+      this.portfolioSymbolsMap.set(portfolio.portfolioId, portfolio.positions);
+      for (const pos of portfolio.positions) {
+        const ids = this.symbolPortfoliosMap.get(pos.symbol) || [];
+        ids.push(portfolio.portfolioId);
+        this.symbolPortfoliosMap.set(pos.symbol, ids);
+      }
+    }
+    // Refresh chips if portfolio already selected (e.g. from query params)
+    if (this.form.portfolioId) {
+      this.updatePortfolioPositions();
+    }
+  }
+
+  updatePortfolioPositions(): void {
+    if (!this.form.portfolioId) {
+      this.currentPortfolioPositions = [];
+      return;
+    }
+    const positions = this.portfolioSymbolsMap.get(this.form.portfolioId) || [];
+    if (this.form.tradeType === TradeType.SELL) {
+      this.currentPortfolioPositions = positions.filter(p => p.quantity > 0);
+    } else {
+      this.currentPortfolioPositions = positions;
+    }
+    this.checkSellMismatch();
+  }
+
+  autoSuggestPortfolio(): void {
+    if (this.form.portfolioId || !this.form.symbol) return;
+    const matchingIds = this.symbolPortfoliosMap.get(this.form.symbol.toUpperCase()) || [];
+    if (matchingIds.length === 1) {
+      this.form.portfolioId = matchingIds[0];
+      this.updatePortfolioPositions();
+      this.loadPositionInfo();
+    }
+  }
+
+  getMatchingPortfolioIds(): string[] {
+    if (!this.form.symbol) return [];
+    return this.symbolPortfoliosMap.get(this.form.symbol.toUpperCase()) || [];
+  }
+
+  private updateMatchingPortfolioIds(): void {
+    const ids = this.getMatchingPortfolioIds();
+    this.matchingPortfolioIds = new Set(ids);
+  }
+
+  checkSellMismatch(): void {
+    this.sellMismatchAlert = '';
+    this.isSellMismatch = false;
+    if (this.form.tradeType !== TradeType.SELL || !this.form.portfolioId || !this.form.symbol) return;
+
+    const positions = this.portfolioSymbolsMap.get(this.form.portfolioId) || [];
+    const pos = positions.find(p => p.symbol === this.form.symbol.toUpperCase());
+    if (!pos || pos.quantity === 0) {
+      const portfolio = this.portfolios.find(p => p.id === this.form.portfolioId);
+      const portfolioName = portfolio?.name || this.form.portfolioId;
+      this.sellMismatchAlert = `Không thể bán — ${this.form.symbol.toUpperCase()} không có vị thế trong danh mục "${portfolioName}". Vui lòng chọn đúng danh mục hoặc mã chứng khoán.`;
+      this.isSellMismatch = true;
+    }
+  }
+
+  selectPositionChip(symbol: string): void {
+    this.form.symbol = symbol;
+    this.filteredSymbols = [];
+    this.showSymbolDropdown = false;
+    this.updateMatchingPortfolioIds();
+    this.checkSellMismatch();
+    this.onFormChange();
+    this.loadPositionInfo();
   }
 
   onSubmit(): void {
