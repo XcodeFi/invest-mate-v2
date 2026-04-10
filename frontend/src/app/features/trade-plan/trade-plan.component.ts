@@ -621,10 +621,45 @@ interface TradePlanForm {
                 <div class="flex items-center gap-2 mb-3">
                   <select [(ngModel)]="selectedPresetId" class="px-2 py-1 border border-violet-300 rounded text-xs flex-1">
                     <option value="">-- Chọn mẫu kịch bản --</option>
-                    <option *ngFor="let p of scenarioPresets" [value]="p.id">{{ p.nameVi }} — {{ p.description }}</option>
+                    <optgroup label="Mẫu hệ thống">
+                      <option *ngFor="let p of getSystemPresets()" [value]="p.id">{{ p.nameVi }} — {{ p.description }}</option>
+                    </optgroup>
+                    <optgroup *ngIf="getUserPresets().length > 0" label="Mẫu của tôi">
+                      <option *ngFor="let p of getUserPresets()" [value]="p.id">{{ p.nameVi }} — {{ p.description }}</option>
+                    </optgroup>
                   </select>
                   <button (click)="applyScenarioPreset()" [disabled]="!selectedPresetId"
                     class="px-3 py-1 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded disabled:opacity-50">Áp dụng</button>
+                  <button *ngIf="selectedPresetId && !isPresetSelected()"
+                    (click)="deleteScenarioTemplate(selectedPresetId)"
+                    class="px-2 py-1 text-xs border border-red-300 hover:bg-red-50 text-red-500 rounded"
+                    title="Xoá mẫu">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Save as scenario template -->
+                <div *ngIf="scenarioNodes.length > 0" class="mb-3">
+                  <div *ngIf="!showSaveScenarioTemplate">
+                    <button (click)="showSaveScenarioTemplate = true"
+                      class="px-3 py-1 text-xs border border-violet-300 hover:bg-violet-50 text-violet-600 rounded font-medium transition-colors">
+                      + Lưu mẫu kịch bản
+                    </button>
+                  </div>
+                  <div *ngIf="showSaveScenarioTemplate" class="flex items-center gap-2">
+                    <input [(ngModel)]="newScenarioTemplateName" type="text" placeholder="Tên mẫu..."
+                      class="px-2 py-1 border border-violet-300 rounded text-xs focus:ring-2 focus:ring-violet-500 w-36">
+                    <input [(ngModel)]="newScenarioTemplateDesc" type="text" placeholder="Mô tả ngắn..."
+                      class="px-2 py-1 border border-violet-300 rounded text-xs focus:ring-2 focus:ring-violet-500 w-48">
+                    <button (click)="saveScenarioTemplate()" [disabled]="!newScenarioTemplateName.trim() || savingScenarioTemplate"
+                      class="px-3 py-1 text-xs bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 text-white rounded font-medium transition-colors">
+                      {{ savingScenarioTemplate ? 'Đang lưu...' : 'Lưu' }}
+                    </button>
+                    <button (click)="showSaveScenarioTemplate = false; newScenarioTemplateName = ''; newScenarioTemplateDesc = ''"
+                      class="px-2 py-1 text-gray-500 hover:text-gray-700 text-xs">&#10005;</button>
+                  </div>
                 </div>
 
                 <!-- Scenario Tree -->
@@ -1154,6 +1189,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   private _cachedRootNodes: ScenarioNodeForm[] = [];
   private _cachedChildMap = new Map<string, ScenarioNodeForm[]>();
   private _scenarioVersion = 0;
+
+  // Scenario template save/load
+  showSaveScenarioTemplate = false;
+  newScenarioTemplateName = '';
+  newScenarioTemplateDesc = '';
+  savingScenarioTemplate = false;
 
   // Order sheet
   showOrderSheet = false;
@@ -2102,6 +2143,66 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     }));
     this.invalidateScenarioCache();
     this.notification.success('Kịch bản', `Đã áp dụng mẫu "${preset.nameVi}"`);
+  }
+
+  getSystemPresets(): ScenarioPreset[] {
+    return this.scenarioPresets.filter(p => p.isPreset);
+  }
+
+  getUserPresets(): ScenarioPreset[] {
+    return this.scenarioPresets.filter(p => !p.isPreset);
+  }
+
+  isPresetSelected(): boolean {
+    const selected = this.scenarioPresets.find(p => p.id === this.selectedPresetId);
+    return !!selected?.isPreset;
+  }
+
+  saveScenarioTemplate(): void {
+    if (!this.newScenarioTemplateName.trim() || this.scenarioNodes.length === 0) return;
+    this.savingScenarioTemplate = true;
+    const payload = this.buildScenarioPayload();
+    if (!payload) {
+      this.savingScenarioTemplate = false;
+      return;
+    }
+    this.tradePlanService.saveScenarioTemplate({
+      name: this.newScenarioTemplateName.trim(),
+      description: this.newScenarioTemplateDesc.trim(),
+      nodes: payload
+    }).subscribe({
+      next: (res) => {
+        // Add to local list as a user template
+        this.scenarioPresets.push({
+          id: res.id,
+          name: this.newScenarioTemplateName.trim(),
+          nameVi: this.newScenarioTemplateName.trim(),
+          description: this.newScenarioTemplateDesc.trim(),
+          nodes: payload,
+          isPreset: false
+        });
+        this.savingScenarioTemplate = false;
+        this.showSaveScenarioTemplate = false;
+        this.newScenarioTemplateName = '';
+        this.newScenarioTemplateDesc = '';
+        this.notification.success('Mẫu kịch bản', 'Đã lưu mẫu thành công');
+      },
+      error: () => {
+        this.savingScenarioTemplate = false;
+        this.notification.error('Lỗi', 'Không thể lưu mẫu kịch bản');
+      }
+    });
+  }
+
+  deleteScenarioTemplate(id: string): void {
+    this.tradePlanService.deleteScenarioTemplate(id).subscribe({
+      next: () => {
+        this.scenarioPresets = this.scenarioPresets.filter(p => p.id !== id);
+        if (this.selectedPresetId === id) this.selectedPresetId = '';
+        this.notification.success('Mẫu kịch bản', 'Đã xoá mẫu');
+      },
+      error: () => this.notification.error('Lỗi', 'Không thể xoá mẫu kịch bản')
+    });
   }
 
   private substitutePresetValue(value: number | null, conditionType: string): number {

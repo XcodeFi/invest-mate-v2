@@ -119,6 +119,7 @@ builder.Services.AddScoped<IRoutineTemplateRepository, RoutineTemplateRepository
 builder.Services.AddScoped<IWatchlistRepository, WatchlistRepository>();
 builder.Services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
 builder.Services.AddScoped<IMarketEventRepository, MarketEventRepository>();
+builder.Services.AddScoped<IScenarioTemplateRepository, ScenarioTemplateRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IAuditService, AuditService>();
