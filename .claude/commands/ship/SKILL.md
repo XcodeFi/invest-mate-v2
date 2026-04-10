@@ -52,7 +52,7 @@ Check `docs/plans/` for existing related plans.
 
 ## Phase 2: TDD — Red → Green → Refactor
 
-> Skip if `$ARGUMENTS` is empty or user says code is done.
+> Skip if: `$ARGUMENTS` is empty, user says code is done, OR changes are frontend-only. TDD only applies when backend layers are affected (Domain / Application / Infrastructure / Api).
 
 ### Step 2.1 — Red: Write Failing Tests
 
@@ -80,7 +80,7 @@ Uses **1 sub-agent** (`model: "sonnet"`) for unified static review. Historical c
 
 ### Step 3.1 — Run Review
 
-Get diff against base branch. Launch 1 sonnet agent covering ALL categories in a single pass: guidelines, bugs, security, performance. Use the same checklist and scoring from the `/code-review` skill (tech-stack patterns for Angular 19 / .NET 9 / MongoDB).
+Get diff against base branch. Detect affected stacks from changed files (frontend → Angular 19, backend → .NET 9, data access → MongoDB). Launch 1 sonnet agent covering guidelines, bugs, security, performance — but only check patterns for the affected stacks. Use the same checklist and scoring from the `/code-review` skill.
 
 ### Step 3.2 — Triage
 

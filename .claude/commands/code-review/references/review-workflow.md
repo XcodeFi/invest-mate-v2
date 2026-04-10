@@ -26,9 +26,19 @@ Skip review if: PR is closed/merged, draft, trivial (only .md/.txt/.json/lock fi
 
 Read `**/.github/copilot-instructions.md`, `**/CLAUDE.md` in repo root and modified directories. Concatenate with file path prefixes.
 
-### Step 1.4 — Prepare Agent Inputs
+### Step 1.4 — Detect Affected Stacks
 
-Assemble: **diff**, **changed_files**, **guidelines**, **pr_info** (number, title, owner, repo, base, head).
+Classify changed files to determine which tech-stack checklists to include:
+
+- **Angular 19**: any `.ts`, `.html` file under `frontend/`
+- **.NET 9**: any `.cs` file under `src/` or `tests/`
+- **MongoDB**: any `.cs` file in repository/data-access layers (files containing `IMongoCollection`, `FilterDefinition`, `Repository`)
+
+Only include the relevant checklist sections in agent prompts. If a PR only touches frontend files, skip .NET 9 and MongoDB checklists entirely (and vice versa).
+
+### Step 1.5 — Prepare Agent Inputs
+
+Assemble: **diff**, **changed_files**, **guidelines**, **affected_stacks**, **pr_info** (number, title, owner, repo, base, head).
 
 ---
 
@@ -56,7 +66,10 @@ EFFICIENCY RULES:
 - Max 15 issues total across all categories. Keep top 15 by confidence.
 - One sentence per description.
 
-REVIEW CHECKLIST — check ALL categories in one pass:
+REVIEW CHECKLIST — check ALL categories in one pass, but ONLY for the affected stacks listed below:
+
+AFFECTED STACKS: {affected_stacks}
+(Only check patterns for stacks listed above. Ignore checklists for stacks not affected.)
 
 ### 1. GUIDELINE COMPLIANCE
 - Check changes against project guidelines above
@@ -65,31 +78,33 @@ REVIEW CHECKLIST — check ALL categories in one pass:
 
 ### 2. BUG DETECTION
 General: null refs, off-by-one, race conditions, logic errors, resource leaks, missing error handling
-Angular 19: deprecated *ngIf/*ngFor (use @if/@for), @for missing track, signal misuse (.set()/.update()),
-  subscription leaks (need takeUntilDestroyed/async pipe), separate .html files (must use inline template),
-  Vietnamese text missing diacritics, symbol inputs not using appUppercase directive
-.NET 9: missing await on async, missing CancellationToken, null after repository find, CQRS violations,
-  Clean Architecture layer violations, missing .ToUpper().Trim() for symbols
-MongoDB: ObjectId string comparison, string-concatenated filters, ReplaceOne misuse, wrong filter field names
+[Angular 19 — only if frontend affected]: deprecated *ngIf/*ngFor (use @if/@for), @for missing track,
+  signal misuse (.set()/.update()), subscription leaks (need takeUntilDestroyed/async pipe),
+  separate .html files (must use inline template), Vietnamese text missing diacritics,
+  symbol inputs not using appUppercase directive
+[.NET 9 — only if backend affected]: missing await on async, missing CancellationToken,
+  null after repository find, CQRS violations, Clean Architecture layer violations,
+  missing .ToUpper().Trim() for symbols
+[MongoDB — only if data access affected]: ObjectId string comparison, string-concatenated filters,
+  ReplaceOne misuse, wrong filter field names
 
 ### 3. SECURITY
-General: injection (SQL/NoSQL/command/XSS), auth/authz gaps, hardcoded secrets, input validation,
-  data exposure, unsafe deserialization, weak crypto
-Angular 19: bypassSecurityTrustHtml, raw innerHTML via DOM, sensitive data in templates,
+General: injection, auth/authz gaps, hardcoded secrets, input validation, data exposure
+[Angular 19]: bypassSecurityTrustHtml, raw innerHTML via DOM, sensitive data in templates,
   manual token handling (use interceptor), missing route guards
-.NET 9: missing [Authorize], IDOR (no ownership check), unvalidated inputs,
+[.NET 9]: missing [Authorize], IDOR (no ownership check), unvalidated inputs,
   logging sensitive data, error responses leaking internals
-MongoDB: NoSQL injection via string concat, sensitive fields in projections, client-set audit fields
+[MongoDB]: NoSQL injection via string concat, sensitive fields in projections, client-set audit fields
 
 ### 4. PERFORMANCE
 General: O(n²) in hot paths, redundant iterations, large allocations in loops
-Angular 19: missing OnPush, heavy template computation, @for with track $index,
+[Angular 19]: missing OnPush, heavy template computation, @for with track $index,
   subscription leaks, large imports, missing lazy loading
-.NET 9: sync-over-async (.Result/.Wait()), missing CancellationToken propagation,
+[.NET 9]: sync-over-async (.Result/.Wait()), missing CancellationToken propagation,
   missing using/IDisposable, string concat in loops
-MongoDB: N+1 queries (use Filter.In), missing .Project(), unbounded queries (no Limit),
+[MongoDB]: N+1 queries (use Filter.In), missing .Project(), unbounded queries (no Limit),
   missing indexes for new filters, ReplaceOne for partial updates, sort without index
-API: unbounded collections, overfetching, missing caching
+[API]: unbounded collections, overfetching, missing caching
 
 SCORING RUBRIC:
 - 0: False positive, pre-existing, or linter-catchable
