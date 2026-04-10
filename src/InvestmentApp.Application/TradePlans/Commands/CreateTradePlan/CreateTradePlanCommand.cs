@@ -31,6 +31,7 @@ public class CreateTradePlanCommand : IRequest<string>
     public List<ExitTargetDto>? ExitTargets { get; set; }
     public string? ExitStrategyMode { get; set; }
     public List<ScenarioNodeDto>? ScenarioNodes { get; set; }
+    public string? TimeHorizon { get; set; }
     public string? Status { get; set; }
     public string? TradeId { get; set; }
 }
@@ -104,6 +105,10 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
             }).ToList();
             plan.SetExitTargets(targets);
         }
+
+        // Time horizon
+        if (request.TimeHorizon != null && Enum.TryParse<TimeHorizon>(request.TimeHorizon, ignoreCase: true, out var horizon))
+            plan.SetTimeHorizon(horizon);
 
         // Scenario Playbook
         if (request.ExitStrategyMode?.Equals("Advanced", StringComparison.OrdinalIgnoreCase) == true)

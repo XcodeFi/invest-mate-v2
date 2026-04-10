@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-03-26
-> **Trạng thái:** Phase 7 đang tiếp tục + P1-P4 (Post-Trade Review, Stress Test, Bollinger/ATR, Risk Budget) + Symbol Timeline (P7)
+> **Cập nhật lần cuối:** 2026-04-10
+> **Trạng thái:** Phase 7 đang tiếp tục + P0.7 (Campaign Review) + P1-P4 (Post-Trade Review, Stress Test, Bollinger/ATR, Risk Budget) + Symbol Timeline (P7)
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -539,6 +539,11 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | Templates (system) | `GET /api/v1/templates/risk-profiles` | — |
 | **Templates (user)** | `GET/POST/DELETE /api/v1/templates/trade-plans` | ✅ |
 | **Trade Plans** | `GET/POST/PUT/DELETE /api/v1/trade-plans` | ✅ |
+| **Trade Plans** | `POST /api/v1/trade-plans/{id}/review` | ✅ |
+| **Trade Plans** | `GET /api/v1/trade-plans/{id}/review/preview` | ✅ |
+| **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/review/lessons` | ✅ |
+| **Trade Plans** | `GET /api/v1/trade-plans/pending-review` | ✅ |
+| **Trade Plans** | `GET /api/v1/trade-plans/campaign-analytics` | ✅ |
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/lots/{lotNumber}/execute` | ✅ |
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/stop-loss` | ✅ |
 | **Trade Plans** | `PATCH /api/v1/trade-plans/{id}/exit-targets/{level}/trigger` | ✅ |
@@ -598,6 +603,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | `/daily-routine` | `DailyRoutineComponent` | Nhiệm vụ hàng ngày & Routine Templates |
 | `/watchlist` | `WatchlistComponent` | Theo dõi cổ phiếu & tìm cơ hội giao dịch |
 | `/ai-settings` | `AiSettingsComponent` | Cấu hình AI đa nhà cung cấp (Claude/Gemini, API keys, model, usage) |
+| `/campaign-analytics` | `CampaignAnalyticsComponent` | Phân tích chiến dịch cross-plan: summary, so sánh, best/worst, lessons (P0.7) |
 
 ---
 
@@ -986,6 +992,65 @@ Mỗi node gồm:
 
 - Risk budget card "Ngân sách rủi ro hôm nay" — trades/limit, P&L, trạng thái khóa
 - Risk profile form: 2 fields mới (số lệnh/ngày, giới hạn lỗ/ngày)
+
+---
+
+## P0.7: Campaign Review — Đóng chiến dịch & Phân tích hiệu suất
+
+**Branch:** `feat/p7-improvements` | **Trạng thái:** ✅ Done
+
+Cho phép đóng (review) TradePlan đã Executed với auto-calculated P&L metrics, xem trước kết quả, cập nhật bài học, và phân tích cross-plan theo tầm nhìn đầu tư.
+
+### Domain
+
+- **TimeHorizon enum:** `ShortTerm` (< 3 tháng) / `MediumTerm` (3-12 tháng) / `LongTerm` (> 1 năm) — gán cho TradePlan
+- **CampaignReviewData value object:** Embedded trong TradePlan khi review — chứa P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons
+- **MarkReviewed(CampaignReviewData):** Thay thế MarkReviewed() cũ — bắt buộc truyền review data
+- **SetTimeHorizon():** Gán tầm nhìn đầu tư cho plan
+- **UpdateReviewLessons():** Cập nhật bài học sau review
+- **PlanReviewedEvent:** Domain event mới khi plan được review
+
+### Backend
+
+- **Service:** `ICampaignReviewService` + `CampaignReviewService` — auto-calculate P&L metrics từ trades thực tế
+- **Repositories mới:**
+  - `ITradePlanRepository`: `GetExecutedByUserIdAsync`, `GetReviewedByUserIdAsync`, `GetReviewedByUserIdAndTimeHorizonAsync`
+  - `ITradeRepository`: `GetByTradePlanIdAsync`
+- **Commands:** `ReviewTradePlanCommand` (đóng chiến dịch), `UpdateReviewLessonsCommand` (sửa bài học)
+- **Queries:** `PreviewPlanReviewQuery`, `GetExecutedPlansForReviewQuery`, `GetCampaignAnalyticsQuery`
+
+**API Endpoints:**
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `POST` | `/api/v1/trade-plans/{id}/review` | Đóng chiến dịch với auto-metrics |
+| `GET` | `/api/v1/trade-plans/{id}/review/preview` | Xem trước metrics trước khi đóng |
+| `PATCH` | `/api/v1/trade-plans/{id}/review/lessons` | Cập nhật bài học rút ra |
+| `GET` | `/api/v1/trade-plans/pending-review` | Danh sách plans chờ review (Executed) |
+| `GET` | `/api/v1/trade-plans/campaign-analytics?timeHorizon=ShortTerm` | Phân tích cross-plan theo tầm nhìn |
+
+### Frontend
+
+- **trade-plan.service.ts:** Thêm interfaces (CampaignReviewData, CampaignAnalytics, TimeHorizon) + methods cho 5 endpoints
+- **trade-plan.component.ts:**
+  - Dropdown TimeHorizon trên form
+  - Review panel cho plans Executed — preview + confirm
+  - Hiển thị review data (P&L, lessons) cho plans Reviewed
+- **campaign-analytics.component.ts:** Trang `/campaign-analytics` mới:
+  - Summary cards (tổng plans, win rate, avg P&L, avg holding days)
+  - Comparison table (từng plan đã review)
+  - Best/Worst plan highlight
+  - Lessons feed (bài học từ tất cả campaigns)
+- **app.routes.ts:** Route `/campaign-analytics` → `CampaignAnalyticsComponent`
+
+### Tests
+
+| Test file | Số test |
+|-----------|:-------:|
+| `TradePlanReviewTests.cs` (Domain) | 24 |
+| `CampaignReviewServiceTests.cs` (Infrastructure) | 9 |
+
+Tổng: 796 tests pass (Domain: 603, Application: 65, Infrastructure: 127)
 
 ---
 

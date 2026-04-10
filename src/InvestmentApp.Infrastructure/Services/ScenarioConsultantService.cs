@@ -1,5 +1,6 @@
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Domain.Entities;
 
 namespace InvestmentApp.Infrastructure.Services;
 
@@ -24,9 +25,9 @@ public class ScenarioConsultantService : IScenarioConsultantService
     {
         var months = timeHorizon switch
         {
-            TimeHorizon.Short  => 6,
-            TimeHorizon.Medium => 12,
-            TimeHorizon.Long   => 24,
+            TimeHorizon.ShortTerm  => 6,
+            TimeHorizon.MediumTerm => 12,
+            TimeHorizon.LongTerm   => 24,
             _ => 12
         };
 
@@ -181,7 +182,7 @@ public class ScenarioConsultantService : IScenarioConsultantService
             }
 
             // Medium/Long: also use Fib retracements as TP if they're above entry
-            if (horizon != TimeHorizon.Short)
+            if (horizon != TimeHorizon.ShortTerm)
             {
                 var fibRetrace = new[]
                 {
@@ -200,7 +201,7 @@ public class ScenarioConsultantService : IScenarioConsultantService
         }
 
         // EMA200 as TP if it's above entry (price recovering to long-term MA)
-        if ((horizon == TimeHorizon.Medium || horizon == TimeHorizon.Long)
+        if ((horizon == TimeHorizon.MediumTerm || horizon == TimeHorizon.LongTerm)
             && tech.Ema200.HasValue && tech.Ema200 > entryPrice)
         {
             var c = GetOrCreate(candidates, tech.Ema200.Value);
@@ -375,9 +376,9 @@ public class ScenarioConsultantService : IScenarioConsultantService
 
         var (daysLabel, daysValue) = horizon switch
         {
-            TimeHorizon.Short  => ("2 tuần", 14m),
-            TimeHorizon.Medium => ("3 tháng", 90m),
-            TimeHorizon.Long   => ("6 tháng", 180m),
+            TimeHorizon.ShortTerm  => ("2 tuần", 14m),
+            TimeHorizon.MediumTerm => ("3 tháng", 90m),
+            TimeHorizon.LongTerm   => ("6 tháng", 180m),
             _ => ("3 tháng", 90m)
         };
 

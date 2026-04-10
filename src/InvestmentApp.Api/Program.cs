@@ -151,6 +151,7 @@ builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBehavioralAnalysisService, BehavioralAnalysisService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IScenarioConsultantService, ScenarioConsultantService>();
+builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.ICampaignReviewService, CampaignReviewService>();
 
 // Vietstock event crawl provider
 builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Vietstock.VietstockEventProvider>(client =>

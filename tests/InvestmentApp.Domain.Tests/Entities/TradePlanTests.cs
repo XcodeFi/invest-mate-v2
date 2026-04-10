@@ -22,6 +22,23 @@ public class TradePlanTests
             confidenceLevel: confidenceLevel);
     }
 
+    private static CampaignReviewData CreateReviewData(decimal pnlAmount = 8_000_000m, decimal pnlPercent = 10m)
+    {
+        return new CampaignReviewData
+        {
+            PnLAmount = pnlAmount,
+            PnLPercent = pnlPercent,
+            HoldingDays = 30,
+            PnLPerDay = pnlAmount / 30m,
+            AnnualizedReturnPercent = 121.67m,
+            TargetAchievementPercent = 80m,
+            TotalInvested = 80_000_000m,
+            TotalReturned = 88_000_000m,
+            TotalFees = 200_000m,
+            ReviewedAt = DateTime.UtcNow
+        };
+    }
+
     private static List<PlanLot> CreateLots(params (int lotNumber, decimal price, int qty)[] specs)
     {
         return specs.Select(s => new PlanLot
@@ -274,7 +291,7 @@ public class TradePlanTests
     {
         var plan = CreateDefaultPlan();
         plan.Execute("trade-1");
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
 
         var action = () => plan.Update(notes: "too late");
 
@@ -475,7 +492,7 @@ public class TradePlanTests
         var plan = CreateDefaultPlan();
         plan.Execute("trade-1");
 
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
 
         plan.Status.Should().Be(TradePlanStatus.Reviewed);
     }
@@ -485,7 +502,7 @@ public class TradePlanTests
     {
         var plan = CreateDefaultPlan();
 
-        var action = () => plan.MarkReviewed();
+        var action = () => plan.MarkReviewed(CreateReviewData());
 
         action.Should().Throw<InvalidOperationException>()
             .WithMessage("*executed*");
@@ -497,7 +514,7 @@ public class TradePlanTests
         var plan = CreateDefaultPlan();
         plan.MarkReady();
 
-        var action = () => plan.MarkReviewed();
+        var action = () => plan.MarkReviewed(CreateReviewData());
 
         action.Should().Throw<InvalidOperationException>();
     }
@@ -508,7 +525,7 @@ public class TradePlanTests
         var plan = CreateDefaultPlan();
         plan.MarkInProgress();
 
-        var action = () => plan.MarkReviewed();
+        var action = () => plan.MarkReviewed(CreateReviewData());
 
         action.Should().Throw<InvalidOperationException>();
     }
@@ -518,9 +535,9 @@ public class TradePlanTests
     {
         var plan = CreateDefaultPlan();
         plan.Execute("trade-1");
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
 
-        var action = () => plan.MarkReviewed();
+        var action = () => plan.MarkReviewed(CreateReviewData());
 
         action.Should().Throw<InvalidOperationException>();
     }
@@ -532,7 +549,7 @@ public class TradePlanTests
         plan.Execute("trade-1");
         var vBefore = plan.Version;
 
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
 
         plan.Version.Should().Be(vBefore + 1);
     }
@@ -590,7 +607,7 @@ public class TradePlanTests
     {
         var plan = CreateDefaultPlan();
         plan.Execute("trade-1");
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
 
         var action = () => plan.Cancel();
 
@@ -712,7 +729,7 @@ public class TradePlanTests
     {
         var plan = CreateDefaultPlan();
         plan.Execute("trade-1");
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
         var lots = CreateLots((1, 80_000m, 100));
 
         var action = () => plan.SetLots(EntryMode.Single, lots);
@@ -1187,7 +1204,7 @@ public class TradePlanTests
         plan.TriggerExitTarget(2, "trade-exit-2");
 
         // Review
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
         plan.Status.Should().Be(TradePlanStatus.Reviewed);
 
         // Verify complete state
@@ -1216,7 +1233,7 @@ public class TradePlanTests
         plan.Status.Should().Be(TradePlanStatus.Executed);
         plan.TradeId.Should().Be("trade-1");
 
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
         plan.Status.Should().Be(TradePlanStatus.Reviewed);
     }
 
@@ -1238,7 +1255,7 @@ public class TradePlanTests
         plan.Execute("trade-1");
         plan.Version.Should().Be(4);
 
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
         plan.Version.Should().Be(5);
     }
 

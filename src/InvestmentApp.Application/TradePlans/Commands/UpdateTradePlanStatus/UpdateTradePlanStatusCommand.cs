@@ -57,8 +57,7 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
                 }
                 break;
             case "reviewed":
-                plan.MarkReviewed();
-                break;
+                throw new InvalidOperationException("Use the dedicated ReviewTradePlan endpoint to review a plan with campaign metrics");
             case "cancelled":
                 plan.Cancel();
                 break;

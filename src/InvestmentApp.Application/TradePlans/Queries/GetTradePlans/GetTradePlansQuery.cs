@@ -113,6 +113,21 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             TriggeredAt = n.TriggeredAt,
             TradeId = n.TradeId
         }).ToList(),
+        TimeHorizon = p.TimeHorizon?.ToString(),
+        ReviewData = p.ReviewData != null ? new CampaignReviewDataDto
+        {
+            PnLAmount = p.ReviewData.PnLAmount,
+            PnLPercent = p.ReviewData.PnLPercent,
+            HoldingDays = p.ReviewData.HoldingDays,
+            PnLPerDay = p.ReviewData.PnLPerDay,
+            AnnualizedReturnPercent = p.ReviewData.AnnualizedReturnPercent,
+            TargetAchievementPercent = p.ReviewData.TargetAchievementPercent,
+            TotalInvested = p.ReviewData.TotalInvested,
+            TotalReturned = p.ReviewData.TotalReturned,
+            TotalFees = p.ReviewData.TotalFees,
+            LessonsLearned = p.ReviewData.LessonsLearned,
+            ReviewedAt = p.ReviewData.ReviewedAt
+        } : null,
         Status = p.Status.ToString(),
         TradeId = p.TradeId,
         TradeIds = p.TradeIds,
@@ -174,6 +189,8 @@ public class TradePlanDto
     public List<StopLossHistoryDto>? StopLossHistory { get; set; }
     public string ExitStrategyMode { get; set; } = "Simple";
     public List<ScenarioNodeDto>? ScenarioNodes { get; set; }
+    public string? TimeHorizon { get; set; }
+    public CampaignReviewDataDto? ReviewData { get; set; }
     public string Status { get; set; } = "Draft";
     public string? TradeId { get; set; }
     public List<string>? TradeIds { get; set; }
@@ -241,4 +258,19 @@ public class TrailingStopConfigDto
     public decimal? StepSize { get; set; }
     public decimal? CurrentTrailingStop { get; set; }
     public decimal? HighestPrice { get; set; }
+}
+
+public class CampaignReviewDataDto
+{
+    public decimal PnLAmount { get; set; }
+    public decimal PnLPercent { get; set; }
+    public int HoldingDays { get; set; }
+    public decimal PnLPerDay { get; set; }
+    public decimal AnnualizedReturnPercent { get; set; }
+    public decimal TargetAchievementPercent { get; set; }
+    public decimal TotalInvested { get; set; }
+    public decimal TotalReturned { get; set; }
+    public decimal TotalFees { get; set; }
+    public string? LessonsLearned { get; set; }
+    public DateTime ReviewedAt { get; set; }
 }

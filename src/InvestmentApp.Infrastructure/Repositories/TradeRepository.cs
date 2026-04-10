@@ -80,6 +80,12 @@ public class TradeRepository : ITradeRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<Trade>> GetByTradePlanIdAsync(string tradePlanId, CancellationToken cancellationToken = default)
+    {
+        return await _collection.Find(t => t.TradePlanId == tradePlanId)
+            .SortBy(t => t.TradeDate).ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Trade entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

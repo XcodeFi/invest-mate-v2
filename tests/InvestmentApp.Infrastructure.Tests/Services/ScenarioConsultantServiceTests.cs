@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Domain.Entities;
 using InvestmentApp.Infrastructure.Services;
 
 namespace InvestmentApp.Infrastructure.Tests.Services;
@@ -65,12 +66,12 @@ public class ScenarioConsultantServiceTests
             .ReturnsAsync(result);
 
         // Act
-        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.Short);
+        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.ShortTerm);
 
         // Assert
         suggestion.Symbol.Should().Be("HPG");
         suggestion.EntryPrice.Should().Be(75_000m);
-        suggestion.TimeHorizon.Should().Be(TimeHorizon.Short);
+        suggestion.TimeHorizon.Should().Be(TimeHorizon.ShortTerm);
 
         var takeProfitNodes = suggestion.Nodes
             .Where(n => n.Category == "TakeProfit")
@@ -102,7 +103,7 @@ public class ScenarioConsultantServiceTests
             .ReturnsAsync(result);
 
         // Act
-        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.Short);
+        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.ShortTerm);
 
         // Assert
         var stopLossNode = suggestion.Nodes.FirstOrDefault(n => n.Category == "StopLoss");
@@ -129,7 +130,7 @@ public class ScenarioConsultantServiceTests
             .ReturnsAsync(result);
 
         // Act
-        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.Medium);
+        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.MediumTerm);
 
         // Assert
         suggestion.TechnicalBasis.Ema200.Should().Be(65_000m);
@@ -154,7 +155,7 @@ public class ScenarioConsultantServiceTests
             .ReturnsAsync(result);
 
         // Act
-        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.Short);
+        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.ShortTerm);
 
         // Assert
         suggestion.Nodes.Should().NotBeEmpty();
@@ -198,7 +199,7 @@ public class ScenarioConsultantServiceTests
             .ReturnsAsync(result);
 
         // Act
-        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.Short);
+        var suggestion = await _service.SuggestAsync("HPG", 75_000m, TimeHorizon.ShortTerm);
 
         // Assert: the confluence TP node (80k zone) should come first (Order = 0)
         var tpNodes = suggestion.Nodes
@@ -231,7 +232,7 @@ public class ScenarioConsultantServiceTests
             .ReturnsAsync((TechnicalAnalysisResult)null!);
 
         // Act
-        var suggestion = await _service.SuggestAsync("XYZ", 50_000m, TimeHorizon.Short);
+        var suggestion = await _service.SuggestAsync("XYZ", 50_000m, TimeHorizon.ShortTerm);
 
         // Assert
         suggestion.Should().NotBeNull();

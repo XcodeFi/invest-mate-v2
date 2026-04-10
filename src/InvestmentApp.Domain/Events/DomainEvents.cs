@@ -203,3 +203,19 @@ public class ScenarioNodeTriggeredEvent : IDomainEvent
         OccurredOn = DateTime.UtcNow;
     }
 }
+
+public class PlanReviewedEvent : IDomainEvent
+{
+    public string TradePlanId { get; }
+    public string UserId { get; }
+    public decimal PnLPercent { get; }
+    public DateTime OccurredOn { get; }
+
+    public PlanReviewedEvent(string tradePlanId, string userId, decimal pnlPercent)
+    {
+        TradePlanId = tradePlanId;
+        UserId = userId;
+        PnLPercent = pnlPercent;
+        OccurredOn = DateTime.UtcNow;
+    }
+}

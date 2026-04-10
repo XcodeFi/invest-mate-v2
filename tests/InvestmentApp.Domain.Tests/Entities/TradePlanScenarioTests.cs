@@ -20,6 +20,15 @@ public class TradePlanScenarioTests
             entryPrice, stopLoss, target, quantity);
     }
 
+    private static CampaignReviewData CreateReviewData() => new()
+    {
+        PnLAmount = 8_000_000m, PnLPercent = 10m, HoldingDays = 30,
+        PnLPerDay = 266_667m, AnnualizedReturnPercent = 121.67m,
+        TargetAchievementPercent = 80m, TotalInvested = 80_000_000m,
+        TotalReturned = 88_000_000m, TotalFees = 200_000m,
+        ReviewedAt = DateTime.UtcNow
+    };
+
     private static TradePlan CreateAdvancedPlan()
     {
         var plan = CreateDefaultPlan();
@@ -101,7 +110,7 @@ public class TradePlanScenarioTests
     {
         var plan = CreateDefaultPlan();
         plan.Execute("trade-1");
-        plan.MarkReviewed();
+        plan.MarkReviewed(CreateReviewData());
 
         var act = () => plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
 

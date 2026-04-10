@@ -8,7 +8,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
-import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto } from '../../core/services/trade-plan.service';
+import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -65,6 +65,7 @@ interface TradePlanForm {
   portfolioId: string;
   reason: string;
   marketCondition: string;
+  timeHorizon: string;
   confidenceLevel: number;
   checklist: ChecklistItem[];
   notes: string;
@@ -176,11 +177,9 @@ interface TradePlanForm {
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
                         </svg>
                       </a>
-                      <button *ngIf="sp.status === 'Executed'" (click)="markReviewed(sp)" title="Đã review"
-                        class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                      <button *ngIf="sp.status === 'Executed'" (click)="openCampaignReview(sp)" title="Đóng chiến dịch"
+                        class="px-2 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium">
+                        Đóng chiến dịch
                       </button>
                       <button *ngIf="sp.status !== 'Cancelled' && sp.status !== 'Executed' && sp.status !== 'Reviewed'"
                         (click)="cancelPlan(sp)" title="Huỷ"
@@ -189,6 +188,12 @@ interface TradePlanForm {
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                       </button>
+                    </div>
+                    <!-- Review data badge for Reviewed plans -->
+                    <div *ngIf="sp.status === 'Reviewed' && sp.reviewData" class="mt-1 text-xs">
+                      <span class="font-medium" [class.text-green-600]="sp.reviewData.pnLAmount >= 0" [class.text-red-600]="sp.reviewData.pnLAmount < 0">
+                        P&L: {{ sp.reviewData.pnLAmount | vndCurrency }} ({{ sp.reviewData.pnLPercent | number:'1.1-1' }}%)
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -249,11 +254,9 @@ interface TradePlanForm {
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
                   </button>
-                  <button *ngIf="sp.status === 'Executed'" (click)="markReviewed(sp)" title="Đã review"
-                    class="p-1 text-blue-400 hover:text-blue-600 rounded">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                  <button *ngIf="sp.status === 'Executed'" (click)="openCampaignReview(sp)" title="Đóng chiến dịch"
+                    class="px-2 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium">
+                    Đóng
                   </button>
                   <button *ngIf="sp.status !== 'Cancelled' && sp.status !== 'Executed' && sp.status !== 'Reviewed'"
                     (click)="cancelPlan(sp)" title="Huỷ"
@@ -263,6 +266,13 @@ interface TradePlanForm {
                     </svg>
                   </button>
                 </div>
+              </div>
+              <!-- Review data for Reviewed plans (mobile) -->
+              <div *ngIf="sp.status === 'Reviewed' && sp.reviewData" class="text-xs px-1">
+                <span class="font-medium" [class.text-green-600]="sp.reviewData.pnLAmount >= 0" [class.text-red-600]="sp.reviewData.pnLAmount < 0">
+                  P&L: {{ sp.reviewData.pnLAmount | vndCurrency }} ({{ sp.reviewData.pnLPercent | number:'1.1-1' }}%)
+                </span>
+                <span class="text-gray-500 ml-1">{{ sp.reviewData.pnLPerDay | vndCurrency }}/ngày</span>
               </div>
             </div>
           </div>
@@ -420,6 +430,15 @@ interface TradePlanForm {
                   <option value="Trending">Xu hướng</option>
                   <option value="Ranging">Sideway</option>
                   <option value="Volatile">Biến động</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Khung thời gian</label>
+                <select [(ngModel)]="plan.timeHorizon"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                  <option value="ShortTerm">Ngắn hạn</option>
+                  <option value="MediumTerm">Trung hạn</option>
+                  <option value="LongTerm">Dài hạn</option>
                 </select>
               </div>
             </div>
@@ -1228,6 +1247,117 @@ interface TradePlanForm {
         </div>
       </div>
 
+      <!-- Campaign Review Panel -->
+      <div *ngIf="showReviewPanel && reviewPlanTarget" class="mt-6 bg-amber-50 border-2 border-amber-300 rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-amber-800">Đóng chiến dịch — {{ reviewPlanTarget.symbol }}</h2>
+          <button (click)="closeCampaignReviewPanel()" class="text-gray-500 hover:text-gray-700 text-lg">&times;</button>
+        </div>
+
+        <div *ngIf="loadingReviewPreview" class="text-center py-4 text-gray-500">Đang tính toán...</div>
+
+        <div *ngIf="!loadingReviewPreview && reviewPreview">
+          <!-- Preview metrics -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <div class="bg-white rounded-lg p-3 text-center">
+              <div class="text-xs text-gray-500 mb-1">P&L</div>
+              <div class="text-lg font-bold" [class.text-green-600]="reviewPreview.pnLAmount >= 0" [class.text-red-600]="reviewPreview.pnLAmount < 0">
+                {{ reviewPreview.pnLAmount | vndCurrency }}
+              </div>
+            </div>
+            <div class="bg-white rounded-lg p-3 text-center">
+              <div class="text-xs text-gray-500 mb-1">% Lãi/Lỗ</div>
+              <div class="text-lg font-bold" [class.text-green-600]="reviewPreview.pnLPercent >= 0" [class.text-red-600]="reviewPreview.pnLPercent < 0">
+                {{ reviewPreview.pnLPercent | number:'1.2-2' }}%
+              </div>
+            </div>
+            <div class="bg-white rounded-lg p-3 text-center">
+              <div class="text-xs text-gray-500 mb-1">VND/ngày</div>
+              <div class="text-lg font-bold" [class.text-green-600]="reviewPreview.pnLPerDay >= 0" [class.text-red-600]="reviewPreview.pnLPerDay < 0">
+                {{ reviewPreview.pnLPerDay | vndCurrency }}
+              </div>
+            </div>
+            <div class="bg-white rounded-lg p-3 text-center">
+              <div class="text-xs text-gray-500 mb-1">Số ngày nắm giữ</div>
+              <div class="text-lg font-bold text-gray-700">{{ reviewPreview.holdingDays }}</div>
+            </div>
+          </div>
+
+          <!-- Additional metrics -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 text-sm">
+            <div class="bg-white rounded-lg p-2">
+              <span class="text-gray-500">Tổng đầu tư:</span>
+              <span class="font-medium ml-1">{{ reviewPreview.totalInvested | vndCurrency }}</span>
+            </div>
+            <div class="bg-white rounded-lg p-2">
+              <span class="text-gray-500">Tổng thu về:</span>
+              <span class="font-medium ml-1">{{ reviewPreview.totalReturned | vndCurrency }}</span>
+            </div>
+            <div class="bg-white rounded-lg p-2">
+              <span class="text-gray-500">Đạt mục tiêu:</span>
+              <span class="font-medium ml-1">{{ reviewPreview.targetAchievementPercent | number:'1.0-0' }}%</span>
+            </div>
+          </div>
+
+          <!-- Lessons learned -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-amber-800 mb-1">Bài học rút ra</label>
+            <textarea [(ngModel)]="reviewLessonsLearned" rows="3"
+              class="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm"
+              placeholder="Ghi lại bài học, sai lầm, điểm tốt của chiến dịch này..."></textarea>
+          </div>
+
+          <!-- Submit button -->
+          <div class="flex justify-end gap-2">
+            <button (click)="closeCampaignReviewPanel()"
+              class="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+              Huỷ
+            </button>
+            <button (click)="submitCampaignReview()" [disabled]="submittingReview"
+              class="px-6 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors">
+              {{ submittingReview ? 'Đang xử lý...' : 'Xác nhận đóng chiến dịch' }}
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="!loadingReviewPreview && !reviewPreview" class="text-center py-4 text-red-500 text-sm">
+          Không thể tải dữ liệu review. Vui lòng thử lại.
+        </div>
+      </div>
+
+      <!-- Review Data Display for loaded Reviewed plan -->
+      <div *ngIf="selectedPlanId && selectedPlanStatus === 'Reviewed' && loadedReviewData" class="mt-6 bg-violet-50 border border-violet-200 rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-violet-800 mb-4">Kết quả chiến dịch</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+          <div class="bg-white rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">P&L</div>
+            <div class="text-lg font-bold" [class.text-green-600]="loadedReviewData.pnLAmount >= 0" [class.text-red-600]="loadedReviewData.pnLAmount < 0">
+              {{ loadedReviewData.pnLAmount | vndCurrency }}
+            </div>
+          </div>
+          <div class="bg-white rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">% Lãi/Lỗ</div>
+            <div class="text-lg font-bold" [class.text-green-600]="loadedReviewData.pnLPercent >= 0" [class.text-red-600]="loadedReviewData.pnLPercent < 0">
+              {{ loadedReviewData.pnLPercent | number:'1.2-2' }}%
+            </div>
+          </div>
+          <div class="bg-white rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">VND/ngày</div>
+            <div class="text-lg font-bold" [class.text-green-600]="loadedReviewData.pnLPerDay >= 0" [class.text-red-600]="loadedReviewData.pnLPerDay < 0">
+              {{ loadedReviewData.pnLPerDay | vndCurrency }}
+            </div>
+          </div>
+          <div class="bg-white rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">Số ngày nắm giữ</div>
+            <div class="text-lg font-bold text-gray-700">{{ loadedReviewData.holdingDays }}</div>
+          </div>
+        </div>
+        <div *ngIf="loadedReviewData.lessonsLearned" class="bg-white rounded-lg p-3">
+          <div class="text-xs text-gray-500 mb-1">Bài học rút ra</div>
+          <p class="text-sm text-gray-700 whitespace-pre-line">{{ loadedReviewData.lessonsLearned }}</p>
+        </div>
+      </div>
+
       <!-- Quick Reference Table -->
       <div class="mt-6 bg-white rounded-lg shadow p-6">
         <h2 class="text-lg font-semibold mb-4">Bảng tham chiếu nhanh</h2>
@@ -1393,12 +1523,13 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     { key: 'Ready', label: 'Sẵn sàng' },
     { key: 'InProgress', label: 'Đang chờ' },
     { key: 'Executed', label: 'Đã thực hiện' },
+    { key: 'Reviewed', label: 'Đã review' },
   ];
 
   plan: TradePlanForm = {
     symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
     quantity: 0, strategyId: '', portfolioId: '', reason: '',
-    marketCondition: 'Trending', confidenceLevel: 5, checklist: [], notes: '',
+    marketCondition: 'Trending', timeHorizon: 'MediumTerm', confidenceLevel: 5, checklist: [], notes: '',
     entryMode: 'Single', lots: [], exitTargets: []
   };
 
@@ -1454,6 +1585,15 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   loadingSuggestion = false;
   scenarioSuggestion: ScenarioSuggestionDto | null = null;
   selectedSuggestionNodes: Set<string> = new Set();
+
+  // Campaign Review
+  showReviewPanel = false;
+  reviewPlanTarget: TradePlanDto | null = null;
+  reviewPreview: CampaignReviewDto | null = null;
+  loadingReviewPreview = false;
+  submittingReview = false;
+  reviewLessonsLearned = '';
+  loadedReviewData: TradePlanDto['reviewData'] | null = null;
 
   // Order sheet
   showOrderSheet = false;
@@ -1881,7 +2021,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.plan.portfolioId = sp.portfolioId || '';
     this.plan.reason = sp.reason || '';
     this.plan.marketCondition = sp.marketCondition || 'Trending';
+    this.plan.timeHorizon = sp.timeHorizon || 'MediumTerm';
     this.plan.confidenceLevel = sp.confidenceLevel;
+    this.loadedReviewData = sp.reviewData || null;
     this.plan.notes = sp.notes || '';
     this.plan.entryMode = sp.entryMode || 'Single';
     this.plan.lots = (sp.lots || []).map((l, i) => ({
@@ -1941,10 +2083,15 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.plan = {
       symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
       quantity: 0, strategyId: '', portfolioId: '', reason: '',
-      marketCondition: 'Trending', confidenceLevel: 5, checklist: [], notes: '',
+      marketCondition: 'Trending', timeHorizon: 'MediumTerm', confidenceLevel: 5, checklist: [], notes: '',
       entryMode: 'Single', lots: [], exitTargets: []
     };
     this.showOrderSheet = false;
+    this.showReviewPanel = false;
+    this.reviewPlanTarget = null;
+    this.reviewPreview = null;
+    this.reviewLessonsLearned = '';
+    this.loadedReviewData = null;
     this.manualQuantity = false;
     this.exitStrategyMode = 'Simple';
     this.scenarioNodes = [];
@@ -1988,6 +2135,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         quantity: this.plan.quantity || this.optimalShares,
         strategyId: this.plan.strategyId || undefined,
         marketCondition: this.plan.marketCondition,
+        timeHorizon: this.plan.timeHorizon || undefined,
         reason: this.plan.reason || undefined,
         notes: this.plan.notes || undefined,
         riskPercent: this.riskPercent,
@@ -2046,6 +2194,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         quantity: this.plan.quantity || this.optimalShares,
         strategyId: this.plan.strategyId || undefined,
         marketCondition: this.plan.marketCondition,
+        timeHorizon: this.plan.timeHorizon || undefined,
         reason: this.plan.reason || undefined,
         notes: this.plan.notes || undefined,
         riskPercent: this.riskPercent,
@@ -2101,10 +2250,47 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     });
   }
 
-  markReviewed(sp: TradePlanDto): void {
-    this.tradePlanService.updateStatus(sp.id, { status: 'reviewed' }).subscribe({
-      next: () => { this.notification.success('Kế hoạch', `${sp.symbol} đã review`); this.loadSavedPlans(); },
-      error: () => this.notification.error('Lỗi', 'Không thể chuyển trạng thái')
+  openCampaignReview(sp: TradePlanDto): void {
+    this.reviewPlanTarget = sp;
+    this.showReviewPanel = true;
+    this.reviewPreview = null;
+    this.reviewLessonsLearned = '';
+    this.loadingReviewPreview = true;
+    this.tradePlanService.previewReview(sp.id).subscribe({
+      next: (preview) => {
+        this.reviewPreview = preview;
+        this.loadingReviewPreview = false;
+      },
+      error: () => {
+        this.loadingReviewPreview = false;
+        this.notification.error('Lỗi', 'Không thể tải dữ liệu review');
+      }
+    });
+  }
+
+  closeCampaignReviewPanel(): void {
+    this.showReviewPanel = false;
+    this.reviewPlanTarget = null;
+    this.reviewPreview = null;
+    this.reviewLessonsLearned = '';
+  }
+
+  submitCampaignReview(): void {
+    if (!this.reviewPlanTarget) return;
+    this.submittingReview = true;
+    this.tradePlanService.submitReview(this.reviewPlanTarget.id, {
+      lessonsLearned: this.reviewLessonsLearned.trim() || undefined
+    }).subscribe({
+      next: () => {
+        this.submittingReview = false;
+        this.notification.success('Chiến dịch', `${this.reviewPlanTarget!.symbol} đã đóng thành công`);
+        this.closeCampaignReviewPanel();
+        this.loadSavedPlans();
+      },
+      error: () => {
+        this.submittingReview = false;
+        this.notification.error('Lỗi', 'Không thể đóng chiến dịch');
+      }
     });
   }
 
