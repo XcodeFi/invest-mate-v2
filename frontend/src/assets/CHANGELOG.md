@@ -2,6 +2,19 @@
 
 ---
 
+## [v2.32.0] — 2026-04-10 · Help Center — Hướng dẫn sử dụng
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### Trang Hướng dẫn sử dụng (`/help`)
+- **8 chủ đề**: Bắt đầu, Giao dịch, Kế hoạch GD, Phân tích thị trường, Quản lý rủi ro, Phân tích hiệu suất, Công cụ hỗ trợ, Chiến lược giao dịch
+- **Full-text search**: Tìm kiếm toàn văn tiếng Việt, hỗ trợ gõ không dấu (VD: "giao dich" → "Giao dịch")
+- **Markdown rendering**: Đọc nội dung từ file `.md` trong `assets/docs/`, render bằng `marked`
+- **Highlight kết quả**: Snippet 120 ký tự với match được highlight `<mark>`
+- **Navigation**: Nút "Hướng dẫn" trên header + bottom nav mobile
+
+---
+
 ## [v2.31.0] — 2026-04-10 · Mở rộng Technical Indicators — Stochastic, ADX, OBV, MFI
 
 **Branch:** `feat/p1-expand-technical-indicators`

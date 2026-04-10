@@ -108,6 +108,7 @@ export class BottomNavComponent {
     { path: '/strategies', label: 'Chiến lược', emoji: '🎯' },
     { path: '/journals', label: 'Nhật ký', emoji: '📝' },
     { path: '/alerts', label: 'Cảnh báo', emoji: '🔔' },
+    { path: '/help', label: 'Hướng dẫn', emoji: '❓' },
     { path: '/changelog', label: 'Changelog', emoji: '🔧' },
   ];
 

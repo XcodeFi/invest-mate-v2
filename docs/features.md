@@ -660,6 +660,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | `/watchlist` | `WatchlistComponent` | Theo dõi cổ phiếu & tìm cơ hội giao dịch |
 | `/ai-settings` | `AiSettingsComponent` | Cấu hình AI đa nhà cung cấp (Claude/Gemini, API keys, model, usage) |
 | `/campaign-analytics` | `CampaignAnalyticsComponent` | Phân tích chiến dịch cross-plan: summary, so sánh, best/worst, lessons (P0.7) |
+| `/help` | `HelpComponent` | Hướng dẫn sử dụng: 8 chủ đề, full-text search tiếng Việt (không dấu), markdown rendering |
 
 ---
 

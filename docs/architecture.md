@@ -34,7 +34,7 @@ project/
 ├── frontend/                           # Angular 18 SPA
 │   └── src/app/
 │       ├── core/services/              # 25 Angular services (HTTP clients)
-│       ├── features/                   # 27 page components (standalone, inline templates)
+│       ├── features/                   # 28 page components (standalone, inline templates)
 │       │   ├── dashboard/              # Investor Cockpit (main page)
 │       │   ├── trade-wizard/           # 5-step disciplined trading flow
 │       │   ├── trade-plan/             # Entry/SL/TP planning with checklist
