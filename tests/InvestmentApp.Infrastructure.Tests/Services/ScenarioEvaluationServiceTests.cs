@@ -12,6 +12,7 @@ public class ScenarioEvaluationServiceTests
     private readonly Mock<ITradePlanRepository> _tradePlanRepo;
     private readonly Mock<IStockPriceRepository> _stockPriceRepo;
     private readonly Mock<IAlertHistoryRepository> _alertHistoryRepo;
+    private readonly Mock<ITechnicalIndicatorService> _technicalIndicatorService;
     private readonly Mock<ILogger<ScenarioEvaluationService>> _logger;
     private readonly ScenarioEvaluationService _sut;
 
@@ -20,11 +21,13 @@ public class ScenarioEvaluationServiceTests
         _tradePlanRepo = new Mock<ITradePlanRepository>();
         _stockPriceRepo = new Mock<IStockPriceRepository>();
         _alertHistoryRepo = new Mock<IAlertHistoryRepository>();
+        _technicalIndicatorService = new Mock<ITechnicalIndicatorService>();
         _logger = new Mock<ILogger<ScenarioEvaluationService>>();
         _sut = new ScenarioEvaluationService(
             _tradePlanRepo.Object,
             _stockPriceRepo.Object,
             _alertHistoryRepo.Object,
+            _technicalIndicatorService.Object,
             _logger.Object);
     }
 
@@ -315,5 +318,171 @@ public class ScenarioEvaluationServiceTests
         var results = await _sut.EvaluateAllAsync();
 
         results.Should().BeEmpty();
+    }
+
+    // =====================================================================
+    // ATR Trailing Stop — real ATR(14) instead of placeholder
+    // =====================================================================
+
+    [Fact]
+    public async Task AtrTrailingStop_WhenAtrAvailable_ShouldUseRealAtr()
+    {
+        // Arrange: ATR(14) = 1_500, trailValue = 2 (multiplier)
+        // Expected trailing stop = highestPrice - trailValue * ATR = 90_000 - 2 * 1_500 = 87_000
+        var nodes = new List<ScenarioNode>
+        {
+            new()
+            {
+                NodeId = "root-1",
+                ParentId = null,
+                Order = 0,
+                Label = "ATR Trailing",
+                ConditionType = ScenarioConditionType.PriceAbove,
+                ConditionValue = 85_000m,
+                ActionType = ScenarioActionType.ActivateTrailingStop,
+                TrailingStopConfig = new TrailingStopConfig
+                {
+                    Method = TrailingStopMethod.ATR,
+                    TrailValue = 2m // ATR multiplier
+                }
+            },
+            new()
+            {
+                NodeId = "child-1",
+                ParentId = "root-1",
+                Order = 0,
+                Label = "ATR trailing hit",
+                ConditionType = ScenarioConditionType.TrailingStopHit,
+                ActionType = ScenarioActionType.SellAll
+            }
+        };
+        var plan = CreateInProgressPlanWithScenarios(nodes: nodes);
+        SetupPlansAndPrices(plan, 90_000m);
+
+        _technicalIndicatorService
+            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TechnicalAnalysisResult
+            {
+                Symbol = "VNM",
+                Atr14 = 1_500m
+            });
+
+        // Act
+        var results = await _sut.EvaluateAllAsync();
+
+        // Assert: trailing stop = 90_000 - 2 * 1_500 = 87_000
+        results.Should().ContainSingle(r => r.NodeId == "root-1");
+        var config = plan.ScenarioNodes!.First(n => n.NodeId == "root-1").TrailingStopConfig!;
+        config.HighestPrice.Should().Be(90_000m);
+        config.CurrentTrailingStop.Should().Be(87_000m);
+    }
+
+    [Fact]
+    public async Task AtrTrailingStop_WhenAtrNull_ShouldFallbackToProxy()
+    {
+        // Arrange: ATR(14) is null (no data), should fallback to entryPrice * 0.02 * trailValue
+        // Expected trailing stop = highestPrice - trailValue * (entryPrice * 0.02) = 90_000 - 2 * (80_000 * 0.02) = 90_000 - 3_200 = 86_800
+        var nodes = new List<ScenarioNode>
+        {
+            new()
+            {
+                NodeId = "root-1",
+                ParentId = null,
+                Order = 0,
+                Label = "ATR Trailing fallback",
+                ConditionType = ScenarioConditionType.PriceAbove,
+                ConditionValue = 85_000m,
+                ActionType = ScenarioActionType.ActivateTrailingStop,
+                TrailingStopConfig = new TrailingStopConfig
+                {
+                    Method = TrailingStopMethod.ATR,
+                    TrailValue = 2m
+                }
+            },
+            new()
+            {
+                NodeId = "child-1",
+                ParentId = "root-1",
+                Order = 0,
+                Label = "ATR trailing hit",
+                ConditionType = ScenarioConditionType.TrailingStopHit,
+                ActionType = ScenarioActionType.SellAll
+            }
+        };
+        var plan = CreateInProgressPlanWithScenarios(nodes: nodes);
+        SetupPlansAndPrices(plan, 90_000m);
+
+        _technicalIndicatorService
+            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TechnicalAnalysisResult
+            {
+                Symbol = "VNM",
+                Atr14 = null // no data
+            });
+
+        // Act
+        var results = await _sut.EvaluateAllAsync();
+
+        // Assert: fallback = 90_000 - 2 * (80_000 * 0.02) = 86_800
+        results.Should().ContainSingle(r => r.NodeId == "root-1");
+        var config = plan.ScenarioNodes!.First(n => n.NodeId == "root-1").TrailingStopConfig!;
+        config.HighestPrice.Should().Be(90_000m);
+        config.CurrentTrailingStop.Should().Be(86_800m);
+    }
+
+    [Fact]
+    public async Task AtrTrailingStop_WhenPriceUpdates_ShouldRecalculateWithRealAtr()
+    {
+        // Arrange: Simulate node already triggered with highestPrice and then a higher price comes in
+        var nodes = new List<ScenarioNode>
+        {
+            new()
+            {
+                NodeId = "root-1",
+                ParentId = null,
+                Order = 0,
+                Label = "ATR Trailing update",
+                ConditionType = ScenarioConditionType.PriceAbove,
+                ConditionValue = 85_000m,
+                ActionType = ScenarioActionType.ActivateTrailingStop,
+                TrailingStopConfig = new TrailingStopConfig
+                {
+                    Method = TrailingStopMethod.ATR,
+                    TrailValue = 2m,
+                    HighestPrice = 90_000m, // previously set
+                    CurrentTrailingStop = 87_000m // previously computed
+                },
+                Status = ScenarioNodeStatus.Triggered,
+                TriggeredAt = DateTime.UtcNow.AddHours(-1)
+            },
+            new()
+            {
+                NodeId = "child-1",
+                ParentId = "root-1",
+                Order = 0,
+                Label = "ATR trailing hit",
+                ConditionType = ScenarioConditionType.TrailingStopHit,
+                ActionType = ScenarioActionType.SellAll
+            }
+        };
+        var plan = CreateInProgressPlanWithScenarios(nodes: nodes);
+        // New price is higher than previous highestPrice
+        SetupPlansAndPrices(plan, 95_000m);
+
+        _technicalIndicatorService
+            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TechnicalAnalysisResult
+            {
+                Symbol = "VNM",
+                Atr14 = 1_500m
+            });
+
+        // Act
+        var results = await _sut.EvaluateAllAsync();
+
+        // Assert: trailing stop = 95_000 - 2 * 1_500 = 92_000
+        var config = plan.ScenarioNodes!.First(n => n.NodeId == "root-1").TrailingStopConfig!;
+        config.HighestPrice.Should().Be(95_000m);
+        config.CurrentTrailingStop.Should().Be(92_000m);
     }
 }
