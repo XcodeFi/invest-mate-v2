@@ -2,7 +2,7 @@ namespace InvestmentApp.Application.Interfaces;
 
 public interface ITechnicalIndicatorService
 {
-    Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, CancellationToken cancellationToken = default);
+    Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, int months = 12, CancellationToken cancellationToken = default);
 }
 
 public class TechnicalAnalysisResult

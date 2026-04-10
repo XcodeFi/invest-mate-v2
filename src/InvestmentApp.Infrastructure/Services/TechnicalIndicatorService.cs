@@ -11,10 +11,10 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         _marketData = marketData;
     }
 
-    public async Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, CancellationToken ct = default)
+    public async Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, int months = 12, CancellationToken ct = default)
     {
-        // Fetch ~6 months of data for reliable EMA50 + MACD calculation
-        var from = DateTime.UtcNow.AddMonths(-6);
+        // Fetch configurable months of data (default 12 for reliable EMA200 + MACD calculation)
+        var from = DateTime.UtcNow.AddMonths(-months);
         var to = DateTime.UtcNow;
         var prices = await _marketData.GetHistoricalPricesAsync(symbol, from, to, ct);
 

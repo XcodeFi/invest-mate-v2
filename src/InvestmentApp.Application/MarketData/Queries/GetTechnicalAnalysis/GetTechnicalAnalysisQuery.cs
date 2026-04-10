@@ -19,6 +19,6 @@ public class GetTechnicalAnalysisQueryHandler : IRequestHandler<GetTechnicalAnal
 
     public async Task<TechnicalAnalysisResult> Handle(GetTechnicalAnalysisQuery request, CancellationToken ct)
     {
-        return await _technicalService.AnalyzeAsync(request.Symbol.ToUpper().Trim(), ct);
+        return await _technicalService.AnalyzeAsync(request.Symbol.ToUpper().Trim(), cancellationToken: ct);
     }
 }

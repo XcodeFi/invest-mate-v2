@@ -544,7 +544,7 @@ Nhiệm vụ: Đánh giá danh mục đầu tư toàn diện.
 
         // Fetch market data, technical signals, risk profile, historical trades in parallel
         var stockDetailTask = _stockInfoProvider.GetStockDetailAsync(plan.Symbol, ct);
-        var technicalTask = _technicalService.AnalyzeAsync(plan.Symbol, ct);
+        var technicalTask = _technicalService.AnalyzeAsync(plan.Symbol, cancellationToken: ct);
         var riskProfileTask = !string.IsNullOrEmpty(plan.PortfolioId)
             ? _riskProfileRepo.GetByPortfolioIdAsync(plan.PortfolioId, ct)
             : Task.FromResult<RiskProfile?>(null);
@@ -881,7 +881,7 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
         // Fetch all data in parallel — individual failures should not crash the whole request
         var fundamentalTask = _fundamentalProvider.GetFundamentalsAsync(symbol, ct);
         var stockDetailTask = _stockInfoProvider.GetStockDetailAsync(symbol, ct);
-        var technicalTask = _technicalService.AnalyzeAsync(symbol, ct);
+        var technicalTask = _technicalService.AnalyzeAsync(symbol, cancellationToken: ct);
 
         // Wait for all, even if some fail
         await Task.WhenAll(
@@ -1258,7 +1258,7 @@ Nhiệm vụ: Đánh giá rủi ro danh mục đầu tư toàn diện.
         // Technical signals for top 5 by value — parallel with timeout
         var top5Symbols = allPositions.OrderByDescending(p => p.Pos.MarketValue).Select(p => p.Pos.Symbol).Distinct().Take(5).ToList();
         var techTasks = top5Symbols.Select(sym =>
-            _technicalService.AnalyzeAsync(sym, ct)
+            _technicalService.AnalyzeAsync(sym, cancellationToken: ct)
                 .ContinueWith(t => (Symbol: sym, Tech: t.IsCompletedSuccessfully ? (dynamic?)t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
         ).ToList();
 
@@ -1441,7 +1441,7 @@ Nhiệm vụ: Phân tích giao dịch toàn diện.
                 .ContinueWith(t => (item.Symbol, Detail: t.IsCompletedSuccessfully ? t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
         ).ToList();
         var techTasks = items.Select(item =>
-            _technicalService.AnalyzeAsync(item.Symbol, ct)
+            _technicalService.AnalyzeAsync(item.Symbol, cancellationToken: ct)
                 .ContinueWith(t => (item.Symbol, Tech: t.IsCompletedSuccessfully ? (dynamic?)t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
         ).ToList();
 
@@ -1662,7 +1662,7 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
 
         // Fetch comprehensive data + technical analysis in parallel
         var dataTask = _comprehensiveProvider.GetComprehensiveDataAsync(symbol, ct);
-        var technicalTask = _technicalService.AnalyzeAsync(symbol, ct);
+        var technicalTask = _technicalService.AnalyzeAsync(symbol, cancellationToken: ct);
         var stockDetailTask = _stockInfoProvider.GetStockDetailAsync(symbol, ct);
 
         await Task.WhenAll(
