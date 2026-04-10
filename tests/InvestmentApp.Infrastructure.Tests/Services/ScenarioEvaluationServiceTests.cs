@@ -360,7 +360,7 @@ public class ScenarioEvaluationServiceTests
         SetupPlansAndPrices(plan, 90_000m);
 
         _technicalIndicatorService
-            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<CancellationToken>()))
+            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TechnicalAnalysisResult
             {
                 Symbol = "VNM",
@@ -413,7 +413,7 @@ public class ScenarioEvaluationServiceTests
         SetupPlansAndPrices(plan, 90_000m);
 
         _technicalIndicatorService
-            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<CancellationToken>()))
+            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TechnicalAnalysisResult
             {
                 Symbol = "VNM",
@@ -470,7 +470,7 @@ public class ScenarioEvaluationServiceTests
         SetupPlansAndPrices(plan, 95_000m);
 
         _technicalIndicatorService
-            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<CancellationToken>()))
+            .Setup(s => s.AnalyzeAsync("VNM", It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TechnicalAnalysisResult
             {
                 Symbol = "VNM",

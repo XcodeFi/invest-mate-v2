@@ -2,6 +2,36 @@
 
 ---
 
+## [v2.27.0] — 2026-04-10 · P0 Phase 2+3 — Flowchart, Fibonacci, Candlestick Chart
+
+**Branch:** `feat/p0-phase2-3-improvements`
+
+### P0.3 — Visual Flowchart Tree UI
+- **Connector lines:** CSS-only vertical/horizontal connectors giữa parent → children
+- **Status colors:** Xanh (Đã kích hoạt), Vàng (Chờ), Xám (Bỏ qua)
+- **Collapsible branches:** Thu gọn/mở rộng nhánh kịch bản con
+
+### P0.6a — Fibonacci Retracement/Extension + EMA200
+- **Fibonacci levels:** 23.6%, 38.2%, 50%, 61.8%, 78.6% retracement + 127.2%, 161.8% extension
+- **EMA200:** Thêm EMA 200 phiên cho phân tích trung/dài hạn
+- **Auto-detect swing points:** Sử dụng lại logic support/resistance hiện có
+
+### P0.6c — Mở rộng Price History
+- **Default 12 tháng** (thay vì 6 tháng) — đủ cho EMA200 (~200 phiên)
+- **Tham số `months`** cho phép tùy chỉnh khoảng thời gian phân tích
+
+### P0.6b — Candlestick Chart + Overlays
+- **Candlestick:** Thay line chart bằng nến Nhật (OHLC) — xanh/đỏ
+- **EMA overlays:** EMA20 (xanh), EMA50 (cam), EMA200 (tím) — đường ngang
+- **S/R overlays:** Hỗ trợ (xanh nét đứt), Kháng cự (đỏ nét đứt)
+- **Fibonacci overlays:** Các mức Fib màu vàng amber trên biểu đồ
+- **Toggle toolbar:** 4 nút bật/tắt: Nến, EMA, S/R, Fibonacci
+
+### Tests
+- 755 tests pass (Domain: 584, Application: 65, Infrastructure: 105, Api: 1)
+
+---
+
 ## [v2.26.0] — 2026-04-10 · P0 Phase 1 — Scenario Playbook Improvements
 
 **Branch:** `feat/p0-phase1-improvements`

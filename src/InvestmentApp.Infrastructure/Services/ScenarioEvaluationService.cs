@@ -226,7 +226,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                     atrFetched = true;
                     try
                     {
-                        var analysis = await _technicalIndicatorService.AnalyzeAsync(plan.Symbol, cancellationToken);
+                        var analysis = await _technicalIndicatorService.AnalyzeAsync(plan.Symbol, cancellationToken: cancellationToken);
                         atr14 = analysis.Atr14;
                     }
                     catch (Exception ex)
