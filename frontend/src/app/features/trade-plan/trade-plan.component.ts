@@ -662,18 +662,19 @@ interface TradePlanForm {
                   </div>
                 </div>
 
-                <!-- Scenario Tree -->
-                <div class="space-y-2">
-                  <ng-container *ngFor="let node of getScenarioRootNodes()">
-                    <ng-container *ngTemplateOutlet="scenarioNodeTpl; context: { $implicit: node, depth: 0 }"></ng-container>
+                <!-- Visual Flowchart Scenario Tree -->
+                <div class="scenario-tree">
+                  <ng-container *ngFor="let node of getScenarioRootNodes(); let isLast = last">
+                    <ng-container *ngTemplateOutlet="scenarioNodeTpl; context: { $implicit: node, depth: 0, isLast: isLast }"></ng-container>
                   </ng-container>
                 </div>
 
-                <button (click)="addScenarioNode(null)" class="mt-3 px-3 py-1 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded">
-                  + Thêm kịch bản gốc
+                <button (click)="addScenarioNode(null)" class="mt-3 px-3 py-1.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded-lg flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                  Thêm kịch bản gốc
                 </button>
 
-                <div *ngIf="scenarioNodes.length === 0" class="text-xs text-violet-400 mt-2">
+                <div *ngIf="scenarioNodes.length === 0" class="text-xs text-violet-400 mt-2 text-center py-4">
                   Chưa có kịch bản nào. Chọn mẫu hoặc thêm kịch bản gốc.
                 </div>
               </div>
@@ -708,59 +709,120 @@ interface TradePlanForm {
               </div>
             </div>
 
-            <!-- Scenario Node Template (recursive) -->
-            <ng-template #scenarioNodeTpl let-node let-depth="depth">
-              <div class="border border-indigo-200 rounded-lg p-3 bg-white" [style.margin-left.px]="depth * 20">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="text-xs font-bold text-indigo-500">NẾU</span>
-                  <select [(ngModel)]="node.conditionType" class="px-1.5 py-1 border border-indigo-300 rounded text-xs">
-                    <option value="PriceAbove">Giá >=</option>
-                    <option value="PriceBelow">Giá <=</option>
-                    <option value="PricePercentChange">Thay đổi %</option>
-                    <option value="TrailingStopHit">Chạm trailing</option>
-                    <option value="TimeElapsed">Sau N ngày</option>
-                  </select>
-                  <input *ngIf="node.conditionType !== 'TrailingStopHit'" [(ngModel)]="node.conditionValue" type="text" inputmode="numeric" appNumMask
-                    class="w-24 px-1.5 py-1 border border-indigo-300 rounded text-xs text-right"
-                    [placeholder]="node.conditionType === 'PricePercentChange' ? '%' : node.conditionType === 'TimeElapsed' ? 'ngày' : 'đ'">
-                  <span class="text-xs text-indigo-400 font-bold">&#8594;</span>
-                  <select [(ngModel)]="node.actionType" class="px-1.5 py-1 border border-indigo-300 rounded text-xs">
-                    <option value="SellPercent">Bán % vị thế</option>
-                    <option value="SellAll">Bán tất cả</option>
-                    <option value="MoveStopLoss">Dời SL</option>
-                    <option value="MoveStopToBreakeven">SL về hòa vốn</option>
-                    <option value="ActivateTrailingStop">Bật trailing stop</option>
-                    <option value="AddPosition">Thêm vị thế</option>
-                    <option value="SendNotification">Chỉ thông báo</option>
-                  </select>
-                  <input *ngIf="node.actionType === 'SellPercent' || node.actionType === 'AddPosition' || node.actionType === 'MoveStopLoss'"
-                    [(ngModel)]="node.actionValue" type="text" inputmode="numeric" appNumMask
-                    class="w-16 px-1.5 py-1 border border-indigo-300 rounded text-xs text-right"
-                    [placeholder]="node.actionType === 'MoveStopLoss' ? 'đ' : '%'">
-                  <span *ngIf="node.status === 'Triggered'" class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Đã kích hoạt</span>
-                  <button (click)="addScenarioNode(node.nodeId)" class="text-indigo-400 hover:text-indigo-600 text-xs font-medium" title="Thêm kịch bản con">+Con</button>
-                  <button (click)="removeScenarioNode(node.nodeId)" class="text-red-400 hover:text-red-600">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+            <!-- Scenario Node Template (recursive visual flowchart) -->
+            <ng-template #scenarioNodeTpl let-node let-depth="depth" let-isLast="isLast">
+              <div class="scenario-node-wrapper" [class.is-last]="isLast">
+                <!-- Horizontal connector line (not for root nodes) -->
+                <div *ngIf="depth > 0" class="scenario-connector">
+                  <div class="connector-horizontal"></div>
+                </div>
+
+                <!-- Node card -->
+                <div class="scenario-card"
+                  [class.border-green-500]="node.status === 'Triggered'"
+                  [class.bg-green-50]="node.status === 'Triggered'"
+                  [class.border-yellow-400]="node.status === 'Pending'"
+                  [class.bg-yellow-50]="node.status === 'Pending'"
+                  [class.border-gray-300]="node.status === 'Skipped'"
+                  [class.bg-gray-50]="node.status === 'Skipped'">
+
+                  <!-- Status badge + collapse toggle -->
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-1.5">
+                      <span *ngIf="node.status === 'Triggered'" class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        Đã kích hoạt
+                      </span>
+                      <span *ngIf="node.status === 'Pending'" class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                        Chờ
+                      </span>
+                      <span *ngIf="node.status === 'Skipped'" class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs font-medium">
+                        Bỏ qua
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <button *ngIf="hasScenarioChildren(node.nodeId)" (click)="toggleScenarioCollapse(node.nodeId)"
+                        class="p-0.5 text-violet-400 hover:text-violet-600 rounded transition-colors" [title]="collapsedNodes.has(node.nodeId) ? 'Mở rộng nhánh' : 'Thu gọn nhánh'">
+                        <svg class="w-4 h-4 transition-transform" [class.rotate-180]="collapsedNodes.has(node.nodeId)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </button>
+                      <button (click)="addScenarioNode(node.nodeId)" class="p-0.5 text-indigo-400 hover:text-indigo-600 rounded transition-colors" title="Thêm kịch bản con">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                      </button>
+                      <button (click)="removeScenarioNode(node.nodeId)" class="p-0.5 text-red-400 hover:text-red-600 rounded transition-colors" title="Xoá kịch bản">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Condition row -->
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">NẾU</span>
+                    <select [(ngModel)]="node.conditionType" class="px-1.5 py-1 border border-indigo-200 rounded text-xs bg-white focus:ring-1 focus:ring-indigo-400">
+                      <option value="PriceAbove">Giá >=</option>
+                      <option value="PriceBelow">Giá <=</option>
+                      <option value="PricePercentChange">Thay đổi %</option>
+                      <option value="TrailingStopHit">Chạm trailing</option>
+                      <option value="TimeElapsed">Sau N ngày</option>
+                    </select>
+                    <input *ngIf="node.conditionType !== 'TrailingStopHit'" [(ngModel)]="node.conditionValue" type="text" inputmode="numeric" appNumMask
+                      class="w-24 px-1.5 py-1 border border-indigo-200 rounded text-xs text-right bg-white focus:ring-1 focus:ring-indigo-400"
+                      [placeholder]="node.conditionType === 'PricePercentChange' ? '%' : node.conditionType === 'TimeElapsed' ? 'ngày' : 'đ'">
+                  </div>
+
+                  <!-- Action row -->
+                  <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
+                    <span class="text-xs font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">&#8594;</span>
+                    <select [(ngModel)]="node.actionType" class="px-1.5 py-1 border border-violet-200 rounded text-xs bg-white focus:ring-1 focus:ring-violet-400">
+                      <option value="SellPercent">Bán % vị thế</option>
+                      <option value="SellAll">Bán tất cả</option>
+                      <option value="MoveStopLoss">Dời SL</option>
+                      <option value="MoveStopToBreakeven">SL về hòa vốn</option>
+                      <option value="ActivateTrailingStop">Bật trailing stop</option>
+                      <option value="AddPosition">Thêm vị thế</option>
+                      <option value="SendNotification">Chỉ thông báo</option>
+                    </select>
+                    <input *ngIf="node.actionType === 'SellPercent' || node.actionType === 'AddPosition' || node.actionType === 'MoveStopLoss'"
+                      [(ngModel)]="node.actionValue" type="text" inputmode="numeric" appNumMask
+                      class="w-16 px-1.5 py-1 border border-violet-200 rounded text-xs text-right bg-white focus:ring-1 focus:ring-violet-400"
+                      [placeholder]="node.actionType === 'MoveStopLoss' ? 'đ' : '%'">
+                  </div>
+
+                  <!-- Trailing Stop Config (inline) -->
+                  <div *ngIf="node.actionType === 'ActivateTrailingStop'" class="mt-2 pl-2 flex items-center gap-2 text-xs border-l-2 border-violet-200">
+                    <select [(ngModel)]="node.trailingStopConfig.method" class="px-1 py-0.5 border rounded text-xs bg-white">
+                      <option value="Percentage">%</option>
+                      <option value="ATR">ATR (ước tính)</option>
+                      <option value="FixedAmount">Cố định (VNĐ)</option>
+                    </select>
+                    <input [(ngModel)]="node.trailingStopConfig.trailValue" type="number" placeholder="Giá trị" class="w-16 px-1 py-0.5 border rounded text-xs text-right bg-white">
+                    <span class="text-indigo-400">Kích hoạt:</span>
+                    <input [(ngModel)]="node.trailingStopConfig.activationPrice" type="text" inputmode="numeric" appNumMask placeholder="Giá" class="w-24 px-1 py-0.5 border rounded text-xs text-right bg-white">
+                  </div>
+
+                  <!-- Label / note -->
+                  <input [(ngModel)]="node.label" type="text" placeholder="Ghi chú kịch bản..."
+                    class="mt-2 w-full px-2 py-1 border border-gray-200 rounded text-xs bg-white/70 focus:ring-1 focus:ring-indigo-400">
+                </div>
+
+                <!-- Children (collapsible subtree with connector lines) -->
+                <div *ngIf="hasScenarioChildren(node.nodeId) && !collapsedNodes.has(node.nodeId)" class="scenario-children">
+                  <ng-container *ngFor="let child of getScenarioChildNodes(node.nodeId); let childIsLast = last">
+                    <ng-container *ngTemplateOutlet="scenarioNodeTpl; context: { $implicit: child, depth: depth + 1, isLast: childIsLast }"></ng-container>
+                  </ng-container>
+                </div>
+
+                <!-- Collapsed indicator -->
+                <div *ngIf="hasScenarioChildren(node.nodeId) && collapsedNodes.has(node.nodeId)" class="mt-1 ml-6">
+                  <button (click)="toggleScenarioCollapse(node.nodeId)" class="text-xs text-violet-400 hover:text-violet-600 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    {{ getScenarioChildNodes(node.nodeId).length }} kịch bản con (đã thu gọn)
                   </button>
                 </div>
-                <!-- Trailing Stop Config (inline) -->
-                <div *ngIf="node.actionType === 'ActivateTrailingStop'" class="mt-2 pl-4 flex items-center gap-2 text-xs">
-                  <select [(ngModel)]="node.trailingStopConfig.method" class="px-1 py-0.5 border rounded text-xs">
-                    <option value="Percentage">%</option>
-                    <option value="ATR">ATR (ước tính)</option>
-                    <option value="FixedAmount">Cố định (VNĐ)</option>
-                  </select>
-                  <input [(ngModel)]="node.trailingStopConfig.trailValue" type="number" placeholder="Giá trị" class="w-16 px-1 py-0.5 border rounded text-xs text-right">
-                  <span class="text-indigo-400">Kích hoạt:</span>
-                  <input [(ngModel)]="node.trailingStopConfig.activationPrice" type="text" inputmode="numeric" appNumMask placeholder="Giá" class="w-24 px-1 py-0.5 border rounded text-xs text-right">
-                </div>
-                <input [(ngModel)]="node.label" type="text" placeholder="Ghi chú kịch bản..." class="mt-1.5 w-full px-2 py-1 border border-indigo-200 rounded text-xs">
-                <!-- Children -->
-                <ng-container *ngFor="let child of getScenarioChildNodes(node.nodeId)">
-                  <ng-container *ngTemplateOutlet="scenarioNodeTpl; context: { $implicit: child, depth: depth + 1 }"></ng-container>
-                </ng-container>
               </div>
             </ng-template>
 
@@ -1099,7 +1161,96 @@ interface TradePlanForm {
     </div>
 
     <app-ai-chat-panel [(isOpen)]="showAiPanel" title="AI Tư vấn Kế hoạch" useCase="trade-plan-advisor" [contextData]="{ tradePlanId: aiTradePlanId }"></app-ai-chat-panel>
-  `
+  `,
+  styles: [`
+    /* Scenario tree visual flowchart */
+    .scenario-tree {
+      position: relative;
+      padding-left: 0;
+    }
+
+    .scenario-node-wrapper {
+      position: relative;
+      padding-left: 20px;
+      padding-bottom: 8px;
+    }
+
+    /* Root nodes have no left padding */
+    .scenario-tree > .scenario-node-wrapper {
+      padding-left: 0;
+    }
+
+    /* Vertical line connecting siblings — runs along left edge of children container */
+    .scenario-children {
+      position: relative;
+      margin-left: 16px;
+      padding-top: 4px;
+    }
+
+    .scenario-children::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 16px;
+      width: 2px;
+      background-color: #c4b5fd; /* violet-300 */
+      border-radius: 1px;
+    }
+
+    /* Hide the vertical line extension for the last child */
+    .scenario-children > .scenario-node-wrapper.is-last::after {
+      content: '';
+      position: absolute;
+      left: -20px;
+      top: 20px;
+      bottom: 0;
+      width: 2px;
+      background-color: white;
+    }
+
+    /* Horizontal connector from vertical line to card */
+    .connector-horizontal {
+      position: absolute;
+      left: -20px;
+      top: 18px;
+      width: 18px;
+      height: 2px;
+      background-color: #c4b5fd; /* violet-300 */
+    }
+
+    /* Small dot at the junction */
+    .connector-horizontal::before {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #8b5cf6; /* violet-500 */
+      border: 2px solid white;
+    }
+
+    /* Node card styling */
+    .scenario-card {
+      border-width: 2px;
+      border-style: solid;
+      border-radius: 0.5rem;
+      padding: 0.625rem;
+      transition: box-shadow 0.15s ease-in-out, border-color 0.15s ease-in-out;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    .scenario-card:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Collapse toggle rotation */
+    .rotate-180 {
+      transform: rotate(180deg);
+    }
+  `]
 })
 export class TradePlanComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
@@ -1186,6 +1337,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   scenarioPresets: ScenarioPreset[] = [];
   selectedPresetId = '';
   scenarioHistory: ScenarioHistoryDto[] = [];
+  collapsedNodes = new Set<string>();
   private _cachedRootNodes: ScenarioNodeForm[] = [];
   private _cachedChildMap = new Map<string, ScenarioNodeForm[]>();
   private _scenarioVersion = 0;
@@ -2089,6 +2241,18 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   getScenarioChildNodes(parentId: string): ScenarioNodeForm[] {
     return this._cachedChildMap.get(parentId) || [];
+  }
+
+  hasScenarioChildren(nodeId: string): boolean {
+    return (this._cachedChildMap.get(nodeId) || []).length > 0;
+  }
+
+  toggleScenarioCollapse(nodeId: string): void {
+    if (this.collapsedNodes.has(nodeId)) {
+      this.collapsedNodes.delete(nodeId);
+    } else {
+      this.collapsedNodes.add(nodeId);
+    }
   }
 
   addScenarioNode(parentId: string | null): void {
