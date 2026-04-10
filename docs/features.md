@@ -345,6 +345,7 @@ Hai cơ chế song song trong project:
 - **Dropdown danh mục**: hiện thêm tổng vốn bên cạnh tên
 - **Position info**: hiện thông tin vị thế khi bán (đang nắm giữ, giá TB, P&L)
 - **Fee auto-calculation**: tự tính phí + thuế từ FeeService
+- **Auto-suggest 2 chiều Portfolio ↔ Symbol**: chọn danh mục → hiện chips cổ phiếu có vị thế, chọn symbol → auto-select danh mục chứa vị thế. BÁN: chỉ hiện CP có quantity > 0, disable nút bán + alert banner nếu symbol không khớp danh mục
 
 ---
 
