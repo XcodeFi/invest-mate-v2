@@ -9,6 +9,7 @@ public class GetScenarioSuggestionQuery : IRequest<ScenarioSuggestionDto>
     public string Symbol { get; set; } = null!;
     public decimal EntryPrice { get; set; }
     public TimeHorizon TimeHorizon { get; set; } = TimeHorizon.Medium;
+    public string UserId { get; set; } = null!;
 }
 
 public class GetScenarioSuggestionQueryHandler : IRequestHandler<GetScenarioSuggestionQuery, ScenarioSuggestionDto>

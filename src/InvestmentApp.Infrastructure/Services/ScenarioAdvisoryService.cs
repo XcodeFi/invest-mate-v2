@@ -31,12 +31,21 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
 
         if (activePlans.Count == 0) return advisories;
 
+        // Batch fetch prices — deduplicate symbols and fetch in parallel
+        var distinctSymbols = activePlans.Select(p => p.Symbol).Distinct().ToList();
+        var priceTasks = distinctSymbols.Select(async s =>
+        {
+            var data = await _marketDataProvider.GetCurrentPriceAsync(s, ct);
+            return (Symbol: s, Price: data?.Close);
+        });
+        var priceResults = await Task.WhenAll(priceTasks);
+        var priceMap = priceResults
+            .Where(r => r.Price.HasValue)
+            .ToDictionary(r => r.Symbol, r => r.Price!.Value);
+
         foreach (var plan in activePlans)
         {
-            var priceData = await _marketDataProvider.GetCurrentPriceAsync(plan.Symbol, ct);
-            if (priceData == null) continue;
-
-            var currentPrice = priceData.Close;
+            if (!priceMap.TryGetValue(plan.Symbol, out var currentPrice)) continue;
 
             foreach (var node in plan.ScenarioNodes!)
             {

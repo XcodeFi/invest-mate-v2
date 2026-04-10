@@ -820,6 +820,8 @@ Mỗi node gồm:
 | `DeleteScenarioTemplateCommandHandlerTests.cs` (Application) | 3 |
 | `ScenarioEvaluationServiceTests.cs` (Infrastructure) | 13 |
 | `TechnicalIndicatorServiceFibonacciEma200Tests.cs` (Infrastructure) | 6 |
+| `ScenarioConsultantServiceTests.cs` (Infrastructure) | 6 |
+| `ScenarioAdvisoryServiceTests.cs` (Infrastructure) | 7 |
 
 ---
 

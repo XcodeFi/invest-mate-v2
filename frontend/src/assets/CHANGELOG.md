@@ -2,6 +2,37 @@
 
 ---
 
+## [v2.28.0] — 2026-04-10 · P0 Phase 4 — Scenario Consultant & Advisory System
+
+**Branch:** `feat/p0-phase4-advisory`
+
+### P0.6 — Scenario Consultant (gợi ý kịch bản có cơ sở kỹ thuật)
+- **ScenarioConsultantService:** Phân tích kỹ thuật → gợi ý kịch bản chốt lời, cắt lỗ, mua thêm, sideway
+- **Confluence scoring:** Vùng có ≥ 2 indicator hội tụ (S/R + Fibonacci + EMA + Bollinger) → ưu tiên cao hơn
+- **Tầm nhìn đầu tư:** Dropdown Ngắn hạn / Trung hạn / Dài hạn — tự động fill mốc thời gian
+- **Preview + chọn lọc:** Xem gợi ý kèm reasoning, checkbox từng node, nút "Áp dụng gợi ý" / "Tạo kế hoạch từ gợi ý"
+- **API:** `GET /api/v1/trade-plans/scenario-suggestion?symbol=HPG&entryPrice=75000&timeHorizon=Medium`
+
+### P0.5 — Gợi ý hành động theo vùng giá
+- **ScenarioAdvisoryService:** Quét giá hiện tại vs kịch bản active → gợi ý hành động on-demand
+- **Dashboard widget:** "Gợi ý hành động" hiển thị khi giá vào vùng trigger
+- **Wording advisory:** "Xem xét bán 30%", "Xem xét cắt lỗ" — không dùng "Đã..." hay "Cần phải..."
+- **API:** `GET /api/v1/trade-plans/advisories`
+
+### Code Review Fixes
+- Input validation trên endpoint (symbol + entryPrice)
+- UserId scoping cho scenario-suggestion
+- N+1 → batch parallel fetch giá (deduplicate symbols)
+- Category mismatch backend/frontend (AddPosition)
+- Nullable RSI explicit check
+- CancellationToken propagation
+- trackBy cho ngFor suggestion list
+
+### Tests
+- 768 tests pass (Domain: 584, Application: 65, Infrastructure: 118, Api: 1)
+
+---
+
 ## [v2.27.0] — 2026-04-10 · P0 Phase 2+3 — Flowchart, Fibonacci, Candlestick Chart
 
 **Branch:** `feat/p0-phase2-3-improvements`

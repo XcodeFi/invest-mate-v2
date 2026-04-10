@@ -56,15 +56,20 @@ public class TradePlansController : ControllerBase
     public async Task<IActionResult> GetScenarioSuggestion(
         [FromQuery] string symbol,
         [FromQuery] decimal entryPrice,
-        [FromQuery] TimeHorizon timeHorizon = TimeHorizon.Medium)
+        [FromQuery] TimeHorizon timeHorizon = TimeHorizon.Medium,
+        CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(symbol) || entryPrice <= 0)
+            return BadRequest(new { message = "Symbol and entryPrice (> 0) are required" });
+
         var query = new GetScenarioSuggestionQuery
         {
-            Symbol = symbol,
+            Symbol = symbol.Trim().ToUpper(),
             EntryPrice = entryPrice,
-            TimeHorizon = timeHorizon
+            TimeHorizon = timeHorizon,
+            UserId = GetUserId()
         };
-        var result = await _mediator.Send(query);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -73,10 +78,10 @@ public class TradePlansController : ControllerBase
     /// </summary>
     [HttpGet("advisories")]
     [ProducesResponseType(typeof(List<ScenarioAdvisory>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetScenarioAdvisories()
+    public async Task<IActionResult> GetScenarioAdvisories(CancellationToken cancellationToken = default)
     {
         var query = new GetScenarioAdvisoriesQuery { UserId = GetUserId() };
-        var result = await _mediator.Send(query);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 

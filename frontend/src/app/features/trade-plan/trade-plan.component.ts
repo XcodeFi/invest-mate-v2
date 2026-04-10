@@ -672,7 +672,7 @@ interface TradePlanForm {
                   </div>
                   <!-- Suggested nodes list -->
                   <div class="space-y-2 mb-3">
-                    <div *ngFor="let sn of scenarioSuggestion.nodes"
+                    <div *ngFor="let sn of scenarioSuggestion.nodes; trackBy: trackBySuggestionNodeId"
                       class="bg-white border rounded-lg p-2.5 flex items-start gap-2"
                       [class.border-indigo-200]="selectedSuggestionNodes.has(sn.nodeId)"
                       [class.border-gray-200]="!selectedSuggestionNodes.has(sn.nodeId)">
@@ -687,8 +687,8 @@ interface TradePlanForm {
                             [class.text-green-700]="sn.category === 'TakeProfit'"
                             [class.bg-red-100]="sn.category === 'StopLoss'"
                             [class.text-red-700]="sn.category === 'StopLoss'"
-                            [class.bg-blue-100]="sn.category === 'AddMore'"
-                            [class.text-blue-700]="sn.category === 'AddMore'"
+                            [class.bg-blue-100]="sn.category === 'AddPosition'"
+                            [class.text-blue-700]="sn.category === 'AddPosition'"
                             [class.bg-amber-100]="sn.category === 'Sideway'"
                             [class.text-amber-700]="sn.category === 'Sideway'">
                             {{ getCategoryLabel(sn.category) }}
@@ -2349,11 +2349,13 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     }
   }
 
+  trackBySuggestionNodeId = (_: number, sn: any) => sn.nodeId;
+
   getCategoryLabel(category: string): string {
     const map: Record<string, string> = {
       'TakeProfit': 'Chốt lời',
       'StopLoss': 'Cắt lỗ',
-      'AddMore': 'Mua thêm',
+      'AddPosition': 'Mua thêm',
       'Sideway': 'Sideway'
     };
     return map[category] || category;

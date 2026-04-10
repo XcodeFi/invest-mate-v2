@@ -73,7 +73,7 @@ public class ScenarioConsultantService : IScenarioConsultantService
         if (slNode != null) nodes.Add(slNode);
 
         // ── 3. AddPosition node (RSI < 40 or near strong support) ─────────
-        if (technical.Rsi14 < 40m || IsNearStrongSupport(technical, entryPrice))
+        if ((technical.Rsi14.HasValue && technical.Rsi14.Value < 40m) || IsNearStrongSupport(technical, entryPrice))
         {
             var addNode = BuildAddPositionNode(technical, entryPrice, ref order);
             if (addNode != null) nodes.Add(addNode);
