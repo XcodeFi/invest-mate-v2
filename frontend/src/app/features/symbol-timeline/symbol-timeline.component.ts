@@ -4,10 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Subject, of } from 'rxjs';
 import { takeUntil, switchMap, catchError } from 'rxjs/operators';
-import { createChart, IChartApi, ISeriesApi, Time, SeriesMarker, LineData } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, Time, SeriesMarker, LineData, CandlestickData, LineStyle, IPriceLine } from 'lightweight-charts';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
-import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
+import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
@@ -225,6 +225,33 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
 
       <!-- Chart -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 relative">
+        <!-- Chart overlay toggles -->
+        <div class="flex gap-2 mb-3 flex-wrap">
+          <button (click)="toggleOverlay('candle')"
+            [class]="showCandle
+              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
+              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
+            Nến
+          </button>
+          <button (click)="toggleOverlay('ema')"
+            [class]="showEma
+              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
+              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
+            EMA
+          </button>
+          <button (click)="toggleOverlay('sr')"
+            [class]="showSR
+              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
+              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
+            S/R
+          </button>
+          <button (click)="toggleOverlay('fib')"
+            [class]="showFib
+              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
+              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
+            Fibonacci
+          </button>
+        </div>
         <div #chartContainer class="w-full" style="height: 420px;"></div>
         <div #chartTooltip class="absolute pointer-events-none bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-50 max-w-xs hidden"
           style="transition: opacity 0.15s ease;">
@@ -589,8 +616,21 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
 
   // Chart
   private chart: IChartApi | null = null;
-  private priceSeries: ISeriesApi<'Line'> | null = null;
+  private candleSeries: ISeriesApi<'Candlestick'> | null = null;
+  private lineSeries: ISeriesApi<'Line'> | null = null;
   private emotionSeries: ISeriesApi<'Histogram'> | null = null;
+  private technicalAnalysis: TechnicalAnalysis | null = null;
+
+  // Chart overlay toggles
+  showCandle = true;
+  showEma = true;
+  showSR = true;
+  showFib = false;
+
+  // Overlay references
+  private emaPriceLines: IPriceLine[] = [];
+  private srPriceLines: IPriceLine[] = [];
+  private fibPriceLines: IPriceLine[] = [];
 
   // Derived
   topEmotion = '';
@@ -679,6 +719,14 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
           this.notificationService.error('Lỗi', 'Không thể tải dữ liệu giá');
         }
       });
+
+    // Fetch technical analysis for overlays
+    this.marketDataService.getTechnicalAnalysis(this.symbol)
+      .pipe(takeUntil(this.destroy$), catchError(() => of(null)))
+      .subscribe(ta => {
+        this.technicalAnalysis = ta;
+        this.updateOverlays();
+      });
   }
 
   // ===== Chart =====
@@ -705,11 +753,25 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       height: 380
     });
 
-    this.priceSeries = this.chart.addLineSeries({
+    // Candlestick series (primary)
+    this.candleSeries = this.chart.addCandlestickSeries({
+      upColor: '#22c55e',
+      downColor: '#ef4444',
+      borderUpColor: '#16a34a',
+      borderDownColor: '#dc2626',
+      wickUpColor: '#16a34a',
+      wickDownColor: '#dc2626',
+      priceLineVisible: true,
+      lastValueVisible: true
+    });
+
+    // Line series fallback (shown when candle is toggled off)
+    this.lineSeries = this.chart.addLineSeries({
       color: '#6366f1',
       lineWidth: 2,
       priceLineVisible: true,
-      lastValueVisible: true
+      lastValueVisible: true,
+      visible: false
     });
 
     // Emotion histogram (7C.1)
@@ -777,31 +839,54 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private updateChartData() {
-    if (!this.priceSeries || this.priceHistory.length === 0) return;
+    if ((!this.candleSeries && !this.lineSeries) || this.priceHistory.length === 0) return;
 
-    const lineData: LineData[] = this.priceHistory
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(p => ({
-        time: p.date.split('T')[0] as Time,
-        value: p.close
-      }));
+    const sorted = this.priceHistory
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Candlestick data (OHLC)
+    const candleData: CandlestickData[] = sorted.map(p => ({
+      time: p.date.split('T')[0] as Time,
+      open: p.open,
+      high: p.high,
+      low: p.low,
+      close: p.close
+    }));
+
+    // Line data (close only, for fallback)
+    const lineData: LineData[] = sorted.map(p => ({
+      time: p.date.split('T')[0] as Time,
+      value: p.close
+    }));
 
     // Extend chart to today using current market price
     const today = new Date().toISOString().split('T')[0];
-    const lastDay = lineData.length > 0 ? lineData[lineData.length - 1].time as string : '';
+    const lastCandle = candleData.length > 0 ? candleData[candleData.length - 1] : null;
+    const lastDay = lastCandle ? lastCandle.time as string : '';
     if (lastDay && lastDay < today) {
-      const todayPrice = this.currentPrice?.close ?? lineData[lineData.length - 1].value;
+      const todayPrice = this.currentPrice?.close ?? lastCandle!.close;
+      candleData.push({
+        time: today as Time,
+        open: todayPrice,
+        high: todayPrice,
+        low: todayPrice,
+        close: todayPrice
+      });
       lineData.push({ time: today as Time, value: todayPrice });
     }
 
-    this.priceSeries.setData(lineData);
+    if (this.candleSeries) this.candleSeries.setData(candleData);
+    if (this.lineSeries) this.lineSeries.setData(lineData);
+
     this.chart?.timeScale().fitContent();
     this.updateChartMarkers();
     this.updateEmotionRibbon();
+    this.updateOverlays();
   }
 
   private updateChartMarkers() {
-    if (!this.priceSeries || !this.timeline) return;
+    const activeSeries = this.showCandle ? this.candleSeries : this.lineSeries;
+    if (!activeSeries || !this.timeline) return;
 
     // Group items by date
     const byDate = new Map<string, TimelineItem[]>();
@@ -868,7 +953,7 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
 
     // Sort markers by time (required by lightweight-charts)
     markers.sort((a, b) => (a.time as string).localeCompare(b.time as string));
-    this.priceSeries.setMarkers(markers);
+    activeSeries.setMarkers(markers);
   }
 
   // 7C.1 — Emotion Ribbon
@@ -892,6 +977,172 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
     if (emotionData.length > 0) {
       emotionData.sort((a, b) => (a.time as string).localeCompare(b.time as string));
       this.emotionSeries.setData(emotionData as any);
+    }
+  }
+
+  // ===== Chart Overlays =====
+
+  toggleOverlay(overlay: 'candle' | 'ema' | 'sr' | 'fib') {
+    switch (overlay) {
+      case 'candle':
+        // Remove overlays from current series before switching
+        this.clearAllOverlayLines();
+        // Clear markers from old active series
+        const oldSeries = this.getOverlaySeries();
+        if (oldSeries) oldSeries.setMarkers([]);
+        this.showCandle = !this.showCandle;
+        if (this.candleSeries) this.candleSeries.applyOptions({ visible: this.showCandle });
+        if (this.lineSeries) this.lineSeries.applyOptions({ visible: !this.showCandle });
+        // Re-create overlays on new active series
+        this.updateOverlays();
+        this.updateChartMarkers();
+        break;
+      case 'ema':
+        this.showEma = !this.showEma;
+        this.updateEmaOverlay();
+        break;
+      case 'sr':
+        this.showSR = !this.showSR;
+        this.updateSROverlay();
+        break;
+      case 'fib':
+        this.showFib = !this.showFib;
+        this.updateFibOverlay();
+        break;
+    }
+  }
+
+  private updateOverlays() {
+    this.updateEmaOverlay();
+    this.updateSROverlay();
+    this.updateFibOverlay();
+  }
+
+  private getOverlaySeries(): ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null {
+    return this.showCandle ? this.candleSeries : this.lineSeries;
+  }
+
+  private clearAllOverlayLines() {
+    const series = this.getOverlaySeries();
+    if (!series) return;
+    for (const line of this.emaPriceLines) { series.removePriceLine(line); }
+    for (const line of this.srPriceLines) { series.removePriceLine(line); }
+    for (const line of this.fibPriceLines) { series.removePriceLine(line); }
+    this.emaPriceLines = [];
+    this.srPriceLines = [];
+    this.fibPriceLines = [];
+  }
+
+  private updateEmaOverlay() {
+    const series = this.getOverlaySeries();
+    if (!series) return;
+
+    // Remove existing EMA lines
+    for (const line of this.emaPriceLines) {
+      series.removePriceLine(line);
+    }
+    this.emaPriceLines = [];
+
+    if (!this.showEma || !this.technicalAnalysis) return;
+
+    const ta = this.technicalAnalysis;
+    const emaLevels: { value: number | undefined; label: string; color: string }[] = [
+      { value: ta.ema20, label: 'EMA 20', color: '#3b82f6' },
+      { value: ta.ema50, label: 'EMA 50', color: '#f97316' },
+      { value: ta.ema200, label: 'EMA 200', color: '#a855f7' }
+    ];
+
+    for (const ema of emaLevels) {
+      if (ema.value != null) {
+        const line = series.createPriceLine({
+          price: ema.value,
+          color: ema.color,
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          axisLabelVisible: true,
+          title: ema.label
+        });
+        this.emaPriceLines.push(line);
+      }
+    }
+  }
+
+  private updateSROverlay() {
+    const series = this.getOverlaySeries();
+    if (!series) return;
+
+    // Remove existing S/R lines
+    for (const line of this.srPriceLines) {
+      series.removePriceLine(line);
+    }
+    this.srPriceLines = [];
+
+    if (!this.showSR || !this.technicalAnalysis) return;
+
+    const ta = this.technicalAnalysis;
+
+    // Support levels (green dashed)
+    for (let i = 0; i < (ta.supportLevels?.length ?? 0); i++) {
+      const line = series.createPriceLine({
+        price: ta.supportLevels[i],
+        color: '#22c55e',
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `S${i + 1}`
+      });
+      this.srPriceLines.push(line);
+    }
+
+    // Resistance levels (red dashed)
+    for (let i = 0; i < (ta.resistanceLevels?.length ?? 0); i++) {
+      const line = series.createPriceLine({
+        price: ta.resistanceLevels[i],
+        color: '#ef4444',
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `R${i + 1}`
+      });
+      this.srPriceLines.push(line);
+    }
+  }
+
+  private updateFibOverlay() {
+    const series = this.getOverlaySeries();
+    if (!series) return;
+
+    // Remove existing Fibonacci lines
+    for (const line of this.fibPriceLines) {
+      series.removePriceLine(line);
+    }
+    this.fibPriceLines = [];
+
+    if (!this.showFib || !this.technicalAnalysis?.fibonacci) return;
+
+    const fib = this.technicalAnalysis.fibonacci;
+    const fibLevels: { value: number; label: string; color: string }[] = [
+      { value: fib.retracement236, label: 'Fib 23.6%', color: '#d97706' },
+      { value: fib.retracement382, label: 'Fib 38.2%', color: '#b45309' },
+      { value: fib.retracement500, label: 'Fib 50%', color: '#92400e' },
+      { value: fib.retracement618, label: 'Fib 61.8%', color: '#78350f' },
+      { value: fib.retracement786, label: 'Fib 78.6%', color: '#451a03' },
+      { value: fib.extension1272, label: 'Ext 127.2%', color: '#ca8a04' },
+      { value: fib.extension1618, label: 'Ext 161.8%', color: '#eab308' }
+    ];
+
+    for (const level of fibLevels) {
+      if (level.value != null && level.value > 0) {
+        const line = series.createPriceLine({
+          price: level.value,
+          color: level.color,
+          lineWidth: 1,
+          lineStyle: LineStyle.SparseDotted,
+          axisLabelVisible: true,
+          title: level.label
+        });
+        this.fibPriceLines.push(line);
+      }
     }
   }
 

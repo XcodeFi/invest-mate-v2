@@ -2,7 +2,7 @@ namespace InvestmentApp.Application.Interfaces;
 
 public interface ITechnicalIndicatorService
 {
-    Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, CancellationToken cancellationToken = default);
+    Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, int months = 12, CancellationToken cancellationToken = default);
 }
 
 public class TechnicalAnalysisResult
@@ -60,9 +60,28 @@ public class TechnicalAnalysisResult
     public decimal? Atr14 { get; set; }
     public decimal? AtrPercent { get; set; } // ATR as % of current price
 
+    // EMA200
+    public decimal? Ema200 { get; set; }
+
+    // Fibonacci Retracement / Extension
+    public FibonacciLevels? Fibonacci { get; set; }
+
     // Trade suggestion
     public decimal? SuggestedEntry { get; set; }
     public decimal? SuggestedStopLoss { get; set; }
     public decimal? SuggestedTarget { get; set; }
     public decimal? RiskRewardRatio { get; set; }
+}
+
+public class FibonacciLevels
+{
+    public decimal SwingHigh { get; set; }
+    public decimal SwingLow { get; set; }
+    public decimal Retracement236 { get; set; }
+    public decimal Retracement382 { get; set; }
+    public decimal Retracement500 { get; set; }
+    public decimal Retracement618 { get; set; }
+    public decimal Retracement786 { get; set; }
+    public decimal Extension1272 { get; set; }
+    public decimal Extension1618 { get; set; }
 }

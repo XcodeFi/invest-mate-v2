@@ -146,6 +146,18 @@ export interface TechnicalAnalysis {
   bollingerBandwidth?: number;
   bollingerPercentB?: number;
   bollingerSignal?: string;
+  ema200?: number;
+  fibonacci?: {
+    swingHigh: number;
+    swingLow: number;
+    retracement236: number;
+    retracement382: number;
+    retracement500: number;
+    retracement618: number;
+    retracement786: number;
+    extension1272: number;
+    extension1618: number;
+  };
   atr14?: number;
   atrPercent?: number;
   suggestedEntry?: number;

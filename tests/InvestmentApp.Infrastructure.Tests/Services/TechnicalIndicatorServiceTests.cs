@@ -459,4 +459,46 @@ public class TechnicalIndicatorServiceTests
         result.OverallSignal.Should().BeOneOf("strong_buy", "buy", "hold", "sell", "strong_sell");
         result.OverallSignalVi.Should().BeOneOf("Mua mạnh", "Mua", "Chờ", "Bán", "Bán mạnh");
     }
+
+    // ─── Tests: Configurable months parameter ───────────────────────────
+
+    [Fact]
+    public async Task AnalyzeAsync_WithMonthsParameter_FetchesCorrectDateRange()
+    {
+        // Arrange — request 12 months of data
+        var prices = GeneratePriceHistory(60, startPrice: 80_000m, dailyChange: 200m);
+        DateTime capturedFrom = default;
+        _marketDataMock
+            .Setup(m => m.GetHistoricalPricesAsync(Symbol, It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback<string, DateTime, DateTime, CancellationToken>((_, from, _, _) => capturedFrom = from)
+            .ReturnsAsync(prices);
+
+        // Act
+        await _sut.AnalyzeAsync(Symbol, months: 12);
+
+        // Assert — the 'from' date should be ~12 months ago (within a small tolerance)
+        var expected = DateTime.UtcNow.AddMonths(-12);
+        capturedFrom.Should().BeCloseTo(expected, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_WithoutMonthsParameter_DefaultsTo12Months()
+    {
+        // Arrange
+        var prices = GeneratePriceHistory(60, startPrice: 80_000m, dailyChange: 200m);
+        DateTime capturedFrom = default;
+        _marketDataMock
+            .Setup(m => m.GetHistoricalPricesAsync(Symbol, It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback<string, DateTime, DateTime, CancellationToken>((_, from, _, _) => capturedFrom = from)
+            .ReturnsAsync(prices);
+
+        // Act — no months parameter, should default to 12
+        await _sut.AnalyzeAsync(Symbol);
+
+        // Assert — the 'from' date should be ~12 months ago (not 6)
+        var expected12MonthsAgo = DateTime.UtcNow.AddMonths(-12);
+        var wrong6MonthsAgo = DateTime.UtcNow.AddMonths(-6);
+        capturedFrom.Should().BeCloseTo(expected12MonthsAgo, TimeSpan.FromSeconds(5));
+        capturedFrom.Should().NotBeCloseTo(wrong6MonthsAgo, TimeSpan.FromMinutes(1));
+    }
 }
