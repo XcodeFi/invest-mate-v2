@@ -6,8 +6,11 @@ using InvestmentApp.Application.TradePlans.Commands.ExecuteLot;
 using InvestmentApp.Application.TradePlans.Commands.UpdateStopLoss;
 using InvestmentApp.Application.TradePlans.Commands.TriggerExitTarget;
 using InvestmentApp.Application.TradePlans.Commands.TriggerScenarioNode;
+using InvestmentApp.Application.TradePlans.Commands.SaveScenarioTemplate;
+using InvestmentApp.Application.TradePlans.Commands.DeleteScenarioTemplate;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioTemplates;
+using InvestmentApp.Application.TradePlans.Queries.GetScenarioHistory;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -43,14 +46,45 @@ public class TradePlansController : ControllerBase
     }
 
     /// <summary>
-    /// Get scenario preset templates
+    /// Get scenario templates (presets + user custom)
     /// </summary>
     [HttpGet("scenario-templates")]
     [ProducesResponseType(typeof(List<ScenarioPresetDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScenarioTemplates()
     {
-        var result = await _mediator.Send(new GetScenarioTemplatesQuery());
+        var result = await _mediator.Send(new GetScenarioTemplatesQuery { UserId = GetUserId() });
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Save a custom scenario template
+    /// </summary>
+    [HttpPost("scenario-templates")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
+    public async Task<IActionResult> SaveScenarioTemplate([FromBody] SaveScenarioTemplateCommand command)
+    {
+        command.UserId = GetUserId();
+        var id = await _mediator.Send(command);
+        return Created($"/api/v1/trade-plans/scenario-templates/{id}", new { id });
+    }
+
+    /// <summary>
+    /// Delete a custom scenario template
+    /// </summary>
+    [HttpDelete("scenario-templates/{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteScenarioTemplate(string id)
+    {
+        try
+        {
+            var command = new DeleteScenarioTemplateCommand { Id = id, UserId = GetUserId() };
+            await _mediator.Send(command);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { message = "Scenario template not found" });
+        }
     }
 
     /// <summary>
@@ -144,6 +178,26 @@ public class TradePlansController : ControllerBase
         command.UserId = GetUserId();
         await _mediator.Send(command);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Get scenario history for a trade plan
+    /// </summary>
+    [HttpGet("{id}/scenario-history")]
+    [ProducesResponseType(typeof(List<ScenarioHistoryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetScenarioHistory(string id)
+    {
+        try
+        {
+            var query = new GetScenarioHistoryQuery { TradePlanId = id, UserId = GetUserId() };
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { message = "Trade plan not found" });
+        }
     }
 
     /// <summary>

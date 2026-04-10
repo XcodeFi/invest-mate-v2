@@ -10,17 +10,20 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly IStockPriceRepository _stockPriceRepository;
     private readonly IAlertHistoryRepository _alertHistoryRepository;
+    private readonly ITechnicalIndicatorService _technicalIndicatorService;
     private readonly ILogger<ScenarioEvaluationService> _logger;
 
     public ScenarioEvaluationService(
         ITradePlanRepository tradePlanRepository,
         IStockPriceRepository stockPriceRepository,
         IAlertHistoryRepository alertHistoryRepository,
+        ITechnicalIndicatorService technicalIndicatorService,
         ILogger<ScenarioEvaluationService> logger)
     {
         _tradePlanRepository = tradePlanRepository;
         _stockPriceRepository = stockPriceRepository;
         _alertHistoryRepository = alertHistoryRepository;
+        _technicalIndicatorService = technicalIndicatorService;
         _logger = logger;
     }
 
@@ -64,7 +67,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         var modified = false;
 
         // Update trailing stop data for already-triggered trailing nodes
-        UpdateTrailingStops(plan, currentPrice);
+        await UpdateTrailingStopsAsync(plan, currentPrice, cancellationToken);
 
         // Iterate in rounds: evaluate, trigger, then re-evaluate newly-evaluable children
         bool anyTriggered;
@@ -110,7 +113,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
 
                         // After triggering, update trailing stops for the newly triggered node
                         if (node.ActionType == ScenarioActionType.ActivateTrailingStop)
-                            UpdateTrailingStops(plan, currentPrice);
+                            await UpdateTrailingStopsAsync(plan, currentPrice, cancellationToken);
                     }
                     catch (Exception ex)
                     {
@@ -183,7 +186,8 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         return daysPassed >= (double)node.ConditionValue.Value;
     }
 
-    private void UpdateTrailingStops(TradePlan plan, decimal currentPrice)
+    private async Task UpdateTrailingStopsAsync(TradePlan plan, decimal currentPrice,
+        CancellationToken cancellationToken)
     {
         var nodes = plan.ScenarioNodes!;
 
@@ -192,6 +196,10 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
             n.Status == ScenarioNodeStatus.Triggered &&
             n.ActionType == ScenarioActionType.ActivateTrailingStop &&
             n.TrailingStopConfig != null).ToList();
+
+        // Check if any node uses ATR method — fetch ATR once per symbol
+        decimal? atr14 = null;
+        bool atrFetched = false;
 
         foreach (var trailingNode in trailingNodes)
         {
@@ -212,6 +220,21 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                 }
                 config.HighestPrice = currentPrice;
 
+                // Fetch ATR lazily (only when an ATR node is encountered)
+                if (config.Method == TrailingStopMethod.ATR && !atrFetched)
+                {
+                    atrFetched = true;
+                    try
+                    {
+                        var analysis = await _technicalIndicatorService.AnalyzeAsync(plan.Symbol, cancellationToken);
+                        atr14 = analysis.Atr14;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to fetch ATR for {Symbol}, using proxy fallback", plan.Symbol);
+                    }
+                }
+
                 // Compute trailing stop
                 config.CurrentTrailingStop = config.Method switch
                 {
@@ -219,9 +242,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                         config.HighestPrice.Value * (1 - config.TrailValue / 100m),
                     TrailingStopMethod.FixedAmount =>
                         config.HighestPrice.Value - config.TrailValue,
-                    TrailingStopMethod.ATR =>
-                        // ATR requires external data; for now use as multiplier of a base value
-                        config.HighestPrice.Value - config.TrailValue * (plan.EntryPrice * 0.02m),
+                    TrailingStopMethod.ATR => ComputeAtrTrailingStop(config, plan.EntryPrice, atr14),
                     _ => config.HighestPrice.Value * (1 - config.TrailValue / 100m)
                 };
             }
@@ -243,6 +264,19 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                 }
             }
         }
+    }
+
+    private decimal ComputeAtrTrailingStop(TrailingStopConfig config, decimal entryPrice, decimal? atr14)
+    {
+        if (atr14.HasValue)
+        {
+            return config.HighestPrice!.Value - config.TrailValue * atr14.Value;
+        }
+
+        // Fallback: use entry price × 2% as ATR proxy
+        _logger.LogWarning(
+            "ATR(14) not available, using proxy (entryPrice × 0.02) for trailing stop calculation");
+        return config.HighestPrice!.Value - config.TrailValue * (entryPrice * 0.02m);
     }
 
     private async Task CreateAlertHistory(TradePlan plan, ScenarioNode node, decimal currentPrice,

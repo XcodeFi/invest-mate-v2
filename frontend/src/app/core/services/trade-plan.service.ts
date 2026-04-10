@@ -75,6 +75,20 @@ export interface ScenarioPreset {
   nameVi: string;
   description: string;
   nodes: ScenarioNodeDto[];
+  isPreset: boolean;
+}
+
+export interface ScenarioHistoryDto {
+  nodeId: string;
+  label: string;
+  status: string;
+  triggeredAt: string | null;
+  priceAtTrigger: number | null;
+  actionType: string;
+  actionValue: number | null;
+  conditionType: string;
+  conditionValue: number | null;
+  parentId: string | null;
 }
 
 export interface TradePlan {
@@ -234,6 +248,21 @@ export class TradePlanService {
 
   getScenarioTemplates(): Observable<ScenarioPreset[]> {
     return this.http.get<ScenarioPreset[]>(`${this.API_URL}/scenario-templates`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getScenarioHistory(planId: string): Observable<ScenarioHistoryDto[]> {
+    return this.http.get<ScenarioHistoryDto[]>(`${this.API_URL}/${planId}/scenario-history`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  saveScenarioTemplate(data: { name: string; description: string; nodes: ScenarioNodeDto[] }): Observable<{ id: string }> {
+    return this.http.post<{ id: string }>(`${this.API_URL}/scenario-templates`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  deleteScenarioTemplate(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/scenario-templates/${id}`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

@@ -786,22 +786,27 @@ Mỗi node gồm:
 - **Domain:** `TradePlan` entity — thêm `ExitStrategyMode`, `ScenarioNodes` properties + methods `SetExitStrategyMode()`, `SetScenarioNodes()`, `TriggerScenarioNode()`
 - **Domain Events:** `ScenarioNodeTriggeredEvent`
 - **Value Objects:** `ScenarioNode` (Condition, Action, Children), `TrailingStopConfig` (Method, TrailValue, ActivationPrice, StepSize)
-- **CQRS:** `TriggerScenarioNodeCommand`, `GetScenarioTemplatesQuery`
-- **Service:** `IScenarioEvaluationService` + `ScenarioEvaluationService` — đánh giá cây kịch bản
-- **Worker:** `EvaluateScenarioPlaybooksAsync` task (15 phút)
+- **CQRS:** `TriggerScenarioNodeCommand`, `GetScenarioTemplatesQuery`, `GetScenarioHistoryQuery`, `SaveScenarioTemplateCommand`, `DeleteScenarioTemplateCommand`
+- **Service:** `IScenarioEvaluationService` + `ScenarioEvaluationService` — đánh giá cây kịch bản (dùng ATR(14) thực tế cho trailing stop)
+- **Entity:** `ScenarioTemplate` — user-scoped custom scenario templates
 
 **API Endpoints:**
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | `PATCH` | `/api/v1/trade-plans/{id}/scenario-nodes/{nodeId}/trigger` | Kích hoạt scenario node thủ công |
-| `GET` | `/api/v1/trade-plans/scenario-templates` | Lấy danh sách preset templates |
+| `GET` | `/api/v1/trade-plans/scenario-templates` | Lấy danh sách templates (preset + user custom) |
+| `POST` | `/api/v1/trade-plans/scenario-templates` | Lưu mẫu kịch bản tùy chỉnh |
+| `DELETE` | `/api/v1/trade-plans/scenario-templates/{id}` | Xoá mẫu kịch bản |
+| `GET` | `/api/v1/trade-plans/{id}/scenario-history` | Lịch sử kích hoạt scenario nodes |
 
 ### Frontend
 
 - **Toggle mode:** Chuyển đổi Cơ bản / Nâng cao trong form Trade Plan
 - **Tree editor:** Giao diện soạn cây kịch bản (thêm/xoá node, chọn condition/action)
 - **Preset templates:** Chọn template An toàn / Cân bằng / Tích cực → điền sẵn cây kịch bản
+- **Custom templates:** Lưu/tải mẫu kịch bản tùy chỉnh (Mẫu hệ thống | Mẫu của tôi)
+- **Scenario history panel:** Hiển thị trạng thái + lịch sử kích hoạt từng node (Đã kích hoạt / Chờ / Bỏ qua)
 
 ### Tests
 
@@ -809,7 +814,11 @@ Mỗi node gồm:
 |-----------|:-------:|
 | `TradePlanScenarioTests.cs` (Domain) | 20 |
 | `TriggerScenarioNodeCommandHandlerTests.cs` (Application) | 3 |
-| `ScenarioEvaluationServiceTests.cs` (Infrastructure) | 10 |
+| `GetScenarioHistoryQueryHandlerTests.cs` (Application) | 3 |
+| `GetScenarioTemplatesQueryHandlerTests.cs` (Application) | 3 |
+| `SaveScenarioTemplateCommandHandlerTests.cs` (Application) | 2 |
+| `DeleteScenarioTemplateCommandHandlerTests.cs` (Application) | 3 |
+| `ScenarioEvaluationServiceTests.cs` (Infrastructure) | 13 |
 
 ---
 

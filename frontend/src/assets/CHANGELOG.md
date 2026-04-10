@@ -2,6 +2,38 @@
 
 ---
 
+## [v2.26.0] — 2026-04-10 · P0 Phase 1 — Scenario Playbook Improvements
+
+**Branch:** `feat/p0-phase1-improvements`
+
+### P0.1 — Scenario History & Status Dashboard
+- **Lịch sử kích hoạt:** Hiển thị trạng thái từng node (Đã kích hoạt / Chờ / Bỏ qua) với thời gian + giá
+- **Timeline panel:** Bên dưới tree editor khi plan đang InProgress
+- **API:** `GET /api/v1/trade-plans/{id}/scenario-history`
+
+### P0.2 — User Custom Templates (Save/Load)
+- **Lưu mẫu kịch bản:** Nút "Lưu mẫu kịch bản" tạo template tùy chỉnh từ tree hiện tại
+- **Dropdown phân loại:** Mẫu hệ thống (3 preset) | Mẫu của tôi (user templates)
+- **Xoá mẫu:** Nút xoá kèm xác nhận
+- **API:** `POST /DELETE /api/v1/trade-plans/scenario-templates`
+
+### P0.4 — ATR Trailing Stop thực tế
+- **Fix placeholder:** Thay `entryPrice × 0.02` bằng ATR(14) thực tế từ `TechnicalIndicatorService`
+- **Fallback:** Giữ proxy cũ khi thiếu dữ liệu ATR + log warning
+- **Lazy fetch:** Chỉ gọi `AnalyzeAsync` khi gặp ATR trailing stop node, cache kết quả
+
+### Code Review Fixes
+- Fix Enum.Parse → TryParse cho input validation (trả 400 thay vì 500)
+- Fix sync index creation → async trong ScenarioTemplateRepository
+- Fix thiếu try/catch 404 cho DELETE endpoint
+- Fix alert-node matching: dùng TriggeredAt timestamp thay vì label string
+- Thêm confirm dialog khi xoá mẫu kịch bản
+
+### Tests
+- 747 tests pass (Domain: 584, Application: 65, Infrastructure: 97, Api: 1)
+
+---
+
 ## [v2.25.1] — 2026-04-09 · P7 Bugfix & Chart UX Polish
 
 **Branch:** `feat/p7-improvements`
