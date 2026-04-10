@@ -201,6 +201,7 @@ builder.Services.AddScoped<IPerformanceMetricsService, PerformanceMetricsService
 builder.Services.AddScoped<IStrategyPerformanceService, StrategyPerformanceService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<IScenarioEvaluationService, ScenarioEvaluationService>();
+builder.Services.AddScoped<IScenarioAdvisoryService, ScenarioAdvisoryService>();
 builder.Services.AddTransient<SeedDataService>();
 
 // AI Services

@@ -12,6 +12,7 @@ using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioTemplates;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioHistory;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioSuggestion;
+using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
 using InvestmentApp.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -63,6 +64,18 @@ public class TradePlansController : ControllerBase
             EntryPrice = entryPrice,
             TimeHorizon = timeHorizon
         };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get scenario advisories for all active advanced plans (Dashboard use)
+    /// </summary>
+    [HttpGet("advisories")]
+    [ProducesResponseType(typeof(List<ScenarioAdvisory>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetScenarioAdvisories()
+    {
+        var query = new GetScenarioAdvisoriesQuery { UserId = GetUserId() };
         var result = await _mediator.Send(query);
         return Ok(result);
     }
