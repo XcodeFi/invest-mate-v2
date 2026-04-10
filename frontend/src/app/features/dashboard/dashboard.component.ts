@@ -13,6 +13,7 @@ import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/s
 import { WatchlistService } from '../../core/services/watchlist.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
 import { JournalEntryService, PendingReviewTrade } from '../../core/services/journal-entry.service';
+import { TradePlanService, ScenarioAdvisoryDto } from '../../core/services/trade-plan.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -696,6 +697,48 @@ interface RiskAlert {
         </div>
         }
 
+        <!-- Advisory Widget (P0.5) -->
+        @if (advisories.length > 0) {
+        <div class="bg-amber-50 rounded-xl shadow-sm border border-amber-300 p-6 mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-amber-900 flex items-center gap-2">
+              <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+              </svg>
+              Gợi ý hành động
+              <span class="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">{{ advisories.length }}</span>
+            </h2>
+          </div>
+          <div class="space-y-3">
+            @for (adv of advisories; track adv.nodeId) {
+            <div class="bg-white rounded-lg border border-amber-200 p-4">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="font-bold text-gray-900">{{ adv.symbol }}</span>
+                    <span class="text-xs text-gray-500">Giá hiện tại:</span>
+                    <span class="text-sm font-semibold text-blue-700">{{ adv.currentPrice | vndCurrency }}</span>
+                  </div>
+                  <div class="text-sm text-amber-800 font-medium mb-1">{{ adv.nodeLabel }}</div>
+                  <div class="text-xs text-gray-600 mb-1">
+                    <span class="text-gray-500">Điều kiện:</span> {{ adv.conditionDescription }}
+                  </div>
+                  <div class="text-xs text-gray-700">
+                    <span class="font-medium text-amber-700">Xem xét:</span> {{ adv.actionDescription }}
+                  </div>
+                  <div *ngIf="adv.message" class="mt-2 text-xs text-gray-500 italic">{{ adv.message }}</div>
+                </div>
+                <a [routerLink]="['/trade-plan']" [queryParams]="{ planId: adv.tradePlanId }"
+                  class="flex-shrink-0 px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors">
+                  Xem kế hoạch →
+                </a>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
         <!-- Row 3: Quick Actions -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
@@ -866,6 +909,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Pending Review Widget ──────────────────────────────────────────
   pendingReviewTrades: PendingReviewTrade[] = [];
 
+  // ─── Advisory Widget (P0.5) ──────────────────────────────────────────
+  advisories: ScenarioAdvisoryDto[] = [];
+
   // ─── Capital Flow Visibility ──────────────────────────────────────────
   cashBalance = 0;
   adjustedReturn: AdjustedReturn | null = null;
@@ -884,6 +930,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private watchlistService: WatchlistService,
     private capitalFlowService: CapitalFlowService,
     private journalEntryService: JournalEntryService,
+    private tradePlanService: TradePlanService,
     private router: Router
   ) {}
 
@@ -897,6 +944,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadDailyRoutine();
     this.loadWatchlistWidget();
     this.loadPendingReview();
+    this.loadAdvisories();
   }
 
   // ─── Daily Routine Widget ──────────────────────────────────────────────────
@@ -955,6 +1003,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.journalEntryService.getPendingReview().subscribe({
       next: (trades) => this.pendingReviewTrades = trades,
       error: () => this.pendingReviewTrades = []
+    });
+  }
+
+  // ─── Advisory Widget (P0.5) ──────────────────────────────────────────
+  private loadAdvisories(): void {
+    this.tradePlanService.getAdvisories().pipe(catchError(() => of([]))).subscribe(advisories => {
+      this.advisories = advisories;
     });
   }
 

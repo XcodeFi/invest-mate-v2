@@ -8,7 +8,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
-import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto } from '../../core/services/trade-plan.service';
+import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -618,6 +618,107 @@ interface TradePlanForm {
 
               <!-- ADVANCED MODE: Scenario Playbook -->
               <div *ngIf="exitStrategyMode === 'Advanced'">
+                <!-- Time Horizon + AI Suggestion Row -->
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                  <label class="text-xs text-violet-700 font-medium whitespace-nowrap">Kỳ vọng:</label>
+                  <select [(ngModel)]="selectedTimeHorizon" class="px-2 py-1 border border-violet-300 rounded text-xs">
+                    <option value="Short">Ngắn hạn</option>
+                    <option value="Medium">Trung hạn</option>
+                    <option value="Long">Dài hạn</option>
+                  </select>
+                  <button (click)="fetchScenarioSuggestion()"
+                    [disabled]="!plan.symbol || !plan.entryPrice || loadingSuggestion"
+                    class="px-3 py-1 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded disabled:opacity-50 flex items-center gap-1 font-medium">
+                    <svg *ngIf="!loadingSuggestion" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a2 2 0 01-2.829 0l-.346-.346a5 5 0 010-7.072z"/>
+                    </svg>
+                    <svg *ngIf="loadingSuggestion" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    {{ loadingSuggestion ? 'Đang phân tích...' : 'Gợi ý kịch bản' }}
+                  </button>
+                </div>
+
+                <!-- Scenario Suggestion Panel -->
+                <div *ngIf="scenarioSuggestion" class="mb-4 border border-indigo-200 rounded-lg bg-indigo-50 p-3">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-indigo-800">Phân tích kỹ thuật — {{ scenarioSuggestion.symbol }}</span>
+                    <button (click)="scenarioSuggestion = null" class="text-gray-400 hover:text-gray-600 text-xs">&#10005;</button>
+                  </div>
+                  <!-- Technical basis summary -->
+                  <div class="flex flex-wrap gap-2 mb-3 text-xs">
+                    <span *ngIf="scenarioSuggestion.technicalBasis.ema20" class="bg-white border border-indigo-200 rounded px-2 py-0.5 text-indigo-700">
+                      EMA20: {{ scenarioSuggestion.technicalBasis.ema20 | number:'1.0-0' }}
+                    </span>
+                    <span *ngIf="scenarioSuggestion.technicalBasis.ema50" class="bg-white border border-indigo-200 rounded px-2 py-0.5 text-indigo-700">
+                      EMA50: {{ scenarioSuggestion.technicalBasis.ema50 | number:'1.0-0' }}
+                    </span>
+                    <span *ngIf="scenarioSuggestion.technicalBasis.rsi14" class="bg-white border border-indigo-200 rounded px-2 py-0.5"
+                      [class.text-red-600]="scenarioSuggestion.technicalBasis.rsi14 > 70"
+                      [class.text-green-600]="scenarioSuggestion.technicalBasis.rsi14 < 30"
+                      [class.text-indigo-700]="scenarioSuggestion.technicalBasis.rsi14 >= 30 && scenarioSuggestion.technicalBasis.rsi14 <= 70">
+                      RSI: {{ scenarioSuggestion.technicalBasis.rsi14 | number:'1.0-1' }}
+                    </span>
+                    <span *ngIf="scenarioSuggestion.technicalBasis.atr14" class="bg-white border border-indigo-200 rounded px-2 py-0.5 text-indigo-700">
+                      ATR: {{ scenarioSuggestion.technicalBasis.atr14 | number:'1.0-0' }}
+                    </span>
+                    <span *ngIf="(scenarioSuggestion.technicalBasis.supportLevels || []).length > 0" class="bg-green-50 border border-green-200 rounded px-2 py-0.5 text-green-700">
+                      Hỗ trợ: {{ (scenarioSuggestion.technicalBasis.supportLevels || [])[0] | number:'1.0-0' }}
+                    </span>
+                    <span *ngIf="(scenarioSuggestion.technicalBasis.resistanceLevels || []).length > 0" class="bg-red-50 border border-red-200 rounded px-2 py-0.5 text-red-700">
+                      Kháng cự: {{ (scenarioSuggestion.technicalBasis.resistanceLevels || [])[0] | number:'1.0-0' }}
+                    </span>
+                  </div>
+                  <!-- Suggested nodes list -->
+                  <div class="space-y-2 mb-3">
+                    <div *ngFor="let sn of scenarioSuggestion.nodes"
+                      class="bg-white border rounded-lg p-2.5 flex items-start gap-2"
+                      [class.border-indigo-200]="selectedSuggestionNodes.has(sn.nodeId)"
+                      [class.border-gray-200]="!selectedSuggestionNodes.has(sn.nodeId)">
+                      <input type="checkbox" [checked]="selectedSuggestionNodes.has(sn.nodeId)"
+                        (change)="toggleSuggestionNode(sn.nodeId)"
+                        class="mt-0.5 rounded border-gray-300 text-indigo-600">
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 mb-1">
+                          <span class="text-xs font-semibold text-gray-800">{{ sn.label }}</span>
+                          <span class="px-1.5 py-0.5 rounded text-xs font-medium"
+                            [class.bg-green-100]="sn.category === 'TakeProfit'"
+                            [class.text-green-700]="sn.category === 'TakeProfit'"
+                            [class.bg-red-100]="sn.category === 'StopLoss'"
+                            [class.text-red-700]="sn.category === 'StopLoss'"
+                            [class.bg-blue-100]="sn.category === 'AddMore'"
+                            [class.text-blue-700]="sn.category === 'AddMore'"
+                            [class.bg-amber-100]="sn.category === 'Sideway'"
+                            [class.text-amber-700]="sn.category === 'Sideway'">
+                            {{ getCategoryLabel(sn.category) }}
+                          </span>
+                        </div>
+                        <div class="text-xs text-gray-600">
+                          Điều kiện: <span class="font-medium">{{ sn.conditionType }}</span>
+                          <span *ngIf="sn.conditionValue"> &#64; {{ sn.conditionValue | number:'1.0-0' }}</span>
+                          → Hành động: <span class="font-medium">{{ sn.actionType }}</span>
+                          <span *ngIf="sn.actionValue"> {{ sn.actionValue }}</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1 italic">{{ sn.reasoning }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Apply buttons -->
+                  <div class="flex items-center gap-2">
+                    <button (click)="applySelectedSuggestions()"
+                      [disabled]="selectedSuggestionNodes.size === 0"
+                      class="px-3 py-1.5 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-medium disabled:opacity-50">
+                      Áp dụng gợi ý ({{ selectedSuggestionNodes.size }})
+                    </button>
+                    <button (click)="applyAllSuggestions()"
+                      class="px-3 py-1.5 text-xs bg-indigo-500 text-white hover:bg-indigo-600 rounded-lg font-medium">
+                      Tạo kế hoạch từ gợi ý
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Preset row -->
                 <div class="flex items-center gap-2 mb-3">
                   <select [(ngModel)]="selectedPresetId" class="px-2 py-1 border border-violet-300 rounded text-xs flex-1">
                     <option value="">-- Chọn mẫu kịch bản --</option>
@@ -1348,6 +1449,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   newScenarioTemplateDesc = '';
   savingScenarioTemplate = false;
 
+  // Scenario Suggestion (P0.6)
+  selectedTimeHorizon: string = 'Medium';
+  loadingSuggestion = false;
+  scenarioSuggestion: ScenarioSuggestionDto | null = null;
+  selectedSuggestionNodes: Set<string> = new Set();
+
   // Order sheet
   showOrderSheet = false;
 
@@ -1843,6 +1950,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.scenarioNodes = [];
     this.selectedPresetId = '';
     this.scenarioHistory = [];
+    this.scenarioSuggestion = null;
+    this.selectedSuggestionNodes = new Set();
+    this.loadingSuggestion = false;
     this.invalidateScenarioCache();
     this.selectedStrategy = null;
     this.riskProfile = null;
@@ -2209,6 +2319,85 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   removeExitTarget(index: number): void {
     this.plan.exitTargets.splice(index, 1);
     this.plan.exitTargets.forEach((e, i) => e.level = i + 1);
+  }
+
+  // --- Scenario Suggestion Methods (P0.6) ---
+
+  fetchScenarioSuggestion(): void {
+    if (!this.plan.symbol || !this.plan.entryPrice) return;
+    this.loadingSuggestion = true;
+    this.scenarioSuggestion = null;
+    this.tradePlanService.getScenarioSuggestion(this.plan.symbol, this.plan.entryPrice, this.selectedTimeHorizon).subscribe({
+      next: (suggestion) => {
+        this.scenarioSuggestion = suggestion;
+        // Default: all nodes selected
+        this.selectedSuggestionNodes = new Set(suggestion.nodes.map(n => n.nodeId));
+        this.loadingSuggestion = false;
+      },
+      error: () => {
+        this.loadingSuggestion = false;
+        this.notification.error('Lỗi', 'Không thể lấy gợi ý kịch bản');
+      }
+    });
+  }
+
+  toggleSuggestionNode(nodeId: string): void {
+    if (this.selectedSuggestionNodes.has(nodeId)) {
+      this.selectedSuggestionNodes.delete(nodeId);
+    } else {
+      this.selectedSuggestionNodes.add(nodeId);
+    }
+  }
+
+  getCategoryLabel(category: string): string {
+    const map: Record<string, string> = {
+      'TakeProfit': 'Chốt lời',
+      'StopLoss': 'Cắt lỗ',
+      'AddMore': 'Mua thêm',
+      'Sideway': 'Sideway'
+    };
+    return map[category] || category;
+  }
+
+  private mapSuggestedNode(sn: SuggestedNodeDto, idMap: Map<string, string>): ScenarioNodeForm {
+    return {
+      nodeId: idMap.get(sn.nodeId)!,
+      parentId: sn.parentId ? (idMap.get(sn.parentId) ?? null) : null,
+      order: sn.order,
+      label: sn.label,
+      conditionType: sn.conditionType,
+      conditionValue: sn.conditionValue ?? 0,
+      conditionNote: sn.reasoning,
+      actionType: sn.actionType,
+      actionValue: sn.actionValue ?? 0,
+      trailingStopConfig: { method: 'Percentage', trailValue: 5, activationPrice: 0, stepSize: 0 },
+      status: 'Pending'
+    };
+  }
+
+  applySelectedSuggestions(): void {
+    if (!this.scenarioSuggestion || this.selectedSuggestionNodes.size === 0) return;
+    const nodes = this.scenarioSuggestion.nodes.filter(n => this.selectedSuggestionNodes.has(n.nodeId));
+    const idMap = new Map<string, string>();
+    nodes.forEach(n => idMap.set(n.nodeId, crypto.randomUUID()));
+    const mapped = nodes.map(n => this.mapSuggestedNode(n, idMap));
+    this.scenarioNodes = [...this.scenarioNodes, ...mapped];
+    this.invalidateScenarioCache();
+    this.scenarioSuggestion = null;
+    this.selectedSuggestionNodes = new Set();
+    this.notification.success('Kịch bản', `Đã áp dụng ${mapped.length} kịch bản gợi ý`);
+  }
+
+  applyAllSuggestions(): void {
+    if (!this.scenarioSuggestion) return;
+    const nodes = this.scenarioSuggestion.nodes;
+    const idMap = new Map<string, string>();
+    nodes.forEach(n => idMap.set(n.nodeId, crypto.randomUUID()));
+    this.scenarioNodes = nodes.map(n => this.mapSuggestedNode(n, idMap));
+    this.invalidateScenarioCache();
+    this.scenarioSuggestion = null;
+    this.selectedSuggestionNodes = new Set();
+    this.notification.success('Kịch bản', `Đã tạo kế hoạch với ${nodes.length} kịch bản từ gợi ý AI`);
   }
 
   // --- Scenario Playbook Methods ---

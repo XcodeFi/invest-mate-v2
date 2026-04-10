@@ -178,6 +178,49 @@ export interface UpdateTradePlanStatusRequest {
   tradeId?: string;
 }
 
+export interface SuggestedNodeDto {
+  nodeId: string;
+  parentId?: string;
+  order: number;
+  label: string;
+  conditionType: string;
+  conditionValue?: number;
+  actionType: string;
+  actionValue?: number;
+  reasoning: string;
+  category: string;
+}
+
+export interface ScenarioSuggestionDto {
+  symbol: string;
+  entryPrice: number;
+  timeHorizon: string;
+  technicalBasis: {
+    ema20?: number;
+    ema50?: number;
+    ema200?: number;
+    rsi14?: number;
+    bollingerUpper?: number;
+    bollingerLower?: number;
+    supportLevels: number[];
+    resistanceLevels: number[];
+    fibonacci?: any;
+    atr14?: number;
+  };
+  nodes: SuggestedNodeDto[];
+}
+
+export interface ScenarioAdvisoryDto {
+  tradePlanId: string;
+  symbol: string;
+  currentPrice: number;
+  nodeId: string;
+  nodeLabel: string;
+  conditionDescription: string;
+  actionDescription: string;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -263,6 +306,20 @@ export class TradePlanService {
 
   deleteScenarioTemplate(id: string): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/scenario-templates/${id}`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getScenarioSuggestion(symbol: string, entryPrice: number, timeHorizon: string): Observable<ScenarioSuggestionDto> {
+    let params = new HttpParams()
+      .set('symbol', symbol)
+      .set('entryPrice', entryPrice.toString())
+      .set('timeHorizon', timeHorizon);
+    return this.http.get<ScenarioSuggestionDto>(`${this.API_URL}/scenario-suggestion`, { headers: this.getHeaders(), params })
+      .pipe(catchError(this.handleError));
+  }
+
+  getAdvisories(): Observable<ScenarioAdvisoryDto[]> {
+    return this.http.get<ScenarioAdvisoryDto[]>(`${this.API_URL}/advisories`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
