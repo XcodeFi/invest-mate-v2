@@ -75,9 +75,16 @@ public class TradePlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteScenarioTemplate(string id)
     {
-        var command = new DeleteScenarioTemplateCommand { Id = id, UserId = GetUserId() };
-        await _mediator.Send(command);
-        return NoContent();
+        try
+        {
+            var command = new DeleteScenarioTemplateCommand { Id = id, UserId = GetUserId() };
+            await _mediator.Send(command);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { message = "Scenario template not found" });
+        }
     }
 
     /// <summary>

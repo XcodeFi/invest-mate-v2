@@ -13,7 +13,7 @@ public class ScenarioTemplateRepository : IScenarioTemplateRepository
         _collection = database.GetCollection<ScenarioTemplate>("scenario_templates");
 
         var userIndex = Builders<ScenarioTemplate>.IndexKeys.Ascending(t => t.UserId);
-        _collection.Indexes.CreateOne(new CreateIndexModel<ScenarioTemplate>(userIndex));
+        _collection.Indexes.CreateOneAsync(new CreateIndexModel<ScenarioTemplate>(userIndex));
     }
 
     public async Task<List<ScenarioTemplate>> GetByUserIdAsync(string userId)

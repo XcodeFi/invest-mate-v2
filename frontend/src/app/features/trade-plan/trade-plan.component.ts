@@ -2195,6 +2195,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   }
 
   deleteScenarioTemplate(id: string): void {
+    if (!confirm('Bạn có chắc muốn xoá mẫu kịch bản này?')) return;
     this.tradePlanService.deleteScenarioTemplate(id).subscribe({
       next: () => {
         this.scenarioPresets = this.scenarioPresets.filter(p => p.id !== id);

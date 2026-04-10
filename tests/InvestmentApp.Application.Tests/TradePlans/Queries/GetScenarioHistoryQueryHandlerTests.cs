@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentAssertions;
 using Moq;
 using InvestmentApp.Application.Interfaces;
@@ -73,7 +74,7 @@ public class GetScenarioHistoryQueryHandlerTests
         _tradePlanRepo.Setup(r => r.GetByIdAsync(plan.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plan);
 
-        // AlertHistory for the triggered node
+        // AlertHistory for the triggered node — set TriggeredAt to match node's TriggeredAt
         var alertHistory = new AlertHistory(
             "user-1", plan.Id, "ScenarioPlaybook",
             "[VNM] Kịch bản: Chốt lời 30%",
@@ -81,6 +82,8 @@ public class GetScenarioHistoryQueryHandlerTests
             symbol: "VNM",
             currentValue: 85_500m,
             thresholdValue: 85_000m);
+        typeof(AlertHistory).GetProperty("TriggeredAt")!
+            .SetValue(alertHistory, new DateTime(2026, 3, 15, 7, 30, 0, DateTimeKind.Utc));
 
         _alertHistoryRepo.Setup(r => r.GetByAlertRuleIdAsync(plan.Id, "ScenarioPlaybook", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AlertHistory> { alertHistory });
@@ -181,9 +184,14 @@ public class GetScenarioHistoryQueryHandlerTests
         var alert1 = new AlertHistory("user-1", plan.Id, "ScenarioPlaybook",
             "[VNM] Kịch bản: Trigger sớm", "Bán 20%",
             symbol: "VNM", currentValue: 82_500m, thresholdValue: 82_000m);
+        typeof(AlertHistory).GetProperty("TriggeredAt")!
+            .SetValue(alert1, new DateTime(2026, 3, 10, 9, 0, 0, DateTimeKind.Utc));
+
         var alert2 = new AlertHistory("user-1", plan.Id, "ScenarioPlaybook",
             "[VNM] Kịch bản: Trigger muộn", "Bán 30%",
             symbol: "VNM", currentValue: 85_500m, thresholdValue: 85_000m);
+        typeof(AlertHistory).GetProperty("TriggeredAt")!
+            .SetValue(alert2, new DateTime(2026, 3, 15, 14, 30, 0, DateTimeKind.Utc));
 
         _alertHistoryRepo.Setup(r => r.GetByAlertRuleIdAsync(plan.Id, "ScenarioPlaybook", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AlertHistory> { alert1, alert2 });

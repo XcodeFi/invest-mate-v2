@@ -1,5 +1,4 @@
 using InvestmentApp.Application.Common.Interfaces;
-using InvestmentApp.Domain.Entities;
 using MediatR;
 
 namespace InvestmentApp.Application.TradePlans.Commands.SaveScenarioTemplate;
@@ -45,34 +44,51 @@ public class SaveScenarioTemplateCommandHandler : IRequestHandler<SaveScenarioTe
 
     public async Task<string> Handle(SaveScenarioTemplateCommand request, CancellationToken cancellationToken)
     {
-        var template = new ScenarioTemplate
+        var nodes = new List<Domain.Entities.ScenarioNode>();
+        foreach (var n in request.Nodes)
         {
-            Id = Guid.NewGuid().ToString(),
-            UserId = request.UserId,
-            Name = request.Name,
-            Description = request.Description,
-            Nodes = request.Nodes.Select(n => new ScenarioNode
+            if (!Enum.TryParse<Domain.Entities.ScenarioConditionType>(n.ConditionType, out var conditionType))
+                throw new ArgumentException($"Invalid ConditionType: {n.ConditionType}");
+            if (!Enum.TryParse<Domain.Entities.ScenarioActionType>(n.ActionType, out var actionType))
+                throw new ArgumentException($"Invalid ActionType: {n.ActionType}");
+
+            Domain.Entities.TrailingStopConfig? trailingConfig = null;
+            if (n.TrailingStopConfig != null)
+            {
+                if (!Enum.TryParse<Domain.Entities.TrailingStopMethod>(n.TrailingStopConfig.Method, out var method))
+                    throw new ArgumentException($"Invalid TrailingStopMethod: {n.TrailingStopConfig.Method}");
+                trailingConfig = new Domain.Entities.TrailingStopConfig
+                {
+                    Method = method,
+                    TrailValue = n.TrailingStopConfig.TrailValue,
+                    ActivationPrice = n.TrailingStopConfig.ActivationPrice,
+                    StepSize = n.TrailingStopConfig.StepSize
+                };
+            }
+
+            nodes.Add(new Domain.Entities.ScenarioNode
             {
                 NodeId = n.NodeId,
                 ParentId = n.ParentId,
                 Order = n.Order,
                 Label = n.Label,
-                ConditionType = Enum.Parse<ScenarioConditionType>(n.ConditionType),
+                ConditionType = conditionType,
                 ConditionValue = n.ConditionValue,
                 ConditionNote = n.ConditionNote,
-                ActionType = Enum.Parse<ScenarioActionType>(n.ActionType),
+                ActionType = actionType,
                 ActionValue = n.ActionValue,
-                TrailingStopConfig = n.TrailingStopConfig != null
-                    ? new TrailingStopConfig
-                    {
-                        Method = Enum.Parse<TrailingStopMethod>(n.TrailingStopConfig.Method),
-                        TrailValue = n.TrailingStopConfig.TrailValue,
-                        ActivationPrice = n.TrailingStopConfig.ActivationPrice,
-                        StepSize = n.TrailingStopConfig.StepSize
-                    }
-                    : null,
-                Status = ScenarioNodeStatus.Pending
-            }).ToList(),
+                TrailingStopConfig = trailingConfig,
+                Status = Domain.Entities.ScenarioNodeStatus.Pending
+            });
+        }
+
+        var template = new Domain.Entities.ScenarioTemplate
+        {
+            Id = Guid.NewGuid().ToString(),
+            UserId = request.UserId,
+            Name = request.Name,
+            Description = request.Description,
+            Nodes = nodes,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

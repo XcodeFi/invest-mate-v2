@@ -23,7 +23,7 @@ project/
 │   │   │   │   ├── HmoneyComprehensiveDataProvider.cs  # Comprehensive stock analysis data
 │   │   │   │   └── HmoneyComprehensiveApiModels.cs     # API response models
 │   │   │   └── Tcbs/                   # TCBS fundamental data provider
-│   │   └── Repositories/              # 22 MongoDB repositories
+│   │   └── Repositories/              # 23 MongoDB repositories (incl. ScenarioTemplateRepository)
 │   │
 │   ├── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
 │   │   ├── Controllers/               # 25 API controllers

@@ -50,23 +50,16 @@ public class GetScenarioHistoryQueryHandler : IRequestHandler<GetScenarioHistory
         var alertHistories = (await _alertHistoryRepository.GetByAlertRuleIdAsync(
             request.TradePlanId, "ScenarioPlaybook", cancellationToken)).ToList();
 
-        // Build a lookup: match alert to node by node label in alert title
-        // Alert title format: "[SYMBOL] Kịch bản: {node.Label}"
-        var alertByNodeLabel = new Dictionary<string, AlertHistory>();
-        foreach (var alert in alertHistories)
-        {
-            // Extract node label from title: "[VNM] Kịch bản: Chốt lời 30%"
-            var prefix = $"[{plan.Symbol}] Kịch bản: ";
-            if (alert.Title.StartsWith(prefix))
-            {
-                var label = alert.Title[prefix.Length..];
-                alertByNodeLabel.TryAdd(label, alert);
-            }
-        }
-
+        // Match alerts to nodes by TriggeredAt timestamp (within 5 seconds tolerance)
+        // This is more robust than matching by label (labels can be duplicated)
         var result = plan.ScenarioNodes.Select(node =>
         {
-            alertByNodeLabel.TryGetValue(node.Label, out var matchedAlert);
+            AlertHistory? matchedAlert = null;
+            if (node.TriggeredAt.HasValue)
+            {
+                matchedAlert = alertHistories.FirstOrDefault(a =>
+                    Math.Abs((a.TriggeredAt - node.TriggeredAt.Value).TotalSeconds) < 5);
+            }
 
             return new ScenarioHistoryDto
             {
