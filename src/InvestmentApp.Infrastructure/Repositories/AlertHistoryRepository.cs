@@ -83,6 +83,18 @@ public class AlertHistoryRepository : IAlertHistoryRepository
         await _collection.ReplaceOneAsync(h => h.Id == entity.Id, entity, cancellationToken: cancellationToken);
     }
 
+    public async Task<IEnumerable<AlertHistory>> GetByAlertRuleIdAsync(string alertRuleId, string alertType,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<AlertHistory>.Filter.And(
+            Builders<AlertHistory>.Filter.Eq(h => h.AlertRuleId, alertRuleId),
+            Builders<AlertHistory>.Filter.Eq(h => h.AlertType, alertType));
+
+        return await _collection.Find(filter)
+            .SortByDescending(h => h.TriggeredAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
         await _collection.DeleteOneAsync(h => h.Id == id, cancellationToken);

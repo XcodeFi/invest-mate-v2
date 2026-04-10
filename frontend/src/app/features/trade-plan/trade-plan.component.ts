@@ -8,7 +8,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
-import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto } from '../../core/services/trade-plan.service';
+import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -642,6 +642,35 @@ interface TradePlanForm {
                   Chưa có kịch bản nào. Chọn mẫu hoặc thêm kịch bản gốc.
                 </div>
               </div>
+
+              <!-- Scenario History Panel -->
+              <div *ngIf="exitStrategyMode === 'Advanced' && selectedPlanId && scenarioHistory.length > 0" class="mt-4">
+                <h4 class="text-sm font-semibold text-violet-700 mb-2">Lịch sử kịch bản</h4>
+                <div class="space-y-2">
+                  <div *ngFor="let item of scenarioHistory"
+                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
+                    [ngClass]="{
+                      'bg-green-50 border border-green-200': item.status === 'Triggered',
+                      'bg-yellow-50 border border-yellow-200': item.status === 'Pending',
+                      'bg-gray-50 border border-gray-200': item.status === 'Skipped'
+                    }">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                      [ngClass]="{
+                        'bg-green-100 text-green-800': item.status === 'Triggered',
+                        'bg-yellow-100 text-yellow-800': item.status === 'Pending',
+                        'bg-gray-100 text-gray-600': item.status === 'Skipped'
+                      }">
+                      {{ item.status === 'Triggered' ? 'Đã kích hoạt' : item.status === 'Pending' ? 'Chờ' : 'Bỏ qua' }}
+                    </span>
+                    <span class="font-medium text-gray-800">{{ item.label || '(Chưa đặt tên)' }}</span>
+                    <span class="text-gray-500">&#8594; {{ getActionLabel(item.actionType, item.actionValue) }}</span>
+                    <span *ngIf="item.triggeredAt" class="text-green-600 ml-auto whitespace-nowrap">
+                      {{ formatTriggerTime(item.triggeredAt) }}
+                      <span *ngIf="item.priceAtTrigger" class="ml-1">— Giá: {{ item.priceAtTrigger | number:'1.0-0' }}đ</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Scenario Node Template (recursive) -->
@@ -1121,6 +1150,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   scenarioNodes: ScenarioNodeForm[] = [];
   scenarioPresets: ScenarioPreset[] = [];
   selectedPresetId = '';
+  scenarioHistory: ScenarioHistoryDto[] = [];
   private _cachedRootNodes: ScenarioNodeForm[] = [];
   private _cachedChildMap = new Map<string, ScenarioNodeForm[]>();
   private _scenarioVersion = 0;
@@ -1586,6 +1616,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       status: n.status
     }));
     this.invalidateScenarioCache();
+    // Load scenario history for Advanced in-progress plans
+    if (this.exitStrategyMode === 'Advanced' && sp.id && (sp.status === 'InProgress' || sp.status === 'Executed')) {
+      this.loadScenarioHistory(sp.id);
+    } else {
+      this.scenarioHistory = [];
+    }
     if (sp.checklist && sp.checklist.length > 0) {
       this.plan.checklist = sp.checklist.map(c => ({
         label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint
@@ -1613,6 +1649,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.exitStrategyMode = 'Simple';
     this.scenarioNodes = [];
     this.selectedPresetId = '';
+    this.scenarioHistory = [];
     this.invalidateScenarioCache();
     this.selectedStrategy = null;
     this.riskProfile = null;
@@ -2094,6 +2131,37 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       } as TrailingStopConfigDto : null,
       status: 'Pending', triggeredAt: null, tradeId: null
     }) as ScenarioNodeDto);
+  }
+
+  // --- Scenario History ---
+
+  loadScenarioHistory(planId: string): void {
+    this.tradePlanService.getScenarioHistory(planId).subscribe({
+      next: (history) => this.scenarioHistory = history,
+      error: () => this.scenarioHistory = []
+    });
+  }
+
+  getActionLabel(actionType: string, actionValue: number | null): string {
+    switch (actionType) {
+      case 'SellPercent': return `Bán ${actionValue || 0}% vị thế`;
+      case 'SellAll': return 'Bán toàn bộ';
+      case 'MoveStopLoss': return `Dời SL đến ${(actionValue || 0).toLocaleString('vi-VN')}đ`;
+      case 'MoveStopToBreakeven': return 'Dời SL về hòa vốn';
+      case 'ActivateTrailingStop': return 'Bật trailing stop';
+      case 'AddPosition': return `Thêm ${actionValue || 0}% vị thế`;
+      case 'SendNotification': return 'Thông báo';
+      default: return actionType;
+    }
+  }
+
+  formatTriggerTime(isoString: string): string {
+    const d = new Date(isoString);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm} ${hh}:${mi}`;
   }
 
   // --- Order Sheet ---

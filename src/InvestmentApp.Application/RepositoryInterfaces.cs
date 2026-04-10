@@ -113,6 +113,7 @@ public interface IAlertHistoryRepository : IRepository<AlertHistory>
     Task<IEnumerable<AlertHistory>> GetByUserIdAndSymbolAsync(string userId, string symbol, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default);
     Task<IEnumerable<AlertHistory>> GetUnreadByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(string userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<AlertHistory>> GetByAlertRuleIdAsync(string alertRuleId, string alertType, CancellationToken cancellationToken = default);
 }
 
 public interface IExchangeRateRepository : IRepository<ExchangeRate>

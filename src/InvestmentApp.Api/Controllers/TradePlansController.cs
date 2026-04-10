@@ -8,6 +8,7 @@ using InvestmentApp.Application.TradePlans.Commands.TriggerExitTarget;
 using InvestmentApp.Application.TradePlans.Commands.TriggerScenarioNode;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioTemplates;
+using InvestmentApp.Application.TradePlans.Queries.GetScenarioHistory;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -144,6 +145,26 @@ public class TradePlansController : ControllerBase
         command.UserId = GetUserId();
         await _mediator.Send(command);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Get scenario history for a trade plan
+    /// </summary>
+    [HttpGet("{id}/scenario-history")]
+    [ProducesResponseType(typeof(List<ScenarioHistoryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetScenarioHistory(string id)
+    {
+        try
+        {
+            var query = new GetScenarioHistoryQuery { TradePlanId = id, UserId = GetUserId() };
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { message = "Trade plan not found" });
+        }
     }
 
     /// <summary>

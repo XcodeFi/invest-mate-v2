@@ -77,6 +77,19 @@ export interface ScenarioPreset {
   nodes: ScenarioNodeDto[];
 }
 
+export interface ScenarioHistoryDto {
+  nodeId: string;
+  label: string;
+  status: string;
+  triggeredAt: string | null;
+  priceAtTrigger: number | null;
+  actionType: string;
+  actionValue: number | null;
+  conditionType: string;
+  conditionValue: number | null;
+  parentId: string | null;
+}
+
 export interface TradePlan {
   id: string;
   portfolioId?: string;
@@ -234,6 +247,11 @@ export class TradePlanService {
 
   getScenarioTemplates(): Observable<ScenarioPreset[]> {
     return this.http.get<ScenarioPreset[]>(`${this.API_URL}/scenario-templates`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getScenarioHistory(planId: string): Observable<ScenarioHistoryDto[]> {
+    return this.http.get<ScenarioHistoryDto[]>(`${this.API_URL}/${planId}/scenario-history`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
