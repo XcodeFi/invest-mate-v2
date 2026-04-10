@@ -172,15 +172,15 @@ public class TechnicalIndicatorServiceBollingerAtrTests
     // ─── Signal Scoring Integration ──────────────────────────────────────
 
     [Fact]
-    public async Task Analyze_SignalCount_Includes6Indicators()
+    public async Task Analyze_SignalCount_Includes10Indicators()
     {
         var prices = GeneratePriceHistory(120, 50_000m, 200m);
         SetupPrices(prices);
 
         var result = await _sut.AnalyzeAsync("VNM");
 
-        // 6 votes: EMA, RSI, MACD, Volume, Bollinger, ATR
-        (result.BullishCount + result.BearishCount + result.NeutralCount).Should().Be(6);
+        // 10 votes: EMA, RSI, MACD, Volume, Bollinger, ATR, Stochastic, ADX, OBV, MFI
+        (result.BullishCount + result.BearishCount + result.NeutralCount).Should().Be(10);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────

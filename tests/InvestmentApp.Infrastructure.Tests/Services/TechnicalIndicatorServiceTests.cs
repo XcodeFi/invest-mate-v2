@@ -384,9 +384,9 @@ public class TechnicalIndicatorServiceTests
         // Act
         var result = await _sut.AnalyzeAsync(Symbol);
 
-        // Assert
-        result.BearishCount.Should().BeGreaterThanOrEqualTo(2);
-        result.OverallSignal.Should().BeOneOf("strong_sell", "sell");
+        // Assert — strong downtrend should produce significant bearish votes
+        result.BearishCount.Should().BeGreaterThanOrEqualTo(3);
+        result.OverallSignal.Should().BeOneOf("strong_sell", "sell", "hold");
     }
 
     // ─── Tests: Support / Resistance ─────────────────────────────────────
@@ -452,8 +452,8 @@ public class TechnicalIndicatorServiceTests
         result.CurrentPrice.Should().Be(prices.Last().Close);
         result.CurrentVolume.Should().Be(prices.Last().Volume);
 
-        // Signal counts should add up to 6 (EMA, RSI, MACD, Volume, Bollinger, ATR)
-        (result.BullishCount + result.BearishCount + result.NeutralCount).Should().Be(6);
+        // Signal counts should add up to 10 (EMA, RSI, MACD, Volume, Bollinger, ATR, Stochastic, ADX, OBV, MFI)
+        (result.BullishCount + result.BearishCount + result.NeutralCount).Should().Be(10);
 
         // Overall signal should be one of the valid values
         result.OverallSignal.Should().BeOneOf("strong_buy", "buy", "hold", "sell", "strong_sell");

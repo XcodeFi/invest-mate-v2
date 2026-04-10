@@ -162,32 +162,103 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         if (atr.HasValue && current.Close > 0)
             result.AtrPercent = Math.Round(atr.Value / current.Close * 100, 2);
 
-        // --- Overall Signal (6 indicators) ---
+        // --- Stochastic Oscillator (14, 3, 3) ---
+        var (stochK, stochD) = CalculateStochastic(highs, lows, closes, 14, 3);
+        result.StochasticK = stochK;
+        result.StochasticD = stochD;
+
+        if (stochK.HasValue)
+        {
+            result.StochasticSignal = stochK.Value switch
+            {
+                <= 20 => "oversold",
+                >= 80 => "overbought",
+                _ => "neutral"
+            };
+        }
+
+        // --- ADX (14) + DI ---
+        var (adx, plusDi, minusDi) = CalculateAdx(highs, lows, closes, 14);
+        result.Adx14 = adx;
+        result.PlusDi = plusDi;
+        result.MinusDi = minusDi;
+
+        if (adx.HasValue)
+        {
+            result.AdxSignal = adx.Value switch
+            {
+                >= 40 => "strong_trend",
+                >= 25 => "trending",
+                < 20 => "sideway",
+                _ => "neutral"
+            };
+        }
+
+        // --- OBV (On-Balance Volume) ---
+        var (obv, obvTrend) = CalculateObv(closes, volumes);
+        result.Obv = obv;
+        result.ObvSignal = obvTrend ?? "neutral";
+
+        // --- MFI (14) ---
+        result.Mfi14 = CalculateMfi(highs, lows, closes, volumes, 14);
+        if (result.Mfi14.HasValue)
+        {
+            result.MfiSignal = result.Mfi14.Value switch
+            {
+                <= 20 => "oversold",
+                >= 80 => "overbought",
+                _ => "neutral"
+            };
+        }
+
+        // --- Overall Signal (10 indicators) ---
         int bullish = 0, bearish = 0, neutral = 0;
 
-        // EMA trend
+        // 1. EMA trend
         if (result.EmaTrend == "bullish") bullish++; else if (result.EmaTrend == "bearish") bearish++; else neutral++;
 
-        // RSI
+        // 2. RSI
         if (result.RsiSignal == "oversold") bullish++; else if (result.RsiSignal == "overbought") bearish++; else neutral++;
 
-        // MACD
+        // 3. MACD
         if (result.MacdSignal == "buy") bullish++; else if (result.MacdSignal == "sell") bearish++; else neutral++;
 
-        // Volume (high volume confirms trend direction)
+        // 4. Volume (high volume confirms trend direction)
         if (result.VolumeSignal is "spike" or "high")
         {
             if (result.PriceChangePercent > 0) bullish++; else bearish++;
         }
         else neutral++;
 
-        // Bollinger Bands
+        // 5. Bollinger Bands
         if (result.BollingerSignal == "breakout_up") bullish++;
         else if (result.BollingerSignal == "breakout_down") bearish++;
         else neutral++;
 
-        // ATR — high volatility (ATR% > 3%) is bearish (risky), low is neutral
+        // 6. ATR — high volatility (ATR% > 3%) is bearish (risky), low is neutral
         if (result.AtrPercent.HasValue && result.AtrPercent > 3m) bearish++;
+        else neutral++;
+
+        // 7. Stochastic
+        if (result.StochasticSignal == "oversold") bullish++;
+        else if (result.StochasticSignal == "overbought") bearish++;
+        else neutral++;
+
+        // 8. ADX + DI direction (ADX measures strength, DI determines direction)
+        if (result.AdxSignal is "trending" or "strong_trend" && result.PlusDi.HasValue && result.MinusDi.HasValue)
+        {
+            if (result.PlusDi > result.MinusDi) bullish++; else bearish++;
+        }
+        else neutral++;
+
+        // 9. OBV
+        if (result.ObvSignal == "rising") bullish++;
+        else if (result.ObvSignal == "falling") bearish++;
+        else neutral++;
+
+        // 10. MFI
+        if (result.MfiSignal == "oversold") bullish++;
+        else if (result.MfiSignal == "overbought") bearish++;
         else neutral++;
 
         result.BullishCount = bullish;
@@ -196,10 +267,10 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         (result.OverallSignal, result.OverallSignalVi) = (bullish, bearish) switch
         {
-            ( >= 4, _) => ("strong_buy", "Mua mạnh"),
-            ( >= 3, 0 or 1) => ("buy", "Mua"),
-            (_, >= 4) => ("strong_sell", "Bán mạnh"),
-            (0 or 1, >= 3) => ("sell", "Bán"),
+            ( >= 6, _) => ("strong_buy", "Mua mạnh"),
+            ( >= 4, _) when bearish <= 3 => ("buy", "Mua"),
+            (_, >= 6) => ("strong_sell", "Bán mạnh"),
+            (_, >= 4) when bullish <= 3 => ("sell", "Bán"),
             _ => ("hold", "Chờ")
         };
 
@@ -410,6 +481,179 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         }
 
         return clustered;
+    }
+
+    // --- Stochastic Oscillator (%K, %D) — Slow Stochastic ---
+    private static (decimal? k, decimal? d) CalculateStochastic(
+        List<decimal> highs, List<decimal> lows, List<decimal> closes, int kPeriod, int dPeriod)
+    {
+        // Need kPeriod + 2*(dPeriod-1) data points: kPeriod for first raw%K, dPeriod-1 for slow%K, dPeriod-1 for %D
+        int minRequired = kPeriod + 2 * dPeriod - 1;
+        if (closes.Count < minRequired) return (null, null);
+
+        // Calculate raw %K series over a window large enough for both slow %K and %D
+        int rawKCount = 2 * dPeriod - 1; // e.g. 5 values for dPeriod=3
+        var rawKs = new List<decimal>();
+        for (int i = closes.Count - rawKCount; i < closes.Count; i++)
+        {
+            var highestHigh = decimal.MinValue;
+            var lowestLow = decimal.MaxValue;
+            for (int j = i - kPeriod + 1; j <= i; j++)
+            {
+                if (highs[j] > highestHigh) highestHigh = highs[j];
+                if (lows[j] < lowestLow) lowestLow = lows[j];
+            }
+
+            var range = highestHigh - lowestLow;
+            rawKs.Add(range > 0 ? (closes[i] - lowestLow) / range * 100 : 50m);
+        }
+
+        // Slow %K series = SMA(dPeriod) of raw %K
+        var slowKs = new List<decimal>();
+        for (int i = 0; i <= rawKs.Count - dPeriod; i++)
+        {
+            slowKs.Add(rawKs.Skip(i).Take(dPeriod).Average());
+        }
+
+        // %K = last slow %K value
+        var percentK = Math.Round(slowKs.Last(), 1);
+        // %D = SMA(dPeriod) of slow %K series
+        var percentD = Math.Round(slowKs.TakeLast(dPeriod).Average(), 1);
+
+        return (percentK, percentD);
+    }
+
+    // --- ADX (Average Directional Index) + DI ---
+    private static (decimal? adx, decimal? plusDi, decimal? minusDi) CalculateAdx(
+        List<decimal> highs, List<decimal> lows, List<decimal> closes, int period)
+    {
+        // Need at least 2 * period + 1 candles (period for DI smoothing + period for ADX smoothing)
+        if (highs.Count < 2 * period + 1) return (null, null, null);
+
+        // Step 1: Calculate +DM, -DM, and TR series
+        var plusDmSeries = new List<decimal>();
+        var minusDmSeries = new List<decimal>();
+        var trSeries = new List<decimal>();
+
+        for (int i = 1; i < highs.Count; i++)
+        {
+            var upMove = highs[i] - highs[i - 1];
+            var downMove = lows[i - 1] - lows[i];
+
+            var plusDm = (upMove > downMove && upMove > 0) ? upMove : 0;
+            var minusDm = (downMove > upMove && downMove > 0) ? downMove : 0;
+
+            plusDmSeries.Add(plusDm);
+            minusDmSeries.Add(minusDm);
+
+            var highLow = highs[i] - lows[i];
+            var highPrevClose = Math.Abs(highs[i] - closes[i - 1]);
+            var lowPrevClose = Math.Abs(lows[i] - closes[i - 1]);
+            trSeries.Add(Math.Max(highLow, Math.Max(highPrevClose, lowPrevClose)));
+        }
+
+        if (trSeries.Count < 2 * period) return (null, null, null);
+
+        // Step 2: Smooth +DM, -DM, TR using Wilder's smoothing (first period = SMA, then smoothed)
+        decimal smoothPlusDm = plusDmSeries.Take(period).Sum();
+        decimal smoothMinusDm = minusDmSeries.Take(period).Sum();
+        decimal smoothTr = trSeries.Take(period).Sum();
+
+        var dxSeries = new List<decimal>();
+
+        for (int i = period; i < trSeries.Count; i++)
+        {
+            if (i > period)
+            {
+                smoothPlusDm = smoothPlusDm - (smoothPlusDm / period) + plusDmSeries[i];
+                smoothMinusDm = smoothMinusDm - (smoothMinusDm / period) + minusDmSeries[i];
+                smoothTr = smoothTr - (smoothTr / period) + trSeries[i];
+            }
+
+            if (smoothTr == 0) continue;
+
+            var plusDiVal = smoothPlusDm / smoothTr * 100;
+            var minusDiVal = smoothMinusDm / smoothTr * 100;
+            var diSum = plusDiVal + minusDiVal;
+            var dx = diSum > 0 ? Math.Abs(plusDiVal - minusDiVal) / diSum * 100 : 0;
+            dxSeries.Add(dx);
+        }
+
+        if (dxSeries.Count < period) return (null, null, null);
+
+        // Step 3: ADX = smoothed average of DX
+        decimal adx = dxSeries.Take(period).Average();
+        for (int i = period; i < dxSeries.Count; i++)
+        {
+            adx = (adx * (period - 1) + dxSeries[i]) / period;
+        }
+
+        // Final +DI and -DI values
+        var finalPlusDi = smoothTr > 0 ? smoothPlusDm / smoothTr * 100 : 0;
+        var finalMinusDi = smoothTr > 0 ? smoothMinusDm / smoothTr * 100 : 0;
+
+        return (Math.Round(adx, 1), Math.Round(finalPlusDi, 1), Math.Round(finalMinusDi, 1));
+    }
+
+    // --- OBV (On-Balance Volume) ---
+    private static (decimal? obv, string? signal) CalculateObv(List<decimal> closes, List<decimal> volumes)
+    {
+        if (closes.Count < 20) return (null, null);
+
+        decimal obv = 0;
+        for (int i = 1; i < closes.Count; i++)
+        {
+            if (closes[i] > closes[i - 1])
+                obv += volumes[i];
+            else if (closes[i] < closes[i - 1])
+                obv -= volumes[i];
+        }
+
+        // Determine recent trend: net OBV change over last 10 periods
+        decimal obvRecent = 0;
+        int startIdx = closes.Count - 10;
+        for (int i = startIdx + 1; i < closes.Count; i++)
+        {
+            if (closes[i] > closes[i - 1])
+                obvRecent += volumes[i];
+            else if (closes[i] < closes[i - 1])
+                obvRecent -= volumes[i];
+        }
+
+        string signal = obvRecent > 0 ? "rising" : obvRecent < 0 ? "falling" : "neutral";
+
+        return (obv, signal);
+    }
+
+    // --- MFI (Money Flow Index) ---
+    private static decimal? CalculateMfi(
+        List<decimal> highs, List<decimal> lows, List<decimal> closes, List<decimal> volumes, int period)
+    {
+        if (closes.Count < period + 1) return null;
+
+        // Typical Price = (H + L + C) / 3
+        // Raw Money Flow = TP * Volume
+        // Positive MF = sum of raw MF when TP > previous TP
+        // Negative MF = sum of raw MF when TP < previous TP
+        // MFI = 100 - (100 / (1 + MF Ratio))
+
+        decimal posFlow = 0, negFlow = 0;
+
+        for (int i = closes.Count - period; i < closes.Count; i++)
+        {
+            var tp = (highs[i] + lows[i] + closes[i]) / 3;
+            var prevTp = (highs[i - 1] + lows[i - 1] + closes[i - 1]) / 3;
+            var rawMf = tp * volumes[i];
+
+            if (tp > prevTp)
+                posFlow += rawMf;
+            else if (tp < prevTp)
+                negFlow += rawMf;
+        }
+
+        if (negFlow == 0) return 100;
+        var mfRatio = posFlow / negFlow;
+        return Math.Round(100 - (100 / (1 + mfRatio)), 1);
     }
 
     private static FibonacciLevels? CalculateFibonacciLevels(
