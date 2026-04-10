@@ -38,12 +38,12 @@ See [references/review-workflow.md](references/review-workflow.md) for detailed 
 
 ### Agent 1: Unified Static Review (no tools)
 
-Single-pass analysis of the diff covering ALL categories:
+Single-pass analysis covering: guidelines, bugs, security, performance.
 
-- **Guidelines**: Audit against `CLAUDE.md`, `copilot-instructions.md`, inline code comments (TODO/HACK/FIXME)
-- **Bugs**: null refs, off-by-one, race conditions, logic errors, resource leaks + Angular 19 / .NET 9 / MongoDB patterns
-- **Security**: OWASP checklist + tech-stack security patterns (injection, auth, data exposure)
-- **Performance**: anti-patterns with measurable impact + tech-stack patterns (N+1, sync-over-async, missing OnPush)
+**Stack-scoped**: Only check patterns for affected stacks (detected from changed files in Phase 1):
+- Frontend files (`frontend/**/*.ts`) → Angular 19 patterns
+- Backend files (`src/**/*.cs`) → .NET 9 patterns
+- Data access files (repository/filter code) → MongoDB patterns
 
 Tech-stack checklists: see [references/tech-stack-standards.md](references/tech-stack-standards.md).
 Max 15 issues, sorted by confidence.
