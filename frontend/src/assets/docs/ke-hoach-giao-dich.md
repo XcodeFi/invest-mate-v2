@@ -113,6 +113,26 @@ Click vào mô hình trong bảng so sánh → auto-fill số cổ phiếu. Cộ
 
 ---
 
+## Dynamic Checklist
+
+Checklist thay đổi tự động theo chiến lược đã chọn:
+
+| TimeFrame | Chỉ báo kiểm tra | Multi-TF Gate |
+|-----------|-------------------|---------------|
+| **Scalping** | VWAP, Stochastic, Volume spike | Không |
+| **DayTrading** | EMA(20/50), RSI, MACD, Bollinger, Volume | Daily trend ủng hộ |
+| **Swing** | ADX > 25, Fibonacci, RSI/MACD, OBV | Weekly trend ủng hộ |
+| **Position** | SMA(50/200) weekly, ADX weekly, MACD weekly | Monthly trend ủng hộ |
+
+### Weighted Scoring
+- **●3 (đỏ)**: Bắt buộc — SL đã đặt, R:R ≥ 2:1, xu hướng khung lớn
+- **●2 (vàng)**: Quan trọng — chỉ báo phụ, position sizing
+- **●1**: Tham khảo — nhật ký, tâm lý
+
+**GO/NO-GO**: Tất cả ●3 items phải checked + tổng điểm ≥ 70%.
+
+---
+
 ## Vòng đời kế hoạch
 
 ```

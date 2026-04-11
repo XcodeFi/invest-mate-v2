@@ -49,11 +49,21 @@ public class StrategyTests
         // Act
         var strategy = new Strategy("user-1", "Test", "Desc",
             "Entry", "Exit", "Risk", "Swing", "Trending",
-            suggestedSlPercent: 5m, suggestedRrRatio: 2.5m);
+            suggestedSlPercent: 5m, suggestedRrRatio: 2.5m, suggestedSlMethod: "atr");
 
         // Assert
         strategy.SuggestedSlPercent.Should().Be(5m);
         strategy.SuggestedRrRatio.Should().Be(2.5m);
+        strategy.SuggestedSlMethod.Should().Be("atr");
+    }
+
+    [Fact]
+    public void Constructor_WithoutSuggestedSlMethod_ShouldDefaultToNull()
+    {
+        var strategy = new Strategy("user-1", "Test", "Desc",
+            "Entry", "Exit", "Risk", "Swing", "Trending");
+
+        strategy.SuggestedSlMethod.Should().BeNull();
     }
 
     #endregion
@@ -278,7 +288,8 @@ public class StrategyTests
             marketCondition: "Volatile",
             isActive: false,
             suggestedSlPercent: 5m,
-            suggestedRrRatio: 2.0m);
+            suggestedRrRatio: 2.0m,
+            suggestedSlMethod: "support");
 
         // Assert
         strategy.Name.Should().Be("New Name");
@@ -291,6 +302,7 @@ public class StrategyTests
         strategy.IsActive.Should().BeFalse();
         strategy.SuggestedSlPercent.Should().Be(5m);
         strategy.SuggestedRrRatio.Should().Be(2.0m);
+        strategy.SuggestedSlMethod.Should().Be("support");
         strategy.UpdatedAt.Should().BeOnOrAfter(beforeUpdate);
         strategy.Version.Should().Be(1);
     }
