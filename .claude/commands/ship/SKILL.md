@@ -11,6 +11,39 @@ Orchestrates: Analyze → Plan → TDD → Code Review → Docs → Commit & PR.
 
 - `$ARGUMENTS` — Optional: description of the feature/fix. If empty, assumes code is already written and skips to Phase 3.
 
+## Multi-Phase Sessions
+
+When implementing multiple features/phases in one session, use this protocol to avoid re-reading everything and keep context persistent.
+
+### Cycle 1 (first ship in session)
+
+Normal flow — Phase 1 reads all project docs as usual.
+
+### Between cycles
+
+After each ship cycle (commit or PR), write a **checkpoint** to the plan file:
+
+```markdown
+### Checkpoint — Phase N (done)
+- **Decisions**: key architecture/UX decisions made
+- **Files changed**: list of files created/modified
+- **Tests**: N tests added, all pass
+- **Affected layers**: Domain / Application / Infrastructure / Api / Frontend
+- **Next**: what Phase N+1 should do, dependencies from this phase, which files to read
+```
+
+The **Next** field is critical — it tells the next cycle exactly where to start and what to read. Be specific: file paths, layer, what to build on.
+
+### Cycle 2+ (subsequent ships in same session)
+
+**Replace Phase 1 Step 1.1** with this lighter flow:
+1. Read the plan file checkpoint (NOT all 4 project docs again — already in context from cycle 1)
+2. Read only files listed in checkpoint's "Next" and "Files changed" (to see what was built)
+3. If the next phase touches a NEW layer not in previous checkpoint → read only that layer's docs
+4. Skip re-reading `features.md`, `architecture.md`, `business-domain.md`, `project-context.md` unless the checkpoint says otherwise
+
+This cuts Phase 1 from ~4 doc reads to ~1 file read (the plan checkpoint).
+
 ## Model Strategy
 
 | Phase | Execution | Model |
@@ -28,20 +61,23 @@ Phase 2 runs inline because it needs the plan context from Phase 1 — spawning 
 
 > Skip if `$ARGUMENTS` is empty or user says code is done.
 
-### Step 1.1 — Read Project Docs
+### Step 1.1 — Read Context
 
-CLAUDE.md is already in context. Read only these (in order):
+**Cycle 2+ in a multi-phase session?** Follow the lighter flow in "Multi-Phase Sessions" above instead of reading all docs.
+
+**Cycle 1 (or new session):** CLAUDE.md is already in context. Read only these:
 1. `docs/architecture.md`
 2. `docs/business-domain.md`
 3. `docs/project-context.md`
 4. `docs/features.md`
 
-Check `docs/plans/` for existing related plans.
+Check `docs/plans/` for existing related plans (ignore `docs/plans/done/` — those are completed).
 
 ### Step 1.2 — Analyze & Present Plan
 
 1. Parse `$ARGUMENTS`, identify affected layers: Domain / Application / Infrastructure / Api / Frontend
-2. Present brief plan for user approval:
+2. If no plan file exists for this work, create one in `docs/plans/` (e.g., `docs/plans/p1-feature-name.md`)
+3. Present brief plan for user approval:
    - **What**: Summary of changes
    - **Where**: Files to create/modify (by layer)
    - **Tests**: What tests and where
@@ -112,7 +148,14 @@ Run `git diff --name-only` against base branch, then update ALL that match:
 | Convention, directive, pipe | `CLAUDE.md` |
 | User-facing feature added/changed | Relevant guide in `frontend/src/assets/docs/` |
 
-### Step 4.2 — Update Changelog
+### Step 4.2 — Archive Plan (if completed)
+
+If this ship cycle completes ALL phases in the plan file:
+- Move to `docs/plans/done/`: `git mv docs/plans/xxx.md docs/plans/done/xxx.md`
+
+If plan still has remaining phases → keep in `docs/plans/`, write checkpoint (see Multi-Phase Sessions).
+
+### Step 4.3 — Update Changelog
 
 Update `frontend/src/assets/CHANGELOG.md`:
 - Determine version bump (patch/minor/major)
