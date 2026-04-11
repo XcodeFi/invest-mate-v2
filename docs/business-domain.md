@@ -223,7 +223,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates, **campaign review (P0.7)**: close + preview + update lessons + pending-review + analytics |
 | Strategies | `/api/v1/strategies` | CRUD chiến lược, performance |
 | Journals | `/api/v1/journals` | CRUD nhật ký |
-| Risk | `/api/v1/risk` | Profile, summary, drawdown, correlation |
+| Risk | `/api/v1/risk` | Profile, summary, drawdown, correlation, position-sizing (5 models) |
 | Alerts | `/api/v1/alerts` | CRUD rules, history |
 | Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns |
 | Capital Flows | `/api/v1/capital-flows` | Record, history, TWR/MWR |

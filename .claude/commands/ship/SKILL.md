@@ -110,6 +110,7 @@ Run `git diff --name-only` against base branch, then update ALL that match:
 | Service, controller, repository, page, shared component | `docs/architecture.md` |
 | Bug pattern, improvement item, UX/arch decision | `docs/project-context.md` |
 | Convention, directive, pipe | `CLAUDE.md` |
+| User-facing feature added/changed | Relevant guide in `frontend/src/assets/docs/` |
 
 ### Step 4.2 — Update Changelog
 

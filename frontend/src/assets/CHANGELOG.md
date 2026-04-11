@@ -2,6 +2,32 @@
 
 ---
 
+## [v2.34.0] — 2026-04-11 · Advanced Position Sizing Calculator (P3)
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### 5 mô hình Position Sizing
+- **Cố định % rủi ro** (có sẵn): `Size = (Vốn × %Risk) / RiskPerShare`
+- **Theo ATR**: `Size = (Vốn × %Risk) / (N × ATR)` — tự điều chỉnh theo biến động thị trường
+- **Kelly Criterion**: Half-Kelly, cap 25% — sizing tối ưu dựa trên win rate, avg win/loss
+- **Turtle (1 unit)**: `1 Unit = 1% Vốn / ATR` — thêm tối đa 3 unit khi lời
+- **Điều chỉnh biến động**: Scale Fixed Risk theo ATR% (baseline 2%, clamp 0.5x-1.5x)
+
+### Backend
+- Mới: `IPositionSizingService` + `PositionSizingService` (stateless, Singleton)
+- API endpoint: `POST /api/v1/risk/position-sizing`
+
+### Frontend
+- Bảng so sánh mô hình trong Trade Plan: số CP, % danh mục, trạng thái giới hạn
+- Click chọn mô hình → auto-fill số lượng cổ phiếu
+- Auto-fetch ATR khi tra cứu mã CP, truyền vào API sizing
+
+### Tests
+- 859 tests pass (Domain: 603, Application: 65, Infrastructure: 190, Api: 1)
+- 21 test mới cho 5 mô hình sizing + edge cases
+
+---
+
 ## [v2.33.0] — 2026-04-11 · Confluence Score, Market Condition, Divergence Detection (P2)
 
 **Branch:** `feat/p1-expand-technical-indicators`
