@@ -2,6 +2,32 @@
 
 ---
 
+## [v2.33.0] — 2026-04-11 · Confluence Score, Market Condition, Divergence Detection (P2)
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### Confluence Score (Điểm tổng hợp 0-100)
+- Trọng số 5 nhóm: Xu hướng 30%, Động lượng 25%, Khối lượng 20%, Biến động 15%, Vị trí giá 10%
+- Progress bar trực quan + đánh giá: Tín hiệu tích cực / Tiêu cực / Trung tính
+
+### Market Condition Classifier (Trạng thái thị trường)
+- Phân loại tự động dựa trên ADX: Xu hướng rất mạnh (≥40) / Có xu hướng (≥25) / Đi ngang (<25)
+- Gợi ý chiến lược phù hợp: Trend Following / Mean Reversion
+
+### Divergence Detection (Phát hiện phân kỳ)
+- Auto-detect phân kỳ RSI và MACD vs giá (swing highs/lows)
+- Phân kỳ tăng (bullish divergence) + Phân kỳ giảm (bearish divergence)
+- Bộ lọc: min 5 bar giữa swing points + min 0.5% chênh lệch giá (giảm false positive)
+
+### Frontend
+- 3 card mới trên Smart Signals: Điểm Confluence (gauge + progress bar), Trạng thái thị trường (badge + chiến lược), Phân kỳ (alert card chi tiết RSI/MACD)
+
+### Tests
+- 838 tests pass (Domain: 603, Application: 65, Infrastructure: 169, Api: 1)
+- 18 test mới cho Confluence Score, Market Condition, Divergence Detection
+
+---
+
 ## [v2.32.0] — 2026-04-10 · Help Center — Hướng dẫn sử dụng
 
 **Branch:** `feat/p1-expand-technical-indicators`
