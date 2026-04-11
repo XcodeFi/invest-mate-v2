@@ -71,6 +71,15 @@ Flow 5 bước dẫn dắt giao dịch có kỷ luật:
 
 Module lập kế hoạch giao dịch đầy đủ: Auto-fill giá, Position Sizing, Checklist 13 mục, Multi-lot (ScalingIn/DCA), Exit Targets, **Scenario Playbook** (kịch bản nâng cao với decision tree + tự động đánh giá), Template save/load, Risk enforcement, Order Sheet.
 
+**Advanced Position Sizing (5 mô hình):**
+- **Cố định % rủi ro** (có sẵn): `Size = (Vốn × %Risk) / RiskPerShare`
+- **Theo ATR**: `Size = (Vốn × %Risk) / (N × ATR)` — tự điều chỉnh theo biến động
+- **Kelly Criterion**: Half-Kelly, cap 25% — sizing tối ưu dựa trên win rate và avg win/loss
+- **Turtle (1 unit)**: `1 Unit = 1% Vốn / ATR` — thêm tối đa 3 unit nếu lời
+- **Điều chỉnh biến động**: Scale theo ATR percentile (ATR thấp → tăng size, ATR cao → giảm size)
+- Bảng so sánh tất cả mô hình: số CP, % danh mục, rủi ro. Click chọn để áp dụng.
+- API: `POST /api/v1/risk/position-sizing`
+
 ---
 
 ## Phase 3–4: Charts & Links

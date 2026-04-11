@@ -97,6 +97,22 @@ Lưu kế hoạch thành template tái sử dụng:
 
 ---
 
+## So sánh mô hình Position Sizing
+
+Khi nhập mã CP và stop-loss, hệ thống tự động tính 5 mô hình:
+
+| Mô hình | Công thức | Khi nào dùng |
+|---------|-----------|--------------|
+| **Cố định % rủi ro** | `Vốn × %Risk / RiskPerShare` | Mặc định, phổ biến nhất |
+| **Theo ATR** | `Vốn × %Risk / (N × ATR)` | Muốn điều chỉnh theo biến động |
+| **Kelly Criterion** | Half-Kelly, cap 25% | Có lịch sử giao dịch (win rate, avg W/L) |
+| **Turtle (1 unit)** | `1% Vốn / ATR` | Chiến lược Turtle, thêm unit khi lời |
+| **Điều chỉnh biến động** | Scale Risk × (2%/ATR%) | ATR thấp → tăng size, ATR cao → giảm |
+
+Click vào mô hình trong bảng so sánh → auto-fill số cổ phiếu. Cột "%DM" hiển thị % danh mục, badge xanh/đỏ cho biết có vượt giới hạn không.
+
+---
+
 ## Vòng đời kế hoạch
 
 ```

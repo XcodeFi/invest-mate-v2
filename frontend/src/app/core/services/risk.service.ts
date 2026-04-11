@@ -207,6 +207,37 @@ export interface TrailingStopAlertsResult {
   alertCount: number;
 }
 
+// Position Sizing
+export interface PositionSizingRequest {
+  accountBalance: number;
+  entryPrice: number;
+  stopLoss: number;
+  riskPercent: number;
+  maxPositionPercent: number;
+  atr?: number;
+  atrMultiplier: number;
+  winRate?: number;
+  averageWin?: number;
+  averageLoss?: number;
+  atrPercent?: number;
+}
+
+export interface SizingModelResult {
+  model: string;
+  modelVi: string;
+  shares: number;
+  positionValue: number;
+  positionPercent: number;
+  riskAmount: number;
+  withinLimit: boolean;
+  note?: string;
+}
+
+export interface PositionSizingResult {
+  models: SizingModelResult[];
+  recommendedModel: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -279,6 +310,11 @@ export class RiskService {
 
   getRiskBudget(portfolioId: string): Observable<RiskBudgetStatus> {
     return this.http.get<RiskBudgetStatus>(`${this.API_URL}/portfolio/${portfolioId}/budget`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  calculatePositionSizing(request: PositionSizingRequest): Observable<PositionSizingResult> {
+    return this.http.post<PositionSizingResult>(`${this.API_URL}/position-sizing`, request, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

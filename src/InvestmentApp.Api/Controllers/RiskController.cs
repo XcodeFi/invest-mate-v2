@@ -23,10 +23,12 @@ namespace InvestmentApp.Api.Controllers;
 public class RiskController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IPositionSizingService _positionSizing;
 
-    public RiskController(IMediator mediator)
+    public RiskController(IMediator mediator, IPositionSizingService positionSizing)
     {
         _mediator = mediator;
+        _positionSizing = positionSizing;
     }
 
     private string GetUserId() =>
@@ -202,6 +204,17 @@ public class RiskController : ControllerBase
             UserId = GetUserId()
         };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Calculate position sizing using multiple models for comparison.
+    /// </summary>
+    [HttpPost("position-sizing")]
+    [ProducesResponseType(typeof(PositionSizingResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CalculatePositionSizing([FromBody] PositionSizingRequest request)
+    {
+        var result = await _positionSizing.CalculateAsync(request);
         return Ok(result);
     }
 }

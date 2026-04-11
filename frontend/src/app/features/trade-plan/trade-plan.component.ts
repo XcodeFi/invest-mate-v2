@@ -5,8 +5,8 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil, catchError } from 'rxjs';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile, PortfolioRiskSummary } from '../../core/services/risk.service';
-import { MarketDataService, StockPrice } from '../../core/services/market-data.service';
+import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult } from '../../core/services/risk.service';
+import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -1115,6 +1115,61 @@ interface TradePlanForm {
             </div>
           </div>
 
+          <!-- Advanced Sizing Models (P3) -->
+          @if (sizingModels.length > 0) {
+            <div class="bg-white rounded-lg shadow p-6">
+              <h2 class="text-lg font-semibold mb-3">So sánh mô hình</h2>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b text-left text-xs text-gray-500 uppercase">
+                      <th class="pb-2 pr-2">Mô hình</th>
+                      <th class="pb-2 pr-2 text-right">CP</th>
+                      <th class="pb-2 pr-2 text-right">%DM</th>
+                      <th class="pb-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (m of sizingModels; track m.model) {
+                      <tr class="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
+                        [class.bg-blue-50]="m.model === selectedSizingModel"
+                        (click)="applySizingModel(m)">
+                        <td class="py-2 pr-2">
+                          <div class="font-medium text-gray-800">{{ m.modelVi }}</div>
+                          @if (m.note) {
+                            <div class="text-xs text-gray-400 truncate max-w-[160px]">{{ m.note }}</div>
+                          }
+                        </td>
+                        <td class="py-2 pr-2 text-right font-mono font-bold">{{ m.shares | number }}</td>
+                        <td class="py-2 pr-2 text-right">
+                          <span class="text-xs font-medium px-1.5 py-0.5 rounded-full"
+                            [class.bg-green-100]="m.withinLimit" [class.text-green-700]="m.withinLimit"
+                            [class.bg-red-100]="!m.withinLimit" [class.text-red-700]="!m.withinLimit">
+                            {{ m.positionPercent | number:'1.1-1' }}%
+                          </span>
+                        </td>
+                        <td class="py-2">
+                          @if (m.model === recommendedModel) {
+                            <span class="text-xs text-blue-600 font-medium">Gợi ý</span>
+                          }
+                          @if (m.model === selectedSizingModel) {
+                            <span class="text-xs text-emerald-600 font-medium">Đang chọn</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (loadingSizingModels) {
+                <div class="text-center text-gray-400 text-xs mt-2">Đang tính...</div>
+              }
+              @if (sizingModels.length === 1 && !loadingSizingModels) {
+                <div class="text-center text-gray-400 text-xs mt-2">Tra cứu mã CP để xem thêm mô hình (ATR, Turtle, Volatility)</div>
+              }
+            </div>
+          }
+
           <!-- Quick Metrics -->
           <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold mb-4">Chỉ số giao dịch</h2>
@@ -1554,6 +1609,14 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   manualQuantity = false;
   quickRefTable: { riskPercent: number; riskAmount: number; shares: number; value: number; portfolioPercent: number }[] = [];
 
+  // Advanced Position Sizing (P3)
+  sizingModels: SizingModelResult[] = [];
+  selectedSizingModel = 'fixed_risk';
+  recommendedModel = 'fixed_risk';
+  loadingSizingModels = false;
+  stockAtr: number | null = null;
+  stockAtrPercent: number | null = null;
+
   checklistCategories = ['Phân tích', 'Quản lý rủi ro', 'Tâm lý', 'Xác nhận'];
 
   // Template management
@@ -1677,6 +1740,17 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           this.plan.entryPrice = price.close;
           this.recalculate();
         }
+        // Fetch ATR for advanced sizing models
+        this.marketDataService.getTechnicalAnalysis(this.plan.symbol).pipe(
+          takeUntil(this.destroy$)
+        ).subscribe({
+          next: (analysis) => {
+            this.stockAtr = analysis.atr14 ?? null;
+            this.stockAtrPercent = analysis.atrPercent ?? null;
+            this.fetchSizingModels();
+          },
+          error: () => {}
+        });
       }
     });
   }
@@ -1910,6 +1984,45 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       const value = shares * entryPrice;
       return { riskPercent: pct, riskAmount: risk, shares, value, portfolioPercent: (value / this.accountBalance) * 100 };
     });
+  }
+
+  fetchSizingModels(): void {
+    const { entryPrice, stopLoss } = this.plan;
+    if (!entryPrice || !stopLoss || entryPrice <= 0 || this.riskPerShare === 0) {
+      this.sizingModels = [];
+      return;
+    }
+
+    this.loadingSizingModels = true;
+    const request: PositionSizingRequest = {
+      accountBalance: this.accountBalance,
+      entryPrice,
+      stopLoss,
+      riskPercent: this.riskPercent,
+      maxPositionPercent: this.maxPositionPercent,
+      atr: this.stockAtr ?? undefined,
+      atrMultiplier: 2,
+      atrPercent: this.stockAtrPercent ?? undefined
+    };
+
+    this.riskService.calculatePositionSizing(request).subscribe({
+      next: (result) => {
+        this.sizingModels = result.models;
+        this.recommendedModel = result.recommendedModel;
+        this.loadingSizingModels = false;
+      },
+      error: () => {
+        this.sizingModels = [];
+        this.loadingSizingModels = false;
+      }
+    });
+  }
+
+  applySizingModel(model: SizingModelResult): void {
+    this.selectedSizingModel = model.model;
+    this.plan.quantity = model.shares;
+    this.manualQuantity = true;
+    this.recalculate();
   }
 
   onQuantityManualChange(): void {
