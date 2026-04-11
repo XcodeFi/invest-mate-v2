@@ -33,7 +33,12 @@ public class GetMarketEventsQueryHandler : IRequestHandler<GetMarketEventsQuery,
 
     public async Task<List<MarketEventDto>> Handle(GetMarketEventsQuery request, CancellationToken cancellationToken)
     {
-        var events = await _repository.GetBySymbolAsync(request.Symbol, request.From, request.To, cancellationToken);
+        // Adjust 'to' to end-of-day so events with time components aren't excluded
+        var to = request.To.HasValue
+            ? request.To.Value.Date.AddDays(1).AddTicks(-1)
+            : request.To;
+
+        var events = await _repository.GetBySymbolAsync(request.Symbol, request.From, to, cancellationToken);
 
         return events.Select(e => new MarketEventDto
         {

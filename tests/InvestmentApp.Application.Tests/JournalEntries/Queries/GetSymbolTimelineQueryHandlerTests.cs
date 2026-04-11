@@ -153,6 +153,56 @@ public class GetSymbolTimelineQueryHandlerTests
         result.EmotionSummary.AverageConfidence.Should().BeApproximately(6.33, 0.1);
     }
 
+    [Fact]
+    public async Task Handle_ToDateMidnight_IncludesEntriesFromThatDay()
+    {
+        // Arrange — reproduces the bug where frontend sends to="2026-04-11"
+        // (parsed as midnight) and journal entries created during that day are excluded
+        SetupEmptyDefaults();
+
+        var toDate = new DateTime(2026, 4, 11, 0, 0, 0, DateTimeKind.Utc); // midnight
+        var query = new GetSymbolTimelineQuery
+        {
+            UserId = "user-1",
+            Symbol = "BVH",
+            From = new DateTime(2026, 3, 11, 0, 0, 0, DateTimeKind.Utc),
+            To = toDate
+        };
+
+        // Entry created at 10:30 AM on the 'to' date — should NOT be excluded
+        var entry = new JournalEntry("user-1", "BVH", JournalEntryType.Observation,
+            "Quan sát BVH", "Content",
+            timestamp: new DateTime(2026, 4, 11, 10, 30, 0, DateTimeKind.Utc));
+
+        _journalEntryRepo.Setup(r => r.GetByUserIdAndSymbolAsync(
+            "user-1", "BVH", query.From,
+            It.Is<DateTime?>(d => d.HasValue && d.Value > toDate), // adjusted to end-of-day
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<JournalEntry> { entry });
+
+        // Act
+        var result = await _handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Type.Should().Be("journal");
+        result.To.Should().Be(toDate); // DTO echoes original request value, not adjusted
+
+        // Verify repositories received adjusted end-of-day value
+        _journalEntryRepo.Verify(r => r.GetByUserIdAndSymbolAsync(
+            "user-1", "BVH", query.From,
+            It.Is<DateTime?>(d => d.HasValue && d.Value > toDate),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _marketEventRepo.Verify(r => r.GetBySymbolAsync(
+            "BVH", query.From,
+            It.Is<DateTime?>(d => d.HasValue && d.Value > toDate),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _alertHistoryRepo.Verify(r => r.GetByUserIdAndSymbolAsync(
+            "user-1", "BVH", query.From,
+            It.Is<DateTime?>(d => d.HasValue && d.Value > toDate),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     #region P7.6: Emotion Trend Over Time
 
     [Fact]
