@@ -31,6 +31,11 @@
     "SuitableFor": ["Nhà đầu tư tích cực", "Người có thời gian theo dõi hàng tuần", "Trader kết hợp cơ bản & kỹ thuật"],
     "KeyIndicators": ["EPS Growth", "RS Rating", "Volume", "MA50", "Cup-with-Handle", "Institutional Ownership"],
     "Tags": ["canslim", "growth", "breakout", "oneil", "momentum"],
+    "SuggestedSlPercent": 8,
+    "SuggestedRrRatio": 2.5,
+    "SuggestedSlMethod": "manual",
+    "SuggestedAtrMultiplier": null,
+    "SuggestedSizingModel": "fixed_risk",
     "SortOrder": 2
   },
   {
@@ -142,7 +147,7 @@
     "EntryRules": "• RS Rating ≥ 85 (top 15% cổ phiếu mạnh nhất)\n• Giá tăng > 20% trong 3 tháng gần nhất\n• Volume trung bình 20 phiên tăng so với 50 phiên\n• RSI 60-80 (momentum mạnh nhưng chưa cực đoan)\n• Giá trên MA20 và MA50\n• VNINDEX đang uptrend (trên MA50)\n• Ngành (sector) của cổ phiếu đang outperform thị trường",
     "ExitRules": "• Giá cắt xuống MA20 (tín hiệu momentum suy yếu)\n• RS Rating giảm xuống dưới 70\n• Volume giảm mạnh khi giá tăng (phân phối)\n• RSI > 85 kết hợp nến đảo chiều\n• Thị trường chung chuyển sang downtrend\n• Trailing stop 8-10% từ đỉnh\n• Time stop: Thoát nếu giá sideway > 3 tuần",
     "RiskRules": "• Stop loss: 8-10% (momentum stocks biến động mạnh)\n• Position size: 10-12% danh mục/mã\n• Tối đa 5-6 mã momentum cùng lúc\n• Risk per trade: 1-2% tổng vốn\n• Xoay vòng: Bán mã yếu nhất, mua mã mạnh nhất mỗi tuần\n• Không giữ mã đã mất momentum quá 1 tuần",
-    "TimeFrame": "DayTrading",
+    "TimeFrame": "Swing",
     "MarketCondition": "Trending",
     "DifficultyLevel": "Advanced",
     "SuitableFor": ["Trader tích cực", "Người có thời gian theo dõi hàng ngày", "Trader ngắn-trung hạn"],

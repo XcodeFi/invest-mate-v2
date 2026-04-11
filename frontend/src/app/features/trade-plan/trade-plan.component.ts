@@ -2051,15 +2051,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     // Auto-select SL method from strategy (P5)
     if (s.suggestedSlMethod && s.suggestedSlMethod !== 'manual') {
       this.slMethod = s.suggestedSlMethod as any;
-      // If strategy specifies ATR multiplier and analysis is loaded, apply it
-      if (s.suggestedSlMethod === 'atr' && this.stockAnalysis?.atr14 && entry > 0) {
-        const atrSl = isBuy
-          ? Math.round(entry - (this.slAtrMultiplier) * this.stockAnalysis.atr14)
-          : Math.round(entry + (this.slAtrMultiplier) * this.stockAnalysis.atr14);
-        if (atrSl > 0) {
-          this.plan.stopLoss = atrSl;
-          this.slAutoFilled = true;
-        }
+      this.calculateSlMethods(); // refresh pills with current method
+      // Apply the selected method's calculated price
+      const selectedMethod = this.slMethods.find(m => m.value === this.slMethod);
+      if (selectedMethod?.price && selectedMethod.price > 0 && entry > 0) {
+        this.plan.stopLoss = selectedMethod.price;
+        this.slAutoFilled = true;
       }
     }
 

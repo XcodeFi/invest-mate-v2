@@ -44,6 +44,9 @@ export interface UpdateStrategyRequest {
   timeFrame?: string;
   marketCondition?: string;
   isActive?: boolean;
+  suggestedSlPercent?: number;
+  suggestedRrRatio?: number;
+  suggestedSlMethod?: string;
 }
 
 export interface StrategyPerformance {
