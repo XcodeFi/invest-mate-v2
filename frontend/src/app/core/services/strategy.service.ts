@@ -16,6 +16,7 @@ export interface Strategy {
   marketCondition: string;
   suggestedSlPercent?: number;
   suggestedRrRatio?: number;
+  suggestedSlMethod?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -31,6 +32,7 @@ export interface CreateStrategyRequest {
   marketCondition?: string;
   suggestedSlPercent?: number;
   suggestedRrRatio?: number;
+  suggestedSlMethod?: string;
 }
 
 export interface UpdateStrategyRequest {

@@ -2,6 +2,58 @@
 
 ---
 
+## [v2.36.0] — 2026-04-11 · Strategy Template Library — 7 chiến lược kỹ thuật (P5)
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### Strategy Template Enhancement
+- 5 fields mới trên StrategyTemplate: `SuggestedSlPercent`, `SuggestedRrRatio`, `SuggestedSlMethod`, `SuggestedAtrMultiplier`, `SuggestedSizingModel`
+- 7 chiến lược kỹ thuật cập nhật đầy đủ P5 data:
+  - **Scalping**: SL 1.5%, R:R 1.5, Manual SL, Fixed Risk sizing
+  - **Day Trading** (mới): ATR×1.5, R:R 2, ATR-Based sizing
+  - **Swing Trading**: SL 5%, R:R 2, Support-based SL, ATR-Based sizing
+  - **Position Trading** (mới): SL 10%, R:R 3, Chandelier Exit, Turtle sizing
+  - **Breakout**: SL 5%, R:R 2, Support-based SL, ATR-Based sizing
+  - **Mean Reversion**: SL 5%, R:R 1.5, ATR×1.5, Volatility-Adjusted sizing
+  - **Momentum**: SL 8%, R:R 2, MA Trailing, ATR-Based sizing
+
+### Frontend
+- Template detail hiển thị badges: R:R, SL%, SL method, sizing model
+- Chọn template → tạo Strategy có đầy đủ SL method → Trade Plan auto-fill
+- Trade Plan: tự động chọn SL method pill khi chiến lược có `suggestedSlMethod`
+
+### Tests
+- 868 tests pass (Domain: 603, Application: 65, Infrastructure: 199, Api: 1)
+
+---
+
+## [v2.35.0] — 2026-04-11 · Advanced Stop Loss & SL Method Selector (P4)
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### 5 phương pháp Stop Loss
+- **Cố định (nhập tay)**: Nhập SL trực tiếp (có sẵn)
+- **ATR Stop Loss**: `Entry ∓ k × ATR(14)`, k = 1.5/2.0/3.0 (ngắn/trung/dài hạn)
+- **Chandelier Exit**: `HH(22) - 3×ATR` (mua) / `LL(22) + 3×ATR` (bán)
+- **MA Trailing**: EMA(21) làm SL floor
+- **Hỗ trợ/Kháng cự gần nhất**: Swing low (mua) / Swing high (bán)
+
+### Backend
+- 3 trường mới trong TechnicalAnalysisResult: `Ema21`, `HighestHigh22`, `LowestLow22`
+- Tính toán trong TechnicalIndicatorService
+
+### Frontend
+- Pill selector dưới ô Stop-Loss, hỗ trợ cả Buy/Sell direction
+- ATR multiplier selector (1.5×/2×/3×) với gợi ý ngắn/trung/dài hạn
+- SL pills auto-cập nhật khi thay đổi giá vào lệnh
+- Auto-fetch technical analysis khi tra cứu mã CP
+
+### Tests
+- 868 tests pass (Domain: 603, Application: 65, Infrastructure: 199, Api: 1)
+- 9 test mới cho Ema21, HighestHigh22, LowestLow22
+
+---
+
 ## [v2.34.0] — 2026-04-11 · Advanced Position Sizing Calculator (P3)
 
 **Branch:** `feat/p1-expand-technical-indicators`

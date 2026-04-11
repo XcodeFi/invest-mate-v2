@@ -81,6 +81,19 @@ Khi bạn nhập Entry và SL trong Kế hoạch GD, hệ thống tự tính:
 | **ATR** | SL = Entry - k × ATR(14) | Swing Trading (k=2) |
 | **Swing Low** | SL dưới đáy gần nhất | Price Action |
 | **EMA** | SL dưới EMA(21) hoặc SMA(50) | Trend Following |
+| **Chandelier Exit** | HH(22) - 3×ATR (mua) / LL(22) + 3×ATR (bán) | Trailing stop mạnh |
+
+### SL Method Selector (tự động)
+
+Khi tra cứu mã CP trong Kế hoạch GD, hệ thống hiển thị pill selector dưới ô Stop-Loss với 5 phương pháp:
+
+1. **Cố định**: Nhập tay, tự do chọn giá
+2. **ATR**: Tự tính từ biến động — chọn hệ số 1.5× (ngắn hạn), 2× (trung hạn), 3× (dài hạn)
+3. **Chandelier Exit**: Dựa trên đỉnh cao nhất 22 phiên trừ 3×ATR
+4. **MA Trailing**: EMA(21) làm mức SL sàn
+5. **Hỗ trợ/Kháng cự**: Swing low gần nhất (mua) hoặc Swing high (bán)
+
+Click vào pill để áp dụng. Giá SL tự cập nhật khi thay đổi giá vào lệnh.
 
 ### Trailing Stop
 

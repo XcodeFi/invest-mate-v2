@@ -129,6 +129,31 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
             <span *ngFor="let who of selectedTemplate.suitableFor"
               class="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-xs">{{ who }}</span>
           </div>
+          @if (selectedTemplate.suggestedRrRatio || selectedTemplate.suggestedSlMethod) {
+            <div class="flex flex-wrap gap-2 mb-3">
+              @if (selectedTemplate.suggestedRrRatio) {
+                <span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-medium">R:R ≥ 1:{{ selectedTemplate.suggestedRrRatio }}</span>
+              }
+              @if (selectedTemplate.suggestedSlPercent) {
+                <span class="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">SL {{ selectedTemplate.suggestedSlPercent }}%</span>
+              }
+              @if (selectedTemplate.suggestedSlMethod && selectedTemplate.suggestedSlMethod !== 'manual') {
+                <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                  SL: {{ selectedTemplate.suggestedSlMethod === 'atr' ? 'ATR ×' + (selectedTemplate.suggestedAtrMultiplier || 2) :
+                         selectedTemplate.suggestedSlMethod === 'chandelier' ? 'Chandelier Exit' :
+                         selectedTemplate.suggestedSlMethod === 'ma_trailing' ? 'MA Trailing' :
+                         selectedTemplate.suggestedSlMethod === 'support' ? 'Hỗ trợ' : selectedTemplate.suggestedSlMethod }}
+                </span>
+              }
+              @if (selectedTemplate.suggestedSizingModel && selectedTemplate.suggestedSizingModel !== 'fixed_risk') {
+                <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-medium">
+                  Size: {{ selectedTemplate.suggestedSizingModel === 'atr_based' ? 'Theo ATR' :
+                           selectedTemplate.suggestedSizingModel === 'turtle' ? 'Turtle' :
+                           selectedTemplate.suggestedSizingModel === 'volatility_adjusted' ? 'Điều chỉnh BĐ' : selectedTemplate.suggestedSizingModel }}
+                </span>
+              }
+            </div>
+          }
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
             <div>
               <div class="font-medium text-green-700 mb-1">Quy tắc vào lệnh</div>
@@ -498,7 +523,10 @@ export class StrategiesComponent implements OnInit {
     this.newStrategy = {
       name: tpl.name, description: tpl.description,
       entryRules: tpl.entryRules, exitRules: tpl.exitRules, riskRules: tpl.riskRules,
-      timeFrame: tpl.timeFrame, marketCondition: tpl.marketCondition
+      timeFrame: tpl.timeFrame, marketCondition: tpl.marketCondition,
+      suggestedSlPercent: tpl.suggestedSlPercent,
+      suggestedRrRatio: tpl.suggestedRrRatio,
+      suggestedSlMethod: tpl.suggestedSlMethod
     };
     this.appliedTemplateName = tpl.name;
     this.showTemplatePicker = false;

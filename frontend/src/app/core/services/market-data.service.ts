@@ -147,6 +147,9 @@ export interface TechnicalAnalysis {
   bollingerPercentB?: number;
   bollingerSignal?: string;
   ema200?: number;
+  ema21?: number;
+  highestHigh22?: number;
+  lowestLow22?: number;
   fibonacci?: {
     swingHigh: number;
     swingLow: number;

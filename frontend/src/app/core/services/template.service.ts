@@ -19,6 +19,11 @@ export interface StrategyTemplate {
   suitableFor: string[];
   keyIndicators: string[];
   tags: string[];
+  suggestedSlPercent?: number;
+  suggestedRrRatio?: number;
+  suggestedSlMethod?: string;
+  suggestedAtrMultiplier?: number;
+  suggestedSizingModel?: string;
   sortOrder: number;
 }
 

@@ -21,6 +21,7 @@ public class StrategyDto
     public bool IsActive { get; set; }
     public decimal? SuggestedSlPercent { get; set; }
     public decimal? SuggestedRrRatio { get; set; }
+    public string? SuggestedSlMethod { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -50,6 +51,7 @@ public class GetStrategiesQueryHandler : IRequestHandler<GetStrategiesQuery, IEn
             IsActive = s.IsActive,
             SuggestedSlPercent = s.SuggestedSlPercent,
             SuggestedRrRatio = s.SuggestedRrRatio,
+            SuggestedSlMethod = s.SuggestedSlMethod,
             CreatedAt = s.CreatedAt,
             UpdatedAt = s.UpdatedAt
         });
