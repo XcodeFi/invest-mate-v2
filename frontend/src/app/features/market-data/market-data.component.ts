@@ -202,6 +202,90 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
           </span>
         </div>
 
+        <!-- P2: Confluence Score + Market Condition + Divergence -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <!-- Confluence Score -->
+          @if (analysis.confluenceScore != null) {
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+              <div class="text-xs text-blue-600 font-medium mb-2">🎯 Điểm Confluence</div>
+              <div class="flex items-end gap-2">
+                <span class="text-3xl font-bold"
+                  [class.text-green-600]="analysis.confluenceScore! > 60"
+                  [class.text-red-600]="analysis.confluenceScore! < 40"
+                  [class.text-amber-600]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
+                  {{ analysis.confluenceScore | number:'1.1-1' }}
+                </span>
+                <span class="text-sm text-gray-500 mb-1">/ 100</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                <div class="h-2 rounded-full transition-all"
+                  [style.width.%]="analysis.confluenceScore"
+                  [class.bg-green-500]="analysis.confluenceScore! > 60"
+                  [class.bg-red-500]="analysis.confluenceScore! < 40"
+                  [class.bg-amber-400]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
+                </div>
+              </div>
+              <div class="text-xs mt-1"
+                [class.text-green-600]="analysis.confluenceScore! > 60"
+                [class.text-red-600]="analysis.confluenceScore! < 40"
+                [class.text-amber-600]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
+                {{ analysis.confluenceScore! > 60 ? 'Tín hiệu tích cực' : analysis.confluenceScore! < 40 ? 'Tín hiệu tiêu cực' : 'Trung tính' }}
+              </div>
+            </div>
+          }
+
+          <!-- Market Condition -->
+          @if (analysis.marketCondition !== 'unknown') {
+            <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+              <div class="text-xs text-purple-600 font-medium mb-2">🏷️ Trạng thái thị trường</div>
+              <div class="text-lg font-bold"
+                [class.text-emerald-600]="analysis.marketCondition === 'strong_trend'"
+                [class.text-blue-600]="analysis.marketCondition === 'trending'"
+                [class.text-amber-600]="analysis.marketCondition === 'sideway'"
+                [class.text-gray-600]="analysis.marketCondition === 'neutral'">
+                {{ analysis.marketConditionVi }}
+              </div>
+              @if (analysis.suggestedStrategy) {
+                <div class="text-xs text-gray-500 mt-1">Chiến lược:
+                  <span class="font-medium text-purple-700">{{ analysis.suggestedStrategy }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Divergence Alert -->
+          @if (analysis.divergenceSignal) {
+            <div class="rounded-lg p-4 border bg-gradient-to-br"
+              [class.from-green-50]="analysis.divergenceSignal === 'bullish_divergence'"
+              [class.to-emerald-50]="analysis.divergenceSignal === 'bullish_divergence'"
+              [class.border-green-200]="analysis.divergenceSignal === 'bullish_divergence'"
+              [class.from-red-50]="analysis.divergenceSignal === 'bearish_divergence'"
+              [class.to-orange-50]="analysis.divergenceSignal === 'bearish_divergence'"
+              [class.border-red-200]="analysis.divergenceSignal === 'bearish_divergence'">
+              <div class="text-xs font-medium mb-2"
+                [class.text-green-600]="analysis.divergenceSignal === 'bullish_divergence'"
+                [class.text-red-600]="analysis.divergenceSignal === 'bearish_divergence'">
+                ⚡ Phát hiện phân kỳ
+              </div>
+              <div class="text-lg font-bold"
+                [class.text-green-700]="analysis.divergenceSignal === 'bullish_divergence'"
+                [class.text-red-700]="analysis.divergenceSignal === 'bearish_divergence'">
+                {{ analysis.divergenceSignalVi }}
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                @if (analysis.rsiDivergence) { <span>RSI: {{ analysis.rsiDivergence === 'bullish' ? 'Phân kỳ tăng' : 'Phân kỳ giảm' }}</span> }
+                @if (analysis.rsiDivergence && analysis.macdDivergence) { <span> · </span> }
+                @if (analysis.macdDivergence) { <span>MACD: {{ analysis.macdDivergence === 'bullish' ? 'Phân kỳ tăng' : 'Phân kỳ giảm' }}</span> }
+              </div>
+            </div>
+          } @else {
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div class="text-xs text-gray-500 font-medium mb-2">⚡ Phân kỳ (Divergence)</div>
+              <div class="text-sm text-gray-400">Không phát hiện phân kỳ</div>
+            </div>
+          }
+        </div>
+
         <!-- Indicators Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- EMA -->

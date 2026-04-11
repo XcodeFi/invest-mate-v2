@@ -79,6 +79,20 @@ public class TechnicalAnalysisResult
     public decimal? Mfi14 { get; set; }
     public string MfiSignal { get; set; } = "neutral"; // "oversold" | "overbought" | "neutral"
 
+    // Confluence Score (0-100, weighted multi-indicator)
+    public decimal? ConfluenceScore { get; set; }
+
+    // Market Condition Classifier
+    public string MarketCondition { get; set; } = "unknown"; // "trending" | "strong_trend" | "sideway" | "unknown"
+    public string MarketConditionVi { get; set; } = "Chưa xác định";
+    public string SuggestedStrategy { get; set; } = "";
+
+    // Divergence Detection
+    public string? RsiDivergence { get; set; } // "bullish" | "bearish" | null
+    public string? MacdDivergence { get; set; } // "bullish" | "bearish" | null
+    public string? DivergenceSignal { get; set; } // "bullish_divergence" | "bearish_divergence" | null
+    public string? DivergenceSignalVi { get; set; } // "Phân kỳ tăng" | "Phân kỳ giảm" | null
+
     // EMA200
     public decimal? Ema200 { get; set; }
 

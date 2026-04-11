@@ -211,6 +211,25 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             };
         }
 
+        // --- Market Condition Classifier (ADX-based) ---
+        var (marketCond, marketCondVi, suggestedStrategy) = ClassifyMarketCondition(result.Adx14, result.AdxSignal);
+        result.MarketCondition = marketCond;
+        result.MarketConditionVi = marketCondVi;
+        result.SuggestedStrategy = suggestedStrategy;
+
+        // --- Divergence Detection (RSI & MACD vs Price) ---
+        var (rsiDiv, macdDiv) = DetectDivergence(closes, highs, lows, volumes, 50);
+        result.RsiDivergence = rsiDiv;
+        result.MacdDivergence = macdDiv;
+
+        // Composite divergence signal: RSI takes priority, then MACD
+        var primaryDiv = rsiDiv ?? macdDiv;
+        if (primaryDiv != null)
+        {
+            result.DivergenceSignal = primaryDiv == "bullish" ? "bullish_divergence" : "bearish_divergence";
+            result.DivergenceSignalVi = primaryDiv == "bullish" ? "Phân kỳ tăng" : "Phân kỳ giảm";
+        }
+
         // --- Overall Signal (10 indicators) ---
         int bullish = 0, bearish = 0, neutral = 0;
 
@@ -273,6 +292,9 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             (_, >= 4) when bullish <= 3 => ("sell", "Bán"),
             _ => ("hold", "Chờ")
         };
+
+        // --- Confluence Score (weighted multi-indicator) ---
+        result.ConfluenceScore = CalculateConfluenceScore(result);
 
         // --- Trade Suggestion ---
         if (result.SupportLevels.Count > 0 && result.ResistanceLevels.Count > 0)
@@ -654,6 +676,268 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         if (negFlow == 0) return 100;
         var mfRatio = posFlow / negFlow;
         return Math.Round(100 - (100 / (1 + mfRatio)), 1);
+    }
+
+    // --- Confluence Score (0-100, weighted across 5 categories) ---
+    private static decimal? CalculateConfluenceScore(TechnicalAnalysisResult r)
+    {
+        // Need at least EMA + RSI to compute a meaningful score
+        if (!r.Ema20.HasValue || !r.Rsi14.HasValue) return null;
+
+        // Trend (30%): EMA trend + ADX direction
+        decimal trendScore = 50;
+        if (r.EmaTrend == "bullish") trendScore += 15;
+        else if (r.EmaTrend == "bearish") trendScore -= 15;
+
+        if (r.AdxSignal is "trending" or "strong_trend" && r.PlusDi.HasValue && r.MinusDi.HasValue)
+        {
+            if (r.PlusDi > r.MinusDi) trendScore += 20;
+            else trendScore -= 20;
+        }
+        trendScore = Math.Clamp(trendScore, 0, 100);
+
+        // Momentum (25%): RSI + MACD + Stochastic — use raw values for directional strength
+        var momentumScores = new List<decimal>();
+
+        if (r.Rsi14.HasValue)
+            momentumScores.Add(r.Rsi14.Value); // RSI 0-100 directly maps to bearish-bullish
+
+        if (r.MacdSignal != null)
+        {
+            momentumScores.Add(r.MacdSignal switch
+            {
+                "buy" => 75,
+                "sell" => 25,
+                _ => 50
+            });
+        }
+        if (r.StochasticK.HasValue)
+            momentumScores.Add(r.StochasticK.Value); // %K 0-100 directly maps
+
+        decimal momentumScore = momentumScores.Count > 0 ? momentumScores.Average() : 50;
+
+        // Volume (20%): OBV + MFI + Volume ratio
+        var volumeScores = new List<decimal>();
+
+        if (r.ObvSignal != null)
+        {
+            volumeScores.Add(r.ObvSignal switch
+            {
+                "rising" => 80,
+                "falling" => 20,
+                _ => 50
+            });
+        }
+        if (r.Mfi14.HasValue)
+            volumeScores.Add(r.Mfi14.Value); // MFI 0-100 directly maps to bearish-bullish
+        if (r.VolumeSignal != null)
+        {
+            if (r.VolumeSignal is "spike" or "high")
+                volumeScores.Add(r.PriceChangePercent > 0 ? 75 : 25);
+            else if (r.VolumeSignal == "low")
+                volumeScores.Add(40);
+            else
+                volumeScores.Add(50);
+        }
+        decimal volumeScore = volumeScores.Count > 0 ? volumeScores.Average() : 50;
+
+        // Volatility (15%): Bollinger + ATR
+        var volatilityScores = new List<decimal>();
+
+        if (r.BollingerSignal != null)
+        {
+            volatilityScores.Add(r.BollingerSignal switch
+            {
+                "breakout_up" => 75,
+                "breakout_down" => 25,
+                _ => 50
+            });
+        }
+        if (r.AtrPercent.HasValue)
+        {
+            volatilityScores.Add(r.AtrPercent.Value switch
+            {
+                > 3m => 30, // high volatility = risky
+                > 2m => 50,
+                _ => 60    // low volatility = favorable
+            });
+        }
+        decimal volatilityScore = volatilityScores.Count > 0 ? volatilityScores.Average() : 50;
+
+        // Price Position (10%): Bollinger %B — high = bullish (near upper band), low = bearish
+        decimal positionScore = 50;
+        if (r.BollingerPercentB.HasValue)
+        {
+            // Map %B (0-1) to score (0-100): direct correlation with bullish strength
+            positionScore = Math.Clamp(r.BollingerPercentB.Value * 100, 0, 100);
+        }
+
+        // Weighted total
+        var score = trendScore * 0.30m
+                  + momentumScore * 0.25m
+                  + volumeScore * 0.20m
+                  + volatilityScore * 0.15m
+                  + positionScore * 0.10m;
+
+        return Math.Round(Math.Clamp(score, 0, 100), 1);
+    }
+
+    // --- Market Condition Classifier ---
+    private static (string condition, string conditionVi, string strategy) ClassifyMarketCondition(
+        decimal? adx, string? adxSignal)
+    {
+        if (!adx.HasValue)
+            return ("unknown", "Chưa xác định", "");
+
+        return adx.Value switch
+        {
+            >= 40 => ("strong_trend", "Xu hướng rất mạnh", "Trend Following (mạnh)"),
+            >= 25 => ("trending", "Có xu hướng", "Trend Following"),
+            _ => ("sideway", "Đi ngang", "Mean Reversion")
+        };
+    }
+
+    // --- Divergence Detection (RSI & MACD vs Price) ---
+    private static (string? rsiDivergence, string? macdDivergence) DetectDivergence(
+        List<decimal> closes, List<decimal> highs, List<decimal> lows, List<decimal> volumes, int lookback)
+    {
+        if (closes.Count < lookback + 14) return (null, null); // Need enough data for RSI/MACD + lookback
+
+        // Calculate RSI series for the lookback window
+        var rsiSeries = CalculateRsiSeries(closes, 14, lookback);
+
+        // Calculate MACD histogram series for the lookback window
+        var macdHistSeries = CalculateMacdHistogramSeries(closes, 12, 26, 9, lookback);
+
+        // Find swing lows and swing highs in the lookback window
+        var recentCloses = closes.TakeLast(lookback).ToList();
+        var swingLows = FindSwingPoints(recentCloses, isLow: true);
+        var swingHighs = FindSwingPoints(recentCloses, isLow: false);
+
+        // Filter: swing points must be at least 5 bars apart and have meaningful price difference (>= 0.5%)
+        swingLows = FilterSwingPoints(swingLows, recentCloses);
+        swingHighs = FilterSwingPoints(swingHighs, recentCloses);
+
+        string? rsiDiv = null;
+        string? macdDiv = null;
+
+        // RSI Divergence
+        if (rsiSeries.Count >= lookback && swingLows.Count >= 2)
+        {
+            var (lo1Idx, lo1Price) = swingLows[swingLows.Count - 2];
+            var (lo2Idx, lo2Price) = swingLows[swingLows.Count - 1];
+
+            // Bullish: price lower low, RSI higher low
+            if (lo2Price < lo1Price && rsiSeries[lo2Idx] > rsiSeries[lo1Idx])
+                rsiDiv = "bullish";
+        }
+
+        if (rsiDiv == null && rsiSeries.Count >= lookback && swingHighs.Count >= 2)
+        {
+            var (hi1Idx, hi1Price) = swingHighs[swingHighs.Count - 2];
+            var (hi2Idx, hi2Price) = swingHighs[swingHighs.Count - 1];
+
+            // Bearish: price higher high, RSI lower high
+            if (hi2Price > hi1Price && rsiSeries[hi2Idx] < rsiSeries[hi1Idx])
+                rsiDiv = "bearish";
+        }
+
+        // MACD Divergence
+        if (macdHistSeries.Count >= lookback && swingLows.Count >= 2)
+        {
+            var (lo1Idx, lo1Price) = swingLows[swingLows.Count - 2];
+            var (lo2Idx, lo2Price) = swingLows[swingLows.Count - 1];
+
+            if (lo2Price < lo1Price && macdHistSeries[lo2Idx] > macdHistSeries[lo1Idx])
+                macdDiv = "bullish";
+        }
+
+        if (macdDiv == null && macdHistSeries.Count >= lookback && swingHighs.Count >= 2)
+        {
+            var (hi1Idx, hi1Price) = swingHighs[swingHighs.Count - 2];
+            var (hi2Idx, hi2Price) = swingHighs[swingHighs.Count - 1];
+
+            if (hi2Price > hi1Price && macdHistSeries[hi2Idx] < macdHistSeries[hi1Idx])
+                macdDiv = "bearish";
+        }
+
+        return (rsiDiv, macdDiv);
+    }
+
+    /// <summary>Filter swing points: min 5 bars apart and min 0.5% price difference from neighbors.</summary>
+    private static List<(int index, decimal price)> FilterSwingPoints(
+        List<(int index, decimal price)> points, List<decimal> data)
+    {
+        if (points.Count < 2) return points;
+
+        var filtered = new List<(int index, decimal price)> { points[0] };
+        for (int i = 1; i < points.Count; i++)
+        {
+            var prev = filtered.Last();
+            // Min 5 bars apart
+            if (points[i].index - prev.index < 5) continue;
+            // Min 0.5% price difference from average price
+            var avgPrice = (prev.price + points[i].price) / 2;
+            if (avgPrice > 0 && Math.Abs(points[i].price - prev.price) / avgPrice < 0.005m) continue;
+            filtered.Add(points[i]);
+        }
+
+        return filtered;
+    }
+
+    /// <summary>Calculate RSI values for the last N bars of close data.</summary>
+    private static List<decimal> CalculateRsiSeries(List<decimal> closes, int period, int lookback)
+    {
+        var result = new List<decimal>();
+        int startFrom = closes.Count - lookback;
+        if (startFrom < period + 1) return result;
+
+        for (int end = startFrom; end < closes.Count; end++)
+        {
+            var subset = closes.Take(end + 1).ToList();
+            var rsi = CalculateRsi(subset, period);
+            result.Add(rsi ?? 50m);
+        }
+
+        return result;
+    }
+
+    /// <summary>Calculate MACD histogram values for the last N bars.</summary>
+    private static List<decimal> CalculateMacdHistogramSeries(
+        List<decimal> closes, int fast, int slow, int signal, int lookback)
+    {
+        var result = new List<decimal>();
+        int startFrom = closes.Count - lookback;
+        if (startFrom < slow + signal) return result;
+
+        for (int end = startFrom; end < closes.Count; end++)
+        {
+            var subset = closes.Take(end + 1).ToList();
+            var (_, _, hist) = CalculateMacdAt(subset, fast, slow, signal);
+            result.Add(hist ?? 0m);
+        }
+
+        return result;
+    }
+
+    /// <summary>Find swing low/high points in a price series using 5-bar window.</summary>
+    private static List<(int index, decimal price)> FindSwingPoints(List<decimal> data, bool isLow)
+    {
+        var points = new List<(int index, decimal price)>();
+        if (data.Count < 5) return points;
+
+        for (int i = 2; i < data.Count - 2; i++)
+        {
+            var center = data[i];
+            bool isSwing = isLow
+                ? center <= data[i - 1] && center <= data[i - 2] && center <= data[i + 1] && center <= data[i + 2]
+                : center >= data[i - 1] && center >= data[i - 2] && center >= data[i + 1] && center >= data[i + 2];
+
+            if (isSwing)
+                points.Add((i, center));
+        }
+
+        return points;
     }
 
     private static FibonacciLevels? CalculateFibonacciLevels(

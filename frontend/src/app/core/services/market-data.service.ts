@@ -175,6 +175,17 @@ export interface TechnicalAnalysis {
   // MFI (Money Flow Index, 14)
   mfi14?: number;
   mfiSignal?: string;
+  // Confluence Score (0-100, weighted multi-indicator)
+  confluenceScore?: number;
+  // Market Condition Classifier
+  marketCondition: string;
+  marketConditionVi: string;
+  suggestedStrategy: string;
+  // Divergence Detection
+  rsiDivergence?: string;
+  macdDivergence?: string;
+  divergenceSignal?: string;
+  divergenceSignalVi?: string;
   suggestedEntry?: number;
   suggestedStopLoss?: number;
   suggestedTarget?: number;

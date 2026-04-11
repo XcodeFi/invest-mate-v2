@@ -113,6 +113,47 @@ Tra mã **FPT**, kết quả:
 
 ---
 
+## Điểm Confluence (0-100)
+
+Hệ thống tính điểm tổng hợp dựa trên trọng số 5 nhóm chỉ báo:
+
+| Nhóm | Trọng số | Chỉ báo |
+|------|----------|---------|
+| Xu hướng | 30% | EMA trend, ADX + DI direction |
+| Động lượng | 25% | RSI, MACD, Stochastic (giá trị raw) |
+| Khối lượng | 20% | OBV, MFI, Volume ratio |
+| Biến động | 15% | Bollinger signal, ATR% |
+| Vị trí giá | 10% | Bollinger %B |
+
+- **> 60**: Tín hiệu tích cực (bullish confluence)
+- **< 40**: Tín hiệu tiêu cực (bearish confluence)
+- **40-60**: Trung tính, chờ tín hiệu rõ hơn
+
+---
+
+## Trạng thái thị trường
+
+Dựa trên ADX(14), hệ thống tự động phân loại:
+
+| Trạng thái | ADX | Chiến lược gợi ý |
+|------------|-----|-------------------|
+| **Xu hướng rất mạnh** | ≥ 40 | Trend Following (mạnh) |
+| **Có xu hướng** | 25-40 | Trend Following |
+| **Đi ngang** | < 25 | Mean Reversion |
+
+---
+
+## Phát hiện phân kỳ (Divergence)
+
+Hệ thống tự động phát hiện phân kỳ giữa giá và RSI/MACD:
+
+- **Phân kỳ tăng (Bullish)**: Giá tạo đáy thấp hơn, nhưng RSI/MACD tạo đáy cao hơn → tín hiệu đảo chiều tăng
+- **Phân kỳ giảm (Bearish)**: Giá tạo đỉnh cao hơn, nhưng RSI/MACD tạo đỉnh thấp hơn → tín hiệu đảo chiều giảm
+
+Bộ lọc giảm tín hiệu sai: swing points cách nhau ≥ 5 phiên, chênh lệch giá ≥ 0.5%.
+
+---
+
 ## Hỗ trợ / Kháng cự & Fibonacci
 
 - **Hỗ trợ**: 3 mức swing low gần nhất dưới giá hiện tại
