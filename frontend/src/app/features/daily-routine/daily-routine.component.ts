@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import {
-  DailyRoutineService, DailyRoutine, RoutineTemplate,
+  DailyRoutineService, DailyRoutine, RoutineItem, RoutineTemplate,
   RoutineHistory, RoutineItemTemplate
 } from '../../core/services/daily-routine.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -33,8 +33,8 @@ import { catchError } from 'rxjs/operators';
                   <div class="text-xs text-orange-500">Kỷ lục: {{ routine.longestStreak }} ngày</div>
                 </div>
               </div>
-              <div *ngIf="getStreakMessage()" class="hidden sm:block text-sm font-medium text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
-                {{ getStreakMessage() }}
+              <div *ngIf="cachedStreakMessage" class="hidden sm:block text-sm font-medium text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
+                {{ cachedStreakMessage }}
               </div>
             </div>
           </div>
@@ -103,7 +103,7 @@ import { catchError } from 'rxjs/operators';
               <span class="text-sm font-medium text-gray-700">
                 {{ routine.completedCount }}/{{ routine.totalCount }} bước hoàn thành
               </span>
-              <span class="text-sm text-gray-500">~{{ getEstimatedTimeLeft() }} phút còn lại</span>
+              <span class="text-sm text-gray-500">~{{ cachedEstimatedTimeLeft }} phút còn lại</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-3">
               <div class="h-3 rounded-full transition-all duration-500"
@@ -134,11 +134,11 @@ import { catchError } from 'rxjs/operators';
                 </h3>
               </div>
               <span class="text-xs text-gray-500">
-                {{ getGroupCompletedCount(group) }}/{{ getGroupItems(group).length }}
+                {{ cachedGroupCompletedCount[group] || 0 }}/{{ (cachedGroupItems[group] || []).length }}
               </span>
             </div>
             <div class="divide-y divide-gray-50">
-              <div *ngFor="let item of getGroupItems(group)"
+              <div *ngFor="let item of cachedGroupItems[group]"
                 class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
                 <!-- Checkbox -->
                 <button (click)="toggleItem(item)"
@@ -184,19 +184,19 @@ import { catchError } from 'rxjs/operators';
         <div *ngIf="history" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <h3 class="text-sm font-bold text-gray-700 mb-3">Lịch sử 30 ngày gần nhất</h3>
           <div class="flex gap-1 flex-wrap">
-            <div *ngFor="let day of getLast30Days()"
+            <div *ngFor="let day of cachedLast30Days"
               class="w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-medium border transition-colors"
-              [class.bg-emerald-100]="getDayStatus(day) === 'completed'"
-              [class.border-emerald-300]="getDayStatus(day) === 'completed'"
-              [class.text-emerald-700]="getDayStatus(day) === 'completed'"
-              [class.bg-amber-100]="getDayStatus(day) === 'partial'"
-              [class.border-amber-300]="getDayStatus(day) === 'partial'"
-              [class.text-amber-700]="getDayStatus(day) === 'partial'"
-              [class.bg-gray-50]="getDayStatus(day) === 'none'"
-              [class.border-gray-200]="getDayStatus(day) === 'none'"
-              [class.text-gray-400]="getDayStatus(day) === 'none'"
-              [title]="getDayTooltip(day)">
-              {{ day.getDate() }}
+              [class.bg-emerald-100]="cachedDayStatuses[day.key] === 'completed'"
+              [class.border-emerald-300]="cachedDayStatuses[day.key] === 'completed'"
+              [class.text-emerald-700]="cachedDayStatuses[day.key] === 'completed'"
+              [class.bg-amber-100]="cachedDayStatuses[day.key] === 'partial'"
+              [class.border-amber-300]="cachedDayStatuses[day.key] === 'partial'"
+              [class.text-amber-700]="cachedDayStatuses[day.key] === 'partial'"
+              [class.bg-gray-50]="cachedDayStatuses[day.key] === 'none'"
+              [class.border-gray-200]="cachedDayStatuses[day.key] === 'none'"
+              [class.text-gray-400]="cachedDayStatuses[day.key] === 'none'"
+              [title]="cachedDayTooltips[day.key] || ''">
+              {{ day.dayOfMonth }}
             </div>
           </div>
           <div class="flex items-center gap-4 mt-3 text-xs text-gray-500">
@@ -290,10 +290,10 @@ import { catchError } from 'rxjs/operators';
         </div>
 
         <!-- User's Custom Templates Management -->
-        <div *ngIf="getUserTemplates().length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+        <div *ngIf="cachedUserTemplates.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <h3 class="text-sm font-bold text-gray-700 mb-3">Mẫu của bạn</h3>
           <div class="space-y-2">
-            <div *ngFor="let t of getUserTemplates()" class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+            <div *ngFor="let t of cachedUserTemplates" class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
               <div class="flex items-center gap-2">
                 <span>{{ t.emoji }}</span>
                 <span class="text-sm font-medium text-gray-700">{{ t.name }}</span>
@@ -324,6 +324,16 @@ export class DailyRoutineComponent implements OnInit {
   editingTemplateId: string | null = null;
   customForm = this.getEmptyCustomForm();
 
+  // Cached computed values to avoid infinite change detection loops
+  cachedLast30Days: { date: Date; key: string; dayOfMonth: number }[] = [];
+  cachedGroupItems: Record<string, RoutineItem[]> = {};
+  cachedGroupCompletedCount: Record<string, number> = {};
+  cachedUserTemplates: RoutineTemplate[] = [];
+  cachedStreakMessage: string | null = null;
+  cachedEstimatedTimeLeft = 0;
+  cachedDayStatuses: Record<string, 'completed' | 'partial' | 'none'> = {};
+  cachedDayTooltips: Record<string, string> = {};
+
   constructor(
     private routineService: DailyRoutineService,
     private notificationService: NotificationService,
@@ -332,6 +342,23 @@ export class DailyRoutineComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadAll();
+  }
+
+  private refreshCachedValues(): void {
+    this.cachedLast30Days = this.getLast30Days().map(d => ({
+      date: d, key: d.toISOString().split('T')[0], dayOfMonth: d.getDate()
+    }));
+    this.cachedStreakMessage = this.getStreakMessage();
+    this.cachedEstimatedTimeLeft = this.getEstimatedTimeLeft();
+    this.cachedUserTemplates = this.getUserTemplates();
+    for (const group of this.groups) {
+      this.cachedGroupItems[group] = this.getGroupItems(group);
+      this.cachedGroupCompletedCount[group] = this.cachedGroupItems[group].filter(i => i.isCompleted).length;
+    }
+    for (const day of this.cachedLast30Days) {
+      this.cachedDayStatuses[day.key] = this.getDayStatus(day.date);
+      this.cachedDayTooltips[day.key] = this.getDayTooltip(day.date);
+    }
   }
 
   private loadAll(): void {
@@ -354,6 +381,7 @@ export class DailyRoutineComponent implements OnInit {
           if (t) t.isSuggested = true;
         }
         this.loading = false;
+        this.refreshCachedValues();
       },
       error: () => { this.loading = false; }
     });
@@ -365,6 +393,7 @@ export class DailyRoutineComponent implements OnInit {
       next: (r) => {
         this.routine = r;
         this.loading = false;
+        this.refreshCachedValues();
         this.notificationService.success('Bắt đầu!', `Đã tạo nhiệm vụ "${r.templateName}"`);
       },
       error: () => {
@@ -381,6 +410,7 @@ export class DailyRoutineComponent implements OnInit {
       this.routineService.switchTemplate(t.id).subscribe({
         next: (r) => {
           this.routine = r;
+          this.refreshCachedValues();
           this.notificationService.success('Đã chuyển', `Chuyển sang "${t.name}"`);
         },
         error: () => this.notificationService.error('Lỗi', 'Không thể chuyển mẫu')
@@ -396,9 +426,10 @@ export class DailyRoutineComponent implements OnInit {
     // Optimistic update
     item.isCompleted = newState;
     this.routineService.completeItem(this.routine.id, item.index, newState).subscribe({
-      next: (r) => { this.routine = r; },
+      next: (r) => { this.routine = r; this.refreshCachedValues(); },
       error: () => {
         item.isCompleted = !newState; // Revert
+        this.refreshCachedValues();
         this.notificationService.error('Lỗi', 'Không thể cập nhật');
       }
     });
