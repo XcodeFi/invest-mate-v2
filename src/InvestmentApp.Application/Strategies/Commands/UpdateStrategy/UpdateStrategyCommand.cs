@@ -20,6 +20,7 @@ public class UpdateStrategyCommand : IRequest<Unit>
     public bool? IsActive { get; set; }
     public decimal? SuggestedSlPercent { get; set; }
     public decimal? SuggestedRrRatio { get; set; }
+    public string? SuggestedSlMethod { get; set; }
 }
 
 public class UpdateStrategyCommandHandler : IRequestHandler<UpdateStrategyCommand, Unit>
@@ -42,7 +43,8 @@ public class UpdateStrategyCommandHandler : IRequestHandler<UpdateStrategyComman
         strategy.Update(request.Name, request.Description, request.EntryRules,
             request.ExitRules, request.RiskRules, request.TimeFrame,
             request.MarketCondition, request.IsActive,
-            request.SuggestedSlPercent, request.SuggestedRrRatio);
+            request.SuggestedSlPercent, request.SuggestedRrRatio,
+            request.SuggestedSlMethod);
 
         await _strategyRepository.UpdateAsync(strategy, cancellationToken);
         return Unit.Value;

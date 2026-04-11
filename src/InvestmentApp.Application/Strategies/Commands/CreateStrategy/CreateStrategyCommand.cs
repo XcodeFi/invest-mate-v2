@@ -18,6 +18,7 @@ public class CreateStrategyCommand : IRequest<string>
     public string MarketCondition { get; set; } = "Trending";
     public decimal? SuggestedSlPercent { get; set; }
     public decimal? SuggestedRrRatio { get; set; }
+    public string? SuggestedSlMethod { get; set; }
 }
 
 public class CreateStrategyCommandHandler : IRequestHandler<CreateStrategyCommand, string>
@@ -35,7 +36,8 @@ public class CreateStrategyCommandHandler : IRequestHandler<CreateStrategyComman
             request.UserId, request.Name, request.Description,
             request.EntryRules, request.ExitRules, request.RiskRules,
             request.TimeFrame, request.MarketCondition,
-            request.SuggestedSlPercent, request.SuggestedRrRatio
+            request.SuggestedSlPercent, request.SuggestedRrRatio,
+            request.SuggestedSlMethod
         );
 
         await _strategyRepository.AddAsync(strategy, cancellationToken);

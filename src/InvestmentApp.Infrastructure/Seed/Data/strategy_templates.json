@@ -48,6 +48,11 @@
     "SuitableFor": ["Nhà đầu tư trung hạn", "Người kiên nhẫn với pullback", "Trader kỹ thuật"],
     "KeyIndicators": ["MA50", "MA200", "MACD", "RSI", "ADX", "Volume"],
     "Tags": ["trend", "technical", "moving-average", "momentum", "swing"],
+    "SuggestedSlPercent": 7,
+    "SuggestedRrRatio": 2.0,
+    "SuggestedSlMethod": "atr",
+    "SuggestedAtrMultiplier": 2.0,
+    "SuggestedSizingModel": "atr_based",
     "SortOrder": 3
   },
   {
@@ -65,6 +70,11 @@
     "SuitableFor": ["Trader tích cực", "Người có kinh nghiệm đọc chart", "Trader kỹ thuật trung hạn"],
     "KeyIndicators": ["Volume", "Support/Resistance", "Chart Patterns", "RS Rating", "MA50"],
     "Tags": ["breakout", "technical", "chart-patterns", "volume", "momentum"],
+    "SuggestedSlPercent": 5,
+    "SuggestedRrRatio": 2.0,
+    "SuggestedSlMethod": "support",
+    "SuggestedAtrMultiplier": null,
+    "SuggestedSizingModel": "atr_based",
     "SortOrder": 4
   },
   {
@@ -82,6 +92,11 @@
     "SuitableFor": ["Trader có kinh nghiệm", "Người hiểu thống kê", "Trader contrarian"],
     "KeyIndicators": ["RSI", "Bollinger Bands", "MA20", "Standard Deviation", "MACD Divergence", "Volume"],
     "Tags": ["mean-reversion", "oversold", "contrarian", "bollinger", "rsi"],
+    "SuggestedSlPercent": 5,
+    "SuggestedRrRatio": 1.5,
+    "SuggestedSlMethod": "atr",
+    "SuggestedAtrMultiplier": 1.5,
+    "SuggestedSizingModel": "volatility_adjusted",
     "SortOrder": 5
   },
   {
@@ -133,6 +148,11 @@
     "SuitableFor": ["Trader tích cực", "Người có thời gian theo dõi hàng ngày", "Trader ngắn-trung hạn"],
     "KeyIndicators": ["RS Rating", "RSI", "MA20", "Volume", "Rate of Change (ROC)", "ADX"],
     "Tags": ["momentum", "technical", "active", "short-term", "rotation"],
+    "SuggestedSlPercent": 8,
+    "SuggestedRrRatio": 2.0,
+    "SuggestedSlMethod": "ma_trailing",
+    "SuggestedAtrMultiplier": null,
+    "SuggestedSizingModel": "atr_based",
     "SortOrder": 8
   },
   {
@@ -184,6 +204,11 @@
     "SuitableFor": ["Trader toàn thời gian", "Người có vốn lớn", "Trader kinh nghiệm cao", "Người chịu được áp lực"],
     "KeyIndicators": ["Volume Intraday", "Bid-Ask Spread", "RSI(5)", "VWAP", "Support/Resistance Intraday"],
     "Tags": ["scalping", "intraday", "short-term", "high-frequency", "tape-reading"],
+    "SuggestedSlPercent": 1.5,
+    "SuggestedRrRatio": 1.5,
+    "SuggestedSlMethod": "manual",
+    "SuggestedAtrMultiplier": null,
+    "SuggestedSizingModel": "fixed_risk",
     "SortOrder": 11
   },
   {
@@ -235,6 +260,55 @@
     "SuitableFor": ["Trader trung hạn", "Người thích phân tích đơn giản", "Trader price action", "Người giao dịch 2-4 lần/tháng"],
     "KeyIndicators": ["Candlestick Patterns", "Support/Resistance", "Volume", "Swing High/Low", "Trend Line"],
     "Tags": ["swing", "price-action", "candlestick", "support-resistance", "clean-chart"],
+    "SuggestedSlPercent": 5,
+    "SuggestedRrRatio": 2.0,
+    "SuggestedSlMethod": "support",
+    "SuggestedAtrMultiplier": null,
+    "SuggestedSizingModel": "atr_based",
     "SortOrder": 14
+  },
+  {
+    "Id": "tpl-strategy-015",
+    "Name": "Day Trading (Giao dịch trong ngày)",
+    "Category": "Technical",
+    "Description": "Giao dịch mở và đóng vị thế trong cùng ngày. Sử dụng kết hợp nhiều chỉ báo kỹ thuật: EMA, RSI, MACD, Bollinger Bands để tìm điểm vào/ra tối ưu trong phiên. Yêu cầu theo dõi liên tục trong giờ giao dịch.",
+    "Suggestion": "Phù hợp khi thị trường biến động đủ mạnh (ATR% > 2%). Cần theo dõi bảng giá trong giờ giao dịch. Không nên áp dụng khi thị trường quá trầm lắng. Cần kinh nghiệm đọc biểu đồ 15-60 phút.",
+    "EntryRules": "• EMA(20) > EMA(50) — xác nhận xu hướng ngắn hạn\n• RSI(14) pullback về 40-50 rồi bật lên (trong uptrend)\n• MACD cắt lên signal line\n• Bollinger %B từ dưới 0.2 vượt lên 0.5\n• Volume phiên > 1.3x trung bình 20 phiên\n• Giá breakout khỏi vùng tích lũy trong phiên\n• Chỉ giao dịch theo hướng xu hướng chính (daily)",
+    "ExitRules": "• Take profit: R:R ≥ 2:1 từ điểm vào\n• Cắt lỗ: 1.5 × ATR(14) dưới giá vào\n• Thoát trước 14h30 nếu chưa đạt target\n• RSI > 75 kết hợp giá chạm Bollinger Upper → chốt lời\n• MACD histogram giảm → thoát từng phần\n• Không giữ qua đêm",
+    "RiskRules": "• Stop loss: ATR × 1.5 (tự tính theo biến động)\n• Position size: 15-20% vốn/trade\n• Risk per trade: 1-2% tổng vốn\n• Max 3 lệnh/ngày\n• Tổng loss tối đa/ngày: 3% → dừng giao dịch\n• R:R tối thiểu 2:1",
+    "TimeFrame": "DayTrading",
+    "MarketCondition": "Volatile",
+    "DifficultyLevel": "Advanced",
+    "SuitableFor": ["Trader có thời gian theo dõi phiên", "Người có kinh nghiệm kỹ thuật", "Trader muốn lợi nhuận nhanh"],
+    "KeyIndicators": ["EMA(20)", "EMA(50)", "RSI(14)", "MACD", "Bollinger Bands", "ATR(14)", "Volume"],
+    "Tags": ["day-trading", "intraday", "technical", "multiple-indicators", "active"],
+    "SuggestedSlPercent": 3,
+    "SuggestedRrRatio": 2.0,
+    "SuggestedSlMethod": "atr",
+    "SuggestedAtrMultiplier": 1.5,
+    "SuggestedSizingModel": "atr_based",
+    "SortOrder": 15
+  },
+  {
+    "Id": "tpl-strategy-016",
+    "Name": "Position Trading (Giao dịch vị thế dài hạn)",
+    "Category": "Technical",
+    "Description": "Nắm giữ vị thế từ vài tuần đến vài tháng dựa trên xu hướng dài hạn. Sử dụng SMA(50/200), ADX, MACD trên khung tuần để xác nhận xu hướng lớn. Ít giao dịch, ưu tiên chất lượng tín hiệu.",
+    "Suggestion": "Phù hợp cho nhà đầu tư không có thời gian theo dõi hàng ngày. Cần kiên nhẫn với drawdown ngắn hạn. Hiệu quả nhất khi thị trường có xu hướng rõ ràng trên khung tuần/tháng. Giao dịch 1-2 lần/tháng.",
+    "EntryRules": "• SMA(50) trên SMA(200) trên khung tuần (Golden Cross weekly)\n• ADX(14) > 25 trên khung tuần — xu hướng đủ mạnh\n• MACD cắt lên signal trên khung tuần\n• Giá trên EMA(200) trên khung ngày\n• Cơ bản tốt: ROE > 15%, EPS tăng trưởng\n• Sector đang outperform thị trường chung\n• Mua khi pullback về vùng SMA(50) weekly",
+    "ExitRules": "• Trailing stop: Chandelier Exit (HH22 - 3×ATR)\n• SMA(50) weekly cắt xuống SMA(200) weekly (Death Cross)\n• ADX giảm dưới 20 — xu hướng mất lực\n• Cơ bản xấu đi: ROE < 10%, EPS giảm 2 quý liên tiếp\n• Chốt lời từng phần khi đạt target (50% + trailing)\n• R:R tối thiểu 3:1 trước khi vào lệnh",
+    "RiskRules": "• Stop loss: ATR × 3 (khung rộng cho vị thế dài hạn)\n• Position size: 10-15% danh mục/mã\n• Risk per trade: 1-2% tổng vốn\n• Tối đa 6-8 mã cùng lúc (đa dạng hóa)\n• Không mua thêm khi đang lỗ\n• Kiểm tra lại kế hoạch mỗi tuần",
+    "TimeFrame": "Position",
+    "MarketCondition": "Trending",
+    "DifficultyLevel": "Intermediate",
+    "SuitableFor": ["Nhà đầu tư dài hạn", "Người ít thời gian", "Trader kiên nhẫn", "Người kết hợp cơ bản & kỹ thuật"],
+    "KeyIndicators": ["SMA(50)", "SMA(200)", "ADX(14)", "MACD Weekly", "EMA(200)", "ROE", "EPS"],
+    "Tags": ["position", "long-term", "weekly", "trend", "patient", "fundamental-technical"],
+    "SuggestedSlPercent": 10,
+    "SuggestedRrRatio": 3.0,
+    "SuggestedSlMethod": "chandelier",
+    "SuggestedAtrMultiplier": 3.0,
+    "SuggestedSizingModel": "turtle",
+    "SortOrder": 16
   }
 ]

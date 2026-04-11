@@ -89,6 +89,12 @@ Module lập kế hoạch giao dịch đầy đủ: Auto-fill giá, Position Siz
 - Pill selector dưới ô SL, hỗ trợ cả Buy/Sell direction
 - ATR multiplier selector: 1.5×/2×/3× với gợi ý ngắn/trung/dài hạn
 
+**Strategy Templates (16 mẫu, 7 có P5 data):**
+- 7 chiến lược kỹ thuật có đầy đủ: R:R, SL%, SL method, ATR multiplier, sizing model
+- Scalping (SL 1.5%, R:R 1.5), Day Trading (ATR×1.5, R:R 2), Swing Trading (Hỗ trợ, R:R 2), Position Trading (Chandelier, R:R 3, Turtle), Breakout (Hỗ trợ, R:R 2), Mean Reversion (ATR×1.5, Volatility), Momentum (MA Trailing, R:R 2)
+- Chọn template → tự động set SL method, R:R, SL% trong Trade Plan
+- Template detail hiển thị badges: R:R, SL%, SL method, sizing model
+
 ---
 
 ## Phase 3–4: Charts & Links

@@ -23,6 +23,14 @@ public class StrategyTemplate
     public List<string> SuitableFor { get; set; } = new();  // ["Nhà đầu tư dài hạn", "Người mới bắt đầu"]
     public List<string> KeyIndicators { get; set; } = new(); // ["P/E", "ROE", "MA50"]
     public List<string> Tags { get; set; } = new();         // ["value", "long-term", "fundamental"]
+
+    // P5: Auto-fill fields for Trade Plan integration
+    public decimal? SuggestedSlPercent { get; set; }         // % SL (VD: 5 = -5%)
+    public decimal? SuggestedRrRatio { get; set; }           // R:R (VD: 2.0)
+    public string? SuggestedSlMethod { get; set; }           // "manual" | "atr" | "chandelier" | "ma_trailing" | "support"
+    public decimal? SuggestedAtrMultiplier { get; set; }     // ATR multiplier for SL (1.5, 2, 3)
+    public string? SuggestedSizingModel { get; set; }        // "fixed_risk" | "atr_based" | "turtle" | "volatility_adjusted"
+
     public int SortOrder { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

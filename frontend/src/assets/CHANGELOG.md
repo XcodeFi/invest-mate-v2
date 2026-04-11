@@ -2,6 +2,31 @@
 
 ---
 
+## [v2.36.0] — 2026-04-11 · Strategy Template Library — 7 chiến lược kỹ thuật (P5)
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### Strategy Template Enhancement
+- 5 fields mới trên StrategyTemplate: `SuggestedSlPercent`, `SuggestedRrRatio`, `SuggestedSlMethod`, `SuggestedAtrMultiplier`, `SuggestedSizingModel`
+- 7 chiến lược kỹ thuật cập nhật đầy đủ P5 data:
+  - **Scalping**: SL 1.5%, R:R 1.5, Manual SL, Fixed Risk sizing
+  - **Day Trading** (mới): ATR×1.5, R:R 2, ATR-Based sizing
+  - **Swing Trading**: SL 5%, R:R 2, Support-based SL, ATR-Based sizing
+  - **Position Trading** (mới): SL 10%, R:R 3, Chandelier Exit, Turtle sizing
+  - **Breakout**: SL 5%, R:R 2, Support-based SL, ATR-Based sizing
+  - **Mean Reversion**: SL 5%, R:R 1.5, ATR×1.5, Volatility-Adjusted sizing
+  - **Momentum**: SL 8%, R:R 2, MA Trailing, ATR-Based sizing
+
+### Frontend
+- Template detail hiển thị badges: R:R, SL%, SL method, sizing model
+- Chọn template → tạo Strategy có đầy đủ SL method → Trade Plan auto-fill
+- Trade Plan: tự động chọn SL method pill khi chiến lược có `suggestedSlMethod`
+
+### Tests
+- 868 tests pass (Domain: 603, Application: 65, Infrastructure: 199, Api: 1)
+
+---
+
 ## [v2.35.0] — 2026-04-11 · Advanced Stop Loss & SL Method Selector (P4)
 
 **Branch:** `feat/p1-expand-technical-indicators`
