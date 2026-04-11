@@ -120,11 +120,17 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
 
     public async Task<SymbolTimelineDto> Handle(GetSymbolTimelineQuery request, CancellationToken cancellationToken)
     {
+        // Frontend sends date-only strings (e.g. "2026-04-11") which parse as midnight.
+        // Adjust 'to' to end-of-day so entries with time components aren't excluded.
+        var to = request.To.HasValue
+            ? request.To.Value.Date.AddDays(1).AddTicks(-1)
+            : request.To;
+
         var items = new List<TimelineItemDto>();
 
         // 1. Journal entries
         var journalEntries = await _journalEntryRepository.GetByUserIdAndSymbolAsync(
-            request.UserId, request.Symbol, request.From, request.To, cancellationToken);
+            request.UserId, request.Symbol, request.From, to, cancellationToken);
 
         foreach (var entry in journalEntries)
         {
@@ -157,8 +163,8 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
         // Filter by date range
         if (request.From.HasValue)
             allTrades = allTrades.Where(t => t.TradeDate >= request.From.Value).ToList();
-        if (request.To.HasValue)
-            allTrades = allTrades.Where(t => t.TradeDate <= request.To.Value).ToList();
+        if (to.HasValue)
+            allTrades = allTrades.Where(t => t.TradeDate <= to.Value).ToList();
 
         foreach (var trade in allTrades)
         {
@@ -180,7 +186,7 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
 
         // 3. Market events
         var events = await _marketEventRepository.GetBySymbolAsync(
-            request.Symbol, request.From, request.To, cancellationToken);
+            request.Symbol, request.From, to, cancellationToken);
 
         foreach (var evt in events)
         {
@@ -201,7 +207,7 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
 
         // 4. Alert history — filtered query by symbol+date at DB level (H5 fix)
         var symbolAlerts = await _alertHistoryRepository.GetByUserIdAndSymbolAsync(
-            request.UserId, request.Symbol, request.From, request.To, cancellationToken);
+            request.UserId, request.Symbol, request.From, to, cancellationToken);
 
         foreach (var alert in symbolAlerts)
         {
