@@ -36,13 +36,22 @@ The **Next** field is critical — it tells the next cycle exactly where to star
 
 ### Cycle 2+ (subsequent ships in same session)
 
-**Replace Phase 1 Step 1.1** with this lighter flow:
+**Only Phase 1 Step 1.1 changes** — all other phases run as normal:
+
+| Phase | Cycle 2+ behavior |
+|---|---|
+| Phase 1 Step 1.1 | **Lighter**: read checkpoint only (not all 4 docs) |
+| Phase 1 Step 1.2 | Normal: analyze & present plan |
+| Phase 2 TDD | Normal (if backend affected) |
+| **Phase 3 Code Review** | **ALWAYS runs** — every cycle must be reviewed |
+| Phase 4 Docs | Normal |
+| Phase 5 Commit & PR | Normal |
+
+**Lighter Phase 1 Step 1.1:**
 1. Read the plan file checkpoint (NOT all 4 project docs again — already in context from cycle 1)
 2. Read only files listed in checkpoint's "Next" and "Files changed" (to see what was built)
 3. If the next phase touches a NEW layer not in previous checkpoint → read only that layer's docs
 4. Skip re-reading `features.md`, `architecture.md`, `business-domain.md`, `project-context.md` unless the checkpoint says otherwise
-
-This cuts Phase 1 from ~4 doc reads to ~1 file read (the plan checkpoint).
 
 ## Model Strategy
 
