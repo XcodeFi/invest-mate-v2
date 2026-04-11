@@ -80,6 +80,15 @@ Module lập kế hoạch giao dịch đầy đủ: Auto-fill giá, Position Siz
 - Bảng so sánh tất cả mô hình: số CP, % danh mục, rủi ro. Click chọn để áp dụng.
 - API: `POST /api/v1/risk/position-sizing`
 
+**Advanced Stop Loss (5 phương pháp):**
+- **Cố định (nhập tay)**: Nhập SL trực tiếp
+- **ATR Stop Loss**: `Entry ∓ k × ATR(14)`, k = 1.5 (ngắn hạn) / 2.0 (trung hạn) / 3.0 (dài hạn)
+- **Chandelier Exit**: `HighestHigh(22) - 3×ATR` (mua) hoặc `LowestLow(22) + 3×ATR` (bán)
+- **MA Trailing**: EMA(21) làm SL floor
+- **Hỗ trợ/Kháng cự gần nhất**: Swing low (mua) hoặc Swing high (bán)
+- Pill selector dưới ô SL, hỗ trợ cả Buy/Sell direction
+- ATR multiplier selector: 1.5×/2×/3× với gợi ý ngắn/trung/dài hạn
+
 ---
 
 ## Phase 3–4: Charts & Links

@@ -96,6 +96,13 @@ public class TechnicalAnalysisResult
     // EMA200
     public decimal? Ema200 { get; set; }
 
+    // EMA21 (for MA Trailing Stop)
+    public decimal? Ema21 { get; set; }
+
+    // Highest High / Lowest Low (22-period, for Chandelier Exit)
+    public decimal? HighestHigh22 { get; set; }
+    public decimal? LowestLow22 { get; set; }
+
     // Fibonacci Retracement / Extension
     public FibonacciLevels? Fibonacci { get; set; }
 

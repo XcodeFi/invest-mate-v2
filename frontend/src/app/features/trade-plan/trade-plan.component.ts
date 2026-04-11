@@ -383,6 +383,48 @@ interface TradePlanForm {
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="suggestedSlHint || 'Mức cắt lỗ'">
                 <p *ngIf="slAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
+                <!-- SL Method Selector (P4) -->
+                @if (slMethods.length > 1) {
+                  <div class="mt-2 space-y-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      @for (m of slMethods; track m.value) {
+                        <button (click)="applySlMethod(m.value)"
+                          class="text-xs px-2 py-1 rounded-full border transition-colors hover:bg-gray-100"
+                          [class.bg-blue-100]="slMethod === m.value" [class.border-blue-400]="slMethod === m.value"
+                          [class.text-blue-700]="slMethod === m.value"
+                          [class.bg-gray-50]="slMethod !== m.value" [class.border-gray-200]="slMethod !== m.value"
+                          [class.text-gray-600]="slMethod !== m.value">
+                          {{ m.label }}
+                          @if (m.price) {
+                            <span class="font-mono ml-1">{{ m.price | number:'1.0-0' }}</span>
+                          }
+                        </button>
+                      }
+                    </div>
+                    @if (slMethod === 'atr') {
+                      <div class="flex items-center gap-2 text-xs text-gray-500">
+                        <span>Hệ số k:</span>
+                        @for (k of [1.5, 2, 3]; track k) {
+                          <button (click)="slAtrMultiplier = k; onSlAtrMultiplierChange()"
+                            class="px-1.5 py-0.5 rounded border text-xs"
+                            [class.bg-blue-100]="slAtrMultiplier === k"
+                            [class.border-blue-400]="slAtrMultiplier === k"
+                            [class.bg-gray-50]="slAtrMultiplier !== k">
+                            {{ k }}×
+                          </button>
+                        }
+                        <span class="text-gray-400">
+                          {{ slAtrMultiplier === 1.5 ? '(ngắn hạn)' : slAtrMultiplier === 2 ? '(trung hạn)' : '(dài hạn)' }}
+                        </span>
+                      </div>
+                    }
+                    @if (slMethod !== 'manual') {
+                      <div class="text-xs text-gray-400">
+                        {{ slMethods.find(m => m.value === slMethod)?.note }}
+                      </div>
+                    }
+                  </div>
+                }
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -1560,6 +1602,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   stockLoading = false;
   stockError = '';
 
+  // SL Method Selector (P4)
+  slMethod: 'manual' | 'atr' | 'chandelier' | 'ma_trailing' | 'support' = 'manual';
+  slAtrMultiplier = 2;
+  slMethods: { value: string; label: string; price: number | null; note: string }[] = [];
+  stockAnalysis: TechnicalAnalysis | null = null;
+
   // Risk enforcement
   riskViolations: string[] = [];
   riskOverrideConfirmed = false;
@@ -1741,14 +1789,16 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           this.plan.entryPrice = price.close;
           this.recalculate();
         }
-        // Fetch ATR for advanced sizing models
+        // Fetch technical analysis for advanced sizing + SL methods
         this.marketDataService.getTechnicalAnalysis(this.plan.symbol).pipe(
           takeUntil(this.destroy$)
         ).subscribe({
           next: (analysis) => {
+            this.stockAnalysis = analysis;
             this.stockAtr = analysis.atr14 ?? null;
             this.stockAtrPercent = analysis.atrPercent ?? null;
             this.fetchSizingModels();
+            this.calculateSlMethods();
           },
           error: () => {}
         });
@@ -1925,6 +1975,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.rr = this.riskPerShare > 0 && target > 0 ? Math.abs(target - entryPrice) / this.riskPerShare : 0;
     this.stopPercent = entryPrice > 0 ? (this.riskPerShare / entryPrice) * 100 : 0;
 
+    // Keep SL method pills in sync with entry price changes
+    this.calculateSlMethods();
+
     // Position sizing calculation
     this.calculatePositionSizing();
     this.sizingSubject.next();
@@ -2024,6 +2077,96 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         this.loadingSizingModels = false;
       }
     });
+  }
+
+  calculateSlMethods(): void {
+    const entry = this.plan.entryPrice;
+    const a = this.stockAnalysis;
+    if (!entry || entry <= 0) {
+      this.slMethods = [];
+      return;
+    }
+
+    const isBuy = isBuyTrade(this.plan.direction);
+    const methods: { value: string; label: string; price: number | null; note: string }[] = [
+      { value: 'manual', label: 'Cố định (nhập tay)', price: this.plan.stopLoss || null, note: '' }
+    ];
+
+    // ATR Stop Loss: Entry ∓ k × ATR (buy: below, sell: above)
+    if (a?.atr14) {
+      const atrSl = isBuy
+        ? Math.round(entry - this.slAtrMultiplier * a.atr14)
+        : Math.round(entry + this.slAtrMultiplier * a.atr14);
+      methods.push({
+        value: 'atr', label: `ATR (${this.slAtrMultiplier}×)`,
+        price: atrSl,
+        note: `Entry ${isBuy ? '-' : '+'} ${this.slAtrMultiplier}×${a.atr14.toLocaleString()}đ`
+      });
+    }
+
+    // Chandelier Exit: HH22 - 3×ATR (buy) or LL22 + 3×ATR (sell)
+    if (a?.atr14) {
+      if (isBuy && a?.highestHigh22) {
+        const chandelier = Math.round(a.highestHigh22 - 3 * a.atr14);
+        methods.push({
+          value: 'chandelier', label: 'Chandelier Exit',
+          price: chandelier,
+          note: `HH22(${a.highestHigh22.toLocaleString()}) - 3×ATR`
+        });
+      } else if (!isBuy && a?.lowestLow22) {
+        const chandelier = Math.round(a.lowestLow22 + 3 * a.atr14);
+        methods.push({
+          value: 'chandelier', label: 'Chandelier Exit',
+          price: chandelier,
+          note: `LL22(${a.lowestLow22.toLocaleString()}) + 3×ATR`
+        });
+      }
+    }
+
+    // MA Trailing: EMA(21) as SL floor
+    if (a?.ema21) {
+      methods.push({
+        value: 'ma_trailing', label: 'MA Trailing (EMA21)',
+        price: Math.round(a.ema21),
+        note: `EMA(21) = ${a.ema21.toLocaleString()}đ`
+      });
+    }
+
+    // Nearest support (for buy) or nearest resistance (for sell)
+    if (isBuy && a?.supportLevels?.length) {
+      methods.push({
+        value: 'support', label: 'Hỗ trợ gần nhất',
+        price: Math.round(a.supportLevels[0]),
+        note: `Swing low = ${a.supportLevels[0].toLocaleString()}đ`
+      });
+    } else if (!isBuy && a?.resistanceLevels?.length) {
+      methods.push({
+        value: 'support', label: 'Kháng cự gần nhất',
+        price: Math.round(a.resistanceLevels[0]),
+        note: `Swing high = ${a.resistanceLevels[0].toLocaleString()}đ`
+      });
+    }
+
+    this.slMethods = methods;
+  }
+
+  applySlMethod(method: string): void {
+    this.slMethod = method as any;
+    const m = this.slMethods.find(s => s.value === method);
+    if (method !== 'manual' && m?.price && m.price > 0) {
+      this.plan.stopLoss = m.price;
+      this.slAutoFilled = true;
+    } else {
+      this.slAutoFilled = false;
+    }
+    this.recalculate();
+  }
+
+  onSlAtrMultiplierChange(): void {
+    this.calculateSlMethods();
+    if (this.slMethod === 'atr') {
+      this.applySlMethod('atr');
+    }
   }
 
   applySizingModel(model: SizingModelResult): void {

@@ -162,6 +162,18 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         if (atr.HasValue && current.Close > 0)
             result.AtrPercent = Math.Round(atr.Value / current.Close * 100, 2);
 
+        // --- EMA(21) for MA Trailing Stop ---
+        result.Ema21 = CalculateEma(closes, 21);
+
+        // --- Highest High / Lowest Low (22-period, for Chandelier Exit) ---
+        if (highs.Count >= 22)
+        {
+            var last22Highs = highs.TakeLast(22);
+            var last22Lows = lows.TakeLast(22);
+            result.HighestHigh22 = last22Highs.Max();
+            result.LowestLow22 = last22Lows.Min();
+        }
+
         // --- Stochastic Oscillator (14, 3, 3) ---
         var (stochK, stochD) = CalculateStochastic(highs, lows, closes, 14, 3);
         result.StochasticK = stochK;
