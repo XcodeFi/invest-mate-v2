@@ -34,6 +34,73 @@ Quy tắc:
 - Đưa ra nhận xét khách quan, dựa trên dữ liệu
 - Khi gợi ý, luôn kèm lý do cụ thể";
 
+    /// <summary>Build a comprehensive technical analysis context block from TechnicalAnalysisResult.</summary>
+    private static void AppendTechnicalContext(StringBuilder sb, TechnicalAnalysisResult t, string tag = "technical_signals")
+    {
+        if (t.DataPoints < 20) return;
+
+        sb.AppendLine();
+        sb.AppendLine($"<{tag}>");
+
+        // Core indicators table
+        sb.AppendLine("| Chỉ báo | Giá trị | Tín hiệu |");
+        sb.AppendLine("|---------|---------|-----------|");
+        if (t.Ema20.HasValue) sb.AppendLine($"| EMA20 | {t.Ema20:N0} | {t.EmaTrend} |");
+        if (t.Ema50.HasValue) sb.AppendLine($"| EMA50 | {t.Ema50:N0} | — |");
+        if (t.Rsi14.HasValue) sb.AppendLine($"| RSI(14) | {t.Rsi14:F1} | {t.RsiSignal} |");
+        if (t.MacdLine.HasValue) sb.AppendLine($"| MACD | {t.MacdLine:N0} | {t.MacdSignal} |");
+        if (t.StochasticK.HasValue) sb.AppendLine($"| Stochastic %K | {t.StochasticK:F1} | {t.StochasticSignal} |");
+        if (t.Adx14.HasValue) sb.AppendLine($"| ADX | {t.Adx14:F1} | {t.AdxSignal} (+DI:{t.PlusDi:F1} -DI:{t.MinusDi:F1}) |");
+        if (t.VolumeRatio.HasValue) sb.AppendLine($"| Khối lượng | {t.VolumeRatio:F1}x avg | {t.VolumeSignal} |");
+        if (t.Obv.HasValue) sb.AppendLine($"| OBV | {t.Obv:N0} | {t.ObvSignal} |");
+        if (t.Mfi14.HasValue) sb.AppendLine($"| MFI(14) | {t.Mfi14:F1} | {t.MfiSignal} |");
+        if (t.BollingerMiddle.HasValue) sb.AppendLine($"| Bollinger | {t.BollingerLower:N0}/{t.BollingerMiddle:N0}/{t.BollingerUpper:N0} | {t.BollingerSignal} (%B:{t.BollingerPercentB:F2}) |");
+        if (t.Atr14.HasValue) sb.AppendLine($"| ATR(14) | {t.Atr14:N0} ({t.AtrPercent:F1}%) | — |");
+        sb.AppendLine($"| **Tổng hợp** | **{t.OverallSignalVi}** | {t.BullishCount}↑ {t.BearishCount}↓ {t.NeutralCount}— |");
+
+        // Confluence Score + Market Condition (P2)
+        if (t.ConfluenceScore.HasValue)
+            sb.AppendLine($"| **Confluence** | **{t.ConfluenceScore:F1}/100** | {(t.ConfluenceScore > 60 ? "Tích cực" : t.ConfluenceScore < 40 ? "Tiêu cực" : "Trung tính")} |");
+        if (t.MarketCondition != "unknown")
+            sb.AppendLine($"| Trạng thái TT | {t.MarketConditionVi} | Chiến lược: {t.SuggestedStrategy} |");
+
+        // Divergence (P2)
+        if (t.DivergenceSignal != null)
+            sb.AppendLine($"| ⚡ Phân kỳ | {t.DivergenceSignalVi} | RSI:{t.RsiDivergence ?? "—"} MACD:{t.MacdDivergence ?? "—"} |");
+
+        sb.AppendLine($"</{tag}>");
+
+        // Support / Resistance
+        if (t.SupportLevels.Count > 0 || t.ResistanceLevels.Count > 0)
+        {
+            sb.AppendLine("<support_resistance>");
+            if (t.SupportLevels.Count > 0)
+                sb.AppendLine($"  Hỗ trợ: {string.Join(" | ", t.SupportLevels.Select(s => $"{s:N0}"))}");
+            if (t.ResistanceLevels.Count > 0)
+                sb.AppendLine($"  Kháng cự: {string.Join(" | ", t.ResistanceLevels.Select(r => $"{r:N0}"))}");
+            sb.AppendLine("</support_resistance>");
+        }
+
+        // SL reference levels (P4)
+        if (t.Atr14.HasValue || t.Ema21.HasValue || t.HighestHigh22.HasValue)
+        {
+            sb.AppendLine("<sl_reference>");
+            if (t.Atr14.HasValue) sb.AppendLine($"  ATR SL (2×): Entry ± {t.Atr14 * 2:N0}đ");
+            if (t.HighestHigh22.HasValue && t.Atr14.HasValue)
+                sb.AppendLine($"  Chandelier Exit: {t.HighestHigh22:N0} - 3×ATR = {t.HighestHigh22 - 3 * t.Atr14:N0}");
+            if (t.Ema21.HasValue) sb.AppendLine($"  MA Trailing: EMA(21) = {t.Ema21:N0}");
+            sb.AppendLine("</sl_reference>");
+        }
+
+        // Trade suggestion
+        if (t.SuggestedEntry.HasValue)
+        {
+            sb.AppendLine("<trade_suggestion>");
+            sb.AppendLine($"  Entry: {t.SuggestedEntry:N0} | SL: {t.SuggestedStopLoss:N0} | TP: {t.SuggestedTarget:N0} | R:R 1:{t.RiskRewardRatio:F1}");
+            sb.AppendLine("</trade_suggestion>");
+        }
+    }
+
     public AiAssistantService(
         IAiSettingsRepository settingsRepo,
         IAiKeyEncryptionService encryption,
@@ -621,27 +688,9 @@ Nhiệm vụ: Đánh giá danh mục đầu tư toàn diện.
             sb.AppendLine("</current_market_data>");
         }
 
-        // Technical signals
-        if (technical != null && technical.DataPoints >= 20)
-        {
-            sb.AppendLine();
-            sb.AppendLine("<technical_context>");
-            sb.AppendLine("| Chỉ báo | Giá trị | Tín hiệu |");
-            sb.AppendLine("|---------|---------|-----------|");
-            if (technical.Ema20.HasValue)
-                sb.AppendLine($"| EMA20 | {technical.Ema20:N0} | {technical.EmaTrend} |");
-            if (technical.Ema50.HasValue)
-                sb.AppendLine($"| EMA50 | {technical.Ema50:N0} | — |");
-            if (technical.Rsi14.HasValue)
-                sb.AppendLine($"| RSI(14) | {technical.Rsi14:F1} | {technical.RsiSignal} |");
-            sb.AppendLine($"| MACD | {technical.MacdLine:F2} | {technical.MacdSignal} |");
-            sb.AppendLine($"| Tổng hợp | {technical.OverallSignalVi} | {technical.BullishCount}↑ {technical.BearishCount}↓ |");
-            if (technical.SupportLevels.Count > 0)
-                sb.AppendLine($"  Hỗ trợ: {string.Join(" | ", technical.SupportLevels.Select(s => $"{s:N0}"))}");
-            if (technical.ResistanceLevels.Count > 0)
-                sb.AppendLine($"  Kháng cự: {string.Join(" | ", technical.ResistanceLevels.Select(r => $"{r:N0}"))}");
-            sb.AppendLine("</technical_context>");
-        }
+        // Technical signals (P1-P6: full indicators, confluence, divergence, SL reference)
+        if (technical != null)
+            AppendTechnicalContext(sb, technical, "technical_context");
 
         // Risk profile compliance
         if (riskProfile != null)
@@ -681,15 +730,17 @@ Nhiệm vụ: Đánh giá danh mục đầu tư toàn diện.
 
         var systemPrompt = BasePrompt + @"
 
-Nhiệm vụ: Tư vấn kế hoạch giao dịch toàn diện.
-1. **Entry**: Điểm vào có hợp lý không? So sánh với giá hiện tại, hỗ trợ/kháng cự, tín hiệu kỹ thuật
-2. **Stop-loss**: SL quá gần/xa? Risk per trade có hợp lý?
-3. **Take-profit**: TP realistic? Risk:Reward ratio đạt yêu cầu?
-4. **Position sizing**: Kích thước vị thế có phù hợp với risk profile?
-5. **Phân tích kỹ thuật**: Tín hiệu kỹ thuật hiện tại ủng hộ hay phản đối kế hoạch
-6. **Tuân thủ risk profile**: Position size, R:R vs giới hạn đã đặt
-7. **Lịch sử mã này**: Dựa trên giao dịch trước đó, nhà đầu tư trade mã này hiệu quả không
-8. **Chấm điểm** (1-10) và gợi ý điều chỉnh cụ thể";
+Nhiệm vụ: Tư vấn kế hoạch giao dịch toàn diện dựa trên 10+ chỉ báo kỹ thuật.
+1. **Entry**: Điểm vào có hợp lý? So sánh hỗ trợ/kháng cự, Confluence Score, Market Condition
+2. **Stop-loss**: SL phù hợp phương pháp nào? (ATR, Chandelier, MA, Hỗ trợ). Tham khảo <sl_reference>
+3. **Take-profit**: TP realistic? R:R đạt yêu cầu?
+4. **Position sizing**: Vị thế hợp lý? Gợi ý model sizing phù hợp (ATR-based, Turtle...)
+5. **Confluence**: Điểm Confluence bao nhiêu? Các chỉ báo đồng thuận hay mâu thuẫn?
+6. **Phân kỳ**: Có phân kỳ RSI/MACD không? Cảnh báo nếu có
+7. **Trạng thái TT**: Trending hay Sideway? Chiến lược phù hợp?
+8. **Tuân thủ risk profile**: Position size, R:R vs giới hạn
+9. **Lịch sử**: Trade mã này hiệu quả không?
+10. **Chấm điểm** (1-10) và gợi ý điều chỉnh cụ thể";
 
         var userMessage = question ?? $"Đánh giá kế hoạch giao dịch:\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
@@ -935,46 +986,9 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
             sb.AppendLine("</fundamental_metrics>");
         }
 
-        // Technical signals
-        if (technical != null && technical.DataPoints >= 20)
-        {
-            sb.AppendLine();
-            sb.AppendLine("<technical_signals>");
-            sb.AppendLine("| Chỉ báo | Giá trị | Tín hiệu |");
-            sb.AppendLine("|---------|---------|-----------|");
-            if (technical.Ema20.HasValue)
-                sb.AppendLine($"| EMA20 | {technical.Ema20:N0} | {technical.EmaTrend} |");
-            if (technical.Ema50.HasValue)
-                sb.AppendLine($"| EMA50 | {technical.Ema50:N0} | — |");
-            if (technical.Rsi14.HasValue)
-                sb.AppendLine($"| RSI(14) | {technical.Rsi14:F1} | {technical.RsiSignal} |");
-            sb.AppendLine($"| MACD | {technical.MacdLine:F2} | {technical.MacdSignal} |");
-            sb.AppendLine($"| Khối lượng | {technical.VolumeRatio:F1}x avg | {technical.VolumeSignal} |");
-            sb.AppendLine($"| **Tổng hợp** | **{technical.OverallSignalVi}** | {technical.BullishCount}↑ {technical.BearishCount}↓ {technical.NeutralCount}— |");
-            sb.AppendLine("</technical_signals>");
-
-            if (technical.SupportLevels.Count > 0 || technical.ResistanceLevels.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("<support_resistance>");
-                if (technical.SupportLevels.Count > 0)
-                    sb.AppendLine($"  <supports>{string.Join(" | ", technical.SupportLevels.Select(s => $"{s:N0}"))}</supports>");
-                if (technical.ResistanceLevels.Count > 0)
-                    sb.AppendLine($"  <resistances>{string.Join(" | ", technical.ResistanceLevels.Select(r => $"{r:N0}"))}</resistances>");
-                sb.AppendLine("</support_resistance>");
-            }
-
-            if (technical.SuggestedEntry.HasValue)
-            {
-                sb.AppendLine();
-                sb.AppendLine("<trade_suggestion>");
-                sb.AppendLine($"  <entry>{technical.SuggestedEntry:N0} VND</entry>");
-                sb.AppendLine($"  <stop_loss>{technical.SuggestedStopLoss:N0} VND</stop_loss>");
-                sb.AppendLine($"  <target>{technical.SuggestedTarget:N0} VND</target>");
-                sb.AppendLine($"  <risk_reward>1:{technical.RiskRewardRatio:F1}</risk_reward>");
-                sb.AppendLine("</trade_suggestion>");
-            }
-        }
+        // Technical signals (P1-P6: full indicators, confluence, divergence, SL reference)
+        if (technical != null)
+            AppendTechnicalContext(sb, technical);
 
         // Check if user already holds this symbol
         try
@@ -1038,14 +1052,16 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
 
         var systemPrompt = BasePrompt + @"
 
-Nhiệm vụ: Đánh giá toàn diện mã cổ phiếu dựa trên dữ liệu cơ bản và kỹ thuật.
-1. **Sức khỏe tài chính**: Đánh giá P/E, ROE, EPS, Nợ/Vốn — đang đắt hay rẻ so với ngành
-2. **Tăng trưởng**: Doanh thu, lợi nhuận có bền vững không
-3. **Phân tích kỹ thuật**: Xu hướng, tín hiệu mua/bán, hỗ trợ/kháng cự
-4. **Rủi ro**: Nêu 2-3 rủi ro lớn nhất khi đầu tư vào mã này
-5. **Vị thế hiện tại**: Nếu nhà đầu tư đang nắm giữ, nên giữ/mua thêm/bán bớt?
-6. **Mức giá hành động**: Gợi ý entry cụ thể, SL, TP dựa trên phân tích
-7. **Kết luận**: Đánh giá tổng thể (Hấp dẫn / Trung bình / Rủi ro cao) và gợi ý hành động";
+Nhiệm vụ: Đánh giá toàn diện mã cổ phiếu dựa trên dữ liệu cơ bản và kỹ thuật (10+ chỉ báo).
+1. **Sức khỏe tài chính**: P/E, ROE, EPS, Nợ/Vốn — đắt hay rẻ so với ngành
+2. **Tăng trưởng**: Doanh thu, lợi nhuận bền vững?
+3. **Phân tích kỹ thuật**: Confluence Score, xu hướng (EMA/ADX), momentum (RSI/MACD/Stochastic), dòng tiền (OBV/MFI)
+4. **Trạng thái thị trường**: Trending hay Sideway? Chiến lược phù hợp?
+5. **Phân kỳ**: Có phân kỳ RSI/MACD? Cảnh báo đảo chiều?
+6. **Rủi ro**: 2-3 rủi ro lớn nhất, mức ATR cho biến động
+7. **Vị thế hiện tại**: Giữ/mua thêm/bán bớt?
+8. **Mức giá**: Entry, SL (tham khảo ATR/Chandelier/MA/Hỗ trợ trong <sl_reference>), TP
+9. **Kết luận**: Hấp dẫn / Trung bình / Rủi ro cao + hành động cụ thể";
 
         var userMessage = question ?? $"Đánh giá toàn diện mã cổ phiếu {symbol}:\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
@@ -1277,12 +1293,16 @@ Nhiệm vụ: Đánh giá rủi ro danh mục đầu tư toàn diện.
         {
             sb.AppendLine();
             sb.AppendLine("<technical_signals>");
-            sb.AppendLine("| Mã | RSI | MACD | Xu hướng | Tổng hợp |");
-            sb.AppendLine("|-----|------|------|----------|----------|");
+            sb.AppendLine("| Mã | RSI | MACD | Xu hướng | ADX | Confluence | Phân kỳ | Tổng hợp |");
+            sb.AppendLine("|-----|------|------|----------|-----|-----------|---------|----------|");
             foreach (var (sym, tech) in technicals)
             {
                 if (tech?.DataPoints >= 20)
-                    sb.AppendLine($"| {sym} | {tech!.Rsi14:F1} | {tech.MacdSignal} | {tech.EmaTrend} | {tech.OverallSignalVi} |");
+                {
+                    var confluence = tech!.ConfluenceScore.HasValue ? $"{tech.ConfluenceScore:F0}" : "—";
+                    var divergence = tech.DivergenceSignalVi ?? "—";
+                    sb.AppendLine($"| {sym} | {tech.Rsi14:F1} | {tech.MacdSignal} | {tech.EmaTrend} | {tech.AdxSignal ?? "—"} | {confluence} | {divergence} | {tech.OverallSignalVi} |");
+                }
             }
             sb.AppendLine("</technical_signals>");
         }
@@ -1454,14 +1474,16 @@ Nhiệm vụ: Phân tích giao dịch toàn diện.
         foreach (var t in techTasks) { if (t.IsCompletedSuccessfully) { var r = t.Result; if (r.Tech != null) techMap[r.Symbol] = r.Tech; } }
 
         sb.AppendLine();
-        sb.AppendLine("| Mã | Ghi chú | Giá mua mục tiêu | Giá bán mục tiêu | Giá hiện tại | Thay đổi | Tín hiệu |");
-        sb.AppendLine("|-----|---------|------------------|------------------|-------------|----------|----------|");
+        sb.AppendLine("| Mã | Ghi chú | Giá mua | Giá bán | Giá HT | Thay đổi | Confluence | Trạng thái TT | Tín hiệu |");
+        sb.AppendLine("|-----|---------|---------|---------|--------|----------|-----------|---------------|----------|");
 
         foreach (var item in items)
         {
             var price = "—";
             var change = "—";
             var signal = "—";
+            var confluence = "—";
+            var marketCond = "—";
 
             if (detailMap.TryGetValue(item.Symbol, out var detail))
             {
@@ -1470,23 +1492,28 @@ Nhiệm vụ: Phân tích giao dịch toàn diện.
             }
 
             if (techMap.TryGetValue(item.Symbol, out var tech) && tech?.DataPoints >= 20)
+            {
                 signal = tech!.OverallSignalVi;
+                confluence = tech.ConfluenceScore.HasValue ? $"{tech.ConfluenceScore:F0}" : "—";
+                marketCond = tech.MarketCondition != "unknown" ? tech.MarketConditionVi : "—";
+            }
 
             var note = item.Note?.Replace("|", "/") ?? "—";
             var targetBuy = item.TargetBuyPrice.HasValue ? $"{item.TargetBuyPrice:N0}" : "—";
             var targetSell = item.TargetSellPrice.HasValue ? $"{item.TargetSellPrice:N0}" : "—";
-            sb.AppendLine($"| {item.Symbol} | {note} | {targetBuy} | {targetSell} | {price} | {change} | {signal} |");
+            sb.AppendLine($"| {item.Symbol} | {note} | {targetBuy} | {targetSell} | {price} | {change} | {confluence} | {marketCond} | {signal} |");
         }
         sb.AppendLine("</watchlist>");
 
         var systemPrompt = BasePrompt + @"
 
-Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
-1. **Cơ hội mua**: Mã nào đang gần giá mua mục tiêu hoặc tại vùng hỗ trợ
-2. **Tín hiệu kỹ thuật**: Mã nào có tín hiệu tích cực (RSI oversold, tín hiệu Mua)
-3. **Cảnh báo**: Mã nào nên xoá khỏi watchlist (xu hướng giảm, tín hiệu tiêu cực)
-4. **Xếp hạng ưu tiên**: Top 3 mã hấp dẫn nhất để mua, Top 3 nên bỏ
-5. **Kế hoạch hành động**: Gợi ý entry, SL, TP cho top 3 mã hấp dẫn nhất";
+Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu dựa trên Confluence Score + trạng thái thị trường.
+1. **Cơ hội mua**: Mã nào Confluence > 60 + gần giá mua mục tiêu + tại vùng hỗ trợ
+2. **Tín hiệu kỹ thuật**: Mã nào RSI oversold, OBV rising, ADX trending
+3. **Trạng thái TT**: Mã nào trending (Trend Following) vs sideway (Mean Reversion)
+4. **Cảnh báo**: Mã nào Confluence < 40 hoặc xu hướng giảm → nên xoá
+5. **Xếp hạng**: Top 3 hấp dẫn nhất (Confluence cao + trending), Top 3 nên bỏ
+6. **Kế hoạch**: Entry, SL (ATR/Chandelier/Hỗ trợ), TP cho top 3";
 
         var userMessage = question ?? $"Quét watchlist \"{watchlist.Name}\":\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
@@ -1762,35 +1789,9 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
             sb.AppendLine("</quarterly_income>");
         }
 
-        // === Section 4: Technical Analysis ===
-        if (technical != null && technical.DataPoints >= 20)
-        {
-            sb.AppendLine();
-            sb.AppendLine("<technical_analysis>");
-            sb.AppendLine("| Chỉ báo | Giá trị | Tín hiệu |");
-            sb.AppendLine("|---------|---------|-----------|");
-            if (technical.Ema20.HasValue)
-                sb.AppendLine($"| EMA20 | {technical.Ema20:N0} | {technical.EmaTrend} |");
-            if (technical.Ema50.HasValue)
-                sb.AppendLine($"| EMA50 | {technical.Ema50:N0} | — |");
-            if (technical.Rsi14.HasValue)
-                sb.AppendLine($"| RSI(14) | {technical.Rsi14:F1} | {technical.RsiSignal} |");
-            sb.AppendLine($"| MACD | {technical.MacdLine:F2} | {technical.MacdSignal} |");
-            sb.AppendLine($"| Khối lượng | {technical.VolumeRatio:F1}x avg | {technical.VolumeSignal} |");
-            sb.AppendLine($"| **Tổng hợp** | **{technical.OverallSignalVi}** | {technical.BullishCount}↑ {technical.BearishCount}↓ {technical.NeutralCount}— |");
-            sb.AppendLine("</technical_analysis>");
-
-            if (technical.SupportLevels.Count > 0 || technical.ResistanceLevels.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("<support_resistance>");
-                if (technical.SupportLevels.Count > 0)
-                    sb.AppendLine($"  <supports>{string.Join(" | ", technical.SupportLevels.Select(s => $"{s:N0}"))}</supports>");
-                if (technical.ResistanceLevels.Count > 0)
-                    sb.AppendLine($"  <resistances>{string.Join(" | ", technical.ResistanceLevels.Select(r => $"{r:N0}"))}</resistances>");
-                sb.AppendLine("</support_resistance>");
-            }
-        }
+        // === Section 4: Technical Analysis (P1-P6: full indicators, confluence, divergence, SL reference) ===
+        if (technical != null)
+            AppendTechnicalContext(sb, technical, "technical_analysis");
 
         // === Section 5: Peer Comparison ===
         if (data.Peers.Count > 0)
