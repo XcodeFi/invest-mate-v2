@@ -421,7 +421,7 @@ interface TradePlanForm {
                     }
                     @if (slMethod !== 'manual') {
                       <div class="text-xs text-gray-400">
-                        {{ slMethods.find(m => m.value === slMethod)?.note }}
+                        {{ activeSlNote }}
                       </div>
                     }
                   </div>
@@ -2263,6 +2263,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     }
 
     this.slMethods = methods;
+  }
+
+  get activeSlNote(): string {
+    return this.slMethods.find(m => m.value === this.slMethod)?.note ?? '';
   }
 
   applySlMethod(method: string): void {
