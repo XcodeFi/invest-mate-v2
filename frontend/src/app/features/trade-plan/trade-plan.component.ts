@@ -1275,7 +1275,7 @@ interface TradePlanForm {
               @if (getChecklistByCategory(category).length > 0) {
                 <div class="mb-4">
                   <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ category }}</div>
-                  @for (item of getChecklistByCategory(category); track item.label) {
+                  @for (item of getChecklistByCategory(category); track $index) {
                     <div class="flex items-start gap-2 mb-2">
                       <input type="checkbox" [(ngModel)]="item.checked" (ngModelChange)="updateChecklistScore()"
                         class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
@@ -2308,8 +2308,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   }
 
   updateChecklistScore(): void {
-    const totalWeight = this.plan.checklist.reduce((sum, c) => sum + c.weight, 0);
-    const checkedWeight = this.plan.checklist.filter(c => c.checked).reduce((sum, c) => sum + c.weight, 0);
+    const totalWeight = this.plan.checklist.reduce((sum, c) => sum + (c.weight || 1), 0);
+    const checkedWeight = this.plan.checklist.filter(c => c.checked).reduce((sum, c) => sum + (c.weight || 1), 0);
     this.checklistScore = totalWeight > 0 ? Math.round((checkedWeight / totalWeight) * 100) : 0;
   }
 
@@ -2324,7 +2324,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   getMissingCritical(): string {
     const missing = this.plan.checklist.filter(c => c.critical && !c.checked);
     const parts: string[] = [];
-    if (missing.length > 0) parts.push(`Còn ${missing.length} điều kiện bắt buộc (●3)`);
+    if (missing.length > 0) parts.push(`Còn ${missing.length} điều kiện bắt buộc`);
     if (this.checklistScore < 70) parts.push(`Điểm ${this.checklistScore}% < 70% tối thiểu`);
     if (this.riskViolations.length > 0 && !this.riskOverrideConfirmed) {
       parts.push(`${this.riskViolations.length} vi phạm Risk Profile`);
@@ -2448,13 +2448,19 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     } else {
       this.scenarioHistory = [];
     }
-    if (sp.checklist && sp.checklist.length > 0) {
-      this.plan.checklist = sp.checklist.map(c => ({
-        label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint
-      }));
-    }
+    // Save checklist checked state before onStrategyChange regenerates it
+    const savedChecklist = (sp.checklist && sp.checklist.length > 0)
+      ? sp.checklist.map(c => ({ label: c.label, checked: c.checked }))
+      : [];
     this.manualQuantity = sp.quantity > 0;
-    if (sp.strategyId) this.onStrategyChange();
+    if (sp.strategyId) this.onStrategyChange(); // regenerates checklist
+    // Restore saved checked state by label-matching
+    if (savedChecklist.length > 0) {
+      savedChecklist.forEach(saved => {
+        const live = this.plan.checklist.find(c => c.label === saved.label);
+        if (live) live.checked = saved.checked;
+      });
+    }
     if (sp.portfolioId) this.onPortfolioChange();
     if (sp.symbol) this.onSymbolInput();
     this.recalculate();
