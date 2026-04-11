@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace InvestmentApp.Application.Interfaces;
 
 public interface IPositionSizingService
@@ -8,10 +10,19 @@ public interface IPositionSizingService
 
 public class PositionSizingRequest
 {
+    [Range(1, (double)decimal.MaxValue, ErrorMessage = "AccountBalance must be > 0")]
     public decimal AccountBalance { get; set; }
+
+    [Range(0.01, (double)decimal.MaxValue, ErrorMessage = "EntryPrice must be > 0")]
     public decimal EntryPrice { get; set; }
+
+    [Range(0.01, (double)decimal.MaxValue, ErrorMessage = "StopLoss must be > 0")]
     public decimal StopLoss { get; set; }
+
+    [Range(0.01, 100, ErrorMessage = "RiskPercent must be between 0.01 and 100")]
     public decimal RiskPercent { get; set; } = 2m;
+
+    [Range(0.01, 100, ErrorMessage = "MaxPositionPercent must be between 0.01 and 100")]
     public decimal MaxPositionPercent { get; set; } = 20m;
 
     // ATR data (from technical analysis)
@@ -19,6 +30,7 @@ public class PositionSizingRequest
     public decimal AtrMultiplier { get; set; } = 2m; // N in ATR-based formula
 
     // Kelly data (from trade history)
+    [Range(0, 1, ErrorMessage = "WinRate must be between 0 and 1")]
     public decimal? WinRate { get; set; }       // 0-1 (e.g., 0.55 = 55%)
     public decimal? AverageWin { get; set; }    // average win amount
     public decimal? AverageLoss { get; set; }   // average loss amount (positive number)

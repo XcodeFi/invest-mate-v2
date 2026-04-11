@@ -1541,6 +1541,7 @@ interface TradePlanForm {
 export class TradePlanComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private symbolSubject = new Subject<string>();
+  private sizingSubject = new Subject<void>();
 
   showAiPanel = false;
   aiTradePlanId = '';
@@ -1753,6 +1754,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         });
       }
     });
+
+    // Debounced refresh of advanced sizing models on price/SL changes
+    this.sizingSubject.pipe(
+      debounceTime(500),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.fetchSizingModels());
   }
 
   applyTemplate(): void {
@@ -1920,6 +1927,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
     // Position sizing calculation
     this.calculatePositionSizing();
+    this.sizingSubject.next();
 
     // Use optimal shares when quantity is not manually set
     const effectiveQuantity = this.manualQuantity && this.plan.quantity > 0
