@@ -1,7 +1,7 @@
 # Plan: Mở rộng Phân tích Kỹ thuật & Chiến lược Giao dịch
 
 > **Ngày tạo:** 2026-04-10
-> **Trạng thái:** P1-P5 Done — P6 pending
+> **Trạng thái:** P1-P6 Done ✅ — Roadmap hoàn thành
 > **Reference:** [`docs/references/`](../references/README.md) — 3 tài liệu kiến thức nền tảng
 
 ---

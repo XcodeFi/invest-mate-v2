@@ -2,6 +2,35 @@
 
 ---
 
+## [v2.37.0] — 2026-04-11 · Dynamic Trading Checklist (P6) — Hoàn thành Roadmap TA 6 Phase
+
+**Branch:** `feat/p1-expand-technical-indicators`
+
+### Dynamic Checklist theo Strategy
+- Checklist thay đổi theo timeFrame: Scalping (VWAP, Stochastic, Volume), DayTrading (EMA, RSI, MACD, Bollinger), Swing (ADX, Fibonacci, OBV), Position (SMA50/200, ADX weekly, MACD weekly)
+- Tự động regenerate khi chọn chiến lược khác
+
+### Multi-Timeframe Gate
+- DayTrading: bắt buộc xác nhận xu hướng Daily
+- Swing: bắt buộc xác nhận xu hướng Weekly
+- Position: bắt buộc xác nhận xu hướng Monthly
+- Scalping: không yêu cầu (quá nhanh)
+
+### Weighted Scoring
+- Weight 3 (●3 đỏ): bắt buộc — SL, R:R, Multi-TF gate, indicator chính
+- Weight 2 (●2 vàng): quan trọng — indicator phụ, position sizing, accept loss
+- Weight 1: tham khảo — journal, tâm lý, portfolio risk
+- GO threshold: tất cả ●3 items checked + tổng điểm ≥ 70%
+- Progress bar trực quan + chi tiết thiếu
+
+### Roadmap hoàn thành ✅
+Plan `technical-analysis-features.md` archived → `docs/plans/done/`
+
+### Tests
+- 868 tests pass (Domain: 603, Application: 65, Infrastructure: 199, Api: 1)
+
+---
+
 ## [v2.36.0] — 2026-04-11 · Strategy Template Library — 7 chiến lược kỹ thuật (P5)
 
 **Branch:** `feat/p1-expand-technical-indicators`

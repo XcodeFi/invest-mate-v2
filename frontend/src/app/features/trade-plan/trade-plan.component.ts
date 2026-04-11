@@ -22,6 +22,7 @@ interface ChecklistItem {
   checked: boolean;
   critical: boolean;
   hint: string;
+  weight: number; // 1=nice-to-have, 2=important, 3=critical
 }
 
 interface PlanLotForm {
@@ -1248,39 +1249,63 @@ interface TradePlanForm {
             </div>
           </div>
 
-          <!-- Pre-trade Checklist -->
+          <!-- Pre-trade Checklist (P6: Dynamic) -->
           <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex justify-between items-center mb-2">
               <h2 class="text-lg font-semibold">Checklist trước giao dịch</h2>
               <span class="text-sm font-medium px-2 py-1 rounded-full"
-                [class.bg-green-100]="checklistScore >= 80"
-                [class.text-green-700]="checklistScore >= 80"
-                [class.bg-yellow-100]="checklistScore >= 50 && checklistScore < 80"
-                [class.text-yellow-700]="checklistScore >= 50 && checklistScore < 80"
+                [class.bg-green-100]="checklistScore >= 70"
+                [class.text-green-700]="checklistScore >= 70"
+                [class.bg-yellow-100]="checklistScore >= 50 && checklistScore < 70"
+                [class.text-yellow-700]="checklistScore >= 50 && checklistScore < 70"
                 [class.bg-red-100]="checklistScore < 50"
                 [class.text-red-700]="checklistScore < 50">
                 {{ checklistScore }}%
               </span>
             </div>
+            <div class="flex items-center gap-2 mb-4 text-xs text-gray-400">
+              <span>Tối thiểu 70% để giao dịch</span>
+              <span>·</span>
+              <span class="text-red-400">●3</span> bắt buộc
+              <span class="text-amber-400">●2</span> quan trọng
+              <span class="text-gray-300">●1</span> tham khảo
+            </div>
 
-            <div *ngFor="let category of checklistCategories" class="mb-4">
-              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ category }}</div>
-              <div *ngFor="let item of getChecklistByCategory(category)" class="flex items-start gap-2 mb-2">
-                <input type="checkbox" [(ngModel)]="item.checked" (ngModelChange)="updateChecklistScore()"
-                  class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                <div class="flex-1">
-                  <div class="text-sm" [class.text-gray-800]="!item.checked" [class.text-gray-400]="item.checked"
-                    [class.line-through]="item.checked">
-                    {{ item.label }}
-                    <span *ngIf="item.critical" class="text-red-500 text-xs">*bắt buộc</span>
-                  </div>
-                  <div class="text-xs text-gray-400">{{ item.hint }}</div>
+            @for (category of checklistCategories; track category) {
+              @if (getChecklistByCategory(category).length > 0) {
+                <div class="mb-4">
+                  <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ category }}</div>
+                  @for (item of getChecklistByCategory(category); track item.label) {
+                    <div class="flex items-start gap-2 mb-2">
+                      <input type="checkbox" [(ngModel)]="item.checked" (ngModelChange)="updateChecklistScore()"
+                        class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                      <div class="flex-1">
+                        <div class="text-sm" [class.text-gray-800]="!item.checked" [class.text-gray-400]="item.checked"
+                          [class.line-through]="item.checked">
+                          {{ item.label }}
+                          @if (item.weight === 3) { <span class="text-red-400 text-xs ml-1">●3</span> }
+                          @else if (item.weight === 2) { <span class="text-amber-400 text-xs ml-1">●2</span> }
+                        </div>
+                        <div class="text-xs text-gray-400">{{ item.hint }}</div>
+                      </div>
+                    </div>
+                  }
                 </div>
+              }
+            }
+
+            <!-- Progress bar -->
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
+              <div class="h-2 rounded-full transition-all"
+                [style.width.%]="checklistScore"
+                [class.bg-green-500]="checklistScore >= 70"
+                [class.bg-yellow-400]="checklistScore >= 50 && checklistScore < 70"
+                [class.bg-red-400]="checklistScore < 50">
               </div>
             </div>
 
             <!-- Go/No-Go -->
-            <div class="mt-4 p-4 rounded-lg text-center font-bold"
+            <div class="p-4 rounded-lg text-center font-bold"
               [class.bg-green-100]="canTrade" [class.text-green-700]="canTrade"
               [class.bg-red-100]="!canTrade" [class.text-red-700]="!canTrade">
               {{ canTrade ? 'SẴN SÀNG GIAO DỊCH' : 'CHƯA ĐỦ ĐIỀU KIỆN' }}
@@ -1666,7 +1691,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   stockAtr: number | null = null;
   stockAtrPercent: number | null = null;
 
-  checklistCategories = ['Phân tích', 'Quản lý rủi ro', 'Tâm lý', 'Xác nhận'];
+  checklistCategories = ['Phân tích', 'Đa khung thời gian', 'Quản lý rủi ro', 'Tâm lý', 'Xác nhận'];
 
   // Template management
   templates: TradePlanTemplate[] = [];
@@ -1888,25 +1913,99 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   }
 
   initChecklist(): void {
-    this.plan.checklist = [
-      { label: 'Đã xác định xu hướng chính (Daily/Weekly)', category: 'Phân tích', checked: false, critical: true, hint: 'Xu hướng lớn phải rõ ràng' },
-      { label: 'Setup khớp với chiến lược đã chọn', category: 'Phân tích', checked: false, critical: true, hint: 'Entry rules được thỏa mãn' },
-      { label: 'Khối lượng giao dịch xác nhận', category: 'Phân tích', checked: false, critical: false, hint: 'Volume trên trung bình' },
-      { label: 'Không có tin xấu (earnings, sự kiện)','category': 'Phân tích', checked: false, critical: false, hint: 'Kiểm tra lịch sự kiện' },
-
-      { label: 'Stop-loss đã được đặt', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Biết chính xác điểm cắt lỗ' },
-      { label: 'R:R ratio >= 2:1', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Lời tiềm năng gấp 2 lần rủi ro' },
-      { label: 'Vị thế trong giới hạn position sizing', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Không vượt % tối đa danh mục' },
-      { label: 'Tổng rủi ro danh mục chưa vượt giới hạn', category: 'Quản lý rủi ro', checked: false, critical: false, hint: 'Tính cả vị thế mới' },
-
-      { label: 'Không đang FOMO hoặc sợ hãi', category: 'Tâm lý', checked: false, critical: false, hint: 'Bình tĩnh, có kế hoạch rõ' },
-      { label: 'Chấp nhận mất số tiền rủi ro này', category: 'Tâm lý', checked: false, critical: true, hint: 'Thoải mái với mức lỗ tối đa' },
-      { label: 'Không revenge trading', category: 'Tâm lý', checked: false, critical: false, hint: 'Không có giao dịch lỗ trước' },
-
-      { label: 'Đã ghi nhật ký giao dịch', category: 'Xác nhận', checked: false, critical: false, hint: 'Entry reason, market context' },
-      { label: 'Đã xác nhận lại giá vào/SL/TP', category: 'Xác nhận', checked: false, critical: true, hint: 'Double check các mức giá' },
-    ];
+    const tf = this.selectedStrategy?.timeFrame || 'Swing';
+    this.plan.checklist = this.generateDynamicChecklist(tf);
     this.updateChecklistScore();
+  }
+
+  private generateDynamicChecklist(timeFrame: string): ChecklistItem[] {
+    const items: ChecklistItem[] = [];
+
+    // ─── Phân tích (strategy-specific indicators) ─────────────
+    if (timeFrame === 'Scalping') {
+      items.push(
+        { label: 'VWAP xác nhận hướng giao dịch', category: 'Phân tích', checked: false, critical: true, hint: 'Giá trên VWAP = mua, dưới VWAP = bán', weight: 3 },
+        { label: 'Stochastic < 20 hoặc > 80 (timing)', category: 'Phân tích', checked: false, critical: false, hint: 'Quá bán/quá mua cho điểm vào', weight: 2 },
+        { label: 'Volume đột biến xác nhận', category: 'Phân tích', checked: false, critical: true, hint: 'Volume > 2x trung bình', weight: 3 },
+        { label: 'Spread mua-bán đủ nhỏ (< 0.3%)', category: 'Phân tích', checked: false, critical: false, hint: 'Thanh khoản cao', weight: 1 },
+      );
+    } else if (timeFrame === 'DayTrading') {
+      items.push(
+        { label: 'EMA(20) > EMA(50) xác nhận xu hướng', category: 'Phân tích', checked: false, critical: true, hint: 'Xu hướng ngắn hạn rõ ràng', weight: 3 },
+        { label: 'RSI pullback về 40-50 (uptrend) hoặc 50-60 (downtrend)', category: 'Phân tích', checked: false, critical: false, hint: 'Timing vào lệnh', weight: 2 },
+        { label: 'MACD cắt signal line đúng hướng', category: 'Phân tích', checked: false, critical: false, hint: 'Xác nhận momentum', weight: 2 },
+        { label: 'Bollinger %B xác nhận vùng vào', category: 'Phân tích', checked: false, critical: false, hint: '%B < 0.2 (mua) hoặc > 0.8 (bán)', weight: 1 },
+        { label: 'Volume phiên > 1.3x trung bình', category: 'Phân tích', checked: false, critical: true, hint: 'Dòng tiền ủng hộ', weight: 2 },
+      );
+    } else if (timeFrame === 'Swing') {
+      items.push(
+        { label: 'ADX > 25 — thị trường có xu hướng', category: 'Phân tích', checked: false, critical: true, hint: 'Không giao dịch khi sideway', weight: 3 },
+        { label: 'Fibonacci retracement xác nhận vùng vào', category: 'Phân tích', checked: false, critical: false, hint: 'Giá tại 38.2%, 50%, hoặc 61.8%', weight: 2 },
+        { label: 'RSI/MACD xác nhận momentum', category: 'Phân tích', checked: false, critical: false, hint: 'RSI chưa quá mua, MACD đúng hướng', weight: 2 },
+        { label: 'OBV rising — dòng tiền ủng hộ', category: 'Phân tích', checked: false, critical: true, hint: 'Smart money cùng hướng', weight: 2 },
+      );
+    } else { // Position
+      items.push(
+        { label: 'SMA(50) trên SMA(200) trên khung tuần', category: 'Phân tích', checked: false, critical: true, hint: 'Golden Cross weekly', weight: 3 },
+        { label: 'ADX > 25 trên khung tuần', category: 'Phân tích', checked: false, critical: true, hint: 'Xu hướng dài hạn đủ mạnh', weight: 3 },
+        { label: 'MACD weekly cắt signal đúng hướng', category: 'Phân tích', checked: false, critical: false, hint: 'Momentum dài hạn', weight: 2 },
+        { label: 'Cơ bản tốt: ROE > 15%, EPS tăng trưởng', category: 'Phân tích', checked: false, critical: false, hint: 'Kết hợp phân tích cơ bản', weight: 2 },
+      );
+    }
+
+    // ─── Multi-Timeframe Gate (strategy-dependent) ────────────
+    if (timeFrame === 'DayTrading') {
+      items.push(
+        { label: '⏱ Xu hướng Daily ủng hộ hướng giao dịch', category: 'Đa khung thời gian', checked: false, critical: true, hint: 'Khung lớn hơn phải xác nhận', weight: 3 },
+      );
+    } else if (timeFrame === 'Swing') {
+      items.push(
+        { label: '⏱ Xu hướng Weekly ủng hộ hướng giao dịch', category: 'Đa khung thời gian', checked: false, critical: true, hint: 'Weekly trend phải cùng hướng', weight: 3 },
+      );
+    } else if (timeFrame === 'Position') {
+      items.push(
+        { label: '⏱ Xu hướng Monthly ủng hộ hướng giao dịch', category: 'Đa khung thời gian', checked: false, critical: true, hint: 'Monthly trend phải cùng hướng', weight: 3 },
+      );
+    }
+    // Scalping: no multi-TF gate (too fast)
+
+    // ─── Quản lý rủi ro (common + strategy-specific) ─────────
+    items.push(
+      { label: 'Stop-loss đã được đặt', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Biết chính xác điểm cắt lỗ', weight: 3 },
+      { label: 'R:R ratio >= 2:1', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Lời tiềm năng gấp 2 lần rủi ro', weight: 3 },
+      { label: 'Vị thế trong giới hạn position sizing', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Không vượt % tối đa danh mục', weight: 2 },
+    );
+
+    if (timeFrame === 'Scalping') {
+      items.push(
+        { label: 'Tổng loss tối đa/ngày chưa vượt 2%', category: 'Quản lý rủi ro', checked: false, critical: true, hint: 'Dừng giao dịch nếu vượt', weight: 3 },
+      );
+    } else {
+      items.push(
+        { label: 'Tổng rủi ro danh mục chưa vượt giới hạn', category: 'Quản lý rủi ro', checked: false, critical: false, hint: 'Tính cả vị thế mới', weight: 1 },
+      );
+    }
+
+    // ─── Tâm lý (common + strategy-specific) ─────────────────
+    items.push(
+      { label: 'Không đang FOMO hoặc sợ hãi', category: 'Tâm lý', checked: false, critical: false, hint: 'Bình tĩnh, có kế hoạch rõ', weight: 1 },
+      { label: 'Chấp nhận mất số tiền rủi ro này', category: 'Tâm lý', checked: false, critical: true, hint: 'Thoải mái với mức lỗ tối đa', weight: 2 },
+      { label: 'Không revenge trading', category: 'Tâm lý', checked: false, critical: false, hint: 'Không có giao dịch lỗ gần đây', weight: 1 },
+    );
+
+    if (timeFrame === 'Swing' || timeFrame === 'Position') {
+      items.push(
+        { label: 'Kiên nhẫn chờ pullback, không vào đuổi giá', category: 'Tâm lý', checked: false, critical: false, hint: 'Chờ giá về vùng vào, không FOMO', weight: 1 },
+      );
+    }
+
+    // ─── Xác nhận (common) ───────────────────────────────────
+    items.push(
+      { label: 'Đã ghi nhật ký giao dịch', category: 'Xác nhận', checked: false, critical: false, hint: 'Entry reason, market context', weight: 1 },
+      { label: 'Đã xác nhận lại giá vào/SL/TP', category: 'Xác nhận', checked: false, critical: true, hint: 'Double check các mức giá', weight: 2 },
+    );
+
+    return items;
   }
 
   onStrategyChange(): void {
@@ -1918,6 +2017,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
     const s = this.selectedStrategy;
     if (!s) return;
+
+    // Regenerate checklist based on strategy timeFrame (P6)
+    this.plan.checklist = this.generateDynamicChecklist(s.timeFrame);
+    this.updateChecklistScore();
 
     const entry = this.plan.entryPrice;
     const isBuy = isBuyTrade(this.plan.direction);
@@ -2205,26 +2308,28 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   }
 
   updateChecklistScore(): void {
-    const total = this.plan.checklist.length;
-    const checked = this.plan.checklist.filter(c => c.checked).length;
-    this.checklistScore = total > 0 ? Math.round((checked / total) * 100) : 0;
+    const totalWeight = this.plan.checklist.reduce((sum, c) => sum + c.weight, 0);
+    const checkedWeight = this.plan.checklist.filter(c => c.checked).reduce((sum, c) => sum + c.weight, 0);
+    this.checklistScore = totalWeight > 0 ? Math.round((checkedWeight / totalWeight) * 100) : 0;
   }
 
   get canTrade(): boolean {
     const criticalItems = this.plan.checklist.filter(c => c.critical);
     const criticalOk = criticalItems.every(c => c.checked);
+    const scoreOk = this.checklistScore >= 70;
     const riskOk = this.riskViolations.length === 0 || this.riskOverrideConfirmed;
-    return criticalOk && riskOk;
+    return criticalOk && scoreOk && riskOk;
   }
 
   getMissingCritical(): string {
     const missing = this.plan.checklist.filter(c => c.critical && !c.checked);
     const parts: string[] = [];
-    if (missing.length > 0) parts.push(`Còn ${missing.length} điều kiện bắt buộc chưa hoàn thành`);
+    if (missing.length > 0) parts.push(`Còn ${missing.length} điều kiện bắt buộc (●3)`);
+    if (this.checklistScore < 70) parts.push(`Điểm ${this.checklistScore}% < 70% tối thiểu`);
     if (this.riskViolations.length > 0 && !this.riskOverrideConfirmed) {
-      parts.push(`${this.riskViolations.length} vi phạm Risk Profile chưa xác nhận`);
+      parts.push(`${this.riskViolations.length} vi phạm Risk Profile`);
     }
-    return parts.join('. ');
+    return parts.join(' · ');
   }
 
   checkRiskViolations(): void {

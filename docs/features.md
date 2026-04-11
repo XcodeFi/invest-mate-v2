@@ -95,6 +95,14 @@ Module lập kế hoạch giao dịch đầy đủ: Auto-fill giá, Position Siz
 - Chọn template → tự động set SL method, R:R, SL% trong Trade Plan
 - Template detail hiển thị badges: R:R, SL%, SL method, sizing model
 
+**Dynamic Checklist (P6):**
+- Checklist thay đổi theo `timeFrame` của chiến lược (Scalping/DayTrading/Swing/Position)
+- Mỗi timeFrame có checklist items khác nhau cho phân tích kỹ thuật
+- **Multi-Timeframe Gate**: Bắt buộc xác nhận xu hướng khung lớn (Daily/Weekly/Monthly) tùy strategy
+- **Weighted scoring**: item weight 1-3 (●3 bắt buộc, ●2 quan trọng, ●1 tham khảo)
+- GO/NO-GO: cần tất cả ●3 items + tổng điểm ≥ 70%
+- Progress bar + chi tiết thiếu khi chưa đủ điều kiện
+
 ---
 
 ## Phase 3–4: Charts & Links
