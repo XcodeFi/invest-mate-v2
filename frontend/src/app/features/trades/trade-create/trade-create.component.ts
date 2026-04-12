@@ -204,7 +204,6 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0.00" (input)="onFormChange()" #priceInput="ngModel" />
                   <p *ngIf="priceInput.invalid && priceInput.touched" class="mt-1 text-sm text-red-600">Phải lớn hơn 0</p>
-                  <p *ngIf="form.price > 0" class="mt-1 text-sm text-gray-500">{{ form.price | vndCurrency }}</p>
                 </div>
               </div>
 

@@ -64,7 +64,6 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
             <input [(ngModel)]="newRule.threshold" type="text" inputmode="numeric" appNumMask
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               [placeholder]="newRule.alertType === 'DrawdownAlert' ? 'VD: 10 (%)' : 'VD: 80000'">
-            <p *ngIf="newRule.threshold > 0 && newRule.alertType !== 'DrawdownAlert'" class="mt-1 text-xs text-gray-500">{{ newRule.threshold | vndCurrency }}</p>
             <p *ngIf="newRule.threshold > 0 && newRule.alertType === 'DrawdownAlert'" class="mt-1 text-xs text-gray-500">{{ newRule.threshold }}%</p>
           </div>
           <div *ngIf="newRule.alertType === 'PriceAlert'">
