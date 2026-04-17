@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TradePlanService, CampaignAnalyticsDto, TradePlan } from '../../core/services/trade-plan.service';
+import { TIME_HORIZON_OPTIONS } from '../../shared/constants/time-horizon';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { forkJoin } from 'rxjs';
 
@@ -16,9 +17,7 @@ import { forkJoin } from 'rxjs';
         <h1 class="text-2xl font-bold text-gray-800">Đánh giá Chiến dịch</h1>
         <select [(ngModel)]="selectedHorizon" (ngModelChange)="loadAnalytics()" class="border rounded-lg px-3 py-2 text-sm">
           <option value="">Tất cả</option>
-          <option value="ShortTerm">Ngắn hạn (1-4 tuần)</option>
-          <option value="MediumTerm">Trung hạn (1-6 tháng)</option>
-          <option value="LongTerm">Dài hạn (6+ tháng)</option>
+          <option *ngFor="let th of timeHorizonOptions" [value]="th.value">{{ th.label }}</option>
         </select>
       </div>
 
@@ -157,6 +156,7 @@ export class CampaignAnalyticsComponent implements OnInit {
   pendingPlans: TradePlan[] = [];
   reviewedPlans: TradePlan[] = [];
   lessonsData: { planId: string; symbol: string; reviewedAt: string; lessons: string }[] = [];
+  timeHorizonOptions = TIME_HORIZON_OPTIONS;
   selectedHorizon = '';
   loading = false;
 

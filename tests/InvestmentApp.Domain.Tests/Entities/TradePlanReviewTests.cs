@@ -20,6 +20,8 @@ public class TradePlanReviewTests
     private static TradePlan CreateExecutedPlan(string userId = "user-1")
     {
         var plan = CreateDefaultPlan(userId);
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
         return plan;
     }

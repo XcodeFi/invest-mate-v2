@@ -98,6 +98,8 @@ public class TradePlanScenarioTests
     public void SetExitStrategyMode_OnExecutedPlan_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
 
         var act = () => plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
@@ -109,6 +111,8 @@ public class TradePlanScenarioTests
     public void SetExitStrategyMode_OnReviewedPlan_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
         plan.MarkReviewed(CreateReviewData());
 

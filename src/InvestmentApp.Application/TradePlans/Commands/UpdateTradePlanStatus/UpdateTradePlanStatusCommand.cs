@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Domain.Entities;
 using MediatR;
 
 namespace InvestmentApp.Application.TradePlans.Commands.UpdateTradePlanStatus;
@@ -42,11 +43,17 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
                 break;
             case "inprogress":
             case "in_progress":
+                // Auto-chain: Draft → Ready → InProgress
+                if (plan.Status == TradePlanStatus.Draft)
+                    plan.MarkReady();
                 plan.MarkInProgress();
                 break;
             case "executed":
                 if (string.IsNullOrEmpty(request.TradeId))
                     throw new ArgumentException("TradeId is required when marking as executed");
+                // Auto-chain: Ready → InProgress → Executed
+                if (plan.Status == TradePlanStatus.Ready)
+                    plan.MarkInProgress();
                 plan.Execute(request.TradeId);
                 // Link trade back to plan
                 var trade = await _tradeRepository.GetByIdAsync(request.TradeId, cancellationToken);
@@ -60,6 +67,9 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
                 throw new InvalidOperationException("Use the dedicated ReviewTradePlan endpoint to review a plan with campaign metrics");
             case "cancelled":
                 plan.Cancel();
+                break;
+            case "restore":
+                plan.Restore();
                 break;
             default:
                 throw new ArgumentException($"Invalid status: {request.Status}");

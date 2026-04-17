@@ -650,7 +650,7 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   ) {}
 
   ngOnInit() {
-    this.symbol = (this.route.snapshot.paramMap.get('symbol') || '').toUpperCase();
+    this.symbol = (this.route.snapshot.paramMap.get('symbol') || this.route.snapshot.queryParams['symbol'] || '').toUpperCase();
     if (!this.symbol) return;
     this.loadData();
   }

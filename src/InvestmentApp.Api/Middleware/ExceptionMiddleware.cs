@@ -37,6 +37,7 @@ public class ExceptionMiddleware
             UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
             ArgumentException => (int)HttpStatusCode.BadRequest,
             KeyNotFoundException => (int)HttpStatusCode.NotFound,
+            InvalidOperationException => (int)HttpStatusCode.Conflict,
             _ => (int)HttpStatusCode.InternalServerError
         };
 
@@ -45,6 +46,7 @@ public class ExceptionMiddleware
             UnauthorizedAccessException => "Unauthorized",
             ArgumentException => "Bad Request",
             KeyNotFoundException => "Not Found",
+            InvalidOperationException => "Conflict",
             _ => "An error occurred"
         };
 

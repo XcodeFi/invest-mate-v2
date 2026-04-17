@@ -3,14 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { JournalService, TradeJournal, CreateJournalRequest, UpdateJournalRequest } from '../../core/services/journal.service';
-import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
+import { PortfolioService, PortfolioSummary, TradeResponseItem } from '../../core/services/portfolio.service';
+import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NotificationService } from '../../core/services/notification.service';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 @Component({
   selector: 'app-journals',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, AiChatPanelComponent],
+  imports: [CommonModule, FormsModule, RouterModule, AiChatPanelComponent, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -44,17 +45,20 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         <h2 class="text-lg font-semibold mb-4">Tạo nhật ký mới</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Trade ID *</label>
-            <input [(ngModel)]="newJournal.tradeId" type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="ID giao dịch">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Portfolio ID *</label>
-            <select [(ngModel)]="newJournal.portfolioId"
+            <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>
+            <select [(ngModel)]="newJournal.portfolioId" (ngModelChange)="onPortfolioChangeForTrades()"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               <option value="">-- Chọn danh mục --</option>
               <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giao dịch *</label>
+            <select [(ngModel)]="newJournal.tradeId"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              [disabled]="!newJournal.portfolioId">
+              <option value="">{{ !newJournal.portfolioId ? '-- Chọn danh mục trước --' : (tradesLoading ? 'Đang tải...' : '-- Chọn giao dịch --') }}</option>
+              <option *ngFor="let t of portfolioTrades" [value]="t.id">{{ t.symbol }} · {{ t.tradeType === 'Buy' ? 'MUA' : 'BÁN' }} · {{ t.quantity }} CP · {{ t.price | vndCurrency }} · {{ t.tradeDate | date:'dd/MM/yy' }}</option>
             </select>
           </div>
           <div>
@@ -214,6 +218,8 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
 export class JournalsComponent implements OnInit {
   journals: TradeJournal[] = [];
   portfolios: PortfolioSummary[] = [];
+  portfolioTrades: TradeResponseItem[] = [];
+  tradesLoading = false;
   selectedPortfolioId = '';
   loading = false;
   showCreateForm = false;
@@ -297,6 +303,20 @@ export class JournalsComponent implements OnInit {
       'FOMO': '😱 FOMO', 'Calm': '😌 Bình tĩnh', 'Anxious': '😟 Lo lắng', 'Excited': '🤩 Hào hứng'
     };
     return labels[emotion] || emotion;
+  }
+
+  onPortfolioChangeForTrades(): void {
+    this.newJournal.tradeId = '';
+    this.portfolioTrades = [];
+    if (!this.newJournal.portfolioId) return;
+    this.tradesLoading = true;
+    this.portfolioService.getTrades(this.newJournal.portfolioId, { pageSize: 100 }).subscribe({
+      next: (res) => {
+        this.portfolioTrades = res.items.sort((a, b) => new Date(b.tradeDate).getTime() - new Date(a.tradeDate).getTime());
+        this.tradesLoading = false;
+      },
+      error: () => { this.tradesLoading = false; }
+    });
   }
 
   private resetForm(): void {
