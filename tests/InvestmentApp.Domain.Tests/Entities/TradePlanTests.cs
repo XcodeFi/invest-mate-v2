@@ -22,6 +22,28 @@ public class TradePlanTests
             confidenceLevel: confidenceLevel);
     }
 
+    private static TradePlan CreateInProgressPlan()
+    {
+        var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
+        return plan;
+    }
+
+    private static TradePlan CreateExecutedPlan(string tradeId = "trade-1")
+    {
+        var plan = CreateInProgressPlan();
+        plan.Execute(tradeId);
+        return plan;
+    }
+
+    private static TradePlan CreateReviewedPlan()
+    {
+        var plan = CreateExecutedPlan();
+        plan.MarkReviewed(CreateReviewData());
+        return plan;
+    }
+
     private static CampaignReviewData CreateReviewData(decimal pnlAmount = 8_000_000m, decimal pnlPercent = 10m)
     {
         return new CampaignReviewData
@@ -266,8 +288,7 @@ public class TradePlanTests
     [Fact]
     public void Update_InProgressPlan_ShouldSucceed()
     {
-        var plan = CreateDefaultPlan();
-        plan.MarkInProgress();
+        var plan = CreateInProgressPlan();
 
         var action = () => plan.Update(notes: "in flight");
 
@@ -277,8 +298,7 @@ public class TradePlanTests
     [Fact]
     public void Update_ExecutedPlan_ShouldThrow()
     {
-        var plan = CreateDefaultPlan();
-        plan.Execute("trade-1");
+        var plan = CreateExecutedPlan();
 
         var action = () => plan.Update(notes: "too late");
 
@@ -289,9 +309,7 @@ public class TradePlanTests
     [Fact]
     public void Update_ReviewedPlan_ShouldThrow()
     {
-        var plan = CreateDefaultPlan();
-        plan.Execute("trade-1");
-        plan.MarkReviewed(CreateReviewData());
+        var plan = CreateReviewedPlan();
 
         var action = () => plan.Update(notes: "too late");
 
@@ -342,21 +360,23 @@ public class TradePlanTests
     }
 
     [Fact]
-    public void MarkReady_FromReady_ShouldThrow()
+    public void MarkReady_FromReady_ShouldBeIdempotent()
     {
         var plan = CreateDefaultPlan();
         plan.MarkReady();
+        var versionBefore = plan.Version;
 
-        var action = () => plan.MarkReady();
+        plan.MarkReady();
 
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*draft*");
+        plan.Status.Should().Be(TradePlanStatus.Ready);
+        plan.Version.Should().Be(versionBefore);
     }
 
     [Fact]
     public void MarkReady_FromInProgress_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
         plan.MarkInProgress();
 
         var action = () => plan.MarkReady();
@@ -368,6 +388,8 @@ public class TradePlanTests
     public void MarkReady_FromExecuted_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
 
         var action = () => plan.MarkReady();
@@ -391,13 +413,13 @@ public class TradePlanTests
     #region MarkInProgress
 
     [Fact]
-    public void MarkInProgress_FromDraft_ShouldSucceed()
+    public void MarkInProgress_FromDraft_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
 
-        plan.MarkInProgress();
+        var action = () => plan.MarkInProgress();
 
-        plan.Status.Should().Be(TradePlanStatus.InProgress);
+        action.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -415,6 +437,7 @@ public class TradePlanTests
     public void MarkInProgress_FromInProgress_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
         plan.MarkInProgress();
 
         var action = () => plan.MarkInProgress();
@@ -426,6 +449,8 @@ public class TradePlanTests
     public void MarkInProgress_FromExecuted_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
 
         var action = () => plan.MarkInProgress();
@@ -452,6 +477,8 @@ public class TradePlanTests
     public void Execute_ShouldSetStatusAndTradeIdAndExecutedAt()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
 
         plan.Execute("trade-42");
 
@@ -462,9 +489,21 @@ public class TradePlanTests
     }
 
     [Fact]
+    public void Execute_FromDraft_ShouldThrow()
+    {
+        var plan = CreateDefaultPlan();
+
+        var action = () => plan.Execute("trade-1");
+
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
     public void Execute_NullTradeId_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
 
         var action = () => plan.Execute(null!);
 
@@ -475,6 +514,8 @@ public class TradePlanTests
     public void Execute_ShouldIncrementVersion()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         var vBefore = plan.Version;
 
         plan.Execute("trade-1");
@@ -490,6 +531,8 @@ public class TradePlanTests
     public void MarkReviewed_FromExecuted_ShouldSucceed()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
 
         plan.MarkReviewed(CreateReviewData());
@@ -523,6 +566,7 @@ public class TradePlanTests
     public void MarkReviewed_FromInProgress_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
         plan.MarkInProgress();
 
         var action = () => plan.MarkReviewed(CreateReviewData());
@@ -534,6 +578,8 @@ public class TradePlanTests
     public void MarkReviewed_FromReviewed_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
         plan.MarkReviewed(CreateReviewData());
 
@@ -546,6 +592,8 @@ public class TradePlanTests
     public void MarkReviewed_ShouldIncrementVersion()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
         var vBefore = plan.Version;
 
@@ -583,6 +631,7 @@ public class TradePlanTests
     public void Cancel_FromInProgress_ShouldSucceed()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
         plan.MarkInProgress();
 
         plan.Cancel();
@@ -594,6 +643,8 @@ public class TradePlanTests
     public void Cancel_FromExecuted_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
 
         var action = () => plan.Cancel();
@@ -606,6 +657,8 @@ public class TradePlanTests
     public void Cancel_FromReviewed_ShouldThrow()
     {
         var plan = CreateDefaultPlan();
+        plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
         plan.MarkReviewed(CreateReviewData());
 
@@ -624,6 +677,28 @@ public class TradePlanTests
         plan.Cancel();
 
         plan.Version.Should().Be(vBefore + 1);
+    }
+
+    [Fact]
+    public void Restore_FromCancelled_ShouldReturnToDraft()
+    {
+        var plan = CreateDefaultPlan();
+        plan.Cancel();
+
+        plan.Restore();
+
+        plan.Status.Should().Be(TradePlanStatus.Draft);
+    }
+
+    [Fact]
+    public void Restore_FromDraft_ShouldThrow()
+    {
+        var plan = CreateDefaultPlan();
+
+        var action = () => plan.Restore();
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*cancelled*");
     }
 
     #endregion
@@ -702,8 +777,7 @@ public class TradePlanTests
     [Fact]
     public void SetLots_InProgressPlan_ShouldSucceed()
     {
-        var plan = CreateDefaultPlan();
-        plan.MarkInProgress();
+        var plan = CreateInProgressPlan();
         var lots = CreateLots((1, 80_000m, 100));
 
         var action = () => plan.SetLots(EntryMode.DCA, lots);
@@ -714,8 +788,7 @@ public class TradePlanTests
     [Fact]
     public void SetLots_ExecutedPlan_ShouldThrow()
     {
-        var plan = CreateDefaultPlan();
-        plan.Execute("trade-1");
+        var plan = CreateExecutedPlan();
         var lots = CreateLots((1, 80_000m, 100));
 
         var action = () => plan.SetLots(EntryMode.Single, lots);
@@ -727,9 +800,7 @@ public class TradePlanTests
     [Fact]
     public void SetLots_ReviewedPlan_ShouldThrow()
     {
-        var plan = CreateDefaultPlan();
-        plan.Execute("trade-1");
-        plan.MarkReviewed(CreateReviewData());
+        var plan = CreateReviewedPlan();
         var lots = CreateLots((1, 80_000m, 100));
 
         var action = () => plan.SetLots(EntryMode.Single, lots);
@@ -1228,6 +1299,7 @@ public class TradePlanTests
     {
         var plan = CreateDefaultPlan();
         plan.MarkReady();
+        plan.MarkInProgress();
         plan.Execute("trade-1");
 
         plan.Status.Should().Be(TradePlanStatus.Executed);

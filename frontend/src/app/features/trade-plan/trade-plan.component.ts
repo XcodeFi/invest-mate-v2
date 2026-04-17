@@ -14,6 +14,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
+import { TIME_HORIZON_OPTIONS, DEFAULT_TIME_HORIZON } from '../../shared/constants/time-horizon';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 
 interface ChecklistItem {
@@ -31,6 +32,7 @@ interface PlanLotForm {
   plannedQuantity: number;
   allocationPercent: number;
   label: string;
+  status?: string;
 }
 
 interface ExitTargetForm {
@@ -158,11 +160,17 @@ interface TradePlanForm {
                         class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1">
                         🤖 AI Tư vấn
                       </button>
-                      <button *ngIf="sp.status === 'Draft' || sp.status === 'Ready'"
+                      <button *ngIf="sp.status === 'Cancelled'"
                         (click)="deletePlan(sp)" title="Xoá"
                         class="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                      </button>
+                      <button *ngIf="sp.status === 'Cancelled'" (click)="restorePlan(sp)" title="Hoàn tác huỷ"
+                        class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"></path>
                         </svg>
                       </button>
                       <button *ngIf="sp.status === 'Draft'" (click)="markReady(sp)" title="Sẵn sàng"
@@ -235,7 +243,7 @@ interface TradePlanForm {
               <div class="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-100" (click)="$event.stopPropagation()">
                 <span>{{ sp.createdAt | date:'dd/MM/yy HH:mm' }}</span>
                 <div class="flex items-center gap-1">
-                  <button *ngIf="sp.status === 'Draft' || sp.status === 'Ready'"
+                  <button *ngIf="sp.status === 'Cancelled'"
                     (click)="deletePlan(sp)" title="Xoá"
                     class="p-1 text-red-400 hover:text-red-600 rounded">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -249,6 +257,12 @@ interface TradePlanForm {
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
                     </svg>
                   </a>
+                  <button *ngIf="sp.status === 'Cancelled'" (click)="restorePlan(sp)" title="Hoàn tác huỷ"
+                    class="p-1 text-blue-400 hover:text-blue-600 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"></path>
+                    </svg>
+                  </button>
                   <button *ngIf="sp.status === 'Draft'" (click)="markReady(sp)" title="Sẵn sàng"
                     class="p-1 text-emerald-400 hover:text-emerald-600 rounded">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,9 +493,7 @@ interface TradePlanForm {
                 <label class="block text-sm font-medium text-gray-700 mb-1">Khung thời gian</label>
                 <select [(ngModel)]="plan.timeHorizon"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                  <option value="ShortTerm">Ngắn hạn</option>
-                  <option value="MediumTerm">Trung hạn</option>
-                  <option value="LongTerm">Dài hạn</option>
+                  <option *ngFor="let th of timeHorizonOptions" [value]="th.value">{{ th.label }}</option>
                 </select>
               </div>
             </div>
@@ -682,12 +694,6 @@ interface TradePlanForm {
               <div *ngIf="exitStrategyMode === 'Advanced'">
                 <!-- Time Horizon + AI Suggestion Row -->
                 <div class="flex items-center gap-2 mb-3 flex-wrap">
-                  <label class="text-xs text-violet-700 font-medium whitespace-nowrap">Kỳ vọng:</label>
-                  <select [(ngModel)]="selectedTimeHorizon" class="px-2 py-1 border border-violet-300 rounded text-xs">
-                    <option value="Short">Ngắn hạn</option>
-                    <option value="Medium">Trung hạn</option>
-                    <option value="Long">Dài hạn</option>
-                  </select>
                   <button (click)="fetchScenarioSuggestion()"
                     [disabled]="!plan.symbol || !plan.entryPrice || loadingSuggestion"
                     class="px-3 py-1 text-xs bg-indigo-600 text-white hover:bg-indigo-700 rounded disabled:opacity-50 flex items-center gap-1 font-medium">
@@ -1370,7 +1376,7 @@ interface TradePlanForm {
       </div>
 
       <!-- Campaign Review Panel -->
-      <div *ngIf="showReviewPanel && reviewPlanTarget" class="mt-6 bg-amber-50 border-2 border-amber-300 rounded-lg shadow p-6">
+      <div *ngIf="showReviewPanel && reviewPlanTarget" class="campaign-review-panel mt-6 bg-amber-50 border-2 border-amber-300 rounded-lg shadow p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-amber-800">Đóng chiến dịch — {{ reviewPlanTarget.symbol }}</h2>
           <button (click)="closeCampaignReviewPanel()" class="text-gray-500 hover:text-gray-700 text-lg">&times;</button>
@@ -1642,8 +1648,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   savedPlans: TradePlanDto[] = [];
   filteredSavedPlans: TradePlanDto[] = [];
   savedPlansLoading = false;
+  timeHorizonOptions = TIME_HORIZON_OPTIONS;
   selectedPlanId: string | null = null;
   selectedPlanStatus = '';
+  pendingLoadPlanId: string | null = null;
   saving = false;
   planFilterTab = 'all';
   planFilterTabs = [
@@ -1658,7 +1666,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   plan: TradePlanForm = {
     symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
     quantity: 0, strategyId: '', portfolioId: '', reason: '',
-    marketCondition: 'Trending', timeHorizon: 'MediumTerm', confidenceLevel: 5, checklist: [], notes: '',
+    marketCondition: 'Trending', timeHorizon: DEFAULT_TIME_HORIZON, confidenceLevel: 5, checklist: [], notes: '',
     entryMode: 'Single', lots: [], exitTargets: []
   };
 
@@ -1718,7 +1726,6 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   savingScenarioTemplate = false;
 
   // Scenario Suggestion (P0.6)
-  selectedTimeHorizon: string = 'Medium';
   loadingSuggestion = false;
   scenarioSuggestion: ScenarioSuggestionDto | null = null;
   selectedSuggestionNodes: Set<string> = new Set();
@@ -1771,8 +1778,13 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.templateService.getAll().subscribe({ next: d => this.templates = d, error: () => {} });
     this.loadSavedPlans();
 
-    // Pre-fill from query params (e.g. navigated from market-data analysis)
+    // Auto-load plan from query param (e.g. ?loadPlan=<id>)
     const qp = this.route.snapshot.queryParams;
+    if (qp['loadPlan']) {
+      this.pendingLoadPlanId = qp['loadPlan'];
+    }
+
+    // Pre-fill from query params (e.g. navigated from market-data analysis)
     if (qp['symbol']) {
       this.plan.symbol = qp['symbol'].toUpperCase().trim();
       this.onSymbolInput();
@@ -2382,6 +2394,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         this.savedPlans = plans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         this.filterSavedPlans();
         this.savedPlansLoading = false;
+        // Auto-load plan from ?loadPlan= query param
+        if (this.pendingLoadPlanId) {
+          const target = this.savedPlans.find(p => p.id === this.pendingLoadPlanId);
+          if (target) this.loadPlan(target);
+          this.pendingLoadPlanId = null;
+        }
       },
       error: () => { this.savedPlansLoading = false; }
     });
@@ -2406,7 +2424,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.plan.portfolioId = sp.portfolioId || '';
     this.plan.reason = sp.reason || '';
     this.plan.marketCondition = sp.marketCondition || 'Trending';
-    this.plan.timeHorizon = sp.timeHorizon || 'MediumTerm';
+    this.plan.timeHorizon = sp.timeHorizon || DEFAULT_TIME_HORIZON;
     this.plan.confidenceLevel = sp.confidenceLevel;
     this.loadedReviewData = sp.reviewData || null;
     this.plan.notes = sp.notes || '';
@@ -2416,7 +2434,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       plannedPrice: l.plannedPrice,
       plannedQuantity: l.plannedQuantity,
       allocationPercent: l.allocationPercent ?? 0,
-      label: l.label ?? ''
+      label: l.label ?? '',
+      status: l.status ?? 'Pending'
     }));
     this.plan.exitTargets = (sp.exitTargets || []).map((e, i) => ({
       level: e.level ?? (i + 1),
@@ -2474,7 +2493,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.plan = {
       symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
       quantity: 0, strategyId: '', portfolioId: '', reason: '',
-      marketCondition: 'Trending', timeHorizon: 'MediumTerm', confidenceLevel: 5, checklist: [], notes: '',
+      marketCondition: 'Trending', timeHorizon: DEFAULT_TIME_HORIZON, confidenceLevel: 5, checklist: [], notes: '',
       entryMode: 'Single', lots: [], exitTargets: []
     };
     this.showOrderSheet = false;
@@ -2549,10 +2568,11 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       }).subscribe({
         next: () => {
           // If status changed (e.g., Draft → Ready), update status separately
-          if (status !== this.selectedPlanStatus && status === 'Ready') {
+          if (this.selectedPlanStatus === 'Draft' && status === 'Ready') {
             this.tradePlanService.updateStatus(this.selectedPlanId!, { status: 'ready' }).subscribe({
               next: () => {
                 this.saving = false;
+                this.selectedPlanStatus = 'Ready';
                 this.notification.success('Kế hoạch', 'Đã cập nhật & sẵn sàng');
                 this.loadSavedPlans();
               },
@@ -2647,6 +2667,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.reviewPreview = null;
     this.reviewLessonsLearned = '';
     this.loadingReviewPreview = true;
+    setTimeout(() => {
+      document.querySelector('.campaign-review-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
     this.tradePlanService.previewReview(sp.id).subscribe({
       next: (preview) => {
         this.reviewPreview = preview;
@@ -2697,6 +2720,17 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     });
   }
 
+  restorePlan(sp: TradePlanDto): void {
+    if (!confirm(`Khôi phục kế hoạch ${sp.symbol} về nháp?`)) return;
+    this.tradePlanService.updateStatus(sp.id, { status: 'restore' }).subscribe({
+      next: () => {
+        this.notification.success('Kế hoạch', `${sp.symbol} đã khôi phục về nháp`);
+        this.loadSavedPlans();
+      },
+      error: () => this.notification.error('Lỗi', 'Không thể khôi phục')
+    });
+  }
+
   getRR(sp: TradePlanDto): number {
     const risk = Math.abs(sp.entryPrice - sp.stopLoss);
     return risk > 0 ? Math.abs(sp.target - sp.entryPrice) / risk : 0;
@@ -2726,12 +2760,20 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     if (this.selectedPlanId) params['planId'] = this.selectedPlanId;
     if (this.plan.symbol) params['symbol'] = this.plan.symbol;
     if (this.plan.direction) params['direction'] = this.plan.direction;
-    if (this.plan.entryPrice) params['price'] = String(this.plan.entryPrice);
-    if (this.plan.quantity || this.optimalShares) params['quantity'] = String(this.plan.quantity || this.optimalShares);
     if (this.plan.portfolioId) params['portfolioId'] = this.plan.portfolioId;
     if (this.plan.stopLoss) params['stopLoss'] = String(this.plan.stopLoss);
     if (this.plan.target) params['takeProfit'] = String(this.plan.target);
     if (this.plan.strategyId) params['strategyId'] = this.plan.strategyId;
+    // Multi-lot: pass first pending lot
+    const pendingLot = this.plan.lots.find(l => l.status === 'Pending');
+    if (pendingLot) {
+      params['lotNumber'] = String(pendingLot.lotNumber);
+      params['price'] = String(pendingLot.plannedPrice);
+      params['quantity'] = String(pendingLot.plannedQuantity);
+    } else {
+      if (this.plan.entryPrice) params['price'] = String(this.plan.entryPrice);
+      if (this.plan.quantity || this.optimalShares) params['quantity'] = String(this.plan.quantity || this.optimalShares);
+    }
     return params;
   }
 
@@ -2740,11 +2782,19 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     if (this.selectedPlanId) params['planId'] = this.selectedPlanId;
     if (this.plan.symbol) params['symbol'] = this.plan.symbol;
     if (this.plan.direction) params['direction'] = this.plan.direction;
-    if (this.plan.entryPrice) params['price'] = String(this.plan.entryPrice);
-    if (this.plan.quantity || this.optimalShares) params['quantity'] = String(this.plan.quantity || this.optimalShares);
     if (this.plan.portfolioId) params['portfolioId'] = this.plan.portfolioId;
     if (this.plan.stopLoss) params['stopLoss'] = String(this.plan.stopLoss);
     if (this.plan.target) params['takeProfit'] = String(this.plan.target);
+    // Multi-lot: pass first pending lot's price/quantity/lotNumber
+    const pendingLot = this.plan.lots.find(l => l.status === 'Pending');
+    if (pendingLot) {
+      params['lotNumber'] = String(pendingLot.lotNumber);
+      params['price'] = String(pendingLot.plannedPrice);
+      params['quantity'] = String(pendingLot.plannedQuantity);
+    } else {
+      if (this.plan.entryPrice) params['price'] = String(this.plan.entryPrice);
+      if (this.plan.quantity || this.optimalShares) params['quantity'] = String(this.plan.quantity || this.optimalShares);
+    }
     return params;
   }
 
@@ -2904,7 +2954,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     if (!this.plan.symbol || !this.plan.entryPrice) return;
     this.loadingSuggestion = true;
     this.scenarioSuggestion = null;
-    this.tradePlanService.getScenarioSuggestion(this.plan.symbol, this.plan.entryPrice, this.selectedTimeHorizon).subscribe({
+    this.tradePlanService.getScenarioSuggestion(this.plan.symbol, this.plan.entryPrice, this.plan.timeHorizon || DEFAULT_TIME_HORIZON).subscribe({
       next: (suggestion) => {
         this.scenarioSuggestion = suggestion;
         // Default: all nodes selected

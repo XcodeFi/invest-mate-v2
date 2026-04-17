@@ -89,7 +89,8 @@ User (1)
 - Tính **cash còn lại** = initialCapital + tổng flows - tổng giá trị mua + tổng giá trị bán
 
 ### 3.2. Kế hoạch Giao dịch (TradePlan)
-Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cancelled`
+Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cancelled → Restore → Draft`
+Chuyển tuần tự, không nhảy cóc. Backend auto-chain khi cần (VD: client gọi `executed` từ Ready → tự chain qua InProgress). Chi tiết: [`docs/trade-plans.md` §2.2](trade-plans.md)
 
 **TimeHorizon (P0.7):** `ShortTerm` (< 3 tháng) / `MediumTerm` (3-12 tháng) / `LongTerm` (> 1 năm)
 

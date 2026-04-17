@@ -56,8 +56,62 @@ Module Trade Plan cho phép lập kế hoạch giao dịch chi tiết trước k
 ```
 Draft → Ready → InProgress → Executed → Reviewed
   │       │         │
-  └───────┴─────────┴── Cancelled
+  └───────┴─────────┴── Cancelled ──(Restore)──► Draft
 ```
+
+**Quy tắc:** Trạng thái chỉ chuyển **tuần tự**, không được nhảy cóc.
+`MarkReady()` idempotent — gọi trên plan đã Ready sẽ bỏ qua (không lỗi).
+
+#### Bảng chuyển trạng thái
+
+| Từ | Đến | Domain method | Trigger (UI / Backend) |
+|---|---|---|---|
+| Draft | Ready | `MarkReady()` | Trang KH: "Lưu & Sẵn sàng", nút ✓ quick action |
+| Ready | InProgress | `MarkInProgress()` | Trade Wizard load plan (auto), Backend auto-chain khi gọi `inprogress`/`executed` |
+| InProgress | Executed | `Execute(tradeId)` | "Thực hiện ngay" hoặc Wizard tạo trade thành công |
+| Executed | Reviewed | `MarkReviewed(data)` | Trang KH: "Đóng chiến dịch" (kèm CampaignReviewData) |
+| Draft/Ready/InProgress | Cancelled | `Cancel()` | Trang KH: nút ✕ |
+| Cancelled | Draft | `Restore()` | Trang KH: nút ↩ "Hoàn tác huỷ" |
+
+#### Auto-chain (Backend tự bổ sung bước trung gian)
+
+Khi client gọi `PATCH /status` với target status mà plan chưa ở bước ngay trước, backend tự chain:
+
+| Client gửi | Plan hiện tại | Backend tự làm |
+|---|---|---|
+| `inprogress` | Draft | `MarkReady()` → `MarkInProgress()` |
+| `executed` | Ready | `MarkInProgress()` → `Execute(tradeId)` |
+
+Điều này cho phép Wizard và trade-create gọi 1 lần mà không cần biết plan đang ở bước nào.
+
+#### Luồng theo từng cách thực hiện
+
+**1. Single entry (Thực hiện ngay / Wizard):**
+```
+Draft ──"Lưu & Sẵn sàng"──► Ready ──"Thực hiện ngay/Wizard"──► (auto-chain) Executed
+```
+- Trang KH → "Thực hiện ngay": navigate `/trades/create?planId=...`
+- Trang KH → "Wizard": navigate `/trade-wizard?planId=...`
+- Khi trade tạo thành công → `updateStatus(planId, 'executed', tradeId)`
+- Backend auto-chain Ready → InProgress → Executed
+
+**2. Multi-lot (DCA / ScalingIn):**
+```
+Ready ──ExecuteLot(lô 1)──► InProgress ──ExecuteLot(lô 2)──► ... ──lô cuối──► Executed
+```
+- `ExecuteLot()` tự chuyển Ready → InProgress khi lô đầu tiên thực hiện
+- Khi tất cả lô đều Executed → tự chuyển InProgress → Executed
+- Từng lô link trade riêng vào `TradeIds`
+
+**3. Đóng chiến dịch (Review):**
+```
+Executed ──"Đóng chiến dịch"──► Reviewed (kèm CampaignReviewData)
+```
+
+#### Xoá kế hoạch
+
+- Nút xoá **chỉ hiện cho plan Cancelled** — phải huỷ trước mới được xoá (tránh bấm nhầm)
+- Xoá dùng soft-delete (`SoftDelete()`)
 
 ### 2.3 Value Objects
 

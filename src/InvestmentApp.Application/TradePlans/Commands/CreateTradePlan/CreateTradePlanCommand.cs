@@ -122,10 +122,15 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
         }
 
         // Handle initial status if provided (e.g., "Ready" or "Executed" from wizard)
+        // Must follow sequential state machine: Draft → Ready → InProgress → Executed
         if (request.Status == "Ready")
             plan.MarkReady();
         else if (request.Status == "Executed" && request.TradeId != null)
+        {
+            plan.MarkReady();
+            plan.MarkInProgress();
             plan.Execute(request.TradeId);
+        }
 
         await _tradePlanRepository.AddAsync(plan, cancellationToken);
 

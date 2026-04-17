@@ -117,6 +117,40 @@ interface RiskAlert {
           </div>
         </div>
 
+        <!-- Advisory Widget (P0.5) — Gợi ý hành động -->
+        @if (advisories.length > 0) {
+        <div class="mb-6 bg-amber-50 rounded-xl shadow-sm border border-amber-300 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-amber-900 flex items-center gap-2">
+              <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+              </svg>
+              Gợi ý hành động
+              <span class="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">{{ advisories.length }}</span>
+            </h2>
+          </div>
+          <div class="space-y-2">
+            @for (adv of advisories; track adv.nodeId) {
+            <div class="bg-white rounded-lg border border-amber-200 p-3 flex items-center justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <span class="font-bold text-sm text-gray-900">{{ adv.symbol }}</span>
+                  <span class="text-xs text-blue-700 font-medium">{{ adv.currentPrice | vndCurrency }}</span>
+                </div>
+                <div class="text-xs text-amber-800 font-medium">{{ adv.nodeLabel }}</div>
+                <div class="text-xs text-gray-600">{{ adv.conditionDescription }}</div>
+                <div *ngIf="adv.message" class="text-xs text-gray-500 italic mt-0.5">{{ adv.message }}</div>
+              </div>
+              <a [routerLink]="['/trade-plan']" [queryParams]="{ loadPlan: adv.tradePlanId }"
+                class="flex-shrink-0 px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap">
+                Xem KH →
+              </a>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
         <!-- Smart Nudge: Capital Flow -->
         <div *ngIf="capitalFlowNudge.show" class="mb-6 bg-blue-50 rounded-xl p-4 border border-blue-200 flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -692,48 +726,6 @@ interface RiskAlert {
               </div>
               <div class="text-xs text-amber-600 font-medium">Đánh giá</div>
             </a>
-            }
-          </div>
-        </div>
-        }
-
-        <!-- Advisory Widget (P0.5) -->
-        @if (advisories.length > 0) {
-        <div class="bg-amber-50 rounded-xl shadow-sm border border-amber-300 p-6 mb-8">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-amber-900 flex items-center gap-2">
-              <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-              </svg>
-              Gợi ý hành động
-              <span class="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">{{ advisories.length }}</span>
-            </h2>
-          </div>
-          <div class="space-y-3">
-            @for (adv of advisories; track adv.nodeId) {
-            <div class="bg-white rounded-lg border border-amber-200 p-4">
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 mb-1">
-                    <span class="font-bold text-gray-900">{{ adv.symbol }}</span>
-                    <span class="text-xs text-gray-500">Giá hiện tại:</span>
-                    <span class="text-sm font-semibold text-blue-700">{{ adv.currentPrice | vndCurrency }}</span>
-                  </div>
-                  <div class="text-sm text-amber-800 font-medium mb-1">{{ adv.nodeLabel }}</div>
-                  <div class="text-xs text-gray-600 mb-1">
-                    <span class="text-gray-500">Điều kiện:</span> {{ adv.conditionDescription }}
-                  </div>
-                  <div class="text-xs text-gray-700">
-                    <span class="font-medium text-amber-700">Xem xét:</span> {{ adv.actionDescription }}
-                  </div>
-                  <div *ngIf="adv.message" class="mt-2 text-xs text-gray-500 italic">{{ adv.message }}</div>
-                </div>
-                <a [routerLink]="['/trade-plan']" [queryParams]="{ planId: adv.tradePlanId }"
-                  class="flex-shrink-0 px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors">
-                  Xem kế hoạch →
-                </a>
-              </div>
-            </div>
             }
           </div>
         </div>

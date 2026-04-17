@@ -130,6 +130,7 @@ public class TradePlan : AggregateRoot
 
     public void MarkReady()
     {
+        if (Status == TradePlanStatus.Ready) return;
         if (Status != TradePlanStatus.Draft)
             throw new InvalidOperationException("Only draft plans can be marked ready");
         Status = TradePlanStatus.Ready;
@@ -139,8 +140,8 @@ public class TradePlan : AggregateRoot
 
     public void MarkInProgress()
     {
-        if (Status != TradePlanStatus.Ready && Status != TradePlanStatus.Draft)
-            throw new InvalidOperationException("Only draft or ready plans can be marked in progress");
+        if (Status != TradePlanStatus.Ready)
+            throw new InvalidOperationException("Only ready plans can be marked in progress");
         Status = TradePlanStatus.InProgress;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
@@ -148,6 +149,8 @@ public class TradePlan : AggregateRoot
 
     public void Execute(string tradeId)
     {
+        if (Status != TradePlanStatus.InProgress)
+            throw new InvalidOperationException("Only in-progress plans can be executed");
         TradeId = tradeId ?? throw new ArgumentNullException(nameof(tradeId));
         Status = TradePlanStatus.Executed;
         ExecutedAt = DateTime.UtcNow;
@@ -189,6 +192,15 @@ public class TradePlan : AggregateRoot
         if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed)
             throw new InvalidOperationException("Cannot cancel an executed or reviewed plan");
         Status = TradePlanStatus.Cancelled;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    public void Restore()
+    {
+        if (Status != TradePlanStatus.Cancelled)
+            throw new InvalidOperationException("Only cancelled plans can be restored");
+        Status = TradePlanStatus.Draft;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -413,9 +425,9 @@ public class StopLossHistoryEntry
 
 public enum TimeHorizon
 {
-    ShortTerm,    // 1-4 weeks
-    MediumTerm,   // 1-6 months
-    LongTerm      // 6+ months
+    ShortTerm,    // < 3 months
+    MediumTerm,   // 3-12 months
+    LongTerm      // > 1 year
 }
 
 // --- Campaign Review ---
