@@ -2,6 +2,55 @@
 
 ---
 
+## [v2.38.0] — 2026-04-17 · Trade Plan State Machine + Multi-lot UX
+
+**Branch:** `feat/trade-plan-state-machine-and-ux`
+
+### Domain
+- Strict sequential state machine: Draft → Ready → InProgress → Executed → Reviewed
+- `MarkReady()` idempotent (gọi trên plan đã Ready không throw)
+- `Execute()` yêu cầu plan ở InProgress (trước đây không guard)
+- Thêm `Restore()` cho Cancelled → Draft (clear `TradeId`, `TradeIds`, `ExecutedAt`)
+- `ExecuteLot()` guard Executed/Reviewed/Cancelled
+
+### Application
+- `CreateTradePlanCommand` auto-chain Draft → Ready → InProgress → Executed khi status=Executed
+- `UpdateTradePlanStatusCommand` auto-chain khi gọi inprogress/executed từ Draft/Ready
+- Thêm case `restore` cho status update
+- `KeyNotFoundException` thay vì `Exception` cho plan not found (trả 404 thay 500)
+
+### Api
+- `ExceptionMiddleware` map `InvalidOperationException` → 409 Conflict (trước là 500)
+
+### Frontend — Trade Plan
+- Fix bug: "Lưu & Sẵn sàng" trên plan đã Ready không trigger updateStatus nữa (tránh 500)
+- "Thực hiện ngay" / "Wizard" từ multi-lot plan giờ execute đúng từng lô (không nhảy thẳng Executed)
+- Nút xoá chỉ hiện cho Cancelled plans (tránh misclick)
+- Thêm nút "Hoàn tác huỷ" cho Cancelled → Draft
+- Enum timeHorizon fix: Medium → MediumTerm, Short → ShortTerm, Long → LongTerm
+- Bỏ dropdown "Kỳ vọng" trùng lặp — gợi ý kịch bản dùng `plan.timeHorizon`
+- Auto-load plan qua `?loadPlan=<id>`
+- Panel "Đóng chiến dịch" auto-scroll vào view
+
+### Frontend — Dashboard / Journals / Misc
+- Advisory widget chuyển xuống ngay dưới banner cảnh báo rủi ro
+- Form nhật ký: dropdown chọn trade theo portfolio thay vì input ID thô
+- Route `/symbol-timeline` hỗ trợ cả path param và query param
+- Bỏ hint `vndCurrency` thừa dưới input `appNumMask` (trade-create, alerts, capital-flows)
+
+### Shared
+- `TIME_HORIZON_OPTIONS` + `DEFAULT_TIME_HORIZON` constants dùng chung cho 3 dropdown
+- Thống nhất nhãn theo docs: Ngắn hạn (< 3 tháng) / Trung hạn (3-12 tháng) / Dài hạn (> 1 năm)
+
+### Tests
+- 873 tests pass (Domain: 608, Application: 66, Infrastructure: 199)
+
+### Docs
+- `docs/trade-plans.md §2.2`: bảng chuyển trạng thái chi tiết, auto-chain logic, multi-lot flow, quy tắc xoá
+- `docs/business-domain.md`: bổ sung link tham chiếu state lifecycle
+
+---
+
 ## [v2.37.0] — 2026-04-11 · Dynamic Trading Checklist (P6) — Hoàn thành Roadmap TA 6 Phase
 
 **Branch:** `feat/p1-expand-technical-indicators`

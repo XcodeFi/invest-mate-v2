@@ -201,6 +201,9 @@ public class TradePlan : AggregateRoot
         if (Status != TradePlanStatus.Cancelled)
             throw new InvalidOperationException("Only cancelled plans can be restored");
         Status = TradePlanStatus.Draft;
+        TradeId = null;
+        TradeIds?.Clear();
+        ExecutedAt = null;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -233,6 +236,8 @@ public class TradePlan : AggregateRoot
             ?? throw new ArgumentException($"Lot {lotNumber} not found");
         if (lot.Status != PlanLotStatus.Pending)
             throw new InvalidOperationException($"Lot {lotNumber} is not pending");
+        if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed || Status == TradePlanStatus.Cancelled)
+            throw new InvalidOperationException($"Cannot execute lot on a {Status} plan");
 
         lot.Status = PlanLotStatus.Executed;
         lot.ActualPrice = actualPrice;
@@ -242,7 +247,7 @@ public class TradePlan : AggregateRoot
         TradeIds ??= new List<string>();
         TradeIds.Add(tradeId);
 
-        // Auto-transition status
+        // Auto-transition status: Draft/Ready → InProgress; all-lots-executed → Executed
         if (Status == TradePlanStatus.Ready || Status == TradePlanStatus.Draft)
             Status = TradePlanStatus.InProgress;
 

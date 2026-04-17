@@ -701,6 +701,23 @@ public class TradePlanTests
             .WithMessage("*cancelled*");
     }
 
+    [Fact]
+    public void Restore_ShouldClearOrphanedTradeData()
+    {
+        var plan = CreateInProgressPlan();
+        var lots = CreateLots((1, 80_000m, 100), (2, 80_000m, 100));
+        plan.SetLots(EntryMode.DCA, lots);
+        plan.ExecuteLot(1, "trade-1", 80_000m);
+        plan.Cancel();
+
+        plan.Restore();
+
+        plan.Status.Should().Be(TradePlanStatus.Draft);
+        plan.TradeId.Should().BeNull();
+        plan.TradeIds.Should().BeEmpty();
+        plan.ExecutedAt.Should().BeNull();
+    }
+
     #endregion
 
     // =====================================================================

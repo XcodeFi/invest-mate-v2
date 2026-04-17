@@ -31,7 +31,7 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
     public async Task<Unit> Handle(UpdateTradePlanStatusCommand request, CancellationToken cancellationToken)
     {
         var plan = await _tradePlanRepository.GetByIdAsync(request.Id, cancellationToken)
-            ?? throw new Exception($"Trade plan {request.Id} not found");
+            ?? throw new KeyNotFoundException($"Trade plan {request.Id} not found");
 
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
@@ -51,7 +51,9 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
             case "executed":
                 if (string.IsNullOrEmpty(request.TradeId))
                     throw new ArgumentException("TradeId is required when marking as executed");
-                // Auto-chain: Ready → InProgress → Executed
+                // Auto-chain: Draft → Ready → InProgress → Executed
+                if (plan.Status == TradePlanStatus.Draft)
+                    plan.MarkReady();
                 if (plan.Status == TradePlanStatus.Ready)
                     plan.MarkInProgress();
                 plan.Execute(request.TradeId);
