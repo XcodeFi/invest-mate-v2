@@ -1,11 +1,11 @@
 ---
 name: ship
-description: Full development workflow — analyze, plan, TDD, code review, update docs, and create PR. Use when asked to "ship", "ship it", "full workflow", "TDD and PR", or when the user wants to go from implementation to PR with all quality gates. Orchestrates the complete cycle from requirement analysis through creating a pull request.
+description: Full development workflow — analyze, plan, TDD, code review, manual verification, update docs, and create PR. Use when asked to "ship", "ship it", "full workflow", "TDD and PR", or when the user wants to go from implementation to PR with all quality gates. Orchestrates the complete cycle from requirement analysis through creating a pull request.
 ---
 
 # Ship — Full Development Workflow
 
-Orchestrates: Analyze → Plan → TDD → Code Review → Docs → Commit & PR.
+Orchestrates: Analyze → Plan → TDD → Code Review → Manual Verify → Docs → Commit & PR.
 
 ## Arguments
 
@@ -44,8 +44,9 @@ The **Next** field is critical — it tells the next cycle exactly where to star
 | Phase 1 Step 1.2 | Normal: analyze & present plan |
 | Phase 2 TDD | Normal (if backend affected) |
 | **Phase 3 Code Review** | **ALWAYS runs** — every cycle must be reviewed |
-| Phase 4 Docs | Normal |
-| Phase 5 Commit & PR | Normal |
+| Phase 4 Manual Verify | Normal (if frontend affected) |
+| Phase 5 Docs | Normal |
+| Phase 6 Commit & PR | Normal |
 
 **Lighter Phase 1 Step 1.1:**
 1. Read the plan file checkpoint (NOT all 4 project docs again — already in context from cycle 1)
@@ -60,7 +61,8 @@ The **Next** field is critical — it tells the next cycle exactly where to star
 | Phase 1: Analyze & Plan | Main context | **opus** (required) |
 | Phase 2: TDD | Main context (continues Phase 1) | opus |
 | Phase 3: Code Review | 1 sub-agent | **sonnet** |
-| Phase 4-5: Docs, Commit & PR | Main context | any |
+| Phase 4: Manual Verify | Main context | any |
+| Phase 5-6: Docs, Commit & PR | Main context | any |
 
 Phase 2 runs inline because it needs the plan context from Phase 1 — spawning a sub-agent would duplicate that context.
 
@@ -140,11 +142,77 @@ If fixes applied:
 
 ---
 
-## Phase 4: Update Documentation + Changelog
+## Phase 4: Manual Testing & Verification
 
-> Only after code is stable (review done, tests pass).
+> Skip if: changes are docs-only or config-only (no runtime behavior changed).
 
-### Step 4.1 — Update Docs
+### Step 4.1 — Build Test Scenarios
+
+Based on the changes from Phase 2-3, list concrete test scenarios before testing. Categorize into:
+
+| Category | What to check | Examples |
+|---|---|---|
+| **Happy path** | Core feature works as designed | Create entity succeeds, list shows new item, edit saves correctly |
+| **Edge cases** | Boundary & unusual inputs | Empty string, max length, special characters, zero/negative amounts, duplicate entries |
+| **Error handling** | Invalid states & error responses | Missing required fields, invalid IDs, unauthorized access, network errors |
+| **State transitions** | Before/after behavior | Status changes, calculated fields update, dependent data cascades |
+| **UI/UX** (if frontend) | Visual & interaction correctness | Form validation messages show, loading states, responsive layout, Vietnamese text displays with dấu |
+
+Present the scenario list to the user for confirmation before proceeding.
+
+### Step 4.2 — Start Servers
+
+Start only what's needed based on affected layers:
+
+| Layers affected | Action |
+|---|---|
+| Backend only (Domain/Application/Infrastructure/Api) | Start API: `dotnet watch run --project "src\InvestmentApp.Api\InvestmentApp.Api.csproj" --urls="http://localhost:5000"` |
+| Frontend only | Start Angular: `cd frontend && ng serve` |
+| Full stack | Start both (API first, then Angular) |
+
+Wait for servers to be ready before testing.
+
+### Step 4.3 — Execute & Verify
+
+Walk through each scenario from Step 4.1:
+
+**Backend verification:**
+- Test API endpoints with `curl` or browser dev tools
+- Verify response status codes, body structure, error messages
+- Check MongoDB state if data mutations are involved
+
+**Frontend verification:**
+- Navigate to the affected page(s) in browser
+- Test each scenario interactively
+- Verify: form validation, loading states, success/error notifications, data display
+- Check Vietnamese text renders correctly with dấu
+
+**Regression check:**
+- Navigate to pages/features adjacent to the change
+- Verify they still work — especially features sharing the same service or data
+
+### Step 4.4 — Report Results
+
+Present results as a table:
+
+```markdown
+| # | Scenario | Result | Notes |
+|---|---|---|---|
+| 1 | Create with valid data | ✅ Pass | — |
+| 2 | Create with empty name | ✅ Pass | Shows validation error |
+| 3 | Edit existing item | ❌ Fail | 500 error on save |
+```
+
+- All pass → proceed to Phase 5
+- Any fail → fix the issue, re-run affected tests (`dotnet test`), then re-verify the failed scenario. Do NOT proceed until all scenarios pass.
+
+---
+
+## Phase 5: Update Documentation + Changelog
+
+> Only after code is stable (review done, tests pass, manual verification done).
+
+### Step 5.1 — Update Docs
 
 Run `git diff --name-only` against base branch, then update ALL that match:
 
@@ -157,14 +225,14 @@ Run `git diff --name-only` against base branch, then update ALL that match:
 | Convention, directive, pipe | `CLAUDE.md` |
 | User-facing feature added/changed | Relevant guide in `frontend/src/assets/docs/` |
 
-### Step 4.2 — Archive Plan (if completed)
+### Step 5.2 — Archive Plan (if completed)
 
 If this ship cycle completes ALL phases in the plan file:
 - Move to `docs/plans/done/`: `git mv docs/plans/xxx.md docs/plans/done/xxx.md`
 
 If plan still has remaining phases → keep in `docs/plans/`, write checkpoint (see Multi-Phase Sessions).
 
-### Step 4.3 — Update Changelog
+### Step 5.3 — Update Changelog
 
 Update `frontend/src/assets/CHANGELOG.md`:
 - Determine version bump (patch/minor/major)
@@ -174,16 +242,16 @@ Update `frontend/src/assets/CHANGELOG.md`:
 
 ---
 
-## Phase 5: Commit & PR
+## Phase 6: Commit & PR
 
-### Step 5.1 — Commit
+### Step 6.1 — Commit
 
-1. Re-run `dotnet test` only if Phase 3 applied fixes. Otherwise tests already passed — skip.
+1. Re-run `dotnet test` only if Phase 3/4 applied fixes. Otherwise tests already passed — skip.
 2. Stage relevant files (code + tests + docs + changelog)
 3. Write clear English commit message
 4. Commit
 
-### Step 5.2 — Create PR
+### Step 6.2 — Create PR
 
 1. Push: `git push -u origin HEAD`
 2. Create PR with `gh pr create`:
@@ -199,7 +267,7 @@ Update `frontend/src/assets/CHANGELOG.md`:
      ## Test plan
      - [ ] Backend tests pass (`dotnet test`)
      - [ ] Frontend tests pass (if applicable)
-     - [ ] Manual testing steps if relevant
+     - [ ] Manual verification scenarios (from Phase 4)
 
      ## Docs updated
      - [ ] Which docs were updated
@@ -212,7 +280,8 @@ Update `frontend/src/assets/CHANGELOG.md`:
 
 ## Error Handling
 
-- Tests fail in Phase 2/5 → stop and fix
+- Tests fail in Phase 2/6 → stop and fix
+- Manual verification fail in Phase 4 → fix, re-run tests, re-verify
 - Critical review finding (>= 90 confidence) → must fix, loop back to Phase 2
 - `gh` unavailable → provide command for user
 - On `master`/`main` → create feature branch first
