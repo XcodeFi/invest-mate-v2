@@ -294,14 +294,46 @@ interface TradePlanForm {
         </div>
       </div>
 
-      <!-- Editing indicator -->
-      <div *ngIf="selectedPlanId" class="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center justify-between">
-        <span class="text-sm text-blue-700">Đang chỉnh sửa kế hoạch: <strong>{{ plan.symbol }}</strong> ({{ getStatusLabel(selectedPlanStatus) }})</span>
-        <button (click)="resetForm()" class="text-xs text-blue-600 hover:text-blue-800 underline">Huỷ chỉnh sửa</button>
+      <!-- State Banner (replaces old editing indicator) -->
+      <div *ngIf="stateBanner as banner" class="mb-4 rounded-lg border px-4 py-3 flex items-start justify-between gap-3"
+        [class.bg-slate-50]="banner.tone === 'draft'" [class.border-slate-200]="banner.tone === 'draft'"
+        [class.bg-blue-50]="banner.tone === 'ready'" [class.border-blue-200]="banner.tone === 'ready'"
+        [class.bg-amber-50]="banner.tone === 'inprogress'" [class.border-amber-300]="banner.tone === 'inprogress'"
+        [class.bg-emerald-50]="banner.tone === 'executed'" [class.border-emerald-200]="banner.tone === 'executed'"
+        [class.bg-violet-50]="banner.tone === 'reviewed'" [class.border-violet-200]="banner.tone === 'reviewed'"
+        [class.bg-gray-100]="banner.tone === 'cancelled'" [class.border-gray-300]="banner.tone === 'cancelled'">
+        <div class="flex-1">
+          <div class="text-sm font-semibold mb-0.5"
+            [class.text-slate-700]="banner.tone === 'draft'"
+            [class.text-blue-700]="banner.tone === 'ready'"
+            [class.text-amber-800]="banner.tone === 'inprogress'"
+            [class.text-emerald-700]="banner.tone === 'executed'"
+            [class.text-violet-700]="banner.tone === 'reviewed'"
+            [class.text-gray-600]="banner.tone === 'cancelled'">
+            Đang chỉnh sửa: <strong>{{ plan.symbol }}</strong>
+            <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getStatusClass(selectedPlanStatus)">
+              {{ getStatusLabel(selectedPlanStatus) }}
+            </span>
+          </div>
+          <div class="text-xs"
+            [class.text-slate-600]="banner.tone === 'draft'"
+            [class.text-blue-600]="banner.tone === 'ready'"
+            [class.text-amber-700]="banner.tone === 'inprogress'"
+            [class.text-emerald-600]="banner.tone === 'executed'"
+            [class.text-violet-600]="banner.tone === 'reviewed'"
+            [class.text-gray-500]="banner.tone === 'cancelled'">
+            {{ banner.message }}
+          </div>
+        </div>
+        <button (click)="resetForm()" class="text-xs underline whitespace-nowrap shrink-0"
+          [class.text-slate-600]="banner.tone === 'draft'"
+          [class.text-blue-600]="banner.tone !== 'draft'">
+          Thoát
+        </button>
       </div>
 
-      <!-- Template Panel -->
-      <div class="bg-white rounded-lg shadow p-4 mb-6">
+      <!-- Template Panel — hide when editing a non-Draft plan (would overwrite locked fields) -->
+      <div *ngIf="!selectedPlanId || selectedPlanStatus === 'Draft'" class="bg-white rounded-lg shadow p-4 mb-6">
         <div class="flex flex-wrap items-center gap-4">
           <!-- Load from template -->
           <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -359,6 +391,8 @@ interface TradePlanForm {
                 <label class="block text-sm font-medium text-gray-700 mb-1">Mã cổ phiếu *</label>
                 <input [(ngModel)]="plan.symbol" type="text" appUppercase
                   (ngModelChange)="onSymbolInput()"
+                  [readonly]="!canEditEntryInfo"
+                  [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="VD: VNM">
                 <div *ngIf="stockLoading" class="absolute right-2 top-8">
@@ -368,6 +402,8 @@ interface TradePlanForm {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Hướng *</label>
                 <select [(ngModel)]="plan.direction"
+                  [disabled]="!canEditEntryInfo"
+                  [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="Buy">Mua (Long)</option>
                   <option value="Sell">Bán (Short)</option>
@@ -376,6 +412,8 @@ interface TradePlanForm {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
                 <select [(ngModel)]="plan.portfolioId" (ngModelChange)="onPortfolioChange()"
+                  [disabled]="!canEditEntryInfo"
+                  [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="">-- Chọn --</option>
                   <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.initialCapital | vndCurrency }})</option>
@@ -387,14 +425,19 @@ interface TradePlanForm {
                   <span class="text-xs text-gray-400 font-normal ml-1">(giá bạn dự kiến mua)</span>
                 </label>
                 <input [(ngModel)]="plan.entryPrice" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" (ngModelChange)="recalculate()"
+                  [readonly]="!canEditEntryInfo"
+                  [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Nhập giá dự kiến">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                   Stop-Loss <sup class="text-red-400 font-bold cursor-default" title="Giải thích 1">1</sup> *
+                  <span *ngIf="selectedPlanStatus === 'InProgress'" class="ml-1 text-xs text-amber-600 font-normal">(chỉ được tighten)</span>
                 </label>
                 <input [(ngModel)]="plan.stopLoss" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" (ngModelChange)="recalculate()"
+                  [readonly]="!canEditStopLoss"
+                  [ngClass]="readonlyClass(canEditStopLoss)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="suggestedSlHint || 'Mức cắt lỗ'">
                 <p *ngIf="slAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
@@ -446,6 +489,8 @@ interface TradePlanForm {
                   Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích 2">2</sup> *
                 </label>
                 <input [(ngModel)]="plan.target" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" (ngModelChange)="recalculate()"
+                  [readonly]="!canEditTakeProfit"
+                  [ngClass]="readonlyClass(canEditTakeProfit)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="suggestedTpHint || 'Mức chốt lời'">
                 <p *ngIf="tpAutoFilled" class="text-xs text-blue-500 mt-0.5">Tự điền từ chiến lược</p>
@@ -455,12 +500,16 @@ interface TradePlanForm {
                   Số lượng (CP) <sup class="text-violet-400 font-bold cursor-default" title="Giải thích 3">3</sup>
                 </label>
                 <input [(ngModel)]="plan.quantity" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" step="100" (ngModelChange)="onQuantityManualChange()"
+                  [readonly]="!canEditEntryInfo"
+                  [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   [placeholder]="optimalShares > 0 ? 'Tự động: ' + optimalShares : '0'">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Chế độ vào lệnh</label>
                 <select [(ngModel)]="plan.entryMode" (ngModelChange)="onEntryModeChange()"
+                  [disabled]="!canEditEntryInfo"
+                  [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="Single">Một lần</option>
                   <option value="ScalingIn">Chia lô</option>
@@ -470,6 +519,8 @@ interface TradePlanForm {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Chiến lược</label>
                 <select [(ngModel)]="plan.strategyId" (ngModelChange)="onStrategyChange()"
+                  [disabled]="!canEditEntryInfo"
+                  [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="">-- Chọn --</option>
                   <option *ngFor="let s of strategies" [value]="s.id">{{ s.name }}</option>
@@ -483,6 +534,8 @@ interface TradePlanForm {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Điều kiện thị trường</label>
                 <select [(ngModel)]="plan.marketCondition"
+                  [disabled]="!canEditRiskContext"
+                  [ngClass]="readonlyClass(canEditRiskContext)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="Trending">Xu hướng</option>
                   <option value="Ranging">Sideway</option>
@@ -492,6 +545,8 @@ interface TradePlanForm {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Khung thời gian</label>
                 <select [(ngModel)]="plan.timeHorizon"
+                  [disabled]="!canEditRiskContext"
+                  [ngClass]="readonlyClass(canEditRiskContext)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option *ngFor="let th of timeHorizonOptions" [value]="th.value">{{ th.label }}</option>
                 </select>
@@ -505,10 +560,10 @@ interface TradePlanForm {
                   Chia lô mua ({{ plan.lots.length }} lô — Tổng: {{ getLotsTotalQty() | number:'1.0-0' }} CP)
                 </h3>
                 <div class="flex gap-1">
-                  <button (click)="applyLotPreset('40-30-30')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">40/30/30</button>
-                  <button (click)="applyLotPreset('50-50')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">50/50</button>
-                  <button (click)="applyLotPreset('equal')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">Đều</button>
-                  <button (click)="addLot()" class="px-2 py-0.5 text-xs bg-amber-600 text-white hover:bg-amber-700 rounded">+ Thêm lô</button>
+                  <button *ngIf="canEditEntryInfo" (click)="applyLotPreset('40-30-30')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">40/30/30</button>
+                  <button *ngIf="canEditEntryInfo" (click)="applyLotPreset('50-50')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">50/50</button>
+                  <button *ngIf="canEditEntryInfo" (click)="applyLotPreset('equal')" class="px-2 py-0.5 text-xs bg-amber-200 hover:bg-amber-300 rounded">Đều</button>
+                  <button *ngIf="canEditEntryInfo" (click)="addLot()" class="px-2 py-0.5 text-xs bg-amber-600 text-white hover:bg-amber-700 rounded">+ Thêm lô</button>
                 </div>
               </div>
               <table *ngIf="plan.lots.length > 0" class="w-full text-sm">
@@ -523,18 +578,29 @@ interface TradePlanForm {
                 </thead>
                 <tbody>
                   <tr *ngFor="let lot of plan.lots; let i = index" class="border-t border-amber-200">
-                    <td class="py-1 font-medium">Lô {{ lot.lotNumber }}</td>
+                    <td class="py-1 font-medium">
+                      Lô {{ lot.lotNumber }}
+                      <span *ngIf="lot.status && lot.status !== 'Pending'" class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-normal">
+                        {{ lot.status === 'Executed' ? 'Đã khớp' : lot.status }}
+                      </span>
+                    </td>
                     <td class="py-1">
                       <input [(ngModel)]="lot.plannedPrice" type="text" inputmode="numeric" appNumMask
-                        (ngModelChange)="recalculateLots()" class="w-full px-2 py-1 border border-amber-300 rounded text-right text-sm">
+                        (ngModelChange)="recalculateLots()"
+                        [readonly]="!canEditLot(lot)"
+                        [ngClass]="readonlyClass(canEditLot(lot))"
+                        class="w-full px-2 py-1 border border-amber-300 rounded text-right text-sm">
                     </td>
                     <td class="py-1">
                       <input [(ngModel)]="lot.plannedQuantity" type="text" inputmode="numeric" appNumMask
-                        (ngModelChange)="recalculateLots()" class="w-full px-2 py-1 border border-amber-300 rounded text-right text-sm">
+                        (ngModelChange)="recalculateLots()"
+                        [readonly]="!canEditLot(lot)"
+                        [ngClass]="readonlyClass(canEditLot(lot))"
+                        class="w-full px-2 py-1 border border-amber-300 rounded text-right text-sm">
                     </td>
                     <td class="py-1 text-right text-amber-700">{{ lot.allocationPercent | number:'1.0-0' }}%</td>
                     <td class="py-1 text-center">
-                      <button (click)="removeLot(i)" class="text-red-400 hover:text-red-600">
+                      <button *ngIf="canEditLot(lot)" (click)="removeLot(i)" class="text-red-400 hover:text-red-600">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
@@ -559,12 +625,16 @@ interface TradePlanForm {
                   <label class="block text-xs font-medium text-teal-700 mb-1">Số tiền mỗi lần</label>
                   <input [(ngModel)]="dcaForm.amountPerPeriod" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"
                     (ngModelChange)="buildDcaSchedule()"
+                    [readonly]="!canEditEntryInfo"
+                    [ngClass]="readonlyClass(canEditEntryInfo)"
                     class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
                     placeholder="VD: 5.000.000">
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-teal-700 mb-1">Tần suất</label>
                   <select [(ngModel)]="dcaForm.frequency" (ngModelChange)="buildDcaSchedule()"
+                    [disabled]="!canEditEntryInfo"
+                    [ngClass]="readonlyClass(canEditEntryInfo)"
                     class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm">
                     <option value="weekly">Hàng tuần</option>
                     <option value="biweekly">2 tuần / lần</option>
@@ -575,6 +645,8 @@ interface TradePlanForm {
                   <label class="block text-xs font-medium text-teal-700 mb-1">Số kỳ</label>
                   <input [(ngModel)]="dcaForm.numberOfPeriods" type="number" min="1" max="52"
                     (ngModelChange)="buildDcaSchedule()"
+                    [readonly]="!canEditEntryInfo"
+                    [ngClass]="readonlyClass(canEditEntryInfo)"
                     class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
                     placeholder="VD: 12">
                 </div>
@@ -582,6 +654,8 @@ interface TradePlanForm {
                   <label class="block text-xs font-medium text-teal-700 mb-1">Ngày bắt đầu</label>
                   <input [(ngModel)]="dcaForm.startDate" type="date"
                     (ngModelChange)="buildDcaSchedule()"
+                    [readonly]="!canEditEntryInfo"
+                    [ngClass]="readonlyClass(canEditEntryInfo)"
                     class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm">
                 </div>
               </div>
@@ -589,12 +663,16 @@ interface TradePlanForm {
                 <div>
                   <label class="block text-xs font-medium text-teal-700 mb-1">Giá sàn (không mua nếu cao hơn)</label>
                   <input [(ngModel)]="dcaForm.maxPrice" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"
+                    [readonly]="!canEditEntryInfo"
+                    [ngClass]="readonlyClass(canEditEntryInfo)"
                     class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
                     placeholder="Để trống = không giới hạn">
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-teal-700 mb-1">Giá trần (mua thêm nếu dưới)</label>
                   <input [(ngModel)]="dcaForm.minPrice" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true"
+                    [readonly]="!canEditEntryInfo"
+                    [ngClass]="readonlyClass(canEditEntryInfo)"
                     class="w-full px-2 py-1.5 border border-teal-300 rounded text-sm"
                     placeholder="Để trống = không giới hạn">
                 </div>
@@ -648,13 +726,15 @@ interface TradePlanForm {
                 <h3 class="text-sm font-semibold text-violet-800">Chiến lược thoát lệnh</h3>
                 <div class="flex items-center gap-1">
                   <button (click)="exitStrategyMode = 'Simple'"
-                    class="px-3 py-1 rounded-l-lg text-xs font-medium transition-colors"
+                    [disabled]="!canEditExitTargets"
+                    class="px-3 py-1 rounded-l-lg text-xs font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     [class.bg-violet-600]="exitStrategyMode === 'Simple'" [class.text-white]="exitStrategyMode === 'Simple'"
                     [class.bg-violet-100]="exitStrategyMode !== 'Simple'" [class.text-violet-600]="exitStrategyMode !== 'Simple'">
                     Cơ bản
                   </button>
                   <button (click)="exitStrategyMode = 'Advanced'; loadScenarioPresets()"
-                    class="px-3 py-1 rounded-r-lg text-xs font-medium transition-colors"
+                    [disabled]="!canEditExitTargets"
+                    class="px-3 py-1 rounded-r-lg text-xs font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     [class.bg-violet-600]="exitStrategyMode === 'Advanced'" [class.text-white]="exitStrategyMode === 'Advanced'"
                     [class.bg-violet-100]="exitStrategyMode !== 'Advanced'" [class.text-violet-600]="exitStrategyMode !== 'Advanced'">
                     Nâng cao
@@ -666,22 +746,32 @@ interface TradePlanForm {
               <div *ngIf="exitStrategyMode === 'Simple'">
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-xs text-violet-600">{{ plan.exitTargets.length }} mục tiêu</span>
-                  <button (click)="addExitTarget()" class="px-2 py-0.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded">+ Thêm</button>
+                  <button *ngIf="canEditExitTargets" (click)="addExitTarget()" class="px-2 py-0.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded">+ Thêm</button>
                 </div>
                 <div *ngFor="let et of plan.exitTargets; let i = index" class="flex items-center gap-2 mb-2">
-                  <select [(ngModel)]="et.actionType" class="px-2 py-1 border border-violet-300 rounded text-sm w-32">
+                  <select [(ngModel)]="et.actionType"
+                    [disabled]="!canEditExitTargets"
+                    [ngClass]="readonlyClass(canEditExitTargets)"
+                    class="px-2 py-1 border border-violet-300 rounded text-sm w-32">
                     <option value="TakeProfit">Chốt lời</option>
                     <option value="CutLoss">Cắt lỗ</option>
                     <option value="TrailingStop">Trailing Stop</option>
                     <option value="PartialExit">Bán một phần</option>
                   </select>
                   <input [(ngModel)]="et.price" type="text" inputmode="numeric" appNumMask placeholder="Giá"
+                    [readonly]="!canEditExitTargets"
+                    [ngClass]="readonlyClass(canEditExitTargets)"
                     class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-28">
                   <input [(ngModel)]="et.percentOfPosition" type="number" placeholder="% vị thế" min="1" max="100"
+                    [readonly]="!canEditExitTargets"
+                    [ngClass]="readonlyClass(canEditExitTargets)"
                     class="px-2 py-1 border border-violet-300 rounded text-sm text-right w-20">
                   <span class="text-xs text-violet-500">%</span>
-                  <input [(ngModel)]="et.label" type="text" placeholder="Ghi chú" class="px-2 py-1 border border-violet-300 rounded text-sm flex-1">
-                  <button (click)="removeExitTarget(i)" class="text-red-400 hover:text-red-600">
+                  <input [(ngModel)]="et.label" type="text" placeholder="Ghi chú"
+                    [readonly]="!canEditExitTargets"
+                    [ngClass]="readonlyClass(canEditExitTargets)"
+                    class="px-2 py-1 border border-violet-300 rounded text-sm flex-1">
+                  <button *ngIf="canEditExitTargets" (click)="removeExitTarget(i)" class="text-red-400 hover:text-red-600">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -810,7 +900,7 @@ interface TradePlanForm {
                 </div>
 
                 <!-- Save as scenario template -->
-                <div *ngIf="scenarioNodes.length > 0" class="mb-3">
+                <div *ngIf="scenarioNodes.length > 0 && canEditExitTargets" class="mb-3">
                   <div *ngIf="!showSaveScenarioTemplate">
                     <button (click)="showSaveScenarioTemplate = true"
                       class="px-3 py-1 text-xs border border-violet-300 hover:bg-violet-50 text-violet-600 rounded font-medium transition-colors">
@@ -838,7 +928,7 @@ interface TradePlanForm {
                   </ng-container>
                 </div>
 
-                <button (click)="addScenarioNode(null)" class="mt-3 px-3 py-1.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded-lg flex items-center gap-1">
+                <button *ngIf="canEditExitTargets" (click)="addScenarioNode(null)" class="mt-3 px-3 py-1.5 text-xs bg-violet-600 text-white hover:bg-violet-700 rounded-lg flex items-center gap-1">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                   Thêm kịch bản gốc
                 </button>
@@ -917,10 +1007,10 @@ interface TradePlanForm {
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                       </button>
-                      <button (click)="addScenarioNode(node.nodeId)" class="p-0.5 text-indigo-400 hover:text-indigo-600 rounded transition-colors" title="Thêm kịch bản con">
+                      <button *ngIf="canEditExitTargets" (click)="addScenarioNode(node.nodeId)" class="p-0.5 text-indigo-400 hover:text-indigo-600 rounded transition-colors" title="Thêm kịch bản con">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                       </button>
-                      <button (click)="removeScenarioNode(node.nodeId)" class="p-0.5 text-red-400 hover:text-red-600 rounded transition-colors" title="Xoá kịch bản">
+                      <button *ngIf="canEditExitTargets" (click)="removeScenarioNode(node.nodeId)" class="p-0.5 text-red-400 hover:text-red-600 rounded transition-colors" title="Xoá kịch bản">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
@@ -931,7 +1021,10 @@ interface TradePlanForm {
                   <!-- Condition row -->
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">NẾU</span>
-                    <select [(ngModel)]="node.conditionType" class="px-1.5 py-1 border border-indigo-200 rounded text-xs bg-white focus:ring-1 focus:ring-indigo-400">
+                    <select [(ngModel)]="node.conditionType"
+                      [disabled]="!canEditExitTargets"
+                      [ngClass]="readonlyClass(canEditExitTargets)"
+                      class="px-1.5 py-1 border border-indigo-200 rounded text-xs bg-white focus:ring-1 focus:ring-indigo-400">
                       <option value="PriceAbove">Giá >=</option>
                       <option value="PriceBelow">Giá <=</option>
                       <option value="PricePercentChange">Thay đổi %</option>
@@ -939,6 +1032,8 @@ interface TradePlanForm {
                       <option value="TimeElapsed">Sau N ngày</option>
                     </select>
                     <input *ngIf="node.conditionType !== 'TrailingStopHit'" [(ngModel)]="node.conditionValue" type="text" inputmode="numeric" appNumMask
+                      [readonly]="!canEditExitTargets"
+                      [ngClass]="readonlyClass(canEditExitTargets)"
                       class="w-24 px-1.5 py-1 border border-indigo-200 rounded text-xs text-right bg-white focus:ring-1 focus:ring-indigo-400"
                       [placeholder]="node.conditionType === 'PricePercentChange' ? '%' : node.conditionType === 'TimeElapsed' ? 'ngày' : 'đ'">
                   </div>
@@ -946,7 +1041,10 @@ interface TradePlanForm {
                   <!-- Action row -->
                   <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
                     <span class="text-xs font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">&#8594;</span>
-                    <select [(ngModel)]="node.actionType" class="px-1.5 py-1 border border-violet-200 rounded text-xs bg-white focus:ring-1 focus:ring-violet-400">
+                    <select [(ngModel)]="node.actionType"
+                      [disabled]="!canEditExitTargets"
+                      [ngClass]="readonlyClass(canEditExitTargets)"
+                      class="px-1.5 py-1 border border-violet-200 rounded text-xs bg-white focus:ring-1 focus:ring-violet-400">
                       <option value="SellPercent">Bán % vị thế</option>
                       <option value="SellAll">Bán tất cả</option>
                       <option value="MoveStopLoss">Dời SL</option>
@@ -957,24 +1055,37 @@ interface TradePlanForm {
                     </select>
                     <input *ngIf="node.actionType === 'SellPercent' || node.actionType === 'AddPosition' || node.actionType === 'MoveStopLoss'"
                       [(ngModel)]="node.actionValue" type="text" inputmode="numeric" appNumMask
+                      [readonly]="!canEditExitTargets"
+                      [ngClass]="readonlyClass(canEditExitTargets)"
                       class="w-16 px-1.5 py-1 border border-violet-200 rounded text-xs text-right bg-white focus:ring-1 focus:ring-violet-400"
                       [placeholder]="node.actionType === 'MoveStopLoss' ? 'đ' : '%'">
                   </div>
 
                   <!-- Trailing Stop Config (inline) -->
                   <div *ngIf="node.actionType === 'ActivateTrailingStop'" class="mt-2 pl-2 flex items-center gap-2 text-xs border-l-2 border-violet-200">
-                    <select [(ngModel)]="node.trailingStopConfig.method" class="px-1 py-0.5 border rounded text-xs bg-white">
+                    <select [(ngModel)]="node.trailingStopConfig.method"
+                      [disabled]="!canEditExitTargets"
+                      [ngClass]="readonlyClass(canEditExitTargets)"
+                      class="px-1 py-0.5 border rounded text-xs bg-white">
                       <option value="Percentage">%</option>
                       <option value="ATR">ATR (ước tính)</option>
                       <option value="FixedAmount">Cố định (VNĐ)</option>
                     </select>
-                    <input [(ngModel)]="node.trailingStopConfig.trailValue" type="number" placeholder="Giá trị" class="w-16 px-1 py-0.5 border rounded text-xs text-right bg-white">
+                    <input [(ngModel)]="node.trailingStopConfig.trailValue" type="number" placeholder="Giá trị"
+                      [readonly]="!canEditExitTargets"
+                      [ngClass]="readonlyClass(canEditExitTargets)"
+                      class="w-16 px-1 py-0.5 border rounded text-xs text-right bg-white">
                     <span class="text-indigo-400">Kích hoạt:</span>
-                    <input [(ngModel)]="node.trailingStopConfig.activationPrice" type="text" inputmode="numeric" appNumMask placeholder="Giá" class="w-24 px-1 py-0.5 border rounded text-xs text-right bg-white">
+                    <input [(ngModel)]="node.trailingStopConfig.activationPrice" type="text" inputmode="numeric" appNumMask placeholder="Giá"
+                      [readonly]="!canEditExitTargets"
+                      [ngClass]="readonlyClass(canEditExitTargets)"
+                      class="w-24 px-1 py-0.5 border rounded text-xs text-right bg-white">
                   </div>
 
                   <!-- Label / note -->
                   <input [(ngModel)]="node.label" type="text" placeholder="Ghi chú kịch bản..."
+                    [readonly]="!canEditExitTargets"
+                    [ngClass]="readonlyClass(canEditExitTargets)"
                     class="mt-2 w-full px-2 py-1 border border-gray-200 rounded text-xs bg-white/70 focus:ring-1 focus:ring-indigo-400">
                 </div>
 
@@ -998,6 +1109,8 @@ interface TradePlanForm {
             <div class="mt-4">
               <label class="block text-sm font-medium text-gray-700 mb-1">Lý do vào lệnh</label>
               <textarea [(ngModel)]="plan.reason" rows="2"
+                [readonly]="!canEditNotes"
+                [ngClass]="readonlyClass(canEditNotes)"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Lý do cụ thể để vào lệnh này..."></textarea>
             </div>
@@ -1008,6 +1121,8 @@ interface TradePlanForm {
                 <sup class="text-amber-400 font-bold cursor-default" title="Giải thích 4">4</sup>
               </label>
               <input [(ngModel)]="plan.confidenceLevel" type="range" min="1" max="10"
+                [disabled]="!canEditRiskContext"
+                [class.cursor-not-allowed]="!canEditRiskContext"
                 class="w-full h-2 bg-gray-200 rounded-lg cursor-pointer">
             </div>
 
@@ -1078,7 +1193,7 @@ interface TradePlanForm {
                   <span class="mt-0.5">•</span> {{ v }}
                 </li>
               </ul>
-              <div *ngIf="!riskOverrideConfirmed" class="mt-3">
+              <div *ngIf="!riskOverrideConfirmed && canEditEntryInfo" class="mt-3">
                 <button (click)="riskOverrideConfirmed = true"
                   class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition-colors">
                   Tôi biết và chấp nhận rủi ro này
@@ -1113,6 +1228,8 @@ interface TradePlanForm {
           <div class="bg-white rounded-lg shadow p-6">
             <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú thêm</label>
             <textarea [(ngModel)]="plan.notes" rows="3"
+              [readonly]="!canEditNotes"
+              [ngClass]="readonlyClass(canEditNotes)"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Ghi chú thêm về giao dịch này..."></textarea>
           </div>
@@ -1284,7 +1401,9 @@ interface TradePlanForm {
                   @for (item of getChecklistByCategory(category); track $index) {
                     <div class="flex items-start gap-2 mb-2">
                       <input type="checkbox" [(ngModel)]="item.checked" (ngModelChange)="updateChecklistScore()"
-                        class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        [disabled]="!canEditChecklist"
+                        class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        [class.cursor-not-allowed]="!canEditChecklist">
                       <div class="flex-1">
                         <div class="text-sm" [class.text-gray-800]="!item.checked" [class.text-gray-400]="item.checked"
                           [class.line-through]="item.checked">
@@ -1320,41 +1439,60 @@ interface TradePlanForm {
               {{ getMissingCritical() }}
             </div>
 
-            <!-- Save buttons -->
+            <!-- Save buttons (state-aware) -->
             <div class="mt-4 space-y-2">
-              <button (click)="saveDraft()" [disabled]="saving || !plan.symbol"
+              <!-- Draft/new/no-status: full save options -->
+              <ng-container *ngIf="!selectedPlanStatus || selectedPlanStatus === 'Draft'">
+                <button (click)="saveDraft()" [disabled]="saving || !plan.symbol"
+                  class="block w-full text-center border-2 border-blue-400 hover:bg-blue-50 text-blue-700 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
+                  {{ saving ? 'Đang lưu...' : (selectedPlanId ? 'Cập nhật nháp' : 'Lưu nháp') }}
+                </button>
+                <button (click)="saveAndReady()" [disabled]="saving || !plan.symbol || !canTrade"
+                  class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
+                  {{ saving ? 'Đang lưu...' : 'Lưu & Sẵn sàng' }}
+                </button>
+              </ng-container>
+              <!-- Ready: allow save update (notes/reason/context) -->
+              <button *ngIf="selectedPlanStatus === 'Ready'" (click)="saveDraft()" [disabled]="saving"
                 class="block w-full text-center border-2 border-blue-400 hover:bg-blue-50 text-blue-700 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
-                {{ saving ? 'Đang lưu...' : (selectedPlanId ? 'Cập nhật nháp' : 'Lưu nháp') }}
+                {{ saving ? 'Đang lưu...' : 'Cập nhật kế hoạch' }}
               </button>
-              <button (click)="saveAndReady()" [disabled]="saving || !plan.symbol || !canTrade"
-                class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
-                {{ saving ? 'Đang lưu...' : 'Lưu & Sẵn sàng' }}
+              <!-- InProgress: allow save for tighten-SL + notes + pending lots -->
+              <button *ngIf="selectedPlanStatus === 'InProgress'" (click)="saveDraft()" [disabled]="saving"
+                class="block w-full text-center border-2 border-amber-400 hover:bg-amber-50 text-amber-700 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
+                {{ saving ? 'Đang lưu...' : 'Cập nhật SL / lot / ghi chú' }}
               </button>
+              <!-- Executed/Reviewed/Cancelled: no save — view only -->
+              <div *ngIf="selectedPlanStatus === 'Executed' || selectedPlanStatus === 'Reviewed' || selectedPlanStatus === 'Cancelled'"
+                class="block w-full text-center bg-gray-50 text-gray-500 text-sm py-2.5 px-4 rounded-lg border border-gray-200">
+                Chế độ chỉ xem — không lưu được
+              </div>
             </div>
 
-            <!-- Divider -->
-            <div class="mt-4 pt-4 border-t border-gray-200">
-              <p class="text-xs text-gray-400 text-center mb-2">Đã có KH? Thực hiện ngay</p>
-            </div>
+            <!-- Divider & execute buttons — hidden when plan is terminal -->
+            <ng-container *ngIf="selectedPlanStatus !== 'Executed' && selectedPlanStatus !== 'Reviewed' && selectedPlanStatus !== 'Cancelled'">
+              <div class="mt-4 pt-4 border-t border-gray-200">
+                <p class="text-xs text-gray-400 text-center mb-2">Đã có KH? Thực hiện ngay</p>
+              </div>
 
-            <!-- Action buttons -->
-            <div class="space-y-2">
-              <a [routerLink]="['/trade-wizard']"
-                [queryParams]="getWizardParams()"
-                class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                [class.opacity-50]="!canTrade" [class.pointer-events-none]="!canTrade">
-                Thực hiện qua Wizard
-              </a>
-              <a [routerLink]="['/trades/create']"
-                [queryParams]="getTradeCreateParams()"
-                class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm">
-                Thực hiện ngay
-              </a>
-              <button (click)="showOrderSheet = !showOrderSheet"
-                class="block w-full text-center border border-indigo-300 hover:bg-indigo-50 text-indigo-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm">
-                {{ showOrderSheet ? 'Ẩn phiếu lệnh' : 'Xem phiếu lệnh' }}
-              </button>
-            </div>
+              <div class="space-y-2">
+                <a [routerLink]="['/trade-wizard']"
+                  [queryParams]="getWizardParams()"
+                  class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  [class.opacity-50]="!canTrade" [class.pointer-events-none]="!canTrade">
+                  Thực hiện qua Wizard
+                </a>
+                <a [routerLink]="['/trades/create']"
+                  [queryParams]="getTradeCreateParams()"
+                  class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm">
+                  Thực hiện ngay
+                </a>
+                <button (click)="showOrderSheet = !showOrderSheet"
+                  class="block w-full text-center border border-indigo-300 hover:bg-indigo-50 text-indigo-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm">
+                  {{ showOrderSheet ? 'Ẩn phiếu lệnh' : 'Xem phiếu lệnh' }}
+                </button>
+              </div>
+            </ng-container>
 
             <!-- Order Sheet (Phieu Lenh) -->
             <div *ngIf="showOrderSheet" class="mt-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4 print:border-black print:bg-white" id="orderSheet">
@@ -1738,6 +1876,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   submittingReview = false;
   reviewLessonsLearned = '';
   loadedReviewData: TradePlanDto['reviewData'] | null = null;
+  loadedCurrentSl: number | null = null;
 
   // Order sheet
   showOrderSheet = false;
@@ -1758,6 +1897,115 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   suggestedTpHint = '';
   slAutoFilled = false;
   tpAutoFilled = false;
+
+  // ============================================
+  // Editability matrix (Option A — strict state-based locking)
+  // See docs/plans/p2-trade-plan-editability.md
+  // ============================================
+
+  private isUnlockedForPlanning(): boolean {
+    // No plan loaded (creating new) OR plan in Draft/Ready
+    return !this.selectedPlanId || this.selectedPlanStatus === 'Draft' || this.selectedPlanStatus === 'Ready';
+  }
+
+  private isInProgress(): boolean {
+    return this.selectedPlanStatus === 'InProgress';
+  }
+
+  private isTerminal(): boolean {
+    return this.selectedPlanStatus === 'Executed'
+      || this.selectedPlanStatus === 'Reviewed'
+      || this.selectedPlanStatus === 'Cancelled';
+  }
+
+  get canEditEntryInfo(): boolean { return this.isUnlockedForPlanning(); }
+  get canEditTakeProfit(): boolean { return this.isUnlockedForPlanning(); }
+  get canEditExitTargets(): boolean { return this.isUnlockedForPlanning(); }
+
+  get canEditStopLoss(): boolean {
+    // Draft/Ready: full edit; InProgress: tighten-only (input editable, save gates via validateTightenSl)
+    return this.isUnlockedForPlanning() || this.isInProgress();
+  }
+
+  get canEditRiskContext(): boolean {
+    // Market/horizon/confidence editable while plan is alive
+    return !this.isTerminal();
+  }
+
+  get canEditChecklist(): boolean {
+    return !this.isTerminal();
+  }
+
+  get canEditLots(): boolean {
+    // InProgress: only pending lots (enforced via canEditLot)
+    return !this.isTerminal();
+  }
+
+  canEditLot(lot: PlanLotForm): boolean {
+    if (this.isTerminal()) return false;
+    if (this.isInProgress()) return (lot.status || 'Pending') === 'Pending';
+    return true;
+  }
+
+  get canEditNotes(): boolean {
+    // Reason, notes, reflections allowed everywhere except when plan was cancelled
+    return this.selectedPlanStatus !== 'Cancelled';
+  }
+
+  /**
+   * Readonly style helper for inputs that should visually dim when locked.
+   */
+  readonlyClass(canEdit: boolean): Record<string, boolean> {
+    return {
+      'bg-gray-50': !canEdit,
+      'text-gray-600': !canEdit,
+      'cursor-not-allowed': !canEdit
+    };
+  }
+
+  /**
+   * State banner shown at top of form. Null when creating a new plan.
+   */
+  get stateBanner(): { tone: string; message: string } | null {
+    if (!this.selectedPlanId) return null;
+    switch (this.selectedPlanStatus) {
+      case 'Draft':
+        return { tone: 'draft', message: 'Kế hoạch nháp — chỉnh sửa tự do. Bấm "Lưu & Sẵn sàng" khi chốt.' };
+      case 'Ready':
+        return { tone: 'ready', message: 'Kế hoạch đã khóa (Sẵn sàng). Huỷ để chỉnh sửa, hoặc thực thi qua Wizard.' };
+      case 'InProgress':
+        return { tone: 'inprogress', message: 'Đang chạy — chỉ được tighten SL (nới gần giá hơn) và sửa lot chưa khớp.' };
+      case 'Executed':
+        return { tone: 'executed', message: 'Chế độ xem. Bấm "Đóng chiến dịch" để ghi nhận kết quả review.' };
+      case 'Reviewed':
+        return { tone: 'reviewed', message: 'Chiến dịch đã đóng — chỉ sửa được bài học rút ra.' };
+      case 'Cancelled':
+        return { tone: 'cancelled', message: 'Kế hoạch đã huỷ — chế độ chỉ xem. Bấm "Hoàn tác huỷ" để khôi phục về nháp.' };
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Tighten-SL gate: in InProgress, SL can only be moved closer to entry (tighter).
+   * Draft/Ready/other states: no restriction.
+   */
+  validateTightenSl(newSl: number): { ok: boolean; reason?: string } {
+    if (!this.isInProgress() || this.loadedCurrentSl === null) {
+      return { ok: true };
+    }
+    const current = this.loadedCurrentSl;
+    const isLong = this.plan.direction === 'Buy';
+    if (isLong && newSl < current) {
+      return { ok: false, reason: `SL mới (${newSl}) lỏng hơn SL hiện tại (${current}) — không được nới SL khi plan đang chạy.` };
+    }
+    if (!isLong && newSl > current) {
+      return { ok: false, reason: `SL mới (${newSl}) lỏng hơn SL hiện tại (${current}) — không được nới SL khi plan đang chạy.` };
+    }
+    return { ok: true };
+  }
+
+  // ============================================
 
   constructor(
     private strategyService: StrategyService,
@@ -2427,6 +2675,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.plan.timeHorizon = sp.timeHorizon || DEFAULT_TIME_HORIZON;
     this.plan.confidenceLevel = sp.confidenceLevel;
     this.loadedReviewData = sp.reviewData || null;
+    this.loadedCurrentSl = sp.stopLoss;
     this.plan.notes = sp.notes || '';
     this.plan.entryMode = sp.entryMode || 'Single';
     this.plan.lots = (sp.lots || []).map((l, i) => ({
@@ -2502,6 +2751,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.reviewPreview = null;
     this.reviewLessonsLearned = '';
     this.loadedReviewData = null;
+    this.loadedCurrentSl = null;
     this.manualQuantity = false;
     this.exitStrategyMode = 'Simple';
     this.scenarioNodes = [];
@@ -2528,6 +2778,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   }
 
   private savePlan(status: string): void {
+    // Tighten-SL gate: block save if user loosened SL while plan is InProgress
+    const tightenCheck = this.validateTightenSl(this.plan.stopLoss);
+    if (!tightenCheck.ok) {
+      this.notification.error('SL vi phạm', tightenCheck.reason || 'Không được nới SL khi plan đang chạy');
+      return;
+    }
     this.saving = true;
     const checklist = this.plan.checklist.map(c => ({
       label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint

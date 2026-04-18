@@ -424,6 +424,14 @@ Hai cơ chế song song trong project:
 
 **Backend:** `TradePlan.cs` entity, `TradePlansController.cs`, lifecycle Draft→Ready→InProgress→Executed→Reviewed→Cancelled
 
+**Form Editability Matrix (v2.39, strict state-based locking):**
+- Draft/Ready: chỉnh sửa tự do
+- InProgress: chỉ được **tighten SL** (Long: newSl ≥ currentSl; Short: newSl ≤ currentSl) + sửa lot chưa khớp + cập nhật ghi chú/context
+- Executed/Reviewed/Cancelled: read-only (Cancelled khoá cả ghi chú)
+- State banner đầu form + readonly affordance (`bg-gray-50 cursor-not-allowed`) + save buttons theo state
+- Template panel "Tải/Lưu template" ẩn khi editing non-Draft plan (tránh overwrite field khoá)
+- Chi tiết matrix: [`docs/plans/done/p2-trade-plan-editability.md`](plans/done/p2-trade-plan-editability.md)
+
 ---
 
 ### Trade Create Improvements (`/trades/create`)
