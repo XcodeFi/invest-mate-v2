@@ -2,6 +2,44 @@
 
 ---
 
+## [v2.42.0] — 2026-04-18 · Capital — Auto seed Deposit flow (Phase 3)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Domain
+- `CapitalFlow.IsSeedDeposit: bool` — đánh dấu flow tự sinh khi tạo portfolio (default false, backward compat cho data cũ)
+- Constructor: thêm optional param `isSeedDeposit = false`
+
+### Application
+- `CreatePortfolioCommandHandler`: sau khi tạo Portfolio, tự sinh `CapitalFlow` type `Deposit` với `IsSeedDeposit=true`, note "Vốn ban đầu khi tạo danh mục", flowDate = portfolio.CreatedAt. Chỉ tạo khi InitialCapital > 0. Inject `ICapitalFlowRepository`.
+- `GetFlowHistoryQueryHandler`: aggregates (`TotalDeposits/Withdrawals/Dividends/NetCashFlow`) **exclude** seed flow. `Flows` list vẫn include để audit trail đầy đủ.
+- `CapitalFlowItemDto`: thêm `IsSeedDeposit: bool`
+- `DeleteCapitalFlowCommandHandler`: chặn xoá seed flow (return false) — seed là opening balance, không được remove
+
+### Infrastructure
+- `CapitalFlowRepository.GetTotalFlowByPortfolioIdAsync`: exclude seed khi sum → giữ Phase 1 formula `CurrentCapital = InitialCapital + NetCashFlow` đúng cho cả portfolio cũ (không có seed) và mới (có seed)
+- `CashFlowAdjustedReturnService.CalculateTWRAsync / CalculateMWRAsync / GetAdjustedReturnSummaryAsync`: exclude seed khỏi flow stream → fix **bug double-count** (seed được dùng làm NPV baseline qua `-portfolio.InitialCapital`, không phải cash flow bổ sung)
+
+### Frontend
+- `CapitalFlowItem` interface: thêm `isSeedDeposit: boolean`
+- Capital-flows history table (desktop + mobile): seed row hiển thị badge "Vốn ban đầu" (bg-blue), ẩn nút Xoá, hiện text "Khoá"
+
+### Không cần data migration
+- Portfolio cũ: không có seed flow → `GetTotalFlow` trả Σ các flow thực → Phase 1 formula `InitialCapital + NetCashFlow` = đúng
+- Portfolio mới: có seed flow → `GetTotalFlow` exclude seed → trả chỉ các flow thực → formula vẫn đúng
+
+### Tests
+- `CapitalFlowTests`: +1 test cho `IsSeedDeposit` property
+- `CreatePortfolioCommandHandlerTests`: +2 tests (seed flow được tạo với đúng attrs; InitialCapital=0 không tạo flow)
+- `DeleteCapitalFlowCommandHandlerTests`: 3 tests new (user flow xoá được, seed bị chặn, wrong user bị chặn)
+- `GetFlowHistoryQueryHandlerTests`: 1 test new (seed trong Flows list, exclude khỏi aggregates)
+- Backend: Domain 609 (+1), Application 81 (+4), Infrastructure 199 → **889 tests pass**
+
+### Docs
+- `CHANGELOG.md` v2.42.0, plan checkpoint
+
+---
+
 ## [v2.41.0] — 2026-04-18 · Capital — Lock InitialCapital (Phase 2)
 
 **Branch:** `feat/capital-current-vs-initial`

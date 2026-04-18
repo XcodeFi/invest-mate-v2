@@ -159,12 +159,12 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let flow of flowHistory.flows" class="border-b hover:bg-gray-50">
+                <tr *ngFor="let flow of flowHistory.flows" class="border-b hover:bg-gray-50" [class.bg-blue-50]="flow.isSeedDeposit">
                   <td class="px-4 py-3 text-sm">{{ flow.flowDate | date:'dd/MM/yyyy' }}</td>
                   <td class="px-4 py-3 text-sm">
                     <span class="px-2 py-1 rounded text-xs font-medium"
-                      [ngClass]="getFlowTypeBadge(flow.type)">
-                      {{ getFlowTypeLabel(flow.type) }}
+                      [ngClass]="flow.isSeedDeposit ? 'bg-blue-100 text-blue-800' : getFlowTypeBadge(flow.type)">
+                      {{ flow.isSeedDeposit ? 'Vốn ban đầu' : getFlowTypeLabel(flow.type) }}
                     </span>
                   </td>
                   <td class="px-4 py-3 text-sm text-right font-semibold"
@@ -174,11 +174,12 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
                   <td class="px-4 py-3 text-sm">{{ flow.currency }}</td>
                   <td class="px-4 py-3 text-sm text-gray-500">{{ flow.note || '-' }}</td>
                   <td class="px-4 py-3 text-center">
-                    <button
+                    <button *ngIf="!flow.isSeedDeposit"
                       (click)="deleteFlow(flow.id)"
                       class="text-red-500 hover:text-red-700 text-sm font-medium">
                       Xoá
                     </button>
+                    <span *ngIf="flow.isSeedDeposit" class="text-xs text-gray-400">Khoá</span>
                   </td>
                 </tr>
               </tbody>
@@ -187,11 +188,11 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
           <!-- Mobile Cards -->
           <div class="md:hidden divide-y divide-gray-200">
-            <div *ngFor="let flow of flowHistory.flows" class="p-4 space-y-2">
+            <div *ngFor="let flow of flowHistory.flows" class="p-4 space-y-2" [class.bg-blue-50]="flow.isSeedDeposit">
               <div class="flex items-center justify-between">
                 <span class="px-2 py-1 rounded text-xs font-medium"
-                  [ngClass]="getFlowTypeBadge(flow.type)">
-                  {{ getFlowTypeLabel(flow.type) }}
+                  [ngClass]="flow.isSeedDeposit ? 'bg-blue-100 text-blue-800' : getFlowTypeBadge(flow.type)">
+                  {{ flow.isSeedDeposit ? 'Vốn ban đầu' : getFlowTypeLabel(flow.type) }}
                 </span>
                 <span class="text-sm text-gray-500">{{ flow.flowDate | date:'dd/MM/yyyy' }}</span>
               </div>
@@ -204,11 +205,12 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
               </div>
               <div *ngIf="flow.note" class="text-sm text-gray-500">{{ flow.note }}</div>
               <div class="flex justify-end pt-1">
-                <button
+                <button *ngIf="!flow.isSeedDeposit"
                   (click)="deleteFlow(flow.id)"
                   class="text-red-500 hover:text-red-700 text-sm font-medium">
                   Xoá
                 </button>
+                <span *ngIf="flow.isSeedDeposit" class="text-xs text-gray-400">Khoá</span>
               </div>
             </div>
           </div>

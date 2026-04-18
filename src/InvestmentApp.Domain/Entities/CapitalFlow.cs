@@ -16,11 +16,12 @@ public class CapitalFlow : AggregateRoot
     public string? Note { get; private set; }
     public DateTime FlowDate { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public bool IsSeedDeposit { get; private set; }
 
     [BsonConstructor]
     public CapitalFlow() { } // For MongoDB
 
-    public CapitalFlow(string portfolioId, string userId, CapitalFlowType type, decimal amount, string currency = "VND", string? note = null, DateTime? flowDate = null)
+    public CapitalFlow(string portfolioId, string userId, CapitalFlowType type, decimal amount, string currency = "VND", string? note = null, DateTime? flowDate = null, bool isSeedDeposit = false)
     {
         Id = Guid.NewGuid().ToString();
         PortfolioId = portfolioId ?? throw new ArgumentNullException(nameof(portfolioId));
@@ -31,6 +32,7 @@ public class CapitalFlow : AggregateRoot
         Note = note;
         FlowDate = flowDate?.Date ?? DateTime.UtcNow.Date;
         CreatedAt = DateTime.UtcNow;
+        IsSeedDeposit = isSeedDeposit;
     }
 
     public void UpdateNote(string? note)

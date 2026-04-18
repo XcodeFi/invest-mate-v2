@@ -28,6 +28,11 @@ public class DeleteCapitalFlowCommandHandler : IRequestHandler<DeleteCapitalFlow
         if (flow == null || flow.UserId != request.UserId)
             return false;
 
+        // Seed deposits (auto-created at portfolio creation) are immutable —
+        // removing would orphan the portfolio's opening balance from audit trail.
+        if (flow.IsSeedDeposit)
+            return false;
+
         await _capitalFlowRepository.DeleteAsync(request.Id, cancellationToken);
 
         await _auditService.LogAsync(new Domain.Entities.AuditEntry

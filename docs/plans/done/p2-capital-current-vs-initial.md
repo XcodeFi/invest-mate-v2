@@ -117,6 +117,34 @@ Phân biệt rõ 2 khái niệm "vốn" trong hệ thống và fix bug position 
 - Keep `Portfolio.InitialCapital` stored field unchanged (immutable snapshot) — don't drop; blast radius too wide.
 - Read: `src/InvestmentApp.Application/Portfolios/Commands/CreatePortfolio/`, `tests/InvestmentApp.Application.Tests/Portfolios/Commands/CreatePortfolioCommandHandlerTests.cs`.
 
+### Checkpoint — Phase 3 (done) — 2026-04-18
+
+**Design decision (b'):**
+- Initial plan (b) required data migration to backfill seed Deposit for old portfolios. Revised to (b') which avoids migration entirely.
+- Add `CapitalFlow.IsSeedDeposit: bool` marker. `GetTotalFlowByPortfolioIdAsync` and `GetFlowHistory` aggregates exclude seed flows. Legacy portfolios (no seed) trivially work; new portfolios use seed. Phase 1 formula `CurrentCapital = InitialCapital + NetCashFlow` stays valid for both.
+
+**Decisions:**
+- Seed flow attributes: type=Deposit, IsSeedDeposit=true, amount=InitialCapital, flowDate=portfolio.CreatedAt, note="Vốn ban đầu khi tạo danh mục"
+- Seed only created when InitialCapital > 0 (empty portfolios don't get a zero-amount flow)
+- Seed cannot be deleted (DeleteCapitalFlowCommand returns false)
+- `Portfolio.InitialCapital` retained as declared opening balance (immutable, informational)
+- **Critical fix from code review:** `CashFlowAdjustedReturnService.CalculateTWRAsync/CalculateMWRAsync/GetAdjustedReturnSummaryAsync` all filtered to exclude seed — prevents double-counting (seed was appearing both as `-portfolio.InitialCapital` NPV baseline AND as a +Amount flow).
+
+**Files changed:**
+- Domain: `CapitalFlow.cs`
+- Infrastructure: `CapitalFlowRepository.cs`, `CashFlowAdjustedReturnService.cs`
+- Application: `CreatePortfolioCommandHandler.cs`, `GetFlowHistoryQuery.cs`, `DeleteCapitalFlowCommand.cs`
+- Tests (new/updated): `CapitalFlowTests.cs` (+1), `CreatePortfolioCommandHandlerTests.cs` (+2), `DeleteCapitalFlowCommandHandlerTests.cs` (3 new), `GetFlowHistoryQueryHandlerTests.cs` (1 new)
+- Frontend: `capital-flow.service.ts`, `capital-flows.component.ts`
+- Docs: `CHANGELOG.md` v2.42.0
+
+**Tests:** 889 total pass (Domain 609 + Application 81 + Infrastructure 199). +7 new across Phase 3.
+
+**Affected layers:** Domain, Application, Infrastructure, Frontend
+
+**Known follow-ups:**
+- `DeleteCapitalFlowCommand` returns `false` (HTTP 200) when blocked from deleting seed — ambiguous vs "not found" or "wrong user". Could refactor to `Result<bool, ErrorReason>` for HTTP 403. Deferred as style call.
+
 ### Known follow-ups (from Phase 1 review)
 
 - N+1 query in `GetAllPortfoliosQueryHandler` + `PnLController`: each portfolio triggers separate `GetTotalFlowByPortfolioIdAsync`. Acceptable at current scale; consider server-side `$sum` aggregation if users grow portfolios > 20.

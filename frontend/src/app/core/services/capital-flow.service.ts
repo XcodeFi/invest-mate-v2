@@ -13,6 +13,7 @@ export interface CapitalFlowItem {
   note: string | null;
   flowDate: string;
   createdAt: string;
+  isSeedDeposit: boolean;
 }
 
 export interface CapitalFlowHistory {

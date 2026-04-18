@@ -9,14 +9,19 @@ namespace InvestmentApp.Application.Tests.Portfolios.Commands;
 public class CreatePortfolioCommandHandlerTests
 {
     private readonly Mock<IPortfolioRepository> _portfolioRepo;
+    private readonly Mock<ICapitalFlowRepository> _flowRepo;
     private readonly Mock<IAuditService> _auditService;
     private readonly CreatePortfolioCommandHandler _handler;
 
     public CreatePortfolioCommandHandlerTests()
     {
         _portfolioRepo = new Mock<IPortfolioRepository>();
+        _flowRepo = new Mock<ICapitalFlowRepository>();
         _auditService = new Mock<IAuditService>();
-        _handler = new CreatePortfolioCommandHandler(_portfolioRepo.Object, _auditService.Object);
+        _handler = new CreatePortfolioCommandHandler(
+            _portfolioRepo.Object,
+            _flowRepo.Object,
+            _auditService.Object);
     }
 
     [Fact]
@@ -92,5 +97,54 @@ public class CreatePortfolioCommandHandlerTests
         // Assert
         await act.Should().ThrowAsync<ArgumentNullException>()
             .WithParameterName("userId");
+    }
+
+    [Fact]
+    public async Task Handle_ValidCommand_CreatesSeedDepositCapitalFlow()
+    {
+        // Arrange
+        var command = new CreatePortfolioCommand
+        {
+            UserId = "user1",
+            Name = "Seed Portfolio",
+            InitialCapital = 75_000_000m
+        };
+
+        CapitalFlow? capturedFlow = null;
+        _flowRepo
+            .Setup(r => r.AddAsync(It.IsAny<CapitalFlow>(), It.IsAny<CancellationToken>()))
+            .Callback<CapitalFlow, CancellationToken>((flow, _) => capturedFlow = flow)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var portfolioId = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        capturedFlow.Should().NotBeNull();
+        capturedFlow!.PortfolioId.Should().Be(portfolioId);
+        capturedFlow.UserId.Should().Be("user1");
+        capturedFlow.Type.Should().Be(CapitalFlowType.Deposit);
+        capturedFlow.Amount.Should().Be(75_000_000m);
+        capturedFlow.IsSeedDeposit.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_ZeroInitialCapital_DoesNotCreateCapitalFlow()
+    {
+        // Arrange
+        var command = new CreatePortfolioCommand
+        {
+            UserId = "user1",
+            Name = "Empty Portfolio",
+            InitialCapital = 0m
+        };
+
+        // Act
+        await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        _flowRepo.Verify(
+            r => r.AddAsync(It.IsAny<CapitalFlow>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }
