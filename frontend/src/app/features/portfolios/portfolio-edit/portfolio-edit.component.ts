@@ -149,7 +149,7 @@ export class PortfolioEditComponent implements OnInit {
     if (this.isSubmitting) return;
     this.isSubmitting = true;
 
-    this.portfolioService.update(this.portfolioId, this.form).subscribe({
+    this.portfolioService.update(this.portfolioId, { name: this.form.name }).subscribe({
       next: () => {
         this.notificationService.success('Thành công', 'Danh mục đã được cập nhật');
         this.router.navigate(['/portfolios', this.portfolioId]);

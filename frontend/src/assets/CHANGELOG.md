@@ -2,6 +2,35 @@
 
 ---
 
+## [v2.41.0] — 2026-04-18 · Capital — Lock InitialCapital (Phase 2)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Backend
+- `UpdatePortfolioCommand`: xoá field `InitialCapital` — chỉ cho update `Name`
+- `UpdatePortfolioCommandHandler`: xoá call `portfolio.UpdateInitialCapital(...)` — vốn không còn sửa được qua update endpoint
+- `UpdatePortfolioCommandValidator`: xoá rule cho `InitialCapital`
+- `Portfolio.UpdateInitialCapital()` domain method giữ lại nhưng không còn caller ở Application layer (có thể dùng cho data migration hoặc admin ops trong tương lai)
+
+### Frontend
+- `UpdatePortfolioRequest` interface: xoá `initialCapital`
+- `portfolio-edit.onSubmit()`: chỉ gửi `{ name }` (trước đây gửi cả initialCapital)
+
+### Quyết định domain
+- Vốn danh mục chỉ đổi qua `CapitalFlow` (Deposit/Withdraw/Dividend/Interest/Fee). Không cho "sửa sổ sách" trực tiếp trên `InitialCapital` nữa → single source of truth, audit trail qua flow history.
+
+### TWR/MWR NetCashFlow
+- Đã verify: `CashFlowAdjustedReturnService.NetCashFlow = totalDeposits(all inflows) - totalWithdrawals(all outflows)` — mathematically đã bằng `Σ SignedAmount` dù tên biến hơi gây hiểu nhầm. Không cần sửa.
+
+### Tests
+- `UpdatePortfolioCommandHandlerTests` (3 tests) — new: name-only update, wrong-user, not-found
+- Backend: 75/75 Application tests pass (+3)
+
+### Docs
+- `CHANGELOG.md` v2.41.0
+
+---
+
 ## [v2.40.0] — 2026-04-18 · Capital — Vốn hiện tại vs Vốn ban đầu (Phase 1)
 
 **Branch:** `feat/capital-current-vs-initial`

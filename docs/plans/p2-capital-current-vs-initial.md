@@ -95,6 +95,28 @@ Phân biệt rõ 2 khái niệm "vốn" trong hệ thống và fix bug position 
 - Fix `CashFlowAdjustedReturnService.NetCashFlow` → use `Σ SignedAmount` (include Dividend/Interest/Fee) — currently only `deposits - withdrawals`.
 - Read: `src/InvestmentApp.Application/Portfolios/Commands/UpdatePortfolio/`, `src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs`, existing `tests/` for these paths.
 
+### Checkpoint — Phase 2 (done) — 2026-04-18
+
+**Decisions:**
+- Remove `InitialCapital` from `UpdatePortfolioCommand` entirely (command, validator, handler). FE `UpdatePortfolioRequest` loses field; `portfolio-edit.onSubmit` sends only `{ name }`.
+- Domain method `Portfolio.UpdateInitialCapital()` kept (no callers at Application layer; may still be useful for admin/migration tooling).
+- TWR/MWR `NetCashFlow` fix: **skipped** — verified the formula `totalDeposits - totalWithdrawals` in `CashFlowAdjustedReturnService` is mathematically equivalent to `Σ SignedAmount` despite misleading variable names (`totalDeposits` actually sums Deposit+Dividend+Interest; `totalWithdrawals` sums Withdraw+Fee). No correctness issue.
+
+**Files changed:**
+- Backend: `UpdatePortfolioCommand.cs`, `UpdatePortfolioCommandValidator.cs`
+- Tests (new): `UpdatePortfolioCommandHandlerTests.cs` (3 tests)
+- Frontend: `portfolio.service.ts`, `portfolio-edit.component.ts`
+- Docs: `CHANGELOG.md` v2.41.0
+
+**Tests:** 75/75 Application tests pass (+3 new)
+
+**Affected layers:** Application, Frontend
+
+**Next (Phase 3):**
+- Auto-create `Deposit` `CapitalFlow` record inside `CreatePortfolioCommandHandler` when portfolio is created, matching `InitialCapital` amount. TDD: update existing `CreatePortfolioCommandHandlerTests` to verify flow creation (add `ICapitalFlowRepository` mock).
+- Keep `Portfolio.InitialCapital` stored field unchanged (immutable snapshot) — don't drop; blast radius too wide.
+- Read: `src/InvestmentApp.Application/Portfolios/Commands/CreatePortfolio/`, `tests/InvestmentApp.Application.Tests/Portfolios/Commands/CreatePortfolioCommandHandlerTests.cs`.
+
 ### Known follow-ups (from Phase 1 review)
 
 - N+1 query in `GetAllPortfoliosQueryHandler` + `PnLController`: each portfolio triggers separate `GetTotalFlowByPortfolioIdAsync`. Acceptable at current scale; consider server-side `$sum` aggregation if users grow portfolios > 20.

@@ -44,7 +44,6 @@ export interface CreatePortfolioRequest {
 
 export interface UpdatePortfolioRequest {
   name: string;
-  initialCapital: number;
 }
 
 @Injectable({
