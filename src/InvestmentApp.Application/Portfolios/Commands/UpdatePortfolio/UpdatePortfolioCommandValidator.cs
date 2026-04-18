@@ -9,8 +9,5 @@ public class UpdatePortfolioCommandValidator : AbstractValidator<UpdatePortfolio
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Portfolio name is required")
             .MaximumLength(100).WithMessage("Portfolio name must not exceed 100 characters");
-
-        RuleFor(x => x.InitialCapital)
-            .GreaterThanOrEqualTo(0).WithMessage("Initial capital must be non-negative");
     }
 }

@@ -54,6 +54,22 @@ public class CapitalFlowTests
         flow.Currency.Should().Be(currency);
         flow.Note.Should().Be(note);
         flow.FlowDate.Should().Be(flowDate.Date);
+        flow.IsSeedDeposit.Should().BeFalse(); // default
+    }
+
+    [Fact]
+    public void Constructor_WithSeedMarker_ShouldSetIsSeedDeposit()
+    {
+        // Act
+        var flow = new CapitalFlow(
+            portfolioId: "p1",
+            userId: "u1",
+            type: CapitalFlowType.Deposit,
+            amount: 100_000_000m,
+            isSeedDeposit: true);
+
+        // Assert
+        flow.IsSeedDeposit.Should().BeTrue();
     }
 
     [Fact]

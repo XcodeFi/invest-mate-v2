@@ -58,7 +58,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   #portfolioInput="ngModel">
                   <option value="">-- Chọn danh mục --</option>
-                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} — {{ p.initialCapital | vndCurrency }}{{ matchingPortfolioIds.has(p.id) ? ' ✓ Có vị thế' : '' }}</option>
+                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} — {{ p.currentCapital | vndCurrency }}{{ matchingPortfolioIds.has(p.id) ? ' ✓ Có vị thế' : '' }}</option>
                 </select>
                 <p *ngIf="portfolioInput.invalid && portfolioInput.touched" class="mt-1 text-sm text-red-600">Vui lòng chọn danh mục</p>
               </div>
@@ -479,7 +479,7 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
         const tradeValue = this.form.quantity * this.form.price;
         const portfolio = this.portfolios.find(p => p.id === this.form.portfolioId);
         if (portfolio) {
-          const remainingCash = portfolio.initialCapital - portfolio.totalInvested + portfolio.totalSold;
+          const remainingCash = portfolio.currentCapital - portfolio.totalInvested + portfolio.totalSold;
           if (tradeValue > remainingCash) {
             this.quantityError = `Giá trị lệnh (${tradeValue.toLocaleString('vi-VN')}đ) vượt quá tiền còn lại của danh mục (${remainingCash.toLocaleString('vi-VN')}đ)`;
           }

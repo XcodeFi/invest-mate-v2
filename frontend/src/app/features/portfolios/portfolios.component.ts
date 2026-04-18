@@ -103,8 +103,12 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
               <div class="space-y-3">
                 <div class="flex justify-between items-center">
-                  <span class="text-sm text-gray-600">Vốn ban đầu:</span>
-                  <span class="font-medium">{{ portfolio.initialCapital | vndCurrency }}</span>
+                  <span class="text-sm text-gray-600">Vốn hiện tại:</span>
+                  <span class="font-semibold">{{ portfolio.currentCapital | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-gray-500">Vốn ban đầu:</span>
+                  <span class="text-xs text-gray-500">{{ portfolio.initialCapital | vndCurrency }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm text-gray-600">Tổng đầu tư:</span>

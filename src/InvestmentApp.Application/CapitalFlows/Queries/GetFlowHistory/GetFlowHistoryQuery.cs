@@ -30,6 +30,7 @@ public class CapitalFlowItemDto
     public string? Note { get; set; }
     public DateTime FlowDate { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool IsSeedDeposit { get; set; }
 }
 
 public class GetFlowHistoryQueryHandler : IRequestHandler<GetFlowHistoryQuery, CapitalFlowHistoryDto>
@@ -63,6 +64,11 @@ public class GetFlowHistoryQueryHandler : IRequestHandler<GetFlowHistoryQuery, C
 
         var flowList = flows.ToList();
 
+        // Aggregates exclude seed Deposit so summaries reflect "user activity
+        // after portfolio creation". The Flows list keeps the seed record for
+        // full audit trail.
+        var userFlows = flowList.Where(f => !f.IsSeedDeposit).ToList();
+
         return new CapitalFlowHistoryDto
         {
             PortfolioId = request.PortfolioId,
@@ -74,12 +80,13 @@ public class GetFlowHistoryQueryHandler : IRequestHandler<GetFlowHistoryQuery, C
                 Currency = f.Currency,
                 Note = f.Note,
                 FlowDate = f.FlowDate,
-                CreatedAt = f.CreatedAt
+                CreatedAt = f.CreatedAt,
+                IsSeedDeposit = f.IsSeedDeposit
             }).ToList(),
-            TotalDeposits = flowList.Where(f => f.Type == Domain.Entities.CapitalFlowType.Deposit).Sum(f => f.Amount),
-            TotalWithdrawals = flowList.Where(f => f.Type == Domain.Entities.CapitalFlowType.Withdraw).Sum(f => f.Amount),
-            TotalDividends = flowList.Where(f => f.Type == Domain.Entities.CapitalFlowType.Dividend).Sum(f => f.Amount),
-            NetCashFlow = flowList.Sum(f => f.SignedAmount)
+            TotalDeposits = userFlows.Where(f => f.Type == Domain.Entities.CapitalFlowType.Deposit).Sum(f => f.Amount),
+            TotalWithdrawals = userFlows.Where(f => f.Type == Domain.Entities.CapitalFlowType.Withdraw).Sum(f => f.Amount),
+            TotalDividends = userFlows.Where(f => f.Type == Domain.Entities.CapitalFlowType.Dividend).Sum(f => f.Amount),
+            NetCashFlow = userFlows.Sum(f => f.SignedAmount)
         };
     }
 }

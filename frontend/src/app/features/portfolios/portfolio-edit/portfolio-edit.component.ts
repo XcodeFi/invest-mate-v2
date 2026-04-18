@@ -3,14 +3,14 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService } from '../../../core/services/portfolio.service';
+import { CapitalFlowService } from '../../../core/services/capital-flow.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
-import { NumMaskDirective } from '../../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-portfolio-edit',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -57,19 +57,20 @@ import { NumMaskDirective } from '../../../shared/directives/num-mask.directive'
               </div>
 
               <div>
-                <label for="initialCapital" class="block text-sm font-medium text-gray-700 mb-1">Vốn ban đầu (VND) <span class="text-red-500">*</span></label>
-                <input
-                  type="text" inputmode="numeric" appNumMask
-                  id="initialCapital"
-                  name="initialCapital"
-                  [(ngModel)]="form.initialCapital"
-                  required
-                  min="1"
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  #capitalInput="ngModel"
-                />
-                <p *ngIf="capitalInput.invalid && capitalInput.touched" class="mt-1 text-sm text-red-600">Vốn ban đầu phải lớn hơn 0</p>
-                <p *ngIf="form.initialCapital > 0" class="mt-1 text-sm text-gray-500">{{ form.initialCapital | vndCurrency }}</p>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Vốn hiện tại (VND)</label>
+                <div class="flex items-center justify-between px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                  <span class="text-gray-900 font-semibold text-lg">{{ currentCapital | vndCurrency }}</span>
+                  <a routerLink="/capital-flows" [queryParams]="{ portfolioId: portfolioId }" class="text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap ml-4">
+                    Quản lý dòng vốn →
+                  </a>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">
+                  Vốn ban đầu {{ form.initialCapital | vndCurrency }}
+                  <span [ngClass]="netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'">
+                    {{ netCashFlow >= 0 ? '+' : '−' }} {{ (netCashFlow < 0 ? -netCashFlow : netCashFlow) | vndCurrency }}
+                  </span>
+                  dòng vốn ròng (nạp, rút, cổ tức, phí)
+                </p>
               </div>
 
               <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -94,16 +95,22 @@ import { NumMaskDirective } from '../../../shared/directives/num-mask.directive'
 })
 export class PortfolioEditComponent implements OnInit {
   form = { name: '', initialCapital: 0 };
+  netCashFlow = 0;
   isLoading = true;
   isSubmitting = false;
-  private portfolioId = '';
+  portfolioId = '';
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private portfolioService: PortfolioService,
+    private capitalFlowService: CapitalFlowService,
     private notificationService: NotificationService
   ) {}
+
+  get currentCapital(): number {
+    return this.form.initialCapital + this.netCashFlow;
+  }
 
   ngOnInit(): void {
     this.portfolioId = this.route.snapshot.paramMap.get('id') || '';
@@ -115,7 +122,7 @@ export class PortfolioEditComponent implements OnInit {
       next: (data) => {
         this.form.name = data.name;
         this.form.initialCapital = data.initialCapital;
-        this.isLoading = false;
+        this.loadFlowSummary();
       },
       error: () => {
         this.isLoading = false;
@@ -125,11 +132,24 @@ export class PortfolioEditComponent implements OnInit {
     });
   }
 
+  private loadFlowSummary(): void {
+    this.capitalFlowService.getFlowSummary(this.portfolioId).subscribe({
+      next: (summary) => {
+        this.netCashFlow = summary.netCashFlow;
+        this.isLoading = false;
+      },
+      error: () => {
+        this.netCashFlow = 0;
+        this.isLoading = false;
+      }
+    });
+  }
+
   onSubmit(): void {
     if (this.isSubmitting) return;
     this.isSubmitting = true;
 
-    this.portfolioService.update(this.portfolioId, this.form).subscribe({
+    this.portfolioService.update(this.portfolioId, { name: this.form.name }).subscribe({
       next: () => {
         this.notificationService.success('Thành công', 'Danh mục đã được cập nhật');
         this.router.navigate(['/portfolios', this.portfolioId]);

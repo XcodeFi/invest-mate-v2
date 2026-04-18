@@ -39,7 +39,11 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
         var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
         if (portfolio == null) return 0;
 
-        var flows = (await _capitalFlowRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken)).ToList();
+        // Seed deposits represent initial funding (baseline) and are handled
+        // separately by the formulas below; treating them as external cash
+        // flows would distort period returns.
+        var flows = (await _capitalFlowRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken))
+            .Where(f => !f.IsSeedDeposit).ToList();
         var snapshots = (await _snapshotRepository.GetByPortfolioIdAsync(
             portfolioId,
             portfolio.CreatedAt.Date,
@@ -79,7 +83,10 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
         var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
         if (portfolio == null) return 0;
 
+        // Exclude seed: NPV equation uses `-portfolio.InitialCapital` as the
+        // t=0 outflow; a seed Deposit would double-count it.
         var flows = (await _capitalFlowRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken))
+            .Where(f => !f.IsSeedDeposit)
             .OrderBy(f => f.FlowDate).ToList();
 
         // Get current portfolio value
@@ -154,7 +161,10 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
             return new AdjustedReturnSummary { PortfolioId = portfolioId };
         }
 
-        var flows = (await _capitalFlowRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken)).ToList();
+        // Exclude seed: aggregates represent "user activity after creation";
+        // cashBalance formula `InitialCapital + netFlow` also requires exclusion.
+        var flows = (await _capitalFlowRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken))
+            .Where(f => !f.IsSeedDeposit).ToList();
 
         var twr = await CalculateTWRAsync(portfolioId, cancellationToken);
         var mwr = await CalculateMWRAsync(portfolioId, cancellationToken);

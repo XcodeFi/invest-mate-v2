@@ -56,7 +56,11 @@ public class CapitalFlowRepository : ICapitalFlowRepository
     public async Task<decimal> GetTotalFlowByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default)
     {
         var flows = await GetByPortfolioIdAsync(portfolioId, cancellationToken);
-        return flows.Sum(f => f.SignedAmount);
+        // Exclude seed Deposit (auto-created at portfolio creation) so the sum
+        // represents post-creation cash movements. Phase 1 formula
+        // `CurrentCapital = InitialCapital + NetCashFlow` stays correct for both
+        // legacy portfolios (no seed) and new portfolios (seed auto-created).
+        return flows.Where(f => !f.IsSeedDeposit).Sum(f => f.SignedAmount);
     }
 
     public async Task AddAsync(CapitalFlow entity, CancellationToken cancellationToken = default)

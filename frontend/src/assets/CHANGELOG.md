@@ -2,6 +2,105 @@
 
 ---
 
+## [v2.42.0] — 2026-04-18 · Capital — Auto seed Deposit flow (Phase 3)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Domain
+- `CapitalFlow.IsSeedDeposit: bool` — đánh dấu flow tự sinh khi tạo portfolio (default false, backward compat cho data cũ)
+- Constructor: thêm optional param `isSeedDeposit = false`
+
+### Application
+- `CreatePortfolioCommandHandler`: sau khi tạo Portfolio, tự sinh `CapitalFlow` type `Deposit` với `IsSeedDeposit=true`, note "Vốn ban đầu khi tạo danh mục", flowDate = portfolio.CreatedAt. Chỉ tạo khi InitialCapital > 0. Inject `ICapitalFlowRepository`.
+- `GetFlowHistoryQueryHandler`: aggregates (`TotalDeposits/Withdrawals/Dividends/NetCashFlow`) **exclude** seed flow. `Flows` list vẫn include để audit trail đầy đủ.
+- `CapitalFlowItemDto`: thêm `IsSeedDeposit: bool`
+- `DeleteCapitalFlowCommandHandler`: chặn xoá seed flow (return false) — seed là opening balance, không được remove
+
+### Infrastructure
+- `CapitalFlowRepository.GetTotalFlowByPortfolioIdAsync`: exclude seed khi sum → giữ Phase 1 formula `CurrentCapital = InitialCapital + NetCashFlow` đúng cho cả portfolio cũ (không có seed) và mới (có seed)
+- `CashFlowAdjustedReturnService.CalculateTWRAsync / CalculateMWRAsync / GetAdjustedReturnSummaryAsync`: exclude seed khỏi flow stream → fix **bug double-count** (seed được dùng làm NPV baseline qua `-portfolio.InitialCapital`, không phải cash flow bổ sung)
+
+### Frontend
+- `CapitalFlowItem` interface: thêm `isSeedDeposit: boolean`
+- Capital-flows history table (desktop + mobile): seed row hiển thị badge "Vốn ban đầu" (bg-blue), ẩn nút Xoá, hiện text "Khoá"
+
+### Không cần data migration
+- Portfolio cũ: không có seed flow → `GetTotalFlow` trả Σ các flow thực → Phase 1 formula `InitialCapital + NetCashFlow` = đúng
+- Portfolio mới: có seed flow → `GetTotalFlow` exclude seed → trả chỉ các flow thực → formula vẫn đúng
+
+### Tests
+- `CapitalFlowTests`: +1 test cho `IsSeedDeposit` property
+- `CreatePortfolioCommandHandlerTests`: +2 tests (seed flow được tạo với đúng attrs; InitialCapital=0 không tạo flow)
+- `DeleteCapitalFlowCommandHandlerTests`: 3 tests new (user flow xoá được, seed bị chặn, wrong user bị chặn)
+- `GetFlowHistoryQueryHandlerTests`: 1 test new (seed trong Flows list, exclude khỏi aggregates)
+- Backend: Domain 609 (+1), Application 81 (+4), Infrastructure 199 → **889 tests pass**
+
+### Docs
+- `CHANGELOG.md` v2.42.0, plan checkpoint
+
+---
+
+## [v2.41.0] — 2026-04-18 · Capital — Lock InitialCapital (Phase 2)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Backend
+- `UpdatePortfolioCommand`: xoá field `InitialCapital` — chỉ cho update `Name`
+- `UpdatePortfolioCommandHandler`: xoá call `portfolio.UpdateInitialCapital(...)` — vốn không còn sửa được qua update endpoint
+- `UpdatePortfolioCommandValidator`: xoá rule cho `InitialCapital`
+- `Portfolio.UpdateInitialCapital()` domain method giữ lại nhưng không còn caller ở Application layer (có thể dùng cho data migration hoặc admin ops trong tương lai)
+
+### Frontend
+- `UpdatePortfolioRequest` interface: xoá `initialCapital`
+- `portfolio-edit.onSubmit()`: chỉ gửi `{ name }` (trước đây gửi cả initialCapital)
+
+### Quyết định domain
+- Vốn danh mục chỉ đổi qua `CapitalFlow` (Deposit/Withdraw/Dividend/Interest/Fee). Không cho "sửa sổ sách" trực tiếp trên `InitialCapital` nữa → single source of truth, audit trail qua flow history.
+
+### TWR/MWR NetCashFlow
+- Đã verify: `CashFlowAdjustedReturnService.NetCashFlow = totalDeposits(all inflows) - totalWithdrawals(all outflows)` — mathematically đã bằng `Σ SignedAmount` dù tên biến hơi gây hiểu nhầm. Không cần sửa.
+
+### Tests
+- `UpdatePortfolioCommandHandlerTests` (3 tests) — new: name-only update, wrong-user, not-found
+- Backend: 75/75 Application tests pass (+3)
+
+### Docs
+- `CHANGELOG.md` v2.41.0
+
+---
+
+## [v2.40.0] — 2026-04-18 · Capital — Vốn hiện tại vs Vốn ban đầu (Phase 1)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Backend
+- `PortfolioSummaryDto` + `PortfolioDto` thêm `NetCashFlow` và `CurrentCapital` (= InitialCapital + NetCashFlow)
+- `GetAllPortfoliosQueryHandler` + `GetPortfolioQueryHandler`: inject `ICapitalFlowRepository`, gọi `GetTotalFlowByPortfolioIdAsync` per portfolio
+- `PnLController.GetOverallPnL`: mỗi portfolio trả thêm `NetCashFlow`, `CurrentCapital`; tổng level thêm `TotalNetCashFlow`, `TotalCurrentCapital`
+- Catch block chỉ wrap PnL calculation — flow fetch giờ nằm ngoài try (không silent-swallow DB error)
+
+### Frontend
+- `PortfolioSummary` + `PortfolioDetail` + `PortfolioPnL` + `OverallPnLSummary` thêm `currentCapital`, `netCashFlow`
+- Dropdowns (5): capital-flows, position-sizing, trade-wizard, trade-plan, trade-create → hiển thị `currentCapital` thay `initialCapital`
+- List/detail/dashboard card: hiển thị "Vốn hiện tại" làm primary, "Vốn ban đầu" làm secondary (nhỏ, gray)
+- Dashboard `cashBalance` dùng `currentCapital - totalInvested` (thay cho initial+flow)
+- Dashboard `getPerformancePercent` dùng `currentCapital` làm denominator
+
+### Bug fix — Position sizing
+- **4 trang risk** (position-sizing, trade-wizard, trade-plan, trade-create) trước đây dùng `portfolio.initialCapital` làm `accountBalance` → khi user đã nạp/rút thêm, tính size lệnh sai. Giờ dùng `portfolio.currentCapital`.
+- `trade-create` `remainingCash` tính từ `currentCapital - totalInvested + totalSold` (đủ vốn đã nạp thêm).
+
+### Tests
+- `GetAllPortfoliosQueryHandlerTests` (3 tests) — new, cover inflow/outflow/no-flow cases
+- `GetPortfolioQueryHandlerTests` (3 tests) — new, cover happy/wrong-user/not-found paths
+- Backend: 72/72 Application tests pass (+3 tests from 69)
+
+### Docs
+- `docs/plans/p2-capital-current-vs-initial.md` — plan với checkpoints
+- `docs/business-domain.md` §3.1 — update công thức
+
+---
+
 ## [v2.39.0] — 2026-04-18 · Trade Plan Form Editability Matrix (Strict)
 
 **Branch:** `feat/trade-plan-state-machine-and-ux`

@@ -23,6 +23,8 @@ export interface PortfolioPnL {
   portfolioId: string;
   portfolioName: string;
   initialCapital: number;
+  netCashFlow: number;
+  currentCapital: number;
   totalInvested: number;
   totalMarketValue: number;
   totalRealizedPnL: number;
@@ -35,6 +37,8 @@ export interface PortfolioPnL {
 export interface OverallPnLSummary {
   totalPortfolios: number;
   totalInitialCapital: number;
+  totalNetCashFlow: number;
+  totalCurrentCapital: number;
   totalInvested: number;
   totalMarketValue: number;
   totalRealizedPnL: number;

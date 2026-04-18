@@ -537,7 +537,7 @@ interface RiskAlert {
                 </div>
                 <div class="flex items-center justify-between text-xs text-gray-500">
                   <span>{{ safeNumber(portfolio.totalMarketValue) | vndCurrency }}</span>
-                  <span>Vốn: {{ portfolio.initialCapital | vndCurrency }}</span>
+                  <span>Vốn: {{ portfolio.currentCapital | vndCurrency }}</span>
                 </div>
                 <div class="flex items-center gap-2 mt-2">
                   <span class="text-xs text-gray-400 whitespace-nowrap">{{ getAllocationPercent(portfolio).toFixed(1) }}%</span>
@@ -1015,7 +1015,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.capitalFlowService.getTimeWeightedReturn(portfolioId).pipe(catchError(() => of(null))).subscribe(data => {
       this.adjustedReturn = data;
       if (data) {
-        this.cashBalance = (firstPortfolio.initialCapital || 0) + data.netCashFlow - this.pnlSummary.totalInvested;
+        this.cashBalance = (firstPortfolio.currentCapital || 0) - this.pnlSummary.totalInvested;
       }
     });
 
@@ -1089,8 +1089,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getPerformancePercent(portfolio: PortfolioPnL): number {
-    if (portfolio.initialCapital === 0) return 0;
-    return (this.safeNumber(portfolio.totalMarketValue) / portfolio.initialCapital) * 100;
+    if (portfolio.currentCapital === 0) return 0;
+    return (this.safeNumber(portfolio.totalMarketValue) / portfolio.currentCapital) * 100;
   }
 
   getClampedPerformance(portfolio: PortfolioPnL): number {

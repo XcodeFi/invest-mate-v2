@@ -12,7 +12,6 @@ public class UpdatePortfolioCommand : IRequest<bool>
     [JsonIgnore]
     public string? UserId { get; set; }
     public string Name { get; set; } = null!;
-    public decimal InitialCapital { get; set; }
 }
 
 public class UpdatePortfolioCommandHandler : IRequestHandler<UpdatePortfolioCommand, bool>
@@ -35,7 +34,6 @@ public class UpdatePortfolioCommandHandler : IRequestHandler<UpdatePortfolioComm
             return false;
 
         portfolio.UpdateName(request.Name);
-        portfolio.UpdateInitialCapital(request.InitialCapital);
 
         await _portfolioRepository.UpdateAsync(portfolio, cancellationToken);
 
