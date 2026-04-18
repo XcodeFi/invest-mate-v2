@@ -2,6 +2,38 @@
 
 ---
 
+## [v2.40.0] — 2026-04-18 · Capital — Vốn hiện tại vs Vốn ban đầu (Phase 1)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Backend
+- `PortfolioSummaryDto` + `PortfolioDto` thêm `NetCashFlow` và `CurrentCapital` (= InitialCapital + NetCashFlow)
+- `GetAllPortfoliosQueryHandler` + `GetPortfolioQueryHandler`: inject `ICapitalFlowRepository`, gọi `GetTotalFlowByPortfolioIdAsync` per portfolio
+- `PnLController.GetOverallPnL`: mỗi portfolio trả thêm `NetCashFlow`, `CurrentCapital`; tổng level thêm `TotalNetCashFlow`, `TotalCurrentCapital`
+- Catch block chỉ wrap PnL calculation — flow fetch giờ nằm ngoài try (không silent-swallow DB error)
+
+### Frontend
+- `PortfolioSummary` + `PortfolioDetail` + `PortfolioPnL` + `OverallPnLSummary` thêm `currentCapital`, `netCashFlow`
+- Dropdowns (5): capital-flows, position-sizing, trade-wizard, trade-plan, trade-create → hiển thị `currentCapital` thay `initialCapital`
+- List/detail/dashboard card: hiển thị "Vốn hiện tại" làm primary, "Vốn ban đầu" làm secondary (nhỏ, gray)
+- Dashboard `cashBalance` dùng `currentCapital - totalInvested` (thay cho initial+flow)
+- Dashboard `getPerformancePercent` dùng `currentCapital` làm denominator
+
+### Bug fix — Position sizing
+- **4 trang risk** (position-sizing, trade-wizard, trade-plan, trade-create) trước đây dùng `portfolio.initialCapital` làm `accountBalance` → khi user đã nạp/rút thêm, tính size lệnh sai. Giờ dùng `portfolio.currentCapital`.
+- `trade-create` `remainingCash` tính từ `currentCapital - totalInvested + totalSold` (đủ vốn đã nạp thêm).
+
+### Tests
+- `GetAllPortfoliosQueryHandlerTests` (3 tests) — new, cover inflow/outflow/no-flow cases
+- `GetPortfolioQueryHandlerTests` (3 tests) — new, cover happy/wrong-user/not-found paths
+- Backend: 72/72 Application tests pass (+3 tests from 69)
+
+### Docs
+- `docs/plans/p2-capital-current-vs-initial.md` — plan với checkpoints
+- `docs/business-domain.md` §3.1 — update công thức
+
+---
+
 ## [v2.39.0] — 2026-04-18 · Trade Plan Form Editability Matrix (Strict)
 
 **Branch:** `feat/trade-plan-state-machine-and-ux`

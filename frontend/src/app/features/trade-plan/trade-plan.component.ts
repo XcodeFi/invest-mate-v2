@@ -416,7 +416,7 @@ interface TradePlanForm {
                   [ngClass]="readonlyClass(canEditEntryInfo)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="">-- Chọn --</option>
-                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.initialCapital | vndCurrency }})</option>
+                  <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.currentCapital | vndCurrency }})</option>
                 </select>
               </div>
               <div>
@@ -2326,7 +2326,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   onPortfolioChange(): void {
     if (!this.plan.portfolioId) { this.riskProfile = null; this.portfolioRiskSummary = null; return; }
     const portfolio = this.portfolios.find(p => p.id === this.plan.portfolioId);
-    if (portfolio) this.accountBalance = portfolio.initialCapital;
+    if (portfolio) this.accountBalance = portfolio.currentCapital;
 
     this.riskService.getRiskProfile(this.plan.portfolioId).subscribe({
       next: (profile) => {

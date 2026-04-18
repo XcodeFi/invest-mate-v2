@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute } from '@angular/router';
 import { CapitalFlowService, CapitalFlowItem, CapitalFlowHistory, AdjustedReturn } from '../../core/services/capital-flow.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -25,7 +25,7 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
             (ngModelChange)="onPortfolioChange()"
             class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[200px]">
             <option value="">-- Chọn danh mục --</option>
-            <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }}</option>
+            <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.currentCapital | vndCurrency }})</option>
           </select>
           <button
             *ngIf="selectedPortfolioId"
@@ -243,7 +243,8 @@ export class CapitalFlowsComponent implements OnInit {
   constructor(
     private capitalFlowService: CapitalFlowService,
     private portfolioService: PortfolioService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
@@ -252,7 +253,14 @@ export class CapitalFlowsComponent implements OnInit {
 
   loadPortfolios(): void {
     this.portfolioService.getAll().subscribe({
-      next: data => this.portfolios = data,
+      next: data => {
+        this.portfolios = data;
+        const queryPortfolioId = this.route.snapshot.queryParamMap.get('portfolioId');
+        if (queryPortfolioId && data.some(p => p.id === queryPortfolioId)) {
+          this.selectedPortfolioId = queryPortfolioId;
+          this.onPortfolioChange();
+        }
+      },
       error: () => this.notificationService.error('Lỗi', 'Lỗi khi tải danh sách danh mục')
     });
   }

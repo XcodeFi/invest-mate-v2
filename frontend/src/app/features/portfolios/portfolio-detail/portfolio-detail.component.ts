@@ -61,8 +61,9 @@ import { AiChatPanelComponent } from '../../../shared/components/ai-chat-panel/a
         <!-- Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <p class="text-sm font-medium text-gray-600">Vốn ban đầu</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ portfolio.initialCapital | vndCurrency }}</p>
+            <p class="text-sm font-medium text-gray-600">Vốn hiện tại</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ portfolio.currentCapital | vndCurrency }}</p>
+            <p class="text-xs text-gray-500 mt-1">Vốn ban đầu: {{ portfolio.initialCapital | vndCurrency }}</p>
           </div>
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Giá trị thị trường</p>

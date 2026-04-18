@@ -84,9 +84,11 @@ User (1)
 ## 3. Các nghiệp vụ chính
 
 ### 3.1. Quản lý Danh mục (Portfolio)
-- Tạo danh mục với vốn ban đầu (`initialCapital`)
+- Tạo danh mục với **vốn ban đầu** (`InitialCapital`) — snapshot lúc tạo, không đổi theo thời gian
 - Nạp/rút tiền qua `CapitalFlow` (Deposit, Withdraw, Dividend, Interest, Fee)
-- Tính **cash còn lại** = initialCapital + tổng flows - tổng giá trị mua + tổng giá trị bán
+- **Vốn hiện tại** (`CurrentCapital`) = `InitialCapital + Σ SignedAmount` — đây là giá trị "vốn ròng" hiện tại của danh mục, phản ánh mọi nạp/rút/cổ tức/phí đã xảy ra
+- **Cash còn lại** = `CurrentCapital − TotalInvested + TotalSold` — tiền mặt khả dụng để vào lệnh mới
+- **Quy tắc:** Mọi chỗ tính position sizing, account balance, allocation % phải dùng `CurrentCapital` (không dùng `InitialCapital`) để phản ánh đúng vốn user đang có.
 
 ### 3.2. Kế hoạch Giao dịch (TradePlan)
 Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cancelled → Restore → Draft`

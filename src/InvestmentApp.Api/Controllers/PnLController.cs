@@ -13,11 +13,16 @@ public class PnLController : ControllerBase
 {
     private readonly IPnLService _pnlService;
     private readonly IPortfolioRepository _portfolioRepository;
+    private readonly ICapitalFlowRepository _capitalFlowRepository;
 
-    public PnLController(IPnLService pnlService, IPortfolioRepository portfolioRepository)
+    public PnLController(
+        IPnLService pnlService,
+        IPortfolioRepository portfolioRepository,
+        ICapitalFlowRepository capitalFlowRepository)
     {
         _pnlService = pnlService;
         _portfolioRepository = portfolioRepository;
+        _capitalFlowRepository = capitalFlowRepository;
     }
 
     private string GetUserId() =>
@@ -87,12 +92,14 @@ public class PnLController : ControllerBase
         decimal totalUnrealizedPnL = 0;
         decimal totalRealizedPnL = 0;
         decimal totalPortfolioValue = 0;
+        decimal totalNetCashFlow = 0;
         var portfolioPnLs = new List<object>();
 
         decimal totalInitialCapital = portfolioList.Sum(p => p.InitialCapital);
 
         foreach (var portfolio in portfolioList)
         {
+            var netCashFlow = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolio.Id);
             try
             {
                 var pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolio.Id);
@@ -100,12 +107,15 @@ public class PnLController : ControllerBase
                 totalUnrealizedPnL += pnl.TotalUnrealizedPnL;
                 totalRealizedPnL += pnl.TotalRealizedPnL;
                 totalPortfolioValue += pnl.TotalPortfolioValue;
+                totalNetCashFlow += netCashFlow;
 
                 portfolioPnLs.Add(new
                 {
                     PortfolioId = portfolio.Id,
                     PortfolioName = portfolio.Name,
                     InitialCapital = portfolio.InitialCapital,
+                    NetCashFlow = netCashFlow,
+                    CurrentCapital = portfolio.InitialCapital + netCashFlow,
                     pnl.TotalInvested,
                     TotalMarketValue = pnl.TotalPortfolioValue,
                     pnl.TotalUnrealizedPnL,
@@ -125,6 +135,8 @@ public class PnLController : ControllerBase
         {
             TotalPortfolios = portfolioList.Count,
             TotalInitialCapital = totalInitialCapital,
+            TotalNetCashFlow = totalNetCashFlow,
+            TotalCurrentCapital = totalInitialCapital + totalNetCashFlow,
             TotalInvested = totalInvested,
             TotalMarketValue = totalPortfolioValue,
             TotalUnrealizedPnL = totalUnrealizedPnL,

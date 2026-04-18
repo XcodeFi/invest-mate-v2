@@ -7,6 +7,8 @@ export interface PortfolioSummary {
   id: string;
   name: string;
   initialCapital: number;
+  netCashFlow: number;
+  currentCapital: number;
   createdAt: string;
   tradeCount: number;
   uniqueSymbols: number;
@@ -18,6 +20,8 @@ export interface PortfolioDetail {
   id: string;
   name: string;
   initialCapital: number;
+  netCashFlow: number;
+  currentCapital: number;
   createdAt: string;
   trades: TradeItem[];
 }

@@ -13,13 +13,16 @@ public class GetAllPortfoliosQueryHandler : IRequestHandler<GetAllPortfoliosQuer
 {
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly ICapitalFlowRepository _capitalFlowRepository;
 
     public GetAllPortfoliosQueryHandler(
         IPortfolioRepository portfolioRepository,
-        ITradeRepository tradeRepository)
+        ITradeRepository tradeRepository,
+        ICapitalFlowRepository capitalFlowRepository)
     {
         _portfolioRepository = portfolioRepository;
         _tradeRepository = tradeRepository;
+        _capitalFlowRepository = capitalFlowRepository;
     }
 
     public async Task<List<PortfolioSummaryDto>> Handle(GetAllPortfoliosQuery request, CancellationToken cancellationToken)
@@ -43,11 +46,15 @@ public class GetAllPortfoliosQueryHandler : IRequestHandler<GetAllPortfoliosQuer
 
             var uniqueSymbols = tradeList.Select(t => t.Symbol).Distinct().Count();
 
+            var netCashFlow = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolio.Id, cancellationToken);
+
             result.Add(new PortfolioSummaryDto
             {
                 Id = portfolio.Id,
                 Name = portfolio.Name,
                 InitialCapital = portfolio.InitialCapital,
+                NetCashFlow = netCashFlow,
+                CurrentCapital = portfolio.InitialCapital + netCashFlow,
                 CreatedAt = portfolio.CreatedAt,
                 TradeCount = tradeList.Count,
                 UniqueSymbols = uniqueSymbols,
@@ -65,6 +72,8 @@ public class PortfolioSummaryDto
     public string Id { get; set; } = null!;
     public string Name { get; set; } = null!;
     public decimal InitialCapital { get; set; }
+    public decimal NetCashFlow { get; set; }
+    public decimal CurrentCapital { get; set; }
     public DateTime CreatedAt { get; set; }
     public int TradeCount { get; set; }
     public int UniqueSymbols { get; set; }

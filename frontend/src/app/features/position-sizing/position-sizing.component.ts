@@ -38,7 +38,7 @@ interface PositionSizeResult {
             <select [(ngModel)]="selectedPortfolioId" (ngModelChange)="onPortfolioChange()"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
               <option value="">-- Chọn danh mục --</option>
-              <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.initialCapital | vndCurrency }})</option>
+              <option *ngFor="let p of portfolios" [value]="p.id">{{ p.name }} ({{ p.currentCapital | vndCurrency }})</option>
             </select>
           </div>
 
@@ -226,7 +226,7 @@ export class PositionSizingComponent implements OnInit {
   onPortfolioChange(): void {
     if (!this.selectedPortfolioId) { this.riskProfile = null; return; }
     const portfolio = this.portfolios.find(p => p.id === this.selectedPortfolioId);
-    if (portfolio) this.input.accountBalance = portfolio.initialCapital;
+    if (portfolio) this.input.accountBalance = portfolio.currentCapital;
 
     // Reset result when portfolio changes - will recalculate with new parameters
     this.result = null;

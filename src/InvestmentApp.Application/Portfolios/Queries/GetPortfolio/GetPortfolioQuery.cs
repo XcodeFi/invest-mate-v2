@@ -14,11 +14,16 @@ public class GetPortfolioQueryHandler : IRequestHandler<GetPortfolioQuery, Portf
 {
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly ICapitalFlowRepository _capitalFlowRepository;
 
-    public GetPortfolioQueryHandler(IPortfolioRepository portfolioRepository, ITradeRepository tradeRepository)
+    public GetPortfolioQueryHandler(
+        IPortfolioRepository portfolioRepository,
+        ITradeRepository tradeRepository,
+        ICapitalFlowRepository capitalFlowRepository)
     {
         _portfolioRepository = portfolioRepository;
         _tradeRepository = tradeRepository;
+        _capitalFlowRepository = capitalFlowRepository;
     }
 
     public async Task<PortfolioDto?> Handle(GetPortfolioQuery request, CancellationToken cancellationToken)
@@ -29,12 +34,15 @@ public class GetPortfolioQueryHandler : IRequestHandler<GetPortfolioQuery, Portf
             return null;
 
         var trades = await _tradeRepository.GetByPortfolioIdAsync(request.Id, cancellationToken);
+        var netCashFlow = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(request.Id, cancellationToken);
 
         return new PortfolioDto
         {
             Id = portfolio.Id,
             Name = portfolio.Name,
             InitialCapital = portfolio.InitialCapital,
+            NetCashFlow = netCashFlow,
+            CurrentCapital = portfolio.InitialCapital + netCashFlow,
             CreatedAt = portfolio.CreatedAt,
             Trades = trades.Select(t => new TradeDto
             {
@@ -56,6 +64,8 @@ public class PortfolioDto
     public string Id { get; set; } = null!;
     public string Name { get; set; } = null!;
     public decimal InitialCapital { get; set; }
+    public decimal NetCashFlow { get; set; }
+    public decimal CurrentCapital { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<TradeDto> Trades { get; set; } = new();
 }
