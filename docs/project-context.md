@@ -46,6 +46,21 @@ Transform from "trade recorder" to "opportunity finder":
 3. **P3: Bollinger Bands + ATR** — ✅ 2 indicator mới, signal scoring 6 votes
 4. **P4: Risk Budgeting** — ✅ MaxDailyTrades, DailyLossLimitPercent, budget card, form fields
 
+### P2 Trade Plan Form Editability Matrix — Done (2026-04-18)
+
+1. **P2: Editability Matrix (Strict, Option A)** — ✅ Form Trade Plan phân quyền sửa theo trạng thái:
+   - Entry Info (symbol, direction, entry, qty, strategy, portfolio, entryMode, DCA) — chỉ Draft/Ready
+   - Stop-Loss — Draft/Ready đầy đủ; InProgress chỉ được tighten (Long: newSl ≥ currentSl; Short: newSl ≤ currentSl); terminal read-only
+   - Take-Profit, Exit Targets, Scenario Playbook — chỉ Draft/Ready
+   - Risk Context (market/horizon/confidence), Checklist — Draft/Ready/InProgress; terminal read-only
+   - Reason, Notes — sửa được mọi state trừ Cancelled
+   - Campaign Review (lessons) — chỉ Reviewed
+   - State banner ở đầu form thông báo rõ state + thao tác cho phép
+   - Save buttons hiện theo state; Template panel ẩn khi non-Draft
+   - Tighten-SL gate enforce ở `validateTightenSl()` gọi trước mutation
+   - 45 frontend tests mới trong `trade-plan.component.spec.ts`
+   - Chi tiết: [`docs/plans/done/p2-trade-plan-editability.md`](plans/done/p2-trade-plan-editability.md)
+
 ### P0.7 Campaign Review — Done
 
 1. **P0.7: Campaign Review** — ✅ Đóng chiến dịch (TradePlan Executed → Reviewed) với auto-calculated P&L metrics, preview trước khi đóng, update lessons, pending-review list, cross-plan analytics page (`/campaign-analytics`), TimeHorizon enum, CampaignReviewData value object, CampaignReviewService, 33 new tests

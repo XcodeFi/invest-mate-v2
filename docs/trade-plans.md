@@ -113,6 +113,33 @@ Executed ──"Đóng chiến dịch"──► Reviewed (kèm CampaignReviewDat
 - Nút xoá **chỉ hiện cho plan Cancelled** — phải huỷ trước mới được xoá (tránh bấm nhầm)
 - Xoá dùng soft-delete (`SoftDelete()`)
 
+#### Form Editability Matrix (v2.39 — Strict Option A)
+
+Frontend áp dụng ma trận phân quyền sửa form theo state. Backend `TradePlan.Update()` đã chặn update khi Executed/Reviewed — matrix này lấp UX gap tương ứng:
+
+| Field Group | Draft | Ready | InProgress | Executed | Reviewed | Cancelled |
+|---|---|---|---|---|---|---|
+| Entry Info (symbol/direction/entry/qty/strategy/portfolio/entryMode, DCA) | ✏️ | ✏️ | 🔒 | 🔒 | 🔒 | 🔒 |
+| Stop-Loss | ✏️ | ✏️ | ⚠️ tighten-only | 🔒 | 🔒 | 🔒 |
+| Take-Profit, Exit Targets, Scenario nodes | ✏️ | ✏️ | 🔒 | 🔒 | 🔒 | 🔒 |
+| Risk Context (market/horizon/confidence) | ✏️ | ✏️ | ✏️ | 🔒 | 🔒 | 🔒 |
+| Lots | ✏️ | ✏️ | ⚠️ pending-only | 🔒 | 🔒 | 🔒 |
+| Checklist | ✏️ | ✏️ | ✏️ | 🔒 | 🔒 | 🔒 |
+| Reason, Notes | ✏️ | ✏️ | ✏️ | ✏️ | ✏️ | 🔒 |
+| Campaign Review (lessons) | — | — | — | — | ✏️ only | — |
+
+**Tighten-SL gate (InProgress):** Long `newSl ≥ currentSl`, Short `newSl ≤ currentSl`. Vi phạm → chặn save với notification. Mục đích: kỷ luật "không dời SL để tránh loss".
+
+**UI chi tiết:**
+- State banner hiển thị message + gợi ý action theo trạng thái
+- Readonly input: `bg-gray-50 text-gray-600 cursor-not-allowed`
+- Save buttons khác nhau theo state (Nháp/Ready/Cập nhật SL / View-only)
+- Template panel "Tải/Lưu template" ẩn khi editing non-Draft plan
+
+**File:** `trade-plan.component.ts` — getters `canEditEntryInfo`/`canEditStopLoss`/`canEditTakeProfit`/`canEditRiskContext`/`canEditExitTargets`/`canEditLots`/`canEditChecklist`/`canEditNotes` + `validateTightenSl()` + `stateBanner` + `readonlyClass()` helper.
+
+**Tests:** `trade-plan.component.spec.ts` — 45 tests, toàn bộ matrix + tighten-SL gate + banner + edge cases.
+
 ### 2.3 Value Objects
 
 **ChecklistItem:** Label, Category, Checked, Critical, Hint

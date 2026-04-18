@@ -2,6 +2,33 @@
 
 ---
 
+## [v2.39.0] — 2026-04-18 · Trade Plan Form Editability Matrix (Strict)
+
+**Branch:** `feat/trade-plan-state-machine-and-ux`
+
+### Frontend — Trade Plan
+- Áp dụng matrix phân quyền chỉnh sửa form theo trạng thái (Option A — strict lock):
+  - **Draft/Ready**: chỉnh sửa tự do
+  - **InProgress**: chỉ được tighten SL + sửa lot chưa khớp + cập nhật ghi chú/context
+  - **Executed/Reviewed/Cancelled**: read-only, chỉ sửa được ghi chú (trừ Cancelled)
+- State banner mới ở đầu form — thông báo rõ state hiện tại + gợi ý thao tác tiếp theo
+- Tighten-SL gate: chặn nới SL trong InProgress (Long: newSl ≥ currentSl; Short: newSl ≤ currentSl)
+- Readonly affordance: input locked đổi sang `bg-gray-50 text-gray-600 cursor-not-allowed`
+- Save buttons hiện theo state (Draft: Nháp+Ready; Ready: Cập nhật; InProgress: Cập nhật SL/lot/ghi chú; terminal: view-only)
+- Template panel ("Tải/Lưu template") ẩn khi chỉnh sửa plan non-Draft (tránh overwrite trường đã khoá)
+- Hide "Thực hiện qua Wizard" / "Thực hiện ngay" khi plan terminal
+- Wire lock cho: Entry Info, DCA inputs, Scenario nodes (all fields + add/remove/save-template buttons), Exit Targets, Risk Context, Checklist, Notes
+- Risk-override button ẩn khi plan non-Draft
+
+### Tests
+- Frontend spec: `trade-plan.component.spec.ts` — 45 tests pass, cover toàn bộ matrix + tighten-SL gate + state banner + edge cases (null `loadedCurrentSl`)
+
+### Docs
+- `docs/project-context.md`: ghi nhận quyết định matrix
+- `docs/plans/done/p2-trade-plan-editability.md`: plan chi tiết
+
+---
+
 ## [v2.38.0] — 2026-04-17 · Trade Plan State Machine + Multi-lot UX
 
 **Branch:** `feat/trade-plan-state-machine-and-ux`
