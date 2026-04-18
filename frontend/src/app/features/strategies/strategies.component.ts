@@ -75,97 +75,115 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
             class="px-3 py-1 rounded-full text-xs font-medium border transition">Nâng cao</button>
         </div>
 
-        <!-- Template Cards -->
+        <!-- Loading / Error -->
         <div *ngIf="loadingTemplates" class="text-center py-8 text-gray-500">Đang tải chiến lược mẫu...</div>
         <div *ngIf="!loadingTemplates && templateError" class="text-center py-8 text-red-500">
           Không thể tải chiến lược mẫu. <button (click)="loadTemplates()" class="underline text-blue-600 hover:text-blue-800">Thử lại</button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div *ngFor="let tpl of filteredTemplates"
-            (click)="selectTemplate(tpl)"
-            class="bg-white rounded-lg border-2 p-4 cursor-pointer hover:shadow-lg hover:border-blue-400 transition"
-            [class.border-blue-500]="selectedTemplate?.id === tpl.id"
-            [class.border-gray-200]="selectedTemplate?.id !== tpl.id">
-            <div class="flex justify-between items-start mb-2">
-              <h3 class="font-semibold text-gray-800 text-sm leading-tight flex-1">{{ tpl.name }}</h3>
-              <span class="ml-2 px-2 py-0.5 rounded text-xs font-medium shrink-0"
-                [class.bg-green-100]="tpl.difficultyLevel === 'Beginner'"
-                [class.text-green-700]="tpl.difficultyLevel === 'Beginner'"
-                [class.bg-yellow-100]="tpl.difficultyLevel === 'Intermediate'"
-                [class.text-yellow-700]="tpl.difficultyLevel === 'Intermediate'"
-                [class.bg-red-100]="tpl.difficultyLevel === 'Advanced'"
-                [class.text-red-700]="tpl.difficultyLevel === 'Advanced'">
-                {{ getDifficultyLabel(tpl.difficultyLevel) }}
-              </span>
-            </div>
-            <p class="text-xs text-gray-500 mb-2 line-clamp-2">{{ tpl.description }}</p>
-            <div class="flex flex-wrap gap-1 mb-2">
-              <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ getTimeFrameLabel(tpl.timeFrame) }}</span>
-              <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ getMarketLabel(tpl.marketCondition) }}</span>
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <span *ngFor="let indicator of tpl.keyIndicators.slice(0, 3)"
-                class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{{ indicator }}</span>
-              <span *ngIf="tpl.keyIndicators.length > 3" class="text-xs text-gray-400">+{{ tpl.keyIndicators.length - 3 }}</span>
-            </div>
-          </div>
-        </div>
 
-        <!-- Template Detail -->
-        <div *ngIf="selectedTemplate" class="mt-4 bg-white rounded-lg border border-blue-200 p-4">
-          <div class="flex justify-between items-start mb-3">
-            <h3 class="font-bold text-gray-800">{{ selectedTemplate.name }}</h3>
-            <button (click)="applyTemplate()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
-              Áp dụng chiến lược này
-            </button>
-          </div>
-          <p class="text-sm text-gray-600 mb-3">{{ selectedTemplate.description }}</p>
-          <div class="bg-blue-50 rounded p-3 mb-3">
-            <div class="text-xs font-medium text-blue-700 mb-1">Gợi ý sử dụng</div>
-            <p class="text-xs text-blue-600">{{ selectedTemplate.suggestion }}</p>
-          </div>
-          <div class="flex flex-wrap gap-1 mb-3">
-            <span class="text-xs text-gray-500 mr-1">Phù hợp:</span>
-            <span *ngFor="let who of selectedTemplate.suitableFor"
-              class="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-xs">{{ who }}</span>
-          </div>
-          @if (selectedTemplate.suggestedRrRatio || selectedTemplate.suggestedSlMethod) {
-            <div class="flex flex-wrap gap-2 mb-3">
-              @if (selectedTemplate.suggestedRrRatio) {
-                <span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-medium">R:R ≥ 1:{{ selectedTemplate.suggestedRrRatio }}</span>
-              }
-              @if (selectedTemplate.suggestedSlPercent) {
-                <span class="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">SL {{ selectedTemplate.suggestedSlPercent }}%</span>
-              }
-              @if (selectedTemplate.suggestedSlMethod && selectedTemplate.suggestedSlMethod !== 'manual') {
-                <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                  SL: {{ selectedTemplate.suggestedSlMethod === 'atr' ? 'ATR ×' + (selectedTemplate.suggestedAtrMultiplier || 2) :
-                         selectedTemplate.suggestedSlMethod === 'chandelier' ? 'Chandelier Exit' :
-                         selectedTemplate.suggestedSlMethod === 'ma_trailing' ? 'MA Trailing' :
-                         selectedTemplate.suggestedSlMethod === 'support' ? 'Hỗ trợ' : selectedTemplate.suggestedSlMethod }}
-                </span>
-              }
-              @if (selectedTemplate.suggestedSizingModel && selectedTemplate.suggestedSizingModel !== 'fixed_risk') {
-                <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-medium">
-                  Size: {{ selectedTemplate.suggestedSizingModel === 'atr_based' ? 'Theo ATR' :
-                           selectedTemplate.suggestedSizingModel === 'turtle' ? 'Turtle' :
-                           selectedTemplate.suggestedSizingModel === 'volatility_adjusted' ? 'Điều chỉnh BĐ' : selectedTemplate.suggestedSizingModel }}
-                </span>
-              }
+        <!-- Split Layout: List (left) + Detail (right) -->
+        <div *ngIf="!loadingTemplates && !templateError" class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <!-- Left: Template List -->
+          <div class="lg:col-span-2 space-y-2 lg:max-h-[640px] lg:overflow-y-auto lg:pr-2">
+            <div *ngIf="filteredTemplates.length === 0" class="text-center py-8 text-sm text-gray-400">
+              Không có mẫu phù hợp với bộ lọc.
             </div>
-          }
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <div>
-              <div class="font-medium text-green-700 mb-1">Quy tắc vào lệnh</div>
-              <div class="text-gray-600 whitespace-pre-wrap bg-green-50 rounded p-2 max-h-40 overflow-y-auto">{{ selectedTemplate.entryRules }}</div>
+            <label *ngFor="let tpl of filteredTemplates"
+              class="flex items-start gap-3 bg-white rounded-lg border-2 p-3 cursor-pointer hover:shadow-md hover:border-blue-400 transition"
+              [class.border-blue-500]="selectedTemplate?.id === tpl.id"
+              [class.bg-blue-50]="selectedTemplate?.id === tpl.id"
+              [class.border-gray-200]="selectedTemplate?.id !== tpl.id">
+              <input type="radio" name="templatePick"
+                [checked]="selectedTemplate?.id === tpl.id"
+                (change)="selectTemplate(tpl)"
+                class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer">
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start gap-2 mb-1">
+                  <h3 class="font-semibold text-gray-800 text-sm leading-tight flex-1">{{ tpl.name }}</h3>
+                  <span class="px-2 py-0.5 rounded text-xs font-medium shrink-0"
+                    [class.bg-green-100]="tpl.difficultyLevel === 'Beginner'"
+                    [class.text-green-700]="tpl.difficultyLevel === 'Beginner'"
+                    [class.bg-yellow-100]="tpl.difficultyLevel === 'Intermediate'"
+                    [class.text-yellow-700]="tpl.difficultyLevel === 'Intermediate'"
+                    [class.bg-red-100]="tpl.difficultyLevel === 'Advanced'"
+                    [class.text-red-700]="tpl.difficultyLevel === 'Advanced'">
+                    {{ getDifficultyLabel(tpl.difficultyLevel) }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-500 mb-2 line-clamp-2">{{ tpl.description }}</p>
+                <div class="flex flex-wrap gap-1">
+                  <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ getTimeFrameLabel(tpl.timeFrame) }}</span>
+                  <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ getMarketLabel(tpl.marketCondition) }}</span>
+                  <span *ngFor="let indicator of tpl.keyIndicators.slice(0, 2)"
+                    class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{{ indicator }}</span>
+                  <span *ngIf="tpl.keyIndicators.length > 2" class="text-xs text-gray-400 self-center">+{{ tpl.keyIndicators.length - 2 }}</span>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Right: Template Detail -->
+          <div class="lg:col-span-3 lg:sticky lg:top-4 lg:self-start">
+            <div *ngIf="!selectedTemplate" class="bg-white rounded-lg border-2 border-dashed border-gray-200 p-8 text-center text-gray-400">
+              <div class="text-4xl mb-2">👈</div>
+              <div class="text-sm">Chọn một chiến lược mẫu ở bên trái để xem chi tiết</div>
             </div>
-            <div>
-              <div class="font-medium text-red-700 mb-1">Quy tắc thoát lệnh</div>
-              <div class="text-gray-600 whitespace-pre-wrap bg-red-50 rounded p-2 max-h-40 overflow-y-auto">{{ selectedTemplate.exitRules }}</div>
-            </div>
-            <div>
-              <div class="font-medium text-orange-700 mb-1">Quản lý rủi ro</div>
-              <div class="text-gray-600 whitespace-pre-wrap bg-orange-50 rounded p-2 max-h-40 overflow-y-auto">{{ selectedTemplate.riskRules }}</div>
+            <div *ngIf="selectedTemplate" class="bg-white rounded-lg border border-blue-200 p-4 lg:max-h-[640px] lg:overflow-y-auto">
+              <div class="flex justify-between items-start mb-3 gap-2">
+                <h3 class="font-bold text-gray-800 flex-1">{{ selectedTemplate.name }}</h3>
+                <button (click)="applyTemplate()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shrink-0">
+                  Áp dụng
+                </button>
+              </div>
+              <p class="text-sm text-gray-600 mb-3">{{ selectedTemplate.description }}</p>
+              <div class="bg-blue-50 rounded p-3 mb-3">
+                <div class="text-xs font-medium text-blue-700 mb-1">Gợi ý sử dụng</div>
+                <p class="text-xs text-blue-600">{{ selectedTemplate.suggestion }}</p>
+              </div>
+              <div class="flex flex-wrap gap-1 mb-3">
+                <span class="text-xs text-gray-500 mr-1 self-center">Phù hợp:</span>
+                <span *ngFor="let who of selectedTemplate.suitableFor"
+                  class="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-xs">{{ who }}</span>
+              </div>
+              @if (selectedTemplate.suggestedRrRatio || selectedTemplate.suggestedSlMethod) {
+                <div class="flex flex-wrap gap-2 mb-3">
+                  @if (selectedTemplate.suggestedRrRatio) {
+                    <span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-medium">R:R ≥ 1:{{ selectedTemplate.suggestedRrRatio }}</span>
+                  }
+                  @if (selectedTemplate.suggestedSlPercent) {
+                    <span class="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">SL {{ selectedTemplate.suggestedSlPercent }}%</span>
+                  }
+                  @if (selectedTemplate.suggestedSlMethod && selectedTemplate.suggestedSlMethod !== 'manual') {
+                    <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                      SL: {{ selectedTemplate.suggestedSlMethod === 'atr' ? 'ATR ×' + (selectedTemplate.suggestedAtrMultiplier || 2) :
+                             selectedTemplate.suggestedSlMethod === 'chandelier' ? 'Chandelier Exit' :
+                             selectedTemplate.suggestedSlMethod === 'ma_trailing' ? 'MA Trailing' :
+                             selectedTemplate.suggestedSlMethod === 'support' ? 'Hỗ trợ' : selectedTemplate.suggestedSlMethod }}
+                    </span>
+                  }
+                  @if (selectedTemplate.suggestedSizingModel && selectedTemplate.suggestedSizingModel !== 'fixed_risk') {
+                    <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-medium">
+                      Size: {{ selectedTemplate.suggestedSizingModel === 'atr_based' ? 'Theo ATR' :
+                               selectedTemplate.suggestedSizingModel === 'turtle' ? 'Turtle' :
+                               selectedTemplate.suggestedSizingModel === 'volatility_adjusted' ? 'Điều chỉnh BĐ' : selectedTemplate.suggestedSizingModel }}
+                    </span>
+                  }
+                </div>
+              }
+              <div class="space-y-3 text-xs">
+                <div>
+                  <div class="font-medium text-green-700 mb-1">Quy tắc vào lệnh</div>
+                  <div class="text-gray-600 whitespace-pre-wrap bg-green-50 rounded p-2">{{ selectedTemplate.entryRules }}</div>
+                </div>
+                <div>
+                  <div class="font-medium text-red-700 mb-1">Quy tắc thoát lệnh</div>
+                  <div class="text-gray-600 whitespace-pre-wrap bg-red-50 rounded p-2">{{ selectedTemplate.exitRules }}</div>
+                </div>
+                <div>
+                  <div class="font-medium text-orange-700 mb-1">Quản lý rủi ro</div>
+                  <div class="text-gray-600 whitespace-pre-wrap bg-orange-50 rounded p-2">{{ selectedTemplate.riskRules }}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
