@@ -1,10 +1,20 @@
 # P3 — Fix TWR / MWR / CAGR calculations
 
-**Status:** Planned, not started
+**Status:** Done — 2026-04-19. See CHANGELOG v2.44.0.
 **Discovered:** 2026-04-19 during PR #70 review (Capital hero cards)
-**Related:** [`p2-capital-current-vs-initial.md`](done/p2-capital-current-vs-initial.md) — seed flow exclusion was introduced but reveals these deeper bugs
+**Related:** [`p2-capital-current-vs-initial.md`](p2-capital-current-vs-initial.md) — seed flow exclusion was introduced but revealed these deeper bugs
+
+## Outcome
+
+- **TWR** (`CashFlowAdjustedReturnService.CalculateTWRAsync`): added `MinSnapshotValue=1000đ` threshold guard + `MaxAbsPeriodReturn=5.0` (500%) cap so bad snapshots / outlier periods are skipped, not propagated through the product chain. Warning log emitted when skipped. (Phase 3.1)
+- **MWR** (`CalculateMWRAsync` + `GetAdjustedReturnSummaryAsync`): `currentValue` now uses gross `Σ(BUY qty·price+fee+tax) − Σ(SELL qty·price−fee−tax)` from `ITradeRepository` (matches `/capital-flows` hero math) — not `pnl.TotalInvested` (open-position cost basis, diverges after closing positions). Newton-Raphson got a divergence guard (rate ∈ [−0.999, 100]) + warning log. (Phase 3.2)
+- **FE CAGR** (`dashboard.component.ts: calculateCagrFromCurve`): annualizes backend TWR (`(1+TWR)^(1/years)−1`) instead of `V_last/V_first^(1/years)`. Flow-adjusted — no more fake CAGR on deposits/withdrawals. Fallback to endpoint ratio only if TWR unavailable. Re-computes whenever either `adjustedReturn` or curve data arrives. (Phase 3.3)
+- **Backend CAGR fallback** (`PerformanceMetricsService.CalculateCAGRAsync`, hit via `loadBackendCagr`): initial outcome was "not needed" — wrong. On review, the snapshot path was still `(V_last/V_first)^(1/years) − 1` (same flow-agnostic bug as FE), and the trade-path fallback used `pnl.TotalInvested` (open-position cost, same bug as MWR). Both fixed: snapshot path delegates to `ICashFlowAdjustedReturnService.CalculateTWRAsync` then annualizes; trade path uses gross `Σ(BUY …) − Σ(SELL …) + InitialCapital + netFlow`. `GetFullPerformanceSummaryAsync.totalReturn` (same controller) also shared the bug — now returns TWR directly. (Phase 3.4, completed)
+- **Tests**: 8 xUnit in `CashFlowAdjustedReturnServiceTests` + 7 in `PerformanceMetricsServiceCagrTests`. All 904 backend tests pass.
 
 ---
+
+## Original plan (preserved for reference)
 
 ## 1. Problem
 

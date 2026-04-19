@@ -45,6 +45,7 @@ Transform from "trade recorder" to "opportunity finder":
 2. **P2: Stress Test Dynamic Beta** — ✅ Dynamic beta từ API, thay hardcoded estimatedBetas
 3. **P3: Bollinger Bands + ATR** — ✅ 2 indicator mới, signal scoring 6 votes
 4. **P4: Risk Budgeting** — ✅ MaxDailyTrades, DailyLossLimitPercent, budget card, form fields
+5. **P3: TWR / MWR / CAGR fix (2026-04-19)** — ✅ TWR guards against near-zero snapshots + outlier periods; MWR uses gross trade totals for cash balance + divergence guard; FE CAGR annualizes backend TWR instead of raw endpoint ratio. Chi tiết: [`docs/plans/done/p3-twr-mwr-cagr-fix.md`](plans/done/p3-twr-mwr-cagr-fix.md)
 
 ### P2 Trade Plan Form Editability Matrix — Done (2026-04-18)
 

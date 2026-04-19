@@ -2,6 +2,33 @@
 
 ---
 
+## [v2.44.0] — 2026-04-19 · Fix TWR / MWR / CAGR (P3)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Bug fixes — math
+- **Backend `CashFlowAdjustedReturnService.CalculateTWRAsync`**: period return `(V_i − V_{i-1} − C_i) / V_{i-1}` blew up (observed +8.9M%) when a snapshot had near-zero `TotalValue` or a single period had extreme return. Added `MinSnapshotValue = 1000đ` guard (skip period) and `MaxAbsPeriodReturn = 5.0` cap (skip >500% single-period outlier). One bad snapshot no longer corrupts the product chain.
+- **Backend `CashFlowAdjustedReturnService.CalculateMWRAsync` + `GetAdjustedReturnSummaryAsync`**: `currentValue` used `cashBalance = InitialCapital + flows − pnl.TotalInvested`. But `pnl.TotalInvested` is cost basis of **currently open positions** — diverges from gross historical buys after any position is closed (same bug fixed in v2.43.0 for the capital-flows page). Now uses gross `Σ(BUY qty×price+fee+tax) − Σ(SELL qty×price−fee−tax)` from `ITradeRepository`, matching the `/capital-flows` hero math.
+- **Backend MWR Newton-Raphson**: added divergence guard (rate ∈ [−0.999, 100]) + warning log when it fails to converge; returns 0 instead of garbage.
+- **Backend `PerformanceMetricsService.CalculateCAGRAsync`** (analytics endpoint `/analytics/portfolio/{id}/performance` — used as FE fallback): snapshot path was `(V_last/V_first)^(1/years) − 1`, same flow-agnostic bug as the FE CAGR. Now delegates to `ICashFlowAdjustedReturnService.CalculateTWRAsync` then annualizes `(1 + TWR)^(1/years) − 1`. Trade-path fallback (when no snapshots exist) was using `pnl.TotalInvested` (open-position cost) — now uses gross `Σ(BUY …) − Σ(SELL …)` + `InitialCapital + netFlow` formula, consistent with MWR.
+- **Backend `PerformanceMetricsService.GetFullPerformanceSummaryAsync.totalReturn`**: same raw-endpoint bug on the period-total return. Now returns flow-adjusted TWR directly (falls back to gross PnL % only when no snapshots).
+- **Frontend `dashboard.component.ts: calculateCagrFromCurve`**: was `(V_last / V_first)^(1/years) − 1` — ignores flows between first and last snapshot. A net-deposit would show fake huge CAGR; a net-withdraw (the observed case) produced **CAGR −21.5%** on a portfolio that's actually +4.09%. Now annualizes backend TWR (flow-adjusted) → `(1 + TWR)^(1/years) − 1`. Falls back to endpoint ratio only if TWR unavailable.
+
+### Backend
+- `CashFlowAdjustedReturnService` ctor now takes `ITradeRepository` + `ILogger<>`.
+- `PerformanceMetricsService` ctor now takes `ICashFlowAdjustedReturnService` (no circular dep; adjusted-return service does not depend on metrics).
+
+### Tests
+- `CashFlowAdjustedReturnServiceTests` (new) — 8 tests: no-portfolio, <2-snapshot, normal TWR, TWR with flow, near-zero snapshot doesn't blow up, outlier period skipped, MWR flat-portfolio ≈0, MWR uses gross trade values for cash balance (closed-position regression case).
+- `PerformanceMetricsServiceCagrTests` (new) — 7 tests: CAGR uses annualized TWR (not raw endpoints), negative TWR annualizes, short window returns 0, TWR<-100% doesn't crash, no-snapshot trade fallback uses gross totals (closed-position regression), no-snapshot-no-trade returns 0, full-summary `TotalReturn` = TWR.
+- All 904 backend tests pass.
+
+### Docs
+- `docs/plans/p3-twr-mwr-cagr-fix.md` → moved to `done/` with status update
+- `CHANGELOG.md` v2.44.0
+
+---
+
 ## [v2.43.0] — 2026-04-19 · Capital-flows — Hero cards (aggregate + per-portfolio)
 
 **Branch:** `feat/capital-current-vs-initial`
