@@ -55,24 +55,24 @@ interface CapitalView {
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-              <span class="text-gray-700">Giá trị thị trường</span>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                <span class="text-gray-700 truncate">Giá trị thị trường</span>
+              </div>
+              <span class="text-sm font-bold text-blue-700 tabular-nums shrink-0">{{ overallView.marketBarWidth.toFixed(1) }}%</span>
             </div>
-            <div class="font-semibold text-gray-900 mt-0.5">
-              {{ overallView.marketValue | vndCurrency }}
-              <span class="text-xs text-gray-500 font-normal">({{ overallView.marketBarWidth.toFixed(1) }}%)</span>
-            </div>
+            <div class="font-semibold text-gray-900 mt-0.5">{{ overallView.marketValue | vndCurrency }}</div>
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-              <span class="text-gray-700">Tiền mặt khả dụng</span>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                <span class="text-gray-700 truncate">Tiền mặt khả dụng</span>
+              </div>
+              <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ overallView.cashBarWidth.toFixed(1) }}%</span>
             </div>
-            <div class="font-semibold mt-0.5" [ngClass]="overallView.cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">
-              {{ overallView.cashBalance | vndCurrency }}
-              <span class="text-xs text-gray-500 font-normal">({{ overallView.cashBarWidth.toFixed(1) }}%)</span>
-            </div>
+            <div class="font-semibold mt-0.5" [ngClass]="overallView.cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ overallView.cashBalance | vndCurrency }}</div>
           </div>
         </div>
 
@@ -202,24 +202,24 @@ interface CapitalView {
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-              <span class="text-gray-600">Giá trị thị trường</span>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                <span class="text-gray-600 truncate">Giá trị thị trường</span>
+              </div>
+              <span class="text-sm font-bold text-blue-700 tabular-nums shrink-0">{{ marketBarWidth.toFixed(1) }}%</span>
             </div>
-            <div class="font-semibold text-gray-900 mt-0.5">
-              {{ marketValue | vndCurrency }}
-              <span class="text-xs text-gray-500 font-normal">({{ marketBarWidth.toFixed(1) }}%)</span>
-            </div>
+            <div class="font-semibold text-gray-900 mt-0.5">{{ marketValue | vndCurrency }}</div>
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-              <span class="text-gray-600">Tiền mặt khả dụng</span>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                <span class="text-gray-600 truncate">Tiền mặt khả dụng</span>
+              </div>
+              <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ cashBarWidth.toFixed(1) }}%</span>
             </div>
-            <div class="font-semibold mt-0.5" [ngClass]="cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">
-              {{ cashBalance | vndCurrency }}
-              <span class="text-xs text-gray-500 font-normal">({{ cashBarWidth.toFixed(1) }}%)</span>
-            </div>
+            <div class="font-semibold mt-0.5" [ngClass]="cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ cashBalance | vndCurrency }}</div>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
+import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { RiskService, PortfolioRiskSummary, PositionRiskItem, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
 import { MarketDataService, MarketOverview, BatchPrice } from '../../core/services/market-data.service';
@@ -296,26 +297,22 @@ interface RiskAlert {
 
         <!-- Row 1: Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <!-- Tổng Giá trị -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <!-- Tổng tài sản (cash + market) — primary metric, matches /capital-flows -->
+          <div class="bg-gradient-to-br from-emerald-50 to-white rounded-xl shadow-sm border border-emerald-100 p-6">
             <div class="flex items-center justify-between mb-2">
-              <p class="text-sm font-medium text-gray-500">Tổng Giá trị</p>
+              <p class="text-sm font-medium text-emerald-800">Tổng tài sản</p>
               <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
                 <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                 </svg>
               </div>
             </div>
-            <p class="text-2xl font-bold text-gray-900">{{ pnlSummary.totalPortfolioValue | vndCurrency }}</p>
-            <div class="mt-2 flex items-center text-sm" *ngIf="pnlSummary.totalInvested > 0">
-              <span
-                class="font-medium"
-                [class.text-emerald-600]="totalChangePercent >= 0"
-                [class.text-red-600]="totalChangePercent < 0"
-              >
-                {{ totalChangePercent >= 0 ? '+' : '' }}{{ totalChangePercent.toFixed(2) }}%
+            <p class="text-2xl font-bold text-gray-900">{{ totalAssets | vndCurrency }}</p>
+            <div class="mt-2 flex items-center text-sm" *ngIf="totalCurrentCapital > 0">
+              <span class="font-medium" [class.text-emerald-600]="totalReturn >= 0" [class.text-red-600]="totalReturn < 0">
+                {{ totalReturn >= 0 ? '+' : '' }}{{ totalReturnPercent.toFixed(2) }}%
               </span>
-              <span class="text-gray-400 ml-1">so với vốn</span>
+              <span class="text-gray-400 ml-1">so với vốn hiện tại</span>
             </div>
           </div>
 
@@ -337,19 +334,22 @@ interface RiskAlert {
             </div>
           </div>
 
-          <!-- Đã Đầu tư -->
+          <!-- Giá trị thị trường (current market value of open positions) -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-2">
-              <p class="text-sm font-medium text-gray-500">Đã Đầu tư</p>
+              <p class="text-sm font-medium text-gray-500">Giá trị thị trường</p>
               <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                 <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
                 </svg>
               </div>
             </div>
-            <p class="text-2xl font-bold text-gray-900">{{ pnlSummary.totalInvested | vndCurrency }}</p>
-            <div class="mt-2 text-sm text-gray-400">
-              {{ portfolios.length }} danh mục
+            <p class="text-2xl font-bold text-gray-900">{{ marketValue | vndCurrency }}</p>
+            <div class="mt-2 flex items-center text-sm" *ngIf="pnlSummary.totalInvested > 0">
+              <span class="font-medium" [class.text-emerald-600]="totalChangePercent >= 0" [class.text-red-600]="totalChangePercent < 0">
+                {{ totalChangePercent >= 0 ? '+' : '' }}{{ totalChangePercent.toFixed(2) }}%
+              </span>
+              <span class="text-gray-400 ml-1">so với giá vốn</span>
             </div>
           </div>
 
@@ -805,6 +805,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly emptyContext = {};
   currentUser: User | null = null;
   summary: OverallPnLSummary | null = null;
+  portfolioSummaries: PortfolioSummary[] = [];
   isLoading = true;
   riskAlerts: RiskAlert[] = [];
   bannerDismissed = false;
@@ -905,7 +906,43 @@ export class DashboardComponent implements OnInit, OnDestroy {
   advisories: ScenarioAdvisoryDto[] = [];
 
   // ─── Capital Flow Visibility ──────────────────────────────────────────
-  cashBalance = 0;
+  // cashBalance / totalAssets derived via getters from portfolioSummaries + summary.
+  // Using PortfolioSummary.totalInvested/totalSold (gross with fees) rather than
+  // OverallPnLSummary.totalInvested (which is PnLService open-position cost without
+  // fees) — otherwise dashboard diverges from /capital-flows by the total fees paid.
+
+  get totalGrossInvested(): number {
+    return this.portfolioSummaries.reduce((s, p) => s + p.totalInvested, 0);
+  }
+
+  get totalGrossSold(): number {
+    return this.portfolioSummaries.reduce((s, p) => s + p.totalSold, 0);
+  }
+
+  get cashBalance(): number {
+    const cap = this.summary?.totalCurrentCapital || 0;
+    return cap - this.totalGrossInvested + this.totalGrossSold;
+  }
+
+  get marketValue(): number {
+    return this.summary?.totalMarketValue || 0;
+  }
+
+  get totalAssets(): number {
+    return this.cashBalance + this.marketValue;
+  }
+
+  get totalCurrentCapital(): number {
+    return this.summary?.totalCurrentCapital || 0;
+  }
+
+  get totalReturn(): number {
+    return this.totalAssets - this.totalCurrentCapital;
+  }
+
+  get totalReturnPercent(): number {
+    return this.totalCurrentCapital > 0 ? (this.totalReturn / this.totalCurrentCapital) * 100 : 0;
+  }
   adjustedReturn: AdjustedReturn | null = null;
   capitalFlowNudge: { show: boolean; message: string } = { show: false, message: '' };
   flowHistory: CapitalFlowItem[] = [];
@@ -923,6 +960,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private capitalFlowService: CapitalFlowService,
     private journalEntryService: JournalEntryService,
     private tradePlanService: TradePlanService,
+    private portfolioService: PortfolioService,
     private router: Router
   ) {}
 
@@ -1014,9 +1052,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Load TWR/MWR
     this.capitalFlowService.getTimeWeightedReturn(portfolioId).pipe(catchError(() => of(null))).subscribe(data => {
       this.adjustedReturn = data;
-      if (data) {
-        this.cashBalance = (firstPortfolio.currentCapital || 0) - this.pnlSummary.totalInvested;
-      }
     });
 
     // Load flow history for chart markers + smart nudge
@@ -1100,6 +1135,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private loadDashboardData(): void {
     this.isLoading = true;
+    // Fetch gross totalInvested/totalSold (with fees) from PortfolioService so
+    // cashBalance matches /capital-flows. OverallPnLSummary.totalInvested omits
+    // fees (PnLService bug) so can't be used as-is.
+    this.portfolioService.getAll().pipe(catchError(() => of([] as PortfolioSummary[]))).subscribe(ps => {
+      this.portfolioSummaries = ps;
+    });
     this.pnlService.getSummary().subscribe({
       next: (data) => {
         this.summary = data;
