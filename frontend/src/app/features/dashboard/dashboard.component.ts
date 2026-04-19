@@ -295,120 +295,95 @@ interface RiskAlert {
             class="ml-auto text-xs text-gray-400 italic">Chưa có dữ liệu equity curve</div>
         </div>
 
-        <!-- Row 1: Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <!-- Tổng tài sản (cash + market) — primary metric, matches /capital-flows -->
-          <div class="bg-gradient-to-br from-emerald-50 to-white rounded-xl shadow-sm border border-emerald-100 p-6">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-sm font-medium text-emerald-800">Tổng tài sản</p>
-              <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                </svg>
-              </div>
+        <!-- Hero: Tổng quan tài sản (matches /capital-flows layout) -->
+        <div *ngIf="summary" class="bg-gradient-to-br from-emerald-50 via-white to-blue-50 rounded-xl shadow-sm border border-emerald-100 p-6 mb-8">
+          <!-- Header + CAGR + TWR chips -->
+          <div class="flex items-start justify-between flex-wrap gap-2 mb-2">
+            <div>
+              <h2 class="text-sm font-semibold text-emerald-900">Tổng tài sản</h2>
+              <span class="text-xs text-gray-600">So với vốn hiện tại {{ totalCurrentCapital | vndCurrency }}</span>
             </div>
-            <p class="text-2xl font-bold text-gray-900">{{ totalAssets | vndCurrency }}</p>
-            <div class="mt-2 flex items-center text-sm" *ngIf="totalCurrentCapital > 0">
-              <span class="font-medium" [class.text-emerald-600]="totalReturn >= 0" [class.text-red-600]="totalReturn < 0">
-                {{ totalReturn >= 0 ? '+' : '' }}{{ totalReturnPercent.toFixed(2) }}%
+            <div class="flex items-center gap-2 flex-wrap">
+              <span *ngIf="cagrValue !== 0"
+                class="px-2.5 py-1 rounded-full text-xs font-semibold"
+                [class.bg-violet-100]="cagrValue >= 0" [class.text-violet-700]="cagrValue >= 0"
+                [class.bg-red-100]="cagrValue < 0" [class.text-red-700]="cagrValue < 0">
+                CAGR {{ cagrValue > 0 ? '+' : '' }}{{ cagrValue.toFixed(1) }}%
               </span>
-              <span class="text-gray-400 ml-1">so với vốn hiện tại</span>
-            </div>
-          </div>
-
-          <!-- Tiền mặt khả dụng -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-sm font-medium text-gray-500">Tiền mặt khả dụng</p>
-              <div class="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-              </div>
-            </div>
-            <p class="text-2xl font-bold" [class.text-cyan-700]="cashBalance >= 0" [class.text-red-600]="cashBalance < 0">
-              {{ cashBalance | vndCurrency }}
-            </p>
-            <div class="mt-2 text-sm">
-              <a routerLink="/capital-flows" class="text-cyan-600 hover:text-cyan-800 font-medium">Quản lý dòng vốn →</a>
-            </div>
-          </div>
-
-          <!-- Giá trị thị trường (current market value of open positions) -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-sm font-medium text-gray-500">Giá trị thị trường</p>
-              <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                </svg>
-              </div>
-            </div>
-            <p class="text-2xl font-bold text-gray-900">{{ marketValue | vndCurrency }}</p>
-            <div class="mt-2 flex items-center text-sm" *ngIf="pnlSummary.totalInvested > 0">
-              <span class="font-medium" [class.text-emerald-600]="totalChangePercent >= 0" [class.text-red-600]="totalChangePercent < 0">
-                {{ totalChangePercent >= 0 ? '+' : '' }}{{ totalChangePercent.toFixed(2) }}%
+              <span *ngIf="adjustedReturn"
+                class="px-2.5 py-1 rounded-full text-xs font-semibold"
+                [class.bg-blue-100]="adjustedReturn.timeWeightedReturn >= 0" [class.text-blue-700]="adjustedReturn.timeWeightedReturn >= 0"
+                [class.bg-red-100]="adjustedReturn.timeWeightedReturn < 0" [class.text-red-700]="adjustedReturn.timeWeightedReturn < 0"
+                title="Time-Weighted Return — loại bỏ ảnh hưởng của dòng vốn vào/ra">
+                TWR {{ adjustedReturn.timeWeightedReturn >= 0 ? '+' : '' }}{{ adjustedReturn.timeWeightedReturn.toFixed(2) }}%
               </span>
-              <span class="text-gray-400 ml-1">so với giá vốn</span>
+              <a routerLink="/capital-flows" class="text-xs font-medium text-blue-600 hover:text-blue-700">
+                Quản lý dòng vốn →
+              </a>
             </div>
           </div>
 
-          <!-- Tổng Lãi/Lỗ -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-sm font-medium text-gray-500">Tổng Lãi/Lỗ</p>
-              <div
-                class="w-8 h-8 rounded-lg flex items-center justify-center"
-                [class.bg-emerald-100]="totalPnL >= 0"
-                [class.bg-red-100]="totalPnL < 0"
-              >
-                <svg
-                  class="w-5 h-5"
-                  [class.text-emerald-600]="totalPnL >= 0"
-                  [class.text-red-600]="totalPnL < 0"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path *ngIf="totalPnL >= 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                  <path *ngIf="totalPnL < 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-                </svg>
+          <!-- Total assets + return -->
+          <div class="flex items-baseline gap-3 mb-4 flex-wrap">
+            <span class="text-3xl font-bold text-gray-900">{{ totalAssets | vndCurrency }}</span>
+            <span *ngIf="totalCurrentCapital > 0" class="text-sm font-semibold"
+              [class.text-emerald-600]="totalReturn >= 0" [class.text-red-600]="totalReturn < 0">
+              {{ totalReturn >= 0 ? '↗ +' : '↘ −' }}{{ (totalReturn >= 0 ? totalReturn : -totalReturn) | vndCurrency }}
+              ({{ totalReturn >= 0 ? '+' : '−' }}{{ (totalReturnPercent >= 0 ? totalReturnPercent : -totalReturnPercent).toFixed(2) }}%)
+            </span>
+          </div>
+
+          <!-- Allocation bar -->
+          <div class="flex h-3 rounded-full overflow-hidden bg-white mb-3">
+            <div class="bg-blue-500 transition-all" [style.width.%]="marketBarWidth"></div>
+            <div class="bg-cyan-400 transition-all" [style.width.%]="cashBarWidth"></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
+            <div>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                  <span class="text-gray-700 truncate">Giá trị thị trường</span>
+                </div>
+                <span class="text-sm font-bold text-blue-700 tabular-nums shrink-0">{{ marketBarWidth.toFixed(1) }}%</span>
               </div>
+              <div class="font-semibold text-gray-900 mt-0.5">{{ marketValue | vndCurrency }}</div>
             </div>
-            <p
-              class="text-2xl font-bold"
-              [class.text-emerald-600]="totalPnL >= 0"
-              [class.text-red-600]="totalPnL < 0"
-            >
-              {{ totalPnL | vndCurrency }}
-            </p>
-            <div class="mt-2 text-sm text-gray-400">
-              Thực hiện: {{ pnlSummary.totalRealizedPnL | vndCurrency }}
-            </div>
-            <div *ngIf="adjustedReturn" class="mt-1 text-xs">
-              <span class="text-gray-400">TWR: </span>
-              <span class="font-medium" [class.text-emerald-600]="adjustedReturn.timeWeightedReturn >= 0" [class.text-red-500]="adjustedReturn.timeWeightedReturn < 0">
-                {{ adjustedReturn.timeWeightedReturn >= 0 ? '+' : '' }}{{ adjustedReturn.timeWeightedReturn.toFixed(2) }}%
-              </span>
+            <div>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                  <span class="text-gray-700 truncate">Tiền mặt khả dụng</span>
+                </div>
+                <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ cashBarWidth.toFixed(1) }}%</span>
+              </div>
+              <div class="font-semibold mt-0.5" [ngClass]="cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ cashBalance | vndCurrency }}</div>
             </div>
           </div>
 
-          <!-- CAGR -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-sm font-medium text-gray-500">CAGR</p>
-              <div class="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
+          <!-- Breakdown -->
+          <div class="pt-4 border-t border-emerald-200/60 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div>
+              <div class="text-gray-600">Vốn ban đầu</div>
+              <div class="font-medium text-gray-800 mt-0.5">{{ initialCapitalTotal | vndCurrency }}</div>
+            </div>
+            <div>
+              <div class="text-gray-600">Dòng vốn ròng</div>
+              <div class="font-medium mt-0.5" [ngClass]="netCashFlowTotal >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ netCashFlowTotal >= 0 ? '+' : '' }}{{ netCashFlowTotal | vndCurrency }}
               </div>
             </div>
-            <p class="text-2xl font-bold"
-              [class.text-emerald-600]="cagrValue > 0"
-              [class.text-red-600]="cagrValue < 0"
-              [class.text-gray-900]="cagrValue === 0">
-              {{ cagrValue !== 0 ? (cagrValue > 0 ? '+' : '') + cagrValue.toFixed(1) + '%' : '--' }}
-            </p>
-            <div class="mt-2 text-sm text-gray-400">
-              {{ cagrValue !== 0 ? 'Lãi kép hàng năm' : 'Chưa đủ dữ liệu' }}
+            <div>
+              <div class="text-gray-600">Lãi/lỗ chưa TH</div>
+              <div class="font-medium mt-0.5" [ngClass]="unrealizedPnLTotal >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ unrealizedPnLTotal >= 0 ? '+' : '' }}{{ unrealizedPnLTotal | vndCurrency }}
+              </div>
+            </div>
+            <div>
+              <div class="text-gray-600">Lãi/lỗ đã TH</div>
+              <div class="font-medium mt-0.5" [ngClass]="realizedPnLTotal >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ realizedPnLTotal >= 0 ? '+' : '' }}{{ realizedPnLTotal | vndCurrency }}
+              </div>
             </div>
           </div>
         </div>
@@ -942,6 +917,35 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   get totalReturnPercent(): number {
     return this.totalCurrentCapital > 0 ? (this.totalReturn / this.totalCurrentCapital) * 100 : 0;
+  }
+
+  get marketAllocationPercent(): number {
+    return this.totalAssets > 0 ? (this.marketValue / this.totalAssets) * 100 : 0;
+  }
+
+  // Clamped widths for allocation bar — avoid overflow when cashBalance < 0.
+  get marketBarWidth(): number {
+    return Math.max(0, Math.min(100, this.marketAllocationPercent));
+  }
+
+  get cashBarWidth(): number {
+    return 100 - this.marketBarWidth;
+  }
+
+  get initialCapitalTotal(): number {
+    return this.summary?.totalInitialCapital || 0;
+  }
+
+  get netCashFlowTotal(): number {
+    return this.summary?.totalNetCashFlow || 0;
+  }
+
+  get unrealizedPnLTotal(): number {
+    return this.summary?.totalUnrealizedPnL || 0;
+  }
+
+  get realizedPnLTotal(): number {
+    return this.summary?.totalRealizedPnL || 0;
   }
   adjustedReturn: AdjustedReturn | null = null;
   capitalFlowNudge: { show: boolean; message: string } = { show: false, message: '' };
