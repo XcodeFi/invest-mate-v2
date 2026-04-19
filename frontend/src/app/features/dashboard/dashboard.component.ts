@@ -1056,6 +1056,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Load TWR/MWR
     this.capitalFlowService.getTimeWeightedReturn(portfolioId).pipe(catchError(() => of(null))).subscribe(data => {
       this.adjustedReturn = data;
+      // TWR is flow-adjusted — prefer it over raw endpoint ratio for CAGR.
+      if (this.equityCurveData) this.calculateCagrFromCurve(this.equityCurveData);
     });
 
     // Load flow history for chart markers + smart nudge
@@ -1337,25 +1339,43 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Derive CAGR by annualizing TWR (flow-adjusted) over the curve's span.
+  // Raw endpoint ratio is wrong when flows exist: a portfolio that net-added
+  // 150M and ended up 50% higher shows a huge fake CAGR; one that net-withdrew
+  // shows a fake loss. TWR already nets out flows — annualize once.
   private calculateCagrFromCurve(data: EquityCurveData): void {
     if (!data.points.length) return;
     const first = data.points[0];
     const last = data.points[data.points.length - 1];
-    if (!first.portfolioValue || first.portfolioValue <= 0) return;
-    if (!last.portfolioValue || last.portfolioValue <= 0) return;
 
     const startDate = new Date(first.date);
     const endDate = new Date(last.date);
     const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
     const years = diffDays / 365.25;
 
-    if (years >= 0.08) { // ~30 days minimum for meaningful CAGR
-      const totalReturn = last.portfolioValue / first.portfolioValue;
-      const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
-      if (isFinite(cagr)) {
-        this.cagrValue = Math.max(-99.99, Math.min(9999.99, cagr));
-        this.calculateProjections();
+    if (years < 0.08) return; // ~30 days minimum for meaningful CAGR
+
+    if (this.adjustedReturn && isFinite(this.adjustedReturn.timeWeightedReturn)) {
+      const twrFraction = this.adjustedReturn.timeWeightedReturn / 100;
+      if (twrFraction > -1) {
+        const cagr = (Math.pow(1 + twrFraction, 1 / years) - 1) * 100;
+        if (isFinite(cagr)) {
+          this.cagrValue = Math.max(-99.99, Math.min(9999.99, cagr));
+          this.calculateProjections();
+          return;
+        }
       }
+    }
+
+    // TWR unavailable — fallback to endpoint ratio. Accurate only if there
+    // were no flows between first and last point.
+    if (!first.portfolioValue || first.portfolioValue <= 0) return;
+    if (!last.portfolioValue || last.portfolioValue <= 0) return;
+    const totalReturn = last.portfolioValue / first.portfolioValue;
+    const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
+    if (isFinite(cagr)) {
+      this.cagrValue = Math.max(-99.99, Math.min(9999.99, cagr));
+      this.calculateProjections();
     }
   }
 

@@ -11,10 +11,22 @@ namespace InvestmentApp.Infrastructure.Services;
 /// </summary>
 public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
 {
+    // Below this prev-value threshold the period return formula
+    // (V_i - V_{i-1} - C_i) / V_{i-1} becomes unstable: a bad/near-zero
+    // snapshot would produce astronomical period returns and corrupt the
+    // product chain. Skip such periods.
+    private const decimal MinSnapshotValue = 1000m;
+
+    // Extreme single-period returns (>500% or <-95%) are almost always a
+    // data issue (snapshot glitch, missed flow attribution), not a real
+    // one-day move. Skip so one outlier doesn't wreck the whole TWR.
+    private const decimal MaxAbsPeriodReturn = 5m;
+
     private readonly ICapitalFlowRepository _capitalFlowRepository;
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly IPortfolioSnapshotRepository _snapshotRepository;
     private readonly IPnLService _pnlService;
+    private readonly ITradeRepository _tradeRepository;
     private readonly ILogger<CashFlowAdjustedReturnService> _logger;
 
     public CashFlowAdjustedReturnService(
@@ -22,12 +34,14 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
         IPortfolioRepository portfolioRepository,
         IPortfolioSnapshotRepository snapshotRepository,
         IPnLService pnlService,
+        ITradeRepository tradeRepository,
         ILogger<CashFlowAdjustedReturnService> logger)
     {
         _capitalFlowRepository = capitalFlowRepository;
         _portfolioRepository = portfolioRepository;
         _snapshotRepository = snapshotRepository;
         _pnlService = pnlService;
+        _tradeRepository = tradeRepository;
         _logger = logger;
     }
 
@@ -59,16 +73,30 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
             var prevValue = snapshots[i - 1].TotalValue;
             var currentValue = snapshots[i].TotalValue;
 
+            if (prevValue < MinSnapshotValue)
+            {
+                _logger.LogWarning(
+                    "Skipping TWR period for portfolio {PortfolioId}: prevValue={PrevValue} below threshold {Threshold}",
+                    portfolioId, prevValue, MinSnapshotValue);
+                continue;
+            }
+
             // Sum cash flows between two snapshot dates
             var periodFlows = flows
                 .Where(f => f.FlowDate > snapshots[i - 1].SnapshotDate && f.FlowDate <= snapshots[i].SnapshotDate)
                 .Sum(f => f.SignedAmount);
 
-            if (prevValue != 0)
+            var periodReturn = (currentValue - prevValue - periodFlows) / prevValue;
+
+            if (Math.Abs(periodReturn) > MaxAbsPeriodReturn)
             {
-                var periodReturn = (currentValue - prevValue - periodFlows) / prevValue;
-                twr *= (1 + periodReturn);
+                _logger.LogWarning(
+                    "Skipping TWR period for portfolio {PortfolioId}: |periodReturn|={PeriodReturn} exceeds cap {Cap}",
+                    portfolioId, periodReturn, MaxAbsPeriodReturn);
+                continue;
             }
+
+            twr *= (1 + periodReturn);
         }
 
         return Math.Round((twr - 1) * 100, 4); // Return as percentage
@@ -89,19 +117,7 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
             .Where(f => !f.IsSeedDeposit)
             .OrderBy(f => f.FlowDate).ToList();
 
-        // Get current portfolio value
-        decimal currentValue;
-        try
-        {
-            var pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
-            var totalFlows = flows.Sum(f => f.SignedAmount);
-            var cashBalance = portfolio.InitialCapital + totalFlows - pnl.TotalInvested;
-            currentValue = pnl.TotalPortfolioValue + cashBalance;
-        }
-        catch
-        {
-            currentValue = portfolio.InitialCapital + flows.Sum(f => f.SignedAmount);
-        }
+        var currentValue = await ComputeCurrentValueAsync(portfolio, flows, cancellationToken);
 
         // Build cash flow timeline
         var startDate = portfolio.CreatedAt.Date;
@@ -114,6 +130,7 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
         decimal rate = 0.1m; // Initial guess: 10%
         const int maxIterations = 100;
         const decimal tolerance = 0.0001m;
+        bool converged = false;
 
         for (int iteration = 0; iteration < maxIterations; iteration++)
         {
@@ -145,9 +162,26 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
             if (Math.Abs(newRate - rate) < tolerance)
             {
                 rate = newRate;
+                converged = true;
                 break;
             }
             rate = newRate;
+
+            // Diverged: bail out rather than return garbage.
+            if (rate < -0.999m || rate > 100m)
+            {
+                _logger.LogWarning(
+                    "MWR Newton-Raphson diverged for portfolio {PortfolioId} at iteration {Iteration}, rate={Rate}",
+                    portfolioId, iteration, rate);
+                return 0;
+            }
+        }
+
+        if (!converged)
+        {
+            _logger.LogWarning(
+                "MWR Newton-Raphson did not converge for portfolio {PortfolioId} within {MaxIterations} iterations",
+                portfolioId, maxIterations);
         }
 
         return Math.Round(rate * 100, 4); // Return as percentage
@@ -174,18 +208,7 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
         var totalWithdrawals = flows.Where(f => f.Type == CapitalFlowType.Withdraw || f.Type == CapitalFlowType.Fee)
             .Sum(f => f.Amount);
 
-        decimal currentValue;
-        try
-        {
-            var pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
-            var netFlow = flows.Sum(f => f.SignedAmount);
-            var cashBalance = portfolio.InitialCapital + netFlow - pnl.TotalInvested;
-            currentValue = pnl.TotalPortfolioValue + cashBalance;
-        }
-        catch
-        {
-            currentValue = portfolio.InitialCapital + flows.Sum(f => f.SignedAmount);
-        }
+        var currentValue = await ComputeCurrentValueAsync(portfolio, flows, cancellationToken);
 
         return new AdjustedReturnSummary
         {
@@ -198,5 +221,35 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
             CurrentValue = currentValue,
             FlowCount = flows.Count
         };
+    }
+
+    /// <summary>
+    /// currentValue = cashBalance + marketValue where
+    ///   cashBalance = InitialCapital + netFlow - gross_buys + gross_sells
+    /// Uses gross historical trade amounts (not PnL.TotalInvested which only
+    /// reflects open positions) — matches the capital-flows hero card math.
+    /// </summary>
+    private async Task<decimal> ComputeCurrentValueAsync(
+        Portfolio portfolio,
+        IReadOnlyCollection<CapitalFlow> flowsExcludingSeed,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolio.Id, cancellationToken);
+            var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolio.Id, cancellationToken);
+            var tradeList = trades.ToList();
+            var grossBuys = tradeList.Where(t => t.TradeType == TradeType.BUY)
+                .Sum(t => t.Quantity * t.Price + t.Fee + t.Tax);
+            var grossSells = tradeList.Where(t => t.TradeType == TradeType.SELL)
+                .Sum(t => t.Quantity * t.Price - t.Fee - t.Tax);
+            var netFlow = flowsExcludingSeed.Sum(f => f.SignedAmount);
+            var cashBalance = portfolio.InitialCapital + netFlow - grossBuys + grossSells;
+            return pnl.TotalPortfolioValue + cashBalance;
+        }
+        catch
+        {
+            return portfolio.InitialCapital + flowsExcludingSeed.Sum(f => f.SignedAmount);
+        }
     }
 }

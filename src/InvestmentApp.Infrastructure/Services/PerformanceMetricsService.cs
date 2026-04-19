@@ -18,6 +18,7 @@ public class PerformanceMetricsService : IPerformanceMetricsService
     private readonly ICapitalFlowRepository _capitalFlowRepository;
     private readonly IPnLService _pnlService;
     private readonly IRiskCalculationService _riskCalculationService;
+    private readonly ICashFlowAdjustedReturnService _cashFlowAdjustedReturnService;
     private readonly ILogger<PerformanceMetricsService> _logger;
 
     public PerformanceMetricsService(
@@ -27,6 +28,7 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         ICapitalFlowRepository capitalFlowRepository,
         IPnLService pnlService,
         IRiskCalculationService riskCalculationService,
+        ICashFlowAdjustedReturnService cashFlowAdjustedReturnService,
         ILogger<PerformanceMetricsService> logger)
     {
         _portfolioRepository = portfolioRepository;
@@ -35,6 +37,7 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         _capitalFlowRepository = capitalFlowRepository;
         _pnlService = pnlService;
         _riskCalculationService = riskCalculationService;
+        _cashFlowAdjustedReturnService = cashFlowAdjustedReturnService;
         _logger = logger;
     }
 
@@ -43,38 +46,60 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
         if (portfolio == null) throw new ArgumentException("Portfolio not found");
 
-        // Try snapshot-based CAGR first
+        // Primary: annualize flow-adjusted TWR. Raw (V_last/V_first)^(1/years)
+        // produces fake CAGR on any flowed portfolio — a net-withdraw showed
+        // CAGR −21.5% on a portfolio that was actually +4%.
         var snapshots = await _snapshotRepository.GetByPortfolioIdAsync(
             portfolioId, DateTime.MinValue, DateTime.UtcNow, cancellationToken);
         var sorted = snapshots.OrderBy(s => s.SnapshotDate).ToList();
 
-        if (sorted.Count >= 2 && sorted.First().TotalValue > 0)
+        if (sorted.Count >= 2)
         {
             var years = (sorted.Last().SnapshotDate - sorted.First().SnapshotDate).TotalDays / 365.25;
             if (years >= 0.08) // ~30 days minimum for meaningful CAGR
             {
-                var ratio = (double)(sorted.Last().TotalValue / sorted.First().TotalValue);
-                var snapshotCagr = (decimal)(Math.Pow(ratio, 1.0 / years) - 1) * 100;
-                if (!double.IsInfinity((double)snapshotCagr) && !double.IsNaN((double)snapshotCagr))
-                    return Math.Round(Math.Clamp(snapshotCagr, -99.99m, 9999.99m), 2);
+                var twr = await _cashFlowAdjustedReturnService.CalculateTWRAsync(portfolioId, cancellationToken);
+                var twrFraction = (double)twr / 100.0;
+                if (twrFraction > -1)
+                {
+                    var annualized = (decimal)(Math.Pow(1 + twrFraction, 1.0 / years) - 1) * 100;
+                    if (!double.IsInfinity((double)annualized) && !double.IsNaN((double)annualized))
+                        return Math.Round(Math.Clamp(annualized, -99.99m, 9999.99m), 2);
+                }
             }
         }
 
-        // Fallback: calculate from trades and current PnL
+        // Fallback: no snapshots yet. Use gross historical totals (not
+        // pnl.TotalInvested which is open-position cost basis, diverges
+        // from gross once any position is closed).
         try
         {
-            var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
-            if (pnlSummary.TotalInvested <= 0 || pnlSummary.TotalPortfolioValue <= 0)
-                return 0;
-
             var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
-            var firstTradeDate = trades.Min(t => t.TradeDate);
-            var tradeDays = (DateTime.UtcNow - firstTradeDate).TotalDays;
-            var tradeYears = tradeDays / 365.25;
+            var tradeList = trades.ToList();
+            if (tradeList.Count == 0) return 0;
+
+            var firstTradeDate = tradeList.Min(t => t.TradeDate);
+            var tradeYears = (DateTime.UtcNow - firstTradeDate).TotalDays / 365.25;
             if (tradeYears < 0.08) return 0; // Less than ~30 days — CAGR not meaningful
 
-            var tradeRatio = (double)(pnlSummary.TotalPortfolioValue / pnlSummary.TotalInvested);
-            var tradeCagr = (decimal)(Math.Pow(tradeRatio, 1.0 / tradeYears) - 1) * 100;
+            var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
+            var flows = await _capitalFlowRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+            var netFlow = flows.Where(f => !f.IsSeedDeposit).Sum(f => f.SignedAmount);
+
+            var grossBuys = tradeList.Where(t => t.TradeType == TradeType.BUY)
+                .Sum(t => t.Quantity * t.Price + t.Fee + t.Tax);
+            var grossSells = tradeList.Where(t => t.TradeType == TradeType.SELL)
+                .Sum(t => t.Quantity * t.Price - t.Fee - t.Tax);
+
+            var capitalDeployed = portfolio.InitialCapital + netFlow;
+            if (capitalDeployed <= 0) return 0;
+
+            var cashBalance = capitalDeployed - grossBuys + grossSells;
+            var currentValue = pnlSummary.TotalPortfolioValue + cashBalance;
+            if (currentValue <= 0) return 0;
+
+            var ratio = (double)(currentValue / capitalDeployed);
+            var tradeCagr = (decimal)(Math.Pow(ratio, 1.0 / tradeYears) - 1) * 100;
             return !double.IsInfinity((double)tradeCagr) && !double.IsNaN((double)tradeCagr)
                 ? Math.Round(Math.Clamp(tradeCagr, -99.99m, 9999.99m), 2)
                 : 0;
@@ -167,24 +192,28 @@ public class PerformanceMetricsService : IPerformanceMetricsService
         var profitFactor = grossLoss != 0 ? Math.Round(grossProfit / Math.Abs(grossLoss), 2) : 0;
         var expectancy = total > 0 ? Math.Round((decimal)wins / total * avgWin - (decimal)losses / total * Math.Abs(avgLoss), 2) : 0;
 
-        // Total return from snapshots, with fallback to PnL data
+        // Total return = flow-adjusted TWR. Raw (V_last/V_first − 1) double-
+        // counts deposits as "gains" and withdrawals as "losses".
         decimal totalReturn = 0;
-        var snapshots = await _snapshotRepository.GetByPortfolioIdAsync(
-            portfolioId, DateTime.MinValue, DateTime.UtcNow, cancellationToken);
-        var sorted = snapshots.OrderBy(s => s.SnapshotDate).ToList();
-        if (sorted.Count >= 2 && sorted.First().TotalValue > 0)
+        try
         {
-            totalReturn = ((sorted.Last().TotalValue - sorted.First().TotalValue) / sorted.First().TotalValue) * 100;
+            totalReturn = await _cashFlowAdjustedReturnService.CalculateTWRAsync(portfolioId, cancellationToken);
         }
-        else
+        catch { }
+
+        // If no snapshots yet (TWR = 0), fall back to gross-totals PnL return.
+        if (totalReturn == 0)
         {
-            // Fallback: calculate from current PnL
             try
             {
-                var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
-                if (pnlSummary.TotalInvested > 0)
+                var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+                var tradeList = trades.ToList();
+                var grossBuys = tradeList.Where(t => t.TradeType == TradeType.BUY)
+                    .Sum(t => t.Quantity * t.Price + t.Fee + t.Tax);
+                if (grossBuys > 0)
                 {
-                    totalReturn = ((pnlSummary.TotalPortfolioValue - pnlSummary.TotalInvested) / pnlSummary.TotalInvested) * 100;
+                    var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
+                    totalReturn = ((pnlSummary.TotalRealizedPnL + pnlSummary.TotalUnrealizedPnL) / grossBuys) * 100;
                 }
             }
             catch { }
