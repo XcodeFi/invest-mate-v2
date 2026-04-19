@@ -2,6 +2,38 @@
 
 ---
 
+## [v2.43.0] — 2026-04-19 · Capital-flows — Hero cards (aggregate + per-portfolio)
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### Frontend
+- Trang `/capital-flows` thêm **2 tầng hero**:
+  - **Tổng quan ({{ n }} danh mục)** — luôn hiện ở trên cùng, aggregate qua tất cả danh mục (cash + market value + return + allocation + breakdown). Fetch từ `/pnl/summary`.
+  - **Chi tiết: {tên danh mục}** — hiện khi chọn 1 danh mục từ dropdown, cùng cấu trúc layout nhưng data riêng cho portfolio đó.
+- Thay vì chỉ có flow aggregates (Tổng nạp/rút/cổ tức/dòng ròng), user giờ thấy được **bức tranh tổng quát** ngay khi mở page + drill-down khi cần
+- Mỗi hero gồm: Tổng tài sản + % return vs Vốn hiện tại, allocation bar (Giá trị thị trường vs Tiền mặt), breakdown (Vốn ban đầu / Dòng vốn ròng / L/L chưa TH / đã TH)
+- Reload `OverallPnLSummary` + `portfolios` sau record/delete flow để không stale
+- Switch portfolio → clear `portfolioPnL` / `flowHistory` / `adjustedReturn` ngay để tránh hiển thị data lẫn lộn
+- Inject `PnlService` để lấy market value + realized/unrealized P&L
+
+### Bug fixes (từ code review)
+- **Allocation bar overflow** khi `cashBalance < 0` (overbought/margin edge case): bar widths clamp [0, 100] qua getter `marketBarWidth` / `cashBarWidth`
+- **Double-fire `loadFlowData`** khi user đến page qua `?portfolioId=xyz` rồi record/delete flow: `loadPortfolios` giờ chỉ auto-select nếu chưa có portfolio đang chọn
+- **Dấu âm hiển thị đôi** ở totalReturn (pipe đã thêm `-` + template prefix `↘ `): dùng `absTotalReturn` với explicit sign prefix
+
+### Bug fixes (aggregate math)
+- **Backend `PnLController.GetOverallPnL`**: `totalNetCashFlow += netCashFlow` bị kẹt trong try block → portfolio không có trade làm PnL throw → skip luôn netCashFlow. Nhưng `totalInitialCapital` lấy tất cả portfolio → `totalCurrentCapital` bị lệch. Đã move ra ngoài try.
+- **Frontend `overallView` cashBalance**: trước dùng `OverallPnLSummary.totalInvested` (= cost basis of OPEN positions từ PnLService) → sai sau khi đóng vị thế. Ví dụ: mua 100M, bán hết 120M → `open cost = 0` → cash bị tính thừa 100M. Fix: dùng `portfolios.reduce((s,p) => s + p.totalInvested)` — gross historical từ `PortfolioSummary`.
+
+### Tests
+- `capital-flows.component.spec.ts` (new) — 18 tests: per-portfolio getters (13 — normal / overbought / zero capital / loss / no-selection / partly invested) + `overallView` aggregate (5 — null-guards, 2-portfolio sum, totalSold aggregation, overbought clamp)
+- Fix existing `trade-create.component.spec.ts` mock data (thêm `netCashFlow` + `currentCapital` fields từ Phase 1 interface update)
+
+### Docs
+- `CHANGELOG.md` v2.43.0
+
+---
+
 ## [v2.42.0] — 2026-04-18 · Capital — Auto seed Deposit flow (Phase 3)
 
 **Branch:** `feat/capital-current-vs-initial`

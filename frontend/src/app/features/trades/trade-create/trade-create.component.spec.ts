@@ -63,6 +63,8 @@ describe('TradeCreateComponent — Bidirectional Auto-suggest', () => {
   const mockSummary: OverallPnLSummary = {
     totalPortfolios: 2,
     totalInitialCapital: 700000000,
+    totalNetCashFlow: 0,
+    totalCurrentCapital: 700000000,
     totalInvested: 100000000,
     totalMarketValue: 110000000,
     totalRealizedPnL: 500000,
@@ -74,6 +76,8 @@ describe('TradeCreateComponent — Bidirectional Auto-suggest', () => {
         portfolioId: 'port-1',
         portfolioName: 'Portfolio A',
         initialCapital: 500000000,
+        netCashFlow: 0,
+        currentCapital: 500000000,
         totalInvested: 61500000,
         totalMarketValue: 66000000,
         totalRealizedPnL: 500000,
@@ -86,6 +90,8 @@ describe('TradeCreateComponent — Bidirectional Auto-suggest', () => {
         portfolioId: 'port-2',
         portfolioName: 'Portfolio B',
         initialCapital: 200000000,
+        netCashFlow: 0,
+        currentCapital: 200000000,
         totalInvested: 40000000,
         totalMarketValue: 40000000,
         totalRealizedPnL: 0,
@@ -100,8 +106,8 @@ describe('TradeCreateComponent — Bidirectional Auto-suggest', () => {
   };
 
   const mockPortfolios = [
-    { id: 'port-1', name: 'Portfolio A', initialCapital: 500000000, createdAt: '2026-01-01', tradeCount: 5, uniqueSymbols: 3, totalInvested: 61500000, totalSold: 0 },
-    { id: 'port-2', name: 'Portfolio B', initialCapital: 200000000, createdAt: '2026-02-01', tradeCount: 2, uniqueSymbols: 1, totalInvested: 40000000, totalSold: 0 }
+    { id: 'port-1', name: 'Portfolio A', initialCapital: 500000000, netCashFlow: 0, currentCapital: 500000000, createdAt: '2026-01-01', tradeCount: 5, uniqueSymbols: 3, totalInvested: 61500000, totalSold: 0 },
+    { id: 'port-2', name: 'Portfolio B', initialCapital: 200000000, netCashFlow: 0, currentCapital: 200000000, createdAt: '2026-02-01', tradeCount: 2, uniqueSymbols: 1, totalInvested: 40000000, totalSold: 0 }
   ];
 
   beforeEach(async () => {
