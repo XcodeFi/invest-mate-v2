@@ -100,6 +100,12 @@ public class PnLController : ControllerBase
         foreach (var portfolio in portfolioList)
         {
             var netCashFlow = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolio.Id);
+            // Accumulate netCashFlow outside the try so portfolios with no trades
+            // (PnLService throws) still contribute to totalNetCashFlow. Otherwise
+            // totalCurrentCapital = totalInitialCapital (all portfolios) + totalNetCashFlow
+            // (only portfolios with trades) produces an inconsistent aggregate.
+            totalNetCashFlow += netCashFlow;
+
             try
             {
                 var pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolio.Id);
@@ -107,7 +113,6 @@ public class PnLController : ControllerBase
                 totalUnrealizedPnL += pnl.TotalUnrealizedPnL;
                 totalRealizedPnL += pnl.TotalRealizedPnL;
                 totalPortfolioValue += pnl.TotalPortfolioValue;
-                totalNetCashFlow += netCashFlow;
 
                 portfolioPnLs.Add(new
                 {

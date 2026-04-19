@@ -4,9 +4,28 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { CapitalFlowService, CapitalFlowItem, CapitalFlowHistory, AdjustedReturn } from '../../core/services/capital-flow.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
+import { PnlService, PortfolioPnL, OverallPnLSummary } from '../../core/services/pnl.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
+
+interface CapitalView {
+  initialCapital: number;
+  netCashFlow: number;
+  currentCapital: number;
+  marketValue: number;
+  cashBalance: number;
+  totalAssets: number;
+  totalReturn: number;
+  totalReturnPercent: number;
+  absReturn: number;
+  absReturnPercent: number;
+  marketAllocationPercent: number;
+  marketBarWidth: number;
+  cashBarWidth: number;
+  unrealizedPnL: number;
+  realizedPnL: number;
+}
 
 @Component({
   selector: 'app-capital-flows',
@@ -15,6 +34,73 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Dòng vốn</h1>
+
+      <!-- Aggregate Hero: Tổng quan toàn bộ danh mục -->
+      <div *ngIf="overallView" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow border border-blue-100 p-6 mb-6">
+        <div class="flex items-baseline justify-between flex-wrap gap-2 mb-1">
+          <h2 class="text-sm font-semibold text-blue-900">Tổng quan ({{ portfolios.length }} danh mục)</h2>
+          <span class="text-xs text-gray-600">So với vốn hiện tại {{ overallView.currentCapital | vndCurrency }}</span>
+        </div>
+        <div class="flex items-baseline gap-3 mb-4 flex-wrap">
+          <span class="text-3xl font-bold text-gray-900">{{ overallView.totalAssets | vndCurrency }}</span>
+          <span class="text-sm font-semibold" [ngClass]="overallView.totalReturn >= 0 ? 'text-green-600' : 'text-red-600'">
+            {{ overallView.totalReturn >= 0 ? '↗ +' : '↘ −' }}{{ overallView.absReturn | vndCurrency }}
+            ({{ overallView.totalReturn >= 0 ? '+' : '−' }}{{ overallView.absReturnPercent.toFixed(2) }}%)
+          </span>
+        </div>
+
+        <div class="flex h-3 rounded-full overflow-hidden bg-white mb-3">
+          <div class="bg-blue-500 transition-all" [style.width.%]="overallView.marketBarWidth"></div>
+          <div class="bg-cyan-400 transition-all" [style.width.%]="overallView.cashBarWidth"></div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                <span class="text-gray-700 truncate">Giá trị thị trường</span>
+              </div>
+              <span class="text-sm font-bold text-blue-700 tabular-nums shrink-0">{{ overallView.marketBarWidth.toFixed(1) }}%</span>
+            </div>
+            <div class="font-semibold text-gray-900 mt-0.5">{{ overallView.marketValue | vndCurrency }}</div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                <span class="text-gray-700 truncate">Tiền mặt khả dụng</span>
+              </div>
+              <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ overallView.cashBarWidth.toFixed(1) }}%</span>
+            </div>
+            <div class="font-semibold mt-0.5" [ngClass]="overallView.cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ overallView.cashBalance | vndCurrency }}</div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-blue-200/60 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <div class="text-gray-600">Vốn ban đầu</div>
+            <div class="font-medium text-gray-800 mt-0.5">{{ overallView.initialCapital | vndCurrency }}</div>
+          </div>
+          <div>
+            <div class="text-gray-600">Dòng vốn ròng</div>
+            <div class="font-medium mt-0.5" [ngClass]="overallView.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ overallView.netCashFlow >= 0 ? '+' : '' }}{{ overallView.netCashFlow | vndCurrency }}
+            </div>
+          </div>
+          <div>
+            <div class="text-gray-600">Lãi/lỗ chưa TH</div>
+            <div class="font-medium mt-0.5" [ngClass]="overallView.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ overallView.unrealizedPnL >= 0 ? '+' : '' }}{{ overallView.unrealizedPnL | vndCurrency }}
+            </div>
+          </div>
+          <div>
+            <div class="text-gray-600">Lãi/lỗ đã TH</div>
+            <div class="font-medium mt-0.5" [ngClass]="overallView.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ overallView.realizedPnL >= 0 ? '+' : '' }}{{ overallView.realizedPnL | vndCurrency }}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Portfolio Selector -->
       <div class="bg-white rounded-lg shadow p-4 mb-6">
@@ -92,6 +178,75 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
             class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50">
             {{ saving ? 'Đang lưu...' : 'Lưu' }}
           </button>
+        </div>
+      </div>
+
+      <!-- Per-portfolio Hero: Chi tiết danh mục đang chọn -->
+      <div *ngIf="selectedPortfolioId && selectedPortfolio" class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex items-baseline justify-between flex-wrap gap-2 mb-1">
+          <h2 class="text-sm font-semibold text-gray-700">Chi tiết: {{ selectedPortfolio.name }}</h2>
+          <span class="text-xs text-gray-500">So với vốn hiện tại {{ currentCapital | vndCurrency }}</span>
+        </div>
+        <div class="flex items-baseline gap-3 mb-4 flex-wrap">
+          <span class="text-3xl font-bold text-gray-900">{{ totalAssets | vndCurrency }}</span>
+          <span class="text-sm font-semibold" [ngClass]="totalReturn >= 0 ? 'text-green-600' : 'text-red-600'">
+            {{ totalReturn >= 0 ? '↗ +' : '↘ −' }}{{ absTotalReturn | vndCurrency }}
+            ({{ totalReturn >= 0 ? '+' : '−' }}{{ absTotalReturnPercent.toFixed(2) }}%)
+          </span>
+        </div>
+
+        <!-- Allocation bar -->
+        <div class="flex h-3 rounded-full overflow-hidden bg-gray-100 mb-3">
+          <div class="bg-blue-500 transition-all" [style.width.%]="marketBarWidth"></div>
+          <div class="bg-cyan-400 transition-all" [style.width.%]="cashBarWidth"></div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                <span class="text-gray-600 truncate">Giá trị thị trường</span>
+              </div>
+              <span class="text-sm font-bold text-blue-700 tabular-nums shrink-0">{{ marketBarWidth.toFixed(1) }}%</span>
+            </div>
+            <div class="font-semibold text-gray-900 mt-0.5">{{ marketValue | vndCurrency }}</div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                <span class="text-gray-600 truncate">Tiền mặt khả dụng</span>
+              </div>
+              <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ cashBarWidth.toFixed(1) }}%</span>
+            </div>
+            <div class="font-semibold mt-0.5" [ngClass]="cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ cashBalance | vndCurrency }}</div>
+          </div>
+        </div>
+
+        <!-- Breakdown -->
+        <div class="pt-4 border-t border-gray-100 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <div class="text-gray-500">Vốn ban đầu</div>
+            <div class="font-medium text-gray-700 mt-0.5">{{ selectedPortfolio.initialCapital | vndCurrency }}</div>
+          </div>
+          <div>
+            <div class="text-gray-500">Dòng vốn ròng</div>
+            <div class="font-medium mt-0.5" [ngClass]="selectedPortfolio.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ selectedPortfolio.netCashFlow >= 0 ? '+' : '' }}{{ selectedPortfolio.netCashFlow | vndCurrency }}
+            </div>
+          </div>
+          <div>
+            <div class="text-gray-500">Lãi/lỗ chưa TH</div>
+            <div class="font-medium mt-0.5" [ngClass]="(portfolioPnL?.totalUnrealizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ (portfolioPnL?.totalUnrealizedPnL || 0) >= 0 ? '+' : '' }}{{ (portfolioPnL?.totalUnrealizedPnL || 0) | vndCurrency }}
+            </div>
+          </div>
+          <div>
+            <div class="text-gray-500">Lãi/lỗ đã TH</div>
+            <div class="font-medium mt-0.5" [ngClass]="(portfolioPnL?.totalRealizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ (portfolioPnL?.totalRealizedPnL || 0) >= 0 ? '+' : '' }}{{ (portfolioPnL?.totalRealizedPnL || 0) | vndCurrency }}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -230,9 +385,98 @@ export class CapitalFlowsComponent implements OnInit {
   selectedPortfolioId = '';
   flowHistory: CapitalFlowHistory | null = null;
   adjustedReturn: AdjustedReturn | null = null;
+  portfolioPnL: PortfolioPnL | null = null;
+  overallSummary: OverallPnLSummary | null = null;
   loading = false;
   saving = false;
   showRecordForm = false;
+
+  get selectedPortfolio(): PortfolioSummary | undefined {
+    return this.portfolios.find(p => p.id === this.selectedPortfolioId);
+  }
+
+  get currentCapital(): number {
+    return this.selectedPortfolio?.currentCapital || 0;
+  }
+
+  get marketValue(): number {
+    return this.portfolioPnL?.totalMarketValue || 0;
+  }
+
+  get cashBalance(): number {
+    const p = this.selectedPortfolio;
+    if (!p) return 0;
+    return p.currentCapital - p.totalInvested + p.totalSold;
+  }
+
+  get totalAssets(): number {
+    return this.cashBalance + this.marketValue;
+  }
+
+  get totalReturn(): number {
+    return this.totalAssets - this.currentCapital;
+  }
+
+  get totalReturnPercent(): number {
+    return this.currentCapital > 0 ? (this.totalReturn / this.currentCapital) * 100 : 0;
+  }
+
+  get marketAllocationPercent(): number {
+    return this.totalAssets > 0 ? (this.marketValue / this.totalAssets) * 100 : 0;
+  }
+
+  // Clamped widths for allocation bar — avoid overflow / negative when
+  // cashBalance is negative (marketAllocation can exceed 100%).
+  get marketBarWidth(): number {
+    return Math.max(0, Math.min(100, this.marketAllocationPercent));
+  }
+
+  get cashBarWidth(): number {
+    return 100 - this.marketBarWidth;
+  }
+
+  get absTotalReturn(): number {
+    return Math.abs(this.totalReturn);
+  }
+
+  get absTotalReturnPercent(): number {
+    return Math.abs(this.totalReturnPercent);
+  }
+
+  get overallView(): CapitalView | null {
+    const s = this.overallSummary;
+    if (!s || this.portfolios.length === 0) return null;
+    // Sum historical gross buys/sells from PortfolioSummary (not s.totalInvested,
+    // which is cost basis of currently open positions — diverges from gross once
+    // any position is closed).
+    const totalSold = this.portfolios.reduce((sum, p) => sum + p.totalSold, 0);
+    const totalInvested = this.portfolios.reduce((sum, p) => sum + p.totalInvested, 0);
+    const currentCapital = s.totalCurrentCapital;
+    const marketValue = s.totalMarketValue;
+    const cashBalance = currentCapital - totalInvested + totalSold;
+    const totalAssets = cashBalance + marketValue;
+    const totalReturn = totalAssets - currentCapital;
+    const totalReturnPercent = currentCapital > 0 ? (totalReturn / currentCapital) * 100 : 0;
+    const marketPct = totalAssets > 0 ? (marketValue / totalAssets) * 100 : 0;
+    const marketBar = Math.max(0, Math.min(100, marketPct));
+    return {
+      initialCapital: s.totalInitialCapital,
+      netCashFlow: s.totalNetCashFlow,
+      currentCapital,
+      marketValue,
+      cashBalance,
+      totalAssets,
+      totalReturn,
+      totalReturnPercent,
+      absReturn: Math.abs(totalReturn),
+      absReturnPercent: Math.abs(totalReturnPercent),
+      marketAllocationPercent: marketPct,
+      marketBarWidth: marketBar,
+      cashBarWidth: 100 - marketBar,
+      unrealizedPnL: s.totalUnrealizedPnL,
+      realizedPnL: s.totalRealizedPnL
+    };
+  }
 
   newFlow = {
     type: 'Deposit',
@@ -245,18 +489,31 @@ export class CapitalFlowsComponent implements OnInit {
   constructor(
     private capitalFlowService: CapitalFlowService,
     private portfolioService: PortfolioService,
+    private pnlService: PnlService,
     private notificationService: NotificationService,
     private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
     this.loadPortfolios();
+    this.loadOverallSummary();
+  }
+
+  loadOverallSummary(): void {
+    this.pnlService.getSummary().subscribe({
+      next: data => this.overallSummary = data,
+      error: () => this.overallSummary = null
+    });
   }
 
   loadPortfolios(): void {
     this.portfolioService.getAll().subscribe({
       next: data => {
         this.portfolios = data;
+        // Only auto-select from query param on initial load. On refreshes
+        // after flow mutations, skip — portfolio is already selected and we
+        // don't want to re-trigger loadFlowData() (already done by caller).
+        if (this.selectedPortfolioId) return;
         const queryPortfolioId = this.route.snapshot.queryParamMap.get('portfolioId');
         if (queryPortfolioId && data.some(p => p.id === queryPortfolioId)) {
           this.selectedPortfolioId = queryPortfolioId;
@@ -269,10 +526,16 @@ export class CapitalFlowsComponent implements OnInit {
 
   onPortfolioChange(): void {
     if (this.selectedPortfolioId) {
+      // Clear stale data from previous portfolio so hero card doesn't mix
+      // new portfolio's currentCapital with old portfolio's marketValue.
+      this.flowHistory = null;
+      this.adjustedReturn = null;
+      this.portfolioPnL = null;
       this.loadFlowData();
     } else {
       this.flowHistory = null;
       this.adjustedReturn = null;
+      this.portfolioPnL = null;
     }
   }
 
@@ -292,6 +555,11 @@ export class CapitalFlowsComponent implements OnInit {
     this.capitalFlowService.getTimeWeightedReturn(this.selectedPortfolioId).subscribe({
       next: data => this.adjustedReturn = data,
       error: () => {} // Silently fail
+    });
+
+    this.pnlService.getPortfolioPnL(this.selectedPortfolioId).subscribe({
+      next: data => this.portfolioPnL = data,
+      error: () => this.portfolioPnL = null // portfolio with no trades throws; treat as zero
     });
   }
 
@@ -316,6 +584,8 @@ export class CapitalFlowsComponent implements OnInit {
         this.showRecordForm = false;
         this.resetForm();
         this.loadFlowData();
+        this.loadPortfolios();
+        this.loadOverallSummary();
       },
       error: () => {
         this.notificationService.error('Lỗi', 'Lỗi khi ghi nhận dòng vốn');
@@ -330,6 +600,8 @@ export class CapitalFlowsComponent implements OnInit {
       next: () => {
         this.notificationService.success('Thành công', 'Đã xoá dòng vốn');
         this.loadFlowData();
+        this.loadPortfolios();
+        this.loadOverallSummary();
       },
       error: () => this.notificationService.error('Lỗi', 'Lỗi khi xoá dòng vốn')
     });
