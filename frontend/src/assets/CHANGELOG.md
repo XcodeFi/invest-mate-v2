@@ -8,10 +8,14 @@
 
 ### CI / CD
 - **`Dockerfile.api`** — added `ARG APP_VERSION=dev` + `ENV APP_VERSION=${APP_VERSION}` in runtime stage so the image carries its build identity.
-- **`.github/workflows/cd.yml`** — new "Compute short SHA" step (7-char `GITHUB_SHA`) feeds `build-args: APP_VERSION=...` to the API `docker/build-push-action`. Image tag still uses `steps.meta.outputs.version` (branch name / semver); `APP_VERSION` is the independently unique per-commit identifier baked into the container.
+- **`cloudbuild.yaml` (active Cloud Run path)** — API build step now passes `--build-arg APP_VERSION=$SHORT_SHA`. Cloud Build's built-in `$SHORT_SHA` substitution (7-char commit SHA) gets baked into the image at build time.
+- **`.github/workflows/cd.yml` (GHCR path, not the live deploy)** — mirrored the same wiring: "Compute short SHA" step + `build-args: APP_VERSION=...` on the API `docker/build-push-action`. Included for parity so future use of the GHCR/self-hosted deploy path stays in sync.
 
 ### Backend
 - **`src/InvestmentApp.Api/Program.cs`** — `/health`, `/health/live`, `/health/ready` all return a new `version` field sourced from `APP_VERSION` env (`"dev"` fallback when unset/empty). Lets `curl /health` after deploy confirm which commit is actually running.
+
+### Bug fix during rollout
+- First attempt shipped only the `cd.yml` edit — `/health` still returned `"version":"dev"` in prod because the live deploy goes through Cloud Build (`cloudbuild.yaml` → Cloud Run), not GitHub Actions. Added the missing `--build-arg` to `cloudbuild.yaml` in the same PR.
 
 ### Docs
 - `docs/architecture.md` — documented `version` field on health endpoints.
