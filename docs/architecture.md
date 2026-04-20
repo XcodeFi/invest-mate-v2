@@ -140,6 +140,16 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | SymbolTimeline | `/api/v1/symbols/{symbol}/timeline` | Unified timeline (journals + trades + events + alerts) |
 | MarketEvents | `/api/v1/market-events` | CRUD market events per symbol, crawl from Vietstock |
 
+## Health Endpoints (Minimal API, unauthenticated)
+
+| Route | Checks | Response fields |
+|-------|--------|-----------------|
+| `/health` | Mongo ping | `status`, `db`, `version`, `timestamp` (503 on db failure) |
+| `/health/live` | Process alive only | `status`, `version`, `timestamp` |
+| `/health/ready` | Mongo ping | `status`, `version`, `timestamp` (503 on db failure) |
+
+`version` is read from `APP_VERSION` env (fallback `"dev"` when unset or empty). CI/CD bakes the short git SHA into the image via `APP_VERSION` build-arg → `curl /health` after deploy confirms which commit is running.
+
 ## External Integrations
 
 | Provider | Base URL | Purpose | Cache TTL |

@@ -2,6 +2,22 @@
 
 ---
 
+## [v2.44.1] — 2026-04-20 · Backend version on /health endpoints
+
+**Branch:** `feat/capital-current-vs-initial`
+
+### CI / CD
+- **`Dockerfile.api`** — added `ARG APP_VERSION=dev` + `ENV APP_VERSION=${APP_VERSION}` in runtime stage so the image carries its build identity.
+- **`.github/workflows/cd.yml`** — new "Compute short SHA" step (7-char `GITHUB_SHA`) feeds `build-args: APP_VERSION=...` to the API `docker/build-push-action`. Image tag still uses `steps.meta.outputs.version` (branch name / semver); `APP_VERSION` is the independently unique per-commit identifier baked into the container.
+
+### Backend
+- **`src/InvestmentApp.Api/Program.cs`** — `/health`, `/health/live`, `/health/ready` all return a new `version` field sourced from `APP_VERSION` env (`"dev"` fallback when unset/empty). Lets `curl /health` after deploy confirm which commit is actually running.
+
+### Docs
+- `docs/architecture.md` — documented `version` field on health endpoints.
+
+---
+
 ## [v2.44.0] — 2026-04-19 · Fix TWR / MWR / CAGR (P3)
 
 **Branch:** `feat/capital-current-vs-initial`
