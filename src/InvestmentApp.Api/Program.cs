@@ -382,34 +382,37 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Health check endpoints
+var appVersionEnv = Environment.GetEnvironmentVariable("APP_VERSION");
+var appVersion = string.IsNullOrWhiteSpace(appVersionEnv) ? "dev" : appVersionEnv;
+
 app.MapGet("/health", async (IMongoClient mongo) =>
 {
     try
     {
         await mongo.GetDatabase("admin").RunCommandAsync<MongoDB.Bson.BsonDocument>(
             new MongoDB.Bson.BsonDocument("ping", 1));
-        return Results.Ok(new { status = "healthy", db = "connected", timestamp = DateTime.UtcNow });
+        return Results.Ok(new { status = "healthy", db = "connected", version = appVersion, timestamp = DateTime.UtcNow });
     }
     catch (Exception ex)
     {
         return Results.Json(
-            new { status = "unhealthy", db = "disconnected", error = ex.Message, timestamp = DateTime.UtcNow },
+            new { status = "unhealthy", db = "disconnected", error = ex.Message, version = appVersion, timestamp = DateTime.UtcNow },
             statusCode: 503);
     }
 });
 
-app.MapGet("/health/live", () => Results.Ok(new { status = "alive", timestamp = DateTime.UtcNow }));
+app.MapGet("/health/live", () => Results.Ok(new { status = "alive", version = appVersion, timestamp = DateTime.UtcNow }));
 app.MapGet("/health/ready", async (IMongoClient mongo) =>
 {
     try
     {
         await mongo.GetDatabase("admin").RunCommandAsync<MongoDB.Bson.BsonDocument>(
             new MongoDB.Bson.BsonDocument("ping", 1));
-        return Results.Ok(new { status = "ready", timestamp = DateTime.UtcNow });
+        return Results.Ok(new { status = "ready", version = appVersion, timestamp = DateTime.UtcNow });
     }
     catch
     {
-        return Results.Json(new { status = "not ready", timestamp = DateTime.UtcNow }, statusCode: 503);
+        return Results.Json(new { status = "not ready", version = appVersion, timestamp = DateTime.UtcNow }, statusCode: 503);
     }
 });
 

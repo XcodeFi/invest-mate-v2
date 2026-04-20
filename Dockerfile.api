@@ -29,6 +29,9 @@ USER appuser
 
 COPY --from=build --chown=appuser:appuser /app/publish ./
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
