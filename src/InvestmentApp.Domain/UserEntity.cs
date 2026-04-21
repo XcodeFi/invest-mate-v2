@@ -11,6 +11,7 @@ public class User : AggregateRoot
     public string Provider { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public bool IsDeleted { get; private set; }
+    public UserRole Role { get; private set; } = UserRole.User;
 
     [BsonConstructor]
     public User() { } // For EF/MongoDB
@@ -24,6 +25,7 @@ public class User : AggregateRoot
         Provider = provider ?? throw new ArgumentNullException(nameof(provider));
         CreatedAt = DateTime.UtcNow;
         IsDeleted = false;
+        Role = UserRole.User;
     }
 
     public void UpdateProfile(string name, string? avatar)
@@ -35,5 +37,15 @@ public class User : AggregateRoot
     public void MarkAsDeleted()
     {
         IsDeleted = true;
+    }
+
+    public void PromoteToAdmin()
+    {
+        Role = UserRole.Admin;
+    }
+
+    public void DemoteToUser()
+    {
+        Role = UserRole.User;
     }
 }

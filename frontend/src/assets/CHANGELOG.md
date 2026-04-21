@@ -2,6 +2,43 @@
 
 ---
 
+## [v2.45.0] — 2026-04-21 · Admin Impersonation (debug tooling) — B1 Phase 1
+
+**Branch:** `feat/capital-current-vs-initial`
+
+Công cụ debug cho phép admin đăng nhập dưới tư cách user cụ thể để tái hiện bug dữ liệu theo UI mà user đó thấy. Hoàn toàn read-only ở MVP, có audit trail Mongo đầy đủ.
+
+### Backend
+- **Domain** — thêm `UserRole { User, Admin }` (default `User`), method `User.PromoteToAdmin()` / `DemoteToUser()`. Entity mới `ImpersonationAudit` (append-only, không phải AggregateRoot): `AdminUserId, TargetUserId, Reason, IpAddress, UserAgent, StartedAt, EndedAt?, IsRevoked`, method `Revoke()` set cả `IsRevoked=true` và `EndedAt`.
+- **Application** — `IImpersonationAuditRepository`, `StartImpersonationCommand` (verify admin role + target tồn tại + không self-impersonate → tạo audit → gọi `IJwtService.CreateImpersonationToken` → log `AuditEntry`), `StopImpersonationCommand` (chỉ admin gốc mới stop được, gọi `audit.Revoke()`). Mở rộng `IJwtService` với `CreateImpersonationToken(adminId, target, impersonationId)`.
+- **Infrastructure** — `ImpersonationAuditRepository` (collection `impersonationAudits`, indexes theo `adminUserId`/`targetUserId`/`isRevoked`). `JwtService.GenerateToken` thêm claim `role`. Token impersonate có claims `sub=target, actor=admin, impersonation_id, amr=impersonate`, TTL cố định 1h. `AdminBootstrapHostedService` đọc `Admin:AllowEmails` khi startup và `PromoteToAdmin()` idempotent (không override role đã có, try/catch tránh fail startup).
+- **Api** — `[RequireAdmin]` attribute (chặn non-admin + chặn nested impersonate qua `amr` claim). `AdminController` với `POST /api/v1/admin/impersonate` + `POST /api/v1/admin/impersonate/stop`. `ImpersonationValidationMiddleware` chạy giữa `UseAuthentication` và `UseAuthorization`: validate `IsRevoked` (401 + `X-Impersonation-Revoked: true`), block mutation POST/PUT/DELETE/PATCH (403 + `MUTATION_BLOCKED_DURING_IMPERSONATION`) trừ khi `Admin:AllowImpersonateMutations=true` hoặc gọi stop endpoint, set header `X-Impersonating: true`.
+- **Config** — `appsettings.json` thêm section `Admin:AllowEmails[]` + `Admin:AllowImpersonateMutations` (default `false`).
+
+### Frontend
+- **`core/services/impersonation.service.ts`** — `startImpersonate()` backup `auth_token`→`admin_auth_token`, `stopImpersonate(skipApiCall?)` restore. Decode JWT lấy target email/name.
+- **`core/interceptors/impersonation-revoked.interceptor.ts`** — functional interceptor catch 401 + `X-Impersonation-Revoked` → auto-restore admin token + toast warning. Đăng ký qua `withInterceptors([...])` ở `main.ts`.
+- **`shared/components/impersonation-banner/`** — sticky red bar full-width ở trên cùng, hiển thị email target + nút "Thoát impersonate". Mount trước `<app-header>` trong `app.component.ts`.
+
+### Tests
+- Domain: `UserRoleTests` (4) + `ImpersonationAuditTests` (6) — tổng 10 tests mới.
+- Application: `StartImpersonationCommandHandlerTests` (4) + `StopImpersonationCommandHandlerTests` (3) — tổng 7 tests mới.
+- Infrastructure: `JwtServiceImpersonationTests` (4) — role claim trên login token + 3 claim của impersonate token + TTL 1h.
+- **Tổng suite: 926 tests green (trước: ~907).**
+
+### Security notes
+- Bootstrap admin thông qua env `Admin__AllowEmails__0=admin@example.com` → tránh phụ thuộc code deploy để grant admin.
+- Nested impersonate bị chặn ở 2 tầng: `[RequireAdmin]` attribute (controller) và middleware không cho phép nested token.
+- Mutation block là default — admin phải có lý do cụ thể mới bật `Admin__AllowImpersonateMutations=true`.
+- Audit trail Mongo không bao giờ xoá (append-only), mỗi phiên impersonate = 1 document.
+
+### Docs
+- `docs/architecture.md` — thêm section "Admin Impersonation (Debug Tooling)" + Admin controller trong bảng endpoints + cập nhật folder `Authorization/` và `Middleware/`.
+- `docs/business-domain.md` — thêm UserRole + ImpersonationAudit vào entity map + Admin vào API endpoints + rule #10 về impersonation flow.
+- `docs/plans/multi-user-access-plan.md` — Phần 2 B1 Phase 1 marked implemented (plan gốc đã có spec `§2.7`).
+
+---
+
 ## [v2.44.1] — 2026-04-20 · Backend version on /health endpoints
 
 **Branch:** `feat/capital-current-vs-initial`

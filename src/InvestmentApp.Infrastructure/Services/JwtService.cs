@@ -25,6 +25,7 @@ public class JwtService : IJwtService
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Name, user.Name),
             new Claim("provider", user.Provider),
+            new Claim("role", user.Role.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
@@ -36,6 +37,33 @@ public class JwtService : IJwtService
             audience: _configuration["Jwt:Audience"],
             claims: claims,
             expires: DateTime.Now.AddMinutes(int.Parse(_configuration["Jwt:ExpiryInMinutes"]!)),
+            signingCredentials: creds
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string CreateImpersonationToken(string adminUserId, User target, string impersonationId)
+    {
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, target.Id),
+            new Claim(JwtRegisteredClaimNames.Email, target.Email),
+            new Claim(JwtRegisteredClaimNames.Name, target.Name),
+            new Claim("actor", adminUserId),
+            new Claim("impersonation_id", impersonationId),
+            new Claim("amr", "impersonate"),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: creds
         );
 
