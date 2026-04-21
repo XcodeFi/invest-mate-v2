@@ -84,6 +84,13 @@ interface NavGroup {
               DEV
             </a>
 
+            <!-- Admin link (only visible to admins, hidden during impersonation) -->
+            <a *ngIf="isAdmin()" routerLink="/admin/users"
+              class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
+              title="Admin: tìm user để impersonate">
+              ADMIN
+            </a>
+
             <!-- Risk Score Badge -->
             <a *ngIf="riskScore >= 0" routerLink="/risk-dashboard"
               class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold cursor-pointer transition-colors"
@@ -280,6 +287,17 @@ export class HeaderComponent implements OnInit {
       this.currentUser = user;
       if (user) this.loadRiskScore();
     });
+  }
+
+  isAdmin(): boolean {
+    const token = this.authService.getToken();
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role === 'Admin' && payload.amr !== 'impersonate';
+    } catch {
+      return false;
+    }
   }
 
   private loadRiskScore(): void {

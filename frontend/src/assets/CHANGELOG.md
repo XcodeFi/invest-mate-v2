@@ -13,7 +13,7 @@ Công cụ debug cho phép admin đăng nhập dưới tư cách user cụ thể
 - **Application** — `IImpersonationAuditRepository`, `StartImpersonationCommand` (verify admin role + target tồn tại + không self-impersonate → tạo audit → gọi `IJwtService.CreateImpersonationToken` → log `AuditEntry`), `StopImpersonationCommand` (chỉ admin gốc mới stop được, gọi `audit.Revoke()`). Mở rộng `IJwtService` với `CreateImpersonationToken(adminId, target, impersonationId)`.
 - **Infrastructure** — `ImpersonationAuditRepository` (collection `impersonationAudits`, indexes theo `adminUserId`/`targetUserId`/`isRevoked`). `JwtService.GenerateToken` thêm claim `role`. Token impersonate có claims `sub=target, actor=admin, impersonation_id, amr=impersonate`, TTL cố định 1h. `AdminBootstrapHostedService` đọc `Admin:AllowEmails` khi startup và `PromoteToAdmin()` idempotent (không override role đã có, try/catch tránh fail startup).
 - **Api** — `[RequireAdmin]` attribute (chặn non-admin + chặn nested impersonate qua `amr` claim). `AdminController` với `POST /api/v1/admin/impersonate` + `POST /api/v1/admin/impersonate/stop`. `ImpersonationValidationMiddleware` chạy giữa `UseAuthentication` và `UseAuthorization`: validate `IsRevoked` (401 + `X-Impersonation-Revoked: true`), block mutation POST/PUT/DELETE/PATCH (403 + `MUTATION_BLOCKED_DURING_IMPERSONATION`) trừ khi `Admin:AllowImpersonateMutations=true` hoặc gọi stop endpoint, set header `X-Impersonating: true`.
-- **Config** — `appsettings.json` thêm section `Admin:AllowEmails[]` + `Admin:AllowImpersonateMutations` (default `false`).
+- **Config** — `appsettings.json` thêm section `Admin:AllowEmails` (CSV string, placeholder `{Admin__AllowEmails}` giống các key khác) + `Admin:AllowImpersonateMutations` (default `false`). Giá trị thật set ở `appsettings.Development.json` cho local hoặc env var `Admin__AllowEmails="a@x.com,b@x.com"` cho Cloud Run — 1 env var duy nhất, dễ set hơn mảng. Bootstrap service tự skip nếu placeholder chưa được thay.
 
 ### Frontend
 - **`core/services/impersonation.service.ts`** — `startImpersonate()` backup `auth_token`→`admin_auth_token`, `stopImpersonate(skipApiCall?)` restore. Decode JWT lấy target email/name.
@@ -25,6 +25,13 @@ Công cụ debug cho phép admin đăng nhập dưới tư cách user cụ thể
 - Application: `StartImpersonationCommandHandlerTests` (4) + `StopImpersonationCommandHandlerTests` (3) — tổng 7 tests mới.
 - Infrastructure: `JwtServiceImpersonationTests` (4) — role claim trên login token + 3 claim của impersonate token + TTL 1h.
 - **Tổng suite: 926 tests green (trước: ~907).**
+
+### Admin UI (Phase 2 follow-up, same PR)
+- **`GET /api/v1/admin/users?email=<q>`** — search user theo email (partial, case-insensitive), limit 10, exclude caller. `SearchUsersQuery` + handler + `IUserRepository.SearchByEmailAsync` (Mongo regex).
+- **`AdminGuard`** (`core/guards/admin.guard.ts`) — check JWT `role=Admin` + chặn khi đang impersonate (`amr=impersonate`).
+- **`AdminService`** (`core/services/admin.service.ts`) — gọi API search.
+- **`/admin/users` page** (`features/admin/admin-users.component.ts`) — input email, list results, modal nhập reason, bấm "Xem như user này" → gọi `ImpersonationService.startImpersonate()` → reload.
+- **Header link `ADMIN`** — chỉ hiện khi admin login (và không đang impersonate).
 
 ### Security notes
 - Bootstrap admin thông qua env `Admin__AllowEmails__0=admin@example.com` → tránh phụ thuộc code deploy để grant admin.

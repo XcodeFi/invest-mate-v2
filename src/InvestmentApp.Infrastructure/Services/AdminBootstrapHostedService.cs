@@ -29,7 +29,18 @@ public class AdminBootstrapHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var emails = _configuration.GetSection("Admin:AllowEmails").Get<string[]>() ?? Array.Empty<string>();
+        // Admin:AllowEmails is a comma-separated string. Dev value lives in
+        // appsettings.Development.json; prod is set via env var Admin__AllowEmails.
+        // If the value is the literal placeholder from appsettings.json
+        // ("{Admin__AllowEmails}"), treat as not configured.
+        var raw = _configuration["Admin:AllowEmails"] ?? string.Empty;
+        if (raw.StartsWith('{') && raw.EndsWith('}'))
+        {
+            _logger.LogInformation("Admin bootstrap: Admin:AllowEmails placeholder not substituted, skipping");
+            return;
+        }
+        var emails = raw
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (emails.Length == 0)
         {
             _logger.LogInformation("Admin bootstrap: no Admin:AllowEmails configured, skipping");

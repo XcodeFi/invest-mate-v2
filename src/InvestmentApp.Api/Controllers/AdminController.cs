@@ -1,6 +1,7 @@
 using InvestmentApp.Api.Authorization;
 using InvestmentApp.Application.Admin.Commands.StartImpersonation;
 using InvestmentApp.Application.Admin.Commands.StopImpersonation;
+using InvestmentApp.Application.Admin.Queries.SearchUsers;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -22,6 +23,24 @@ public class AdminController : ControllerBase
 
     private string GetUserId() =>
         User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException();
+
+    /// <summary>
+    /// Search users by email (partial, case-insensitive). Returns up to 10 results,
+    /// excluding the caller. Empty query returns empty list.
+    /// </summary>
+    [HttpGet("users")]
+    [RequireAdmin]
+    [ProducesResponseType(typeof(List<AdminUserDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> SearchUsers([FromQuery] string? email)
+    {
+        var result = await _mediator.Send(new SearchUsersQuery
+        {
+            CallerUserId = GetUserId(),
+            EmailQuery = email ?? string.Empty
+        });
+        return Ok(result);
+    }
 
     /// <summary>
     /// Start impersonating a user. Only callable by admins (role=Admin, no active amr=impersonate).

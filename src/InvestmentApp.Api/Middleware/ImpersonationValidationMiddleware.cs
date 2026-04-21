@@ -1,16 +1,19 @@
 using InvestmentApp.Application.Interfaces;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 
 namespace InvestmentApp.Api.Middleware;
 
 /// <summary>
-/// Validates impersonation tokens on every authenticated request.
+/// Validates impersonation tokens on every Bearer-token request.
 /// - Revoked/ended sessions → 401 + X-Impersonation-Revoked: true
 /// - Blocks mutation methods unless Admin:AllowImpersonateMutations is true
 /// - Sets X-Impersonating: true response header
 ///
-/// MUST run AFTER UseAuthentication (needs claims) and BEFORE UseAuthorization.
+/// Default auth scheme is Cookie, so UseAuthentication doesn't populate JWT
+/// claims at this point — we authenticate the Bearer scheme explicitly.
 /// </summary>
 public class ImpersonationValidationMiddleware
 {
@@ -27,7 +30,19 @@ public class ImpersonationValidationMiddleware
 
     public async Task InvokeAsync(HttpContext context, IConfiguration configuration)
     {
-        var impersonationId = context.User?.FindFirst("impersonation_id")?.Value;
+        // Skip non-Bearer requests (cookie / OAuth callback flows).
+        var authHeader = context.Request.Headers.Authorization.ToString();
+        if (!authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            await _next(context);
+            return;
+        }
+
+        // Explicit JWT authentication — default auth scheme is Cookie, so JWT claims
+        // aren't loaded into context.User until an [Authorize(JwtBearer)] endpoint fires.
+        var jwtResult = await context.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
+        var principal = jwtResult.Succeeded ? jwtResult.Principal : null;
+        var impersonationId = principal?.FindFirst("impersonation_id")?.Value;
         if (string.IsNullOrEmpty(impersonationId))
         {
             await _next(context);
