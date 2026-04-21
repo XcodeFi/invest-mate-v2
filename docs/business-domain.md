@@ -54,7 +54,14 @@ User (1)
  ├── MarketEvent (N)         ← Sự kiện thị trường (KQKD, cổ tức, tin tức...)
  │                              7 loại: Earnings/Dividend/RightsIssue/ShareholderMtg/InsiderTrade/News/Macro
  │
- └── AiSettings (1)          ← Cấu hình AI đa nhà cung cấp (Claude + Gemini)
+ ├── AiSettings (1)          ← Cấu hình AI đa nhà cung cấp (Claude + Gemini)
+ │
+ └── Role                     ← UserRole enum: User (default) / Admin (debug tooling)
+
+ImpersonationAudit (independent, append-only)
+ ├── AdminUserId, TargetUserId, Reason, IpAddress, UserAgent
+ ├── StartedAt, EndedAt?, IsRevoked
+ └── 1 bản ghi = 1 phiên impersonate; revoke bằng set IsRevoked=true
 ```
 
 ### Liên kết giữa entities
@@ -238,6 +245,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | Fees | `/api/v1/fees` | Phí giao dịch |
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
 | AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis** + JSON: build-context (copy prompt) |
+| Admin | `/api/v1/admin` | **Debug tooling (admin-only)**: `impersonate` bắt đầu phiên xem-như-user, `impersonate/stop` kết thúc. Chặn nested impersonate + block mutation theo config. |
 
 ---
 
@@ -280,3 +288,4 @@ Bước 5: Nhật ký (update journal đã tạo)
 7. **Tiền tệ**: Mặc định VND, format bằng `VndCurrencyPipe`
 8. **Ngôn ngữ UI**: Tiếng Việt có dấu đầy đủ
 9. **MarkReviewed requires CampaignReviewData**: Chuyển TradePlan sang Reviewed phải kèm `CampaignReviewData` với auto-calculated metrics (P&L, %, VND/ngày, annualized return). Không cho phép review "trống" — `CampaignReviewService` tính toán tự động từ trades thực tế
+10. **Admin impersonation**: JWT impersonate có `sub=targetId, actor=adminId, amr=impersonate`, TTL 1h. `ImpersonationAudit.IsRevoked=true` → token coi như hết hạn (check ở `ImpersonationValidationMiddleware`). Cấm nested impersonate (`[RequireAdmin]` reject token có `amr=impersonate`). Mutation POST/PUT/DELETE/PATCH bị chặn khi impersonate trừ khi `Admin:AllowImpersonateMutations=true`.

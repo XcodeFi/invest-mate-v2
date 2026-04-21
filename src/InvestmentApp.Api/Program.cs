@@ -120,6 +120,7 @@ builder.Services.AddScoped<IWatchlistRepository, WatchlistRepository>();
 builder.Services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
 builder.Services.AddScoped<IMarketEventRepository, MarketEventRepository>();
 builder.Services.AddScoped<IScenarioTemplateRepository, ScenarioTemplateRepository>();
+builder.Services.AddScoped<IImpersonationAuditRepository, ImpersonationAuditRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -205,6 +206,7 @@ builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<IScenarioEvaluationService, ScenarioEvaluationService>();
 builder.Services.AddScoped<IScenarioAdvisoryService, ScenarioAdvisoryService>();
 builder.Services.AddTransient<SeedDataService>();
+builder.Services.AddHostedService<AdminBootstrapHostedService>();
 
 // AI Services
 var externalApis = builder.Configuration.GetSection("ExternalApis");
@@ -377,6 +379,7 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.UseAuthentication();
+app.UseMiddleware<ImpersonationValidationMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

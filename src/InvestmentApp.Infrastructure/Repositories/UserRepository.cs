@@ -43,6 +43,17 @@ public class UserRepository : IUserRepository
         return await _collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<User>> SearchByEmailAsync(string emailQuery, int limit, CancellationToken cancellationToken = default)
+    {
+        var escaped = System.Text.RegularExpressions.Regex.Escape(emailQuery);
+        var regex = new MongoDB.Bson.BsonRegularExpression(escaped, "i");
+        var filter = Builders<User>.Filter.And(
+            Builders<User>.Filter.Regex(u => u.Email, regex),
+            Builders<User>.Filter.Eq(u => u.IsDeleted, false)
+        );
+        return await _collection.Find(filter).Limit(limit).ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(User entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

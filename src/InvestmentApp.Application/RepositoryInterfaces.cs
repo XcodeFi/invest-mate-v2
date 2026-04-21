@@ -33,6 +33,12 @@ public interface ITradeRepository : IRepository<Trade>
 public interface IUserRepository : IRepository<User>
 {
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<IEnumerable<User>> SearchByEmailAsync(string emailQuery, int limit, CancellationToken cancellationToken = default);
+}
+
+public interface IImpersonationAuditRepository : IRepository<ImpersonationAudit>
+{
+    Task<IEnumerable<ImpersonationAudit>> GetActiveByAdminAsync(string adminUserId, CancellationToken cancellationToken = default);
 }
 
 public interface IStockPriceRepository : IRepository<StockPrice>

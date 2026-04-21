@@ -4,13 +4,15 @@ import { HeaderComponent } from './shared/components/header/header.component';
 import { NotificationToastComponent } from './shared/components/notification-toast/notification-toast.component';
 import { BottomNavComponent } from './shared/components/bottom-nav/bottom-nav.component';
 import { PwaInstallBannerComponent } from './shared/components/pwa-install-banner/pwa-install-banner.component';
+import { ImpersonationBannerComponent } from './shared/components/impersonation-banner/impersonation-banner.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, NotificationToastComponent, BottomNavComponent, PwaInstallBannerComponent],
+  imports: [RouterOutlet, HeaderComponent, NotificationToastComponent, BottomNavComponent, PwaInstallBannerComponent, ImpersonationBannerComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
+      <app-impersonation-banner></app-impersonation-banner>
       <app-header></app-header>
       <main class="pb-14 md:pb-0">
         <router-outlet></router-outlet>

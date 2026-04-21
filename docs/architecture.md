@@ -26,7 +26,9 @@ project/
 │   │   └── Repositories/              # 23 MongoDB repositories (incl. ScenarioTemplateRepository)
 │   │
 │   ├── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
-│   │   ├── Controllers/               # 25 API controllers
+│   │   ├── Controllers/               # 26 API controllers (incl. AdminController)
+│   │   ├── Authorization/             # RequireAdminAttribute
+│   │   ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception
 │   │   └── Program.cs                 # DI registration, middleware pipeline
 │   │
 │   └── InvestmentApp.Worker/           # Background jobs (snapshots, alerts, scenario evaluation)
@@ -139,6 +141,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | JournalEntries | `/api/v1/journal-entries` | CRUD standalone journal entries, **pending-review (P1)** |
 | SymbolTimeline | `/api/v1/symbols/{symbol}/timeline` | Unified timeline (journals + trades + events + alerts) |
 | MarketEvents | `/api/v1/market-events` | CRUD market events per symbol, crawl from Vietstock |
+| Admin | `/api/v1/admin` | **Impersonation (debug tooling)**: start/stop user impersonation. Restricted via `[RequireAdmin]` (role=Admin + no `amr=impersonate`). Mutation blocked during impersonation unless `Admin:AllowImpersonateMutations=true`. |
 
 ## Health Endpoints (Minimal API, unauthenticated)
 
@@ -188,6 +191,37 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (868 tests)
+- **Backend:** xUnit + FluentAssertions + Moq (926 tests)
 - **Frontend:** Karma + Jasmine (configured, tests pending)
 - Run `dotnet test` before commit
+
+## Admin Impersonation (Debug Tooling)
+
+Feature B1 (2026-04-21) — cho phép admin debug data của user cụ thể bằng cách xem UI như user đó.
+
+**Flow:**
+1. Admin đăng nhập bình thường (Google OAuth → JWT chứa `role=Admin`, set qua `Admin:AllowEmails` config).
+2. Gọi `POST /api/v1/admin/impersonate { targetUserId, reason }` → nhận JWT impersonate (TTL 1h) với claims: `sub=targetId`, `actor=adminId`, `impersonation_id`, `amr=impersonate`.
+3. FE lưu admin token ở `localStorage.admin_auth_token`, set impersonate token vào `auth_token`, reload. Banner đỏ hiển thị.
+4. Mọi request qua `ImpersonationValidationMiddleware`:
+   - Validate `impersonation_id` chưa bị revoke (Mongo lookup). Nếu revoked → 401 + header `X-Impersonation-Revoked: true`.
+   - Block POST/PUT/DELETE/PATCH (403 + `MUTATION_BLOCKED_DURING_IMPERSONATION`) trừ khi `Admin:AllowImpersonateMutations=true` hoặc path là `/admin/impersonate/stop`.
+   - Set header `X-Impersonating: true`.
+5. Stop: `POST /api/v1/admin/impersonate/stop` (gọi bằng impersonate token) → set `IsRevoked=true` trên `ImpersonationAudit`.
+6. FE interceptor `impersonation-revoked.interceptor.ts` tự động catch 401 + revoked header → khôi phục admin token.
+
+**Key files:**
+- `Authorization/RequireAdminAttribute.cs` — chặn non-admin + chặn token impersonate start impersonation lồng
+- `Middleware/ImpersonationValidationMiddleware.cs` — validate + mutation-block, đặt giữa `UseAuthentication` và `UseAuthorization`
+- `Infrastructure/Services/AdminBootstrapHostedService.cs` — promote user từ `Admin:AllowEmails` khi startup (idempotent)
+- `frontend/src/app/core/services/impersonation.service.ts` — start/stop, backup `auth_token` sang `admin_auth_token`
+- `frontend/src/app/shared/components/impersonation-banner/` — sticky red banner top
+
+**Config (`appsettings.json`):**
+```json
+"Admin": {
+  "AllowEmails": "admin@example.com,other-admin@example.com",
+  "AllowImpersonateMutations": false
+}
+```
+CSV string (not array) — 1 env var đủ: `Admin__AllowEmails="a@x.com,b@x.com"`, `Admin__AllowImpersonateMutations=true`.
