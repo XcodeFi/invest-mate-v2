@@ -2,6 +2,7 @@ using InvestmentApp.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
 
 namespace InvestmentApp.Api.Middleware;
@@ -43,8 +44,26 @@ public class ImpersonationValidationMiddleware
         var jwtResult = await context.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
         var principal = jwtResult.Succeeded ? jwtResult.Principal : null;
         var impersonationId = principal?.FindFirst("impersonation_id")?.Value;
+
         if (string.IsNullOrEmpty(impersonationId))
         {
+            // Fallback: JWT validation may have failed (expired token or framework edge
+            // cases). Peek at the raw token — if it's an impersonation token, surface
+            // X-Impersonation-Revoked so the FE interceptor can auto-restore admin session.
+            var rawToken = authHeader.Substring("Bearer ".Length).Trim();
+            if (TryReadImpersonationIdWithoutValidation(rawToken, out var expiredId)
+                && !string.IsNullOrEmpty(expiredId))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Headers["X-Impersonation-Revoked"] = "true";
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(new
+                {
+                    error = "IMPERSONATION_SESSION_EXPIRED"
+                }));
+                return;
+            }
+
             await _next(context);
             return;
         }
@@ -88,5 +107,31 @@ public class ImpersonationValidationMiddleware
         }
 
         await _next(context);
+    }
+
+    /// <summary>
+    /// Decodes the JWT without validating signature/lifetime and returns the
+    /// impersonation_id claim if present. Used to distinguish "malformed token"
+    /// from "expired impersonation token" when full auth fails.
+    /// </summary>
+    public static bool TryReadImpersonationIdWithoutValidation(string rawToken, out string impersonationId)
+    {
+        impersonationId = string.Empty;
+        if (string.IsNullOrWhiteSpace(rawToken)) return false;
+        try
+        {
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(rawToken);
+            var claim = jwt.Claims.FirstOrDefault(c => c.Type == "impersonation_id");
+            if (claim != null && !string.IsNullOrEmpty(claim.Value))
+            {
+                impersonationId = claim.Value;
+                return true;
+            }
+        }
+        catch
+        {
+            // Malformed token — not our concern.
+        }
+        return false;
     }
 }
