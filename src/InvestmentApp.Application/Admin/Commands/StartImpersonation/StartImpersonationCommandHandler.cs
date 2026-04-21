@@ -25,12 +25,14 @@ public class StartImpersonationCommandHandler : IRequestHandler<StartImpersonati
 
     public async Task<StartImpersonationResult> Handle(StartImpersonationCommand request, CancellationToken cancellationToken)
     {
-        if (request.AdminUserId == request.TargetUserId)
-            throw new ArgumentException("Cannot impersonate self");
-
+        // Defense-in-depth ordering: verify admin role BEFORE any check that could
+        // confirm/deny info about other users (self-impersonate, target existence).
         var admin = await _userRepository.GetByIdAsync(request.AdminUserId, cancellationToken);
         if (admin == null || admin.Role != UserRole.Admin)
             throw new UnauthorizedAccessException("Caller is not an admin");
+
+        if (request.AdminUserId == request.TargetUserId)
+            throw new ArgumentException("Cannot impersonate self");
 
         var target = await _userRepository.GetByIdAsync(request.TargetUserId, cancellationToken);
         if (target == null)

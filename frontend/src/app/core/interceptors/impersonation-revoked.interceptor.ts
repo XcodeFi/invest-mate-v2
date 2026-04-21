@@ -15,8 +15,12 @@ export const impersonationRevokedInterceptor: HttpInterceptorFn = (req, next) =>
       if (error instanceof HttpErrorResponse && error.status === 401) {
         const revoked = error.headers.get('X-Impersonation-Revoked');
         if (revoked === 'true' && impersonationService.isImpersonating()) {
+          const errorCode = (error.error as { error?: string })?.error;
+          const reason = errorCode === 'IMPERSONATION_SESSION_EXPIRED'
+            ? 'Phiên impersonate hết hạn'
+            : 'Phiên impersonate bị thu hồi';
           impersonationService.stopImpersonate(true).subscribe();
-          notifications?.warning('Phiên impersonate kết thúc', 'Đã khôi phục phiên admin');
+          notifications?.warning(reason, 'Đã khôi phục phiên admin');
           router.navigate(['/dashboard']);
         }
       }

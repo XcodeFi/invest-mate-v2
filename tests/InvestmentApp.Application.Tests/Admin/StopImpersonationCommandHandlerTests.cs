@@ -9,12 +9,14 @@ namespace InvestmentApp.Application.Tests.Admin;
 public class StopImpersonationCommandHandlerTests
 {
     private readonly Mock<IImpersonationAuditRepository> _auditRepo;
+    private readonly Mock<IAuditService> _auditService;
     private readonly StopImpersonationCommandHandler _handler;
 
     public StopImpersonationCommandHandlerTests()
     {
         _auditRepo = new Mock<IImpersonationAuditRepository>();
-        _handler = new StopImpersonationCommandHandler(_auditRepo.Object);
+        _auditService = new Mock<IAuditService>();
+        _handler = new StopImpersonationCommandHandler(_auditRepo.Object, _auditService.Object);
     }
 
     [Fact]
@@ -62,5 +64,32 @@ public class StopImpersonationCommandHandlerTests
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
         audit.IsRevoked.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_ValidStop_LogsAuditEntry()
+    {
+        var audit = new ImpersonationAudit("admin-1", "target-1", "Debug #123", "ip", "ua");
+        _auditRepo.Setup(r => r.GetByIdAsync(audit.Id, It.IsAny<CancellationToken>())).ReturnsAsync(audit);
+
+        AuditEntry? captured = null;
+        _auditService
+            .Setup(s => s.LogAsync(It.IsAny<AuditEntry>(), It.IsAny<CancellationToken>()))
+            .Callback<AuditEntry, CancellationToken>((entry, _) => captured = entry)
+            .Returns(Task.CompletedTask);
+
+        await _handler.Handle(new StopImpersonationCommand
+        {
+            ImpersonationId = audit.Id,
+            AdminUserId = "admin-1"
+        }, CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.UserId.Should().Be("admin-1");
+        captured.Action.Should().Be("ImpersonationStopped");
+        captured.EntityId.Should().Be(audit.Id);
+        captured.EntityType.Should().Be("ImpersonationAudit");
+        captured.Description.Should().Contain("admin-1");
+        captured.Description.Should().Contain("target-1");
     }
 }
