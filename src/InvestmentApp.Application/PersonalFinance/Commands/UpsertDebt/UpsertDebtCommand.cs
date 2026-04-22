@@ -37,6 +37,13 @@ public class UpsertDebtCommandHandler : IRequestHandler<UpsertDebtCommand, DebtD
         var profile = await _repository.GetByUserIdAsync(request.UserId, cancellationToken)
             ?? throw new InvalidOperationException($"Chưa có profile cho user {request.UserId}. Hãy tạo profile trước khi thêm khoản nợ.");
 
+        // Normalize MaturityDate: strip time + pin to UTC midnight. FE sends bare "YYYY-MM-DD" which
+        // System.Text.Json parses as DateTimeKind.Unspecified; storing/serializing that drifts by 1 day
+        // depending on server TZ. Explicit UTC kind keeps the roundtrip lossless.
+        var maturityDate = request.MaturityDate.HasValue
+            ? DateTime.SpecifyKind(request.MaturityDate.Value.Date, DateTimeKind.Utc)
+            : (DateTime?)null;
+
         var debt = profile.UpsertDebt(
             debtId: request.DebtId,
             type: request.Type,
@@ -44,7 +51,7 @@ public class UpsertDebtCommandHandler : IRequestHandler<UpsertDebtCommand, DebtD
             principal: request.Principal,
             interestRate: request.InterestRate,
             monthlyPayment: request.MonthlyPayment,
-            maturityDate: request.MaturityDate,
+            maturityDate: maturityDate,
             note: request.Note);
 
         await _repository.UpdateAsync(profile, cancellationToken);

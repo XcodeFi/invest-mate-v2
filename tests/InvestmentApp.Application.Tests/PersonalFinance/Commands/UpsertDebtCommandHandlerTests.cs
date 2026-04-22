@@ -120,4 +120,31 @@ public class UpsertDebtCommandHandlerTests
         await act.Should().ThrowAsync<InvalidOperationException>();
         _repo.Verify(r => r.UpdateAsync(It.IsAny<FinancialProfile>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Handle_MaturityDate_NormalizedToUtcMidnight()
+    {
+        // Lock behavior: FE sends bare date → BE stores as UTC midnight (no TZ drift).
+        // DateTimeKind.Unspecified would cause off-by-1-day on roundtrip in non-UTC servers.
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        _repo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+        var rawDate = new DateTime(2025, 12, 31, 0, 0, 0, DateTimeKind.Unspecified);
+
+        var cmd = new UpsertDebtCommand
+        {
+            UserId = "u1",
+            Type = DebtType.Mortgage,
+            Name = "Nhà",
+            Principal = 1_000_000_000m,
+            MaturityDate = rawDate,
+        };
+        var result = await _handler.Handle(cmd, CancellationToken.None);
+
+        result.MaturityDate.Should().NotBeNull();
+        result.MaturityDate!.Value.Year.Should().Be(2025);
+        result.MaturityDate.Value.Month.Should().Be(12);
+        result.MaturityDate.Value.Day.Should().Be(31);
+        result.MaturityDate.Value.Kind.Should().Be(DateTimeKind.Utc);
+        result.MaturityDate.Value.TimeOfDay.Should().Be(TimeSpan.Zero);
+    }
 }
