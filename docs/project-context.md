@@ -37,7 +37,7 @@ Transform from "trade recorder" to "opportunity finder":
 ### Tier 3 — Planned
 
 6. **Capital Flows Visibility** — 🔄 In Progress: TWR/MWR trên Dashboard + Analytics, flow markers trên equity curve, smart nudge, cash balance card
-7. **Tài chính cá nhân** — ✅ Done 2026-04-22: Net Worth overview với **5 loại tài khoản** (CK/Tiết kiệm/Dự phòng/Nhàn rỗi + **Vàng tích trữ**), Financial Rules compliance (quỹ dự phòng 6 tháng, đầu tư ≤50%, tiết kiệm ≥30%), health scorecard 0-100, Dashboard widget + trang `/personal-finance`. **HmoneyGoldPriceProvider** crawler giá vàng từ 24hmoney (HTML scrape, 2-tier cache), Gold auto-calc Balance = quantity × live sellPrice. 78 tests mới, 1013 total pass. Chi tiết: [`docs/plans/done/personal-finance.md`](plans/done/personal-finance.md)
+7. **Tài chính cá nhân** — ✅ Done 2026-04-22: Net Worth overview với **5 loại tài khoản** (CK/Tiết kiệm/Dự phòng/Nhàn rỗi + **Vàng tích trữ**), Financial Rules compliance (quỹ dự phòng 6 tháng, đầu tư ≤50%, tiết kiệm ≥30%), health scorecard 0-100, Dashboard widget + trang `/personal-finance`. **HmoneyGoldPriceProvider** crawler giá vàng từ 24hmoney (HTML scrape, 2-tier cache), Gold auto-calc Balance = quantity × live BuyPrice (giá tiệm mua vào = giá user bán được, định giá theo thanh khoản thực tế). 78 tests mới, 1013 total pass. Chi tiết: [`docs/plans/done/personal-finance.md`](plans/done/personal-finance.md)
 
 ### Improvement Proposals (P1-P4) — Done
 

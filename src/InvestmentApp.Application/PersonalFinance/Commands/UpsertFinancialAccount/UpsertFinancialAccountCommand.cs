@@ -65,7 +65,9 @@ public class UpsertFinancialAccountCommandHandler : IRequestHandler<UpsertFinanc
     }
 
     /// <summary>
-    /// Gold auto-calc: nếu Type=Gold + 3 Gold field đủ → Balance = quantity × sellPrice từ provider.
+    /// Gold auto-calc: nếu Type=Gold + 3 Gold field đủ → Balance = quantity × BuyPrice từ provider.
+    /// BuyPrice = giá tiệm mua vào = giá user bán được → định giá đúng tài sản đang giữ nếu thanh khoản ngay.
+    /// (SellPrice = giá tiệm bán ra, chỉ liên quan khi user đi mua thêm.)
     /// Nếu provider trả null → throw (không silent fallback).
     /// Securities: Balance dùng 0 mặc định (live value tính qua PnLService).
     /// Các type khác (Savings/Emergency/IdleCash + Gold manual): Balance bắt buộc — null → throw để không silent tạo account ₫0.
@@ -88,7 +90,7 @@ public class UpsertFinancialAccountCommandHandler : IRequestHandler<UpsertFinanc
                 throw new InvalidOperationException(
                     $"Không lấy được giá vàng {request.GoldBrand} {request.GoldType} từ provider. Thử lại sau hoặc nhập Balance tay.");
 
-            return request.GoldQuantity!.Value * price.SellPrice;
+            return request.GoldQuantity!.Value * price.BuyPrice;
         }
 
         // Securities auto-sync from PnLService → default 0 if not provided (stored value is overridden anyway)

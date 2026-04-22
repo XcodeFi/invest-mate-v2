@@ -61,12 +61,14 @@ Bật toggle "Tự tính Balance từ giá vàng 24hmoney", rồi chọn:
 - **Loại**: Vàng miếng hoặc Vàng nhẫn
 - **Số lượng**: nhập theo đơn vị **lượng** (VD: `2`, `0.5`)
 
-Ứng dụng sẽ crawl giá **Bán ra** mới nhất từ 24hmoney và hiển thị preview:
+Ứng dụng sẽ crawl giá **Mua vào** mới nhất từ 24hmoney (giá tiệm mua vào = giá bạn bán được nếu thanh khoản ngay) và hiển thị preview:
 
 ```
-Giá Bán ra hiện tại: 75.500.000 / lượng
-Số dư tự tính:     151.000.000
+Giá mua vào hiện tại: 74.000.000 / lượng
+Số dư tự tính:      148.000.000
 ```
+
+> Vì sao dùng giá mua vào? Để định giá **tài sản đang giữ** theo giá có thể thanh lý thực tế, không phải giá đi mua thêm. Chênh lệch mua–bán (spread) 1–3 triệu/lượng sẽ không bị cộng ảo vào tổng tài sản.
 
 Mỗi lần bạn tải lại trang hoặc mở lại form, giá được làm mới tự động (cache 5 phút fresh → 6 giờ stale fallback).
 

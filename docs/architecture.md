@@ -258,7 +258,7 @@ Feature cross-cutting tổng quan tài sản + nguyên tắc tài chính + crawl
 **Flow:**
 1. User thiết lập profile với `MonthlyExpense` → backend tạo `FinancialProfile` với 4 default accounts (Securities/Savings/Emergency/IdleCash) + `FinancialRules` defaults (6 tháng dự phòng / cap đầu tư 50% / sàn tiết kiệm 30%).
 2. User thêm Gold account qua form FE: chọn brand + type + quantity (lượng) → FE fetch `GET /personal-finance/gold-prices` → hiển thị live price + Balance auto-calc preview.
-3. Backend `UpsertFinancialAccountCommand` detect 3 Gold fields set → gọi `IGoldPriceProvider.GetPriceAsync(brand, type)` → `Balance = quantity × sellPrice`. Provider null → throw 400 (không silent fallback).
+3. Backend `UpsertFinancialAccountCommand` detect 3 Gold fields set → gọi `IGoldPriceProvider.GetPriceAsync(brand, type)` → `Balance = quantity × BuyPrice` (giá tiệm mua vào = giá user bán được). Provider null → throw 400 (không silent fallback).
 4. `GET /summary` aggregate securities value từ tất cả portfolios của user qua `IPnLService` → tính health score 0-100 với 3 rules:
    - **Emergency**: `emergencyTotal ≥ monthlyExpense × EmergencyFundMonths` (trừ tối đa 40)
    - **Investment cap**: `(securitiesValue + goldTotal) ≤ totalAssets × MaxInvestmentPercent%` (trừ tối đa 30)

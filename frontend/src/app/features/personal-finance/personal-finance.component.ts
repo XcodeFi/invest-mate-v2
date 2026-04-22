@@ -261,11 +261,11 @@ import { NotificationService } from '../../core/services/notification.service';
                        placeholder="VD: 2"
                        class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
               </div>
-              <div *ngIf="goldPreviewSellPrice !== null"
+              <div *ngIf="goldPreviewBuyPrice !== null"
                    class="bg-blue-900/30 border border-blue-700/50 rounded-lg px-3 py-2 text-xs space-y-1">
                 <div class="flex justify-between text-gray-300">
-                  <span>Giá Bán ra hiện tại:</span>
-                  <span class="font-bold text-white">{{ goldPreviewSellPrice | vndCurrency }} / lượng</span>
+                  <span>Giá mua vào hiện tại:</span>
+                  <span class="font-bold text-white">{{ goldPreviewBuyPrice | vndCurrency }} / lượng</span>
                 </div>
                 <div class="flex justify-between text-gray-300">
                   <span>Số dư tự tính:</span>
@@ -366,7 +366,7 @@ export class PersonalFinanceComponent implements OnInit {
 
   // Gold price cache (fetched once per page open)
   private goldPrices: GoldPriceDto[] = [];
-  goldPreviewSellPrice: number | null = null;
+  goldPreviewBuyPrice: number | null = null;
   goldPreviewBalance: number | null = null;
   goldPreviewError: string | null = null;
 
@@ -537,21 +537,21 @@ export class PersonalFinanceComponent implements OnInit {
 
   updateGoldPreview(): void {
     this.goldPreviewError = null;
-    this.goldPreviewSellPrice = null;
+    this.goldPreviewBuyPrice = null;
     this.goldPreviewBalance = null;
     const match = this.goldPrices.find(p => p.brand === this.formGoldBrand && p.type === this.formGoldType);
     if (!match) {
       this.goldPreviewError = 'Không có giá cho combo này';
       return;
     }
-    this.goldPreviewSellPrice = match.sellPrice;
+    this.goldPreviewBuyPrice = match.buyPrice;
     if (this.formGoldQuantity && this.formGoldQuantity > 0) {
-      this.goldPreviewBalance = this.formGoldQuantity * match.sellPrice;
+      this.goldPreviewBalance = this.formGoldQuantity * match.buyPrice;
     }
   }
 
   private resetGoldPreview(): void {
-    this.goldPreviewSellPrice = null;
+    this.goldPreviewBuyPrice = null;
     this.goldPreviewBalance = null;
     this.goldPreviewError = null;
   }
