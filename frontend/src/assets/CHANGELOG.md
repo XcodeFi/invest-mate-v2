@@ -2,6 +2,64 @@
 
 ---
 
+## [v2.46.0] — 2026-04-22 · Tài chính cá nhân + Gold Price Crawler (Tier 3)
+
+**Branches:** 6 PR — `feat/personal-finance-{domain,application,gold-crawler,api,frontend,docs}` (PR #77–#82 + docs PR)
+
+Feature Tier 3 từ improvement plan — tổng quan tài sản cá nhân (CK + vàng + tiết kiệm + dự phòng + nhàn rỗi), nguyên tắc tài chính với health score 0-100, và crawler giá vàng live từ 24hmoney. Ship qua 6 phase nhỏ để review/rollback dễ.
+
+### Tính năng chính
+
+- **Trang mới `/personal-finance`**: onboarding form → 5-card net worth → health score bar + 3 rule checks → accounts CRUD → settings.
+- **Dashboard widget** "Tài chính cá nhân" clickable với breakdown + health bar + onboarding variant.
+- **Gold form auto-calc**: user chọn SJC/DOJI/PNJ/Other + Miếng/Nhẫn + nhập quantity (lượng) → FE fetch live price → hiển thị Balance preview real-time. Fallback nhập tay nếu không dùng auto-calc.
+- **Health score 0-100** với 3 rules (điểm trừ tỷ lệ vi phạm):
+  - Quỹ dự phòng ≥ 6 tháng chi tiêu (-40 max)
+  - Đầu tư (CK + Vàng) ≤ 50% tổng tài sản (-30 max)
+  - Tiết kiệm ≥ 30% tổng tài sản (-30 max)
+  - Vàng cộng vào investment (cùng CK) theo định nghĩa user "vàng cũng là mục đầu tư". Không cộng vào savings.
+- **Securities auto-sync** giá trị từ `IPnLService.CalculatePortfolioPnLAsync(...).TotalMarketValue`, aggregate across all user portfolios — không cần nhập tay.
+
+### Backend
+
+- **Domain** — `FinancialProfile` aggregate (per-user 1:1, unique UserId) + `FinancialAccount` embedded + `FinancialRules` value object + 3 enums (`FinancialAccountType`, `GoldBrand`, `GoldType`). Methods: `Create`/`UpdateMonthlyExpense`/`UpdateRules`/`UpsertAccount`/`RemoveAccount`/`GetTotalAssets`/`CalculateHealthScore`. Guard "last Securities không được xóa".
+- **Application** — 3 commands (UpsertFinancialProfile, UpsertFinancialAccount with Gold auto-calc, RemoveFinancialAccount) + 3 queries (GetFinancialProfile, GetNetWorthSummary, GetGoldPrices). `IGoldPriceProvider` interface + `PersonalFinanceMapper`. `UpsertFinancialAccountCommandHandler.ResolveBalanceAsync` xử lý Gold auto-calc: 3 fields đủ → fetch price → `Balance = quantity × sellPrice`. Provider null → throw 400 (không silent fallback).
+- **Infrastructure** — `HmoneyGoldPriceProvider` crawler giá vàng từ `24hmoney.vn/gia-vang` bằng AngleSharp 1.3.0. Không có JSON API nên scrape SSR HTML. Filter chỉ Miếng + Nhẫn (skip nữ trang/trang sức). **Quirk**: giá HTML là full VND (167,200,000) mặc dù UI label nói "triệu VNĐ/lượng" — không scale ×1000. Two-tier cache: fresh 5 phút + stale 6h fallback. `FinancialProfileRepository` Mongo với unique index UserId, narrow catch `MongoCommandException when (ex.Code is 85 or 86)` để defensive với index conflict.
+- **Api** — `PersonalFinanceController` với 6 endpoints JWT-authed: GET / (profile, 404 nếu absent), GET /summary (net worth + `hasProfile` flag), GET /gold-prices, PUT / (upsert profile), PUT /accounts (upsert với Gold auto-calc), DELETE /accounts/{id}.
+- **Config** — `appsettings.json` thêm section `GoldPriceProvider` với placeholder `{GoldPriceProvider__PageUrl}` theo convention. Env var bắt buộc set trước deploy: `GoldPriceProvider__PageUrl=https://24hmoney.vn/gia-vang`.
+
+### Frontend
+
+- **`core/services/personal-finance.service.ts`** — HTTP client + TypeScript DTOs + 3 enums match backend numeric serialization (comment warning nếu BE đổi sang `JsonStringEnumConverter`) + static label helpers. `getProfile()` convert 404 → null qua `catchError + of(null)`.
+- **`features/personal-finance/personal-finance.component.ts`** — standalone ~620 lines inline template. Onboarding form + 5-card net worth grid + health bar color-coded + 3 rule check rows + accounts cards grid (Edit/Delete, Securities không Edit) + collapsible settings + account form modal với Gold auto-calc. Cache gold prices invalidate mỗi lần mở form (tránh 7h-stale).
+- **Dashboard widget** + onboarding variant, silent UI on error + `console.error` để dev diagnose.
+- **Header nav**: "💰 Tài chính cá nhân" dưới group "Quản lý".
+
+### Tests
+
+| Layer | Test files | Tests |
+|-------|-----------|:-----:|
+| Domain | `FinancialProfileTests.cs` | 39 |
+| Application | Commands + Queries | 22 |
+| Infrastructure | `HmoneyGoldPriceProviderTests.cs` + `LiveSmoke.cs` | 17 |
+| **Tổng feature** | | **78 mới** |
+
+**Tổng solution: 1016 tests green** (Domain 661, Application 115, Infrastructure 235, Api 5). FE không thêm unit tests (consistent với precedent project).
+
+### Deploy note
+
+**⚠️ Trước khi deploy staging/prod, set env var:**
+```
+GoldPriceProvider__PageUrl=https://24hmoney.vn/gia-vang
+```
+Pattern giống `MarketDataProvider__BaseUrl`. Nếu quên, app không crash lúc startup — fail silently khi request `/gold-prices` đầu tiên với DNS error. Xem Section 11 Deploy checklist trong plan đã archive.
+
+### Archived plan
+
+Plan `docs/plans/personal-finance.md` move sang `docs/plans/done/personal-finance.md` sau khi verify full E2E.
+
+---
+
 ## [v2.45.0] — 2026-04-21 · Admin Impersonation (debug tooling) — B1 Phase 1
 
 **Branch:** `feat/capital-current-vs-initial`

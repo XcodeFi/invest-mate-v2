@@ -56,6 +56,11 @@ User (1)
  │
  ├── AiSettings (1)          ← Cấu hình AI đa nhà cung cấp (Claude + Gemini)
  │
+ ├── FinancialProfile (1)    ← Tổng quan tài chính cá nhân (Tier 3)
+ │    ├── Accounts (N)       ← 5 loại: Securities/Savings/Emergency/IdleCash/Gold (embedded)
+ │    │    └── Gold fields   ← Brand (SJC/DOJI/PNJ/Other) + Type (Miếng/Nhẫn) + Quantity (lượng)
+ │    └── Rules              ← EmergencyFundMonths (6) + MaxInvestmentPercent (50%) + MinSavingsPercent (30%)
+ │
  └── Role                     ← UserRole enum: User (default) / Admin (debug tooling)
 
 ImpersonationAudit (independent, append-only)
@@ -83,6 +88,8 @@ ImpersonationAudit (independent, append-only)
 | Watchlist | User | N:1 | Nhiều watchlist per user |
 | WatchlistItem | Watchlist | N:1 | Embedded, symbol + note + target prices |
 | AiSettings | User | 1:1 | 1 cấu hình AI per user (multi-provider: Claude + Gemini) |
+| FinancialProfile | User | 1:1 | Tổng quan tài chính cá nhân, unique index UserId, soft-delete |
+| FinancialAccount | FinancialProfile | N:1 | Embedded, 5 loại. Securities cuối cùng không cho xóa (guard domain) |
 | JournalEntry | User+Symbol | N:1 | Standalone, optional link Trade/TradePlan/Portfolio |
 | MarketEvent | Symbol | N:1 | Sự kiện thị trường (manual + auto) |
 
@@ -200,7 +207,51 @@ Bước 5: Nhật ký (update journal đã tạo)
 - User paste vào Claude Max / Gemini client app bên ngoài
 - Endpoint: `POST /api/v1/ai/build-context` → trả JSON `{ systemPrompt, userMessage }`
 
-### 3.12. External Data Providers
+### 3.12. Tài chính cá nhân (Tier 3, 2026-04-22)
+
+Tổng quan tài sản + nguyên tắc tài chính + tracking vàng tích trữ. Scope solo user không quản lý chi tiêu.
+
+**5 loại tài khoản** (`FinancialAccountType`):
+
+| Type | Label | Ghi chú |
+|------|-------|---------|
+| Securities | Chứng khoán | Balance auto-sync từ `IPnLService.CalculatePortfolioPnLAsync(...).TotalMarketValue`, không nhập tay. Không được xóa tài khoản cuối cùng |
+| Savings | Tiết kiệm | Balance + InterestRate (%/năm, optional) |
+| Emergency | Quỹ dự phòng | Balance thuần |
+| IdleCash | Tiền nhàn rỗi | Balance thuần |
+| Gold | Vàng | Brand (SJC/DOJI/PNJ/Other) + Type (Mieng/Nhan) + Quantity (lượng) → auto-calc Balance. Fallback manual Balance nếu không set 3 Gold fields |
+
+**Gold brand bucket `Other`**: gom BTMC/BTMH/Ngọc Hải/Mi Hồng... Các vendor khác ngoài SJC/DOJI/PNJ. `GetPriceAsync(Other, type)` trả entry đầu tiên trong HTML 24hmoney (documented).
+
+**3 nguyên tắc tài chính** (`FinancialRules`, điểm health score 0-100):
+
+| Rule | Default | Điểm trừ tối đa | Công thức |
+|------|---------|-----------------|-----------|
+| Quỹ dự phòng ≥ N tháng chi tiêu | 6 tháng | -40 | `deficit/requiredEmergency × 40` |
+| Đầu tư (CK + Vàng) ≤ N% tổng tài sản | 50% | -30 | `excess/maxInvestment × 30` |
+| Tiết kiệm ≥ N% tổng tài sản | 30% | -30 | `deficit/requiredSavings × 30` |
+
+Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestment. Không cộng vào savings — chỉ bank savings tính tiết kiệm.
+
+`totalAssets = Σ balance (non-Securities accounts) + securitiesValue (live từ PnLService)`.
+
+**Quy tắc nghiệp vụ:**
+- Profile per-user 1:1 (unique index UserId).
+- `MonthlyExpense` bắt buộc khi tạo profile lần đầu; optional khi update.
+- Upsert profile flow: get active → get soft-deleted → create new (pattern giống AiSettings để tránh unique index violation).
+- UpsertAccount enforces: non-Savings không có InterestRate, non-Gold không có Gold fields, Gold fields all-or-nothing, GoldQuantity > 0, Balance ≥ 0.
+- UpsertFinancialAccountCommand handler tự fetch price qua `IGoldPriceProvider.GetPriceAsync(brand, type)` khi 3 Gold fields đủ; provider null → throw 400 (không silent fallback).
+- RemoveAccount bảo vệ Securities cuối cùng (throw `InvalidOperationException`).
+
+**Gold price source** (`HmoneyGoldPriceProvider`):
+- Scrape `24hmoney.vn/gia-vang` (không có JSON API, SSR HTML).
+- Parse với AngleSharp: `<table class="gold-table">` → filter `div.brand-region` keep "vàng miếng"/"vàng nhẫn" only.
+- Giá là **full VND** (167,200,000) mặc dù UI label nói "triệu VNĐ/lượng".
+- Two-tier cache: fresh 5 phút + stale 6h fallback khi 24hmoney down.
+
+**Deploy config:** env var `GoldPriceProvider__PageUrl=https://24hmoney.vn/gia-vang` bắt buộc set trước deploy prod/staging (placeholder `{GoldPriceProvider__PageUrl}` trong `appsettings.json` sẽ DNS-fail nếu env thiếu).
+
+### 3.13. External Data Providers
 
 | Provider | URL | Dữ liệu | Interface | Cache |
 |----------|-----|----------|-----------|-------|
@@ -246,6 +297,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
 | AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis** + JSON: build-context (copy prompt) |
 | Admin | `/api/v1/admin` | **Debug tooling (admin-only)**: `impersonate` bắt đầu phiên xem-như-user, `impersonate/stop` kết thúc. Chặn nested impersonate + block mutation theo config. |
+| PersonalFinance | `/api/v1/personal-finance` | **Tài chính cá nhân (Tier 3)**: profile, net worth summary với health score 0-100, live gold prices từ 24hmoney, CRUD accounts với Gold auto-calc |
 
 ---
 
@@ -274,6 +326,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 | `/monthly-review` | Tổng kết tháng | Review hiệu suất hàng tháng |
 | `/ai-settings` | Cài đặt AI | Provider (Claude/Gemini), API keys, model, thống kê sử dụng |
 | `/campaign-analytics` | Phân tích chiến dịch | Tổng hợp hiệu suất cross-plan: summary cards, so sánh, best/worst, lessons feed (P0.7) |
+| `/personal-finance` | Tài chính cá nhân | Net worth cards + health score 0-100 + rule checks + accounts CRUD (incl. Gold form với live price auto-calc) + settings (Tier 3) |
 
 ---
 
@@ -289,3 +342,6 @@ Bước 5: Nhật ký (update journal đã tạo)
 8. **Ngôn ngữ UI**: Tiếng Việt có dấu đầy đủ
 9. **MarkReviewed requires CampaignReviewData**: Chuyển TradePlan sang Reviewed phải kèm `CampaignReviewData` với auto-calculated metrics (P&L, %, VND/ngày, annualized return). Không cho phép review "trống" — `CampaignReviewService` tính toán tự động từ trades thực tế
 10. **Admin impersonation**: JWT impersonate có `sub=targetId, actor=adminId, amr=impersonate`, TTL 1h. `ImpersonationAudit.IsRevoked=true` → token coi như hết hạn (check ở `ImpersonationValidationMiddleware`). Cấm nested impersonate (`[RequireAdmin]` reject token có `amr=impersonate`). Mutation POST/PUT/DELETE/PATCH bị chặn khi impersonate trừ khi `Admin:AllowImpersonateMutations=true`.
+11. **Gold auto-calc**: Khi user thêm Gold account với 3 field đủ (brand + type + quantity), Application layer fetch `IGoldPriceProvider.GetPriceAsync(brand, type)` → Balance = quantity × sellPrice. Provider null → throw 400 với Vietnamese message (không silent fallback). Domain không phụ thuộc provider — pattern provider-agnostic.
+12. **Last Securities protection**: Không cho phép xóa tài khoản Securities cuối cùng trong FinancialProfile (`FinancialProfile.RemoveAccount` throw `InvalidOperationException` với message "Không thể xóa tài khoản Chứng khoán cuối cùng"). Gold và các loại khác xóa được bất kỳ lúc nào.
+13. **Full VND vs triệu VND quirk**: Giá vàng 24hmoney trả full VND (167,200,000) mặc dù UI label nói "triệu VNĐ/lượng" — khác pattern giá CP 24hmoney (÷1000 trong API). Không scale ×1000. Fixture test `PricesAreFullVND_NotScaledBy1000` lock behavior.

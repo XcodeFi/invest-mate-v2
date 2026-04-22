@@ -1154,6 +1154,91 @@ Tổng: 796 tests pass (Domain: 603, Application: 65, Infrastructure: 127)
 
 ---
 
+## Tài chính cá nhân (Tier 3) — 2026-04-22
+
+Tính năng cross-cutting: tổng quan tài sản của user (CK + vàng + tiết kiệm + dự phòng + nhàn rỗi) + nguyên tắc sức khỏe tài chính + crawler giá vàng live. Shipped qua 6 PR tuần 2026-04-22, kết hợp Domain + Application + Infrastructure (gold crawler mới) + API + Frontend + Docs.
+
+### User flow
+
+```
+1. Dashboard widget (onboarding) → click "Bắt đầu"
+2. /personal-finance (onboarding form) → nhập MonthlyExpense → tạo profile
+3. + Thêm tài khoản → modal form:
+   • Type=Savings/Emergency/IdleCash → nhập Balance (+ InterestRate cho Savings)
+   • Type=Gold → chọn Brand + Type + Quantity → FE fetch /gold-prices → hiển thị live Balance preview → Save
+4. /summary refresh sau mỗi mutation → totalAssets + healthScore + ruleChecks update
+5. Widget Dashboard reflect realtime
+```
+
+### 5 loại tài khoản + default accounts
+
+Profile tạo tự động với 4 default accounts (Securities/Savings/Emergency/IdleCash). Gold account tạo on-demand khi user có nhu cầu.
+
+| Type | Mô tả | Balance nguồn |
+|------|-------|---------------|
+| Securities | Chứng khoán | Auto-sync từ `IPnLService.CalculatePortfolioPnLAsync(...).TotalMarketValue` live, aggregate across all user portfolios |
+| Savings | Tiết kiệm (bank) | Manual + optional InterestRate (%/năm) |
+| Emergency | Quỹ dự phòng | Manual (không đụng vào trừ khẩn cấp) |
+| IdleCash | Tiền nhàn rỗi | Manual (tiền sẵn sàng đầu tư) |
+| Gold | Vàng tích trữ | **Auto-calc** từ 24hmoney live price × quantity, hoặc manual fallback |
+
+**Gold brands**: SJC, DOJI, PNJ, Other (bucket gom BTMC/BTMH/Ngọc Hải/Mi Hồng). **Gold types**: Miếng, Nhẫn. Vàng nữ trang/trang sức không support (không phải tài sản tích trữ).
+
+### Health Score (0-100)
+
+3 rules với điểm trừ tỷ lệ thuận với vi phạm so với target của rule:
+
+| Rule | Default | Max deduct | Formula |
+|------|---------|:----------:|---------|
+| Quỹ dự phòng ≥ N tháng chi tiêu | 6 tháng | -40 | `(required-actual)/required × 40` |
+| Đầu tư (CK + Vàng) ≤ N% tổng | 50% | -30 | `(actual-max)/max × 30` |
+| Tiết kiệm ≥ N% tổng | 30% | -30 | `(required-actual)/required × 30` |
+
+**Vàng** cộng dồn vào investment (cùng Securities) cho rule MaxInvestment — theo định nghĩa user "vàng cũng là mục đầu tư". Không cộng vào savings (chỉ bank savings tính).
+
+### Gold Price Crawler (`HmoneyGoldPriceProvider`)
+
+- **Source**: `24hmoney.vn/gia-vang` — **không có JSON API**, data render SSR trong `<table class="gold-table">`. Parse với AngleSharp 1.3.0.
+- **Quirk**: giá trả về là **full VND** (VD: 167,200,000) mặc dù UI 24hmoney label "Đơn vị: triệu VNĐ/lượng" — không scale ×1000.
+- **Filter**: chỉ parse `div.brand-region` = "vàng miếng" | "vàng nhẫn". Skip nữ trang + trang sức.
+- **Cache 2-tier**: fresh 5 phút (default TTL) + stale 6h fallback. Khi 24hmoney down, serve stale + log warning thay vì 500.
+- **Timeout**: 30s defensively qua linked CTS (không phụ thuộc HttpClient.Timeout DI).
+- **Deploy env var**: `GoldPriceProvider__PageUrl=https://24hmoney.vn/gia-vang` bắt buộc set.
+
+### Frontend
+
+- **`/personal-finance` page**: standalone component ~620 lines inline template. Onboarding state + 5-card net worth + health bar color-coded + 3 rule checks + accounts grid + collapsible settings + account form modal với Gold auto-calc (dropdown brand/type + live price + Balance preview).
+- **Dashboard widget**: clickable card với Total Assets + Health Score bar + per-type breakdown. Onboarding variant khi chưa có profile. Silent UI on fetch error + console log.
+- **Header nav**: "💰 Tài chính cá nhân" dưới group "Quản lý".
+
+### API (6 endpoints, JWT required)
+
+| Method | Endpoint | Chức năng |
+|--------|----------|-----------|
+| GET | `/api/v1/personal-finance` | Profile (404 nếu chưa có) |
+| GET | `/api/v1/personal-finance/summary` | Net worth + health score + rule checks + `hasProfile` flag (200 always) |
+| GET | `/api/v1/personal-finance/gold-prices` | Live gold prices từ 24hmoney (cached 5 min) |
+| PUT | `/api/v1/personal-finance` | Upsert profile (get-or-create với soft-delete restore) |
+| PUT | `/api/v1/personal-finance/accounts` | Upsert account (Gold 3-field → auto-calc, else manual Balance) |
+| DELETE | `/api/v1/personal-finance/accounts/{id}` | Remove (block last Securities) |
+
+### Tests
+
+| Layer | Test files | Tests mới |
+|-------|-----------|:---------:|
+| Domain | `FinancialProfileTests.cs` | 39 |
+| Application | `UpsertFinancialProfile/Account/Remove`, `GetFinancialProfile/NetWorthSummary/GoldPrices` tests | 22 |
+| Infrastructure | `HmoneyGoldPriceProviderTests.cs` + `LiveSmoke.cs` | 17 |
+| Total Personal Finance | | **78 new tests** |
+
+Full solution: **1013 tests pass** (Domain 658, Application 115, Infrastructure 235, Api 5). Không thêm FE unit tests (consistent với precedent project).
+
+### 6 PR Shipping
+
+Phase 1 Domain (#77) → Phase 2 Application (#78) → Phase 3 Gold Crawler (#79/#80) → Phase 4 API+DI (#81, backend cut line) → Phase 5 Frontend (#82) → Phase 6 Docs (this PR).
+
+---
+
 ## Backlog (chưa implement)
 
 | # | Tính năng | Độ ưu tiên | Kế hoạch |
@@ -1164,4 +1249,4 @@ Tổng: 796 tests pass (Domain: 603, Application: 65, Infrastructure: 127)
 | B4 | Keyboard shortcuts | Thấp | |
 | B5 | Dark mode | Thấp | |
 | ~~B6~~ | ~~Multi-timeframe Dashboard~~ | ✅ Done v2.2.0 | |
-| **B7** | **Tài chính cá nhân** | **Cao** | [`docs/plans/personal-finance.md`](plans/personal-finance.md) — Net Worth overview, Financial Rules compliance, Health Score, Dashboard widget + `/personal-finance` |
+| ~~B7~~ | ~~Tài chính cá nhân~~ | ✅ Done 2026-04-22 | Xem section "Tài chính cá nhân (Tier 3)" bên dưới; plan archived tại `docs/plans/done/personal-finance.md` |
