@@ -29,6 +29,15 @@ export enum GoldType {
   Nhan = 1,
 }
 
+export enum DebtType {
+  CreditCard = 0,
+  PersonalLoan = 1,
+  Mortgage = 2,
+  Auto = 3,
+  Installment = 4,
+  Other = 99,
+}
+
 export interface FinancialRulesDto {
   emergencyFundMonths: number;
   maxInvestmentPercent: number;
@@ -48,11 +57,24 @@ export interface FinancialAccountDto {
   updatedAt: string;
 }
 
+export interface DebtDto {
+  id: string;
+  type: DebtType;
+  name: string;
+  principal: number;
+  interestRate?: number | null;
+  monthlyPayment?: number | null;
+  maturityDate?: string | null;
+  note?: string | null;
+  updatedAt: string;
+}
+
 export interface FinancialProfileDto {
   id: string;
   userId: string;
   monthlyExpense: number;
   accounts: FinancialAccountDto[];
+  debts: DebtDto[];
   rules: FinancialRulesDto;
   createdAt: string;
   updatedAt: string;
@@ -74,10 +96,14 @@ export interface NetWorthSummaryDto {
   savingsTotal: number;
   emergencyTotal: number;
   idleCashTotal: number;
+  totalDebt: number;
+  netWorth: number;
+  hasHighInterestConsumerDebt: boolean;
   monthlyExpense: number;
   healthScore: number;
   ruleChecks: RuleCheckResultDto[];
   accounts: FinancialAccountDto[];
+  debts: DebtDto[];
 }
 
 export interface GoldPriceDto {
@@ -105,6 +131,17 @@ export interface UpsertFinancialAccountRequest {
   goldBrand?: GoldBrand | null;
   goldType?: GoldType | null;
   goldQuantity?: number | null;
+}
+
+export interface UpsertDebtRequest {
+  debtId?: string | null;
+  type: DebtType;
+  name: string;
+  principal: number;
+  interestRate?: number | null;
+  monthlyPayment?: number | null;
+  maturityDate?: string | null;
+  note?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -148,6 +185,14 @@ export class PersonalFinanceService {
     return this.http.delete<void>(`${this.BASE}/accounts/${accountId}`, { headers: this.headers() });
   }
 
+  upsertDebt(data: UpsertDebtRequest): Observable<DebtDto> {
+    return this.http.put<DebtDto>(`${this.BASE}/debts`, data, { headers: this.headers() });
+  }
+
+  removeDebt(debtId: string): Observable<void> {
+    return this.http.delete<void>(`${this.BASE}/debts/${debtId}`, { headers: this.headers() });
+  }
+
   // ── Label helpers ─────────────────────────────────────────────────────────
 
   static accountTypeLabel(type: FinancialAccountType): string {
@@ -187,6 +232,30 @@ export class PersonalFinanceService {
       case GoldType.Mieng: return 'Vàng miếng';
       case GoldType.Nhan: return 'Vàng nhẫn';
       default: return String(type);
+    }
+  }
+
+  static debtTypeLabel(type: DebtType): string {
+    switch (type) {
+      case DebtType.CreditCard: return 'Thẻ tín dụng';
+      case DebtType.PersonalLoan: return 'Vay tiêu dùng';
+      case DebtType.Mortgage: return 'Vay mua nhà';
+      case DebtType.Auto: return 'Vay mua xe';
+      case DebtType.Installment: return 'Trả góp';
+      case DebtType.Other: return 'Khác';
+      default: return 'Khác';
+    }
+  }
+
+  static debtTypeIcon(type: DebtType): string {
+    switch (type) {
+      case DebtType.CreditCard: return '💳';
+      case DebtType.PersonalLoan: return '💸';
+      case DebtType.Mortgage: return '🏠';
+      case DebtType.Auto: return '🚗';
+      case DebtType.Installment: return '📱';
+      case DebtType.Other: return '📄';
+      default: return '📄';
     }
   }
 }

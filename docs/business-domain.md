@@ -91,6 +91,7 @@ ImpersonationAudit (independent, append-only)
 | AiSettings | User | 1:1 | 1 cấu hình AI per user (multi-provider: Claude + Gemini) |
 | FinancialProfile | User | 1:1 | Tổng quan tài chính cá nhân, unique index UserId, soft-delete |
 | FinancialAccount | FinancialProfile | N:1 | Embedded, 5 loại. Securities cuối cùng không cho xóa (guard domain) |
+| Debt | FinancialProfile | N:1 | Embedded, 6 loại (CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other). Xóa chỉ được khi Principal=0 |
 | JournalEntry | User+Symbol | N:1 | Standalone, optional link Trade/TradePlan/Portfolio |
 | MarketEvent | Symbol | N:1 | Sự kiện thị trường (manual + auto) |
 
@@ -298,7 +299,7 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
 | AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis** + JSON: build-context (copy prompt) |
 | Admin | `/api/v1/admin` | **Debug tooling (admin-only)**: `impersonate` bắt đầu phiên xem-như-user, `impersonate/stop` kết thúc. Chặn nested impersonate + block mutation theo config. |
-| PersonalFinance | `/api/v1/personal-finance` | **Tài chính cá nhân (Tier 3)**: profile, net worth summary với health score 0-100, live gold prices từ 24hmoney, CRUD accounts với Gold auto-calc |
+| PersonalFinance | `/api/v1/personal-finance` | **Tài chính cá nhân (Tier 3)**: profile, net worth summary với health score 0-100, live gold prices từ 24hmoney, CRUD accounts với Gold auto-calc, **CRUD debts + Net Worth + rule 4 cảnh báo nợ tiêu dùng lãi cao** |
 
 ---
 
@@ -327,7 +328,7 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 | `/monthly-review` | Tổng kết tháng | Review hiệu suất hàng tháng |
 | `/ai-settings` | Cài đặt AI | Provider (Claude/Gemini), API keys, model, thống kê sử dụng |
 | `/campaign-analytics` | Phân tích chiến dịch | Tổng hợp hiệu suất cross-plan: summary cards, so sánh, best/worst, lessons feed (P0.7) |
-| `/personal-finance` | Tài chính cá nhân | Net worth cards + health score 0-100 + rule checks + accounts CRUD (incl. Gold form với live price auto-calc) + settings (Tier 3) |
+| `/personal-finance` | Tài chính cá nhân | Net worth cards + **Net Worth = Assets − Debt** card + health score 0-100 (4 rules incl. high-interest consumer debt) + accounts CRUD (incl. Gold auto-calc) + **debts CRUD** + settings (Tier 3) |
 
 ---
 
@@ -346,3 +347,5 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 11. **Gold auto-calc**: Khi user thêm Gold account với 3 field đủ (brand + type + quantity), Application layer fetch `IGoldPriceProvider.GetPriceAsync(brand, type)` → Balance = quantity × **BuyPrice** (giá tiệm mua vào = giá user bán được, định giá tài sản theo thanh khoản thực tế, không dùng SellPrice). Provider null → throw 400 với Vietnamese message (không silent fallback). Domain không phụ thuộc provider — pattern provider-agnostic.
 12. **Last Securities protection**: Không cho phép xóa tài khoản Securities cuối cùng trong FinancialProfile (`FinancialProfile.RemoveAccount` throw `InvalidOperationException` với message "Không thể xóa tài khoản Chứng khoán cuối cùng"). Gold và các loại khác xóa được bất kỳ lúc nào.
 13. **Full VND vs triệu VND quirk**: Giá vàng 24hmoney trả full VND (167,200,000) mặc dù UI label nói "triệu VNĐ/lượng" — khác pattern giá CP 24hmoney (÷1000 trong API). Không scale ×1000. Fixture test `PricesAreFullVND_NotScaledBy1000` lock behavior.
+14. **Debt delete requires paid-off**: `FinancialProfile.RemoveDebt` throws `InvalidOperationException` khi `Principal > 0` — user phải đặt `Principal=0` trước khi xóa. Chống xóa nhầm dữ liệu thật, đối xứng với rule account.
+15. **High-interest consumer debt rule**: Health score rule 4 trừ **−20 điểm cứng (binary)** khi có debt type `CreditCard` hoặc `PersonalLoan` với `InterestRate > 20%/năm` (strict). Ngưỡng cutoff theo thực tế VN (CC ~24-36%, vay tín chấp ~15-25%). `Mortgage/Auto/Installment` không áp rule này. Null interest = 0 (không trigger).
