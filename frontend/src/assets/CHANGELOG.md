@@ -2,6 +2,17 @@
 
 ---
 
+## [v2.47.2] — 2026-04-22 · Fix: Gold auto-calc dùng BuyPrice thay SellPrice
+
+Sửa logic định giá vàng trong Personal Finance. Trước đây Balance = quantity × **SellPrice** (giá tiệm bán ra) — đó là giá user phải **trả khi đi mua thêm**, không phải giá tài sản đang giữ. Giờ đổi sang **BuyPrice** (giá tiệm mua vào = giá user bán được nếu thanh khoản ngay), phản ánh đúng giá trị tài sản thực tế, không cộng ảo phần spread mua–bán (1–3 triệu/lượng tùy loại) vào tổng tài sản.
+
+- Backend `UpsertFinancialAccountCommandHandler.ResolveBalanceAsync`: `price.SellPrice` → `price.BuyPrice`.
+- Frontend preview label "Giá Bán ra hiện tại" → "Giá mua vào hiện tại", `goldPreviewSellPrice` → `goldPreviewBuyPrice`.
+- Test `Handle_Gold_AutoCalcBalance_FromProvider` update expectation 2 × 169,500,000 → 2 × 167,000,000.
+- Docs cập nhật (`business-domain.md`, `architecture.md`, `project-context.md`, `tai-chinh-ca-nhan.md`).
+
+---
+
 ## [v2.47.1] — 2026-04-22 · Fix: Tài chính cá nhân — Securities sync + UX redesign
 
 **Branch:** `fix/personal-finance-securities-and-ux`

@@ -104,7 +104,9 @@ public class UpsertFinancialAccountCommandHandlerTests
     [Fact]
     public async Task Handle_Gold_AutoCalcBalance_FromProvider()
     {
-        // User nhập 2 lượng SJC Miếng — handler gọi provider để lấy giá → Balance = 2 × sellPrice
+        // User nhập 2 lượng SJC Miếng — handler gọi provider → Balance = 2 × BuyPrice
+        // BuyPrice = giá tiệm mua vào = giá user bán được (giá trị tài sản thực tế nếu thanh khoản).
+        // SellPrice (giá tiệm bán ra) chỉ áp dụng khi user đi mua thêm, không dùng để định giá tài sản đang giữ.
         var profile = FinancialProfile.Create("u1", 10_000_000m);
         _repo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
         _goldProvider.Setup(g => g.GetPriceAsync(GoldBrand.SJC, GoldType.Mieng, It.IsAny<CancellationToken>()))
@@ -129,7 +131,7 @@ public class UpsertFinancialAccountCommandHandlerTests
         };
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
-        result.Balance.Should().Be(339_000_000m); // 2 × 169,500,000
+        result.Balance.Should().Be(334_000_000m); // 2 × 167,000,000 (BuyPrice)
         result.GoldQuantity.Should().Be(2m);
         result.GoldBrand.Should().Be(GoldBrand.SJC);
         result.GoldType.Should().Be(GoldType.Mieng);
