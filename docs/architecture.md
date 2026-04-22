@@ -197,11 +197,30 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (1016 tests: Domain 661, Application 115, Infrastructure 235, Api 5)
+- **Backend:** xUnit + FluentAssertions + Moq (1019 tests: Domain 661, Application 118, Infrastructure 235, Api 5)
 - **Frontend:** Karma + Jasmine (configured, tests pending)
 - Run `dotnet test` before commit
 
-## Admin Impersonation (Debug Tooling)
+## Admin Area (Debug Tooling)
+
+Feature B1 (2026-04-21) + Phase 2 users overview (2026-04-22) — cho phép admin debug data của user cụ thể bằng cách xem UI như user đó, và xem toàn bộ user + activity stats.
+
+### Layout
+
+`/admin` → `AdminLayoutComponent` với left sidebar + `<router-outlet>`. Menu mục hiện có:
+- **Tổng quan user** (`users/overview`, default) — bảng paginated toàn bộ user + stats.
+- **Tìm & Impersonate** (`users/search`) — search email để impersonate (Phase 1 flow).
+
+Mở rộng: thêm feature admin mới = thêm 1 entry vào `menu[]` + thêm child route. Guard `AdminGuard` áp ở level parent route.
+
+### Users Overview
+
+- Endpoint: `GET /api/v1/admin/users/overview?page=&pageSize=` (default page=1, pageSize=20, max 200).
+- Handler: `GetUsersOverviewQueryHandler` verify role=Admin → `IUserRepository.GetPagedAsync` sort CreatedAt desc → batch lookup portfolios theo userIds → batch stats trades theo portfolioIds → per-user lookup `ImpersonationAudit.GetLatestStartedAtByTargetAsync`.
+- DTO trả về: `{ id, email, name, role, createdAt, lastLoginAt, portfolioCount, tradeCount, lastTradeAt, lastImpersonatedAt }`.
+- `User.LastLoginAt` được cập nhật trong `AuthController.GoogleCallback` (cả new user + existing) qua `User.RecordLogin()`. Không cập nhật khi refresh token hay impersonate.
+
+### Impersonation flow
 
 Feature B1 (2026-04-21) — cho phép admin debug data của user cụ thể bằng cách xem UI như user đó.
 

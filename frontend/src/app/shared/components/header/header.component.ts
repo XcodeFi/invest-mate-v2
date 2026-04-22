@@ -85,9 +85,9 @@ interface NavGroup {
             </a>
 
             <!-- Admin link (only visible to admins, hidden during impersonation) -->
-            <a *ngIf="isAdmin()" routerLink="/admin/users"
+            <a *ngIf="isAdmin()" routerLink="/admin"
               class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
-              title="Admin: tìm user để impersonate">
+              title="Admin: công cụ quản trị">
               ADMIN
             </a>
 

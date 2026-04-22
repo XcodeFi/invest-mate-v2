@@ -119,6 +119,7 @@ public class AuthController : ControllerBase
             {
                 // Create new user
                 user = new User(email, name, picture, "google");
+                user.RecordLogin();
                 await _userRepository.AddAsync(user);
 
                 await _auditService.LogAsync(new AuditEntry
@@ -133,12 +134,13 @@ public class AuthController : ControllerBase
             else
             {
                 user = existingUser;
-                // Update user info if needed
-                if (user.Name != name || user.Avatar != picture)
+                var profileChanged = user.Name != name || user.Avatar != picture;
+                if (profileChanged)
                 {
                     user.UpdateProfile(name, picture);
-                    await _userRepository.UpdateAsync(user);
                 }
+                user.RecordLogin();
+                await _userRepository.UpdateAsync(user);
             }
 
             // Generate JWT token

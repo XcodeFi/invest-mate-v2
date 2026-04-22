@@ -1,6 +1,7 @@
 using InvestmentApp.Api.Authorization;
 using InvestmentApp.Application.Admin.Commands.StartImpersonation;
 using InvestmentApp.Application.Admin.Commands.StopImpersonation;
+using InvestmentApp.Application.Admin.Queries.GetUsersOverview;
 using InvestmentApp.Application.Admin.Queries.SearchUsers;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -38,6 +39,25 @@ public class AdminController : ControllerBase
         {
             CallerUserId = GetUserId(),
             EmailQuery = email ?? string.Empty
+        });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Paginated list of all users with aggregate activity stats
+    /// (# portfolios, # trades, last trade, last login, last impersonated).
+    /// </summary>
+    [HttpGet("users/overview")]
+    [RequireAdmin]
+    [ProducesResponseType(typeof(UsersOverviewResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetUsersOverview([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var result = await _mediator.Send(new GetUsersOverviewQuery
+        {
+            CallerUserId = GetUserId(),
+            Page = page,
+            PageSize = pageSize
         });
         return Ok(result);
     }

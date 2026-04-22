@@ -61,7 +61,8 @@ User (1)
  │    │    └── Gold fields   ← Brand (SJC/DOJI/PNJ/Other) + Type (Miếng/Nhẫn) + Quantity (lượng)
  │    └── Rules              ← EmergencyFundMonths (6) + MaxInvestmentPercent (50%) + MinSavingsPercent (30%)
  │
- └── Role                     ← UserRole enum: User (default) / Admin (debug tooling)
+ ├── Role                     ← UserRole enum: User (default) / Admin (debug tooling)
+ └── LastLoginAt (nullable)   ← Timestamp của lần login Google OAuth gần nhất (không cập nhật khi refresh/impersonate)
 
 ImpersonationAudit (independent, append-only)
  ├── AdminUserId, TargetUserId, Reason, IpAddress, UserAgent

@@ -10,6 +10,7 @@ public class User : AggregateRoot
     public string? Avatar { get; private set; }
     public string Provider { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public DateTime? LastLoginAt { get; private set; }
     public bool IsDeleted { get; private set; }
     public UserRole Role { get; private set; } = UserRole.User;
 
@@ -47,5 +48,10 @@ public class User : AggregateRoot
     public void DemoteToUser()
     {
         Role = UserRole.User;
+    }
+
+    public void RecordLogin()
+    {
+        LastLoginAt = DateTime.UtcNow;
     }
 }

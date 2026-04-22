@@ -54,6 +54,23 @@ public class UserRepository : IUserRepository
         return await _collection.Find(filter).Limit(limit).ToListAsync(cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<User> Items, long TotalCount)> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 200) pageSize = 200;
+
+        var filter = Builders<User>.Filter.Eq(u => u.IsDeleted, false);
+        var total = await _collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var items = await _collection
+            .Find(filter)
+            .SortByDescending(u => u.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+        return (items, total);
+    }
+
     public async Task AddAsync(User entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

@@ -49,6 +49,17 @@ public class ImpersonationAuditRepository : IImpersonationAuditRepository
         return await _collection.Find(filter).ToListAsync(cancellationToken);
     }
 
+    public async Task<DateTime?> GetLatestStartedAtByTargetAsync(string targetUserId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<ImpersonationAudit>.Filter.Eq(a => a.TargetUserId, targetUserId);
+        var doc = await _collection
+            .Find(filter)
+            .SortByDescending(a => a.StartedAt)
+            .Project(a => new { a.StartedAt })
+            .FirstOrDefaultAsync(cancellationToken);
+        return doc?.StartedAt;
+    }
+
     public async Task AddAsync(ImpersonationAudit entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

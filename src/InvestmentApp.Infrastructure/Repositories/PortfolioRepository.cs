@@ -55,6 +55,24 @@ public class PortfolioRepository : IPortfolioRepository
         return await _collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<string, List<string>>> GetIdsByUserIdsAsync(IEnumerable<string> userIds, CancellationToken cancellationToken = default)
+    {
+        var ids = userIds?.Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList() ?? new List<string>();
+        if (ids.Count == 0) return new Dictionary<string, List<string>>();
+
+        var filter = Builders<Portfolio>.Filter.And(
+            Builders<Portfolio>.Filter.In(p => p.UserId, ids),
+            Builders<Portfolio>.Filter.Eq(p => p.IsDeleted, false)
+        );
+        var projection = Builders<Portfolio>.Projection
+            .Include(p => p.Id)
+            .Include(p => p.UserId);
+        var docs = await _collection.Find(filter).Project<Portfolio>(projection).ToListAsync(cancellationToken);
+        return docs
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(p => p.Id).ToList());
+    }
+
     public async Task AddAsync(Portfolio entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);
