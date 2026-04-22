@@ -100,7 +100,49 @@ public class GetNetWorthSummaryQueryHandlerTests
 
         var result = await _handler.Handle(new GetNetWorthSummaryQuery { UserId = "u1" }, CancellationToken.None);
 
-        result.RuleChecks.Should().HaveCount(3); // Emergency + Investment + Savings
-        result.RuleChecks.Select(r => r.RuleName).Should().Contain(new[] { "EmergencyFund", "InvestmentCap", "SavingsFloor" });
+        result.RuleChecks.Should().HaveCount(4); // Emergency + Investment + Savings + HighInterestDebt
+        result.RuleChecks.Select(r => r.RuleName).Should().Contain(new[] { "EmergencyFund", "InvestmentCap", "SavingsFloor", "HighInterestDebt" });
+    }
+
+    [Fact]
+    public async Task Handle_NoDebts_TotalDebtAndNetWorthMatchAssets()
+    {
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+        profile.UpsertAccount(savings.Id, FinancialAccountType.Savings, savings.Name, 500_000_000m);
+        _profileRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Portfolio>());
+
+        var result = await _handler.Handle(new GetNetWorthSummaryQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.TotalDebt.Should().Be(0m);
+        result.NetWorth.Should().Be(500_000_000m);
+        result.HasHighInterestConsumerDebt.Should().BeFalse();
+        result.Debts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_WithDebts_ComputesTotalDebtAndNetWorthAndFlagsHighInterest()
+    {
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+        profile.UpsertAccount(savings.Id, FinancialAccountType.Savings, savings.Name, 500_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "VCB CC", 30_000_000m, interestRate: 28m);
+        profile.UpsertDebt(null, DebtType.Mortgage, "Nhà", 1_200_000_000m, interestRate: 9m);
+        _profileRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Portfolio>());
+
+        var result = await _handler.Handle(new GetNetWorthSummaryQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.TotalDebt.Should().Be(1_230_000_000m); // 30M + 1.2B
+        result.NetWorth.Should().Be(500_000_000m - 1_230_000_000m); // assets 500M - debts 1.23B = -730M
+        result.HasHighInterestConsumerDebt.Should().BeTrue(); // CC 28% > 20%
+        result.Debts.Should().HaveCount(2);
+
+        var highInterestRule = result.RuleChecks.First(r => r.RuleName == "HighInterestDebt");
+        highInterestRule.IsPassing.Should().BeFalse();
+        highInterestRule.CurrentValue.Should().Be(1m);
     }
 }
