@@ -143,6 +143,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'personal-finance',
+    loadComponent: () => import('./features/personal-finance/personal-finance.component').then(m => m.PersonalFinanceComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'admin/users',
     loadComponent: () => import('./features/admin/admin-users.component').then(m => m.AdminUsersComponent),
     canActivate: [AdminGuard]
