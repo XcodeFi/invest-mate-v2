@@ -8,8 +8,22 @@ public class FinancialProfileDto
     public string UserId { get; set; } = null!;
     public decimal MonthlyExpense { get; set; }
     public List<FinancialAccountDto> Accounts { get; set; } = new();
+    public List<DebtDto> Debts { get; set; } = new();
     public FinancialRulesDto Rules { get; set; } = new();
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class DebtDto
+{
+    public string Id { get; set; } = null!;
+    public DebtType Type { get; set; }
+    public string Name { get; set; } = null!;
+    public decimal Principal { get; set; }
+    public decimal? InterestRate { get; set; }
+    public decimal? MonthlyPayment { get; set; }
+    public DateTime? MaturityDate { get; set; }
+    public string? Note { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
 
@@ -45,10 +59,19 @@ public class NetWorthSummaryDto
     public decimal SavingsTotal { get; set; }
     public decimal EmergencyTotal { get; set; }
     public decimal IdleCashTotal { get; set; }
+
+    /// <summary>Tổng principal còn nợ (Phase 2).</summary>
+    public decimal TotalDebt { get; set; }
+    /// <summary>Net Worth = TotalAssets - TotalDebt. Có thể âm.</summary>
+    public decimal NetWorth { get; set; }
+    /// <summary>True nếu có CreditCard/PersonalLoan với lãi > 20%/năm — dùng cho banner cảnh báo.</summary>
+    public bool HasHighInterestConsumerDebt { get; set; }
+
     public decimal MonthlyExpense { get; set; }
     public int HealthScore { get; set; }
     public List<RuleCheckResultDto> RuleChecks { get; set; } = new();
     public List<FinancialAccountDto> Accounts { get; set; } = new();
+    public List<DebtDto> Debts { get; set; } = new();
 }
 
 public class RuleCheckResultDto

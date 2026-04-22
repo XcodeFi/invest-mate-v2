@@ -10,9 +10,23 @@ internal static class PersonalFinanceMapper
         UserId = profile.UserId,
         MonthlyExpense = profile.MonthlyExpense,
         Accounts = profile.Accounts.Select(ToDto).ToList(),
+        Debts = profile.Debts.Select(ToDto).ToList(),
         Rules = ToDto(profile.Rules),
         CreatedAt = profile.CreatedAt,
         UpdatedAt = profile.UpdatedAt,
+    };
+
+    public static DebtDto ToDto(Debt debt) => new()
+    {
+        Id = debt.Id,
+        Type = debt.Type,
+        Name = debt.Name,
+        Principal = debt.Principal,
+        InterestRate = debt.InterestRate,
+        MonthlyPayment = debt.MonthlyPayment,
+        MaturityDate = debt.MaturityDate,
+        Note = debt.Note,
+        UpdatedAt = debt.UpdatedAt,
     };
 
     public static FinancialAccountDto ToDto(FinancialAccount account) => new()
