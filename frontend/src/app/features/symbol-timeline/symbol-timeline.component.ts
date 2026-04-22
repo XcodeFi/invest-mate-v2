@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, of } from 'rxjs';
 import { takeUntil, switchMap, catchError } from 'rxjs/operators';
 import { createChart, IChartApi, ISeriesApi, Time, SeriesMarker, LineData, CandlestickData, LineStyle, IPriceLine } from 'lightweight-charts';
@@ -103,9 +103,37 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
         </div>
       </div>
 
+      <!-- Post-trade review banner -->
+      <div *ngIf="reviewTrade" class="rounded-xl p-4 mb-4 border"
+        [class]="reviewAlreadyDone
+          ? 'bg-emerald-50 border-emerald-200'
+          : 'bg-amber-50 border-amber-200'">
+        <div class="flex items-start gap-3">
+          <span class="text-xl flex-shrink-0">{{ reviewAlreadyDone ? '✅' : '✍️' }}</span>
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold" [class]="reviewAlreadyDone ? 'text-emerald-800' : 'text-amber-800'">
+              {{ reviewAlreadyDone ? 'Giao dịch này đã được đánh giá' : 'Đang đánh giá giao dịch' }}
+            </p>
+            <p class="text-sm text-gray-700 mt-0.5">
+              {{ reviewTrade.tradeType === 'SELL' ? 'BÁN' : 'MUA' }}
+              {{ reviewTrade.quantity | number }} cp {{ symbol }}
+              &#64; {{ reviewTrade.price | vndCurrency }}
+              — {{ formatDate(reviewTrade.timestamp) }}
+            </p>
+            <p class="text-xs text-gray-500 mt-1" *ngIf="!reviewAlreadyDone">
+              Điền cảm xúc và nhận định bên dưới, sau đó bấm "Lưu đánh giá".
+            </p>
+          </div>
+          <button (click)="cancelReviewMode()"
+            class="text-gray-400 hover:text-gray-600 text-sm flex-shrink-0" title="Hủy">✕</button>
+        </div>
+      </div>
+
       <!-- Quick-add Journal Form -->
       <div *ngIf="showJournalForm" class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Ghi nhật ký — {{ symbol }}</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+          {{ reviewTradeId ? 'Đánh giá sau giao dịch' : 'Ghi nhật ký' }} — {{ symbol }}
+        </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Loại</label>
@@ -162,14 +190,14 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
           </div>
         </div>
-        <div class="flex gap-2 mt-4">
-          <button (click)="createJournalEntry()" [disabled]="creatingEntry"
-            class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-            {{ creatingEntry ? 'Đang lưu...' : 'Lưu nhật ký' }}
-          </button>
-          <button (click)="showJournalForm = false"
+        <div class="flex gap-2 mt-4 justify-end">
+          <button (click)="closeJournalForm()"
             class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
             Hủy
+          </button>
+          <button (click)="createJournalEntry()" [disabled]="creatingEntry"
+            class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            {{ creatingEntry ? 'Đang lưu...' : (reviewTradeId ? 'Lưu đánh giá' : 'Lưu nhật ký') }}
           </button>
         </div>
       </div>
@@ -641,8 +669,14 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   // AI context (7C.3)
   aiContext = '';
 
+  // Post-trade review mode (driven by ?tradeId query param)
+  reviewTradeId: string | null = null;
+  reviewTrade: { tradeType: string; quantity: number; price: number; timestamp: string } | null = null;
+  reviewAlreadyDone = false;
+
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private journalEntryService: JournalEntryService,
     private marketEventService: MarketEventService,
     private marketDataService: MarketDataService,
@@ -651,6 +685,11 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnInit() {
     this.symbol = (this.route.snapshot.paramMap.get('symbol') || this.route.snapshot.queryParams['symbol'] || '').toUpperCase();
+    this.reviewTradeId = this.route.snapshot.queryParams['tradeId'] || null;
+    // When coming in to review a specific trade, widen the default range so
+    // older unreviewed sells (surfaced from the dashboard's pending-review list)
+    // are still inside the fetched timeline window.
+    if (this.reviewTradeId) this.selectedRange = 12;
     if (!this.symbol) return;
     this.loadData();
   }
@@ -696,6 +735,7 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
           this.computeEmotionStats();
           this.buildAiContext();
           this.updateChartMarkers();
+          this.tryBeginReviewMode();
           this.loading = false;
         },
         error: () => {
@@ -1178,14 +1218,17 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       priceAtTime: this.journalForm.priceAtTime,
       marketContext: this.journalForm.marketContext || undefined,
       tags,
-      timestamp: this.journalForm.timestamp || undefined
+      timestamp: this.journalForm.timestamp || undefined,
+      tradeId: this.reviewTradeId || undefined
     };
 
     this.journalEntryService.create(req).subscribe({
       next: () => {
-        this.notificationService.success('Thành công', 'Đã lưu nhật ký');
+        const wasReview = !!this.reviewTradeId;
+        this.notificationService.success('Thành công', wasReview ? 'Đã đánh giá giao dịch' : 'Đã lưu nhật ký');
         this.showJournalForm = false;
         this.resetJournalForm();
+        this.exitReviewMode();
         this.loadData();
       },
       error: () => {
@@ -1193,6 +1236,91 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
         this.creatingEntry = false;
       }
     });
+  }
+
+  // Post-trade review mode helpers
+  private tryBeginReviewMode() {
+    if (!this.reviewTradeId || !this.timeline) return;
+
+    const tradeItem = this.timeline.items.find(
+      i => i.type === 'trade' && i.data?.id === this.reviewTradeId
+    );
+    if (!tradeItem) {
+      this.notificationService.warning(
+        'Không thấy giao dịch',
+        'Giao dịch cần đánh giá nằm ngoài khoảng thời gian. Hãy mở rộng phạm vi (6T hoặc 1N).'
+      );
+      this.reviewTradeId = null;
+      return;
+    }
+    if (tradeItem.data?.tradeType !== 'SELL') {
+      // Post-trade review is only meaningful for SELL trades (closes a position).
+      this.reviewTradeId = null;
+      return;
+    }
+
+    const alreadyReviewed = this.timeline.items.some(
+      i => i.type === 'journal'
+        && i.data?.entryType === 'PostTrade'
+        && i.data?.tradeId === this.reviewTradeId
+    );
+
+    this.reviewTrade = {
+      tradeType: tradeItem.data.tradeType,
+      quantity: tradeItem.data.quantity,
+      price: tradeItem.data.price,
+      timestamp: tradeItem.timestamp
+    };
+    this.reviewAlreadyDone = alreadyReviewed;
+
+    if (alreadyReviewed) return; // just show the banner, don't re-open the form
+
+    this.journalForm = {
+      entryType: 'PostTrade',
+      title: `Đánh giá giao dịch ${tradeItem.data.tradeType === 'SELL' ? 'BÁN' : 'MUA'} ${this.symbol} — ${this.formatDate(tradeItem.timestamp)}`,
+      content: '',
+      emotionalState: '',
+      confidenceLevel: 5,
+      priceAtTime: tradeItem.data.price,
+      marketContext: '',
+      tagsInput: '',
+      timestamp: this.toDatetimeLocal(tradeItem.timestamp)
+    };
+    this.showJournalForm = true;
+  }
+
+  cancelReviewMode() {
+    this.showJournalForm = false;
+    this.resetJournalForm();
+    this.exitReviewMode();
+  }
+
+  closeJournalForm() {
+    if (this.reviewTradeId) {
+      this.cancelReviewMode();
+    } else {
+      this.showJournalForm = false;
+    }
+  }
+
+  private exitReviewMode() {
+    if (!this.reviewTradeId) return;
+    this.reviewTradeId = null;
+    this.reviewTrade = null;
+    this.reviewAlreadyDone = false;
+    // Remove tradeId from URL so a refresh doesn't re-open the form
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tradeId: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
+  private toDatetimeLocal(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   deleteJournalEntry(id: string, event: Event) {

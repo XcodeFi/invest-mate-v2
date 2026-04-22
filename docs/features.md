@@ -1032,7 +1032,7 @@ Mỗi node gồm:
 
 ## P1: Post-Trade Review Workflow
 
-**Branch:** `feat/p1-post-trade-review`
+**Branch:** `feat/p1-post-trade-review` (core); `feat/personal-finance-debt-api-frontend` (v2.48.1 fix — wire tradeId into review form)
 
 **Backend:**
 
@@ -1041,8 +1041,13 @@ Mỗi node gồm:
 
 **Frontend:**
 
-- Dashboard widget "Chờ đánh giá" — hiện SELL trades chưa review, click → Symbol Timeline
-- Trades list cột "Nhật ký" — icon check/pencil cho mỗi SELL trade
+- Dashboard widget "Chờ đánh giá" — hiện SELL trades chưa review, click → Symbol Timeline (kèm `tradeId` query param).
+- Trades list cột "Nhật ký" — icon check/pencil cho mỗi SELL trade; pencil link cũng kèm `tradeId`.
+- Symbol Timeline ở **chế độ review** khi nhận `?tradeId=...`:
+  - Mở rộng khoảng thời gian mặc định lên 12 tháng để tìm được lệnh cũ từ danh sách Dashboard.
+  - Banner cam "Đang đánh giá giao dịch BÁN ..." (hoặc banner xanh "Đã đánh giá" nếu journal PostTrade đã gắn trade đó).
+  - Form nhật ký tự mở, prefill `entryType=PostTrade`, `priceAtTime`, `timestamp`, tiêu đề gợi ý. Khi lưu, `tradeId` được gửi kèm → backend cross-reference thành công, lệnh chuyển sang trạng thái đã review.
+  - Sau lưu / bấm Hủy: `tradeId` bị xóa khỏi URL (`replaceUrl: true`) để refresh không mở lại form.
 
 ---
 

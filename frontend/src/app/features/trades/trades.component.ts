@@ -203,7 +203,7 @@ import { JournalEntryService, PendingReviewTrade } from '../../core/services/jou
                     @if (hasPostTradeReview(trade)) {
                       <span class="text-emerald-600 cursor-pointer" title="Đã đánh giá" (click)="openJournal(trade)">&#10003;</span>
                     } @else if (trade.tradeType === 'SELL') {
-                      <a [routerLink]="['/symbol-timeline']" [queryParams]="{symbol: trade.symbol}"
+                      <a [routerLink]="['/symbol-timeline']" [queryParams]="{symbol: trade.symbol, tradeId: trade.id}"
                          class="text-amber-500 hover:text-amber-700" title="Chưa đánh giá">&#9998;</a>
                     }
                   </td>
@@ -523,7 +523,7 @@ export class TradesComponent implements OnInit {
   }
 
   openJournal(trade: any): void {
-    this.router.navigate(['/symbol-timeline'], { queryParams: { symbol: trade.symbol } });
+    this.router.navigate(['/symbol-timeline'], { queryParams: { symbol: trade.symbol, tradeId: trade.id } });
   }
 
   min(a: number, b: number): number {

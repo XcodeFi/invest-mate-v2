@@ -149,7 +149,8 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
                     entry.PriceAtTime,
                     entry.MarketContext,
                     entry.Tags,
-                    entry.Rating
+                    entry.Rating,
+                    entry.TradeId
                 }
             });
         }
