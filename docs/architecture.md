@@ -93,7 +93,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | RiskProfile | Position size limits, drawdown alerts, sector exposure |
 | JournalEntry | Standalone journal (không cần Trade), 5 loại entry, cảm xúc, snapshot giá |
 | MarketEvent | Sự kiện thị trường (7 loại: Earnings/Dividend/News/Macro...) |
-| FinancialProfile | Per-user 1:1. 5 loại account (Securities/Savings/Emergency/IdleCash/Gold) + FinancialRules (emergency months, max investment %, min savings %). Health score 0-100. Gold account có brand (SJC/DOJI/PNJ/Other) + type (Mieng/Nhan) + quantity → auto-calc Balance qua provider |
+| FinancialProfile | Per-user 1:1. 5 loại account (Securities/Savings/Emergency/IdleCash/Gold) + **Debts[]** (6 loại: CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other) + FinancialRules (emergency months, max investment %, min savings %). Health score 0-100 với **4 rules** (rule 4: `-20` cứng khi có consumer debt lãi > 20%/năm). **Net Worth = Assets − Debt**. Gold account: brand + type + quantity → auto-calc Balance qua provider. Debts không xóa được khi Principal > 0 |
 
 ## Key Services (Infrastructure Layer)
 
@@ -146,7 +146,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | SymbolTimeline | `/api/v1/symbols/{symbol}/timeline` | Unified timeline (journals + trades + events + alerts) |
 | MarketEvents | `/api/v1/market-events` | CRUD market events per symbol, crawl from Vietstock |
 | Admin | `/api/v1/admin` | **Impersonation (debug tooling)**: start/stop user impersonation. Restricted via `[RequireAdmin]` (role=Admin + no `amr=impersonate`). Mutation blocked during impersonation unless `Admin:AllowImpersonateMutations=true`. |
-| PersonalFinance | `/api/v1/personal-finance` | **Net worth tracking (Tier 3)**: GET `/` (profile, 404 if absent) + GET `/summary` (net worth + health score 0-100 + rule checks, `HasProfile` flag) + GET `/gold-prices` (live from 24hmoney, cached 5 min) + PUT `/` (upsert profile) + PUT `/accounts` (upsert account with Gold auto-calc) + DELETE `/accounts/{id}` (bảo vệ last Securities) |
+| PersonalFinance | `/api/v1/personal-finance` | **Net worth tracking (Tier 3)**: GET `/` (profile, 404 if absent) + GET `/summary` (net worth + health score 0-100 + 4 rule checks + debts + `HasHighInterestConsumerDebt` flag) + GET `/gold-prices` (live from 24hmoney, cached 5 min) + PUT `/` (upsert profile) + PUT `/accounts` + DELETE `/accounts/{id}` (bảo vệ last Securities) + **PUT `/debts` (upsert debt)** + **DELETE `/debts/{id}` (reject nếu Principal > 0)** |
 
 ## Health Endpoints (Minimal API, unauthenticated)
 
@@ -263,18 +263,19 @@ Feature cross-cutting tổng quan tài sản + nguyên tắc tài chính + crawl
    - **Emergency**: `emergencyTotal ≥ monthlyExpense × EmergencyFundMonths` (trừ tối đa 40)
    - **Investment cap**: `(securitiesValue + goldTotal) ≤ totalAssets × MaxInvestmentPercent%` (trừ tối đa 30)
    - **Savings floor**: `savingsTotal ≥ totalAssets × MinSavingsPercent%` (trừ tối đa 30)
-   - Điểm trừ tỷ lệ thuận với vi phạm so với **target của rule** (không phải total assets) — consistent semantics.
-5. FE dashboard widget + trang `/personal-finance` hiển thị breakdown + health bar + rule checks pass/fail.
+   - **High-interest consumer debt**: `-20` cứng (binary) nếu có `CreditCard`/`PersonalLoan` với `InterestRate > 20%/năm` (strict)
+   - Rules 1-3 tỷ lệ thuận với vi phạm so với **target của rule**. Rule 4 binary.
+5. FE dashboard widget + trang `/personal-finance` hiển thị breakdown + **Net Worth card** + health bar + rule checks pass/fail + **high-interest debt banner** + debts section.
 
 **Key files:**
-- `src/InvestmentApp.Domain/Entities/FinancialProfile.cs` — aggregate, + `FinancialAccount` + `FinancialRules` + 3 enums (`FinancialAccountType`, `GoldBrand`, `GoldType`)
-- `src/InvestmentApp.Application/PersonalFinance/` — 3 commands, 3 queries, DTOs, `PersonalFinanceMapper`
+- `src/InvestmentApp.Domain/Entities/FinancialProfile.cs` — aggregate, + `FinancialAccount` + `Debt` + `FinancialRules` + 4 enums (`FinancialAccountType`, `GoldBrand`, `GoldType`, `DebtType`)
+- `src/InvestmentApp.Application/PersonalFinance/` — 5 commands (UpsertProfile, Upsert/RemoveAccount, **Upsert/RemoveDebt**), 3 queries, DTOs, `PersonalFinanceMapper`
 - `src/InvestmentApp.Application/Common/Interfaces/IGoldPriceProvider.cs` — provider contract
 - `src/InvestmentApp.Infrastructure/Services/Hmoney/HmoneyGoldPriceProvider.cs` — HTML scrape impl
 - `src/InvestmentApp.Infrastructure/Repositories/FinancialProfileRepository.cs` — Mongo repo, unique index UserId
-- `src/InvestmentApp.Api/Controllers/PersonalFinanceController.cs` — 6 endpoints
-- `frontend/src/app/core/services/personal-finance.service.ts` — HTTP client + TS DTOs + label helpers
-- `frontend/src/app/features/personal-finance/personal-finance.component.ts` — standalone page với Gold form
+- `src/InvestmentApp.Api/Controllers/PersonalFinanceController.cs` — **8 endpoints** (2 debts + 6 existing)
+- `frontend/src/app/core/services/personal-finance.service.ts` — HTTP client + TS DTOs + label helpers (incl. `DebtType`)
+- `frontend/src/app/features/personal-finance/personal-finance.component.ts` — standalone page với Gold form + **Debts section với click-to-edit + ESC close + Net Worth card**
 
 **Config (`appsettings.json`):**
 ```json

@@ -1,4 +1,6 @@
+using InvestmentApp.Application.PersonalFinance.Commands.RemoveDebt;
 using InvestmentApp.Application.PersonalFinance.Commands.RemoveFinancialAccount;
+using InvestmentApp.Application.PersonalFinance.Commands.UpsertDebt;
 using InvestmentApp.Application.PersonalFinance.Commands.UpsertFinancialAccount;
 using InvestmentApp.Application.PersonalFinance.Commands.UpsertFinancialProfile;
 using InvestmentApp.Application.PersonalFinance.Dtos;
@@ -120,6 +122,48 @@ public class PersonalFinanceController : ControllerBase
         try
         {
             await _mediator.Send(new RemoveFinancialAccountCommand { UserId = GetUserId(), AccountId = accountId });
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Upsert khoản nợ: thêm mới nếu DebtId null, update nếu set. Principal &gt;= 0.
+    /// Health score áp rule 4 (-20) khi CreditCard/PersonalLoan có InterestRate &gt; 20%/năm.
+    /// </summary>
+    [HttpPut("debts")]
+    [ProducesResponseType(typeof(DebtDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpsertDebt([FromBody] UpsertDebtCommand command)
+    {
+        command.UserId = GetUserId();
+        try
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Xóa khoản nợ. Throw 400 nếu Principal &gt; 0 (phải trả hết trước) hoặc debt không tồn tại.</summary>
+    [HttpDelete("debts/{debtId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RemoveDebt(string debtId)
+    {
+        try
+        {
+            await _mediator.Send(new RemoveDebtCommand { UserId = GetUserId(), DebtId = debtId });
             return NoContent();
         }
         catch (InvalidOperationException ex)

@@ -271,9 +271,21 @@ interface RiskAlert {
             </div>
             <span class="text-xs text-blue-600 font-medium">Xem chi tiết →</span>
           </div>
-          <div class="flex items-baseline justify-between mb-2">
-            <span class="text-xs text-gray-500">Tổng tài sản</span>
-            <span class="text-lg font-bold text-gray-900">{{ netWorthSummary.totalAssets | vndCurrency }}</span>
+          <div class="flex items-baseline justify-between mb-1">
+            <span class="text-xs text-gray-500">💎 Net Worth</span>
+            <span class="text-lg font-bold"
+                  [class.text-emerald-700]="netWorthSummary.netWorth >= 0"
+                  [class.text-red-700]="netWorthSummary.netWorth < 0">
+              {{ netWorthSummary.netWorth | vndCurrency }}
+            </span>
+          </div>
+          <div class="flex items-baseline justify-between text-[11px] text-gray-500 mb-2">
+            <span>Tổng tài sản {{ netWorthSummary.totalAssets | vndCurrency }}</span>
+            <span *ngIf="netWorthSummary.totalDebt > 0">− Nợ {{ netWorthSummary.totalDebt | vndCurrency }}</span>
+          </div>
+          <div *ngIf="netWorthSummary.hasHighInterestConsumerDebt"
+               class="bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 text-[11px] text-red-700 mb-2">
+            ⚠️ Bạn có nợ tiêu dùng lãi &gt; 20%/năm. Cân nhắc trả nợ trước khi đầu tư thêm.
           </div>
           <div class="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
             <div class="h-2 transition-all duration-500"

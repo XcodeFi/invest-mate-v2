@@ -2,6 +2,60 @@
 
 ---
 
+## [v2.48.0] — 2026-04-22 · Tài chính cá nhân: Khoản nợ + Net Worth
+
+**Branches:** `docs/personal-finance-debt-plan` (Phase 1 + plan), `feat/personal-finance-debt-application` (Phase 2), `feat/personal-finance-debt-api-frontend` (Phase 3-5)
+
+Mở rộng Personal Finance để track các khoản nợ (thẻ tín dụng, vay ngân hàng, vay mua nhà, trả góp, …) → **Net Worth = Tài sản − Nợ** làm chỉ số chính thay Total Assets. Thêm health rule 4 bảo vệ nhà đầu tư khỏi nợ tiêu dùng lãi cao — trả nợ thẻ tín dụng 24-36% trước khi mua cổ phiếu thường là "khoản đầu tư" lãi kép tốt nhất.
+
+### Domain
+
+- **`Debt`** entity embedded trong `FinancialProfile.Debts[]`, 6 loại (`DebtType` enum: CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other). Fields: `Principal` (required), `InterestRate`, `MonthlyPayment`, `MaturityDate`, `Note`, timestamps.
+- **`FinancialProfile.UpsertDebt` / `RemoveDebt`** symmetric với rule account: Principal ≥ 0, không xóa được khi Principal > 0 (chống xóa nhầm dữ liệu thật).
+- **`GetTotalDebt`, `GetNetWorth(securitiesValue)`, `HasHighInterestConsumerDebt()`** — API domain mới. Net Worth có thể âm (nợ > tài sản) — không throw, để user thấy thực tế.
+- **Health score rule 4**: −20 cứng (binary) khi có `CreditCard`/`PersonalLoan` với `InterestRate > 20%/năm` (strict). Ngưỡng cutoff theo thực tế VN. `Mortgage`/`Auto`/`Installment` không áp — lãi thấp và có bảo đảm.
+
+### Application
+
+- `UpsertDebtCommand` + `RemoveDebtCommand` (MediatR), persist chỉ sau khi domain validate pass (no persist-on-throw).
+- `GetNetWorthSummaryQuery` DTO mở rộng: `TotalDebt`, `NetWorth`, `HasHighInterestConsumerDebt`, `Debts[]`. `BuildRuleChecks` thêm rule 4 `HighInterestDebt` với encoding binary (CurrentValue=1 khi vi phạm, 0 khi đạt).
+- `PersonalFinanceMapper.ToDto(Debt)` + `FinancialProfileDto.Debts[]`.
+
+### API
+
+- **`PUT /api/v1/personal-finance/debts`** — upsert khoản nợ, domain exception → 400 với Vietnamese message.
+- **`DELETE /api/v1/personal-finance/debts/{debtId}`** — throw 400 nếu `Principal > 0` hoặc debt không tồn tại.
+
+### Frontend
+
+- Trang `/personal-finance`:
+  - **Net Worth card** (gradient emerald/red theo âm/dương) thay đổi dạng nổi bật, Total Assets + Total Debt làm sub-metric.
+  - **Banner đỏ high-interest debt** inline khi `HasHighInterestConsumerDebt`.
+  - Section **"Khoản nợ"** dưới Accounts: click toàn card mở edit modal, empty state "Chưa có khoản nợ — không nợ là lợi thế khi đầu tư 🎯".
+  - Debt form modal: 6 option dropdown, fields Principal/InterestRate/MonthlyPayment/MaturityDate/Note.
+  - ESC đóng modal. Nút layout theo convention mới: `[Hủy] → [Xóa (conditional)] → [Lưu flex-1]`.
+  - Overlay `z-[60]` (fix header cover bug).
+- Dashboard widget "Tài chính cá nhân":
+  - Đổi primary display từ `TotalAssets` → `NetWorth` (màu theo dấu).
+  - Sub-line hiển thị "Tổng tài sản X − Nợ Y".
+  - Banner đỏ warning khi high-interest consumer debt.
+- `PersonalFinanceService`: thêm `upsertDebt()`, `removeDebt()`, types `DebtDto`/`DebtType`/`UpsertDebtRequest`, helpers `debtTypeLabel`/`debtTypeIcon`.
+
+### Tests
+
+- **Domain (+25)**: UpsertDebt/RemoveDebt CRUD + GetTotalDebt/GetNetWorth + HasHighInterestConsumerDebt edge cases (boundary 20%, 20.01%, null interest, non-consumer types) + health rule 4 interactions (clamp at 0, score 80 vs 100).
+- **Application (+11)**: 5 Upsert (happy, update existing, no-profile, negative principal, bad DebtId) + 3 Remove + 2 summary extensions + rule count update 3→4.
+
+**Total**: 1055 tests pass (687 Domain / 128 Application / 235 Infrastructure / 5 Api).
+
+### Docs
+
+- Plan archived: [`docs/plans/done/personal-finance-debt.md`](docs/plans/done/personal-finance-debt.md).
+- Guide `tai-chinh-ca-nhan.md` pending update (next pass) — dashboard widget + debt section UX.
+- `business-domain.md` + `architecture.md` + `project-context.md` updated với Debt entity, endpoints mới, rule 4, convention modal z-index + button order.
+
+---
+
 ## [v2.47.0] — 2026-04-22 · Admin: Tổng quan user + activity stats
 
 **Branch:** `feat/admin-user-overview`
