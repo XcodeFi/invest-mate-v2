@@ -15,6 +15,7 @@ import { WatchlistService } from '../../core/services/watchlist.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
 import { JournalEntryService, PendingReviewTrade } from '../../core/services/journal-entry.service';
 import { TradePlanService, ScenarioAdvisoryDto } from '../../core/services/trade-plan.service';
+import { PersonalFinanceService, NetWorthSummaryDto } from '../../core/services/personal-finance.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -259,6 +260,60 @@ interface RiskAlert {
         </div>
 
         </div> <!-- end Watchlist + Daily Routine grid -->
+
+        <!-- Personal Finance Widget -->
+        <a *ngIf="netWorthSummary && netWorthSummary.hasProfile" routerLink="/personal-finance"
+           class="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 hover:border-blue-300 transition-colors">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">💰</span>
+              <span class="font-bold text-sm text-gray-900">Tài chính cá nhân</span>
+            </div>
+            <span class="text-xs text-blue-600 font-medium">Xem chi tiết →</span>
+          </div>
+          <div class="flex items-baseline justify-between mb-2">
+            <span class="text-xs text-gray-500">Tổng tài sản</span>
+            <span class="text-lg font-bold text-gray-900">{{ netWorthSummary.totalAssets | vndCurrency }}</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
+            <div class="h-2 transition-all duration-500"
+                 [class.bg-emerald-500]="netWorthSummary.healthScore >= 80"
+                 [class.bg-amber-500]="netWorthSummary.healthScore >= 50 && netWorthSummary.healthScore < 80"
+                 [class.bg-red-500]="netWorthSummary.healthScore < 50"
+                 [style.width.%]="netWorthSummary.healthScore"></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-gray-600 mb-2">
+            <span>Sức khỏe tài chính</span>
+            <span class="font-semibold"
+                  [class.text-emerald-600]="netWorthSummary.healthScore >= 80"
+                  [class.text-amber-600]="netWorthSummary.healthScore >= 50 && netWorthSummary.healthScore < 80"
+                  [class.text-red-600]="netWorthSummary.healthScore < 50">
+              {{ netWorthSummary.healthScore }}/100
+            </span>
+          </div>
+          <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-600">
+            <span>📈 CK: <span class="font-semibold">{{ netWorthSummary.securitiesValue | vndCurrency }}</span></span>
+            <span *ngIf="netWorthSummary.goldTotal > 0">🪙 Vàng: <span class="font-semibold">{{ netWorthSummary.goldTotal | vndCurrency }}</span></span>
+            <span>🏦 TK: <span class="font-semibold">{{ netWorthSummary.savingsTotal | vndCurrency }}</span></span>
+            <span>🛡️ DP: <span class="font-semibold">{{ netWorthSummary.emergencyTotal | vndCurrency }}</span></span>
+            <span>💵 NR: <span class="font-semibold">{{ netWorthSummary.idleCashTotal | vndCurrency }}</span></span>
+          </div>
+        </a>
+
+        <!-- Personal Finance onboarding (chưa thiết lập) -->
+        <a *ngIf="netWorthSummary && !netWorthSummary.hasProfile" routerLink="/personal-finance"
+           class="block bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4 mb-6 hover:border-blue-400 transition-colors">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">💰</span>
+              <div>
+                <div class="text-sm font-bold text-gray-900">Thiết lập tài chính cá nhân</div>
+                <div class="text-xs text-gray-600">Theo dõi tổng tài sản + quỹ dự phòng + vàng tích trữ</div>
+              </div>
+            </div>
+            <span class="text-xs text-blue-600 font-medium">Bắt đầu →</span>
+          </div>
+        </a>
 
         <!-- Timeframe Switcher -->
         <div class="flex items-center gap-2 mb-6 flex-wrap">
@@ -951,6 +1006,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   capitalFlowNudge: { show: boolean; message: string } = { show: false, message: '' };
   flowHistory: CapitalFlowItem[] = [];
 
+  // ─── Personal Finance Widget ───────────────────────────────────────────────
+  netWorthSummary: NetWorthSummaryDto | null = null;
+
   constructor(
     private authService: AuthService,
     private pnlService: PnlService,
@@ -965,7 +1023,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private journalEntryService: JournalEntryService,
     private tradePlanService: TradePlanService,
     private portfolioService: PortfolioService,
-    private router: Router
+    private router: Router,
+    private personalFinanceService: PersonalFinanceService
   ) {}
 
   ngOnInit(): void {
@@ -979,6 +1038,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadWatchlistWidget();
     this.loadPendingReview();
     this.loadAdvisories();
+    this.loadNetWorth();
+  }
+
+  private loadNetWorth(): void {
+    this.personalFinanceService.getSummary().subscribe({
+      next: (s) => { this.netWorthSummary = s; },
+      error: (err) => {
+        // Silent UI (widget ẩn) nhưng log console để dev diagnose khi /summary regression.
+        console.error('[dashboard] loadNetWorth failed', err);
+      },
+    });
   }
 
   // ─── Daily Routine Widget ──────────────────────────────────────────────────

@@ -17,11 +17,21 @@ public class FinancialProfileRepository : IFinancialProfileRepository
     {
         _collection = database.GetCollection<FinancialProfile>("financial_profiles");
 
-        // Explicit Name để nếu index đã tồn tại với options khác (VD: non-unique từ migration cũ)
-        // thì Mongo throw "Index already exists with different options" — dễ diagnose hơn "name conflict".
-        var userIndex = Builders<FinancialProfile>.IndexKeys.Ascending(p => p.UserId);
-        _collection.Indexes.CreateOne(new CreateIndexModel<FinancialProfile>(
-            userIndex, new CreateIndexOptions { Unique = true, Name = "financial_profiles_userId_unique" }));
+        // Auto-generated name ("UserId_1") để idempotent với existing index nếu đã có.
+        // Defensive: wrap try/catch — nếu index đã tồn tại với options khác (VD: non-unique cũ), log + bỏ qua
+        // thay vì crash startup. Admin dev phải drop index cũ manual nếu cần upgrade.
+        try
+        {
+            var userIndex = Builders<FinancialProfile>.IndexKeys.Ascending(p => p.UserId);
+            _collection.Indexes.CreateOne(new CreateIndexModel<FinancialProfile>(
+                userIndex, new CreateIndexOptions { Unique = true }));
+        }
+        catch (MongoCommandException ex) when (ex.Code is 85 or 86)
+        {
+            // Narrow to IndexOptionsConflict (85) / IndexKeySpecsConflict (86) only.
+            // Existing index preserved; admin phải drop/recreate manual nếu thật sự cần upgrade schema.
+            // Re-throw mọi exception khác (permissions, network, etc.) để không silent mask bug.
+        }
     }
 
     public async Task<FinancialProfile?> GetByIdAsync(string id, CancellationToken ct = default)

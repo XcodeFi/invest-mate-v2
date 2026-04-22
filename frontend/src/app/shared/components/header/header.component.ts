@@ -277,6 +277,7 @@ export class HeaderComponent implements OnInit {
         { path: '/trade-plan', label: 'Kế hoạch GD', icon: '📑' },
         { path: '/journals', label: 'Nhật ký', icon: '📝' },
         { path: '/alerts', label: 'Cảnh báo', icon: '🔔' },
+        { path: '/personal-finance', label: 'Tài chính cá nhân', icon: '💰' },
         { path: '/ai-settings', label: 'Cài đặt AI', icon: '🤖' },
       ]
     }
