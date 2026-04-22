@@ -37,7 +37,7 @@ Transform from "trade recorder" to "opportunity finder":
 ### Tier 3 — Planned
 
 6. **Capital Flows Visibility** — 🔄 In Progress: TWR/MWR trên Dashboard + Analytics, flow markers trên equity curve, smart nudge, cash balance card
-7. **Tài chính cá nhân** — 📋 Planned: Net Worth overview (4 loại tài khoản: CK/Tiết kiệm/Dự phòng/Nhàn rỗi), Financial Rules compliance (quỹ dự phòng, tỷ lệ đầu tư, tiết kiệm), health scorecard 0-100, Dashboard widget + trang `/personal-finance`. Chi tiết: [`docs/plans/personal-finance.md`](plans/personal-finance.md)
+7. **Tài chính cá nhân** — ✅ Done 2026-04-22: Net Worth overview với **5 loại tài khoản** (CK/Tiết kiệm/Dự phòng/Nhàn rỗi + **Vàng tích trữ**), Financial Rules compliance (quỹ dự phòng 6 tháng, đầu tư ≤50%, tiết kiệm ≥30%), health scorecard 0-100, Dashboard widget + trang `/personal-finance`. **HmoneyGoldPriceProvider** crawler giá vàng từ 24hmoney (HTML scrape, 2-tier cache), Gold auto-calc Balance = quantity × live sellPrice. 78 tests mới, 1013 total pass. Chi tiết: [`docs/plans/done/personal-finance.md`](plans/done/personal-finance.md)
 
 ### Improvement Proposals (P1-P4) — Done
 
@@ -85,3 +85,7 @@ Transform from "trade recorder" to "opportunity finder":
 - **MongoDB Atlas** — Seed/connection takes ~16s on cold start. Backend launch uses `--launch-profile https` for port 5000.
 - **`appsettings.json` placeholders** — .NET doesn't interpolate `{PlaceholderName}` in JSON. Must use real URLs as defaults or environment variables.
 - **Money/StockSymbol equality** — `other != null` in `Equals()` triggers custom `!=` operator → `StackOverflowException`. Use `other is not null`.
+- **24hmoney gold price format** — UI label nói "Đơn vị: triệu VNĐ/lượng" nhưng HTML values thật là **full VND** (167,200,000). Ngược với giá CP (÷1000 trong API). Fixture test `PricesAreFullVND_NotScaledBy1000` lock behavior khi mở rộng crawler.
+- **Mongo index rename conflict** — Thêm `Name` explicit vào `CreateIndexOptions` cho index đã có auto-name trước đó → Mongo throw `createIndexes failed: Index already exists with a different name`. Fix: bỏ Name OR wrap catch narrow `MongoCommandException when (ex.Code is 85 or 86)` (IndexOptionsConflict/IndexKeySpecsConflict).
+- **AngleSharp namespace conflict** — Project có `InvestmentApp.Infrastructure.Configuration` namespace shadow `AngleSharp.Configuration` → phải fully qualify `AngleSharp.Configuration.Default` khi dùng.
+- **appsettings.json convention** — URL + secret không commit thật, dùng placeholder `{Section__Key}` + inject env var lúc deploy. Reference pattern: `MarketDataProvider__BaseUrl`, `GoldPriceProvider__PageUrl`. Nếu quên set env var, app không crash startup — fail silently ở request đầu tiên với DNS error.
