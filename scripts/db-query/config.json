@@ -1,0 +1,12 @@
+{
+  "_comment": "Per-env DB overrides. All envs share the same cluster (connection from src/InvestmentApp.Api/appsettings.Development.json). Only the 'database' name differs per env. Edit here when real names change.",
+  "dev": {
+    "database": "InvestmentApp"
+  },
+  "test": {
+    "database": "InvestmentApp_Test"
+  },
+  "prod": {
+    "database": "InvestmentApp_prod"
+  }
+}

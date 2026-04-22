@@ -75,3 +75,14 @@ User classifies each: **Fix** / **Ignore** / **Post**.
 - **Fix**: Edit the file
 - **Ignore**: Skip
 - **Post**: Batch into `gh pr comment` per [references/output-format.md](references/output-format.md)
+
+## Capture Learnings (after triage)
+
+Once triage completes, reflect on the review findings. If any finding represents a **recurring class of mistake** (not a one-off typo) or an **unexpected tooling/stack quirk**, persist it following the **Session Learning Capture** convention in [`~/.claude/CLAUDE.md`](file:///C:/Users/a/.claude/CLAUDE.md).
+
+Trigger examples:
+- Same pitfall found in multiple files → save as `learning_pitfall_<slug>.md` (`type: feedback`)
+- Agent 2's historical context shows a pattern reverted twice → save as pitfall
+- A confident >= 90 finding pointed to a tool-chain gotcha (Mongo driver, Angular Signals, xUnit) → save as `learning_toolquirk_<slug>.md`
+
+Do NOT capture specific bug fixes from this PR — git log + commit message already cover those. If nothing non-obvious surfaced across the review, skip silently.
