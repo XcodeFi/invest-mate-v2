@@ -143,6 +143,19 @@ Return PR URL.
 
 ---
 
+## Phase 4: Capture Learnings
+
+After PR is created (or immediately after Step 3.2 if PR already existed), reflect on this workflow in one pass. If a non-obvious, reusable insight surfaced — a pattern, pitfall, or tool-quirk — persist it following the **Session Learning Capture** convention in [`~/.claude/CLAUDE.md`](file:///C:/Users/a/.claude/CLAUDE.md).
+
+Do NOT re-capture:
+- Specific bug fixes already in commit message
+- Architecture decisions (those go to `docs/architecture.md` per project rule)
+- Anything already covered by existing memory files
+
+If nothing non-obvious surfaced, skip silently — do not write empty entries.
+
+---
+
 ## Error Handling
 
 - Phase 1 review finds critical issue (>= 90 confidence) → MUST fix before proceeding

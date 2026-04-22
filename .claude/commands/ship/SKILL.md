@@ -278,6 +278,24 @@ Update `frontend/src/assets/CHANGELOG.md`:
 
 ---
 
+## Phase 7: Capture Learnings
+
+After PR creation, reflect on the full cycle (analyze → plan → TDD → review → verify → ship). If a non-obvious, reusable insight surfaced across any phase — a pattern, pitfall, or tool-quirk — persist it following the **Session Learning Capture** convention in [`~/.claude/CLAUDE.md`](file:///C:/Users/a/.claude/CLAUDE.md).
+
+Good candidates from a full ship cycle:
+- **pattern**: a design that worked well and would apply to similar features (save as `learning_pattern_*.md`, `type: project`)
+- **pitfall**: a Phase 3 review finding or Phase 4 manual-test failure that represents a class of mistake (save as `learning_pitfall_*.md`, `type: feedback`)
+- **tool-quirk**: `dotnet test`, `ng serve`, MongoDB driver, or build-tool gotcha that cost time (save as `learning_toolquirk_*.md`, `type: feedback`)
+
+Do NOT re-capture:
+- Specific bug fixes already in commit message
+- Architecture decisions (those go to `docs/architecture.md` per project rule)
+- Anything already covered by existing memory files
+
+If nothing non-obvious surfaced, skip silently.
+
+---
+
 ## Error Handling
 
 - Tests fail in Phase 2/6 → stop and fix
