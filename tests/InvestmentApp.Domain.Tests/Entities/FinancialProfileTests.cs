@@ -661,6 +661,14 @@ public class FinancialProfileTests
     }
 
     [Fact]
+    public void UpsertDebt_NegativeMonthlyPayment_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.UpsertDebt(null, DebtType.CreditCard, "x", 1m, monthlyPayment: -0.01m);
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
     public void UpsertDebt_ShouldIncrementVersion()
     {
         var profile = FinancialProfile.Create("user-1", 20_000_000m);
@@ -789,6 +797,16 @@ public class FinancialProfileTests
         profile.UpsertDebt(null, DebtType.CreditCard, "CC", 5_000_000m, interestRate: 20m);
 
         profile.HasHighInterestConsumerDebt().Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasHighInterestConsumerDebt_JustAboveThreshold20_ShouldReturnTrue()
+    {
+        // Guardrail: 20.01% phải trigger — catch regression nếu ai đổi `>` thành `>=`.
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC", 5_000_000m, interestRate: 20.01m);
+
+        profile.HasHighInterestConsumerDebt().Should().BeTrue();
     }
 
     [Fact]
