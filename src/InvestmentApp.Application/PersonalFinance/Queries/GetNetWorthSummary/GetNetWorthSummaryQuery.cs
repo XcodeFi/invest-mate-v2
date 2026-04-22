@@ -45,6 +45,10 @@ public class GetNetWorthSummaryQueryHandler : IRequestHandler<GetNetWorthSummary
         var emergencyTotal = SumByType(profile, FinancialAccountType.Emergency);
         var idleCashTotal = SumByType(profile, FinancialAccountType.IdleCash);
 
+        var totalDebt = profile.GetTotalDebt();
+        var netWorth = profile.GetNetWorth(securitiesValue);
+        var hasHighInterestDebt = profile.HasHighInterestConsumerDebt();
+
         return new NetWorthSummaryDto
         {
             HasProfile = true,
@@ -54,12 +58,16 @@ public class GetNetWorthSummaryQueryHandler : IRequestHandler<GetNetWorthSummary
             SavingsTotal = savingsTotal,
             EmergencyTotal = emergencyTotal,
             IdleCashTotal = idleCashTotal,
+            TotalDebt = totalDebt,
+            NetWorth = netWorth,
+            HasHighInterestConsumerDebt = hasHighInterestDebt,
             MonthlyExpense = profile.MonthlyExpense,
             HealthScore = healthScore,
-            RuleChecks = BuildRuleChecks(profile, totalAssets, securitiesValue, goldTotal, savingsTotal, emergencyTotal),
+            RuleChecks = BuildRuleChecks(profile, totalAssets, securitiesValue, goldTotal, savingsTotal, emergencyTotal, hasHighInterestDebt),
             Accounts = profile.Accounts
                 .Select(a => PersonalFinanceMapper.ToDto(a, a.Type == FinancialAccountType.Securities ? securitiesValue : (decimal?)null))
                 .ToList(),
+            Debts = profile.Debts.Select(PersonalFinanceMapper.ToDto).ToList(),
         };
     }
 
@@ -85,7 +93,8 @@ public class GetNetWorthSummaryQueryHandler : IRequestHandler<GetNetWorthSummary
         decimal securitiesValue,
         decimal goldTotal,
         decimal savingsTotal,
-        decimal emergencyTotal)
+        decimal emergencyTotal,
+        bool hasHighInterestConsumerDebt)
     {
         var requiredEmergency = profile.MonthlyExpense * profile.Rules.EmergencyFundMonths;
         var maxInvestment = totalAssets * (profile.Rules.MaxInvestmentPercent / 100m);
@@ -120,6 +129,16 @@ public class GetNetWorthSummaryQueryHandler : IRequestHandler<GetNetWorthSummary
                 Description = $"Tiết kiệm ≥ {profile.Rules.MinSavingsPercent.ToString("G", inv)}% tổng tài sản",
                 CurrentValue = savingsTotal,
                 RequiredValue = requiredSavings,
+            },
+            new()
+            {
+                // Rule 4: CurrentValue = 1 khi vi phạm (có nợ tiêu dùng lãi > 20%), 0 khi đạt. RequiredValue luôn 0.
+                // Dùng format số thay text để consistent với 3 rule kia; FE có thể render khác nếu muốn.
+                RuleName = "HighInterestDebt",
+                IsPassing = !hasHighInterestConsumerDebt,
+                Description = "Không có nợ tiêu dùng lãi > 20%/năm",
+                CurrentValue = hasHighInterestConsumerDebt ? 1m : 0m,
+                RequiredValue = 0m,
             },
         };
     }
