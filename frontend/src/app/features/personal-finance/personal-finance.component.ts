@@ -198,7 +198,7 @@ import { NotificationService } from '../../core/services/notification.service';
       </ng-container>
 
       <!-- Account Form Modal -->
-      <div *ngIf="showAccountForm" class="fixed inset-0 bg-black/70 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      <div *ngIf="showAccountForm" class="fixed inset-0 bg-black/70 z-[60] flex items-start justify-center p-4 overflow-y-auto"
            (click)="closeAccountForm()">
         <div class="bg-gray-800 rounded-xl border border-gray-700 p-5 w-full max-w-lg mt-10 space-y-4"
              (click)="$event.stopPropagation()">
