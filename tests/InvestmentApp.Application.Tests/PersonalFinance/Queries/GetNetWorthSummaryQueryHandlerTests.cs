@@ -103,4 +103,25 @@ public class GetNetWorthSummaryQueryHandlerTests
         result.RuleChecks.Should().HaveCount(3); // Emergency + Investment + Savings
         result.RuleChecks.Select(r => r.RuleName).Should().Contain(new[] { "EmergencyFund", "InvestmentCap", "SavingsFloor" });
     }
+
+    [Fact]
+    public async Task Handle_SecuritiesAccountBalance_ReflectsLiveSecuritiesValue_NotStoredZero()
+    {
+        // Bug: Top card "Chứng khoán" hiện 389M (live) nhưng card Securities trong Accounts list hiện 0đ (stored).
+        // Fix: DTO projection override Balance của Securities account = securitiesValue live.
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        _profileRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+
+        var p1 = new Portfolio("u1", "P1", 100_000_000m);
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { p1 });
+        _pnl.Setup(s => s.CalculatePortfolioPnLAsync(p1.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PortfolioPnLSummary { TotalPortfolioValue = 389_310_000m });
+
+        var result = await _handler.Handle(new GetNetWorthSummaryQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.SecuritiesValue.Should().Be(389_310_000m);
+        var securitiesAccount = result.Accounts.First(a => a.Type == FinancialAccountType.Securities);
+        securitiesAccount.Balance.Should().Be(389_310_000m, "DTO balance must match live securitiesValue");
+    }
 }

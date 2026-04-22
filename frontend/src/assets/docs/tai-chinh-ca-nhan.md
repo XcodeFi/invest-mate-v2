@@ -34,7 +34,9 @@ Sau khi thiết lập, bạn có thể thêm các tài khoản.
 
 ## Bước 2: Thêm tài khoản
 
-Nhấn **+ Thêm tài khoản** → chọn loại và điền thông tin.
+Khi hoàn thành onboarding, hệ thống **tự động tạo 4 tài khoản mặc định**: Chứng khoán, Tiết kiệm, Quỹ dự phòng, Tiền nhàn rỗi (số dư 0đ). Vàng tạo khi có nhu cầu.
+
+Nhấn **+ Thêm tài khoản** → chọn loại và điền thông tin (dropdown chỉ hiện Tiết kiệm / Dự phòng / Nhàn rỗi / Vàng — Chứng khoán không tạo thủ công được).
 
 ### Tiết kiệm / Dự phòng / Nhàn rỗi
 
@@ -45,7 +47,7 @@ Nhấn **+ Thêm tài khoản** → chọn loại và điền thông tin.
 
 ### Chứng khoán
 
-Chỉ cần tạo tài khoản đại diện — **số dư tự đồng bộ** từ tổng giá trị các danh mục đầu tư (positions × giá hiện tại + cash balance). Không cần nhập tay.
+Tài khoản Chứng khoán được **tự động tạo** khi khởi tạo profile — **số dư tự đồng bộ** từ tổng giá trị các danh mục đầu tư (positions × giá hiện tại + cash balance). Không thể tạo thủ công, không thể xóa, không thể sửa. Card hiển thị nhãn "Auto-sync" để nhận biết.
 
 ### Vàng 🪙
 
@@ -126,6 +128,13 @@ Nếu chưa thiết lập, widget hiện CTA "Thiết lập tài chính cá nhâ
 
 ---
 
+## Sửa / Xóa tài khoản
+
+- **Nhấn vào thẻ (card) tài khoản** → mở popup chỉnh sửa (áp dụng cho Tiết kiệm / Dự phòng / Nhàn rỗi / Vàng).
+- Trong popup: nút **Lưu** lưu thay đổi, nút **Xóa** xóa tài khoản, nút **Hủy** (hoặc phím **ESC**) đóng popup.
+- **Điều kiện xóa**: chỉ xóa được khi **số dư = 0đ**. Nếu còn tiền, popup hiển thị nhắc "Đặt số dư về 0 trước" — đây là lớp bảo vệ chống xóa nhầm dữ liệu thật.
+- **Thẻ Chứng khoán không bấm được** (hiển thị "Auto-sync" bên phải): không sửa, không xóa thủ công.
+
 ## Mẹo sử dụng
 
 - **Vàng tự cập nhật**: Không cần sửa tay mỗi lần giá vàng đổi — hệ thống luôn hiển thị theo giá thị trường mới nhất khi bạn mở form hoặc tải trang.
@@ -133,4 +142,4 @@ Nếu chưa thiết lập, widget hiện CTA "Thiết lập tài chính cá nhâ
 - **Một thương hiệu nhiều tài khoản**: Bạn có thể tạo nhiều tài khoản vàng khác nhau (VD: "SJC vợ giữ", "PNJ quà cưới") để tách mục đích sử dụng.
 - **Ngưỡng linh hoạt**: Nếu bạn là người trẻ, chấp nhận rủi ro cao → có thể tăng **Đầu tư tối đa** lên 60–70% và giảm **Tiết kiệm tối thiểu** xuống 20%.
 - **Quỹ dự phòng = Dự phòng + Nhàn rỗi**: Hệ thống cộng cả 2 loại này khi kiểm tra nguyên tắc quỹ dự phòng — cho phép bạn chia nhỏ (VD: 3 tháng trong Dự phòng gửi tiết kiệm online, 3 tháng Nhàn rỗi để rút ngay).
-- **Xóa vs Sửa**: Chứng khoán chỉ xóa được (không sửa) vì số dư tự đồng bộ; các loại khác đều sửa được số dư, ghi chú, lãi suất.
+- **Muốn xóa tài khoản không dùng**: mở popup → đặt số dư về 0 → **Lưu**, sau đó mở lại popup → nhấn **Xóa**.

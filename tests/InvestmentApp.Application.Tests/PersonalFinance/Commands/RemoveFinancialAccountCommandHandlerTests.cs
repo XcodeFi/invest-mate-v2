@@ -19,9 +19,9 @@ public class RemoveFinancialAccountCommandHandlerTests
     [Fact]
     public async Task Handle_ValidRemoval_RemovesAndPersists()
     {
+        // Only accounts with zero balance can be deleted per domain rule.
         var profile = FinancialProfile.Create("u1", 10_000_000m);
-        var goldAccount = profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC Miếng", 340_000_000m,
-            goldBrand: GoldBrand.SJC, goldType: GoldType.Mieng, goldQuantity: 2m);
+        var goldAccount = profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC Miếng", 0m);
         _repo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
 
         await _handler.Handle(new RemoveFinancialAccountCommand { UserId = "u1", AccountId = goldAccount.Id }, CancellationToken.None);
