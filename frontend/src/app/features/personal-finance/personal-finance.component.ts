@@ -10,8 +10,11 @@ import {
   GoldBrand,
   GoldType,
   GoldPriceDto,
+  DebtDto,
+  DebtType,
   UpsertFinancialAccountRequest,
   UpsertFinancialProfileRequest,
+  UpsertDebtRequest,
 } from '../../core/services/personal-finance.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -60,12 +63,33 @@ import { NotificationService } from '../../core/services/notification.service';
 
       <!-- Has profile: render full UI -->
       <ng-container *ngIf="summary && summary.hasProfile">
-        <!-- Net Worth Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 col-span-2 md:col-span-1">
+        <!-- Net Worth highlight row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
             <div class="text-xs text-gray-400 mb-1">Tổng tài sản</div>
             <div class="text-lg font-bold text-white">{{ summary.totalAssets | vndCurrency }}</div>
+            <div class="text-[10px] text-gray-500 mt-0.5">Nợ: {{ summary.totalDebt | vndCurrency }}</div>
           </div>
+          <div class="bg-gradient-to-br from-emerald-900/40 to-gray-800 rounded-xl p-4 border"
+               [class.border-emerald-700]="summary.netWorth >= 0"
+               [class.border-red-700]="summary.netWorth < 0">
+            <div class="text-xs text-gray-400 mb-1">💎 Net Worth (Tài sản − Nợ)</div>
+            <div class="text-lg font-bold"
+                 [class.text-emerald-400]="summary.netWorth >= 0"
+                 [class.text-red-400]="summary.netWorth < 0">
+              {{ summary.netWorth | vndCurrency }}
+            </div>
+          </div>
+        </div>
+
+        <!-- High-interest debt banner (inline trong trang, đồng bộ với banner ở Dashboard widget) -->
+        <div *ngIf="summary.hasHighInterestConsumerDebt"
+             class="bg-red-900/40 border border-red-700/50 rounded-xl p-4 text-sm text-red-200">
+          ⚠️ Bạn có nợ thẻ tín dụng / tiêu dùng với lãi &gt; 20%/năm. Trả nợ này thường là khoản "đầu tư" lãi kép tốt nhất trước khi mua cổ phiếu.
+        </div>
+
+        <!-- Asset breakdown -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
             <div class="text-xs text-gray-400 mb-1">📈 Chứng khoán</div>
             <div class="text-sm font-bold text-white">{{ summary.securitiesValue | vndCurrency }}</div>
@@ -155,6 +179,54 @@ import { NotificationService } from '../../core/services/notification.service';
                       class="text-xs text-gray-500 ml-2 whitespace-nowrap">Sửa ›</span>
                 <span *ngIf="account.type === FinancialAccountType.Securities"
                       class="text-[10px] text-gray-500 ml-2 whitespace-nowrap">Auto-sync</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Debts Management -->
+        <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="font-semibold text-white text-sm">Khoản nợ</h2>
+              <p class="text-[10px] text-gray-500 mt-0.5">Nhấn vào thẻ để sửa. Chỉ xóa được khi đã trả hết (Principal = 0).</p>
+            </div>
+            <button (click)="openNewDebtForm()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">
+              + Thêm khoản nợ
+            </button>
+          </div>
+
+          <div *ngIf="summary.debts.length === 0"
+               class="text-center text-sm text-gray-500 py-6">
+            Chưa có khoản nợ nào. Tốt lắm — không nợ là lợi thế khi đầu tư 🎯
+          </div>
+
+          <div *ngIf="summary.debts.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div *ngFor="let debt of summary.debts"
+                 (click)="openEditDebtForm(debt)"
+                 class="bg-gray-900 rounded-lg p-3 border border-gray-700 cursor-pointer hover:border-blue-600 transition-colors">
+              <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-lg">{{ debtIcon(debt.type) }}</span>
+                    <span class="text-sm font-medium text-white truncate">{{ debt.name }}</span>
+                  </div>
+                  <div class="text-xs text-gray-400 mb-1">{{ debtLabel(debt.type) }}</div>
+                  <div class="text-base font-bold text-red-400">{{ debt.principal | vndCurrency }}</div>
+                  <div *ngIf="debt.interestRate != null"
+                       class="text-[10px] mt-0.5"
+                       [class.text-red-400]="isHighInterest(debt)"
+                       [class.text-gray-500]="!isHighInterest(debt)">
+                    Lãi {{ debt.interestRate }}%/năm{{ isHighInterest(debt) ? ' ⚠️' : '' }}
+                  </div>
+                  <div *ngIf="debt.monthlyPayment"
+                       class="text-[10px] text-gray-500 mt-0.5">Trả {{ debt.monthlyPayment | vndCurrency }}/tháng</div>
+                  <div *ngIf="debt.maturityDate"
+                       class="text-[10px] text-gray-500 mt-0.5">Đáo hạn {{ debt.maturityDate | date:'dd/MM/yyyy' }}</div>
+                  <div *ngIf="debt.note" class="text-[10px] text-gray-500 mt-0.5">{{ debt.note }}</div>
+                </div>
+                <span class="text-xs text-gray-500 ml-2 whitespace-nowrap">Sửa ›</span>
               </div>
             </div>
           </div>
@@ -326,6 +398,90 @@ import { NotificationService } from '../../core/services/notification.service';
           </p>
         </div>
       </div>
+
+      <!-- Debt Form Modal -->
+      <div *ngIf="showDebtForm" class="fixed inset-0 bg-black/70 z-[60] flex items-start justify-center p-4 overflow-y-auto"
+           (click)="closeDebtForm()">
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-5 w-full max-w-lg mt-10 space-y-4"
+             (click)="$event.stopPropagation()">
+          <h3 class="text-lg font-bold text-white">
+            {{ formDebtId ? 'Sửa khoản nợ' : 'Thêm khoản nợ mới' }}
+          </h3>
+
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">Loại nợ</label>
+            <select [(ngModel)]="formDebtType"
+                    class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              <option [ngValue]="DebtType.CreditCard">💳 Thẻ tín dụng</option>
+              <option [ngValue]="DebtType.PersonalLoan">💸 Vay tiêu dùng / người quen</option>
+              <option [ngValue]="DebtType.Mortgage">🏠 Vay mua nhà</option>
+              <option [ngValue]="DebtType.Auto">🚗 Vay mua xe</option>
+              <option [ngValue]="DebtType.Installment">📱 Trả góp / BNPL</option>
+              <option [ngValue]="DebtType.Other">📄 Khác</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">Tên hiển thị</label>
+            <input type="text" [(ngModel)]="formDebtName"
+                   placeholder="VD: Thẻ tín dụng VCB, Vay nhà BIDV"
+                   class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">Số gốc còn lại (VND)</label>
+            <input type="text" inputmode="numeric" appNumMask [(ngModel)]="formPrincipal"
+                   placeholder="VD: 15.000.000"
+                   class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Lãi suất (%/năm)</label>
+              <input type="number" min="0" max="100" step="0.1" [(ngModel)]="formDebtInterestRate"
+                     placeholder="VD: 28"
+                     class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Trả hàng tháng (VND)</label>
+              <input type="text" inputmode="numeric" appNumMask [(ngModel)]="formMonthlyPayment"
+                     placeholder="optional"
+                     class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">Ngày đáo hạn (optional)</label>
+            <input type="date" [(ngModel)]="formMaturityDate"
+                   class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">Ghi chú (optional)</label>
+            <input type="text" [(ngModel)]="formDebtNote" maxlength="200"
+                   class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button (click)="closeDebtForm()"
+                    class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium rounded-lg px-4 py-2 transition-colors">
+              Hủy
+            </button>
+            <button *ngIf="formDebtCanDelete" (click)="deleteCurrentDebt()" [disabled]="saving"
+                    class="bg-red-700 hover:bg-red-600 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+              Xóa
+            </button>
+            <button (click)="submitDebtForm()" [disabled]="saving"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+              {{ saving ? 'Đang lưu...' : 'Lưu' }}
+            </button>
+          </div>
+          <p *ngIf="formDebtId && !formDebtCanDelete"
+             class="text-[10px] text-gray-500 text-center">
+            Khoản nợ có số gốc &gt; 0 không thể xóa. Đặt số gốc về 0 (đã trả hết) trước.
+          </p>
+        </div>
+      </div>
     </div>
   `,
 })
@@ -337,6 +493,8 @@ export class PersonalFinanceComponent implements OnInit {
   readonly FinancialAccountType = FinancialAccountType;
   readonly GoldBrand = GoldBrand;
   readonly GoldType = GoldType;
+  readonly DebtType = DebtType;
+  private readonly HighInterestThreshold = 20;
 
   summary: NetWorthSummaryDto | null = null;
   loading = false;
@@ -374,9 +532,23 @@ export class PersonalFinanceComponent implements OnInit {
   formCanDelete = false;
   private editingAccountRef: FinancialAccountDto | null = null;
 
+  // Debt form state
+  showDebtForm = false;
+  formDebtId: string | null = null;
+  formDebtType: DebtType = DebtType.CreditCard;
+  formDebtName = '';
+  formPrincipal: number | null = null;
+  formDebtInterestRate: number | null = null;
+  formMonthlyPayment: number | null = null;
+  formMaturityDate: string | null = null; // YYYY-MM-DD from <input type="date">
+  formDebtNote = '';
+  formDebtCanDelete = false;
+  private editingDebtRef: DebtDto | null = null;
+
   @HostListener('document:keydown.escape')
   onEscapeKey(): void {
     if (this.showAccountForm) this.closeAccountForm();
+    if (this.showDebtForm) this.closeDebtForm();
   }
 
   onCardClick(account: FinancialAccountDto): void {
@@ -622,6 +794,100 @@ export class PersonalFinanceComponent implements OnInit {
     });
   }
 
+  // ── Debt form ─────────────────────────────────────────────────────────────
+
+  openNewDebtForm(): void {
+    this.formDebtId = null;
+    this.editingDebtRef = null;
+    this.formDebtCanDelete = false;
+    this.formDebtType = DebtType.CreditCard;
+    this.formDebtName = '';
+    this.formPrincipal = null;
+    this.formDebtInterestRate = null;
+    this.formMonthlyPayment = null;
+    this.formMaturityDate = null;
+    this.formDebtNote = '';
+    this.showDebtForm = true;
+  }
+
+  openEditDebtForm(debt: DebtDto): void {
+    this.formDebtId = debt.id;
+    this.editingDebtRef = debt;
+    this.formDebtCanDelete = (debt.principal ?? 0) <= 0;
+    this.formDebtType = debt.type;
+    this.formDebtName = debt.name;
+    this.formPrincipal = debt.principal;
+    this.formDebtInterestRate = debt.interestRate ?? null;
+    this.formMonthlyPayment = debt.monthlyPayment ?? null;
+    this.formMaturityDate = debt.maturityDate ? debt.maturityDate.substring(0, 10) : null;
+    this.formDebtNote = debt.note ?? '';
+    this.showDebtForm = true;
+  }
+
+  closeDebtForm(): void {
+    this.showDebtForm = false;
+  }
+
+  submitDebtForm(): void {
+    if (!this.formDebtName.trim()) {
+      this.notify.error('Thiếu thông tin', 'Vui lòng nhập tên khoản nợ');
+      return;
+    }
+    if (this.formPrincipal == null || this.formPrincipal < 0) {
+      this.notify.error('Thiếu thông tin', 'Số gốc phải >= 0');
+      return;
+    }
+    this.saving = true;
+
+    const req: UpsertDebtRequest = {
+      debtId: this.formDebtId,
+      type: this.formDebtType,
+      name: this.formDebtName.trim(),
+      principal: this.formPrincipal,
+      interestRate: this.formDebtInterestRate ?? null,
+      monthlyPayment: this.formMonthlyPayment ?? null,
+      maturityDate: this.formMaturityDate ?? null,
+      note: this.formDebtNote.trim() || null,
+    };
+
+    this.finance.upsertDebt(req).subscribe({
+      next: () => {
+        this.saving = false;
+        this.showDebtForm = false;
+        this.notify.success('Thành công', 'Đã lưu khoản nợ');
+        this.loadSummary();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify.error('Lỗi', err?.error?.message ?? 'Không lưu được khoản nợ');
+      },
+    });
+  }
+
+  deleteCurrentDebt(): void {
+    const debt = this.editingDebtRef;
+    if (!debt || !this.formDebtCanDelete) return;
+    if (!confirm(`Xóa khoản nợ "${debt.name}"?`)) return;
+    this.saving = true;
+    this.finance.removeDebt(debt.id).subscribe({
+      next: () => {
+        this.saving = false;
+        this.showDebtForm = false;
+        this.notify.success('Thành công', 'Đã xóa khoản nợ');
+        this.loadSummary();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify.error('Lỗi', err?.error?.message ?? 'Không xóa được khoản nợ');
+      },
+    });
+  }
+
+  isHighInterest(debt: DebtDto): boolean {
+    const isConsumer = debt.type === DebtType.CreditCard || debt.type === DebtType.PersonalLoan;
+    return isConsumer && (debt.interestRate ?? 0) > this.HighInterestThreshold;
+  }
+
   // ── Label helpers (delegated to service statics) ──────────────────────────
 
   typeLabel(type: FinancialAccountType): string { return PersonalFinanceService.accountTypeLabel(type); }
@@ -632,4 +898,6 @@ export class PersonalFinanceComponent implements OnInit {
   goldTypeLabelEnum(type: GoldType | null | undefined): string {
     return type == null ? '' : PersonalFinanceService.goldTypeLabel(type);
   }
+  debtLabel(type: DebtType): string { return PersonalFinanceService.debtTypeLabel(type); }
+  debtIcon(type: DebtType): string { return PersonalFinanceService.debtTypeIcon(type); }
 }
