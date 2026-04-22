@@ -11,10 +11,14 @@ public class FinancialProfile : AggregateRoot
     public string UserId { get; private set; } = null!;
     public decimal MonthlyExpense { get; private set; }
     public List<FinancialAccount> Accounts { get; private set; } = new();
+    public List<Debt> Debts { get; private set; } = new();
     public FinancialRules Rules { get; private set; } = null!;
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
+
+    /// <summary>Ngưỡng lãi suất (% năm) để coi là "nợ tiêu dùng lãi cao". Strict &gt; 20%.</summary>
+    private const decimal HighInterestThreshold = 20m;
 
     [BsonConstructor]
     public FinancialProfile() { }
@@ -109,6 +113,69 @@ public class FinancialProfile : AggregateRoot
         IncrementVersion();
     }
 
+    public Debt UpsertDebt(
+        string? debtId,
+        DebtType type,
+        string name,
+        decimal principal,
+        decimal? interestRate = null,
+        decimal? monthlyPayment = null,
+        DateTime? maturityDate = null,
+        string? note = null)
+    {
+        if (principal < 0m)
+            throw new ArgumentOutOfRangeException(nameof(principal), "Principal phải >= 0");
+        if (interestRate.HasValue && interestRate.Value < 0m)
+            throw new ArgumentOutOfRangeException(nameof(interestRate), "InterestRate phải >= 0");
+        if (monthlyPayment.HasValue && monthlyPayment.Value < 0m)
+            throw new ArgumentOutOfRangeException(nameof(monthlyPayment), "MonthlyPayment phải >= 0");
+
+        Debt debt;
+        if (debtId is null)
+        {
+            debt = Debt.Create(type, name, principal, interestRate, monthlyPayment, maturityDate, note);
+            Debts.Add(debt);
+        }
+        else
+        {
+            debt = Debts.FirstOrDefault(d => d.Id == debtId)
+                ?? throw new InvalidOperationException($"Không tìm thấy khoản nợ với id {debtId}");
+            debt.Update(type, name, principal, interestRate, monthlyPayment, maturityDate, note);
+        }
+
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+        return debt;
+    }
+
+    public void RemoveDebt(string debtId)
+    {
+        var debt = Debts.FirstOrDefault(d => d.Id == debtId)
+            ?? throw new InvalidOperationException($"Không tìm thấy khoản nợ với id {debtId}");
+
+        if (debt.Principal > 0m)
+            throw new InvalidOperationException("Không thể xóa khoản nợ chưa trả hết (Principal > 0). Hãy đặt Principal về 0 trước khi xóa.");
+
+        Debts.Remove(debt);
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    public decimal GetTotalDebt() => Debts.Sum(d => d.Principal);
+
+    /// <summary>Net Worth = TotalAssets - TotalDebt. Có thể âm khi nợ vượt tài sản.</summary>
+    public decimal GetNetWorth(decimal securitiesValue) => GetTotalAssets(securitiesValue) - GetTotalDebt();
+
+    /// <summary>
+    /// True nếu có khoản nợ tiêu dùng (CreditCard hoặc PersonalLoan) với lãi suất strict &gt; 20%/năm.
+    /// Mortgage/Auto/Installment không tính (mức lãi thường trong kiểm soát). Null interest coi như 0 (không trigger).
+    /// </summary>
+    public bool HasHighInterestConsumerDebt() =>
+        Debts.Any(d => IsConsumerDebt(d.Type) && d.InterestRate.GetValueOrDefault() > HighInterestThreshold);
+
+    private static bool IsConsumerDebt(DebtType type) =>
+        type == DebtType.CreditCard || type == DebtType.PersonalLoan;
+
     /// <summary>
     /// Tổng tài sản = sum(balance của tất cả tài khoản non-Securities) + securitiesValue (live từ portfolio).
     /// Securities account.Balance không được dùng — thay bằng securitiesValue param.
@@ -124,11 +191,11 @@ public class FinancialProfile : AggregateRoot
     }
 
     /// <summary>
-    /// Health score 0-100. 3 rules, điểm trừ tỷ lệ thuận với mức vi phạm **so với target của rule** (không phải so với totalAssets):
+    /// Health score 0-100. 4 rules, điểm trừ tỷ lệ thuận với mức vi phạm **so với target của rule** (không phải so với totalAssets):
     /// 1. Emergency ≥ MonthlyExpense × EmergencyFundMonths — deficit/required × 40, cap 40
     /// 2. Investment (securities + gold) ≤ MaxInvestmentPercent% × totalAssets — excess/maxInvestment × 30, cap 30
     /// 3. Savings ≥ MinSavingsPercent% × totalAssets — deficit/requiredSavings × 30, cap 30
-    /// Nghĩa: vi phạm bằng 100% target → trừ điểm tối đa. Consistent semantics across cả 3 rules.
+    /// 4. No consumer debt (CreditCard/PersonalLoan) with interest &gt; 20% — binary, trừ 20 điểm cứng nếu vi phạm
     /// totalAssets == 0 → return 0 (không đánh giá được).
     /// </summary>
     public int CalculateHealthScore(decimal securitiesValue)
@@ -171,6 +238,10 @@ public class FinancialProfile : AggregateRoot
             var deficitRatio = (requiredSavings - savingsTotal) / requiredSavings;
             score -= Math.Min(30m, deficitRatio * 30m);
         }
+
+        // Rule 4: No high-interest consumer debt (binary -20)
+        if (HasHighInterestConsumerDebt())
+            score -= 20m;
 
         return (int)Math.Clamp(Math.Round(score), 0m, 100m);
     }

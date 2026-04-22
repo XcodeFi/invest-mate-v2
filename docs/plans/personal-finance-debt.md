@@ -110,16 +110,15 @@ Thêm dòng rule trong section Sức khỏe tài chính:
 - ✓/✗ "Không nợ tiêu dùng lãi cao (>20%/năm)"
 - CurrentValue: tổng principal của nợ lãi cao (hiển thị lý do fail)
 
-### Dashboard widget
+### Dashboard widget "Tài chính cá nhân"
 
-Đổi từ TotalAssets → **NetWorth** làm số chính; TotalDebt làm sub-line nhỏ. Nếu `HasHighInterestConsumerDebt` → icon ⚠️.
+Đổi từ TotalAssets → **NetWorth** làm số chính; TotalDebt làm sub-line nhỏ.
 
-### Banner cảnh báo (Trade Wizard)
+Khi `HasHighInterestConsumerDebt` → widget hiện thêm **banner cảnh báo đỏ** inline:
 
-Khi có high-interest consumer debt, banner đỏ ở bước Strategy/Plan:
-> ⚠️ Bạn đang có nợ thẻ tín dụng/tiêu dùng lãi suất cao. Trả nợ này thường là khoản "đầu tư" lãi kép tốt nhất trước khi mua cổ phiếu.
+> ⚠️ Bạn có nợ thẻ tín dụng / tiêu dùng lãi > 20%. Trả nợ này thường là khoản "đầu tư" lãi kép tốt nhất trước khi mua cổ phiếu.
 
-Có thể dismiss trong session, không block trade.
+Không banner riêng ở Trade Wizard (gộp vào widget để tránh noise; nhà đầu tư đã thấy widget mỗi lần vào Dashboard).
 
 ## 7. Phases
 

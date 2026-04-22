@@ -589,4 +589,294 @@ public class FinancialProfileTests
     }
 
     #endregion
+
+    #region Debts — UpsertDebt / RemoveDebt
+
+    [Fact]
+    public void Create_ShouldInitializeEmptyDebtsList()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.Debts.Should().NotBeNull();
+        profile.Debts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void UpsertDebt_NewDebt_ShouldAddToList()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+
+        var debt = profile.UpsertDebt(
+            debtId: null,
+            type: DebtType.CreditCard,
+            name: "Thẻ tín dụng VCB",
+            principal: 15_000_000m,
+            interestRate: 28m);
+
+        profile.Debts.Should().HaveCount(1);
+        debt.Id.Should().NotBeNullOrEmpty();
+        debt.Type.Should().Be(DebtType.CreditCard);
+        debt.Name.Should().Be("Thẻ tín dụng VCB");
+        debt.Principal.Should().Be(15_000_000m);
+        debt.InterestRate.Should().Be(28m);
+    }
+
+    [Fact]
+    public void UpsertDebt_ExistingById_ShouldUpdateInPlace()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var existing = profile.UpsertDebt(null, DebtType.Mortgage, "Vay nhà", 2_000_000_000m, interestRate: 9m);
+        var countBefore = profile.Debts.Count;
+
+        profile.UpsertDebt(existing.Id, DebtType.Mortgage, "Vay nhà BIDV", 1_950_000_000m, interestRate: 9.5m);
+
+        profile.Debts.Should().HaveCount(countBefore);
+        var updated = profile.Debts.First(d => d.Id == existing.Id);
+        updated.Name.Should().Be("Vay nhà BIDV");
+        updated.Principal.Should().Be(1_950_000_000m);
+        updated.InterestRate.Should().Be(9.5m);
+    }
+
+    [Fact]
+    public void UpsertDebt_NotFound_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.UpsertDebt("non-existent", DebtType.Other, "x", 1m);
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpsertDebt_NegativePrincipal_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.UpsertDebt(null, DebtType.CreditCard, "x", -1m);
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void UpsertDebt_NegativeInterestRate_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.UpsertDebt(null, DebtType.CreditCard, "x", 1m, interestRate: -0.01m);
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void UpsertDebt_ShouldIncrementVersion()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var versionBefore = profile.Version;
+
+        profile.UpsertDebt(null, DebtType.CreditCard, "x", 1m);
+
+        profile.Version.Should().Be(versionBefore + 1);
+    }
+
+    [Fact]
+    public void RemoveDebt_WithZeroPrincipal_ShouldSucceed()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var d = profile.UpsertDebt(null, DebtType.CreditCard, "Đã trả xong", 0m);
+
+        var action = () => profile.RemoveDebt(d.Id);
+
+        action.Should().NotThrow();
+        profile.Debts.Should().NotContain(x => x.Id == d.Id);
+    }
+
+    [Fact]
+    public void RemoveDebt_WithPositivePrincipal_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var d = profile.UpsertDebt(null, DebtType.CreditCard, "Còn nợ", 5_000_000m);
+
+        var action = () => profile.RemoveDebt(d.Id);
+
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void RemoveDebt_NotFound_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.RemoveDebt("non-existent");
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void RemoveDebt_ShouldIncrementVersion()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var d = profile.UpsertDebt(null, DebtType.CreditCard, "x", 0m);
+        var versionBefore = profile.Version;
+
+        profile.RemoveDebt(d.Id);
+
+        profile.Version.Should().Be(versionBefore + 1);
+    }
+
+    #endregion
+
+    #region GetTotalDebt / GetNetWorth
+
+    [Fact]
+    public void GetTotalDebt_NoDebts_ShouldReturnZero()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.GetTotalDebt().Should().Be(0m);
+    }
+
+    [Fact]
+    public void GetTotalDebt_MultipleDebts_ShouldSumPrincipal()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC1", 10_000_000m, interestRate: 28m);
+        profile.UpsertDebt(null, DebtType.Mortgage, "House", 1_500_000_000m, interestRate: 9m);
+        profile.UpsertDebt(null, DebtType.Auto, "Car", 200_000_000m, interestRate: 8m);
+
+        profile.GetTotalDebt().Should().Be(1_710_000_000m);
+    }
+
+    [Fact]
+    public void GetNetWorth_AssetsMinusDebts()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+        profile.UpsertAccount(savings.Id, FinancialAccountType.Savings, savings.Name, 500_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC", 15_000_000m, interestRate: 28m);
+
+        // totalAssets = 500M savings + 389M securities (live) = 889M; debts = 15M; netWorth = 874M
+        var netWorth = profile.GetNetWorth(securitiesValue: 389_000_000m);
+        netWorth.Should().Be(874_000_000m);
+    }
+
+    [Fact]
+    public void GetNetWorth_CanBeNegative_WhenDebtExceedsAssets()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.Mortgage, "House", 2_000_000_000m, interestRate: 9m);
+
+        var netWorth = profile.GetNetWorth(securitiesValue: 100_000_000m);
+        netWorth.Should().Be(-1_900_000_000m);
+    }
+
+    #endregion
+
+    #region HasHighInterestConsumerDebt
+
+    [Fact]
+    public void HasHighInterestConsumerDebt_CreditCardAbove20_ShouldReturnTrue()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC", 5_000_000m, interestRate: 28m);
+
+        profile.HasHighInterestConsumerDebt().Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasHighInterestConsumerDebt_PersonalLoanAbove20_ShouldReturnTrue()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.PersonalLoan, "Vay tiêu dùng", 50_000_000m, interestRate: 24m);
+
+        profile.HasHighInterestConsumerDebt().Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasHighInterestConsumerDebt_AtThreshold20_ShouldReturnFalse()
+    {
+        // Ngưỡng strict > 20. Đúng 20% coi như OK (nhiều vay tiêu dùng ở mức này).
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC", 5_000_000m, interestRate: 20m);
+
+        profile.HasHighInterestConsumerDebt().Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasHighInterestConsumerDebt_MortgageAbove20_ShouldReturnFalse()
+    {
+        // Mortgage không thuộc consumer debt — dù lãi cao cũng không tính
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.Mortgage, "Nhà lãi cao", 1_000_000_000m, interestRate: 25m);
+
+        profile.HasHighInterestConsumerDebt().Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasHighInterestConsumerDebt_NullInterestRate_ShouldReturnFalse()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC chưa nhập lãi", 5_000_000m);
+
+        profile.HasHighInterestConsumerDebt().Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasHighInterestConsumerDebt_NoDebts_ShouldReturnFalse()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        profile.HasHighInterestConsumerDebt().Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Health score rule 4 — high-interest consumer debt
+
+    [Fact]
+    public void CalculateHealthScore_WithHighInterestConsumerDebt_ShouldDeduct20()
+    {
+        // Setup: perfect finances (3 rules pass) → score 100, then add CC debt 28% → score 80
+        var profile = FinancialProfile.Create("user-1", 10_000_000m);
+        var emergency = profile.Accounts.First(a => a.Type == FinancialAccountType.Emergency);
+        profile.UpsertAccount(emergency.Id, FinancialAccountType.Emergency, emergency.Name, 60_000_000m); // 6 months × 10M
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+        profile.UpsertAccount(savings.Id, FinancialAccountType.Savings, savings.Name, 30_000_000m);       // 30% of 100M assets
+
+        // Total: 60 emergency + 30 savings + 10 idle assumed → actually default idle=0; let's add
+        var idle = profile.Accounts.First(a => a.Type == FinancialAccountType.IdleCash);
+        profile.UpsertAccount(idle.Id, FinancialAccountType.IdleCash, idle.Name, 10_000_000m);
+        // Total assets = 100M, investment=0 (under 50% cap), savings=30 (=30% floor), emergency=60 (=6mo).
+
+        var scoreBefore = profile.CalculateHealthScore(securitiesValue: 0m);
+        scoreBefore.Should().Be(100);
+
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC", 5_000_000m, interestRate: 28m);
+
+        var scoreAfter = profile.CalculateHealthScore(securitiesValue: 0m);
+        scoreAfter.Should().Be(80);
+    }
+
+    [Fact]
+    public void CalculateHealthScore_WithHighInterestDebtAndOtherViolations_ShouldClampAt0()
+    {
+        // Both Investment cap (30) + Savings floor (30) + Emergency (40) fail → -100 already at 0
+        // Add high-interest debt (-20) → clamped at 0, not negative
+        var profile = FinancialProfile.Create("user-1", 10_000_000m);
+        profile.UpsertDebt(null, DebtType.CreditCard, "CC", 5_000_000m, interestRate: 36m);
+
+        // 100M fully in gold (investment) → cap violated; zero emergency + zero savings
+        profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC", 100_000_000m);
+
+        var score = profile.CalculateHealthScore(securitiesValue: 0m);
+        score.Should().Be(0);
+    }
+
+    [Fact]
+    public void CalculateHealthScore_WithoutHighInterestDebt_ShouldNotDeduct20()
+    {
+        // Mortgage 10% lãi không trừ điểm rule 4
+        var profile = FinancialProfile.Create("user-1", 10_000_000m);
+        var emergency = profile.Accounts.First(a => a.Type == FinancialAccountType.Emergency);
+        profile.UpsertAccount(emergency.Id, FinancialAccountType.Emergency, emergency.Name, 60_000_000m);
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+        profile.UpsertAccount(savings.Id, FinancialAccountType.Savings, savings.Name, 30_000_000m);
+        var idle = profile.Accounts.First(a => a.Type == FinancialAccountType.IdleCash);
+        profile.UpsertAccount(idle.Id, FinancialAccountType.IdleCash, idle.Name, 10_000_000m);
+
+        profile.UpsertDebt(null, DebtType.Mortgage, "House", 500_000_000m, interestRate: 10m);
+
+        var score = profile.CalculateHealthScore(securitiesValue: 0m);
+        score.Should().Be(100);
+    }
+
+    #endregion
 }
