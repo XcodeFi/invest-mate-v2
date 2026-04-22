@@ -36,6 +36,9 @@ public class FinancialRulesDto
 
 public class NetWorthSummaryDto
 {
+    /// <summary>False nếu user chưa tạo profile — FE dùng flag này để show onboarding thay vì health score=0.</summary>
+    public bool HasProfile { get; set; }
+
     public decimal TotalAssets { get; set; }
     public decimal SecuritiesValue { get; set; }
     public decimal GoldTotal { get; set; }

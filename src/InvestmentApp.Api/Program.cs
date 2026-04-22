@@ -121,6 +121,7 @@ builder.Services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
 builder.Services.AddScoped<IMarketEventRepository, MarketEventRepository>();
 builder.Services.AddScoped<IScenarioTemplateRepository, ScenarioTemplateRepository>();
 builder.Services.AddScoped<IImpersonationAuditRepository, ImpersonationAuditRepository>();
+builder.Services.AddScoped<IFinancialProfileRepository, FinancialProfileRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -195,6 +196,20 @@ builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Hmoney.Hmon
 });
 builder.Services.AddScoped<IComprehensiveStockDataProvider>(sp =>
     sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyComprehensiveDataProvider>());
+
+// 24hmoney gold price provider (HTML scrape, cache 5 phút default)
+builder.Services.Configure<InvestmentApp.Infrastructure.Services.Hmoney.GoldPriceProviderOptions>(
+    builder.Configuration.GetSection("GoldPriceProvider"));
+var goldConfig = builder.Configuration.GetSection("GoldPriceProvider");
+builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyGoldPriceProvider>(client =>
+{
+    client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml");
+    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (compatible; invest-mate-gold-crawler)");
+    client.Timeout = TimeSpan.FromSeconds(goldConfig.GetValue<int>("TimeoutSeconds", 30));
+});
+builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IGoldPriceProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyGoldPriceProvider>());
+// Note: IFinancialProfileRepository registered up in the Repositories block (line ~124)
 
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));

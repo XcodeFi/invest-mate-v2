@@ -33,7 +33,7 @@ public class GetNetWorthSummaryQueryHandler : IRequestHandler<GetNetWorthSummary
     {
         var profile = await _profileRepo.GetByUserIdAsync(request.UserId, cancellationToken);
         if (profile is null)
-            return new NetWorthSummaryDto(); // Empty — FE sẽ show prompt "Thiết lập profile"
+            return new NetWorthSummaryDto { HasProfile = false }; // FE hiện onboarding thay vì health score=0
 
         var securitiesValue = await SumSecuritiesValueAsync(request.UserId, cancellationToken);
 
@@ -47,6 +47,7 @@ public class GetNetWorthSummaryQueryHandler : IRequestHandler<GetNetWorthSummary
 
         return new NetWorthSummaryDto
         {
+            HasProfile = true,
             TotalAssets = totalAssets,
             SecuritiesValue = securitiesValue,
             GoldTotal = goldTotal,
