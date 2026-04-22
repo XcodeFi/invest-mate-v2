@@ -1,6 +1,6 @@
 # Tài chính cá nhân
 
-> Tổng quan tài sản gộp (chứng khoán + vàng + tiết kiệm + dự phòng + nhàn rỗi), sức khỏe tài chính theo 3 nguyên tắc, và kho vàng tự cập nhật giá.
+> Tổng quan tài sản (chứng khoán + vàng + tiết kiệm + dự phòng + nhàn rỗi), **khoản nợ**, **Net Worth = Tài sản − Nợ**, sức khỏe tài chính theo **4 nguyên tắc**, và kho vàng tự cập nhật giá.
 
 ---
 
@@ -76,15 +76,51 @@ Nếu bạn có loại vàng không phổ biến hoặc muốn tự định giá
 
 ---
 
-## Bước 3: Theo dõi Sức khỏe tài chính
+## Bước 3: Theo dõi khoản nợ
 
-Mỗi lần có thay đổi tài sản, hệ thống tự đánh giá qua **3 nguyên tắc** (mặc định theo tài chính cá nhân cổ điển):
+Section "Khoản nợ" dưới phần Tài khoản cho phép track các khoản nợ ảnh hưởng đến Net Worth. Nhấn **+ Thêm khoản nợ** → chọn 1 trong 6 loại:
 
-| Nguyên tắc | Mặc định | Ý nghĩa |
-|------------|----------|---------|
-| **Quỹ dự phòng** | ≥ 6 tháng chi tiêu | Tổng (Dự phòng + Nhàn rỗi) phải đủ trang trải ít nhất 6 tháng |
-| **Đầu tư tối đa** | ≤ 50% tổng tài sản | (Chứng khoán + Vàng) không nên vượt 50% — phần còn lại để phòng thủ |
-| **Tiết kiệm tối thiểu** | ≥ 30% tổng tài sản | Tiết kiệm ngân hàng + Dự phòng nên chiếm ít nhất 30% |
+| Loại | Biểu tượng | Ví dụ | Có bị tính vào rule "nợ tiêu dùng"? |
+|------|-----------|-------|------------------------------------|
+| **Thẻ tín dụng** | 💳 | Thẻ VCB Platinum | ✅ (lãi thường 24-36%) |
+| **Vay tiêu dùng** | 💸 | Vay tín chấp, vay người quen | ✅ (lãi 15-25%) |
+| **Vay mua nhà** | 🏠 | Vay BIDV 20 năm | ❌ (có bảo đảm, lãi thấp) |
+| **Vay mua xe** | 🚗 | Vay mua ô tô | ❌ |
+| **Trả góp / BNPL** | 📱 | Trả góp 0% điện thoại, đồ điện tử | ❌ |
+| **Khác** | 📄 | Các khoản nợ khác | ❌ |
+
+Fields:
+- **Số gốc còn lại (Principal)**: bắt buộc, VND
+- **Lãi suất (%/năm)**: optional nhưng **nên** nhập — dùng cho rule nợ lãi cao
+- **Trả hàng tháng**: optional, giúp bạn track cash flow
+- **Ngày đáo hạn**: optional, dùng date picker
+- **Ghi chú**: optional
+
+### Net Worth = Tài sản − Nợ
+
+Card nổi bật ở đầu trang hiển thị Net Worth (màu xanh lá khi dương, đỏ khi âm). Dashboard widget cũng đổi từ Tổng tài sản sang Net Worth làm số chính — số tiền thực sự bạn "sở hữu" sau khi trừ nợ.
+
+### Xóa khoản nợ
+
+Tương tự tài khoản: nhấn vào thẻ → mở popup → nút **Xóa** chỉ hiện khi **Principal = 0** (đã trả hết). Logic này chống xóa nhầm dữ liệu nợ thật — muốn xóa tất toán xong thì set số gốc về 0 → Lưu → mở lại → Xóa.
+
+---
+
+## Bước 4: Theo dõi Sức khỏe tài chính
+
+Mỗi lần có thay đổi tài sản hoặc nợ, hệ thống tự đánh giá qua **4 nguyên tắc**:
+
+| Nguyên tắc | Mặc định | Ý nghĩa | Điểm trừ tối đa |
+|------------|----------|---------|-----------------|
+| **Quỹ dự phòng** | ≥ 6 tháng chi tiêu | Tổng (Dự phòng + Nhàn rỗi) phải đủ trang trải ít nhất 6 tháng | −40 |
+| **Đầu tư tối đa** | ≤ 50% tổng tài sản | (Chứng khoán + Vàng) không nên vượt 50% | −30 |
+| **Tiết kiệm tối thiểu** | ≥ 30% tổng tài sản | Tiết kiệm ngân hàng + Dự phòng nên chiếm ít nhất 30% | −30 |
+| **Không nợ tiêu dùng lãi cao** | Không có CC/vay tiêu dùng lãi > 20%/năm | Trả nợ lãi cao trước khi đầu tư — nợ 28% ăn mòn lợi nhuận nhanh hơn nhiều cổ phiếu tạo ra | −20 (binary) |
+
+3 rule đầu trừ điểm tỷ lệ thuận với mức vi phạm. Rule 4 là binary — vi phạm trừ hẳn 20, không vi phạm trừ 0. Nếu score đạt 100 nhưng có CC lãi 28% → tự động xuống 80/100 🟡.
+
+Khi vi phạm rule 4, trang PF hiện **banner đỏ** + Dashboard widget cũng hiện cảnh báo để nhắc bạn:
+> ⚠️ Bạn có nợ thẻ tín dụng / tiêu dùng lãi > 20%/năm. Trả nợ này thường là khoản "đầu tư" lãi kép tốt nhất trước khi mua cổ phiếu.
 
 ### Health Score
 
@@ -98,7 +134,7 @@ Mỗi dòng rule hiển thị `giá trị hiện tại / giá trị yêu cầu` 
 
 ---
 
-## Bước 4: Tinh chỉnh ngưỡng nguyên tắc
+## Bước 5: Tinh chỉnh ngưỡng nguyên tắc
 
 Mặc định 6/50/30 là khuyến nghị chung. Bạn có thể điều chỉnh theo hoàn cảnh cá nhân:
 
