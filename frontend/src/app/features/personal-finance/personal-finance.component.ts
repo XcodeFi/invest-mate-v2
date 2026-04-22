@@ -307,17 +307,17 @@ import { NotificationService } from '../../core/services/notification.service';
           </div>
 
           <div class="flex gap-2 pt-2">
-            <button (click)="submitAccountForm()" [disabled]="saving"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
-              {{ saving ? 'Đang lưu...' : 'Lưu' }}
+            <button (click)="closeAccountForm()"
+                    class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium rounded-lg px-4 py-2 transition-colors">
+              Hủy
             </button>
             <button *ngIf="formCanDelete" (click)="deleteCurrentAccount()" [disabled]="saving"
                     class="bg-red-700 hover:bg-red-600 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
               Xóa
             </button>
-            <button (click)="closeAccountForm()"
-                    class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium rounded-lg px-4 py-2 transition-colors">
-              Hủy
+            <button (click)="submitAccountForm()" [disabled]="saving"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+              {{ saving ? 'Đang lưu...' : 'Lưu' }}
             </button>
           </div>
           <p *ngIf="formAccountId && !formCanDelete && formType !== FinancialAccountType.Securities"
