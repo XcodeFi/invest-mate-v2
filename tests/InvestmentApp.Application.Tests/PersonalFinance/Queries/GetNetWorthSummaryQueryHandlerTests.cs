@@ -20,16 +20,30 @@ public class GetNetWorthSummaryQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ProfileNotExist_ReturnsEmptySummary()
+    public async Task Handle_ProfileNotExist_ReturnsEmptySummary_WithHasProfileFalse()
     {
         _profileRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync((FinancialProfile?)null);
 
         var result = await _handler.Handle(new GetNetWorthSummaryQuery { UserId = "u1" }, CancellationToken.None);
 
         result.Should().NotBeNull();
+        result.HasProfile.Should().BeFalse();
         result.TotalAssets.Should().Be(0m);
         result.HealthScore.Should().Be(0);
         result.Accounts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_ProfileExists_SetsHasProfileTrue()
+    {
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        _profileRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Portfolio>());
+
+        var result = await _handler.Handle(new GetNetWorthSummaryQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.HasProfile.Should().BeTrue();
     }
 
     [Fact]
