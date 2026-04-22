@@ -2,6 +2,26 @@
 
 ---
 
+## [v2.48.1] — 2026-04-22 · Fix: không đánh giá được sau khi bán
+
+**Branch:** `fix/post-trade-review-tradeid-wiring`
+
+Từ trang Giao dịch hoặc Dashboard, bấm icon bút chì "Chưa đánh giá" trên một lệnh BÁN sẽ mở `/symbol-timeline?symbol=XXX` — nhưng page không biết đang review lệnh nào và form "+ Ghi nhật ký" không gán `tradeId` nên backend không đánh dấu được lệnh đã đánh giá. Kết quả: bấm mãi vẫn "Chưa đánh giá", user không có đường vào chức năng review.
+
+### Fix
+- **Backend `GetSymbolTimelineQuery`**: thêm `TradeId` vào journal DTO projection để frontend phát hiện được journal đã gắn với trade nào (trước đó bị thiếu → banner "Đã đánh giá" là dead code).
+- **Trades page + Dashboard card** truyền thêm `tradeId` vào query params khi điều hướng sang Symbol Timeline.
+- **Symbol Timeline**:
+  - Nhận `?tradeId=...` → tự mở form nhật ký với `entryType = PostTrade`, prefill giá + thời điểm từ lệnh gốc, tiêu đề gợi ý "Đánh giá giao dịch BÁN {symbol} — {ngày}".
+  - Hiển thị **banner cam** phía trên form: "Đang đánh giá giao dịch BÁN X cp {symbol} @ giá — ngày". Nếu đã đánh giá rồi → banner xanh "Giao dịch này đã được đánh giá" (không mở form để tránh tạo review trùng).
+  - Guard SELL-only: link tay `?tradeId=<buy>` không kích hoạt review mode (post-trade review chỉ áp cho lệnh đóng vị thế).
+  - Khi ở review mode, mặc định mở rộng khoảng thời gian sang **12 tháng** để tìm được các lệnh cũ từ danh sách "Chờ đánh giá" của Dashboard.
+  - `createJournalEntry()` gửi kèm `tradeId` → backend `GetTradesPendingReviewQuery` cross-reference đúng → lệnh chuyển sang trạng thái "Đã đánh giá" (dấu tick xanh).
+  - Sau khi lưu, xóa `tradeId` khỏi URL để refresh không mở lại form.
+  - Nút trong form sắp xếp lại: `[Hủy] → [Lưu đánh giá]` theo convention primary-right.
+
+---
+
 ## [v2.48.0] — 2026-04-22 · Tài chính cá nhân: Khoản nợ + Net Worth
 
 **Branches:** `docs/personal-finance-debt-plan` (Phase 1 + plan), `feat/personal-finance-debt-application` (Phase 2), `feat/personal-finance-debt-api-frontend` (Phase 3-5)

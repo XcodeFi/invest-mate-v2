@@ -113,6 +113,15 @@ Xem lịch sử toàn bộ hoạt động liên quan đến 1 mã CP:
 - Nhật ký, giao dịch, sự kiện thị trường, cảnh báo
 - Sắp xếp theo thời gian
 
+### Đánh giá sau khi bán (post-trade review)
+Sau khi có lệnh BÁN, lệnh sẽ hiện ở Dashboard card "Chờ đánh giá" và trong trang Giao dịch với biểu tượng ✎ vàng ("Chưa đánh giá"). Bấm vào để mở Symbol Timeline ở chế độ review:
+- Banner cam hiện lên ghi rõ giao dịch đang được đánh giá (loại, số lượng, giá, ngày).
+- Form nhật ký tự mở, tiêu đề + giá + thời điểm đã được điền sẵn, loại nhật ký đặt là **"Sau giao dịch"** (PostTrade).
+- Chỉ cần điền cảm xúc + nhận định, bấm **Lưu đánh giá**.
+- Sau khi lưu: dấu ✎ vàng chuyển thành ✓ xanh ("Đã đánh giá") ở trang Giao dịch, và lệnh biến mất khỏi card "Chờ đánh giá" ở Dashboard.
+
+Nếu bấm Hủy (✕ trên banner hoặc nút Hủy) sẽ thoát chế độ đánh giá và xóa `tradeId` khỏi URL.
+
 ---
 
 ## Chiến lược (`/strategies`)

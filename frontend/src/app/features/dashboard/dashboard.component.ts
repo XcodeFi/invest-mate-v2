@@ -760,7 +760,7 @@ interface RiskAlert {
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             @for (trade of pendingReviewTrades.slice(0, 6); track trade.tradeId) {
-            <a [routerLink]="['/symbol-timeline']" [queryParams]="{symbol: trade.symbol}"
+            <a [routerLink]="['/symbol-timeline']" [queryParams]="{symbol: trade.symbol, tradeId: trade.tradeId}"
                class="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-amber-300 hover:bg-amber-50 transition-all cursor-pointer">
               <div>
                 <span class="font-semibold text-gray-900">{{ trade.symbol }}</span>
