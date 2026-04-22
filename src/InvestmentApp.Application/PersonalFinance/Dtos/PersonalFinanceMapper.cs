@@ -1,0 +1,38 @@
+using InvestmentApp.Domain.Entities;
+
+namespace InvestmentApp.Application.PersonalFinance.Dtos;
+
+internal static class PersonalFinanceMapper
+{
+    public static FinancialProfileDto ToDto(FinancialProfile profile) => new()
+    {
+        Id = profile.Id,
+        UserId = profile.UserId,
+        MonthlyExpense = profile.MonthlyExpense,
+        Accounts = profile.Accounts.Select(ToDto).ToList(),
+        Rules = ToDto(profile.Rules),
+        CreatedAt = profile.CreatedAt,
+        UpdatedAt = profile.UpdatedAt,
+    };
+
+    public static FinancialAccountDto ToDto(FinancialAccount account) => new()
+    {
+        Id = account.Id,
+        Type = account.Type,
+        Name = account.Name,
+        Balance = account.Balance,
+        InterestRate = account.InterestRate,
+        Note = account.Note,
+        GoldBrand = account.GoldBrand,
+        GoldType = account.GoldType,
+        GoldQuantity = account.GoldQuantity,
+        UpdatedAt = account.UpdatedAt,
+    };
+
+    public static FinancialRulesDto ToDto(FinancialRules rules) => new()
+    {
+        EmergencyFundMonths = rules.EmergencyFundMonths,
+        MaxInvestmentPercent = rules.MaxInvestmentPercent,
+        MinSavingsPercent = rules.MinSavingsPercent,
+    };
+}

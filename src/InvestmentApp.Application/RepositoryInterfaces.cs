@@ -178,6 +178,18 @@ public interface IAiSettingsRepository : IRepository<Domain.Entities.AiSettings>
     Task<Domain.Entities.AiSettings?> GetByUserIdIncludingDeletedAsync(string userId, CancellationToken cancellationToken = default);
 }
 
+public interface IFinancialProfileRepository : IRepository<FinancialProfile>
+{
+    /// <summary>Lấy profile của user, null nếu chưa tồn tại. Loại bỏ soft-deleted records.</summary>
+    Task<FinancialProfile?> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Lấy profile kể cả đã soft-deleted — dùng trong Upsert để restore thay vì tạo mới (unique index trên UserId).</summary>
+    Task<FinancialProfile?> GetByUserIdIncludingDeletedAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Upsert atomic: insert nếu chưa có, update nếu có. Dùng trong handler khi không chắc entity đã tồn tại.</summary>
+    Task UpsertAsync(FinancialProfile profile, CancellationToken cancellationToken = default);
+}
+
 public interface IFeeCalculationService
 {
     Money CalculateTransactionFee(Money transactionAmount, bool isBuy, bool isListed = true, SecurityType securityType = SecurityType.Stock);
