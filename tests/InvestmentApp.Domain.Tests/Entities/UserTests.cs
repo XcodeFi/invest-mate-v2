@@ -48,4 +48,38 @@ public class UserTests
         user.Name.Should().Be("New Name");
         user.Avatar.Should().Be("avatar.jpg");
     }
+
+    [Fact]
+    public void Constructor_NewUser_ShouldHaveNullLastLoginAt()
+    {
+        var user = new User("test@example.com", "Test User", null, "google");
+
+        user.LastLoginAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void RecordLogin_ShouldSetLastLoginAtToUtcNow()
+    {
+        var user = new User("test@example.com", "Test User", null, "google");
+        var before = DateTime.UtcNow;
+
+        user.RecordLogin();
+
+        user.LastLoginAt.Should().NotBeNull();
+        user.LastLoginAt!.Value.Should().BeOnOrAfter(before);
+        user.LastLoginAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public void RecordLogin_CalledTwice_ShouldOverwriteLastLoginAt()
+    {
+        var user = new User("test@example.com", "Test User", null, "google");
+        user.RecordLogin();
+        var first = user.LastLoginAt!.Value;
+        Thread.Sleep(10);
+
+        user.RecordLogin();
+
+        user.LastLoginAt!.Value.Should().BeAfter(first);
+    }
 }

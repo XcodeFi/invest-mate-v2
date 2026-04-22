@@ -86,6 +86,26 @@ public class TradeRepository : ITradeRepository
             .SortBy(t => t.TradeDate).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<string, (int Count, DateTime? LastTradeAt)>> GetStatsByPortfolioIdsAsync(
+        IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default)
+    {
+        var ids = portfolioIds?.Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList() ?? new List<string>();
+        if (ids.Count == 0) return new Dictionary<string, (int, DateTime?)>();
+
+        var filter = Builders<Trade>.Filter.In(t => t.PortfolioId, ids);
+        var docs = await _collection
+            .Find(filter)
+            .Project(t => new { t.PortfolioId, t.TradeDate })
+            .ToListAsync(cancellationToken);
+
+        return docs
+            .GroupBy(x => x.PortfolioId)
+            .ToDictionary(
+                g => g.Key,
+                g => (Count: g.Count(), LastTradeAt: (DateTime?)g.Max(x => x.TradeDate))
+            );
+    }
+
     public async Task AddAsync(Trade entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

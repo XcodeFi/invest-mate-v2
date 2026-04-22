@@ -19,6 +19,7 @@ public interface IPortfolioRepository : IRepository<Portfolio>
 {
     Task<IEnumerable<Portfolio>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<Portfolio?> GetByIdWithTradesAsync(string id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<string, List<string>>> GetIdsByUserIdsAsync(IEnumerable<string> userIds, CancellationToken cancellationToken = default);
 }
 
 public interface ITradeRepository : IRepository<Trade>
@@ -28,17 +29,20 @@ public interface ITradeRepository : IRepository<Trade>
     Task<IEnumerable<Trade>> GetByUserPortfoliosAndSymbolAsync(IEnumerable<string> portfolioIds, string symbol, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByPortfolioIdAndDateRangeAsync(string portfolioId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByTradePlanIdAsync(string tradePlanId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<string, (int Count, DateTime? LastTradeAt)>> GetStatsByPortfolioIdsAsync(IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default);
 }
 
 public interface IUserRepository : IRepository<User>
 {
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<IEnumerable<User>> SearchByEmailAsync(string emailQuery, int limit, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<User> Items, long TotalCount)> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default);
 }
 
 public interface IImpersonationAuditRepository : IRepository<ImpersonationAudit>
 {
     Task<IEnumerable<ImpersonationAudit>> GetActiveByAdminAsync(string adminUserId, CancellationToken cancellationToken = default);
+    Task<DateTime?> GetLatestStartedAtByTargetAsync(string targetUserId, CancellationToken cancellationToken = default);
 }
 
 public interface IStockPriceRepository : IRepository<StockPrice>

@@ -148,9 +148,21 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
-    path: 'admin/users',
-    loadComponent: () => import('./features/admin/admin-users.component').then(m => m.AdminUsersComponent),
-    canActivate: [AdminGuard]
+    path: 'admin',
+    loadComponent: () => import('./features/admin/admin-layout.component').then(m => m.AdminLayoutComponent),
+    canActivate: [AdminGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'users/overview' },
+      { path: 'users', pathMatch: 'full', redirectTo: 'users/overview' },
+      {
+        path: 'users/overview',
+        loadComponent: () => import('./features/admin/users-overview.component').then(m => m.UsersOverviewComponent)
+      },
+      {
+        path: 'users/search',
+        loadComponent: () => import('./features/admin/admin-users.component').then(m => m.AdminUsersComponent)
+      },
+    ]
   },
   {
     path: 'help',

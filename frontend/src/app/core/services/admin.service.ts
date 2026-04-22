@@ -12,6 +12,26 @@ export interface AdminUserDto {
   createdAt: string;
 }
 
+export interface UserOverviewDto {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+  portfolioCount: number;
+  tradeCount: number;
+  lastTradeAt: string | null;
+  lastImpersonatedAt: string | null;
+}
+
+export interface UsersOverviewResult {
+  items: UserOverviewDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminService {
   private readonly API_URL = environment.apiUrl;
@@ -25,6 +45,16 @@ export class AdminService {
   searchUsers(email: string): Observable<AdminUserDto[]> {
     const params = new HttpParams().set('email', email ?? '');
     return this.http.get<AdminUserDto[]>(`${this.API_URL}/admin/users`, {
+      headers: this.authHeaders(),
+      params
+    });
+  }
+
+  getUsersOverview(page: number = 1, pageSize: number = 20): Observable<UsersOverviewResult> {
+    const params = new HttpParams()
+      .set('page', String(page))
+      .set('pageSize', String(pageSize));
+    return this.http.get<UsersOverviewResult>(`${this.API_URL}/admin/users/overview`, {
       headers: this.authHeaders(),
       params
     });

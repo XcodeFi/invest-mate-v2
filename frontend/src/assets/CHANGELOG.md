@@ -2,6 +2,47 @@
 
 ---
 
+## [v2.47.0] — 2026-04-22 · Admin: Tổng quan user + activity stats
+
+**Branch:** `feat/admin-user-overview`
+
+Mở rộng admin tool (B1 Phase 2) — thêm trang tổng quan toàn bộ user với thống kê hoạt động; restructure `/admin` thành layout có left sidebar để sau này thêm menu mới chỉ cần thêm 1 entry.
+
+### Tính năng
+
+- **Trang mới `/admin/users/overview`** — bảng paginated hiển thị toàn bộ user + stats:
+  - Role (Admin/User), # Portfolio, # Trade, giao dịch cuối, đăng nhập cuối, impersonate cuối.
+  - Pagination (20/50/100) với total count.
+  - Nút "Xem như" impersonate inline cho từng row.
+- **Admin layout mới** `/admin` với left sidebar (2 menu: "Tổng quan user", "Tìm & Impersonate") — mặc định redirect sang overview. Extensible: thêm feature admin mới chỉ việc push thêm item vào `menu[]` và thêm child route.
+- **`User.LastLoginAt`** — track timestamp đăng nhập gần nhất. Cập nhật trong `AuthController.GoogleCallback` cho cả new user và existing user. Không cập nhật khi refresh token hay impersonate.
+
+### Backend
+
+- **Domain** — `User.LastLoginAt` (nullable) + method `RecordLogin()` (3 unit tests: default null, sets UtcNow, idempotent overwrite).
+- **Application** — `GetUsersOverviewQuery` + `UsersOverviewResult` + `UserOverviewDto`. Handler verify role=Admin, gọi `IUserRepository.GetPagedAsync`, aggregate cross portfolio/trade/impersonation repos. 3 unit tests (unauthorized, happy path với stats, empty page).
+- **Repository interfaces mới:**
+  - `IUserRepository.GetPagedAsync(page, pageSize)` — sort theo CreatedAt desc, clamp pageSize ≤ 200.
+  - `IPortfolioRepository.GetIdsByUserIdsAsync(userIds)` — batch lookup, return dict {userId → portfolioIds}.
+  - `ITradeRepository.GetStatsByPortfolioIdsAsync(portfolioIds)` — batch aggregate {portfolioId → (count, lastTradeAt)}.
+  - `IImpersonationAuditRepository.GetLatestStartedAtByTargetAsync(targetUserId)` — tận dụng index `{ targetUserId, startedAt desc }` đã có.
+- **Api** — `GET /api/v1/admin/users/overview?page=&pageSize=` với `[RequireAdmin]`.
+
+### Frontend
+
+- `core/services/admin.service.ts` — thêm `getUsersOverview()` + types `UserOverviewDto`/`UsersOverviewResult`.
+- `features/admin/admin-layout.component.ts` — standalone layout với sidebar + `<router-outlet>`.
+- `features/admin/users-overview.component.ts` — bảng stats + pagination + "Xem như" modal (tái dùng flow impersonate hiện có).
+- Route tree: `/admin` → `AdminLayoutComponent` với children `users/overview` (default), `users/search` (existing). `/admin/users` redirect → `users/overview` để giữ backward compat.
+- Header ADMIN link đổi target `/admin/users` → `/admin`.
+
+### Tests
+
+- Backend: 1019 green (Domain 661, Application 118, Api 5, Infrastructure 235). Thêm 3 domain + 3 application tests mới.
+- Frontend: ng build OK.
+
+---
+
 ## [v2.46.0] — 2026-04-22 · Tài chính cá nhân + Gold Price Crawler (Tier 3)
 
 **Branches:** 6 PR — `feat/personal-finance-{domain,application,gold-crawler,api,frontend,docs}` (PR #77–#82 + docs PR)
