@@ -77,6 +77,8 @@ public class FinancialProfile : AggregateRoot
         FinancialAccount account;
         if (accountId is null)
         {
+            if (type == FinancialAccountType.Securities && Accounts.Any(a => a.Type == FinancialAccountType.Securities))
+                throw new InvalidOperationException("Tài khoản Chứng khoán được tự động tạo khi khởi tạo profile — không cho phép tạo thêm");
             account = FinancialAccount.Create(type, name, balance, interestRate, note, goldBrand, goldType, goldQuantity);
             Accounts.Add(account);
         }
@@ -98,11 +100,10 @@ public class FinancialProfile : AggregateRoot
             ?? throw new InvalidOperationException($"Không tìm thấy tài khoản với id {accountId}");
 
         if (account.Type == FinancialAccountType.Securities)
-        {
-            var securitiesCount = Accounts.Count(a => a.Type == FinancialAccountType.Securities);
-            if (securitiesCount <= 1)
-                throw new InvalidOperationException("Không thể xóa tài khoản Chứng khoán cuối cùng");
-        }
+            throw new InvalidOperationException("Tài khoản Chứng khoán không thể xóa thủ công — giá trị tự đồng bộ từ danh mục đầu tư");
+
+        if (account.Balance > 0m)
+            throw new InvalidOperationException("Không thể xóa tài khoản có số dư > 0. Hãy đặt số dư về 0 trước khi xóa.");
 
         Accounts.Remove(account);
         UpdatedAt = DateTime.UtcNow;

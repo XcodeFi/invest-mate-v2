@@ -57,7 +57,9 @@ public class GetNetWorthSummaryQueryHandler : IRequestHandler<GetNetWorthSummary
             MonthlyExpense = profile.MonthlyExpense,
             HealthScore = healthScore,
             RuleChecks = BuildRuleChecks(profile, totalAssets, securitiesValue, goldTotal, savingsTotal, emergencyTotal),
-            Accounts = profile.Accounts.Select(PersonalFinanceMapper.ToDto).ToList(),
+            Accounts = profile.Accounts
+                .Select(a => PersonalFinanceMapper.ToDto(a, a.Type == FinancialAccountType.Securities ? securitiesValue : (decimal?)null))
+                .ToList(),
         };
     }
 

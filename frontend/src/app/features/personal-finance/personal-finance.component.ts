@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -131,7 +131,10 @@ import { NotificationService } from '../../core/services/notification.service';
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div *ngFor="let account of summary.accounts"
-                 class="bg-gray-900 rounded-lg p-3 border border-gray-700">
+                 class="bg-gray-900 rounded-lg p-3 border border-gray-700 transition-colors"
+                 [class.cursor-pointer]="account.type !== FinancialAccountType.Securities"
+                 [class.hover:border-blue-600]="account.type !== FinancialAccountType.Securities"
+                 (click)="onCardClick(account)">
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 mb-1">
@@ -148,13 +151,10 @@ import { NotificationService } from '../../core/services/notification.service';
                        class="text-[10px] text-gray-500 mt-0.5">Lãi suất: {{ account.interestRate }}%/năm</div>
                   <div *ngIf="account.note" class="text-[10px] text-gray-500 mt-0.5">{{ account.note }}</div>
                 </div>
-                <div class="flex flex-col gap-1 ml-2">
-                  <button *ngIf="account.type !== FinancialAccountType.Securities"
-                          (click)="openEditAccountForm(account)"
-                          class="text-xs text-blue-400 hover:text-blue-300">Sửa</button>
-                  <button (click)="deleteAccount(account)"
-                          class="text-xs text-red-400 hover:text-red-300">Xóa</button>
-                </div>
+                <span *ngIf="account.type !== FinancialAccountType.Securities"
+                      class="text-xs text-gray-500 ml-2 whitespace-nowrap">Sửa ›</span>
+                <span *ngIf="account.type === FinancialAccountType.Securities"
+                      class="text-[10px] text-gray-500 ml-2 whitespace-nowrap">Auto-sync</span>
               </div>
             </div>
           </div>
@@ -198,7 +198,7 @@ import { NotificationService } from '../../core/services/notification.service';
       </ng-container>
 
       <!-- Account Form Modal -->
-      <div *ngIf="showAccountForm" class="fixed inset-0 bg-black/70 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      <div *ngIf="showAccountForm" class="fixed inset-0 bg-black/70 z-[60] flex items-start justify-center p-4 overflow-y-auto"
            (click)="closeAccountForm()">
         <div class="bg-gray-800 rounded-xl border border-gray-700 p-5 w-full max-w-lg mt-10 space-y-4"
              (click)="$event.stopPropagation()">
@@ -210,7 +210,6 @@ import { NotificationService } from '../../core/services/notification.service';
             <label class="text-xs text-gray-400 block mb-1">Loại tài khoản</label>
             <select [(ngModel)]="formType" (ngModelChange)="onTypeChange()" [disabled]="!!formAccountId"
                     class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
-              <option [ngValue]="FinancialAccountType.Securities">📈 Chứng khoán</option>
               <option [ngValue]="FinancialAccountType.Savings">🏦 Tiết kiệm</option>
               <option [ngValue]="FinancialAccountType.Emergency">🛡️ Dự phòng</option>
               <option [ngValue]="FinancialAccountType.IdleCash">💵 Nhàn rỗi</option>
@@ -308,15 +307,23 @@ import { NotificationService } from '../../core/services/notification.service';
           </div>
 
           <div class="flex gap-2 pt-2">
-            <button (click)="submitAccountForm()" [disabled]="saving"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
-              {{ saving ? 'Đang lưu...' : 'Lưu' }}
-            </button>
             <button (click)="closeAccountForm()"
                     class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium rounded-lg px-4 py-2 transition-colors">
               Hủy
             </button>
+            <button *ngIf="formCanDelete" (click)="deleteCurrentAccount()" [disabled]="saving"
+                    class="bg-red-700 hover:bg-red-600 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+              Xóa
+            </button>
+            <button (click)="submitAccountForm()" [disabled]="saving"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+              {{ saving ? 'Đang lưu...' : 'Lưu' }}
+            </button>
           </div>
+          <p *ngIf="formAccountId && !formCanDelete && formType !== FinancialAccountType.Securities"
+             class="text-[10px] text-gray-500 text-center">
+            Tài khoản có số dư &gt; 0 không thể xóa. Đặt số dư về 0 trước.
+          </p>
         </div>
       </div>
     </div>
@@ -362,6 +369,20 @@ export class PersonalFinanceComponent implements OnInit {
   goldPreviewSellPrice: number | null = null;
   goldPreviewBalance: number | null = null;
   goldPreviewError: string | null = null;
+
+  // Delete eligibility for current edit target. Securities never deletable; others require Balance = 0.
+  formCanDelete = false;
+  private editingAccountRef: FinancialAccountDto | null = null;
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.showAccountForm) this.closeAccountForm();
+  }
+
+  onCardClick(account: FinancialAccountDto): void {
+    if (account.type === FinancialAccountType.Securities) return; // auto-sync, không edit
+    this.openEditAccountForm(account);
+  }
 
   ngOnInit(): void {
     this.loadSummary();
@@ -443,6 +464,8 @@ export class PersonalFinanceComponent implements OnInit {
 
   openNewAccountForm(): void {
     this.formAccountId = null;
+    this.editingAccountRef = null;
+    this.formCanDelete = false;
     this.formType = FinancialAccountType.Savings;
     this.formName = '';
     this.formBalance = null;
@@ -459,6 +482,9 @@ export class PersonalFinanceComponent implements OnInit {
 
   openEditAccountForm(account: FinancialAccountDto): void {
     this.formAccountId = account.id;
+    this.editingAccountRef = account;
+    // Không xóa được nếu: Securities (auto-sync) hoặc Balance > 0
+    this.formCanDelete = account.type !== FinancialAccountType.Securities && (account.balance ?? 0) <= 0;
     this.formType = account.type;
     this.formName = account.name;
     this.formBalance = account.balance ?? null;
@@ -576,15 +602,21 @@ export class PersonalFinanceComponent implements OnInit {
     });
   }
 
-  deleteAccount(account: FinancialAccountDto): void {
+  deleteCurrentAccount(): void {
+    const account = this.editingAccountRef;
+    if (!account || !this.formCanDelete) return;
     const label = this.typeLabel(account.type);
     if (!confirm(`Xóa tài khoản "${account.name}" (${label})?`)) return;
+    this.saving = true;
     this.finance.removeAccount(account.id).subscribe({
       next: () => {
+        this.saving = false;
+        this.showAccountForm = false;
         this.notify.success('Thành công', 'Đã xóa tài khoản');
         this.loadSummary();
       },
       error: (err) => {
+        this.saving = false;
         this.notify.error('Lỗi', err?.error?.message ?? 'Không xóa được tài khoản');
       },
     });

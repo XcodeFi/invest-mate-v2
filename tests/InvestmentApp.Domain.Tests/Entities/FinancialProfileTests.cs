@@ -338,11 +338,10 @@ public class FinancialProfileTests
     #region RemoveAccount
 
     [Fact]
-    public void RemoveAccount_Valid_ShouldRemoveAndIncrementVersion()
+    public void RemoveAccount_ValidZeroBalance_ShouldRemoveAndIncrementVersion()
     {
         var profile = FinancialProfile.Create("user-1", 20_000_000m);
-        var goldAccount = profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC Miếng", 340_000_000m,
-            goldBrand: GoldBrand.SJC, goldType: GoldType.Mieng, goldQuantity: 2m);
+        var goldAccount = profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC Miếng", 0m);
         var versionBefore = profile.Version;
 
         profile.RemoveAccount(goldAccount.Id);
@@ -352,12 +351,36 @@ public class FinancialProfileTests
     }
 
     [Fact]
-    public void RemoveAccount_LastSecurities_ShouldThrow()
+    public void RemoveAccount_Securities_ShouldAlwaysThrow()
     {
+        // Securities không tạo thủ công được → cũng không xóa thủ công được
         var profile = FinancialProfile.Create("user-1", 20_000_000m);
         var securities = profile.Accounts.First(a => a.Type == FinancialAccountType.Securities);
 
         var action = () => profile.RemoveAccount(securities.Id);
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void RemoveAccount_NonSecuritiesWithPositiveBalance_ShouldThrow()
+    {
+        // "Có tiền thì không xóa" — user phải đặt balance về 0 trước khi xóa
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+        profile.UpsertAccount(savings.Id, FinancialAccountType.Savings, savings.Name, 100_000_000m);
+
+        var action = () => profile.RemoveAccount(savings.Id);
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void RemoveAccount_GoldWithPositiveBalance_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var g1 = profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC", 100m,
+            goldBrand: GoldBrand.SJC, goldType: GoldType.Mieng, goldQuantity: 1m);
+
+        var action = () => profile.RemoveAccount(g1.Id);
         action.Should().Throw<InvalidOperationException>();
     }
 
@@ -370,14 +393,37 @@ public class FinancialProfileTests
     }
 
     [Fact]
-    public void RemoveAccount_Gold_ShouldAlwaysSucceed()
+    public void RemoveAccount_GoldWithZeroBalance_ShouldSucceed()
     {
-        // Gold không có constraint "last" — khác với Securities
         var profile = FinancialProfile.Create("user-1", 20_000_000m);
-        var g1 = profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC", 100m,
-            goldBrand: GoldBrand.SJC, goldType: GoldType.Mieng, goldQuantity: 1m);
+        var g1 = profile.UpsertAccount(null, FinancialAccountType.Gold, "SJC", 0m);
 
         var action = () => profile.RemoveAccount(g1.Id);
+        action.Should().NotThrow();
+    }
+
+    #endregion
+
+    #region UpsertAccount Securities guards
+
+    [Fact]
+    public void UpsertAccount_AddingSecondSecurities_ShouldThrow()
+    {
+        // Securities auto-provisioned by Create(). Không cho phép tạo thêm.
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+
+        var action = () => profile.UpsertAccount(null, FinancialAccountType.Securities, "CK 2", 0m);
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpsertAccount_UpdatingExistingSecurities_ShouldSucceed()
+    {
+        // Update by id vẫn OK — chỉ reject new creation
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var securities = profile.Accounts.First(a => a.Type == FinancialAccountType.Securities);
+
+        var action = () => profile.UpsertAccount(securities.Id, FinancialAccountType.Securities, "Chứng khoán đổi tên", 0m);
         action.Should().NotThrow();
     }
 

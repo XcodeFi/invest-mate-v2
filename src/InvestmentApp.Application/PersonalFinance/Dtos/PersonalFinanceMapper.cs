@@ -9,18 +9,18 @@ internal static class PersonalFinanceMapper
         Id = profile.Id,
         UserId = profile.UserId,
         MonthlyExpense = profile.MonthlyExpense,
-        Accounts = profile.Accounts.Select(ToDto).ToList(),
+        Accounts = profile.Accounts.Select(a => ToDto(a)).ToList(),
         Rules = ToDto(profile.Rules),
         CreatedAt = profile.CreatedAt,
         UpdatedAt = profile.UpdatedAt,
     };
 
-    public static FinancialAccountDto ToDto(FinancialAccount account) => new()
+    public static FinancialAccountDto ToDto(FinancialAccount account, decimal? balanceOverride = null) => new()
     {
         Id = account.Id,
         Type = account.Type,
         Name = account.Name,
-        Balance = account.Balance,
+        Balance = balanceOverride ?? account.Balance,
         InterestRate = account.InterestRate,
         Note = account.Note,
         GoldBrand = account.GoldBrand,

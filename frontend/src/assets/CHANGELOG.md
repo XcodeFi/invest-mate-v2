@@ -2,6 +2,42 @@
 
 ---
 
+## [v2.47.1] — 2026-04-22 · Fix: Tài chính cá nhân — Securities sync + UX redesign
+
+**Branch:** `fix/personal-finance-securities-and-ux`
+
+Fix bug user report: card "Chứng khoán" top (389.310.000đ live) khác với card Chứng khoán trong Tài khoản list (0đ stored). Đồng thời redesign UX tài khoản theo feedback: nút Sửa/Xóa quá gần nhau, nên gộp vào popup edit, kèm bảo vệ chống xóa nhầm.
+
+### Bug fix
+
+- **DTO projection override**: `GetNetWorthSummaryQuery` giờ set `Balance` của Securities account trong list `Accounts` = live `securitiesValue` tính từ portfolios, thay vì trả stored 0. Top card và list card đồng nhất.
+
+### Domain rules mới
+
+- **Securities không tạo thủ công**: `FinancialProfile.UpsertAccount` reject khi thêm account thứ 2 type=Securities (profile đã auto-provision 1 khi Create). Edit by-id vẫn OK.
+- **Securities không xóa thủ công**: `RemoveAccount` luôn reject Securities (trước đây chỉ reject khi là last).
+- **Không xóa tài khoản có dữ liệu**: `RemoveAccount` reject mọi account có `Balance > 0`. User phải set balance=0 trước khi xóa — chống xóa nhầm.
+
+### Frontend UX
+
+- **Card tài khoản**: toàn card clickable (non-Securities) → mở popup edit. Hiện hint "Sửa ›" bên phải để làm rõ affordance.
+- **Securities card**: không clickable, hiển thị nhãn "Auto-sync" — không sửa/xóa được.
+- **Dropdown loại tài khoản**: bỏ option "Chứng khoán" (chỉ hiện 4 loại: Tiết kiệm, Dự phòng, Nhàn rỗi, Vàng).
+- **Nút Xóa**: di chuyển từ card vào trong popup edit, kèm điều kiện `Balance = 0`. Hiện message nhắc khi bị disable.
+- **Phím ESC**: đóng popup edit (HostListener `document:keydown.escape`).
+
+### Tests
+
+- Domain: +3 tests (UpsertAccount_AddingSecondSecurities, RemoveAccount_Securities_ShouldAlwaysThrow, RemoveAccount_NonSecuritiesWithPositiveBalance, RemoveAccount_GoldWithPositiveBalance, RemoveAccount_GoldWithZeroBalance, UpsertAccount_UpdatingExistingSecurities). Update 2 existing tests để dùng balance=0.
+- Application: +1 test (Securities DTO balance = live securitiesValue). Update 1 existing test.
+- Total: 1024 pass (665 Domain + 119 Application + 235 Infrastructure + 5 Api).
+
+### Docs
+
+- `frontend/src/assets/docs/tai-chinh-ca-nhan.md` — cập nhật phần "Thêm tài khoản" + section mới "Sửa / Xóa tài khoản" mô tả flow mới.
+
+---
+
 ## [v2.47.0] — 2026-04-22 · Admin: Tổng quan user + activity stats
 
 **Branch:** `feat/admin-user-overview`
