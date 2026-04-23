@@ -18,14 +18,14 @@ import {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   template: `
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+    <div *ngIf="shouldShow()" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
           <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
           </svg>
-          Kỷ luật Thesis
+          Kỷ luật đầu tư
         </h2>
         <select
           [(ngModel)]="days"
@@ -54,7 +54,7 @@ import {
         <!-- Sub-bars: 3 components -->
         <div class="space-y-2 mb-3">
           <div *ngFor="let c of componentBars()" class="flex items-center gap-2 text-xs">
-            <span class="w-32 text-gray-600 truncate" [title]="c.label + ' (trọng số ' + c.weight + '%)'">
+            <span class="w-36 text-gray-600 truncate" [title]="'Trọng số ' + c.weight + '%'">
               {{ c.label }}
             </span>
             <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -70,12 +70,12 @@ import {
           </div>
         </div>
 
-        <!-- Primitive: Stop-Honor Rate -->
+        <!-- Primitive: Tỉ lệ tôn trọng SL -->
         <div class="pt-3 border-t border-gray-100">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 text-xs">
               <span class="text-gray-500">🎯</span>
-              <span class="text-gray-700 font-medium">Stop-Honor Rate</span>
+              <span class="text-gray-700 font-medium">Tỉ lệ tôn trọng SL</span>
             </div>
             <div class="text-xs">
               <span *ngIf="score.primitives.stopHonorRate.total > 0" class="font-bold text-gray-900">
@@ -88,7 +88,7 @@ import {
             </div>
           </div>
           <div class="text-[10px] text-gray-400 mt-1">
-            Mẫu {{ score.sampleSize.closedLossTrades }} lệnh lỗ · {{ score.sampleSize.totalPlans }} plan trong {{ score.sampleSize.daysObserved }} ngày
+            Mẫu: {{ score.sampleSize.closedLossTrades }}/{{ score.sampleSize.totalPlans }} lệnh · {{ score.sampleSize.daysObserved }} ngày
           </div>
         </div>
 
@@ -97,13 +97,13 @@ import {
           *ngIf="score.overall !== null && score.overall < 60"
           class="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700"
         >
-          ⚠ Kỷ luật trôi dạt — review lại các plan đang InProgress ngay.
+          ⚠ Kỷ luật đang trôi dạt — hãy review lại các plan đang chạy.
         </div>
 
         <!-- Pending reviews link -->
         <div class="mt-3 pt-3 border-t border-gray-100 text-xs">
           <a routerLink="/pending-reviews" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
-            🔔 Plan cần review thesis →
+            🔔 Plan cần review lý do đầu tư →
           </a>
         </div>
       </ng-container>
@@ -145,6 +145,20 @@ export class DisciplineScoreWidgetComponent implements OnInit {
     });
   }
 
+  /**
+   * Ẩn widget khi chưa có dữ liệu:
+   * - Đang loading lần đầu (score null) → ẩn
+   * - API lỗi → ẩn
+   * - totalPlans = 0 → chưa có plan nào → ẩn (tránh spam "Chưa đủ dữ liệu")
+   */
+  shouldShow(): boolean {
+    if (this.loading && !this.score) return false;
+    if (this.error) return false;
+    if (!this.score) return false;
+    if (this.score.sampleSize.totalPlans === 0) return false;
+    return true;
+  }
+
   overallColorClass(): string {
     const v = this.score?.overall;
     if (v === null || v === undefined) return 'text-gray-400';
@@ -164,9 +178,9 @@ export class DisciplineScoreWidgetComponent implements OnInit {
   componentBars() {
     const c = this.score?.components;
     return [
-      { label: 'SL-Integrity', value: c?.slIntegrity ?? null, weight: 50 },
-      { label: 'Plan Quality', value: c?.planQuality ?? null, weight: 30 },
-      { label: 'Review Timeliness', value: c?.reviewTimeliness ?? null, weight: 20 },
+      { label: 'Giữ SL đúng kế hoạch', value: c?.slIntegrity ?? null, weight: 50 },
+      { label: 'Plan đủ kỷ luật', value: c?.planQuality ?? null, weight: 30 },
+      { label: 'Review lý do đầu tư đúng hạn', value: c?.reviewTimeliness ?? null, weight: 20 },
     ];
   }
 

@@ -23,15 +23,15 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
             <a routerLink="/dashboard" class="hover:text-indigo-600">Dashboard</a>
             <span>/</span>
-            <span>Thesis cần review</span>
+            <span>Lý do đầu tư cần review</span>
           </div>
           <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <span>🔔</span> Thesis cần review
+            <span>🔔</span> Lý do đầu tư cần review
           </h1>
           <p class="text-sm text-gray-600 mt-1">
-            Plan đang active có <strong>điều kiện thesis sai</strong> tới ngày kiểm chứng
-            (±2 ngày), hoặc đã quá <strong>ngày review định kỳ</strong>. Review thesis
-            ngay để giữ kỷ luật — cắt nếu thesis đã sai.
+            Plan đang chạy có <strong>điều kiện khiến lý do đầu tư sai</strong> tới ngày kiểm chứng
+            (±2 ngày), hoặc đã quá <strong>ngày review định kỳ</strong>. Review lại ngay để giữ kỷ luật
+            — cắt nếu lý do đầu tư đã không còn đúng.
           </p>
         </header>
 
@@ -61,17 +61,17 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             [class.border-red-300]="r.daysOverdue >= 3"
             [class.border-amber-300]="r.daysOverdue >= 0 && r.daysOverdue < 3"
           >
-            <div class="flex items-start justify-between gap-3 mb-3">
-              <div class="flex items-center gap-2">
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-lg font-bold text-gray-900">{{ r.symbol }}</span>
                 <span
-                  class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase"
+                  class="px-2 py-0.5 rounded text-[10px] font-semibold"
                   [ngClass]="statusBadgeClass(r.status)"
-                >{{ r.status }}</span>
+                >{{ statusLabel(r.status) }}</span>
                 <span
-                  class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase"
+                  class="px-2 py-0.5 rounded text-[10px] font-semibold"
                   [ngClass]="directionBadgeClass(r.direction)"
-                >{{ r.direction === 'Buy' ? 'Long' : 'Short' }}</span>
+                >{{ r.direction === 'Buy' ? 'Mua' : 'Bán' }}</span>
               </div>
 
               <div class="text-right">
@@ -79,40 +79,38 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   class="text-xs font-bold"
                   [ngClass]="urgencyTextClass(r.daysOverdue)"
                 >
-                  {{ r.daysOverdue >= 0 ? 'Quá hạn ' + r.daysOverdue + ' ngày' : 'Trong ' + (-r.daysOverdue) + ' ngày' }}
+                  {{ r.daysOverdue >= 0 ? 'Quá hạn ' + r.daysOverdue + ' ngày' : 'Còn ' + (-r.daysOverdue) + ' ngày' }}
                 </div>
                 <div class="text-[10px] text-gray-400">{{ r.reasons.length }} lý do</div>
               </div>
             </div>
 
-            <div *ngIf="r.thesis" class="bg-indigo-50/60 border border-indigo-100 rounded p-2 mb-3">
-              <div class="text-[10px] uppercase text-indigo-700 font-semibold mb-0.5">Thesis gốc</div>
+            <div *ngIf="r.thesis" class="bg-indigo-50/60 border border-indigo-100 rounded p-2 mb-2">
+              <div class="text-[10px] uppercase text-indigo-700 font-semibold mb-0.5">Lý do đầu tư gốc</div>
               <div class="text-xs text-gray-800">{{ r.thesis }}</div>
             </div>
 
-            <div class="space-y-1.5 mb-3">
+            <div class="space-y-1 mb-2">
               <div *ngFor="let reason of r.reasons" class="flex items-start gap-2 text-xs">
                 <span
-                  class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase whitespace-nowrap"
+                  class="px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap"
                   [ngClass]="reasonBadgeClass(reason.kind)"
                 >{{ reasonLabel(reason.kind, reason.triggerType) }}</span>
                 <div class="flex-1">
                   <div class="text-gray-700">{{ reason.detail }}</div>
                   <div class="text-[10px] text-gray-400">
-                    Due: {{ reason.dueDate | date : 'yyyy-MM-dd' }}
+                    Ngày kiểm chứng: {{ reason.dueDate | date : 'dd/MM/yyyy' }}
                     <span *ngIf="reason.daysOverdue > 0" class="text-red-600 font-medium">
-                      ({{ reason.daysOverdue }} ngày quá hạn)
+                      (quá {{ reason.daysOverdue }} ngày)
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="flex items-center justify-between text-xs pt-3 border-t border-gray-100">
+            <div class="flex items-center justify-between text-xs pt-2 border-t border-gray-100">
               <div class="text-gray-500">
-                {{ r.quantity }} × {{ r.entryPrice | vndCurrency }} ·
-                SL {{ r.stopLoss | vndCurrency }} ·
-                TP {{ r.target | vndCurrency }}
+                {{ r.quantity }} CP × {{ r.entryPrice | number : '1.0-0' }}
               </div>
               <a
                 [routerLink]="['/trade-plan']"
@@ -178,6 +176,34 @@ export class PendingReviewsComponent implements OnInit {
 
   reasonLabel(kind: string, triggerType: string | null): string {
     if (kind === 'PeriodicReview') return 'Review định kỳ';
-    return triggerType || 'Invalidation';
+    if (kind === 'InvalidationCheck') return 'Điều kiện sắp tới hạn';
+    return this.triggerTypeLabel(triggerType);
+  }
+
+  statusLabel(status: string): string {
+    if (status === 'Ready') return 'Sẵn sàng';
+    if (status === 'InProgress') return 'Đang chạy';
+    return status;
+  }
+
+  /**
+   * Map enum value triggerType từ API sang label tiếng Việt.
+   * Enum gốc giữ trong DTO, chỉ render UI dùng helper này.
+   */
+  triggerTypeLabel(triggerType: string | null): string {
+    switch (triggerType) {
+      case 'EarningsMiss':
+        return 'KQKD lệch';
+      case 'TrendBreak':
+        return 'Gãy trend';
+      case 'NewsShock':
+        return 'Tin tức đột biến';
+      case 'ThesisTimeout':
+        return 'Quá hạn';
+      case 'Manual':
+        return 'Tự nhận xét';
+      default:
+        return triggerType || 'Lý do sai';
+    }
   }
 }
