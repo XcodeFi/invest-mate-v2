@@ -38,7 +38,8 @@ public class ScenarioEvaluationServiceTests
         decimal target = 90_000m,
         List<ScenarioNode>? nodes = null)
     {
-        var plan = new TradePlan("user-1", symbol, "Buy", entryPrice, stopLoss, target, 100);
+        var plan = new TradePlan("user-1", symbol, "Buy", entryPrice, stopLoss, target, 100,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
         plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
         plan.SetScenarioNodes(nodes ?? new List<ScenarioNode>
         {
@@ -308,7 +309,8 @@ public class ScenarioEvaluationServiceTests
     [Fact]
     public async Task SimpleModesPlan_ShouldBeSkipped()
     {
-        var plan = new TradePlan("user-1", "VNM", "Buy", 80_000m, 75_000m, 90_000m, 100);
+        var plan = new TradePlan("user-1", "VNM", "Buy", 80_000m, 75_000m, 90_000m, 100,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
         // Default Simple mode, no scenario nodes
         plan.MarkReady();
         plan.MarkInProgress();

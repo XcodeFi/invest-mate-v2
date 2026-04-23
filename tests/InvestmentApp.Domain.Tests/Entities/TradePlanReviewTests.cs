@@ -14,7 +14,8 @@ public class TradePlanReviewTests
         decimal target = 90_000m)
     {
         return new TradePlan(userId, "VNM", "Buy",
-            entryPrice, 75_000m, target, 100);
+            entryPrice, 75_000m, target, 100,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
     }
 
     private static TradePlan CreateExecutedPlan(string userId = "user-1")

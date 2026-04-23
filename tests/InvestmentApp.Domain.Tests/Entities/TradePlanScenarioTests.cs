@@ -17,7 +17,8 @@ public class TradePlanScenarioTests
         int quantity = 100)
     {
         return new TradePlan(userId, symbol, "Buy",
-            entryPrice, stopLoss, target, quantity);
+            entryPrice, stopLoss, target, quantity,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
     }
 
     private static CampaignReviewData CreateReviewData() => new()

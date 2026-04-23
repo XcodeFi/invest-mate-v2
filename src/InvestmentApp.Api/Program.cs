@@ -220,6 +220,7 @@ builder.Services.AddScoped<IStrategyPerformanceService, StrategyPerformanceServi
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<IScenarioEvaluationService, ScenarioEvaluationService>();
 builder.Services.AddScoped<IScenarioAdvisoryService, ScenarioAdvisoryService>();
+builder.Services.AddScoped<InvestmentApp.Application.Discipline.Services.IDisciplineScoreCalculator, DisciplineScoreCalculator>();
 builder.Services.AddTransient<SeedDataService>();
 builder.Services.AddHostedService<AdminBootstrapHostedService>();
 

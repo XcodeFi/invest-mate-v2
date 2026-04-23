@@ -17,8 +17,11 @@ public class TradePlanTests
         int quantity = 100,
         int confidenceLevel = 5)
     {
+        // AccountBalance=null → gate chỉ yêu cầu Thesis ≥ 15 chars (không ép invalidation rule).
+        // Dùng thesis mẫu đủ dài cho mọi test không liên quan gate.
         return new TradePlan(userId, symbol, direction,
             entryPrice, stopLoss, target, quantity,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu",
             confidenceLevel: confidenceLevel);
     }
 
@@ -97,7 +100,7 @@ public class TradePlanTests
         var plan = new TradePlan("user-1", "vnm", "Buy",
             80_000m, 75_000m, 90_000m, 100,
             portfolioId: "port-1", strategyId: "strat-1",
-            marketCondition: "Sideways", reason: "breakout",
+            marketCondition: "Sideways", thesis: "breakout",
             notes: "test", riskPercent: 2m,
             accountBalance: 100_000_000m, riskRewardRatio: 2m,
             confidenceLevel: 7);
@@ -114,7 +117,7 @@ public class TradePlanTests
         plan.PortfolioId.Should().Be("port-1");
         plan.StrategyId.Should().Be("strat-1");
         plan.MarketCondition.Should().Be("Sideways");
-        plan.Reason.Should().Be("breakout");
+        plan.Thesis.Should().Be("breakout");
         plan.Notes.Should().Be("test");
         plan.RiskPercent.Should().Be(2m);
         plan.AccountBalance.Should().Be(100_000_000m);
@@ -220,6 +223,47 @@ public class TradePlanTests
         plan.Checklist[0].Critical.Should().BeTrue();
     }
 
+    // Test #1 — Ctor không nhận Thesis → plan ở Draft OK (backward compat)
+    [Fact]
+    public void Constructor_NoThesis_ShouldCreateDraftPlan()
+    {
+        var plan = new TradePlan("user-1", "VNM", "Buy", 80_000m, 75_000m, 90_000m, 100);
+
+        plan.Status.Should().Be(TradePlanStatus.Draft);
+        plan.Thesis.Should().BeNull();
+        plan.InvalidationCriteria.Should().BeNull();
+        plan.ExpectedReviewDate.Should().BeNull();
+        plan.LegacyExempt.Should().BeFalse();
+    }
+
+    // Test #2a — SetThesis("...") lưu đúng
+    [Fact]
+    public void SetThesis_ValidString_ShouldStoreThesis()
+    {
+        var plan = CreateDefaultPlan();
+        var versionBefore = plan.Version;
+
+        plan.SetThesis("Mua VNM vì EPS Q1 +22% YoY, ROE > 20%, ngành sữa tăng trưởng ổn định");
+
+        plan.Thesis.Should().Be("Mua VNM vì EPS Q1 +22% YoY, ROE > 20%, ngành sữa tăng trưởng ổn định");
+        plan.Version.Should().Be(versionBefore + 1);
+    }
+
+    // Test #2b — SetThesis throw nếu empty
+    [Fact]
+    public void SetThesis_EmptyOrWhitespace_ShouldThrow()
+    {
+        var plan = CreateDefaultPlan();
+
+        var actionNull = () => plan.SetThesis(null!);
+        var actionEmpty = () => plan.SetThesis("");
+        var actionWhite = () => plan.SetThesis("   ");
+
+        actionNull.Should().Throw<ArgumentException>();
+        actionEmpty.Should().Throw<ArgumentException>();
+        actionWhite.Should().Throw<ArgumentException>();
+    }
+
     #endregion
 
     // =====================================================================
@@ -242,7 +286,7 @@ public class TradePlanTests
             target: 25_000m,
             quantity: 200,
             marketCondition: "Sideways",
-            reason: "breakdown",
+            thesis: "breakdown",
             notes: "updated",
             riskPercent: 3m,
             confidenceLevel: 9);
@@ -254,7 +298,7 @@ public class TradePlanTests
         plan.Target.Should().Be(25_000m);
         plan.Quantity.Should().Be(200);
         plan.MarketCondition.Should().Be("Sideways");
-        plan.Reason.Should().Be("breakdown");
+        plan.Thesis.Should().Be("breakdown");
         plan.Notes.Should().Be("updated");
         plan.RiskPercent.Should().Be(3m);
         plan.ConfidenceLevel.Should().Be(9);

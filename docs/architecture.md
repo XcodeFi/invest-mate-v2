@@ -84,7 +84,8 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 |--------|-------------------|
 | Portfolio | Trade management, domain events |
 | Trade | Symbol normalization (ToUpper), fee/tax tracking |
-| TradePlan | State machine (Draft→Ready→InProgress→Executed→Reviewed), multi-lot entry, exit targets, SL history, scenario playbook (Simple/Advanced mode, ScenarioNodes decision tree) |
+| TradePlan | State machine (Draft→Ready→InProgress→Executed→Reviewed), multi-lot entry, exit targets, SL history, scenario playbook (Simple/Advanced mode, ScenarioNodes decision tree), **thesis-driven discipline (Vin-discipline, 2026-04-23)**: `Thesis` (rename từ `Reason`) + `InvalidationCriteria` (List<InvalidationRule>) + `ExpectedReviewDate` + `LegacyExempt`, size-based gate fold vào `MarkReady`/`MarkInProgress`, `AbortWithThesisInvalidation` raise `TradePlanThesisInvalidatedEvent` |
+| InvalidationRule (VO) | Value object trên TradePlan — `Trigger` (enum `InvalidationTrigger`: EarningsMiss/TrendBreak/NewsShock/ThesisTimeout/Manual) + `Detail` + `CheckDate` + `IsTriggered` + `TriggeredAt`. Falsifiable điều kiện phá thesis (§D2 plan Vin-discipline) |
 | CapitalFlow | SignedAmount (Deposit/Dividend=+, Withdraw/Fee=-) |
 | Watchlist | Duplicate detection, bulk import, target prices |
 | DailyRoutine | Streak tracking, completion management, template-based creation |
@@ -115,6 +116,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | BehavioralAnalysisService | Detect FOMO, panic sell, revenge trading, overtrading patterns | JournalEntry, Trade data |
 | CampaignReviewService | Auto-calculate P&L metrics for campaign review (amount, %, VND/ngày, annualized return, target achievement) | ITradeRepository, IPnLService |
 | VietstockEventProvider | Crawl news + corporate events from Vietstock API (CSRF token flow) | HttpClient |
+| DisciplineScoreCalculator | **Vin-discipline widget backend (2026-04-23)** — tính điểm kỷ luật thesis hybrid: SL-Integrity 50% + Plan Quality 30% + Review Timeliness 20%. Stop-Honor Rate primitive (trades lỗ đã đóng với exitPrice ≥ plannedSL / tổng lỗ). Null-safe re-normalize khi sub-metric thiếu denominator. Multi-lot per-lot matching theo `TradeIds`. Cache 5 phút, invalidate on `TradeClosedEvent`/`PlanReviewedEvent`/`TradePlanThesisInvalidatedEvent` | ITradePlanRepository, ITradeRepository, IMemoryCache |
 
 ## API Endpoints (27 Controllers)
 
@@ -123,7 +125,8 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | Auth | `/api/v1/auth` | Google OAuth, JWT token |
 | Portfolios | `/api/v1/portfolios` | CRUD, list by user |
 | Trades | `/api/v1/trades` | CRUD, bulk create, link to plan/strategy |
-| TradePlans | `/api/v1/trade-plans` | CRUD, status transitions, lot execution, scenario node trigger, scenario templates, **campaign review (P0.7)**: close with auto-metrics, preview, update lessons, pending-review list, cross-plan analytics |
+| TradePlans | `/api/v1/trade-plans` | CRUD, status transitions, lot execution, scenario node trigger, scenario templates, **campaign review (P0.7)**: close with auto-metrics, preview, update lessons, pending-review list, cross-plan analytics, **abort với thesis invalidation (Vin-discipline, 2026-04-23)**: `POST /{id}/abort { trigger, detail }` → `AbortTradePlanCommand` → raise `TradePlanThesisInvalidatedEvent` |
+| Discipline | `/api/v1/me/discipline-score` | **Vin-discipline widget (2026-04-23)** — `GET ?days=7|30|90|365` (default 90). Query `GetDisciplineScoreQuery` → `IDisciplineScoreCalculator`. Cache 5 min. |
 | MarketData | `/api/v1/market` | Price, batch prices, search, overview, top fluctuation |
 | PnL | `/api/v1/pnl` | Portfolio/position P&L |
 | Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets, **stress-test (P2)**, **budget (P4)** |
@@ -291,3 +294,31 @@ Placeholder `{GoldPriceProvider__PageUrl}` — env var bắt buộc set trước
 - 24hmoney page label nói "Đơn vị: triệu VNĐ/lượng" nhưng HTML values là **full VND** (167,200,000) — không scale ×1000 như giá CP. Fixture test `PricesAreFullVND_NotScaledBy1000` lock behavior.
 - `AngleSharp.Configuration` bị shadow bởi project's `InvestmentApp.Infrastructure.Configuration` namespace → phải fully qualify `AngleSharp.Configuration.Default`.
 - Mongo index creation trong repository constructor catch narrow 2 codes (85/86) only — các exception khác (permissions, network) re-throw để không silent mask bug.
+
+## Thesis-driven Plan Discipline (Vin-discipline)
+
+Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wiring`: d7a4bda domain/application/API/migration + 8fd0e8b discipline widget backend). Triết lý Vinpearl Air 2020 — dám dừng khi thesis bị phá vỡ. Chi tiết kế hoạch: [`docs/plans/plan-creation-vin-discipline.md`](plans/plan-creation-vin-discipline.md).
+
+**Key files:**
+
+- `src/InvestmentApp.Domain/Entities/TradePlan.cs` — rename `Reason` → `Thesis`; thêm `InvalidationCriteria`/`ExpectedReviewDate`/`LegacyExempt`; methods `SetThesis`/`SetInvalidationCriteria`/`SetExpectedReviewDate`/`AbortWithThesisInvalidation`; private `EnsureDisciplineGate()` fold vào `MarkReady()` + `MarkInProgress()`; `Restore()` clear `IsTriggered` flags.
+- `src/InvestmentApp.Domain/Entities/InvalidationRule.cs` — value object + enum `InvalidationTrigger` (5 loại).
+- `src/InvestmentApp.Domain/Events/TradePlanThesisInvalidatedEvent.cs` — domain event.
+- `src/InvestmentApp.Application/TradePlans/Commands/AbortTradePlan/AbortTradePlanCommand.cs` — command + handler + `AbortTradePlanResult`.
+- `src/InvestmentApp.Application/TradePlans/Commands/CreateTradePlan/*` + `UpdateTradePlan/*` — thêm `Thesis`/`InvalidationCriteria`/`ExpectedReviewDate`; giữ `Reason` deprecation shim 1 release.
+- `src/InvestmentApp.Application/Discipline/Queries/GetDisciplineScoreQuery.cs` + DTOs (`DisciplineScoreDto`, `DisciplineComponents`, `DisciplinePrimitives`, `StopHonorRateDto`, `DisciplineSampleSize`).
+- `src/InvestmentApp.Application/Discipline/Services/IDisciplineScoreCalculator.cs` — interface.
+- `src/InvestmentApp.Infrastructure/Services/DisciplineScoreCalculator.cs` — implementation (hybrid formula + cache).
+- `src/InvestmentApp.Api/Controllers/TradePlansController.cs` — endpoint `POST /api/v1/trade-plans/{id}/abort`.
+- `src/InvestmentApp.Api/Controllers/DisciplineController.cs` — `GET /api/v1/me/discipline-score?days=90`.
+- `src/InvestmentApp.Api/Program.cs` — DI registration (`IDisciplineScoreCalculator` + `IMemoryCache`).
+
+**Migration:**
+
+- `scripts/migrations/2026-04-23-tradeplan-thesis-rename.mongo.js` — **migration-first deploy gate**. Step 1: `$rename reason → thesis` + init `invalidationCriteria: []` + `expectedReviewDate: null` + `legacyExempt: true` cho mọi doc chưa migrated (filter `legacyExempt: { $exists: false }`). Step 2 idempotent: fill placeholder text cho `thesis: ""` rỗng. **Không dùng BsonElement alias** (MongoDB driver 3.6.0 chỉ hỗ trợ 1 key per property) — code mới deploy sau migration, nếu deploy trước sẽ silent data loss.
+
+**Size-based discipline gate:** `Quantity × EntryPrice ≥ 5% AccountBalance` → bắt buộc `Thesis ≥ 30 chars` + ≥ 1 invalidation rule với `Detail ≥ 20 chars`; else `Thesis ≥ 15 chars`, rule optional. Object fact (không cheatable self-attestation như AllocationBucket).
+
+**Discipline Score formula (hybrid):** SL-Integrity 50% (stop-honor rate − sl-widened-rate) + Plan Quality 30% (% plan pass gate) + Review Timeliness 20% (% plan review đúng hạn). Null sub-metric → re-normalize weights. Primitive: Stop-Honor Rate = trades lỗ đã đóng với `exitPrice ≥ plannedSL / tổng trades lỗ`. Rolling 90 ngày default.
+
+**Tests (1106 total pass):** 23 Domain (TradePlanAbortTests + TradePlanDisciplineGateTests + TradePlanTests/TradePlanScenarioTests/TradePlanReviewTests updates) + 6 Application (DisciplineScoreCalculator + Abort handler) + 14 Infrastructure (DisciplineScoreCalculator integration + CampaignReview/Scenario service tests updates).

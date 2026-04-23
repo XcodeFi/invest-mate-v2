@@ -42,8 +42,18 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
         Quantity = p.Quantity,
         StrategyId = p.StrategyId,
         MarketCondition = p.MarketCondition,
-        Reason = p.Reason,
+        Thesis = p.Thesis,
         Notes = p.Notes,
+        InvalidationCriteria = p.InvalidationCriteria?.Select(r => new InvalidationRuleDto
+        {
+            Trigger = r.Trigger.ToString(),
+            Detail = r.Detail,
+            CheckDate = r.CheckDate,
+            IsTriggered = r.IsTriggered,
+            TriggeredAt = r.TriggeredAt
+        }).ToList(),
+        ExpectedReviewDate = p.ExpectedReviewDate,
+        LegacyExempt = p.LegacyExempt,
         RiskPercent = p.RiskPercent,
         AccountBalance = p.AccountBalance,
         RiskRewardRatio = p.RiskRewardRatio,
@@ -176,8 +186,11 @@ public class TradePlanDto
     public int Quantity { get; set; }
     public string? StrategyId { get; set; }
     public string MarketCondition { get; set; } = string.Empty;
-    public string? Reason { get; set; }
+    public string? Thesis { get; set; }
     public string? Notes { get; set; }
+    public List<InvalidationRuleDto>? InvalidationCriteria { get; set; }
+    public DateTime? ExpectedReviewDate { get; set; }
+    public bool LegacyExempt { get; set; }
     public decimal? RiskPercent { get; set; }
     public decimal? AccountBalance { get; set; }
     public decimal? RiskRewardRatio { get; set; }

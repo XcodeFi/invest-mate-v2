@@ -30,7 +30,8 @@ public class ScenarioAdvisoryServiceTests
         decimal entryPrice,
         List<ScenarioNode> nodes)
     {
-        var plan = new TradePlan(userId, symbol, "Buy", entryPrice, entryPrice * 0.9m, entryPrice * 1.2m, 100);
+        var plan = new TradePlan(userId, symbol, "Buy", entryPrice, entryPrice * 0.9m, entryPrice * 1.2m, 100,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
         plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
         plan.SetScenarioNodes(nodes);
         plan.MarkReady();

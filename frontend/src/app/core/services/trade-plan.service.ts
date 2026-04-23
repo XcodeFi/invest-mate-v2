@@ -91,6 +91,21 @@ export interface ScenarioHistoryDto {
   parentId: string | null;
 }
 
+export type InvalidationTrigger =
+  | 'EarningsMiss'
+  | 'TrendBreak'
+  | 'NewsShock'
+  | 'ThesisTimeout'
+  | 'Manual';
+
+export interface InvalidationRuleDto {
+  trigger: InvalidationTrigger;
+  detail: string;
+  checkDate?: string | null;
+  isTriggered: boolean;
+  triggeredAt?: string | null;
+}
+
 export interface TradePlan {
   id: string;
   portfolioId?: string;
@@ -102,7 +117,10 @@ export interface TradePlan {
   quantity: number;
   strategyId?: string;
   marketCondition: string;
-  reason?: string;
+  thesis?: string;
+  invalidationCriteria?: InvalidationRuleDto[];
+  expectedReviewDate?: string | null;
+  legacyExempt?: boolean;
   notes?: string;
   riskPercent?: number;
   accountBalance?: number;
@@ -135,7 +153,9 @@ export interface CreateTradePlanRequest {
   quantity: number;
   strategyId?: string;
   marketCondition?: string;
-  reason?: string;
+  thesis?: string;
+  invalidationCriteria?: InvalidationRuleDto[];
+  expectedReviewDate?: string | null;
   notes?: string;
   riskPercent?: number;
   accountBalance?: number;
@@ -162,7 +182,9 @@ export interface UpdateTradePlanRequest {
   quantity?: number;
   strategyId?: string;
   marketCondition?: string;
-  reason?: string;
+  thesis?: string;
+  invalidationCriteria?: InvalidationRuleDto[];
+  expectedReviewDate?: string | null;
   notes?: string;
   riskPercent?: number;
   accountBalance?: number;
@@ -180,6 +202,14 @@ export interface UpdateTradePlanRequest {
 export interface UpdateTradePlanStatusRequest {
   status: string;
   tradeId?: string;
+}
+
+export interface AbortTradePlanResult {
+  planId: string;
+  status: string;
+  trigger: InvalidationTrigger;
+  tradeIdsAffected: string[];
+  abortedAt: string;
 }
 
 export interface SuggestedNodeDto {
@@ -331,6 +361,15 @@ export class TradePlanService {
 
   updateStatus(id: string, data: UpdateTradePlanStatusRequest): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/${id}/status`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Abort plan vì thesis đã sai (Vin-discipline).
+   * Trả về result với status mới + danh sách trade bị ảnh hưởng.
+   */
+  abort(id: string, data: { trigger: InvalidationTrigger; detail: string }): Observable<AbortTradePlanResult> {
+    return this.http.post<AbortTradePlanResult>(`${this.API_URL}/${id}/abort`, data, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

@@ -109,9 +109,9 @@ interface TimelineEvent {
         </div>
 
         <!-- Plan Info -->
-        <div *ngIf="plan.reason || plan.notes" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <h3 class="text-sm font-semibold text-gray-700 mb-2">Lý do & Ghi chú</h3>
-          <p *ngIf="plan.reason" class="text-sm text-gray-600 mb-1"><strong>Lý do:</strong> {{ plan.reason }}</p>
+        <div *ngIf="plan.thesis || plan.notes" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2">Thesis & Ghi chú</h3>
+          <p *ngIf="plan.thesis" class="text-sm text-gray-600 mb-1"><strong>Thesis:</strong> {{ plan.thesis }}</p>
           <p *ngIf="plan.notes" class="text-sm text-gray-600"><strong>Ghi chú:</strong> {{ plan.notes }}</p>
         </div>
 

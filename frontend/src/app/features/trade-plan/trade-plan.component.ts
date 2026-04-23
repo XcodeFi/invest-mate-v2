@@ -8,7 +8,7 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
-import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto } from '../../core/services/trade-plan.service';
+import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -66,7 +66,9 @@ interface TradePlanForm {
   quantity: number;
   strategyId: string;
   portfolioId: string;
-  reason: string;
+  thesis: string;
+  invalidationCriteria: InvalidationRuleForm[];
+  expectedReviewDate: string;
   marketCondition: string;
   timeHorizon: string;
   confidenceLevel: number;
@@ -75,6 +77,21 @@ interface TradePlanForm {
   entryMode: string;
   lots: PlanLotForm[];
   exitTargets: ExitTargetForm[];
+}
+
+type InvalidationTriggerForm =
+  | 'EarningsMiss'
+  | 'TrendBreak'
+  | 'NewsShock'
+  | 'ThesisTimeout'
+  | 'Manual';
+
+interface InvalidationRuleForm {
+  trigger: InvalidationTriggerForm;
+  detail: string;
+  checkDate: string;
+  isTriggered: boolean;
+  triggeredAt: string | null;
 }
 
 @Component({
@@ -1106,13 +1123,171 @@ interface TradePlanForm {
               </div>
             </ng-template>
 
+            <!-- Kỷ luật mua (Vin-discipline §D1-D3) -->
+            <div class="mt-4 bg-indigo-50/60 border border-indigo-200 rounded-lg p-3 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-indigo-700">🛡</span>
+                <h3 class="text-sm font-semibold text-indigo-900">Kỷ luật mua — Thesis & Điều kiện thesis sai</h3>
+              </div>
+
+              <!-- Thesis textarea -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Luận điểm mua (vì sao tin cổ phiếu này thắng?)
+                </label>
+                <textarea [(ngModel)]="plan.thesis" rows="3"
+                  [readonly]="!canEditNotes"
+                  [ngClass]="readonlyClass(canEditNotes)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ví dụ: Mua EVF vì EPS Q1 dự phóng +35% YoY, ROE > 18%, dư địa tín dụng bán lẻ còn lớn..."></textarea>
+                <div class="mt-1 flex items-center justify-between text-[11px]">
+                  <span class="text-gray-500 italic">
+                    Viết thesis <strong>có thể chứng minh sai được</strong> (falsifiable). "Tốt", "tiềm năng" KHÔNG phải thesis.
+                  </span>
+                  <span class="font-medium" [ngClass]="thesisMinLengthOk() ? 'text-green-600' : 'text-red-600'">
+                    {{ (plan.thesis || '').length }}/{{ thesisMinLengthRequired() }}
+                    ({{ thesisStrictMode() ? 'strict' : 'loose' }})
+                  </span>
+                </div>
+              </div>
+
+              <!-- Size indicator -->
+              <div class="bg-white border border-indigo-100 rounded p-2 text-[11px] text-gray-600">
+                <span class="font-medium">Size ước tính:</span>
+                {{ planSizeVnd() | number : '1.0-0' }} VND
+                <span *ngIf="plan.quantity && plan.entryPrice && accountBalance">
+                  · <strong>{{ planSizePercentOfAccount() | number : '1.2-2' }}%</strong> tài khoản
+                  <span *ngIf="thesisStrictMode()" class="text-red-600 font-medium"> (strict — cần thesis ≥ 30, ≥1 invalidation rule)</span>
+                  <span *ngIf="!thesisStrictMode()" class="text-green-600"> (loose — thesis ≥ 15 là đủ)</span>
+                </span>
+              </div>
+
+              <!-- Invalidation rules list -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <label class="text-sm font-medium text-gray-700">
+                    Điều kiện thesis sai
+                    <span class="text-[11px] text-gray-500 font-normal">— khi trigger đủ, đóng lệnh không tranh luận</span>
+                  </label>
+                  <button type="button" (click)="addInvalidationRule()" [disabled]="!canEditNotes"
+                    class="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-40">
+                    + Thêm rule
+                  </button>
+                </div>
+
+                <div *ngIf="(plan.invalidationCriteria?.length || 0) === 0"
+                  class="text-[12px] italic text-gray-500 bg-white border border-dashed border-gray-300 rounded p-2">
+                  Chưa có rule nào. {{ thesisStrictMode() ? 'BẮT BUỘC thêm ít nhất 1 rule với plan size ≥ 5% tài khoản.' : 'Khuyến nghị thêm 1 rule dù plan size nhỏ.' }}
+                </div>
+
+                <div *ngFor="let rule of plan.invalidationCriteria; let i = index"
+                  class="bg-white border border-gray-200 rounded-lg p-2 mb-2 space-y-1">
+                  <div class="flex items-center gap-2">
+                    <select [(ngModel)]="rule.trigger" [disabled]="!canEditNotes"
+                      class="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                      <option value="EarningsMiss">EarningsMiss (BCTC lệch)</option>
+                      <option value="TrendBreak">TrendBreak (gãy trend kỹ thuật)</option>
+                      <option value="NewsShock">NewsShock (tin tức đột biến)</option>
+                      <option value="ThesisTimeout">ThesisTimeout (quá hạn)</option>
+                      <option value="Manual">Manual (tự nhận xét)</option>
+                    </select>
+                    <input type="date" [(ngModel)]="rule.checkDate" [disabled]="!canEditNotes"
+                      class="text-xs border border-gray-300 rounded px-2 py-1"
+                      placeholder="Ngày verify">
+                    <button type="button" (click)="removeInvalidationRule(i)" [disabled]="!canEditNotes"
+                      class="ml-auto text-xs text-red-500 hover:text-red-700 disabled:opacity-40">Xoá</button>
+                  </div>
+                  <textarea [(ngModel)]="rule.detail" rows="2"
+                    [readonly]="!canEditNotes"
+                    [ngClass]="readonlyClass(canEditNotes)"
+                    class="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-indigo-400"
+                    [placeholder]="invalidationPlaceholder(rule.trigger)"></textarea>
+                  <div class="flex items-center justify-between text-[10px]">
+                    <span class="text-gray-500">Tối thiểu 20 ký tự để falsifiable.</span>
+                    <span [ngClass]="(rule.detail || '').length >= 20 ? 'text-green-600' : 'text-red-500'">
+                      {{ (rule.detail || '').length }}/20
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Expected review date -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Ngày dự kiến review thesis
+                  <span class="text-[11px] text-gray-500 font-normal">(mặc định theo TimeHorizon)</span>
+                </label>
+                <input type="date" [(ngModel)]="plan.expectedReviewDate" [disabled]="!canEditNotes"
+                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+              </div>
+            </div>
+
             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Lý do vào lệnh</label>
-              <textarea [(ngModel)]="plan.reason" rows="2"
+              <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú thêm</label>
+              <textarea [(ngModel)]="plan.notes" rows="2"
                 [readonly]="!canEditNotes"
                 [ngClass]="readonlyClass(canEditNotes)"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Lý do cụ thể để vào lệnh này..."></textarea>
+                placeholder="Ghi chú tự do, không ảnh hưởng discipline gate..."></textarea>
+            </div>
+
+            <!-- Abort button: chỉ hiện khi plan đã rời Draft và chưa terminal -->
+            <div *ngIf="canAbortThesis()" class="mt-3">
+              <button type="button" (click)="openAbortModal()"
+                class="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium inline-flex items-center gap-1">
+                ⚠ Thesis sai, cắt
+              </button>
+              <span class="ml-2 text-xs text-gray-500 italic">
+                Khác với "Huỷ plan": ghi lại trigger + detail để học (DisciplinedAbort pattern).
+              </span>
+            </div>
+
+            <!-- Abort modal -->
+            <div *ngIf="showAbortModal"
+              class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+              (click)="closeAbortModal()">
+              <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-5 space-y-3" (click)="$event.stopPropagation()">
+                <h3 class="text-lg font-bold text-red-700 flex items-center gap-2">
+                  <span>⚠</span> Abort vì thesis sai
+                </h3>
+                <p class="text-sm text-gray-600">
+                  Ghi rõ <strong>trigger</strong> + <strong>detail</strong> để log lại pattern kỷ luật.
+                  Dùng khi luận điểm mua đã bị phá vỡ, không phải khi chỉ "giá đỏ".
+                </p>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Trigger</label>
+                  <select [(ngModel)]="abortTrigger"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
+                    <option value="EarningsMiss">EarningsMiss — KQKD lệch kỳ vọng</option>
+                    <option value="TrendBreak">TrendBreak — gãy trend kỹ thuật</option>
+                    <option value="NewsShock">NewsShock — tin tức đột biến</option>
+                    <option value="ThesisTimeout">ThesisTimeout — quá hạn chưa thể hiện</option>
+                    <option value="Manual">Manual — tự nhận xét thesis sai</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Detail (≥ 20 ký tự)</label>
+                  <textarea [(ngModel)]="abortDetail" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                    [placeholder]="invalidationPlaceholder(abortTrigger)"></textarea>
+                  <div class="mt-1 text-[11px] text-right"
+                    [ngClass]="abortDetail.length >= 20 ? 'text-green-600' : 'text-red-500'">
+                    {{ abortDetail.length }}/20
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-200">
+                  <button type="button" (click)="closeAbortModal()"
+                    class="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Huỷ</button>
+                  <button type="button" (click)="submitAbort()"
+                    [disabled]="abortDetail.length < 20 || abortSubmitting"
+                    class="flex-1 px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium">
+                    {{ abortSubmitting ? 'Đang xử lý...' : 'Xác nhận abort' }}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div class="mt-4">
@@ -1803,7 +1978,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   plan: TradePlanForm = {
     symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
-    quantity: 0, strategyId: '', portfolioId: '', reason: '',
+    quantity: 0, strategyId: '', portfolioId: '', thesis: '',
+    invalidationCriteria: [], expectedReviewDate: '',
     marketCondition: 'Trending', timeHorizon: DEFAULT_TIME_HORIZON, confidenceLevel: 5, checklist: [], notes: '',
     entryMode: 'Single', lots: [], exitTargets: []
   };
@@ -1986,6 +2162,120 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ====================================================================
+  // Vin-discipline — thesis, invalidation, abort (§D1-D4 plan)
+  // ====================================================================
+
+  showAbortModal = false;
+  abortTrigger: InvalidationTriggerForm = 'Manual';
+  abortDetail = '';
+  abortSubmitting = false;
+
+  planSizeVnd(): number {
+    return (this.plan.quantity || 0) * (this.plan.entryPrice || 0);
+  }
+
+  planSizePercentOfAccount(): number {
+    const acc = this.accountBalance || 0;
+    if (acc <= 0) return 0;
+    return (this.planSizeVnd() / acc) * 100;
+  }
+
+  thesisStrictMode(): boolean {
+    const acc = this.accountBalance || 0;
+    if (acc <= 0) return false;
+    return this.planSizeVnd() >= acc * 0.05;
+  }
+
+  thesisMinLengthRequired(): number {
+    return this.thesisStrictMode() ? 30 : 15;
+  }
+
+  thesisMinLengthOk(): boolean {
+    return (this.plan.thesis || '').length >= this.thesisMinLengthRequired();
+  }
+
+  addInvalidationRule(): void {
+    if (!this.plan.invalidationCriteria) this.plan.invalidationCriteria = [];
+    this.plan.invalidationCriteria.push({
+      trigger: 'EarningsMiss',
+      detail: '',
+      checkDate: '',
+      isTriggered: false,
+      triggeredAt: null,
+    });
+  }
+
+  removeInvalidationRule(index: number): void {
+    this.plan.invalidationCriteria?.splice(index, 1);
+  }
+
+  invalidationPlaceholder(trigger: string): string {
+    switch (trigger) {
+      case 'EarningsMiss':
+        return 'Vd: BCTC Q1/2026 EPS < 20% YoY, HOẶC trích lập dự phòng > 2× Q trước, HOẶC không chia cổ tức theo nghị quyết.';
+      case 'TrendBreak':
+        return 'Vd: Đóng cửa dưới MA200 kèm volume > 2× TB20 phiên, HOẶC khối ngoại bán ròng > 10 phiên liên tiếp.';
+      case 'NewsShock':
+        return 'Vd: CEO/Chủ tịch bị khởi tố, chậm thanh toán trái phiếu, UBCKNN xử phạt thao túng giá, kiểm toán từ chối BCTC.';
+      case 'ThesisTimeout':
+        return 'Vd: Giữ 90 ngày mà giá sideways ± 3% kèm thanh khoản < 50% TB 1 năm; ngành chính bước vào downcycle.';
+      case 'Manual':
+        return 'Vd: Tôi đang hy vọng thay vì phân tích; tỷ trọng đã vượt kế hoạch; quyết định theo tin nhóm Zalo/Tele.';
+      default:
+        return '';
+    }
+  }
+
+  canAbortThesis(): boolean {
+    if (!this.selectedPlanId) return false;
+    const status = this.selectedPlanStatus;
+    return status === 'Ready' || status === 'InProgress' || status === 'Executed';
+  }
+
+  openAbortModal(): void {
+    this.abortTrigger = 'Manual';
+    this.abortDetail = '';
+    this.showAbortModal = true;
+  }
+
+  closeAbortModal(): void {
+    this.showAbortModal = false;
+    this.abortSubmitting = false;
+  }
+
+  submitAbort(): void {
+    if (!this.selectedPlanId || this.abortDetail.length < 20 || this.abortSubmitting) return;
+    this.abortSubmitting = true;
+    this.tradePlanService
+      .abort(this.selectedPlanId, {
+        trigger: this.abortTrigger as InvalidationTrigger,
+        detail: this.abortDetail,
+      })
+      .subscribe({
+        next: (result) => {
+          this.abortSubmitting = false;
+          this.showAbortModal = false;
+          this.notification.success(
+            'Thesis sai, đã abort',
+            `Plan chuyển sang trạng thái ${result.status}. Trigger: ${result.trigger}.`
+          );
+          // Reload plan để reflect status mới
+          if (this.selectedPlanId) {
+            this.tradePlanService.getById(this.selectedPlanId).subscribe({
+              next: (fresh) => this.loadPlan(fresh),
+              error: () => {},
+            });
+          }
+        },
+        error: (err) => {
+          this.abortSubmitting = false;
+          const msg = err?.error?.message || err?.message || 'Lỗi không xác định';
+          this.notification.error('Abort thất bại', msg);
+        },
+      });
+  }
+
   /**
    * Tighten-SL gate: in InProgress, SL can only be moved closer to entry (tighter).
    * Draft/Ready/other states: no restriction.
@@ -2107,7 +2397,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     if (t.target) this.plan.target = t.target;
     if (t.strategyId) { this.plan.strategyId = t.strategyId; this.onStrategyChange(); }
     if (t.marketCondition) this.plan.marketCondition = t.marketCondition;
-    if (t.reason) this.plan.reason = t.reason;
+    if (t.reason) this.plan.thesis = t.reason;
     if (t.notes) this.plan.notes = t.notes;
     if (t.positionSize) { this.plan.quantity = t.positionSize; this.manualQuantity = true; }
     this.recalculate();
@@ -2126,7 +2416,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       target: this.plan.target || undefined,
       strategyId: this.plan.strategyId || undefined,
       marketCondition: this.plan.marketCondition,
-      reason: this.plan.reason || undefined,
+      reason: this.plan.thesis || undefined,
       notes: this.plan.notes || undefined,
       positionSize: this.plan.quantity || this.optimalShares || undefined,
     }).subscribe({
@@ -2670,7 +2960,15 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.plan.quantity = sp.quantity;
     this.plan.strategyId = sp.strategyId || '';
     this.plan.portfolioId = sp.portfolioId || '';
-    this.plan.reason = sp.reason || '';
+    this.plan.thesis = sp.thesis || '';
+    this.plan.invalidationCriteria = (sp.invalidationCriteria || []).map(r => ({
+      trigger: r.trigger as InvalidationTriggerForm,
+      detail: r.detail,
+      checkDate: r.checkDate ? r.checkDate.substring(0, 10) : '',
+      isTriggered: r.isTriggered,
+      triggeredAt: r.triggeredAt ?? null
+    }));
+    this.plan.expectedReviewDate = sp.expectedReviewDate ? sp.expectedReviewDate.substring(0, 10) : '';
     this.plan.marketCondition = sp.marketCondition || 'Trending';
     this.plan.timeHorizon = sp.timeHorizon || DEFAULT_TIME_HORIZON;
     this.plan.confidenceLevel = sp.confidenceLevel;
@@ -2741,7 +3039,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.selectedPlanStatus = '';
     this.plan = {
       symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, target: 0,
-      quantity: 0, strategyId: '', portfolioId: '', reason: '',
+      quantity: 0, strategyId: '', portfolioId: '', thesis: '',
+      invalidationCriteria: [], expectedReviewDate: '',
       marketCondition: 'Trending', timeHorizon: DEFAULT_TIME_HORIZON, confidenceLevel: 5, checklist: [], notes: '',
       entryMode: 'Single', lots: [], exitTargets: []
     };
@@ -2802,7 +3101,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         strategyId: this.plan.strategyId || undefined,
         marketCondition: this.plan.marketCondition,
         timeHorizon: this.plan.timeHorizon || undefined,
-        reason: this.plan.reason || undefined,
+        thesis: this.plan.thesis || undefined,
+      invalidationCriteria: (this.plan.invalidationCriteria || []).map(r => ({
+        trigger: r.trigger, detail: r.detail,
+        checkDate: r.checkDate || null, isTriggered: r.isTriggered, triggeredAt: r.triggeredAt
+      })),
+      expectedReviewDate: this.plan.expectedReviewDate || null,
         notes: this.plan.notes || undefined,
         riskPercent: this.riskPercent,
         accountBalance: this.accountBalance,
@@ -2862,7 +3166,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         strategyId: this.plan.strategyId || undefined,
         marketCondition: this.plan.marketCondition,
         timeHorizon: this.plan.timeHorizon || undefined,
-        reason: this.plan.reason || undefined,
+        thesis: this.plan.thesis || undefined,
+      invalidationCriteria: (this.plan.invalidationCriteria || []).map(r => ({
+        trigger: r.trigger, detail: r.detail,
+        checkDate: r.checkDate || null, isTriggered: r.isTriggered, triggeredAt: r.triggeredAt
+      })),
+      expectedReviewDate: this.plan.expectedReviewDate || null,
         notes: this.plan.notes || undefined,
         riskPercent: this.riskPercent,
         accountBalance: this.accountBalance,
@@ -3560,7 +3869,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       });
     }
 
-    if (p.reason) lines.push('', `Lý do: ${p.reason}`);
+    if (p.thesis) lines.push('', `Thesis: ${p.thesis}`);
     lines.push('', `Ngày: ${new Date().toLocaleDateString('vi-VN')}`);
     return lines.join('\n');
   }

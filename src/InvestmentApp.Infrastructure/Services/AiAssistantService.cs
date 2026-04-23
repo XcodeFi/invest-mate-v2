@@ -574,8 +574,8 @@ Nhiệm vụ: Đánh giá danh mục đầu tư toàn diện.
         sb.AppendLine($"  <entry_mode>{plan.EntryMode}</entry_mode>");
         sb.AppendLine($"  <status>{plan.Status}</status>");
         sb.AppendLine($"  <confidence>{plan.ConfidenceLevel}/10</confidence>");
-        if (!string.IsNullOrEmpty(plan.Reason))
-            sb.AppendLine($"  <reason>{plan.Reason}</reason>");
+        if (!string.IsNullOrEmpty(plan.Thesis))
+            sb.AppendLine($"  <thesis>{plan.Thesis}</thesis>");
         if (!string.IsNullOrEmpty(plan.MarketCondition))
             sb.AppendLine($"  <market_condition>{plan.MarketCondition}</market_condition>");
         if (plan.RiskPercent.HasValue)

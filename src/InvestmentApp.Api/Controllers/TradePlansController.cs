@@ -1,6 +1,7 @@
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlanStatus;
+using InvestmentApp.Application.TradePlans.Commands.AbortTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.DeleteTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.ExecuteLot;
 using InvestmentApp.Application.TradePlans.Commands.UpdateStopLoss;
@@ -183,6 +184,21 @@ public class TradePlansController : ControllerBase
         command.UserId = GetUserId();
         await _mediator.Send(command);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Abort plan vì thesis đã sai (Vin-discipline). Bắt buộc ghi trigger + detail để học.
+    /// Khác với DELETE (soft delete) và Cancel: thesis abort log đầy đủ lý do, raise event cho pattern detection.
+    /// </summary>
+    [HttpPost("{id}/abort")]
+    [ProducesResponseType(typeof(AbortTradePlanResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AbortTradePlan(string id, [FromBody] AbortTradePlanCommand command)
+    {
+        command.PlanId = id;
+        command.UserId = GetUserId();
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 
     /// <summary>
