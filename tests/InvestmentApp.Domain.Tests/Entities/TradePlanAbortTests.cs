@@ -194,6 +194,32 @@ public class TradePlanAbortTests
     }
 
     [Fact]
+    public void AbortWithThesisInvalidation_ShortDetail_ShouldThrow()
+    {
+        // Plan spec §D4: abort detail phải ≥ 20 chars để đảm bảo falsifiable, tránh
+        // "too short" placeholder — giống yêu cầu của InvalidationRule.Detail khi gate check.
+        var plan = CreateReadyPlan();
+
+        var actionShort = () => plan.AbortWithThesisInvalidation(
+            InvalidationTrigger.Manual,
+            "too short");  // 9 chars < 20
+
+        actionShort.Should().Throw<ArgumentException>()
+            .WithMessage("*20*");
+    }
+
+    [Fact]
+    public void AbortWithThesisInvalidation_ExactlyTwentyChars_ShouldPass()
+    {
+        var plan = CreateReadyPlan();
+        var detail = new string('a', 20);  // exactly 20 chars
+
+        var action = () => plan.AbortWithThesisInvalidation(InvalidationTrigger.Manual, detail);
+
+        action.Should().NotThrow();
+    }
+
+    [Fact]
     public void SetInvalidationCriteria_OnReviewedPlan_ShouldThrow()
     {
         var plan = CreateExecutedPlan();

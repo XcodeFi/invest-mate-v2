@@ -311,6 +311,10 @@ public class TradePlan : AggregateRoot
     {
         if (string.IsNullOrWhiteSpace(detail))
             throw new ArgumentException("Detail không được rỗng khi abort thesis", nameof(detail));
+        if (detail.Length < 20)
+            throw new ArgumentException(
+                "Detail phải ≥ 20 ký tự để đảm bảo falsifiable (§D4 plan Vin-discipline)",
+                nameof(detail));
 
         if (Status != TradePlanStatus.Ready
             && Status != TradePlanStatus.InProgress
