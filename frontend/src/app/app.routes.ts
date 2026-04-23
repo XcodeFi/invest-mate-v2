@@ -93,6 +93,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'pending-reviews',
+    loadComponent: () => import('./features/pending-reviews/pending-reviews.component').then(m => m.PendingReviewsComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'positions',
     loadComponent: () => import('./features/positions/positions.component').then(m => m.PositionsComponent),
     canActivate: [AuthGuard]

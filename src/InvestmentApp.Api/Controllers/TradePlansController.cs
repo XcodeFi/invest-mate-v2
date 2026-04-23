@@ -19,6 +19,7 @@ using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
 using InvestmentApp.Application.TradePlans.Queries.PreviewPlanReview;
 using InvestmentApp.Application.TradePlans.Queries.GetExecutedPlansForReview;
 using InvestmentApp.Application.TradePlans.Queries.GetCampaignAnalytics;
+using InvestmentApp.Application.TradePlans.Queries.GetPendingThesisReviews;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;

@@ -99,6 +99,13 @@ import {
         >
           ⚠ Kỷ luật trôi dạt — review lại các plan đang InProgress ngay.
         </div>
+
+        <!-- Pending reviews link -->
+        <div class="mt-3 pt-3 border-t border-gray-100 text-xs">
+          <a routerLink="/pending-reviews" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
+            🔔 Plan cần review thesis →
+          </a>
+        </div>
       </ng-container>
 
       <div *ngIf="loading" class="text-center py-4 text-sm text-gray-400">Đang tải...</div>
