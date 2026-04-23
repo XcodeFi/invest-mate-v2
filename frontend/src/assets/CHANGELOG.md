@@ -2,6 +2,66 @@
 
 ---
 
+## [v2.49.0] — 2026-04-23 · Kỷ luật Thesis kiểu Vin (Vin-discipline) — V1 Backend
+
+**Branch:** `fix/post-trade-review-tradeid-wiring` (2 commits: d7a4bda domain/application/API/migration + 8fd0e8b discipline widget backend)
+
+Áp kỷ luật **thesis-driven** vào quy trình lập Trade Plan, lấy cảm hứng từ Vinpearl Air 2019-2020 — Vingroup dám rút khỏi dự án đã đầu tư sâu khi thesis gốc không còn đúng. App trước giờ chỉ ép kỷ luật **giá** (SL, Risk Budget) mà bỏ trống kỷ luật **thesis** — user có thể tạo plan `Reason = null` hoặc `"mua"` không falsifiable. Phiên bản này thêm 3 thay đổi chính:
+
+### 1. Rename `Reason` → `Thesis` + thêm InvalidationCriteria / ExpectedReviewDate / LegacyExempt
+
+- **`TradePlan.Thesis`** (rename từ `Reason`) — không còn free-form "mua" / `null`. Thesis phải falsifiable (nêu con số/điều kiện cụ thể: EPS, ROE, MA, volume...).
+- **`TradePlan.InvalidationCriteria`** — `List<InvalidationRule>?` với 5 trigger cố định (`EarningsMiss` / `TrendBreak` / `NewsShock` / `ThesisTimeout` / `Manual`). Mỗi rule có `Detail` falsifiable ≥ 20 ký tự + optional `CheckDate` (ngày dự kiến verify, vd ngày công bố BCTC).
+- **`TradePlan.ExpectedReviewDate`** — ngày dự kiến review lại thesis (V2 sẽ dùng cho nudge auto).
+- **`TradePlan.LegacyExempt`** — `true` cho plan tạo trước migration; graduated deprecation T+0 → T+1 → T+3 → T+6 tháng.
+- **Migration-first deploy gate**: `scripts/migrations/2026-04-23-tradeplan-thesis-rename.mongo.js` rename `reason → thesis` + init field mới, 2-step idempotent. Chạy **trước** khi deploy code mới (MongoDB driver 3.6.0 không hỗ trợ BsonElement alias → nếu deploy trước migration sẽ silent data loss).
+- Backend command `CreateTradePlan`/`UpdateTradePlan` giữ deprecation shim field `Reason` 1 release để client cũ không vỡ.
+
+### 2. Size-based discipline gate + Abort workflow
+
+**Gate cứng khi transition Draft → Ready / Draft → InProgress** (fold vào `MarkReady()` và `MarkInProgress()`):
+
+- Plan size **≥ 5% tài khoản** (`Quantity × EntryPrice ≥ 5% AccountBalance`) → bắt buộc Thesis ≥ 30 ký tự + ≥ 1 invalidation rule với Detail ≥ 20 ký tự.
+- Plan size nhỏ hơn (hoặc AccountBalance null) → chỉ cần Thesis ≥ 15 ký tự, rule optional.
+- Object fact từ form input → không cheatable như self-attestation bucket.
+- Throw `InvalidOperationException` → HTTP 400 với code `DISCIPLINE_GATE_FAILED` + field name để frontend highlight.
+
+**Mid-flight abort (`AbortWithThesisInvalidation`)** — method mới cho phép đóng plan khi thesis sai, áp cho state `Ready | InProgress | Executed` (multi-lot partial-executed vẫn abort được). Khác với `Cancel()` — ép ghi `trigger + detail` để tạo learning loop. Raise `TradePlanThesisInvalidatedEvent` (phục vụ P7 Behavioral Pattern Detection: `DisciplinedAbort` vs `SunkCostHold`). `Restore()` sau abort tự động clear `IsTriggered` flags.
+
+- **Endpoint mới:** `POST /api/v1/trade-plans/{id}/abort` body `{ trigger, detail }` → `AbortTradePlanCommand`.
+
+### 3. Discipline Score widget backend — "Điểm Kỷ luật Thesis"
+
+- **Endpoint mới:** `GET /api/v1/me/discipline-score?days=90` (dropdown 7/30/90/365, default **90 ngày** để giảm noise cho solo user 5-15 lệnh/tháng).
+- **Composite 0-100** = weighted avg 3 sub-metric: **SL-Integrity 50%** (stop-honor rate trừ sl-widened-rate) + **Plan Quality 30%** (% plan pass gate) + **Review Timeliness 20%** (% plan review thesis đúng hạn).
+- **Primitive hiển thị:** **Stop-Honor Rate** dạng "87% (13/15 lệnh)" — trades lỗ đã đóng với exitPrice ≥ plannedSL / tổng trades lỗ đã đóng.
+- **Multi-lot matching per-lot** theo `TradeIds`. **Sell direction flip sign** (kiểm tra `exitPrice ≤ plannedSL`).
+- **Null-safe re-normalize**: sub-metric có denominator = 0 → null, weighted avg chỉ tính trên sub-metric non-null. Cả 3 null → overall = null, label "Chưa đủ dữ liệu".
+- **Label color-code:** ≥ 80 xanh "Kỷ luật Vin" / 60-79 vàng "Cần cải thiện" / < 60 đỏ "Trôi dạt".
+- **Cache 5 phút** (`IMemoryCache`), invalidate on `TradeClosedEvent` / `PlanReviewedEvent` / `TradePlanThesisInvalidatedEvent`.
+
+### Tests
+
+Tổng **1106 tests pass** (tăng 43 so với v2.48.0). V1 thêm:
+
+- **Domain +23:** `TradePlanAbortTests.cs` (abort flow cho Ready/InProgress/Executed/Reviewed/Cancelled + restore clear IsTriggered) + `TradePlanDisciplineGateTests.cs` (size-based gate 8 cases + Vietnamese diacritic thesis + Sell direction flip) + updates cho `TradePlanTests`/`TradePlanScenarioTests`/`TradePlanReviewTests`.
+- **Application +6:** Discipline score calculator tests + `AbortTradePlanCommandHandler` + update `GetScenarioHistoryQuery` handler tests.
+- **Infrastructure +14:** `DisciplineScoreCalculator` integration tests + update `CampaignReviewService`/`ScenarioAdvisoryService`/`ScenarioEvaluationService` tests.
+
+### Scope V1 (Backend only) — FE & V2 defer
+
+- V1 ship **backend + migration** để unblock deploy prod. Frontend form thay đổi (bind `reason` → `thesis`, thêm section "Điều kiện thesis sai", Dashboard widget "Kỷ luật Thesis" cạnh Risk Alert) **chưa trong commit này**, sẽ ship ở patch tiếp theo.
+- V2 roadmap: `ThesisReviewService` (hosted cron daily) + endpoint `/me/thesis-reviews/pending` + Dashboard nudge "N thesis cần review hôm nay" + behavioral pattern handler.
+
+### Docs
+
+- Plan đầy đủ: [`docs/plans/plan-creation-vin-discipline.md`](docs/plans/plan-creation-vin-discipline.md) — 4 vòng refinement + multi-agent review, graduated deprecation matrix.
+- `business-domain.md` + `architecture.md` cập nhật TradePlan entity + `InvalidationRule` VO + `TradePlanThesisInvalidatedEvent` + rule #16 size-based gate + 2 endpoint mới.
+- `features.md` thêm section "Thesis-driven Plan Discipline (Vin-style)".
+- `project-context.md` tick V1 backend done + pitfall BsonElement alias.
+
+---
+
 ## [v2.48.1] — 2026-04-22 · Fix: không đánh giá được sau khi bán
 
 **Branch:** `fix/post-trade-review-tradeid-wiring`

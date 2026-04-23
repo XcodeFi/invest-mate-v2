@@ -1,7 +1,7 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-04-10
-> **Trạng thái:** Phase 7 đang tiếp tục + P0.7 (Campaign Review) + P1-P4 (Post-Trade Review, Stress Test, Bollinger/ATR, Risk Budget) + Symbol Timeline (P7)
+> **Cập nhật lần cuối:** 2026-04-23
+> **Trạng thái:** Phase 7 đang tiếp tục + P0.7 (Campaign Review) + P1-P4 (Post-Trade Review, Stress Test, Bollinger/ATR, Risk Budget) + Symbol Timeline (P7) + Tài chính cá nhân (Tier 3) + Thesis-driven Plan Discipline (Vin-style)
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
 ---
@@ -1241,6 +1241,96 @@ Full solution: **1013 tests pass** (Domain 658, Application 115, Infrastructure 
 ### 6 PR Shipping
 
 Phase 1 Domain (#77) → Phase 2 Application (#78) → Phase 3 Gold Crawler (#79/#80) → Phase 4 API+DI (#81, backend cut line) → Phase 5 Frontend (#82) → Phase 6 Docs (this PR).
+
+---
+
+## Thesis-driven Plan Discipline (Vin-style) — 2026-04-23
+
+**Branch:** `fix/post-trade-review-tradeid-wiring` (2 commits: d7a4bda domain/application/API/migration + 8fd0e8b discipline widget backend) | **Trạng thái:** ✅ V1 Backend done
+
+Ép kỷ luật **thesis-driven** vào quy trình tạo Trade Plan, lấy cảm hứng từ case Vinpearl Air 2019-2020 — Vingroup dám rút khỏi dự án đã đầu tư sâu khi thesis gốc không còn đúng. App trước đây chỉ ép kỷ luật **giá** (SL, Risk Budget) mà bỏ trống kỷ luật **thesis**. Tham chiếu kế hoạch đầy đủ: [`docs/plans/plan-creation-vin-discipline.md`](plans/plan-creation-vin-discipline.md).
+
+### 4 câu bắt buộc cho mỗi plan
+
+1. **Tại sao mua** — thesis falsifiable (con số/điều kiện cụ thể, không "tốt", "tiềm năng").
+2. **Sai ở đâu thì bán** — ≥ 1 `InvalidationRule` với trigger + detail mô tả điều kiện phá thesis.
+3. **Lỗ bao nhiêu** — StopLoss hiện tại (đã có từ trước).
+4. **Giữ bao lâu** — `ExpectedReviewDate` + (tùy chọn) `CheckDate` trên từng rule.
+
+### Size-based gate (ép khi transition Draft → Ready/InProgress)
+
+Logic ở `EnsureDisciplineGate()` fold vào `MarkReady()` và `MarkInProgress()`:
+
+| Plan size | Thesis min | InvalidationCriteria | Rule Detail min |
+|-----------|-----------:|:--------------------:|----------------:|
+| `Quantity × EntryPrice ≥ 5% AccountBalance` | 30 ký tự | ≥ 1 rule bắt buộc | 20 ký tự |
+| Plan size < 5% account (hoặc AccountBalance null) | 15 ký tự | Optional | — |
+
+Object fact từ form, không cheatable. Throw `InvalidOperationException` → HTTP 400 code `DISCIPLINE_GATE_FAILED` + field name để FE highlight.
+
+### Abort workflow (mid-flight thesis invalidation)
+
+**Method mới:** `TradePlan.AbortWithThesisInvalidation(InvalidationTrigger trigger, string detail)` — áp cho state `Ready | InProgress | Executed` (multi-lot partial-executed vẫn abort được). Khác `Cancel()` — ép ghi trigger + detail tạo learning loop. Raise `TradePlanThesisInvalidatedEvent`. `Restore()` sau abort sẽ clear `IsTriggered` flags.
+
+**5 trigger enum (`InvalidationTrigger`):**
+
+| Trigger | Ví dụ ngữ cảnh TTCK VN |
+|---------|-------------------------|
+| `EarningsMiss` | BCTC Q1 EPS < 20% YoY, trích lập dự phòng > 2× Q trước, không chia cổ tức như nghị quyết ĐHCĐ |
+| `TrendBreak` | Đóng cửa dưới MA200 kèm volume > 2× TB20, khối ngoại bán ròng > 10 phiên, tự doanh xả > 50 tỷ/phiên |
+| `NewsShock` | CEO/Chủ tịch bị khởi tố (FLC, TNH, VTP), chậm thanh toán trái phiếu, UBCKNN xử phạt thao túng, kiểm toán từ chối xác nhận BCTC |
+| `ThesisTimeout` | Giữ 90 ngày mà giá sideways ± 3% kèm thanh khoản < 50% TB năm, ngành chính bước vào downcycle |
+| `Manual` | User tự nhận thấy đang "hy vọng" thay vì phân tích, quyết định dựa trên tin Zalo/Tele |
+
+### Discipline Score widget (shape)
+
+**Formula hybrid (rolling 90 ngày default):**
+
+| Sub-metric | Weight | Công thức |
+|------------|-------:|-----------|
+| **SL-Integrity** | 50% | `max(0, StopHonorRate − SlWidenedRate) · 100`. Multi-lot matching per-lot theo `TradeIds`. Sell direction flip sign. |
+| **Plan Quality** | 30% | `% plan Status=Ready|InProgress|Executed` pass gate tại thời điểm transition |
+| **Review Timeliness** | 20% | `% plan Ready/InProgress` đã review thesis trong 3 ngày kể từ `CheckDate/ExpectedReviewDate` |
+
+Null denominator → sub-metric null → weighted avg re-normalize weights (`M11` fix). Color-code: ≥ 80 xanh ("Kỷ luật Vin") / 60-79 vàng ("Cần cải thiện") / < 60 đỏ ("Trôi dạt") / null ("Chưa đủ dữ liệu").
+
+**Primitive hiển thị trong widget:** **Stop-Honor Rate** = `trades lỗ đã đóng với exitPrice ≥ plannedSL / tổng trades lỗ đã đóng`, dạng "87% (13/15 lệnh)".
+
+### API endpoints
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `POST` | `/api/v1/trade-plans/{id}/abort` | Body `{ trigger, detail }` → `AbortTradePlanCommand` → raise `TradePlanThesisInvalidatedEvent` |
+| `GET` | `/api/v1/me/discipline-score?days=90` | Query `GetDisciplineScoreQuery` → 3 components + Stop-Honor Rate + sample size + trend. Cache 5 phút (IMemoryCache), invalidate on `TradeClosedEvent`/`PlanReviewedEvent`/`TradePlanThesisInvalidatedEvent` |
+
+### Migration + Legacy plan strategy
+
+**Migration-first deploy gate:** `scripts/migrations/2026-04-23-tradeplan-thesis-rename.mongo.js` phải chạy **trước** khi deploy code mới. Step 1: rename `reason → thesis`, init `invalidationCriteria: []`/`expectedReviewDate: null`/`legacyExempt: true` cho doc chưa migrated. Step 2 idempotent: fill placeholder `"(legacy — thesis không ghi khi tạo...)"` cho `thesis: ""`. **KHÔNG dùng BsonElement alias** — MongoDB driver 3.6.0 chỉ hỗ trợ 1 key per property.
+
+**Graduated deprecation 4 mốc (T+0/T+1/T+3/T+6):**
+
+| Mốc | Plan legacy (Draft/Ready/InProgress) | Banner |
+|-----|--------------------------------------|--------|
+| **T+0** (V1 ship) | Exempt khi edit Draft; gate khi transition | Banner vàng "Plan legacy — thesis chưa đầy đủ" |
+| **T+1 tháng** | Như trên + soft warning "Còn 60 ngày" | Banner đỏ nhẹ |
+| **T+3 tháng** (hard) | Gate áp cho edit plan-level field. **Whitelist**: `UpdateStopLossWithHistory`/`TriggerScenarioNode`/`TriggerExitTarget`/`ExecuteLot`/`AbortWithThesisInvalidation` KHÔNG bị chặn (M4 fix) | Modal cứng khi edit plan-level |
+| **T+6 tháng** | Xoá cờ `LegacyExempt`. Plan chưa fill → mark `archived-no-thesis`, filter khỏi analytics mặc định | — |
+
+### Tests
+
+Tổng 1106 tests pass. V1 thêm:
+
+| Layer | Test file | Tests mới |
+|-------|-----------|:---------:|
+| Domain | `TradePlanAbortTests.cs` + `TradePlanDisciplineGateTests.cs` + updates `TradePlanTests`/`TradePlanScenarioTests`/`TradePlanReviewTests` | **23** |
+| Application | Discipline score calculator tests + `AbortTradePlanCommandHandler` + updates `GetScenarioHistoryQuery` | **6** |
+| Infrastructure | `DisciplineScoreCalculator` integration + updates `CampaignReviewService`/`ScenarioAdvisoryService`/`ScenarioEvaluationService` tests | **14** |
+
+### V2+ Roadmap (deferred)
+
+- **V2:** `ThesisReviewService` (hosted cron daily 07:00 Asia/Ho_Chi_Minh) + endpoint `/me/thesis-reviews/pending` + Dashboard nudge "2 thesis cần review hôm nay" + P7 behavioral pattern handler cho `TradePlanThesisInvalidatedEvent` (`DisciplinedAbort` vs `SunkCostHold`).
+- **V3:** Core/Satellite portfolio-level (drop `AllocationBucket` enum, thay bằng `Portfolio.CoreTargetPercent` default 70%).
+- **V4:** Drawdown escalation ladder (5% / 15% / 30% → force modal review thesis).
 
 ---
 

@@ -1,7 +1,7 @@
 # Investment Mate v2 — Bản đồ Nghiệp vụ
 
 > Tài liệu tham chiếu nhanh cho AI agents và developers mới.
-> Cập nhật lần cuối: 2026-04-10
+> Cập nhật lần cuối: 2026-04-23
 
 ---
 
@@ -113,6 +113,33 @@ Chuyển tuần tự, không nhảy cóc. Backend auto-chain khi cần (VD: clie
 **TimeHorizon (P0.7):** `ShortTerm` (< 3 tháng) / `MediumTerm` (3-12 tháng) / `LongTerm` (> 1 năm)
 
 **CampaignReviewData (P0.7):** Value object embedded trong TradePlan khi chuyển sang Reviewed — chứa auto-calculated metrics: P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons learned
+
+**Thesis-driven discipline (Vin-discipline, 2026-04-23):** Plan-level fields ép kỷ luật "tại sao mua / sai ở đâu thì bán / giữ bao lâu" theo triết lý Vinpearl Air 2020 (dám dừng khi thesis bị phá vỡ).
+
+| Field | Kiểu | Ràng buộc |
+|-------|------|-----------|
+| `Thesis` | `string?` | (Rename từ `Reason`). Required khi rời Draft. Size-based gate: ≥ 30 ký tự nếu `Quantity × EntryPrice ≥ 5% AccountBalance`; ≥ 15 ký tự nếu plan size nhỏ hơn. |
+| `InvalidationCriteria` | `List<InvalidationRule>?` | Required ≥ 1 rule (mỗi rule `Detail` ≥ 20 ký tự) khi plan size ≥ 5% account; optional khi nhỏ hơn. |
+| `ExpectedReviewDate` | `DateTime?` | Ngày dự kiến review lại thesis (V2 dùng cho nudge). |
+| `LegacyExempt` | `bool` | `true` cho plan tạo trước migration 2026-04-23. Graduated deprecation T+0 → T+6 tháng. |
+
+**InvalidationRule (value object):**
+- `Trigger`: enum `InvalidationTrigger` (5 loại cố định).
+- `Detail`: string falsifiable, min 20 ký tự khi size ≥ 5% account.
+- `CheckDate`: ngày dự kiến verify (vd: ngày công bố BCTC).
+- `IsTriggered` + `TriggeredAt`: set true khi user mark thesis invalidated.
+
+**InvalidationTrigger enum (5 loại):**
+
+| Trigger | Ý nghĩa |
+|---------|---------|
+| `EarningsMiss` | KQKD không đạt kỳ vọng |
+| `TrendBreak` | Gãy trend kỹ thuật (mất MA200, volume cao đỏ, khối ngoại xả ròng) |
+| `NewsShock` | Tin tức thay đổi bản chất (CEO resign, scandal, regulation, UBCKNN xử phạt) |
+| `ThesisTimeout` | Quá hạn mà thesis chưa thể hiện (giữ lâu vẫn sideways) |
+| `Manual` | User tự nhận xét thesis sai (escape hatch) |
+
+**Mid-flight abort (`AbortWithThesisInvalidation`):** method mới trên aggregate, áp cho state `Ready | InProgress | Executed` (multi-lot partial-executed vẫn abort được). Khác với `Cancel()` — `Abort` ép ghi trigger + detail để tạo learning loop. Raise domain event `TradePlanThesisInvalidatedEvent` + `Restore()` sau abort sẽ clear `IsTriggered` flags.
 
 **3 chế độ vào lệnh (EntryMode):**
 
@@ -283,7 +310,8 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 | Auth | `/api/v1/auth` | Đăng nhập, đăng ký, JWT |
 | Portfolios | `/api/v1/portfolios` | CRUD danh mục |
 | Trades | `/api/v1/trades` | CRUD giao dịch, bulk import, link plan |
-| TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates, **campaign review (P0.7)**: close + preview + update lessons + pending-review + analytics |
+| TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates, **campaign review (P0.7)**: close + preview + update lessons + pending-review + analytics, **abort với thesis invalidation (Vin-discipline, 2026-04-23)** `POST {id}/abort` |
+| Discipline | `/api/v1/me/discipline-score` | **Điểm Kỷ luật Thesis (Vin-discipline, 2026-04-23)** — GET với query `days` (7/30/90/365, default 90). Trả composite 0-100 (SL-Integrity 50% / Plan Quality 30% / Review Timeliness 20%) + Stop-Honor Rate primitive + sample size + trend. Cache 5 phút (IMemoryCache). |
 | Strategies | `/api/v1/strategies` | CRUD chiến lược, performance |
 | Journals | `/api/v1/journals` | CRUD nhật ký |
 | Risk | `/api/v1/risk` | Profile, summary, drawdown, correlation, position-sizing (5 models) |
@@ -349,3 +377,4 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 13. **Full VND vs triệu VND quirk**: Giá vàng 24hmoney trả full VND (167,200,000) mặc dù UI label nói "triệu VNĐ/lượng" — khác pattern giá CP 24hmoney (÷1000 trong API). Không scale ×1000. Fixture test `PricesAreFullVND_NotScaledBy1000` lock behavior.
 14. **Debt delete requires paid-off**: `FinancialProfile.RemoveDebt` throws `InvalidOperationException` khi `Principal > 0` — user phải đặt `Principal=0` trước khi xóa. Chống xóa nhầm dữ liệu thật, đối xứng với rule account.
 15. **High-interest consumer debt rule**: Health score rule 4 trừ **−20 điểm cứng (binary)** khi có debt type `CreditCard` hoặc `PersonalLoan` với `InterestRate > 20%/năm` (strict). Ngưỡng cutoff theo thực tế VN (CC ~24-36%, vay tín chấp ~15-25%). `Mortgage/Auto/Installment` không áp rule này. Null interest = 0 (không trigger).
+16. **Size-based thesis discipline gate (Vin-discipline, 2026-04-23)**: TradePlan muốn chuyển `Draft → Ready` hoặc `Draft → InProgress` phải pass gate theo **size**: nếu `Quantity × EntryPrice ≥ 5% AccountBalance` → **bắt buộc** `Thesis.Length ≥ 30` + `InvalidationCriteria.Count ≥ 1` (mỗi rule `Detail.Length ≥ 20`); nếu plan size nhỏ hơn hoặc `AccountBalance` null → chỉ cần `Thesis.Length ≥ 15`, rule optional. Gate fold vào `MarkReady()` và `MarkInProgress()`, throw `InvalidOperationException` → controller map HTTP 400 code `DISCIPLINE_GATE_FAILED`. Plan có `LegacyExempt=true` được miễn gate khi edit Draft (nhưng vẫn bị gate khi transition).

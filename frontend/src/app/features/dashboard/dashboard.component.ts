@@ -19,6 +19,7 @@ import { PersonalFinanceService, NetWorthSummaryDto } from '../../core/services/
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
+import { DisciplineScoreWidgetComponent } from './widgets/discipline-score-widget.component';
 import { isBuyTrade } from '../../shared/constants/trade-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -38,7 +39,7 @@ interface RiskAlert {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -117,6 +118,11 @@ interface RiskAlert {
               Quản lý Rủi ro →
             </a>
           </div>
+        </div>
+
+        <!-- Kỷ luật Thesis Widget (Vin-discipline §D6) -->
+        <div class="mb-6">
+          <app-discipline-score-widget></app-discipline-score-widget>
         </div>
 
         <!-- Advisory Widget (P0.5) — Gợi ý hành động -->
