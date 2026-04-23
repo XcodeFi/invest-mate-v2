@@ -17,8 +17,13 @@ public class TradePlan : AggregateRoot
     public int Quantity { get; private set; }
     public string? StrategyId { get; private set; }
     public string MarketCondition { get; private set; }
-    public string? Reason { get; private set; }
+    public string? Thesis { get; private set; }
     public string? Notes { get; private set; }
+
+    // Thesis discipline (§D1 plan Vin-discipline)
+    public List<InvalidationRule>? InvalidationCriteria { get; private set; }
+    public DateTime? ExpectedReviewDate { get; private set; }
+    public bool LegacyExempt { get; private set; } = false;
 
     // Risk calculations (snapshot at plan creation)
     public decimal? RiskPercent { get; private set; }
@@ -64,11 +69,14 @@ public class TradePlan : AggregateRoot
     public TradePlan(string userId, string symbol, string direction,
         decimal entryPrice, decimal stopLoss, decimal target, int quantity,
         string? portfolioId = null, string? strategyId = null,
-        string? marketCondition = null, string? reason = null, string? notes = null,
+        string? marketCondition = null, string? thesis = null, string? notes = null,
         decimal? riskPercent = null, decimal? accountBalance = null,
         decimal? riskRewardRatio = null, int confidenceLevel = 5,
         List<ChecklistItem>? checklist = null,
-        TimeHorizon? timeHorizon = null)
+        TimeHorizon? timeHorizon = null,
+        List<InvalidationRule>? invalidationCriteria = null,
+        DateTime? expectedReviewDate = null,
+        bool legacyExempt = false)
     {
         Id = Guid.NewGuid().ToString();
         UserId = userId ?? throw new ArgumentNullException(nameof(userId));
@@ -81,8 +89,11 @@ public class TradePlan : AggregateRoot
         Quantity = quantity;
         StrategyId = strategyId;
         MarketCondition = marketCondition ?? "Trending";
-        Reason = reason;
+        Thesis = thesis;
         Notes = notes;
+        InvalidationCriteria = invalidationCriteria;
+        ExpectedReviewDate = expectedReviewDate;
+        LegacyExempt = legacyExempt;
         RiskPercent = riskPercent;
         AccountBalance = accountBalance;
         RiskRewardRatio = riskRewardRatio;
@@ -98,11 +109,13 @@ public class TradePlan : AggregateRoot
     public void Update(string? symbol = null, string? direction = null,
         decimal? entryPrice = null, decimal? stopLoss = null, decimal? target = null,
         int? quantity = null, string? portfolioId = null, string? strategyId = null,
-        string? marketCondition = null, string? reason = null, string? notes = null,
+        string? marketCondition = null, string? thesis = null, string? notes = null,
         decimal? riskPercent = null, decimal? accountBalance = null,
         decimal? riskRewardRatio = null, int? confidenceLevel = null,
         List<ChecklistItem>? checklist = null,
-        TimeHorizon? timeHorizon = null)
+        TimeHorizon? timeHorizon = null,
+        List<InvalidationRule>? invalidationCriteria = null,
+        DateTime? expectedReviewDate = null)
     {
         if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed)
             throw new InvalidOperationException("Cannot update an executed or reviewed plan");
@@ -116,7 +129,7 @@ public class TradePlan : AggregateRoot
         if (portfolioId != null) PortfolioId = portfolioId;
         if (strategyId != null) StrategyId = strategyId;
         if (marketCondition != null) MarketCondition = marketCondition;
-        if (reason != null) Reason = reason;
+        if (thesis != null) Thesis = thesis;
         if (notes != null) Notes = notes;
         if (riskPercent.HasValue) RiskPercent = riskPercent;
         if (accountBalance.HasValue) AccountBalance = accountBalance;
@@ -124,6 +137,8 @@ public class TradePlan : AggregateRoot
         if (confidenceLevel.HasValue) ConfidenceLevel = Math.Clamp(confidenceLevel.Value, 1, 10);
         if (checklist != null) Checklist = checklist;
         if (timeHorizon.HasValue) TimeHorizon = timeHorizon.Value;
+        if (invalidationCriteria != null) InvalidationCriteria = invalidationCriteria;
+        if (expectedReviewDate.HasValue) ExpectedReviewDate = expectedReviewDate.Value;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -133,6 +148,7 @@ public class TradePlan : AggregateRoot
         if (Status == TradePlanStatus.Ready) return;
         if (Status != TradePlanStatus.Draft)
             throw new InvalidOperationException("Only draft plans can be marked ready");
+        EnsureDisciplineGate();
         Status = TradePlanStatus.Ready;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
@@ -142,7 +158,73 @@ public class TradePlan : AggregateRoot
     {
         if (Status != TradePlanStatus.Ready)
             throw new InvalidOperationException("Only ready plans can be marked in progress");
+        EnsureDisciplineGate();
         Status = TradePlanStatus.InProgress;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    /// <summary>
+    /// Gate kỷ luật size-based (§D3 plan Vin-discipline).
+    /// Throw <see cref="InvalidOperationException"/> nếu plan vi phạm yêu cầu thesis / invalidation rule.
+    /// </summary>
+    private void EnsureDisciplineGate()
+    {
+        // Legacy exempt ở Draft → skip (tới T+3 hard gate release 2 sẽ bỏ nhánh này).
+        if (LegacyExempt && Status == TradePlanStatus.Draft) return;
+
+        decimal planSize = Quantity * EntryPrice;
+        bool requireFullDiscipline =
+            AccountBalance.HasValue
+            && AccountBalance.Value > 0m
+            && planSize >= AccountBalance.Value * 0.05m;
+
+        if (requireFullDiscipline)
+        {
+            if (string.IsNullOrWhiteSpace(Thesis) || Thesis.Length < 30)
+                throw new InvalidOperationException(
+                    "Thesis ≥ 30 ký tự bắt buộc với plan size ≥ 5% tài khoản");
+            if (InvalidationCriteria == null || InvalidationCriteria.Count == 0)
+                throw new InvalidOperationException(
+                    "Phải có ≥ 1 invalidation rule với plan size ≥ 5% tài khoản");
+            if (InvalidationCriteria.Any(r => string.IsNullOrWhiteSpace(r.Detail) || r.Detail.Length < 20))
+                throw new InvalidOperationException(
+                    "Mỗi invalidation rule phải có detail ≥ 20 ký tự");
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(Thesis) || Thesis.Length < 15)
+                throw new InvalidOperationException(
+                    "Thesis ≥ 15 ký tự bắt buộc (dù plan size nhỏ)");
+        }
+    }
+
+    public void SetThesis(string thesis)
+    {
+        if (string.IsNullOrWhiteSpace(thesis))
+            throw new ArgumentException("Thesis không được rỗng", nameof(thesis));
+        if (Status == TradePlanStatus.Reviewed)
+            throw new InvalidOperationException("Không thể thay đổi thesis trên plan đã review");
+        Thesis = thesis;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    public void SetInvalidationCriteria(List<InvalidationRule> rules)
+    {
+        if (rules == null) throw new ArgumentNullException(nameof(rules));
+        if (Status == TradePlanStatus.Reviewed)
+            throw new InvalidOperationException("Không thể thay đổi invalidation criteria trên plan đã review");
+        InvalidationCriteria = rules;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    public void SetExpectedReviewDate(DateTime? date)
+    {
+        if (Status == TradePlanStatus.Reviewed)
+            throw new InvalidOperationException("Không thể thay đổi expected review date trên plan đã review");
+        ExpectedReviewDate = date;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -204,6 +286,61 @@ public class TradePlan : AggregateRoot
         TradeId = null;
         TradeIds?.Clear();
         ExecutedAt = null;
+
+        // Clear IsTriggered flags on invalidation rules in case the cancellation came from AbortWithThesisInvalidation.
+        // Rule text is preserved so user doesn't have to rewrite.
+        if (InvalidationCriteria != null)
+        {
+            foreach (var rule in InvalidationCriteria)
+            {
+                rule.IsTriggered = false;
+                rule.TriggeredAt = null;
+            }
+        }
+
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    /// <summary>
+    /// Abort plan vì thesis đã sai (§D4 plan Vin-discipline).
+    /// Áp cho state Ready | InProgress | Executed (B3 fix — multi-lot partial-executed).
+    /// Throw khi Draft (dùng Cancel) hoặc Reviewed/Cancelled (terminal).
+    /// </summary>
+    public void AbortWithThesisInvalidation(InvalidationTrigger trigger, string detail)
+    {
+        if (string.IsNullOrWhiteSpace(detail))
+            throw new ArgumentException("Detail không được rỗng khi abort thesis", nameof(detail));
+
+        if (Status != TradePlanStatus.Ready
+            && Status != TradePlanStatus.InProgress
+            && Status != TradePlanStatus.Executed)
+        {
+            throw new InvalidOperationException(
+                $"Không thể abort plan ở trạng thái {Status}. Chỉ áp dụng cho Ready/InProgress/Executed.");
+        }
+
+        InvalidationCriteria ??= new List<InvalidationRule>();
+        InvalidationCriteria.Add(new InvalidationRule
+        {
+            Trigger = trigger,
+            Detail = detail,
+            IsTriggered = true,
+            TriggeredAt = DateTime.UtcNow
+        });
+
+        // Ready: không có trade → set Cancelled luôn.
+        // InProgress: set Cancelled (service layer chịu trách nhiệm exit trades nếu cần).
+        // Executed: giữ nguyên status — position đã mở, exit flow do application/service layer lo.
+        if (Status == TradePlanStatus.Ready || Status == TradePlanStatus.InProgress)
+        {
+            Status = TradePlanStatus.Cancelled;
+        }
+
+        AddDomainEvent(new TradePlanThesisInvalidatedEvent(
+            Id, UserId, trigger, detail,
+            TradeIds?.ToList() ?? (TradeId != null ? new List<string> { TradeId } : new List<string>())));
+
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }

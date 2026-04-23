@@ -10,7 +10,8 @@ public class CampaignReviewServiceTests
 
     private static TradePlan CreatePlan(decimal entryPrice = 80_000m, decimal target = 90_000m)
     {
-        return new TradePlan("user-1", "VNM", "Buy", entryPrice, 75_000m, target, 100);
+        return new TradePlan("user-1", "VNM", "Buy", entryPrice, 75_000m, target, 100,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
     }
 
     private static Trade CreateBuy(decimal price, decimal qty, decimal fee = 0, decimal tax = 0, DateTime? date = null)

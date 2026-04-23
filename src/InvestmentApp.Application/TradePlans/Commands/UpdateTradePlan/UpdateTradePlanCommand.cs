@@ -22,8 +22,19 @@ public class UpdateTradePlanCommand : IRequest<Unit>
     public int? Quantity { get; set; }
     public string? StrategyId { get; set; }
     public string? MarketCondition { get; set; }
-    public string? Reason { get; set; }
+    public string? Thesis { get; set; }
     public string? Notes { get; set; }
+    public List<InvalidationRuleDto>? InvalidationCriteria { get; set; }
+    public DateTime? ExpectedReviewDate { get; set; }
+
+    // Deprecation shim: accept legacy `reason` key from old clients.
+    [Obsolete("Use Thesis instead. Kept for one release for legacy client compatibility.")]
+    [System.Text.Json.Serialization.JsonPropertyName("reason")]
+    public string? Reason
+    {
+        get => Thesis;
+        set { if (Thesis == null && value != null) Thesis = value; }
+    }
     public decimal? RiskPercent { get; set; }
     public decimal? AccountBalance { get; set; }
     public decimal? RiskRewardRatio { get; set; }
@@ -66,14 +77,25 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         TimeHorizon? timeHorizon = request.TimeHorizon != null
             && Enum.TryParse<TimeHorizon>(request.TimeHorizon, ignoreCase: true, out var th) ? th : null;
 
+        var invalidationCriteria = request.InvalidationCriteria?.Select(r => new InvalidationRule
+        {
+            Trigger = Enum.Parse<InvalidationTrigger>(r.Trigger, ignoreCase: true),
+            Detail = r.Detail,
+            CheckDate = r.CheckDate,
+            IsTriggered = r.IsTriggered,
+            TriggeredAt = r.TriggeredAt
+        }).ToList();
+
         plan.Update(
             request.Symbol, request.Direction, request.EntryPrice,
             request.StopLoss, request.Target, request.Quantity,
             request.PortfolioId, request.StrategyId, request.MarketCondition,
-            request.Reason, request.Notes, request.RiskPercent,
+            request.Thesis, request.Notes, request.RiskPercent,
             request.AccountBalance, request.RiskRewardRatio,
             request.ConfidenceLevel, checklist,
-            timeHorizon
+            timeHorizon,
+            invalidationCriteria,
+            request.ExpectedReviewDate
         );
 
         // Multi-lot support

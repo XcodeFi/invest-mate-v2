@@ -22,7 +22,8 @@ public class GetScenarioHistoryQueryHandlerTests
 
     private static TradePlan CreatePlanWithTriggeredNodes(string userId = "user-1")
     {
-        var plan = new TradePlan(userId, "VNM", "Buy", 80_000m, 75_000m, 90_000m, 100);
+        var plan = new TradePlan(userId, "VNM", "Buy", 80_000m, 75_000m, 90_000m, 100,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
         plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
         plan.SetScenarioNodes(new List<ScenarioNode>
         {

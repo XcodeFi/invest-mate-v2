@@ -19,8 +19,20 @@ public class CreateTradePlanCommand : IRequest<string>
     public int Quantity { get; set; }
     public string? StrategyId { get; set; }
     public string MarketCondition { get; set; } = "Trending";
-    public string? Reason { get; set; }
+    public string? Thesis { get; set; }
     public string? Notes { get; set; }
+    public List<InvalidationRuleDto>? InvalidationCriteria { get; set; }
+    public DateTime? ExpectedReviewDate { get; set; }
+
+    // Deprecation shim: accept legacy `reason` key from old clients.
+    // Will be removed in the next release after migration.
+    [Obsolete("Use Thesis instead. Kept for one release for legacy client compatibility.")]
+    [System.Text.Json.Serialization.JsonPropertyName("reason")]
+    public string? Reason
+    {
+        get => Thesis;
+        set { if (Thesis == null && value != null) Thesis = value; }
+    }
     public decimal? RiskPercent { get; set; }
     public decimal? AccountBalance { get; set; }
     public decimal? RiskRewardRatio { get; set; }
@@ -45,6 +57,15 @@ public class ChecklistItemDto
     public string Hint { get; set; } = string.Empty;
 }
 
+public class InvalidationRuleDto
+{
+    public string Trigger { get; set; } = string.Empty;
+    public string Detail { get; set; } = string.Empty;
+    public DateTime? CheckDate { get; set; }
+    public bool IsTriggered { get; set; }
+    public DateTime? TriggeredAt { get; set; }
+}
+
 public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanCommand, string>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
@@ -67,13 +88,24 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
             Hint = c.Hint
         }).ToList();
 
+        var invalidationCriteria = request.InvalidationCriteria?.Select(r => new InvalidationRule
+        {
+            Trigger = Enum.Parse<InvalidationTrigger>(r.Trigger, ignoreCase: true),
+            Detail = r.Detail,
+            CheckDate = r.CheckDate,
+            IsTriggered = r.IsTriggered,
+            TriggeredAt = r.TriggeredAt
+        }).ToList();
+
         var plan = new TradePlan(
             request.UserId, request.Symbol, request.Direction,
             request.EntryPrice, request.StopLoss, request.Target, request.Quantity,
             request.PortfolioId, request.StrategyId,
-            request.MarketCondition, request.Reason, request.Notes,
+            request.MarketCondition, request.Thesis, request.Notes,
             request.RiskPercent, request.AccountBalance, request.RiskRewardRatio,
-            request.ConfidenceLevel, checklist
+            request.ConfidenceLevel, checklist,
+            invalidationCriteria: invalidationCriteria,
+            expectedReviewDate: request.ExpectedReviewDate
         );
 
         // Multi-lot support
