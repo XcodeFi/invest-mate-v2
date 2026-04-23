@@ -59,6 +59,18 @@ public class GetPendingThesisReviewsQueryHandler : IRequestHandler<GetPendingThe
     private readonly ITradePlanRepository _tradePlanRepository;
     private const int CheckDateLookAheadDays = 2;
 
+    /// <summary>Timezone cho user VN — so sánh "today" theo local date để tránh off-by-one.</summary>
+    private static readonly TimeZoneInfo VnTimeZone =
+        TryGetVnTimeZone();
+
+    private static TimeZoneInfo TryGetVnTimeZone()
+    {
+        // Windows: "SE Asia Standard Time"; Linux/Mac: "Asia/Ho_Chi_Minh".
+        try { return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); } catch { }
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh"); } catch { }
+        return TimeZoneInfo.Utc;
+    }
+
     public GetPendingThesisReviewsQueryHandler(ITradePlanRepository tradePlanRepository)
     {
         _tradePlanRepository = tradePlanRepository;
@@ -66,27 +78,33 @@ public class GetPendingThesisReviewsQueryHandler : IRequestHandler<GetPendingThe
 
     public async Task<List<PendingThesisReviewDto>> Handle(GetPendingThesisReviewsQuery request, CancellationToken cancellationToken)
     {
-        var plans = await _tradePlanRepository.GetByUserIdAsync(request.UserId, cancellationToken);
-        var now = DateTime.UtcNow;
-        var checkHorizon = now.AddDays(CheckDateLookAheadDays);
+        // GetActiveByUserIdAsync đã filter Draft/Cancelled/Reviewed + IsDeleted ở DB level.
+        // Ta chỉ cần iterate Ready/InProgress/Executed và skip Executed + LegacyExempt trong memory.
+        var plans = await _tradePlanRepository.GetActiveByUserIdAsync(request.UserId, cancellationToken);
+
+        // Day granularity theo VN local — tránh off-by-one cho user UTC+7.
+        var todayVn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VnTimeZone).Date;
+        var checkHorizonVn = todayVn.AddDays(CheckDateLookAheadDays);
 
         var result = new List<PendingThesisReviewDto>();
 
         foreach (var plan in plans)
         {
-            if (plan.IsDeleted) continue;
             if (plan.Status != TradePlanStatus.Ready && plan.Status != TradePlanStatus.InProgress) continue;
+            if (plan.LegacyExempt) continue;  // legacy plan chưa có thesis thật, không nag user
 
             var reasons = new List<PendingReviewReason>();
 
-            // (a) InvalidationRule.CheckDate ≤ today + 2, chưa triggered
+            // (a) InvalidationRule.CheckDate ≤ today + 2 (VN), chưa triggered
             if (plan.InvalidationCriteria != null)
             {
                 foreach (var rule in plan.InvalidationCriteria)
                 {
                     if (rule.IsTriggered) continue;
                     if (!rule.CheckDate.HasValue) continue;
-                    if (rule.CheckDate.Value > checkHorizon) continue;
+                    var dueDayVn = TimeZoneInfo.ConvertTimeFromUtc(
+                        DateTime.SpecifyKind(rule.CheckDate.Value, DateTimeKind.Utc), VnTimeZone).Date;
+                    if (dueDayVn > checkHorizonVn) continue;
 
                     reasons.Add(new PendingReviewReason
                     {
@@ -94,22 +112,27 @@ public class GetPendingThesisReviewsQueryHandler : IRequestHandler<GetPendingThe
                         TriggerType = rule.Trigger.ToString(),
                         Detail = rule.Detail,
                         DueDate = rule.CheckDate.Value,
-                        DaysOverdue = (int)Math.Floor((now - rule.CheckDate.Value).TotalDays)
+                        DaysOverdue = (todayVn - dueDayVn).Days
                     });
                 }
             }
 
-            // (b) ExpectedReviewDate ≤ today
-            if (plan.ExpectedReviewDate.HasValue && plan.ExpectedReviewDate.Value <= now)
+            // (b) ExpectedReviewDate ≤ today (VN)
+            if (plan.ExpectedReviewDate.HasValue)
             {
-                reasons.Add(new PendingReviewReason
+                var dueDayVn = TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.SpecifyKind(plan.ExpectedReviewDate.Value, DateTimeKind.Utc), VnTimeZone).Date;
+                if (dueDayVn <= todayVn)
                 {
-                    Kind = "PeriodicReview",
-                    TriggerType = null,
-                    Detail = $"Đến ngày review định kỳ của {plan.Symbol}. Thesis còn đúng không?",
-                    DueDate = plan.ExpectedReviewDate.Value,
-                    DaysOverdue = (int)Math.Floor((now - plan.ExpectedReviewDate.Value).TotalDays)
-                });
+                    reasons.Add(new PendingReviewReason
+                    {
+                        Kind = "PeriodicReview",
+                        TriggerType = null,
+                        Detail = $"Đến ngày review định kỳ của {plan.Symbol}. Lý do đầu tư còn đúng không?",
+                        DueDate = plan.ExpectedReviewDate.Value,
+                        DaysOverdue = (todayVn - dueDayVn).Days
+                    });
+                }
             }
 
             if (reasons.Count == 0) continue;

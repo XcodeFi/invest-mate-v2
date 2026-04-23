@@ -31,7 +31,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
     [Fact]
     public async Task Handle_NoPlans_ReturnsEmptyList()
     {
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Enumerable.Empty<TradePlan>());
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -46,7 +46,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
     public async Task Handle_ActivePlanWithNoReviewDate_Excluded()
     {
         var plan = MakeReadyPlan();
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -67,7 +67,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
                     Detail = "BCTC Q1 EPS tăng trưởng dưới 20% YoY so với kỳ vọng",
                     CheckDate = DateTime.UtcNow.AddDays(1), IsTriggered = false }
         });
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -86,7 +86,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
     {
         var plan = MakeReadyPlan();
         plan.SetExpectedReviewDate(DateTime.UtcNow.AddDays(-3));
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -109,7 +109,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
                     Detail = "BCTC Q1 EPS tăng trưởng dưới 20% YoY so với kỳ vọng",
                     CheckDate = DateTime.UtcNow.AddDays(30), IsTriggered = false }
         });
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -118,21 +118,22 @@ public class GetPendingThesisReviewsQueryHandlerTests
     }
 
     // ---------------------------------------------------------------
-    // Test 6: Terminal plan (Cancelled/Reviewed) → excluded
+    // Test 6: Executed plan (active repo trả về, handler skip)
     // ---------------------------------------------------------------
     [Fact]
-    public async Task Handle_TerminalPlan_Excluded()
+    public async Task Handle_ExecutedPlan_Excluded()
     {
         var plan = MakeReadyPlan();
         plan.SetInvalidationCriteria(new List<InvalidationRule>
         {
             new() { Trigger = InvalidationTrigger.Manual,
-                    Detail = "User tự nhận xét thesis sai sau khi review lại danh mục",
+                    Detail = "User tự nhận xét lý do đầu tư sai sau khi review",
                     CheckDate = DateTime.UtcNow.AddDays(-1), IsTriggered = false }
         });
-        plan.Cancel();  // → Cancelled
+        plan.MarkInProgress();
+        plan.Execute("trade-1");  // → Executed (active, không phải terminal Cancelled/Reviewed)
 
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -155,7 +156,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
                     IsTriggered = true,  // ← đã review
                     TriggeredAt = DateTime.UtcNow.AddDays(-1) }
         });
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -180,7 +181,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
                     CheckDate = DateTime.UtcNow.AddDays(1), IsTriggered = false }
         });
         plan.SetExpectedReviewDate(DateTime.UtcNow.AddDays(-5));  // cũng due
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -203,7 +204,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
         var planB = MakeReadyPlan("HPG");
         planB.SetExpectedReviewDate(DateTime.UtcNow.AddDays(-10)); // 10 ngày overdue — urgent hơn
 
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { planA, planB });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);
@@ -228,7 +229,7 @@ public class GetPendingThesisReviewsQueryHandlerTests
                     Detail = "BCTC Q1 EPS tăng trưởng dưới 20% YoY so với kỳ vọng",
                     CheckDate = DateTime.UtcNow.AddDays(-1), IsTriggered = false }
         });
-        _planRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+        _planRepo.Setup(r => r.GetActiveByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { plan });
 
         var result = await _handler.Handle(new GetPendingThesisReviewsQuery { UserId = UserId }, CancellationToken.None);

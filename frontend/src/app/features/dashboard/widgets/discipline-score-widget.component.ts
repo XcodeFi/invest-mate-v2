@@ -103,7 +103,9 @@ import {
         <!-- Pending reviews link -->
         <div class="mt-3 pt-3 border-t border-gray-100 text-xs">
           <a routerLink="/pending-reviews" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
-            🔔 Plan cần review lý do đầu tư →
+            🔔
+            <span *ngIf="pendingCount > 0" class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">{{ pendingCount }}</span>
+            Plan cần review lý do đầu tư →
           </a>
         </div>
       </ng-container>
@@ -117,15 +119,26 @@ export class DisciplineScoreWidgetComponent implements OnInit {
   private disciplineService = inject(DisciplineService);
 
   score: DisciplineScoreDto | null = null;
+  pendingCount = 0;
   days: DisciplinePeriod = 90;
   loading = false;
   error: string | null = null;
 
   ngOnInit(): void {
     this.load();
+    this.loadPendingCount();
+  }
+
+  private loadPendingCount(): void {
+    this.disciplineService.getPendingReviews().subscribe({
+      next: (list) => (this.pendingCount = list.length),
+      error: () => (this.pendingCount = 0),
+    });
   }
 
   onPeriodChange(): void {
+    // Reset score để tránh flash stale data của period trước khi fetch period mới.
+    this.score = null;
     this.load();
   }
 

@@ -176,7 +176,9 @@ export class PendingReviewsComponent implements OnInit {
 
   reasonLabel(kind: string, triggerType: string | null): string {
     if (kind === 'PeriodicReview') return 'Review định kỳ';
-    if (kind === 'InvalidationCheck') return 'Điều kiện sắp tới hạn';
+    // Hiển thị trigger type cụ thể cho InvalidationCheck — thông tin nhiều hơn
+    // ví dụ "KQKD lệch" thay vì "Điều kiện sắp tới hạn" chung chung.
+    if (kind === 'InvalidationCheck') return this.triggerTypeLabel(triggerType);
     return this.triggerTypeLabel(triggerType);
   }
 
