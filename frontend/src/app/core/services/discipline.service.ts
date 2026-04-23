@@ -36,6 +36,31 @@ export interface DisciplineScoreDto {
 
 export type DisciplinePeriod = 7 | 30 | 90 | 365;
 
+export type PendingReviewKind = 'InvalidationCheck' | 'PeriodicReview';
+
+export interface PendingReviewReasonDto {
+  kind: PendingReviewKind;
+  triggerType: string | null;  // "EarningsMiss" | "TrendBreak" | etc. when kind=InvalidationCheck
+  detail: string;
+  dueDate: string;
+  daysOverdue: number;
+}
+
+export interface PendingThesisReviewDto {
+  planId: string;
+  symbol: string;
+  direction: string;
+  status: string;
+  thesis: string | null;
+  quantity: number;
+  entryPrice: number;
+  stopLoss: number;
+  target: number;
+  createdAt: string;
+  daysOverdue: number;
+  reasons: PendingReviewReasonDto[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class DisciplineService {
   private readonly API_URL = `${environment.apiUrl}/me`;
@@ -53,6 +78,14 @@ export class DisciplineService {
   getScore(days: DisciplinePeriod = 90): Observable<DisciplineScoreDto> {
     return this.http
       .get<DisciplineScoreDto>(`${this.API_URL}/discipline-score?days=${days}`, {
+        headers: this.getHeaders(),
+      })
+      .pipe(catchError((err) => throwError(() => err)));
+  }
+
+  getPendingReviews(): Observable<PendingThesisReviewDto[]> {
+    return this.http
+      .get<PendingThesisReviewDto[]>(`${this.API_URL}/thesis-reviews/pending`, {
         headers: this.getHeaders(),
       })
       .pipe(catchError((err) => throwError(() => err)));

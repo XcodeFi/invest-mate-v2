@@ -1,4 +1,5 @@
 using InvestmentApp.Application.Discipline.Queries;
+using InvestmentApp.Application.TradePlans.Queries.GetPendingThesisReviews;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -36,6 +37,20 @@ public class DisciplineController : ControllerBase
         if (days > 3650) return BadRequest(new { error = "days must be ≤ 3650" });
 
         var query = new GetDisciplineScoreQuery { UserId = GetUserId(), Days = days };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// List plans Ready/InProgress cần review thesis (V2.1 Vin-discipline §D5).
+    /// Trigger: InvalidationRule.CheckDate ≤ today+2 HOẶC ExpectedReviewDate ≤ today.
+    /// Sort theo DaysOverdue DESC (urgent nhất lên đầu).
+    /// </summary>
+    [HttpGet("thesis-reviews/pending")]
+    [ProducesResponseType(typeof(List<PendingThesisReviewDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPendingThesisReviews()
+    {
+        var query = new GetPendingThesisReviewsQuery { UserId = GetUserId() };
         var result = await _mediator.Send(query);
         return Ok(result);
     }

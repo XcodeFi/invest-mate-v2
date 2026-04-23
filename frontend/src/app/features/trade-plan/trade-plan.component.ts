@@ -1127,13 +1127,13 @@ interface InvalidationRuleForm {
             <div class="mt-4 bg-indigo-50/60 border border-indigo-200 rounded-lg p-3 space-y-3">
               <div class="flex items-center gap-2">
                 <span class="text-indigo-700">🛡</span>
-                <h3 class="text-sm font-semibold text-indigo-900">Kỷ luật mua — Thesis & Điều kiện thesis sai</h3>
+                <h3 class="text-sm font-semibold text-indigo-900">Kỷ luật mua — Lý do đầu tư & Điều kiện lý do sai</h3>
               </div>
 
-              <!-- Thesis textarea -->
+              <!-- Lý do đầu tư textarea -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Luận điểm mua (vì sao tin cổ phiếu này thắng?)
+                  Lý do đầu tư (vì sao tin cổ phiếu này thắng?)
                 </label>
                 <textarea [(ngModel)]="plan.thesis" rows="3"
                   [readonly]="!canEditNotes"
@@ -1142,23 +1142,23 @@ interface InvalidationRuleForm {
                   placeholder="Ví dụ: Mua EVF vì EPS Q1 dự phóng +35% YoY, ROE > 18%, dư địa tín dụng bán lẻ còn lớn..."></textarea>
                 <div class="mt-1 flex items-center justify-between text-[11px]">
                   <span class="text-gray-500 italic">
-                    Viết thesis <strong>có thể chứng minh sai được</strong> (falsifiable). "Tốt", "tiềm năng" KHÔNG phải thesis.
+                    Viết lý do <strong>có thể chứng minh sai được</strong> (vd: "EPS Q1 ≥ 20% YoY"). "Tốt", "tiềm năng" KHÔNG đủ rõ để cắt khi sai.
                   </span>
                   <span class="font-medium" [ngClass]="thesisMinLengthOk() ? 'text-green-600' : 'text-red-600'">
                     {{ (plan.thesis || '').length }}/{{ thesisMinLengthRequired() }}
-                    ({{ thesisStrictMode() ? 'strict' : 'loose' }})
+                    ({{ thesisStrictMode() ? 'đầy đủ' : 'gọn' }})
                   </span>
                 </div>
               </div>
 
               <!-- Size indicator -->
               <div class="bg-white border border-indigo-100 rounded p-2 text-[11px] text-gray-600">
-                <span class="font-medium">Size ước tính:</span>
+                <span class="font-medium">Quy mô:</span>
                 {{ planSizeVnd() | number : '1.0-0' }} VND
                 <span *ngIf="plan.quantity && plan.entryPrice && accountBalance">
-                  · <strong>{{ planSizePercentOfAccount() | number : '1.2-2' }}%</strong> tài khoản
-                  <span *ngIf="thesisStrictMode()" class="text-red-600 font-medium"> (strict — cần thesis ≥ 30, ≥1 invalidation rule)</span>
-                  <span *ngIf="!thesisStrictMode()" class="text-green-600"> (loose — thesis ≥ 15 là đủ)</span>
+                  (<strong>{{ planSizePercentOfAccount() | number : '1.2-2' }}%</strong> tài khoản)
+                  <span *ngIf="thesisStrictMode()" class="text-red-600 font-medium"> — bắt buộc: lý do đầu tư ≥ 30 ký tự, tối thiểu 1 điều kiện sai</span>
+                  <span *ngIf="!thesisStrictMode()" class="text-green-600"> — nhẹ: lý do ≥ 15 ký tự là đủ</span>
                 </span>
               </div>
 
@@ -1166,18 +1166,18 @@ interface InvalidationRuleForm {
               <div>
                 <div class="flex items-center justify-between mb-2">
                   <label class="text-sm font-medium text-gray-700">
-                    Điều kiện thesis sai
+                    Điều kiện lý do sai
                     <span class="text-[11px] text-gray-500 font-normal">— khi trigger đủ, đóng lệnh không tranh luận</span>
                   </label>
                   <button type="button" (click)="addInvalidationRule()" [disabled]="!canEditNotes"
                     class="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-40">
-                    + Thêm rule
+                    + Thêm điều kiện
                   </button>
                 </div>
 
                 <div *ngIf="(plan.invalidationCriteria?.length || 0) === 0"
                   class="text-[12px] italic text-gray-500 bg-white border border-dashed border-gray-300 rounded p-2">
-                  Chưa có rule nào. {{ thesisStrictMode() ? 'BẮT BUỘC thêm ít nhất 1 rule với plan size ≥ 5% tài khoản.' : 'Khuyến nghị thêm 1 rule dù plan size nhỏ.' }}
+                  Chưa có điều kiện nào. {{ thesisStrictMode() ? 'BẮT BUỘC thêm ít nhất 1 điều kiện khi quy mô plan ≥ 5% tài khoản.' : 'Khuyến nghị thêm 1 điều kiện dù quy mô nhỏ.' }}
                 </div>
 
                 <div *ngFor="let rule of plan.invalidationCriteria; let i = index"
@@ -1185,15 +1185,15 @@ interface InvalidationRuleForm {
                   <div class="flex items-center gap-2">
                     <select [(ngModel)]="rule.trigger" [disabled]="!canEditNotes"
                       class="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                      <option value="EarningsMiss">EarningsMiss (BCTC lệch)</option>
-                      <option value="TrendBreak">TrendBreak (gãy trend kỹ thuật)</option>
-                      <option value="NewsShock">NewsShock (tin tức đột biến)</option>
-                      <option value="ThesisTimeout">ThesisTimeout (quá hạn)</option>
-                      <option value="Manual">Manual (tự nhận xét)</option>
+                      <option value="EarningsMiss">KQKD lệch kỳ vọng</option>
+                      <option value="TrendBreak">Gãy trend kỹ thuật</option>
+                      <option value="NewsShock">Tin tức đột biến</option>
+                      <option value="ThesisTimeout">Quá hạn chưa thể hiện</option>
+                      <option value="Manual">Tự nhận xét</option>
                     </select>
                     <input type="date" [(ngModel)]="rule.checkDate" [disabled]="!canEditNotes"
                       class="text-xs border border-gray-300 rounded px-2 py-1"
-                      placeholder="Ngày verify">
+                      placeholder="Ngày kiểm chứng">
                     <button type="button" (click)="removeInvalidationRule(i)" [disabled]="!canEditNotes"
                       class="ml-auto text-xs text-red-500 hover:text-red-700 disabled:opacity-40">Xoá</button>
                   </div>
@@ -1203,7 +1203,7 @@ interface InvalidationRuleForm {
                     class="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-indigo-400"
                     [placeholder]="invalidationPlaceholder(rule.trigger)"></textarea>
                   <div class="flex items-center justify-between text-[10px]">
-                    <span class="text-gray-500">Tối thiểu 20 ký tự để falsifiable.</span>
+                    <span class="text-gray-500">Tối thiểu 20 ký tự để có thể chứng minh sai.</span>
                     <span [ngClass]="(rule.detail || '').length >= 20 ? 'text-green-600' : 'text-red-500'">
                       {{ (rule.detail || '').length }}/20
                     </span>
@@ -1214,7 +1214,7 @@ interface InvalidationRuleForm {
               <!-- Expected review date -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày dự kiến review thesis
+                  Ngày dự kiến review lại lý do đầu tư
                   <span class="text-[11px] text-gray-500 font-normal">(mặc định theo TimeHorizon)</span>
                 </label>
                 <input type="date" [(ngModel)]="plan.expectedReviewDate" [disabled]="!canEditNotes"
@@ -1235,10 +1235,10 @@ interface InvalidationRuleForm {
             <div *ngIf="canAbortThesis()" class="mt-3">
               <button type="button" (click)="openAbortModal()"
                 class="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium inline-flex items-center gap-1">
-                ⚠ Thesis sai, cắt
+                ⚠ Lý do sai, cắt
               </button>
               <span class="ml-2 text-xs text-gray-500 italic">
-                Khác với "Huỷ plan": ghi lại trigger + detail để học (DisciplinedAbort pattern).
+                Khác với "Huỷ plan": ghi rõ lý do để học từ pattern "dám cắt".
               </span>
             </div>
 
@@ -1248,27 +1248,27 @@ interface InvalidationRuleForm {
               (click)="closeAbortModal()">
               <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-5 space-y-3" (click)="$event.stopPropagation()">
                 <h3 class="text-lg font-bold text-red-700 flex items-center gap-2">
-                  <span>⚠</span> Abort vì thesis sai
+                  <span>⚠</span> Cắt vì lý do đầu tư đã sai
                 </h3>
                 <p class="text-sm text-gray-600">
-                  Ghi rõ <strong>trigger</strong> + <strong>detail</strong> để log lại pattern kỷ luật.
-                  Dùng khi luận điểm mua đã bị phá vỡ, không phải khi chỉ "giá đỏ".
+                  Ghi rõ <strong>nhóm lý do</strong> + <strong>chi tiết</strong> để ghi lại pattern kỷ luật.
+                  Dùng khi lý do đầu tư gốc đã bị phá vỡ, không phải khi chỉ "giá đỏ".
                 </p>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Trigger</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Nhóm lý do</label>
                   <select [(ngModel)]="abortTrigger"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500">
-                    <option value="EarningsMiss">EarningsMiss — KQKD lệch kỳ vọng</option>
-                    <option value="TrendBreak">TrendBreak — gãy trend kỹ thuật</option>
-                    <option value="NewsShock">NewsShock — tin tức đột biến</option>
-                    <option value="ThesisTimeout">ThesisTimeout — quá hạn chưa thể hiện</option>
-                    <option value="Manual">Manual — tự nhận xét thesis sai</option>
+                    <option value="EarningsMiss">KQKD lệch kỳ vọng</option>
+                    <option value="TrendBreak">Gãy trend kỹ thuật</option>
+                    <option value="NewsShock">Tin tức đột biến</option>
+                    <option value="ThesisTimeout">Quá hạn chưa thể hiện</option>
+                    <option value="Manual">Tự nhận xét thesis sai</option>
                   </select>
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Detail (≥ 20 ký tự)</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Chi tiết (≥ 20 ký tự)</label>
                   <textarea [(ngModel)]="abortDetail" rows="3"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
                     [placeholder]="invalidationPlaceholder(abortTrigger)"></textarea>
@@ -1284,7 +1284,7 @@ interface InvalidationRuleForm {
                   <button type="button" (click)="submitAbort()"
                     [disabled]="abortDetail.length < 20 || abortSubmitting"
                     class="flex-1 px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium">
-                    {{ abortSubmitting ? 'Đang xử lý...' : 'Xác nhận abort' }}
+                    {{ abortSubmitting ? 'Đang xử lý...' : 'Xác nhận cắt' }}
                   </button>
                 </div>
               </div>
