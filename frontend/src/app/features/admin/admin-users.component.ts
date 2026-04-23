@@ -49,7 +49,7 @@ import { NotificationService } from '../../core/services/notification.service';
             <div class="font-semibold truncate">{{ user.name || '(chưa có tên)' }}</div>
             <div class="text-sm text-gray-600 truncate font-mono">{{ user.email }}</div>
             <div class="text-xs text-gray-400">
-              Role: {{ user.role }} · Tạo: {{ user.createdAt | date:'yyyy-MM-dd' }}
+              Role: {{ user.role }} · Tạo: {{ user.createdAt | date:'dd/MM/yyyy' }}
             </div>
           </div>
           <button
