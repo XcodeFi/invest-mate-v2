@@ -270,6 +270,17 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 - Upsert profile flow: get active → get soft-deleted → create new (pattern giống AiSettings để tránh unique index violation).
 - UpsertAccount enforces: non-Savings không có InterestRate, **non-Savings không có DepositDate/MaturityDate**, non-Gold không có Gold fields, Gold fields all-or-nothing, GoldQuantity > 0, Balance ≥ 0. Khi cả DepositDate + MaturityDate set, MaturityDate phải ≥ DepositDate (fat-finger guard).
 - FinancialAccount có `CreatedAt` (immutable sau Create) + `UpdatedAt`. Docs cũ trong Mongo không có field này sẽ default `DateTime.MinValue` — chấp nhận, không migrate.
+
+**Analytics — So sánh với tiết kiệm (2026-04-24, V1.2):**
+
+- `GET /api/v1/analytics/portfolio/{id}/vs-savings` trả `SavingsComparisonDto` với `ActualValue`, `HypotheticalValue`, `OpportunityCost`, `OpportunityCostPercent`, `AlphaAnnualized`/`PeriodReturnDiff`, `Flows[]` (cho FE recompute), `ActualCurve[]`, `UsedRate`, `RateSource` enum ("user-savings-avg" / "fallback-5" / "manual").
+- Math: **running-balance iterative** + **monthly compound** `(1 + r/12)^months`. Filter `Deposit`/`Withdraw` flows only (loại Dividend/Interest/Fee).
+- Rate resolution: query param `savingsRate` > weighted avg của `Savings` accounts có `InterestRate` (theo balance) > fallback 5%/năm.
+- Sanity cap: rate ∈ [-10%, +50%]/năm → else `InvalidOperationException`.
+- `asOf` normalize `.Date` — tránh drift partial-day compound.
+- `OpportunityCostPercent = null` khi `HypotheticalValue ≤ 0` (denominator undefined).
+- `AlphaAnnualized` chỉ non-null khi `days ≥ 365` (CAGR dưới 1 năm bị variance).
+- `GET /api/v1/analytics/bank-rates` trả `BankRateSnapshot` (scrape 24hmoney online table, top rate per term 1/3/6/9/12 tháng).
 - UpsertFinancialAccountCommand handler tự fetch price qua `IGoldPriceProvider.GetPriceAsync(brand, type)` khi 3 Gold fields đủ; provider null → throw 400 (không silent fallback).
 - RemoveAccount bảo vệ Securities cuối cùng (throw `InvalidOperationException`).
 

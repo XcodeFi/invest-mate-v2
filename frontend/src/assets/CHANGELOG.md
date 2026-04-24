@@ -2,6 +2,62 @@
 
 ---
 
+## [v2.52.0] — 2026-04-24 · So sánh hiệu suất đầu tư với tiết kiệm
+
+### Tính năng mới
+
+**📊 Tab mới "So sánh với tiết kiệm"** trong `/analytics` — trả lời câu hỏi kinh điển: _"Nếu tôi gửi tiết kiệm cùng số tiền đó, đã được bao nhiêu rồi?"_.
+
+**Rate picker 3 preset:**
+- **Sổ của tôi** (default): tính trung bình lãi suất các sổ tiết kiệm user đã nhập (weighted theo số dư). Hiển thị disclose "N/M sổ có nhập lãi suất" để minh bạch.
+- **Cao nhất thị trường**: top lãi suất 12T từ `24hmoney.vn/lai-suat-gui-ngan-hang` (scraper mới `HmoneyBankRateProvider`, kênh online). Có ⚠ tooltip "Chỉ tham khảo" — vì user thực tế chỉ được lãi này nếu đã chọn đúng NH đó.
+- **Tự nhập**: slider 0-30%/năm, tự clamp nếu vượt range.
+- Fallback 5%/năm nếu user chưa có Savings hoặc chưa nhập lãi suất nào.
+
+**Client-side recompute**: đổi rate → không round-trip server. Backend trả `flows[]` + `actualCurve[]` 1 lần, FE tự tính hypothetical qua JS `Math.pow` — responsive tức thì.
+
+**Metrics hiển thị:**
+- Danh mục thực tế | Nếu gửi tiết kiệm | Chênh lệch (VND + %)
+- Neutral gray khi |Δ| ≤ 2% (tránh red-on-every-dip gây anxiety)
+- **Chênh lệch hiệu suất năm** chỉ hiện khi danh mục ≥ 365 ngày; dưới 1 năm chỉ hiện period diff (tránh CAGR variance lớn)
+- Disclaimer "Không phải lời khuyên đầu tư" ở footer
+
+### Backend mới
+
+**`HmoneyBankRateProvider`** — scrape 24hmoney, AngleSharp parser, dual-tier cache (6h fresh + 24h stale). Ưu tiên table online (cao hơn quầy 0.2-0.8%). Skip cells `-` (không công bố). 2 endpoints mới:
+- `GET /api/v1/analytics/portfolio/{id}/vs-savings?savingsRate=&asOf=` → `SavingsComparisonDto`
+- `GET /api/v1/analytics/bank-rates` → top rate per term (1/3/6/9/12 tháng)
+
+**`HypotheticalSavingsReturnService`** — pure math service. Running-balance iterative + monthly compound. Filter Deposit/Withdraw only (bỏ Dividend/Interest/Fee tránh double-count).
+
+### Bug-catchers đã cover (từ critical review)
+
+- **Withdrawal compounding**: deposit 100M → rút 100M sau 180 ngày @ 6% phải cho ≈ 3M (lãi đã sinh trước khi rút), KHÔNG phải 0.
+- **Dividend double-count**: chỉ Deposit/Withdraw mới tính vào "cơ hội cất vào ngân hàng".
+- **asOf normalize**: `.Date` để tránh partial-day compound leak khi `asOf = UtcNow`.
+- **OpportunityCostPercent null**: khi hypothetical ≤ 0 (withdraw-heavy), percent undefined thay vì giả 0.
+- **Leap year**: actual day count, không hardcode 365.
+
+### Env-var cần set trước deploy
+
+```
+BankRateProvider__PageUrl=https://24hmoney.vn/lai-suat-gui-ngan-hang
+```
+
+Startup log warn nếu env var chưa resolve.
+
+### Tests
+
+- +11 scraper (`HmoneyBankRateProviderTests` + fixture `hmoney_lai_suat_page.html` 210KB, captured 2026-03-25)
+- +7 hypothetical (`HypotheticalSavingsReturnServiceTests` — 2 bug-catchers)
+- +11 query handler (`GetSavingsComparisonQueryHandlerTests`)
+- +6 FE spec (`analytics.component.spec.ts` — client-side recompute, preset switching)
+- **Full solution: 1,163 backend pass** + 6 FE new
+
+Chi tiết: [`docs/plans/done/investment-vs-savings-comparison.md`](plans/done/investment-vs-savings-comparison.md).
+
+---
+
 ## [v2.51.0] — 2026-04-24 · Sổ tiết kiệm có kỳ hạn
 
 ### Tính năng mới

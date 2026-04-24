@@ -1242,6 +1242,35 @@ Full solution: **1013 tests pass** (Domain 658, Application 115, Infrastructure 
 
 Phase 1 Domain (#77) → Phase 2 Application (#78) → Phase 3 Gold Crawler (#79/#80) → Phase 4 API+DI (#81, backend cut line) → Phase 5 Frontend (#82) → Phase 6 Docs (this PR).
 
+### V1.2 — So sánh hiệu suất với tiết kiệm (2026-04-24)
+
+Tab mới "So sánh với tiết kiệm" trong `/analytics`. Trả lời câu hỏi kinh điển: **"Nếu tôi gửi tiết kiệm cùng số tiền đó, đã được bao nhiêu rồi?"** — opportunity cost analysis.
+
+**3 preset lãi suất:**
+- **Sổ của tôi** (default): weighted avg theo balance của Savings accounts có `InterestRate` (disclose "N/M sổ có nhập lãi suất").
+- **Cao nhất thị trường**: scrape top 12T từ `24hmoney.vn/lai-suat-gui-ngan-hang` (kênh online). Tooltip "⚠ Chỉ tham khảo" vì user không thực sự nhận được lãi này nếu chưa chọn đúng NH đó.
+- **Tự nhập**: slider 0-30%/năm. Clamp tự động.
+- Fallback 5%/năm nếu user chưa có Savings hoặc chưa nhập lãi suất nào.
+
+**Client-side recompute**: backend trả `flows[]` + rate đầu tiên 1 lần. Khi user đổi preset/slider, FE tự tính lại hypothetical curve qua `Math.pow(1 + r/12, months)` — **không round-trip server**. Đồng bộ math với backend (monthly compound, running balance iterative).
+
+**Metrics**: Danh mục thực tế | Nếu gửi tiết kiệm | Chênh lệch (VND + %). Neutral gray khi |Δ| ≤ 2%, xanh/đỏ khi vượt. Chênh lệch hiệu suất năm chỉ hiện khi ≥ 365 ngày; dưới 1 năm chỉ hiện period diff. Disclaimer "Không phải lời khuyên đầu tư" ở footer.
+
+**Backend math invariants (từ critical review)**:
+1. **Running balance iterative** — KHÔNG compound từng flow độc lập (else withdrawal zeros out interest đã sinh trước rút).
+2. **Filter Deposit/Withdraw only** — Dividend/Interest/Fee = return của đầu tư → tính vào hypothetical = double-count.
+3. **Monthly compound** `(1 + r/12)^months` — gần thực tế VN hơn daily.
+4. `asOf` normalize về `.Date` — tránh partial-day compound leak khi `asOf = UtcNow`.
+5. `OpportunityCostPercent = null` khi `hypothetical ≤ 0` (withdraw-heavy portfolio → denominator undefined).
+
+**Scraper `HmoneyBankRateProvider`**: mirror pattern `HmoneyGoldPriceProvider`. 2 tables trên trang (offline + online) — ta parse online (rate cao hơn 0.2-0.8%). Columns 1/3/6/9/12 tháng. Cells `-` (không công bố) → skip. Top across all banks per term. Fixture captured 2026-03-25: SHB online 12T = 7.6% (top).
+
+**Env-var cần set trước deploy**: `BankRateProvider__PageUrl=https://24hmoney.vn/lai-suat-gui-ngan-hang`. Startup warn-log nếu placeholder chưa resolve.
+
+**Tests**: +11 scraper + 7 hypothetical + 11 query handler + 6 FE spec = **35 test mới**. Full solution 1,163 backend pass.
+
+Chi tiết: [`docs/plans/done/investment-vs-savings-comparison.md`](plans/done/investment-vs-savings-comparison.md).
+
 ### V1.1 — Sổ tiết kiệm có kỳ hạn (2026-04-24)
 
 Bổ sung `DepositDate` + `MaturityDate` + `CreatedAt` cho `FinancialAccount` để hỗ trợ sổ có kỳ hạn (fixed-term deposit). Cả 2 field ngày optional; chỉ áp dụng khi `Type == Savings`. Khi cả 2 set, domain enforce `Maturity >= Deposit`. Handler normalize về UTC midnight giống pattern `Debt.MaturityDate`.

@@ -48,6 +48,49 @@ export interface MonthlyReturnsData {
   years: number[];
 }
 
+export type SavingsRateSource = 'user-savings-avg' | 'fallback-5' | 'manual';
+
+export interface SavingsCurvePoint {
+  date: string;  // ISO
+  value: number;
+}
+
+export interface SavingsFlowEvent {
+  date: string;  // ISO
+  signedAmount: number;
+}
+
+export interface SavingsComparisonDto {
+  actualValue: number;
+  hypotheticalValue: number;
+  opportunityCost: number;
+  /** Null khi hypothetical ≤ 0 (withdraw-heavy portfolio — percent undefined). */
+  opportunityCostPercent: number | null;
+  usedRate: number;
+  rateSource: SavingsRateSource;
+  savingsAccountsCounted: number;
+  savingsAccountsTotal: number;
+  actualCurve: SavingsCurvePoint[];
+  flows: SavingsFlowEvent[];
+  cagrActual: number | null;
+  alphaAnnualized: number | null;
+  periodReturnDiff: number | null;
+  asOf: string;
+  firstFlowDate: string | null;
+}
+
+export interface BankRateEntry {
+  termMonths: number;
+  ratePercent: number;
+  bankName: string;
+}
+
+export interface BankRateSnapshot {
+  topByTerm: Record<number, BankRateEntry>;
+  sourceTimestamp: string | null;
+  fetchedAt: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -79,6 +122,24 @@ export class AdvancedAnalyticsService {
 
   getMonthlyReturns(portfolioId: string): Observable<MonthlyReturnsData> {
     return this.http.get<MonthlyReturnsData>(`${this.API_URL}/portfolio/${portfolioId}/monthly-returns`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * So sánh hiệu suất danh mục với tiết kiệm. Rate null → backend dùng weighted avg / fallback 5%.
+   */
+  getSavingsComparison(portfolioId: string, savingsRate?: number, asOf?: Date): Observable<SavingsComparisonDto> {
+    let url = `${this.API_URL}/portfolio/${portfolioId}/vs-savings`;
+    const params: string[] = [];
+    if (savingsRate != null) params.push(`savingsRate=${savingsRate}`);
+    if (asOf != null) params.push(`asOf=${encodeURIComponent(asOf.toISOString())}`);
+    if (params.length) url += '?' + params.join('&');
+    return this.http.get<SavingsComparisonDto>(url, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getBankRates(): Observable<BankRateSnapshot> {
+    return this.http.get<BankRateSnapshot>(`${this.API_URL}/bank-rates`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

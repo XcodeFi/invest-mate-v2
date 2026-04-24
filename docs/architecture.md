@@ -109,6 +109,8 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | HmoneyComprehensiveDataProvider | Comprehensive stock data from 24hmoney (financials, reports, dividends, foreign trading, recommendations) | HttpClient, IMemoryCache |
 | HmoneyMarketDataProvider | Real-time prices from 24hmoney.vn (prices ×1000 scaling) | HttpClient, IMemoryCache |
 | HmoneyGoldPriceProvider | Vàng Miếng + Nhẫn từ `24hmoney.vn/gia-vang` (HTML scrape với AngleSharp, không có JSON API). Filter 4 brand × 2 type, values là full VND (không scale). Two-tier cache: fresh 5 phút + stale 6h fallback khi 24hmoney down | HttpClient, IMemoryCache |
+| HmoneyBankRateProvider | **So sánh với tiết kiệm (2026-04-24)** — top lãi suất theo kỳ hạn (1/3/6/9/12 tháng) từ `24hmoney.vn/lai-suat-gui-ngan-hang` (SSR HTML, AngleSharp). Ưu tiên table online (cao hơn quầy 0.2-0.8%). Two-tier cache: fresh 6h + stale 24h. Env var `BankRateProvider__PageUrl` bắt buộc set trước deploy. Startup warning nếu placeholder chưa resolve | HttpClient, IMemoryCache |
+| HypotheticalSavingsReturnService | Pure math — "nếu cash flows của portfolio đã gửi tiết kiệm @ r, số dư cuối là?". Running-balance iterative, monthly compound `(1+r/12)^months`. Caller filter Deposit/Withdraw (loại Dividend/Interest/Fee tránh double-count). No DI dependencies | None (stateless) |
 | TcbsFundamentalDataProvider | P/E, EPS, ROE from TCBS API | HttpClient, IMemoryCache |
 | SnapshotService | Daily portfolio snapshots with position weights | IPnLService |
 | AlertEvaluationService | Price/drawdown/portfolio value alerts | ISnapshotRepo, IStockPriceRepo |
@@ -130,7 +132,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | MarketData | `/api/v1/market` | Price, batch prices, search, overview, top fluctuation |
 | PnL | `/api/v1/pnl` | Portfolio/position P&L |
 | Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets, **stress-test (P2)**, **budget (P4)** |
-| Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns |
+| Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns, **vs-savings comparison (2026-04-24)** — `GET /portfolio/{id}/vs-savings?savingsRate=&asOf=` + `GET /bank-rates` (top 12T từ 24hmoney) |
 | Ai | `/api/v1/ai` | Build context, stream responses, daily briefing, comprehensive analysis |
 | AiSettings | `/api/v1/ai-settings` | Provider/key management |
 | Alerts | `/api/v1/alerts` | Rules CRUD, history, unread count |
@@ -167,6 +169,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 |----------|---------|---------|-----------|
 | 24hmoney | `api-finance-t19.24hmoney.vn` | Real-time prices, history, company list | 15s prices, 30min companies |
 | 24hmoney gold | `24hmoney.vn/gia-vang` (HTML page) | Gold prices (Miếng + Nhẫn, 4 brand) — no JSON API, SSR HTML scrape with AngleSharp. Env var: `GoldPriceProvider__PageUrl` | 5min fresh + 6h stale fallback |
+| 24hmoney bank rates | `24hmoney.vn/lai-suat-gui-ngan-hang` (HTML page) | Top VN bank savings rates by term. Env var: `BankRateProvider__PageUrl` | 6h fresh + 24h stale fallback |
 | TCBS | `apipubaws.tcbs.com.vn` | Fundamentals (P/E, ROE, EPS) | 5min |
 | Anthropic | `api.anthropic.com` | Claude AI streaming | None |
 | Google | `generativelanguage.googleapis.com` | Gemini AI streaming | None |
