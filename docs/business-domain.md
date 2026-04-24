@@ -245,7 +245,7 @@ Tổng quan tài sản + nguyên tắc tài chính + tracking vàng tích trữ.
 | Type | Label | Ghi chú |
 |------|-------|---------|
 | Securities | Chứng khoán | Balance auto-sync từ `IPnLService.CalculatePortfolioPnLAsync(...).TotalMarketValue`, không nhập tay. Không được xóa tài khoản cuối cùng |
-| Savings | Tiết kiệm | Balance + InterestRate (%/năm, optional) |
+| Savings | Tiết kiệm | Balance + InterestRate (%/năm, optional) + DepositDate + MaturityDate (optional, cả 2 hoặc từng cái — cho sổ có kỳ hạn) |
 | Emergency | Quỹ dự phòng | Balance thuần |
 | IdleCash | Tiền nhàn rỗi | Balance thuần |
 | Gold | Vàng | Brand (SJC/DOJI/PNJ/Other) + Type (Mieng/Nhan) + Quantity (lượng) → auto-calc Balance. Fallback manual Balance nếu không set 3 Gold fields |
@@ -268,7 +268,8 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 - Profile per-user 1:1 (unique index UserId).
 - `MonthlyExpense` bắt buộc khi tạo profile lần đầu; optional khi update.
 - Upsert profile flow: get active → get soft-deleted → create new (pattern giống AiSettings để tránh unique index violation).
-- UpsertAccount enforces: non-Savings không có InterestRate, non-Gold không có Gold fields, Gold fields all-or-nothing, GoldQuantity > 0, Balance ≥ 0.
+- UpsertAccount enforces: non-Savings không có InterestRate, **non-Savings không có DepositDate/MaturityDate**, non-Gold không có Gold fields, Gold fields all-or-nothing, GoldQuantity > 0, Balance ≥ 0. Khi cả DepositDate + MaturityDate set, MaturityDate phải ≥ DepositDate (fat-finger guard).
+- FinancialAccount có `CreatedAt` (immutable sau Create) + `UpdatedAt`. Docs cũ trong Mongo không có field này sẽ default `DateTime.MinValue` — chấp nhận, không migrate.
 - UpsertFinancialAccountCommand handler tự fetch price qua `IGoldPriceProvider.GetPriceAsync(brand, type)` khi 3 Gold fields đủ; provider null → throw 400 (không silent fallback).
 - RemoveAccount bảo vệ Securities cuối cùng (throw `InvalidOperationException`).
 

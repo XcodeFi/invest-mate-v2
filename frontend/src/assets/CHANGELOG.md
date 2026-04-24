@@ -2,6 +2,38 @@
 
 ---
 
+## [v2.51.0] — 2026-04-24 · Sổ tiết kiệm có kỳ hạn
+
+### Tính năng mới
+
+**📅 Ngày mở sổ + ngày đáo hạn cho sổ tiết kiệm.** Khi thêm/sửa tài khoản loại **Tiết kiệm**, user có thể nhập thêm 2 trường ngày optional để track sổ có kỳ hạn (fixed-term deposit):
+- **Ngày mở sổ** (tùy chọn) — ngày bắt đầu gửi.
+- **Ngày đáo hạn** (tùy chọn) — ngày sổ hết kỳ hạn.
+- Hàng chip **kỳ hạn chuẩn**: `[1T] [3T] [6T] [12T] [24T] [Tùy chỉnh]` — nhập ngày mở sổ rồi bấm chip, ngày đáo hạn tự tính (+1/3/6/12/24 tháng). UTC math để không bị TZ drift.
+- Card tài khoản hiển thị "📅 dd/MM/yyyy → dd/MM/yyyy" (chỉ khi có).
+
+**Áp dụng cho làn sóng V1.2 tiếp theo:** 2 trường này là foundation cho tính năng **"So sánh hiệu suất đầu tư với tiết kiệm"** sắp tới (opportunity cost vs. bank rate).
+
+### Bug fix & domain
+
+- **Fix pre-existing leak**: `onTypeChange()` không null `formInterestRate` khi đổi type khỏi Savings → state rác leak lên backend. Giờ null cả 3 field Savings-only (lãi suất + 2 date) cùng lúc.
+- **Domain enforce**: `DepositDate`/`MaturityDate` chỉ áp dụng cho `Type=Savings` (giống pattern `InterestRate`). Khi cả 2 set → `Maturity >= Deposit` (fat-finger guard).
+- **UTC normalization**: handler normalize 2 date về UTC midnight như `Debt.MaturityDate` (FE gửi "YYYY-MM-DD" → tránh TZ drift 1 ngày).
+- **CreatedAt** thêm cho `FinancialAccount` (đã có trên `Debt` — xóa bất đối xứng). Immutable sau Create. Docs Mongo cũ không có field này → default `DateTime.MinValue`, chấp nhận (không migration).
+
+### Tests
+
+- +11 Domain tests (`FinancialProfileTests.cs`)
+- +4 Application tests (`UpsertFinancialAccountCommandHandlerTests.cs`)
+- +7 Frontend spec (`personal-finance.component.spec.ts` — **mới tạo**, chưa có trước đó)
+- **Full solution: 1,140 tests pass** (Domain 729 / Application 150 / Infrastructure 249 / Api 5 + 7 FE).
+
+### Process
+
+2-agent review plan (trước code) + 1-agent code review (sau code, fixed 1 Major UTC math finding trước commit). Chi tiết: [`docs/plans/done/savings-term-dates.md`](plans/done/savings-term-dates.md).
+
+---
+
 ## [v2.50.0] — 2026-04-23 · Vin-discipline V2.1 — Pending reviews page + locale vi-VN
 
 **PR #94 merged (squash `304421dc`)** — 4 commits: `1f8998a` query+endpoint+page → `d01aee6` Việt hóa UI + hide widget → `ec257dc` review fixes (timezone + perf + flash) → `160c0f8` locale vi-VN global.

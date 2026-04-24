@@ -74,23 +74,45 @@ public class FinancialProfile : AggregateRoot
         string? note = null,
         GoldBrand? goldBrand = null,
         GoldType? goldType = null,
-        decimal? goldQuantity = null)
+        decimal? goldQuantity = null,
+        DateTime? depositDate = null,
+        DateTime? maturityDate = null)
     {
-        ValidateAccountFields(type, balance, interestRate, goldBrand, goldType, goldQuantity);
+        ValidateAccountFields(type, balance, interestRate, goldBrand, goldType, goldQuantity, depositDate, maturityDate);
 
         FinancialAccount account;
         if (accountId is null)
         {
             if (type == FinancialAccountType.Securities && Accounts.Any(a => a.Type == FinancialAccountType.Securities))
                 throw new InvalidOperationException("Tài khoản Chứng khoán được tự động tạo khi khởi tạo profile — không cho phép tạo thêm");
-            account = FinancialAccount.Create(type, name, balance, interestRate, note, goldBrand, goldType, goldQuantity);
+            account = FinancialAccount.Create(
+                type: type,
+                name: name,
+                balance: balance,
+                interestRate: interestRate,
+                note: note,
+                goldBrand: goldBrand,
+                goldType: goldType,
+                goldQuantity: goldQuantity,
+                depositDate: depositDate,
+                maturityDate: maturityDate);
             Accounts.Add(account);
         }
         else
         {
             account = Accounts.FirstOrDefault(a => a.Id == accountId)
                 ?? throw new InvalidOperationException($"Không tìm thấy tài khoản với id {accountId}");
-            account.Update(type, name, balance, interestRate, note, goldBrand, goldType, goldQuantity);
+            account.Update(
+                type: type,
+                name: name,
+                balance: balance,
+                interestRate: interestRate,
+                note: note,
+                goldBrand: goldBrand,
+                goldType: goldType,
+                goldQuantity: goldQuantity,
+                depositDate: depositDate,
+                maturityDate: maturityDate);
         }
 
         UpdatedAt = DateTime.UtcNow;
@@ -270,7 +292,9 @@ public class FinancialProfile : AggregateRoot
         decimal? interestRate,
         GoldBrand? goldBrand,
         GoldType? goldType,
-        decimal? goldQuantity)
+        decimal? goldQuantity,
+        DateTime? depositDate,
+        DateTime? maturityDate)
     {
         if (balance < 0m)
             throw new ArgumentOutOfRangeException(nameof(balance), "Balance phải >= 0");
@@ -278,6 +302,14 @@ public class FinancialProfile : AggregateRoot
         // InterestRate chỉ áp dụng cho Savings
         if (type != FinancialAccountType.Savings && interestRate.HasValue)
             throw new InvalidOperationException("InterestRate chỉ áp dụng cho tài khoản Savings");
+
+        // DepositDate / MaturityDate chỉ áp dụng cho Savings (sổ có kỳ hạn)
+        if (type != FinancialAccountType.Savings && (depositDate.HasValue || maturityDate.HasValue))
+            throw new InvalidOperationException("DepositDate/MaturityDate chỉ áp dụng cho tài khoản Savings");
+
+        // Khi cả 2 set: Maturity phải >= Deposit (fat-finger guard)
+        if (depositDate.HasValue && maturityDate.HasValue && maturityDate.Value < depositDate.Value)
+            throw new InvalidOperationException("MaturityDate phải >= DepositDate");
 
         // Gold fields chỉ áp dụng cho Gold type
         if (type != FinancialAccountType.Gold)
