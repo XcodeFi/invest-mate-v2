@@ -10,7 +10,9 @@ import {
   AdvancedAnalyticsService,
   PerformanceSummary as AdvPerformanceSummary,
   EquityCurveData,
-  MonthlyReturnsData
+  MonthlyReturnsData,
+  SavingsComparisonDto,
+  BankRateSnapshot
 } from '../../core/services/advanced-analytics.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
@@ -466,6 +468,107 @@ import { catchError, of } from 'rxjs';
                 <span *ngIf="!selectedPortfolioId">Chọn danh mục để xem lợi nhuận theo tháng</span>
               </div>
             </div>
+
+            <!-- So sánh với tiết kiệm Tab -->
+            <div *ngIf="activeTab === 'vs-savings'">
+              <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h3 class="text-lg font-semibold">So sánh hiệu suất với tiết kiệm</h3>
+
+                <div class="flex items-center gap-1 text-xs">
+                  <button (click)="useRatePreset('my-savings')"
+                          [class.bg-blue-600]="ratePreset === 'my-savings'"
+                          [class.text-white]="ratePreset === 'my-savings'"
+                          [class.bg-gray-200]="ratePreset !== 'my-savings'"
+                          class="px-3 py-1 rounded">
+                    Sổ của tôi
+                  </button>
+                  <button (click)="useRatePreset('market-top')"
+                          [class.bg-blue-600]="ratePreset === 'market-top'"
+                          [class.text-white]="ratePreset === 'market-top'"
+                          [class.bg-gray-200]="ratePreset !== 'market-top'"
+                          class="px-3 py-1 rounded">
+                    Cao nhất thị trường
+                  </button>
+                  <button (click)="useRatePreset('manual')"
+                          [class.bg-blue-600]="ratePreset === 'manual'"
+                          [class.text-white]="ratePreset === 'manual'"
+                          [class.bg-gray-200]="ratePreset !== 'manual'"
+                          class="px-3 py-1 rounded">
+                    Tự nhập
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="comparison as c" class="space-y-3">
+                <div class="flex items-center gap-3 text-xs text-gray-600 flex-wrap">
+                  <span>Lãi suất đang dùng:
+                    <span class="text-gray-900 font-semibold">{{ (displayRate * 100) | number:'1.2-2' }}%/năm</span>
+                  </span>
+                  <input *ngIf="ratePreset === 'manual'" type="number" min="0" max="30" step="0.1"
+                         [(ngModel)]="manualRatePercent"
+                         (ngModelChange)="onManualRateChange()"
+                         class="w-20 bg-white border border-gray-300 rounded px-2 py-1" />
+                  <span *ngIf="c.rateSource === 'user-savings-avg'" class="text-gray-500">
+                    (dựa trên {{ c.savingsAccountsCounted }}/{{ c.savingsAccountsTotal }} sổ có nhập lãi suất)
+                  </span>
+                  <span *ngIf="ratePreset === 'market-top'" class="text-amber-600"
+                        title="Chỉ tham khảo — bạn không thực sự được lãi suất này trừ khi chọn đúng ngân hàng đó">
+                    ⚠ Chỉ tham khảo
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div class="bg-gray-50 rounded p-3">
+                    <div class="text-[10px] text-gray-500">Danh mục thực tế</div>
+                    <div class="text-base font-semibold">{{ c.actualValue | vndCurrency }}</div>
+                  </div>
+                  <div class="bg-gray-50 rounded p-3">
+                    <div class="text-[10px] text-gray-500">Nếu gửi tiết kiệm</div>
+                    <div class="text-base font-semibold">{{ displayHypothetical | vndCurrency }}</div>
+                  </div>
+                  <div class="rounded p-3"
+                       [class.bg-green-100]="displayOpportunityCostPercent > 2"
+                       [class.bg-red-100]="displayOpportunityCostPercent < -2"
+                       [class.bg-gray-100]="displayOpportunityCostPercent >= -2 && displayOpportunityCostPercent <= 2">
+                    <div class="text-[10px] text-gray-600">Chênh lệch</div>
+                    <div class="text-base font-semibold">
+                      {{ displayOpportunityCost >= 0 ? '+' : '' }}{{ displayOpportunityCost | vndCurrency }}
+                    </div>
+                    <div class="text-[10px] text-gray-600">
+                      ({{ displayOpportunityCostPercent > 0 ? '+' : '' }}{{ displayOpportunityCostPercent | number:'1.1-1' }}%)
+                    </div>
+                  </div>
+                </div>
+
+                <div *ngIf="c.alphaAnnualized !== null" class="text-sm">
+                  <span class="text-gray-600" title="Chênh lệch hiệu suất hàng năm giữa danh mục và tiết kiệm">
+                    Chênh lệch hiệu suất năm:
+                  </span>
+                  <span class="font-semibold ml-1"
+                        [class.text-green-600]="(c.alphaAnnualized ?? 0) > 0.02"
+                        [class.text-red-600]="(c.alphaAnnualized ?? 0) < -0.02"
+                        [class.text-gray-600]="absValue(c.alphaAnnualized ?? 0) <= 0.02">
+                    {{ (c.alphaAnnualized ?? 0) * 100 > 0 ? '+' : '' }}{{ (c.alphaAnnualized ?? 0) * 100 | number:'1.1-1' }}%/năm
+                  </span>
+                </div>
+                <div *ngIf="c.alphaAnnualized === null && c.periodReturnDiff !== null" class="text-xs text-gray-500">
+                  Dưới 1 năm — chưa chuẩn hoá/năm. Chênh lệch tổng kỳ:
+                  <span class="font-semibold">
+                    {{ (c.periodReturnDiff ?? 0) * 100 > 0 ? '+' : '' }}{{ (c.periodReturnDiff ?? 0) * 100 | number:'1.1-1' }}%
+                  </span>
+                </div>
+
+                <div class="text-[10px] text-gray-500 italic mt-2">
+                  * Đây không phải là lời khuyên đầu tư. Kết quả mang tính tham khảo.
+                </div>
+              </div>
+              <div *ngIf="!comparison && selectedPortfolioId" class="text-center py-8 text-gray-500">
+                Đang tải dữ liệu so sánh…
+              </div>
+              <div *ngIf="!selectedPortfolioId" class="text-center py-8 text-gray-500">
+                Chọn danh mục để xem so sánh
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -502,11 +605,22 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   flowHistory: CapitalFlowItem[] = [];
   activeTab = 'overview';
 
+  // Savings comparison state
+  comparison: SavingsComparisonDto | null = null;
+  ratePreset: 'my-savings' | 'market-top' | 'manual' = 'my-savings';
+  manualRatePercent: number | null = null;
+  private bankRates: BankRateSnapshot | null = null;
+  displayRate = 0.05;
+  displayHypothetical = 0;
+  displayOpportunityCost = 0;
+  displayOpportunityCostPercent = 0;
+
   tabs = [
     { key: 'overview', label: 'Tổng quan' },
     { key: 'trades', label: 'Thống kê GD' },
     { key: 'equity', label: 'Equity Curve' },
-    { key: 'monthly', label: 'Theo tháng' }
+    { key: 'monthly', label: 'Theo tháng' },
+    { key: 'vs-savings', label: 'So sánh với tiết kiệm' }
   ];
 
   months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
@@ -611,7 +725,108 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       if (tabKey === 'overview') this.renderOverviewCharts();
       if (tabKey === 'equity') this.renderEquityCurveChart();
       if (tabKey === 'monthly') this.renderMonthlyBarChart();
+      if (tabKey === 'vs-savings' && this.selectedPortfolioId && !this.comparison) {
+        this.loadSavingsComparison();
+      }
     });
+  }
+
+  loadSavingsComparison(rate?: number): void {
+    if (!this.selectedPortfolioId) return;
+    this.advancedAnalyticsService.getSavingsComparison(this.selectedPortfolioId, rate).subscribe({
+      next: (dto) => {
+        this.comparison = dto;
+        this.displayRate = dto.usedRate;
+        this.displayHypothetical = dto.hypotheticalValue;
+        this.displayOpportunityCost = dto.opportunityCost;
+        this.displayOpportunityCostPercent = dto.opportunityCostPercent ?? 0;
+      },
+      error: (err) => {
+        console.error('Load savings comparison failed', err);
+        this.comparison = null;
+      },
+    });
+  }
+
+  useRatePreset(preset: 'my-savings' | 'market-top' | 'manual'): void {
+    this.ratePreset = preset;
+    if (preset === 'my-savings') {
+      this.loadSavingsComparison();  // rate=null → backend resolves
+    } else if (preset === 'market-top') {
+      if (this.bankRates) {
+        this.applyTopMarketRate();
+      } else {
+        this.advancedAnalyticsService.getBankRates().subscribe({
+          next: (snap) => { this.bankRates = snap; this.applyTopMarketRate(); },
+          error: (err) => console.error('Load bank rates failed', err),
+        });
+      }
+    } else if (preset === 'manual') {
+      // Seed with current rate; user will edit
+      this.manualRatePercent = Math.round(this.displayRate * 1000) / 10;  // 0.05 → 5.0
+    }
+  }
+
+  private applyTopMarketRate(): void {
+    if (!this.bankRates) return;
+    const top12 = this.bankRates.topByTerm[12];
+    if (!top12) return;
+    // ratePercent (VD: 7.6) → decimal rate (0.076). Client-side recompute derived metrics.
+    this.recomputeWithRate(top12.ratePercent / 100);
+  }
+
+  onManualRateChange(): void {
+    if (this.manualRatePercent == null) return;
+    const clamped = Math.max(0, Math.min(30, this.manualRatePercent));
+    if (clamped !== this.manualRatePercent) {
+      this.manualRatePercent = clamped;  // write back so UI reflects the clamped value
+    }
+    this.recomputeWithRate(clamped / 100);
+  }
+
+  /**
+   * Client-side recompute hypothetical balance + derived metrics when rate changes.
+   * Uses flows from backend — no network round-trip. Mirrors server math (monthly compound, running balance).
+   */
+  private recomputeWithRate(annualRate: number): void {
+    if (!this.comparison) return;
+    this.displayRate = annualRate;
+    const flows = this.comparison.flows;
+    if (flows.length === 0) {
+      this.displayHypothetical = 0;
+      this.displayOpportunityCost = this.comparison.actualValue;
+      this.displayOpportunityCostPercent = 0;
+      return;
+    }
+    const asOf = new Date(this.comparison.asOf);
+    const monthlyRate = annualRate / 12;
+    const DAYS_PER_MONTH = 365.25 / 12;
+    let balance = 0;
+    let prev: Date | null = null;
+
+    for (const f of flows) {
+      const fDate = new Date(f.date);
+      if (prev) {
+        const months = (fDate.getTime() - prev.getTime()) / (1000 * 86400) / DAYS_PER_MONTH;
+        balance *= Math.pow(1 + monthlyRate, months);
+      }
+      balance += f.signedAmount;
+      prev = fDate;
+    }
+    if (prev && prev < asOf) {
+      const months = (asOf.getTime() - prev.getTime()) / (1000 * 86400) / DAYS_PER_MONTH;
+      balance *= Math.pow(1 + monthlyRate, months);
+    }
+
+    this.displayHypothetical = balance;
+    this.displayOpportunityCost = this.comparison.actualValue - balance;
+    this.displayOpportunityCostPercent = balance > 0
+      ? (this.displayOpportunityCost / balance) * 100
+      : 0;
+  }
+
+  absValue(n: number): number {
+    return Math.abs(n);
   }
 
   onPortfolioChangeNew(): void {

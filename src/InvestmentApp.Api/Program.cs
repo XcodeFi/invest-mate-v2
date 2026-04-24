@@ -211,6 +211,31 @@ builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IGoldPric
     sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyGoldPriceProvider>());
 // Note: IFinancialProfileRepository registered up in the Repositories block (line ~124)
 
+// 24hmoney bank interest rate provider (HTML scrape, cache 6h fresh + 24h stale)
+builder.Services.Configure<InvestmentApp.Infrastructure.Services.Hmoney.BankRateProviderOptions>(
+    builder.Configuration.GetSection("BankRateProvider"));
+var bankRateConfig = builder.Configuration.GetSection("BankRateProvider");
+// Env-var placeholder guard (pattern from GoldPriceProvider): warn loudly if BankRateProvider__PageUrl unset.
+var bankRatePageUrl = bankRateConfig.GetValue<string>("PageUrl");
+if (string.IsNullOrWhiteSpace(bankRatePageUrl) || bankRatePageUrl.Contains('{'))
+{
+    Console.Error.WriteLine($"[STARTUP WARNING] BankRateProvider:PageUrl is unset or placeholder (\"{bankRatePageUrl}\") — /vs-savings feature will 500 until BankRateProvider__PageUrl env var is configured.");
+}
+builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyBankRateProvider>(client =>
+{
+    client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml");
+    client.DefaultRequestHeaders.Add("User-Agent",
+        bankRateConfig.GetValue<string>("UserAgent", "invest-mate-bank-rate-crawler/1.0"));
+    client.Timeout = TimeSpan.FromSeconds(bankRateConfig.GetValue<int>("TimeoutSeconds", 30));
+});
+builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBankRateProvider>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyBankRateProvider>());
+
+// Hypothetical savings return calculator (pure math, no HTTP)
+builder.Services.AddScoped<
+    InvestmentApp.Application.Common.Interfaces.IHypotheticalSavingsReturnService,
+    InvestmentApp.Infrastructure.Services.HypotheticalSavingsReturnService>();
+
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));
 builder.Services.AddScoped<IFeeConfiguration, FeeConfiguration>();
