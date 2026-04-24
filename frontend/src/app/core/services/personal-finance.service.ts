@@ -50,10 +50,13 @@ export interface FinancialAccountDto {
   name: string;
   balance: number;
   interestRate?: number | null;
+  depositDate?: string | null;
+  maturityDate?: string | null;
   note?: string | null;
   goldBrand?: GoldBrand | null;
   goldType?: GoldType | null;
   goldQuantity?: number | null;
+  createdAt?: string;
   updatedAt: string;
 }
 
@@ -127,6 +130,8 @@ export interface UpsertFinancialAccountRequest {
   name: string;
   balance?: number | null;
   interestRate?: number | null;
+  depositDate?: string | null;
+  maturityDate?: string | null;
   note?: string | null;
   goldBrand?: GoldBrand | null;
   goldType?: GoldType | null;

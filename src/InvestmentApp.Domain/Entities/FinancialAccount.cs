@@ -9,10 +9,13 @@ public class FinancialAccount
     public string Name { get; private set; } = null!;
     public decimal Balance { get; private set; }
     public decimal? InterestRate { get; private set; }
+    public DateTime? DepositDate { get; private set; }
+    public DateTime? MaturityDate { get; private set; }
     public string? Note { get; private set; }
     public GoldBrand? GoldBrand { get; private set; }
     public GoldType? GoldType { get; private set; }
     public decimal? GoldQuantity { get; private set; }
+    public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
     [BsonConstructor]
@@ -26,8 +29,11 @@ public class FinancialAccount
         string? note = null,
         GoldBrand? goldBrand = null,
         GoldType? goldType = null,
-        decimal? goldQuantity = null)
+        decimal? goldQuantity = null,
+        DateTime? depositDate = null,
+        DateTime? maturityDate = null)
     {
+        var now = DateTime.UtcNow;
         return new FinancialAccount
         {
             Id = Guid.NewGuid().ToString(),
@@ -35,11 +41,14 @@ public class FinancialAccount
             Name = name ?? throw new ArgumentNullException(nameof(name)),
             Balance = balance,
             InterestRate = interestRate,
+            DepositDate = depositDate,
+            MaturityDate = maturityDate,
             Note = note,
             GoldBrand = goldBrand,
             GoldType = goldType,
             GoldQuantity = goldQuantity,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
     }
 
@@ -51,12 +60,16 @@ public class FinancialAccount
         string? note,
         GoldBrand? goldBrand,
         GoldType? goldType,
-        decimal? goldQuantity)
+        decimal? goldQuantity,
+        DateTime? depositDate,
+        DateTime? maturityDate)
     {
         Type = type;
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Balance = balance;
         InterestRate = interestRate;
+        DepositDate = depositDate;
+        MaturityDate = maturityDate;
         Note = note;
         GoldBrand = goldBrand;
         GoldType = goldType;

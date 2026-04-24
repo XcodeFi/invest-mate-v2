@@ -34,10 +34,13 @@ public class FinancialAccountDto
     public string Name { get; set; } = null!;
     public decimal Balance { get; set; }
     public decimal? InterestRate { get; set; }
+    public DateTime? DepositDate { get; set; }
+    public DateTime? MaturityDate { get; set; }
     public string? Note { get; set; }
     public GoldBrand? GoldBrand { get; set; }
     public GoldType? GoldType { get; set; }
     public decimal? GoldQuantity { get; set; }
+    public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
 

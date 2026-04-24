@@ -28,6 +28,12 @@ public class UpsertFinancialAccountCommand : IRequest<FinancialAccountDto>
     public GoldBrand? GoldBrand { get; set; }
     public GoldType? GoldType { get; set; }
     public decimal? GoldQuantity { get; set; }
+
+    /// <summary>Ngày mở sổ tiết kiệm (chỉ dùng khi Type=Savings, optional). FE gửi "YYYY-MM-DD".</summary>
+    public DateTime? DepositDate { get; set; }
+
+    /// <summary>Ngày đáo hạn (chỉ dùng khi Type=Savings, optional). Cả 2 set phải Maturity >= Deposit.</summary>
+    public DateTime? MaturityDate { get; set; }
 }
 
 public class UpsertFinancialAccountCommandHandler : IRequestHandler<UpsertFinancialAccountCommand, FinancialAccountDto>
@@ -48,6 +54,11 @@ public class UpsertFinancialAccountCommandHandler : IRequestHandler<UpsertFinanc
 
         var balance = await ResolveBalanceAsync(request, cancellationToken);
 
+        // Normalize DepositDate/MaturityDate same way as Debt.MaturityDate: strip time + pin to UTC midnight.
+        // FE sends "YYYY-MM-DD" → System.Text.Json parses as DateTimeKind.Unspecified; serializing drifts ±1 day depending on server TZ.
+        var depositDate = NormalizeToUtcMidnight(request.DepositDate);
+        var maturityDate = NormalizeToUtcMidnight(request.MaturityDate);
+
         var account = profile.UpsertAccount(
             accountId: request.AccountId,
             type: request.Type,
@@ -57,12 +68,17 @@ public class UpsertFinancialAccountCommandHandler : IRequestHandler<UpsertFinanc
             note: request.Note,
             goldBrand: request.GoldBrand,
             goldType: request.GoldType,
-            goldQuantity: request.GoldQuantity);
+            goldQuantity: request.GoldQuantity,
+            depositDate: depositDate,
+            maturityDate: maturityDate);
 
         await _repository.UpdateAsync(profile, cancellationToken);
 
         return PersonalFinanceMapper.ToDto(account);
     }
+
+    private static DateTime? NormalizeToUtcMidnight(DateTime? value) =>
+        value.HasValue ? DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Utc) : null;
 
     /// <summary>
     /// Gold auto-calc: nếu Type=Gold + 3 Gold field đủ → Balance = quantity × BuyPrice từ provider.

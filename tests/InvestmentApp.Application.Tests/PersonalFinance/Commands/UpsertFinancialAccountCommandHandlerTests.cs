@@ -183,4 +183,92 @@ public class UpsertFinancialAccountCommandHandlerTests
         result.GoldQuantity.Should().BeNull();
         _goldProvider.Verify(g => g.GetPriceAsync(It.IsAny<GoldBrand>(), It.IsAny<GoldType>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Handle_Savings_DepositAndMaturityDate_NormalizedToUtcMidnight()
+    {
+        // FE gửi "YYYY-MM-DD" → System.Text.Json parse thành DateTimeKind.Unspecified.
+        // Handler phải normalize sang UTC midnight để tránh drift 1 ngày.
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        _repo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+
+        var unspecifiedDeposit = new DateTime(2026, 1, 15, 14, 30, 0, DateTimeKind.Unspecified);
+        var unspecifiedMaturity = new DateTime(2027, 1, 15, 14, 30, 0, DateTimeKind.Unspecified);
+
+        var cmd = new UpsertFinancialAccountCommand
+        {
+            UserId = "u1",
+            Type = FinancialAccountType.Savings,
+            Name = "Tiết kiệm 12T",
+            Balance = 100_000_000m,
+            InterestRate = 5.5m,
+            DepositDate = unspecifiedDeposit,
+            MaturityDate = unspecifiedMaturity,
+        };
+        var result = await _handler.Handle(cmd, CancellationToken.None);
+
+        result.DepositDate.Should().Be(new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc));
+        result.MaturityDate.Should().Be(new DateTime(2027, 1, 15, 0, 0, 0, DateTimeKind.Utc));
+        result.DepositDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        result.MaturityDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Fact]
+    public async Task Handle_Savings_PassesDates_InCorrectOrder()
+    {
+        // Chống silent swap của 2 DateTime? adjacent ở tail signature.
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        _repo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+
+        var cmd = new UpsertFinancialAccountCommand
+        {
+            UserId = "u1",
+            Type = FinancialAccountType.Savings,
+            Name = "Test order",
+            Balance = 1m,
+            DepositDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            MaturityDate = new DateTime(2027, 6, 30, 0, 0, 0, DateTimeKind.Utc),
+        };
+        var result = await _handler.Handle(cmd, CancellationToken.None);
+
+        result.DepositDate.Should().Be(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        result.MaturityDate.Should().Be(new DateTime(2027, 6, 30, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task Handle_Savings_NullDates_PassThrough()
+    {
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        _repo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+
+        var cmd = new UpsertFinancialAccountCommand
+        {
+            UserId = "u1",
+            Type = FinancialAccountType.Savings,
+            Name = "Không kỳ hạn",
+            Balance = 50_000_000m,
+        };
+        var result = await _handler.Handle(cmd, CancellationToken.None);
+
+        result.DepositDate.Should().BeNull();
+        result.MaturityDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_NewAccount_DtoHasCreatedAt()
+    {
+        var profile = FinancialProfile.Create("u1", 10_000_000m);
+        _repo.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+
+        var cmd = new UpsertFinancialAccountCommand
+        {
+            UserId = "u1",
+            Type = FinancialAccountType.IdleCash,
+            Name = "Ví mới",
+            Balance = 1_000_000m,
+        };
+        var result = await _handler.Handle(cmd, CancellationToken.None);
+
+        result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+    }
 }

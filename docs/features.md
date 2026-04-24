@@ -1182,7 +1182,7 @@ Profile tạo tự động với 4 default accounts (Securities/Savings/Emergenc
 | Type | Mô tả | Balance nguồn |
 |------|-------|---------------|
 | Securities | Chứng khoán | Auto-sync từ `IPnLService.CalculatePortfolioPnLAsync(...).TotalMarketValue` live, aggregate across all user portfolios |
-| Savings | Tiết kiệm (bank) | Manual + optional InterestRate (%/năm) |
+| Savings | Tiết kiệm (bank) | Manual + optional InterestRate (%/năm) + optional DepositDate/MaturityDate (cho sổ có kỳ hạn) |
 | Emergency | Quỹ dự phòng | Manual (không đụng vào trừ khẩn cấp) |
 | IdleCash | Tiền nhàn rỗi | Manual (tiền sẵn sàng đầu tư) |
 | Gold | Vàng tích trữ | **Auto-calc** từ 24hmoney live price × quantity, hoặc manual fallback |
@@ -1241,6 +1241,18 @@ Full solution: **1013 tests pass** (Domain 658, Application 115, Infrastructure 
 ### 6 PR Shipping
 
 Phase 1 Domain (#77) → Phase 2 Application (#78) → Phase 3 Gold Crawler (#79/#80) → Phase 4 API+DI (#81, backend cut line) → Phase 5 Frontend (#82) → Phase 6 Docs (this PR).
+
+### V1.1 — Sổ tiết kiệm có kỳ hạn (2026-04-24)
+
+Bổ sung `DepositDate` + `MaturityDate` + `CreatedAt` cho `FinancialAccount` để hỗ trợ sổ có kỳ hạn (fixed-term deposit). Cả 2 field ngày optional; chỉ áp dụng khi `Type == Savings`. Khi cả 2 set, domain enforce `Maturity >= Deposit`. Handler normalize về UTC midnight giống pattern `Debt.MaturityDate`.
+
+**Frontend UX:** form Savings có thêm 2 `<input type="date">` + hàng preset chips **[1T][3T][6T][12T][24T][Tùy chỉnh]** — user nhập ngày mở sổ rồi bấm chip, ngày đáo hạn tự tính. Card hiển thị "📅 dd/MM/yyyy → dd/MM/yyyy" khi có.
+
+**Bonus fix** (pre-existing): `onTypeChange()` không null `formInterestRate` khi user đổi type → state rác leak vào payload. Giờ null cả 3 field Savings-only (interest rate + 2 date).
+
+**Tests:** +11 Domain (`FinancialProfileTests`), +4 Application (`UpsertFinancialAccountCommandHandlerTests`), +7 Frontend (`personal-finance.component.spec.ts` — mới tạo). Full solution **1,140 tests pass**.
+
+Chi tiết: [`docs/plans/done/savings-term-dates.md`](plans/done/savings-term-dates.md).
 
 ---
 

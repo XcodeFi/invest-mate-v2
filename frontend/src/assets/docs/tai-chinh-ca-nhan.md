@@ -43,7 +43,15 @@ Nhấn **+ Thêm tài khoản** → chọn loại và điền thông tin (dropdo
 - **Tên hiển thị**: VD "Tiết kiệm VCB 12 tháng"
 - **Số dư (VND)**: nhập tay
 - **Lãi suất (%/năm)**: optional, chỉ áp dụng với Tiết kiệm
+- **Ngày mở sổ** (chỉ Tiết kiệm, optional): ngày bắt đầu gửi sổ
+- **Ngày đáo hạn** (chỉ Tiết kiệm, optional): ngày sổ hết kỳ hạn
 - **Ghi chú**: optional
+
+#### Chip kỳ hạn chuẩn
+
+Sau khi nhập Ngày mở sổ, xuất hiện hàng chip nhanh: `[1T] [3T] [6T] [12T] [24T] [Tùy chỉnh]`. Bấm chip để auto-tính Ngày đáo hạn (Ngày mở sổ + N tháng). Bấm "Tùy chỉnh" để xóa ngày đáo hạn và nhập tay (cho kỳ hạn lạ, VD 9 tháng).
+
+**Tại sao nên nhập?** Chuẩn bị cho tính năng sắp tới: nhắc đáo hạn để tái tục hoặc rút, và so sánh hiệu suất đầu tư với tiết kiệm (opportunity cost). Nếu là **sổ không kỳ hạn**, bỏ trống cả 2 là OK.
 
 ### Chứng khoán
 

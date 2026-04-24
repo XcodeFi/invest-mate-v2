@@ -249,6 +249,204 @@ public class FinancialProfileTests
 
     #endregion
 
+    #region UpsertAccount — DepositDate / MaturityDate (Savings term)
+
+    [Fact]
+    public void UpsertAccount_Savings_WithDepositAndMaturityDate_ShouldStoreBoth()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var deposit = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var maturity = new DateTime(2027, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+
+        var account = profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.Savings,
+            name: "Tiết kiệm 12T VCB",
+            balance: 100_000_000m,
+            interestRate: 5.5m,
+            depositDate: deposit,
+            maturityDate: maturity);
+
+        account.DepositDate.Should().Be(deposit);
+        account.MaturityDate.Should().Be(maturity);
+    }
+
+    [Fact]
+    public void UpsertAccount_NewAccount_CreatedAt_ShouldBeSetToUtcNow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+
+        var account = profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.IdleCash,
+            name: "Ví mới",
+            balance: 1_000_000m);
+
+        account.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public void UpsertAccount_ExistingAccount_Update_ShouldNotMutateCreatedAt()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+        var originalCreatedAt = savings.CreatedAt;
+
+        // Wait a tiny bit to ensure DateTime.UtcNow advances
+        Thread.Sleep(20);
+
+        profile.UpsertAccount(
+            accountId: savings.Id,
+            type: FinancialAccountType.Savings,
+            name: savings.Name,
+            balance: 50_000_000m,
+            interestRate: 6m);
+
+        var updated = profile.Accounts.First(a => a.Id == savings.Id);
+        updated.CreatedAt.Should().Be(originalCreatedAt);
+        updated.UpdatedAt.Should().BeAfter(originalCreatedAt);
+    }
+
+    [Fact]
+    public void UpsertAccount_Savings_UpdateWithNullDates_ShouldClearExistingDates()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var savings = profile.Accounts.First(a => a.Type == FinancialAccountType.Savings);
+
+        // set dates first
+        profile.UpsertAccount(
+            accountId: savings.Id,
+            type: FinancialAccountType.Savings,
+            name: savings.Name,
+            balance: 100_000_000m,
+            interestRate: 5m,
+            depositDate: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            maturityDate: new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        // then clear
+        profile.UpsertAccount(
+            accountId: savings.Id,
+            type: FinancialAccountType.Savings,
+            name: savings.Name,
+            balance: 100_000_000m,
+            interestRate: 5m,
+            depositDate: null,
+            maturityDate: null);
+
+        var cleared = profile.Accounts.First(a => a.Id == savings.Id);
+        cleared.DepositDate.Should().BeNull();
+        cleared.MaturityDate.Should().BeNull();
+    }
+
+    [Fact]
+    public void UpsertAccount_NonSavings_WithDepositDate_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.IdleCash,
+            name: "x",
+            balance: 1m,
+            depositDate: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpsertAccount_NonSavings_WithMaturityDate_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.Emergency,
+            name: "x",
+            balance: 1m,
+            maturityDate: new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc));
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpsertAccount_NonSavings_OnUpdate_WithDates_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var idle = profile.Accounts.First(a => a.Type == FinancialAccountType.IdleCash);
+
+        var action = () => profile.UpsertAccount(
+            accountId: idle.Id,
+            type: FinancialAccountType.IdleCash,
+            name: idle.Name,
+            balance: 1m,
+            depositDate: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpsertAccount_Savings_MaturityBeforeDeposit_ShouldThrow()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var action = () => profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.Savings,
+            name: "Sổ sai",
+            balance: 1m,
+            depositDate: new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            maturityDate: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpsertAccount_Savings_MaturityEqualsDeposit_ShouldSucceed()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+        var sameDay = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var account = profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.Savings,
+            name: "Cùng ngày",
+            balance: 1m,
+            depositDate: sameDay,
+            maturityDate: sameDay);
+
+        account.DepositDate.Should().Be(sameDay);
+        account.MaturityDate.Should().Be(sameDay);
+    }
+
+    [Fact]
+    public void UpsertAccount_Savings_OnlyDepositDate_ShouldSucceed()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+
+        var account = profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.Savings,
+            name: "Không biết đáo hạn",
+            balance: 1m,
+            depositDate: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            maturityDate: null);
+
+        account.DepositDate.Should().NotBeNull();
+        account.MaturityDate.Should().BeNull();
+    }
+
+    [Fact]
+    public void UpsertAccount_Savings_OnlyMaturityDate_ShouldSucceed()
+    {
+        var profile = FinancialProfile.Create("user-1", 20_000_000m);
+
+        var account = profile.UpsertAccount(
+            accountId: null,
+            type: FinancialAccountType.Savings,
+            name: "Không nhớ ngày gửi",
+            balance: 1m,
+            depositDate: null,
+            maturityDate: new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        account.DepositDate.Should().BeNull();
+        account.MaturityDate.Should().NotBeNull();
+    }
+
+    #endregion
+
     #region UpsertAccount — Gold validation
 
     [Fact]

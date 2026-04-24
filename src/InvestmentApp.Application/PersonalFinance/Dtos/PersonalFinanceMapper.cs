@@ -36,10 +36,13 @@ internal static class PersonalFinanceMapper
         Name = account.Name,
         Balance = balanceOverride ?? account.Balance,
         InterestRate = account.InterestRate,
+        DepositDate = account.DepositDate,
+        MaturityDate = account.MaturityDate,
         Note = account.Note,
         GoldBrand = account.GoldBrand,
         GoldType = account.GoldType,
         GoldQuantity = account.GoldQuantity,
+        CreatedAt = account.CreatedAt,
         UpdatedAt = account.UpdatedAt,
     };
 

@@ -173,6 +173,13 @@ import { NotificationService } from '../../core/services/notification.service';
                   </div>
                   <div *ngIf="account.type === FinancialAccountType.Savings && account.interestRate"
                        class="text-[10px] text-gray-500 mt-0.5">Lãi suất: {{ account.interestRate }}%/năm</div>
+                  <div *ngIf="account.type === FinancialAccountType.Savings && (account.depositDate || account.maturityDate)"
+                       class="text-[10px] text-gray-500 mt-0.5">
+                    📅
+                    <span *ngIf="account.depositDate">{{ account.depositDate | date:'dd/MM/yyyy' }}</span>
+                    <span *ngIf="account.depositDate && account.maturityDate"> → </span>
+                    <span *ngIf="account.maturityDate">{{ account.maturityDate | date:'dd/MM/yyyy' }}</span>
+                  </div>
                   <div *ngIf="account.note" class="text-[10px] text-gray-500 mt-0.5">{{ account.note }}</div>
                 </div>
                 <span *ngIf="account.type !== FinancialAccountType.Securities"
@@ -362,11 +369,39 @@ import { NotificationService } from '../../core/services/notification.service';
                    class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
           </div>
 
-          <div *ngIf="formType === FinancialAccountType.Savings">
-            <label class="text-xs text-gray-400 block mb-1">Lãi suất (%/năm, optional)</label>
-            <input type="number" min="0" max="30" step="0.1" [(ngModel)]="formInterestRate"
-                   class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
-          </div>
+          <ng-container *ngIf="formType === FinancialAccountType.Savings">
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Lãi suất (%/năm, tùy chọn)</label>
+              <input type="number" min="0" max="30" step="0.1" [(ngModel)]="formInterestRate"
+                     class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="text-xs text-gray-400 block mb-1">Ngày mở sổ (tùy chọn)</label>
+                <input type="date" [(ngModel)]="formSavingsDepositDate"
+                       class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 block mb-1">Ngày đáo hạn (tùy chọn)</label>
+                <input type="date" [(ngModel)]="formSavingsMaturityDate"
+                       class="w-full bg-gray-700 text-white text-sm rounded-lg px-3 py-2" />
+              </div>
+            </div>
+
+            <div *ngIf="formSavingsDepositDate" class="flex items-center gap-1 flex-wrap">
+              <span class="text-xs text-gray-400 mr-1">Kỳ hạn:</span>
+              <button type="button" *ngFor="let m of [1, 3, 6, 12, 24]"
+                      (click)="setSavingsTermMonths(m)"
+                      class="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white">
+                {{ m }}T
+              </button>
+              <button type="button" (click)="formSavingsMaturityDate = null"
+                      class="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300">
+                Tùy chỉnh
+              </button>
+            </div>
+          </ng-container>
 
           <div *ngIf="formType === FinancialAccountType.Securities" class="bg-gray-900/50 rounded-lg px-3 py-2 text-xs text-gray-400">
             ℹ️ Giá trị Chứng khoán tự đồng bộ từ danh mục đầu tư — không cần nhập tay.
@@ -516,6 +551,9 @@ export class PersonalFinanceComponent implements OnInit {
   formName = '';
   formBalance: number | null = null;
   formInterestRate: number | null = null;
+  // Chỉ áp dụng khi formType === Savings. Tên riêng để tránh đụng với formMaturityDate của Debt form.
+  formSavingsDepositDate: string | null = null; // YYYY-MM-DD
+  formSavingsMaturityDate: string | null = null; // YYYY-MM-DD
   formNote = '';
   formGoldAutoCalc = true;
   formGoldBrand: GoldBrand = GoldBrand.SJC;
@@ -642,6 +680,8 @@ export class PersonalFinanceComponent implements OnInit {
     this.formName = '';
     this.formBalance = null;
     this.formInterestRate = null;
+    this.formSavingsDepositDate = null;
+    this.formSavingsMaturityDate = null;
     this.formNote = '';
     this.formGoldAutoCalc = true;
     this.formGoldBrand = GoldBrand.SJC;
@@ -661,6 +701,8 @@ export class PersonalFinanceComponent implements OnInit {
     this.formName = account.name;
     this.formBalance = account.balance ?? null;
     this.formInterestRate = account.interestRate ?? null;
+    this.formSavingsDepositDate = account.depositDate ? account.depositDate.substring(0, 10) : null;
+    this.formSavingsMaturityDate = account.maturityDate ? account.maturityDate.substring(0, 10) : null;
     this.formNote = account.note ?? '';
     // Gold fields
     const hasGold = account.goldBrand != null && account.goldType != null && account.goldQuantity != null;
@@ -686,6 +728,26 @@ export class PersonalFinanceComponent implements OnInit {
     } else {
       this.resetGoldPreview();
     }
+    // Reset các trường chỉ áp dụng cho Savings khi đổi sang type khác — tránh gửi state rác lên backend.
+    if (this.formType !== FinancialAccountType.Savings) {
+      this.formInterestRate = null;
+      this.formSavingsDepositDate = null;
+      this.formSavingsMaturityDate = null;
+    }
+  }
+
+  setSavingsTermMonths(months: number): void {
+    if (!this.formSavingsDepositDate) return;
+    // Parse + math trong UTC để tránh TZ drift. `new Date("YYYY-MM-DD")` parse thành UTC midnight,
+    // nhưng get/setMonth (local) đọc theo múi giờ máy → sai ngày ở các TZ âm.
+    const [y, m, day] = this.formSavingsDepositDate.split('-').map(Number);
+    if (!y || !m || !day) return;
+    const d = new Date(Date.UTC(y, m - 1, day));
+    d.setUTCMonth(d.getUTCMonth() + months);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    this.formSavingsMaturityDate = `${yyyy}-${mm}-${dd}`;
   }
 
   onGoldAutoCalcToggle(): void {
@@ -757,6 +819,8 @@ export class PersonalFinanceComponent implements OnInit {
       req.balance = this.formBalance ?? null;
       if (this.formType === FinancialAccountType.Savings) {
         req.interestRate = this.formInterestRate ?? null;
+        req.depositDate = this.formSavingsDepositDate || null;
+        req.maturityDate = this.formSavingsMaturityDate || null;
       }
     }
 
