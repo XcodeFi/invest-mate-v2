@@ -322,3 +322,18 @@ Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wirin
 **Discipline Score formula (hybrid):** SL-Integrity 50% (stop-honor rate − sl-widened-rate) + Plan Quality 30% (% plan pass gate) + Review Timeliness 20% (% plan review đúng hạn). Null sub-metric → re-normalize weights. Primitive: Stop-Honor Rate = trades lỗ đã đóng với `exitPrice ≥ plannedSL / tổng trades lỗ`. Rolling 90 ngày default.
 
 **Tests (1106 total pass):** 23 Domain (TradePlanAbortTests + TradePlanDisciplineGateTests + TradePlanTests/TradePlanScenarioTests/TradePlanReviewTests updates) + 6 Application (DisciplineScoreCalculator + Abort handler) + 14 Infrastructure (DisciplineScoreCalculator integration + CampaignReview/Scenario service tests updates).
+
+### V2.1 — Pending reviews page + locale vi-VN (merged PR #94 squash `304421dc`)
+
+- `src/InvestmentApp.Application/TradePlans/Queries/GetPendingThesisReviews/GetPendingThesisReviewsQuery.cs` — query handler + DTOs (`PendingThesisReviewDto`, `PendingReviewReason`). Logic: iterate `GetActiveByUserIdAsync` results, filter Ready/InProgress, skip LegacyExempt, detect `InvalidationRule.CheckDate ≤ today+2` (VN local) OR `ExpectedReviewDate ≤ today`. Sort DESC theo `DaysOverdue`. `TimeZoneInfo` VN fallback chain: `SE Asia Standard Time` → `Asia/Ho_Chi_Minh` → UTC.
+- `src/InvestmentApp.Api/Controllers/DisciplineController.cs` — thêm `GET /api/v1/me/thesis-reviews/pending`.
+- `frontend/src/app/features/pending-reviews/pending-reviews.component.ts` — standalone component inline template, urgency color card (amber 0-2 ngày / red ≥ 3 ngày), `triggerTypeLabel()` helper map enum → Việt.
+- `frontend/src/app/core/services/discipline.service.ts` — thêm `getPendingReviews()` + `PendingThesisReviewDto` type.
+- `frontend/src/app/features/dashboard/widgets/discipline-score-widget.component.ts` — `shouldShow()` ẩn widget khi `totalPlans === 0`, reset score = null on period change (fix flash), load pending count → badge `🔔 [N] Plan cần review lý do đầu tư →`.
+- `frontend/src/app/app.routes.ts` — route `/pending-reviews`.
+- `frontend/src/main.ts` — register locale `vi-VN` (`registerLocaleData(localeVi, 'vi-VN', localeViExtra)`) + `{ provide: LOCALE_ID, useValue: 'vi-VN' }` — DatePipe/CurrencyPipe format kiểu VN default.
+- Việt hóa 4 files UI: "Thesis" → "Lý do đầu tư" (widget + pending-reviews + trade-plan form + trade-replay). TypeScript identifiers giữ nguyên (`thesis` property, `ThesisTimeout` enum, route).
+
+**Post-review fixes** (3-agent review trước merge): timezone VN day-granularity (tránh off-by-one UTC+7), `GetActiveByUserIdAsync` thay `GetByUserIdAsync` (DB-level filter), widget flash reset, skip `LegacyExempt`, badge hiển thị trigger type cụ thể (thay `reasonLabel` sinh "Điều kiện sắp tới hạn" chung chung).
+
+**Tests:** 10 handler tests mới (`GetPendingThesisReviewsQueryHandlerTests`). 146/146 Application + 718/718 Domain + 249/249 Infrastructure pass.

@@ -312,6 +312,7 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 | Trades | `/api/v1/trades` | CRUD giao dịch, bulk import, link plan |
 | TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates, **campaign review (P0.7)**: close + preview + update lessons + pending-review + analytics, **abort với thesis invalidation (Vin-discipline, 2026-04-23)** `POST {id}/abort` |
 | Discipline | `/api/v1/me/discipline-score` | **Điểm Kỷ luật Thesis (Vin-discipline, 2026-04-23)** — GET với query `days` (7/30/90/365, default 90). Trả composite 0-100 (SL-Integrity 50% / Plan Quality 30% / Review Timeliness 20%) + Stop-Honor Rate primitive + sample size + trend. Cache 5 phút (IMemoryCache). |
+| Discipline | `/api/v1/me/thesis-reviews/pending` | **Pending thesis reviews (V2.1, 2026-04-23)** — GET list plan Ready/InProgress có `InvalidationRule.CheckDate ≤ today+2` (VN UTC+7 local day granularity) HOẶC `ExpectedReviewDate ≤ today`, chưa triggered, không legacy-exempt. Sort DESC theo `DaysOverdue`. Response `PendingThesisReviewDto[]` với reasons list + trigger type + due date. |
 | Strategies | `/api/v1/strategies` | CRUD chiến lược, performance |
 | Journals | `/api/v1/journals` | CRUD nhật ký |
 | Risk | `/api/v1/risk` | Profile, summary, drawdown, correlation, position-sizing (5 models) |

@@ -2,6 +2,45 @@
 
 ---
 
+## [v2.50.0] — 2026-04-23 · Vin-discipline V2.1 — Pending reviews page + locale vi-VN
+
+**PR #94 merged (squash `304421dc`)** — 4 commits: `1f8998a` query+endpoint+page → `d01aee6` Việt hóa UI + hide widget → `ec257dc` review fixes (timezone + perf + flash) → `160c0f8` locale vi-VN global.
+
+### Tính năng mới
+
+**🔔 Trang `/pending-reviews`** — liệt kê plan đang chạy (Ready/InProgress) có **lý do đầu tư cần review**: `InvalidationRule.CheckDate` sắp tới (±2 ngày VN local) hoặc `ExpectedReviewDate` đã quá. Card hiển thị urgency color (amber 0-2 ngày / đỏ ≥ 3 ngày) + badge trigger cụ thể (KQKD lệch / Gãy trend kỹ thuật / Tin tức đột biến / Quá hạn / Tự nhận xét / Review định kỳ). Sort theo `DaysOverdue` DESC — urgent nhất lên đầu. "Mở plan →" link về form Trade Plan đã load sẵn.
+
+**Dashboard widget — count badge:** "🔔 [N] Plan cần review lý do đầu tư →" trong Discipline widget footer. Widget **ẩn khi chưa có plan nào** (`totalPlans === 0`) hoặc đang lỗi — tránh spam "Chưa đủ dữ liệu" cho user mới.
+
+**API:** `GET /api/v1/me/thesis-reviews/pending` (DisciplineController). Dùng `GetActiveByUserIdAsync` DB-level filter (bỏ Cancelled/Reviewed), skip `LegacyExempt`, exclude rule đã triggered.
+
+### Locale vi-VN globally
+
+Đăng ký `vi-VN` locale trong `main.ts` — toàn bộ `DatePipe`/`CurrencyPipe` tự format kiểu Việt Nam (dd/MM/yyyy, dấu chấm ngăn hàng nghìn). Sửa 1 chỗ `'yyyy-MM-dd'` legacy. **Lưu ý:** `<input type="date">` vẫn theo OS locale browser (Angular không control được).
+
+### Việt hóa "Thesis" → "Lý do đầu tư"
+
+Feedback retail VN: "Thesis" quá xa lạ, "lý do đầu tư" gần hơn. Đổi xuyên suốt UI 4 files (widget / trade-plan form / pending-reviews / trade-replay). Giữ TypeScript identifiers không đổi (`thesis` property, `ThesisTimeout` enum, `PendingThesisReviewDto`, API route `/thesis-reviews/pending`).
+
+### Review fixes trước merge (3-agent review)
+
+1. **Timezone VN UTC+7:** `DaysOverdue` dùng `TimeZoneInfo` chuyển về VN local date trước khi compare → tránh off-by-one cho user Vietnam (lúc 09:00 VN thấy "Còn 1 ngày" cho plan due today).
+2. **Perf:** chuyển sang `GetActiveByUserIdAsync` (DB filter Cancelled/Reviewed + IsDeleted) thay vì load toàn bộ plan history rồi filter in-memory.
+3. **Widget flash:** `onPeriodChange()` reset `score = null` trước fetch → không hiện stale period cũ.
+4. **Skip LegacyExempt:** plan cũ được migrate không có thesis thật, không nên nag user review.
+5. **Badge chi tiết hơn:** thay "Điều kiện sắp tới hạn" chung chung → "KQKD lệch" / "Gãy trend kỹ thuật" cụ thể.
+
+### Tests
+
+- 10 handler tests mới (`GetPendingThesisReviewsQueryHandlerTests`) cover: empty, no review date, CheckDate due/far-future, ExpectedReviewDate past, triggered excluded, multi-reason aggregation, urgency sort, Draft/Executed excluded.
+- Total: 146 Application + 718 Domain + 249 Infrastructure pass.
+
+### V2+ Roadmap — **trial window 1-2 tuần**
+
+User đang thử nghiệm UX thực tế trước khi invest thêm. Deferred: V2.2 cron worker, V2.3 behavioral pattern handler, V3 drill-down report, V4 Core/Satellite, V5 drawdown escalation. Chi tiết: [`docs/project-context.md`](../../docs/project-context.md).
+
+---
+
 ## [v2.49.0] — 2026-04-23 · Kỷ luật Thesis kiểu Vin (Vin-discipline) — V1 Backend
 
 **Branch:** `fix/post-trade-review-tradeid-wiring` (2 commits: d7a4bda domain/application/API/migration + 8fd0e8b discipline widget backend)

@@ -490,15 +490,29 @@ Docs cập nhật cuối V1:
 
 **Mục tiêu:** app chủ động nhắc review thesis khi tới `CheckDate` / `ExpectedReviewDate`.
 
-Scope:
+Scope (chia thành V2.1 done + V2.2/V2.3 defer):
 
-- `ThesisReviewService` (Hosted Service, cron daily) — D5.
-- Endpoint `GET /api/v1/me/thesis-reviews/pending` — trả list plan có rule tới hạn.
+**V2.1 — ✅ DONE 2026-04-23 (PR #94 squash `304421dc`):**
+
+- ✅ Endpoint `GET /api/v1/me/thesis-reviews/pending` — `GetPendingThesisReviewsQuery` + DTOs. Filter Ready/InProgress + skip LegacyExempt + sort DESC theo DaysOverdue. Timezone VN UTC+7 day-granularity qua `TimeZoneInfo`.
+- ✅ FE trang `/pending-reviews` — standalone component, urgency color cards (amber 0-2d / red ≥3d), badge trigger type Việt hóa.
+- ✅ Dashboard widget link count badge "🔔 [N] Plan cần review lý do đầu tư →"; widget ẩn khi `totalPlans=0`.
+- ✅ Locale vi-VN global (`main.ts` register `localeVi` + `LOCALE_ID` provider).
+- ✅ Việt hóa "Thesis" → "Lý do đầu tư" trong UI 4 files (giữ TypeScript identifiers).
+- ✅ 10 handler tests mới, 146 Application tests total pass. Review fixes từ 3-agent (timezone + perf + widget flash).
+
+**V2.2 — defer (sau trial window 1-2 tuần):**
+
+- `ThesisReviewService` Hosted Service cron daily 07:00 Asia/Ho_Chi_Minh → tạo `AlertHistory`/Notification cho plan due. User mở app thấy nudge mà không cần tự check `/pending-reviews`.
 - Mở rộng `ScenarioNodeConditionType` với `ThesisCheckDue` (tuỳ chọn — tái dùng Scenario Playbook hay dùng AlertRule mới, quyết định sau).
-- FE: trang `/pending-reviews` hoặc gộp vào Dashboard widget ("2 thesis cần review hôm nay").
-- Domain event handler `TradePlanThesisInvalidatedEvent` → ghi vào P7 timeline `BehavioralPattern = DisciplinedAbort`.
+- Tests TDD đầy đủ cho service.
 
-Tests: TDD đầy đủ cho service + handler.
+**V2.3 — defer (sau V2.2):**
+
+- Domain event handler `TradePlanThesisInvalidatedEvent` → ghi vào P7 timeline:
+  - `BehavioralPattern = DisciplinedAbort` khi user abort đúng trigger (EarningsMiss thực sự miss, TrendBreak thực sự gãy).
+  - `BehavioralPattern = SunkCostHold` khi plan drawdown > 15% mà chưa abort dù có rule due.
+- Tests cho pattern detection.
 
 ### Phase V3 — Core/Satellite portfolio-level (3-4 ngày, defer)
 

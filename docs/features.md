@@ -1326,11 +1326,30 @@ Tổng 1106 tests pass. V1 thêm:
 | Application | Discipline score calculator tests + `AbortTradePlanCommandHandler` + updates `GetScenarioHistoryQuery` | **6** |
 | Infrastructure | `DisciplineScoreCalculator` integration + updates `CampaignReviewService`/`ScenarioAdvisoryService`/`ScenarioEvaluationService` tests | **14** |
 
-### V2+ Roadmap (deferred)
+### V2.1 — Pending reviews page + API + locale vi-VN (2026-04-23, done)
 
-- **V2:** `ThesisReviewService` (hosted cron daily 07:00 Asia/Ho_Chi_Minh) + endpoint `/me/thesis-reviews/pending` + Dashboard nudge "2 thesis cần review hôm nay" + P7 behavioral pattern handler cho `TradePlanThesisInvalidatedEvent` (`DisciplinedAbort` vs `SunkCostHold`).
-- **V3:** Core/Satellite portfolio-level (drop `AllocationBucket` enum, thay bằng `Portfolio.CoreTargetPercent` default 70%).
-- **V4:** Drawdown escalation ladder (5% / 15% / 30% → force modal review thesis).
+- **Query + endpoint:** `GetPendingThesisReviewsQuery` → `GET /api/v1/me/thesis-reviews/pending` trên `DisciplineController`. List plan Ready/InProgress có `InvalidationRule.CheckDate ≤ today + 2` (VN local) HOẶC `ExpectedReviewDate ≤ today` mà chưa triggered. Exclude: Draft, Cancelled/Reviewed (repo tier), LegacyExempt, rule đã triggered. Sort DESC theo `DaysOverdue` → urgent nhất lên đầu. Dùng `GetActiveByUserIdAsync` (DB filter) + `TimeZoneInfo` VN (UTC+7) cho day-granularity comparison.
+- **Page FE:** `/pending-reviews` standalone component — card với urgency color (amber 0-2 ngày, red ≥ 3 ngày), badge reason (trigger type "KQKD lệch" / "Gãy trend kỹ thuật" / "Tin tức đột biến" / "Quá hạn" / "Tự nhận xét" + "Review định kỳ"), "Mở plan →" link `/trade-plan?loadPlan={id}`.
+- **Dashboard widget link:** "🔔 [count] Plan cần review lý do đầu tư →" trong Discipline widget footer; widget ẩn khi `totalPlans === 0` hoặc lỗi.
+- **Locale vi-VN:** `main.ts` đăng ký `localeVi`/`localeViExtra` + `LOCALE_ID = 'vi-VN'` provider → DatePipe/CurrencyPipe tự format kiểu VN; 1 chỗ `'yyyy-MM-dd'` legacy đổi sang `'dd/MM/yyyy'`. `<input type="date">` vẫn theo OS locale (không Angular-controllable).
+- **Việt hóa:** "Thesis" → "Lý do đầu tư" xuyên suốt UI (widget, form, page, modal). Giữ TypeScript identifier (`thesis` property, `ThesisTimeout` enum, route) không đổi.
+- **10 handler tests mới** (total 146 Application tests). **Timezone fix** đã xử bug VN UTC+7 off-by-one mà 3-agent review phát hiện (dùng `TimeZoneInfo.ConvertTimeFromUtc` + day granularity).
+
+### V2.2+ Roadmap (deferred sau trial window 1-2 tuần)
+
+- **V2.2:** `ThesisReviewService` hosted cron daily 07:00 Asia/Ho_Chi_Minh → tạo `AlertHistory` hoặc Notification cho plan due. User mở app thấy nudge mà không cần tự check `/pending-reviews`.
+- **V2.3:** `TradePlanThesisInvalidatedEvent` handler → P7 BehavioralPattern (`DisciplinedAbort` pattern khi user abort đúng trigger EarningsMiss/TrendBreak, `SunkCostHold` khi plan lỗ sâu mà không abort).
+- **V3 (drill-down):** `/discipline-report` với cost-of-violations (Tradervue-inspired: "Nới SL underwater làm mất -X triệu trong 30 ngày"), period-over-period compare.
+- **V4:** Core/Satellite portfolio-level (`Portfolio.CoreTargetPercent` default 70%) + size-based gate extension.
+- **V5:** Drawdown escalation ladder (5% / 15% / 30% → force modal review thesis).
+
+### UX polish backlog (từ 3-agent review PR #94, user chưa chốt)
+
+- Pending reviews card inline action "Vẫn giữ (reset review date)" / "Cắt ngay" (modal abort in-place) thay vì điều hướng `/trade-plan`
+- Form "Kỷ luật mua" accordion trên mobile (3 section stack quá dày trên 360px)
+- Empty state `/pending-reviews` thêm CTA "Tạo plan mới" / "Xem tất cả plan"
+- Portfolio name badge trên card pending-review (khi user có > 1 portfolio)
+- Terminology revisit: "Lý do đầu tư" vs "Luận điểm mua" vs "Cơ sở mua" — agent UX nghĩ "luận điểm" chuẩn hơn để nhắc falsifiable claim, nhưng user chốt "lý do đầu tư" nghe gần hơn retail VN
 
 ---
 
