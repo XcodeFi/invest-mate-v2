@@ -319,6 +319,16 @@ builder.Services.AddAuthentication(options =>
 
     options.CorrelationCookie.SameSite = cookieSameSite;
     options.CorrelationCookie.SecurePolicy = cookieSecurePolicy;
+
+    // Bug B (audit 2026-04-26): without this handler, middleware-level OAuth failures
+    // (correlation cookie missing, state mismatch, token-exchange rejection, etc.)
+    // produce a 500 with no app log because the controller's try-catch never runs.
+    options.Events.OnRemoteFailure = ctx =>
+    {
+        var logger = ctx.HttpContext.RequestServices
+            .GetRequiredService<ILogger<Program>>();
+        return OAuthEventLogger.HandleRemoteFailureAsync(ctx, logger);
+    };
 })
 .AddJwtBearer(options =>
 {
