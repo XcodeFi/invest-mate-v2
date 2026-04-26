@@ -296,6 +296,40 @@ Service `invest-mate-worker` không có image cũ → **không thể redeploy nh
 
 ---
 
+## Step 8 — (Optional) Cron warmup để giảm cold-start
+
+**Bối cảnh** (Bug C audit 2026-04-26): `--min-instances=0` → idle 15' → scale 0 → cold-start 5–10s gây "FE treo" khi user mở dashboard sau giờ nghỉ. Cron warmup ping `/health/live` mỗi ~14' giữ container ấm trong khung giờ làm việc, ngoài giờ chấp nhận cold-start.
+
+**Lưu ý:** thêm job thứ 4 vượt free tier Scheduler (3 jobs) → ~$0.10/tháng.
+
+```bash
+# Use /health/live (not /health) — chỉ trả 200, KHÔNG ping Mongo → không tốn DB connection
+gcloud scheduler jobs create http invest-mate-warmup \
+  --location=$SCHED_REGION \
+  --schedule="*/14 1-8 * * 1-5" --time-zone="UTC" \
+  --uri="${API_URL}/health/live" \
+  --http-method=GET \
+  --attempt-deadline=30s
+```
+
+→ Cron `*/14 1-8 * * 1-5 UTC` = mỗi 14' từ 08:00–15:59 ICT, T2–T6. Tránh đụng `*/15` của prices job (offset 1 phút).
+
+**Verify:**
+```bash
+# Sau ~15 phút, check Scheduler đã chạy
+gcloud scheduler jobs describe invest-mate-warmup --location=$SCHED_REGION \
+  --format='value(lastAttemptTime,state,status.code)'
+
+# Check API log có warmup hits
+gcloud logging read 'resource.type="cloud_run_revision"
+  AND resource.labels.service_name="invest-mate-v2-bkk"
+  AND httpRequest.requestUrl:"/health/live"' --limit=5 --freshness=20m
+```
+
+**Nếu user không complain cold-start nữa, có thể skip step này** — accept cold-start để giữ free tier hoàn toàn.
+
+---
+
 ## Files / References
 
 - ADR gốc: `docs/adr/0001-worker-to-scheduler.md`
