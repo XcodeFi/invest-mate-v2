@@ -182,8 +182,8 @@ Walk through each scenario from Step 4.1:
 - Check MongoDB state if data mutations are involved
 
 **Frontend verification:**
-- Navigate to the affected page(s) in browser
-- Test each scenario interactively
+- If frontend touches user-data flows → invoke `/qa-verify` skill (mints JWT for stable test user, drives browser via chrome-devtools MCP). Reuse the scenario list from Step 4.1; the skill skips its own "servers running" check since 4.2 already started them.
+- For non-user-data UI changes (static pages, public market data) → navigate manually via browser, test each scenario interactively.
 - Verify: form validation, loading states, success/error notifications, data display
 - Check Vietnamese text renders correctly with dấu
 

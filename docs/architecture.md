@@ -203,9 +203,18 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (1019 tests: Domain 661, Application 118, Infrastructure 235, Api 5)
+- **Backend:** xUnit + FluentAssertions + Moq (1019 tests: Domain 661, Application 118, Infrastructure 235+, Api 5)
 - **Frontend:** Karma + Jasmine (configured, tests pending)
 - Run `dotnet test` before commit
+
+### MintStableJwt — AI verify-before-merge tool
+
+`tests/InvestmentApp.Infrastructure.Tests/Tools/MintStableJwtTests.cs` is a self-executing xUnit test that mints a 30-day JWT for a hardcoded allowlisted test email (`investmate.support@gmail.com`). Used by AI to verify user-data-dependent flows on dev + prod when Google login blocks the AI browser.
+
+- Allowlist is hardcoded in `StableJwtMint.ALLOWED_EMAILS` — adding emails requires a PR.
+- Test 3 silently passes if `MINT_*` env vars are unset → CI-safe.
+- Run: `MINT_EMAIL=... MINT_MONGO_CONN=... MINT_MONGO_DB=... MINT_JWT_KEY=... MINT_JWT_ISSUER=... MINT_JWT_AUDIENCE=... dotnet test --filter "FullyQualifiedName~MintStableJwt" --logger "console;verbosity=detailed"`
+- One-time prereq: login Google with the test email once on each environment to seed the user record.
 
 ## Admin Area (Debug Tooling)
 
