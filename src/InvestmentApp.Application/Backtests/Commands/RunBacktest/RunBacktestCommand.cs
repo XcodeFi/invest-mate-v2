@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -17,11 +18,16 @@ public class RunBacktestCommandHandler : IRequestHandler<RunBacktestCommand, str
 {
     private readonly IBacktestRepository _backtestRepository;
     private readonly IStrategyRepository _strategyRepository;
+    private readonly IBacktestQueue _queue;
 
-    public RunBacktestCommandHandler(IBacktestRepository backtestRepository, IStrategyRepository strategyRepository)
+    public RunBacktestCommandHandler(
+        IBacktestRepository backtestRepository,
+        IStrategyRepository strategyRepository,
+        IBacktestQueue queue)
     {
         _backtestRepository = backtestRepository;
         _strategyRepository = strategyRepository;
+        _queue = queue;
     }
 
     public async Task<string> Handle(RunBacktestCommand request, CancellationToken cancellationToken)
@@ -35,6 +41,7 @@ public class RunBacktestCommandHandler : IRequestHandler<RunBacktestCommand, str
             request.StartDate, request.EndDate, request.InitialCapital);
 
         await _backtestRepository.AddAsync(backtest, cancellationToken);
+        await _queue.EnqueueAsync(backtest.Id, cancellationToken);
         return backtest.Id;
     }
 }

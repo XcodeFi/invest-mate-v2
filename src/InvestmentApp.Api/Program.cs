@@ -1,4 +1,5 @@
 using System.Net;
+using InvestmentApp.Api.Auth;
 using InvestmentApp.Api.Controllers;
 using InvestmentApp.Api.Middleware;
 using InvestmentApp.Application.Interfaces;
@@ -150,6 +151,7 @@ builder.Services.AddScoped<ICashFlowAdjustedReturnService, CashFlowAdjustedRetur
 builder.Services.AddScoped<IRiskCalculationService, RiskCalculationService>();
 builder.Services.AddSingleton<IPositionSizingService, PositionSizingService>();
 builder.Services.AddScoped<ICurrencyService, CurrencyService>();
+builder.Services.AddScoped<IPriceSnapshotJobService, PriceSnapshotJobService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBehavioralAnalysisService, BehavioralAnalysisService>();
@@ -249,6 +251,15 @@ builder.Services.AddScoped<InvestmentApp.Application.Discipline.Services.IDiscip
 builder.Services.AddTransient<SeedDataService>();
 builder.Services.AddHostedService<AdminBootstrapHostedService>();
 
+// In-process backtest queue (replaces polling-based BacktestJob in Worker).
+// Singleton registered as both the queue interface (for command handlers to enqueue) and
+// the BackgroundService that drains it.
+builder.Services.AddSingleton<InvestmentApp.Api.Services.BacktestQueueService>();
+builder.Services.AddSingleton<IBacktestQueue>(sp =>
+    sp.GetRequiredService<InvestmentApp.Api.Services.BacktestQueueService>());
+builder.Services.AddHostedService(sp =>
+    sp.GetRequiredService<InvestmentApp.Api.Services.BacktestQueueService>());
+
 // AI Services
 var externalApis = builder.Configuration.GetSection("ExternalApis");
 builder.Services.AddScoped<IAiSettingsRepository, AiSettingsRepository>();
@@ -323,7 +334,12 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
-});
+})
+.AddGcpOidc(builder.Configuration);
+
+// Allowlist for Cloud Scheduler service accounts that can call /internal/jobs/*
+builder.Services.AddSingleton(new SchedulerEmailAllowlist(
+    builder.Configuration["Jobs:AllowedSchedulerSAs"]));
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -335,7 +351,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddGcpSchedulerPolicy());
 
 // Configure Swagger
 builder.Services.AddSwaggerGen(c =>

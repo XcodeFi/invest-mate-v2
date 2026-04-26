@@ -5,7 +5,7 @@
 #
 # Setup:
 #   1. Enable APIs:
-#      gcloud services enable cloudbuild.googleapis.com run.googleapis.com secretmanager.googleapis.com
+#      gcloud services enable cloudbuild.googleapis.com run.googleapis.com secretmanager.googleapis.com cloudscheduler.googleapis.com
 #
 #   2. Tạo secrets trong Secret Manager:
 #      echo -n "mongodb+srv://..." | gcloud secrets create mongo-connection-string --data-file=-
@@ -32,12 +32,24 @@
 #        --repo-owner=XcodeFi \
 #        --branch-pattern="^main$" \
 #        --build-config=cloudbuild.yaml
+#
+#   5. Cron jobs (one-time setup, see docs/plans/done/worker-to-scheduler-migration.md):
+#      Create scheduler service account + grant run.invoker, then:
+#        gcloud scheduler jobs create http invest-mate-prices \
+#          --schedule="*/15 2-7 * * 1-5" --time-zone="UTC" \
+#          --uri="${API_URL}/internal/jobs/prices" --http-method=POST \
+#          --oidc-service-account-email=${SCHEDULER_SA} \
+#          --oidc-token-audience="${API_URL}"
+#      (repeat for snapshot + exchange-rate + scenario-eval)
+#
+#      Then update API env vars with the SA email + audience:
+#        gcloud run services update invest-mate-api --region=${_REGION} \
+#          --update-env-vars=Jobs__AllowedSchedulerSAs=${SCHEDULER_SA},Jobs__ExpectedAudience=${API_URL}
 # ============================================
 
 substitutions:
   _REGION: asia-southeast1
   _API_SERVICE: invest-mate-api
-  _WORKER_SERVICE: invest-mate-worker
   _FRONTEND_SERVICE: invest-mate-frontend
 
 steps:
@@ -57,20 +69,6 @@ steps:
       - 'Dockerfile.api'
       - '.'
     id: 'build-api'
-
-  # ---- Build Worker image ----
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/${_WORKER_SERVICE}:$COMMIT_SHA'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/${_WORKER_SERVICE}:latest'
-      - '-f'
-      - 'Dockerfile.worker'
-      - '.'
-    id: 'build-worker'
-    waitFor: ['-']  # Song song với build-api
 
   # ---- Build Frontend image ----
   - name: 'gcr.io/cloud-builders/docker'
@@ -98,15 +96,6 @@ steps:
     waitFor: ['build-api']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_WORKER_SERVICE}:$COMMIT_SHA']
-    id: 'push-worker'
-    waitFor: ['build-worker']
-
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_WORKER_SERVICE}:latest']
-    waitFor: ['build-worker']
-
-  - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA']
     id: 'push-frontend'
     waitFor: ['build-frontend']
@@ -118,6 +107,10 @@ steps:
   # ========== DEPLOY TO CLOUD RUN ==========
 
   # ---- Deploy API ----
+  # --no-cpu-throttling keeps CPU allocated even between requests so the
+  # in-process BacktestQueueService can drain its channel; still free-tier-friendly
+  # because min-instances=0 and the API only runs while a request is active or a
+  # backtest is being processed.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -132,6 +125,7 @@ steps:
       - '--cpu=1'
       - '--max-instances=10'
       - '--min-instances=0'
+      - '--no-cpu-throttling'
       - '--concurrency=80'
       - '--allow-unauthenticated'
       - '--set-env-vars=ASPNETCORE_ENVIRONMENT=Production'
@@ -144,28 +138,6 @@ steps:
       - '--set-secrets=GoogleOAuth__ClientSecret=google-oauth-client-secret:latest'
     id: 'deploy-api'
     waitFor: ['push-api']
-
-  # ---- Deploy Worker (always-on, no external traffic) ----
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args:
-      - 'run'
-      - 'deploy'
-      - '${_WORKER_SERVICE}'
-      - '--image=gcr.io/$PROJECT_ID/${_WORKER_SERVICE}:$COMMIT_SHA'
-      - '--region=${_REGION}'
-      - '--platform=managed'
-      - '--memory=256Mi'
-      - '--cpu=1'
-      - '--max-instances=1'
-      - '--min-instances=1'
-      - '--no-allow-unauthenticated'
-      - '--no-cpu-throttling'
-      - '--set-env-vars=DOTNET_ENVIRONMENT=Production'
-      - '--set-secrets=ConnectionStrings__MongoDb=mongo-connection-string:latest'
-      - '--set-secrets=MongoDb__DatabaseName=mongo-database-name:latest'
-    id: 'deploy-worker'
-    waitFor: ['push-worker']
 
   # ---- Deploy Frontend ----
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -190,8 +162,6 @@ steps:
 images:
   - 'gcr.io/$PROJECT_ID/${_API_SERVICE}:$COMMIT_SHA'
   - 'gcr.io/$PROJECT_ID/${_API_SERVICE}:latest'
-  - 'gcr.io/$PROJECT_ID/${_WORKER_SERVICE}:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/${_WORKER_SERVICE}:latest'
   - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
   - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest'
 

@@ -26,13 +26,13 @@ project/
 │   │   │   └── Tcbs/                   # TCBS fundamental data provider
 │   │   └── Repositories/              # 24 MongoDB repositories (incl. FinancialProfileRepository)
 │   │
-│   ├── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
-│   │   ├── Controllers/               # 27 API controllers (incl. PersonalFinanceController)
-│   │   ├── Authorization/             # RequireAdminAttribute
-│   │   ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception
-│   │   └── Program.cs                 # DI registration, middleware pipeline
-│   │
-│   └── InvestmentApp.Worker/           # Background jobs (snapshots, alerts, scenario evaluation)
+│   └── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
+│       ├── Controllers/               # 28 API controllers (incl. PersonalFinanceController, InternalJobsController)
+│       ├── Auth/                      # SchedulerEmailAllowlist, GcpOidcExtensions (Cloud Scheduler OIDC)
+│       ├── Authorization/             # RequireAdminAttribute
+│       ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception
+│       ├── Services/                  # BacktestQueueService (in-process queue, replaces Worker poll)
+│       └── Program.cs                 # DI registration, middleware pipeline
 │
 ├── frontend/                           # Angular 18 SPA
 │   └── src/app/
@@ -75,8 +75,17 @@ project/
 
 ```
 Domain (zero deps) ← Application ← Infrastructure ← Api
-                                                    ← Worker
 ```
+
+Background jobs that used to live in a separate `InvestmentApp.Worker` Cloud Run service
+are now **in-process** in the API:
+
+- **Snapshot / prices / exchange-rate / scenario-eval** → triggered externally by Cloud
+  Scheduler hitting `/internal/jobs/*` (OIDC-authenticated, see ADR-0001).
+- **BacktestQueueService** → singleton `BackgroundService` that drains an in-memory
+  `Channel<string>` queue. `RunBacktestCommandHandler` enqueues the id after persist;
+  the loop runs `BacktestEngine` in a fresh DI scope. Recovers `Pending` backtests on
+  startup so a Cloud Run scale-down doesn't lose work.
 
 ## Key Entities (Domain Layer)
 
@@ -120,7 +129,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | VietstockEventProvider | Crawl news + corporate events from Vietstock API (CSRF token flow) | HttpClient |
 | DisciplineScoreCalculator | **Vin-discipline widget backend (2026-04-23)** — tính điểm kỷ luật thesis hybrid: SL-Integrity 50% + Plan Quality 30% + Review Timeliness 20%. Stop-Honor Rate primitive (trades lỗ đã đóng với exitPrice ≥ plannedSL / tổng lỗ). Null-safe re-normalize khi sub-metric thiếu denominator. Multi-lot per-lot matching theo `TradeIds`. Cache 5 phút, invalidate on `TradeClosedEvent`/`PlanReviewedEvent`/`TradePlanThesisInvalidatedEvent` | ITradePlanRepository, ITradeRepository, IMemoryCache |
 
-## API Endpoints (27 Controllers)
+## API Endpoints (28 Controllers)
 
 | Controller | Base Route | Key Operations |
 |-----------|-----------|----------------|
@@ -152,6 +161,7 @@ Domain (zero deps) ← Application ← Infrastructure ← Api
 | MarketEvents | `/api/v1/market-events` | CRUD market events per symbol, crawl from Vietstock |
 | Admin | `/api/v1/admin` | **Impersonation (debug tooling)**: start/stop user impersonation. Restricted via `[RequireAdmin]` (role=Admin + no `amr=impersonate`). Mutation blocked during impersonation unless `Admin:AllowImpersonateMutations=true`. |
 | PersonalFinance | `/api/v1/personal-finance` | **Net worth tracking (Tier 3)**: GET `/` (profile, 404 if absent) + GET `/summary` (net worth + health score 0-100 + 4 rule checks + debts + `HasHighInterestConsumerDebt` flag) + GET `/gold-prices` (live from 24hmoney, cached 5 min) + PUT `/` (upsert profile) + PUT `/accounts` + DELETE `/accounts/{id}` (bảo vệ last Securities) + **PUT `/debts` (upsert debt)** + **DELETE `/debts/{id}` (reject nếu Principal > 0)** |
+| InternalJobs | `/internal/jobs` | **Cloud Scheduler triggers (ADR-0001, 2026-04-26)**: POST `/snapshot` (TakeAllSnapshotsAsync) + POST `/prices` (PriceSnapshotJobService — fetch prices, refresh indices, check stop-loss/target) + POST `/exchange-rate` (RefreshRatesAsync) + POST `/scenario-eval` (EvaluateAllAsync). Auth: `[Authorize(Scheme=GcpOidc, Policy=GcpScheduler)]` — Google-issued OIDC ID token, email_verified=true, email ∈ `Jobs:AllowedSchedulerSAs` allowlist. Idempotent. |
 
 ## Health Endpoints (Minimal API, unauthenticated)
 
