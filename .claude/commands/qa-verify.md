@@ -84,8 +84,8 @@ Open Chrome via `mcp__chrome-devtools__new_page` to target URL (dev: `http://loc
   const jwt = "<minted JWT>";
   const user = {
     id: "<sub from JWT>",
-    email: "phdfieldkidpro@gmail.com",
-    name: "Phạm Văn Trường",
+    email: "investmate.support@gmail.com",
+    name: "no reply invest-mate",
     provider: "google",
     createdAt: "<from DB CreatedAt — query if needed>"
   };
