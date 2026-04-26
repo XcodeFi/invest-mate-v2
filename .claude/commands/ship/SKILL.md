@@ -93,7 +93,30 @@ Check `docs/plans/` for existing related plans (ignore `docs/plans/done/` — th
    - **Where**: Files to create/modify (by layer)
    - **Tests**: What tests and where
    - **Risks**: Potential issues
-3. Wait for user confirmation.
+   - **ADR needed?**: Yes/No + why (see Step 1.3)
+4. Wait for user confirmation.
+
+### Step 1.3 — ADR Gate
+
+Decide whether this change needs an Architectural Decision Record (`docs/adr/`). Answer **Yes** if ANY trigger below applies:
+
+| Trigger | Example |
+|---|---|
+| Touches ≥ 2 layers with new contract | Domain event added → Application handler + Api endpoint + Frontend consumer |
+| Schema / migration change | New MongoDB field, rename, index, enum value |
+| Public API shape changes | New endpoint, changed response body, breaking DTO change |
+| Goes against an existing convention | Using something other than `UppercaseDirective` for symbol input |
+| Non-trivial trade-off between ≥ 2 options | "Signal vs RxJS for this store", "cron vs event-driven" |
+| User explicitly asks "why X over Y" | Any time the planning discussion lists alternatives |
+
+If **Yes**:
+1. Read `docs/adr/README.md` + `docs/adr/template.md` (once per session).
+2. Find next ADR number: `ls docs/adr/` → highest `NNNN` + 1.
+3. Draft the ADR file (`docs/adr/NNNN-kebab-title.md`) using the template BEFORE coding — status `Proposed`.
+4. Present the draft to user alongside the plan in Step 1.2 for approval.
+5. After user approves, flip status to `Accepted`.
+
+If **No** → skip ADR and proceed. Note in the plan file: "ADR: not required — {one-line reason}".
 
 ---
 
@@ -224,6 +247,7 @@ Run `git diff --name-only` against base branch, then update ALL that match:
 | Bug pattern, improvement item, UX/arch decision | `docs/project-context.md` |
 | Convention, directive, pipe | `CLAUDE.md` |
 | User-facing feature added/changed | Relevant guide in `frontend/src/assets/docs/` |
+| Architectural decision made in Phase 1.3 | Flip ADR status `Proposed` → `Accepted`, fill in final `Consequences` + link PR# after creation |
 
 ### Step 5.2 — Archive Plan (if completed)
 

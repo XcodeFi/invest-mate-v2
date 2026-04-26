@@ -6,7 +6,8 @@
 2. **Nghiệp vụ & Entity map:** [`docs/business-domain.md`](docs/business-domain.md) — entity relationships, business rules, external APIs.
 3. **Project context & decisions:** [`docs/project-context.md`](docs/project-context.md) — goals, UX decisions, improvement plan, known pitfalls.
 4. **Tính năng theo phase:** [`docs/features.md`](docs/features.md)
-5. **Coding patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+5. **Architectural Decision Records:** [`docs/adr/`](docs/adr/) — các quyết định quan trọng (why X over Y). Đọc [README](docs/adr/README.md) trước khi tra/viết ADR.
+6. **Coding patterns:** [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
 
 ## Vietnamese Text (UI)
 
@@ -59,3 +60,4 @@
 
 - **Cập nhật architecture** — thêm/xóa service, controller, repository, feature page, shared component, external integration → update [`docs/architecture.md`](docs/architecture.md)
 - **Cập nhật project context** — phát hiện bug pattern mới, hoàn thành improvement plan item, quyết định UX/architecture quan trọng → update [`docs/project-context.md`](docs/project-context.md)
+- **Viết ADR cho quyết định quan trọng** — đổi schema, đổi contract cross-layer, đi ngược convention, có trade-off giữa ≥ 2 option → tạo file trong [`docs/adr/`](docs/adr/) theo [template](docs/adr/template.md). Chi tiết trigger xem [`docs/adr/README.md`](docs/adr/README.md). Skill `/ship` sẽ tự prompt ở Phase 1.3.
