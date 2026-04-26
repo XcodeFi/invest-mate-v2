@@ -1,50 +1,50 @@
-# ADR-NNNN — {Tiêu đề ngắn, dạng quyết định}
+# ADR-NNNN — {Short title, phrased as a decision}
 
 - **Status:** Proposed | Accepted | Superseded by ADR-NNNN | Deprecated
 - **Date:** YYYY-MM-DD
-- **Related plan:** `docs/plans/xxx.md` (nếu có) — để trống nếu decision không gắn plan cụ thể
-- **Affected layers:** Domain / Application / Infrastructure / Api / Frontend / Infra-external (chọn các mục áp dụng)
+- **Related plan:** `docs/plans/xxx.md` (if any) — leave blank if the decision isn't tied to a specific plan
+- **Affected layers:** Domain / Application / Infrastructure / Api / Frontend / Infra-external (pick the ones that apply)
 
 ## Context
 
-Bối cảnh và vấn đề cần giải quyết. 3-6 câu. Trả lời:
+The background and the problem this decision addresses. 3–6 sentences. Answer:
 
-- Đang gặp vấn đề gì? Trigger nào dẫn tới decision này?
-- Ràng buộc (technical / business / timeline) liên quan?
-- Nếu supersede ADR cũ: ghi rõ `Supersedes ADR-NNNN` và lý do đổi.
+- What problem are we facing? What triggered this decision?
+- What constraints (technical / business / timeline) are relevant?
+- If this supersedes an older ADR: write `Supersedes ADR-NNNN` and explain why we're changing.
 
 ## Options Considered
 
-Liệt kê **ít nhất 2 option**. Nếu chỉ có 1 option khả thi → có lẽ không cần ADR, chỉ cần commit message.
+List **at least 2 options**. If there's only one viable option → you probably don't need an ADR, just a commit message.
 
-### Option A — {Tên ngắn}
-
-- **Pros:**
-  - …
-- **Cons:**
-  - …
-
-### Option B — {Tên ngắn}
+### Option A — {Short name}
 
 - **Pros:**
   - …
 - **Cons:**
   - …
 
-### Option C — {Tên ngắn} (nếu có)
+### Option B — {Short name}
+
+- **Pros:**
+  - …
+- **Cons:**
+  - …
+
+### Option C — {Short name} (if applicable)
 
 - **Pros:** …
 - **Cons:** …
 
 ## Decision
 
-**Chọn Option {A/B/C}.**
+**We choose Option {A/B/C}.**
 
-Giải thích ngắn gọn (2-4 câu) **tại sao option này thắng** — trade-off quan trọng nhất đã chấp nhận là gì.
+Briefly (2–4 sentences) explain **why this option wins** — the most important trade-off we accepted.
 
 ## Consequences
 
-Hệ quả của quyết định — cả tích cực lẫn tiêu cực. Liệt kê thẳng thắn.
+The consequences of the decision — both positive and negative. Be honest.
 
 **Positive:**
 
@@ -54,14 +54,14 @@ Hệ quả của quyết định — cả tích cực lẫn tiêu cực. Liệt 
 
 - …
 
-**Follow-ups (nếu có):**
+**Follow-ups (if any):**
 
-- Migration cần chạy: …
-- Tests phải bổ sung: …
-- Docs cần update: …
+- Migration to run: …
+- Tests to add: …
+- Docs to update: …
 
 ## References
 
 - Plan: `docs/plans/xxx.md`
-- PR: #XX (điền sau khi merge)
-- External: link tài liệu / benchmark / discussion liên quan (nếu có)
+- PR: #XX (fill in after merge)
+- External: links to relevant docs / benchmarks / discussions (if any)

@@ -1,56 +1,56 @@
 # Architectural Decision Records (ADR)
 
-Ghi lại các **quyết định quan trọng** đã chốt trong quá trình phát triển Invest Mate v2. Mục đích: 6 tháng sau vẫn tra được **"tại sao chọn A thay vì B"**, không phải "đã làm gì" (git log lo phần đó).
+Records the **significant decisions** made while building Invest Mate v2. Goal: six months from now, anyone can still answer **"why did we choose A over B?"** — not "what did we change" (that's what `git log` is for).
 
-## Khi nào viết ADR
+## When to write an ADR
 
-Viết ADR khi quyết định **thỏa ÍT NHẤT 1** trong các điều kiện sau:
+Write an ADR when the decision meets **at least one** of the following:
 
-1. **Ảnh hưởng ≥ 2 layer** (VD: thay đổi contract giữa Domain ↔ Application, hoặc backend contract đổi buộc frontend đổi theo).
-2. **Khó revert** — migration dữ liệu, đổi schema DB, đổi public API shape, đổi convention toàn project.
-3. **Có trade-off rõ ràng giữa các option** — "A nhanh hơn nhưng B dễ maintain hơn" → record lý do chọn.
-4. **Đi ngược với default/convention hiện tại** — VD: dùng camelCase ở chỗ project đang dùng PascalCase.
-5. **Decision sẽ bị hỏi lại** — "tại sao không dùng thư viện X?", "tại sao field này nullable?".
+1. **Affects ≥ 2 layers** (e.g. a contract change between Domain ↔ Application, or a backend contract change that forces the frontend to follow).
+2. **Hard to reverse** — data migration, DB schema change, public API shape change, or a project-wide convention change.
+3. **Has a clear trade-off between options** — "A is faster but B is easier to maintain" → record why we picked one.
+4. **Goes against the existing default/convention** — e.g. using camelCase somewhere the project is using PascalCase.
+5. **The decision will be questioned later** — "why didn't we use library X?", "why is this field nullable?".
 
-## Khi nào KHÔNG cần ADR
+## When you don't need an ADR
 
-- Bug fix thông thường — commit message là đủ.
-- Thêm field/endpoint không đổi contract hiện tại.
-- Styling, copy, format — docs thường đã cover.
-- Quyết định trivial (đặt tên biến, chọn lib utility nhỏ).
+- Routine bug fixes — the commit message is enough.
+- Adding a field/endpoint without changing the existing contract.
+- Styling, copy, formatting — usually covered by other docs.
+- Trivial decisions (variable naming, picking a small utility lib).
 
-Ranh giới: *"Liệu 6 tháng sau có ai hỏi tại sao không?"* Có → viết. Không → bỏ qua.
+Rule of thumb: *"Six months from now, will anyone ask why we did this?"* Yes → write it. No → skip.
 
-## Format & quy ước
+## Format & conventions
 
-- **File name:** `NNNN-kebab-case-title.md` — NNNN là số 4 chữ số tăng dần, bắt đầu từ `0001`. VD: `0001-mongodb-pascalcase-fields.md`.
-- **Không xóa ADR cũ** — nếu quyết định sau ghi đè quyết định cũ:
-  - ADR cũ → sửa `Status: Superseded by ADR-NNNN`, không xóa nội dung.
-  - ADR mới → trong `Context` ghi rõ `Supersedes ADR-NNNN` + lý do.
-- **Ngôn ngữ:** tiếng Việt có dấu (thống nhất với `CLAUDE.md`). Technical term giữ tiếng Anh.
-- **Độ dài mục tiêu:** 1 trang (~50-150 dòng). Dài hơn → tách thành plan trong `docs/plans/`.
-- **Template:** xem [template.md](template.md).
+- **File name:** `NNNN-kebab-case-title.md` — `NNNN` is a 4-digit zero-padded incrementing number starting from `0001`. Example: `0001-mongodb-pascalcase-fields.md`.
+- **Never delete an old ADR** — if a later decision overrides an earlier one:
+  - Old ADR → set `Status: Superseded by ADR-NNNN`, but keep the content.
+  - New ADR → in `Context`, write `Supersedes ADR-NNNN` and explain why.
+- **Language:** English. Keep technical terms as-is.
+- **Target length:** about one page (~50–150 lines). Longer than that → split into a plan under `docs/plans/`.
+- **Template:** see [template.md](template.md).
 
-## Trạng thái (Status)
+## Status field
 
-| Status | Ý nghĩa |
+| Status | Meaning |
 |---|---|
-| `Proposed` | Đang thảo luận, chưa chốt |
-| `Accepted` | Đã chốt và implement |
-| `Superseded by ADR-NNNN` | Bị thay thế bởi ADR khác |
-| `Deprecated` | Không còn áp dụng nhưng không có ADR thay thế (VD: tính năng đã gỡ) |
+| `Proposed` | Under discussion, not yet decided |
+| `Accepted` | Decided and implemented |
+| `Superseded by ADR-NNNN` | Replaced by a later ADR |
+| `Deprecated` | No longer applies, with no replacement (e.g. the feature was removed) |
 
-## Relationship với các artifact khác
+## Relationship to other artifacts
 
-| Artifact | Mục đích | Khi dùng |
+| Artifact | Purpose | When to use |
 |---|---|---|
-| `docs/plans/*.md` | **PRD + TDD hybrid** — what/why feature, how implement | Mỗi feature mới |
-| `docs/adr/NNNN-*.md` | **ADR** — why chose X over Y | Khi có quyết định quan trọng (điều kiện ở trên) |
-| `docs/architecture.md` | **Snapshot hiện tại** — codebase map | Update khi đổi structure |
-| `git log` + commit msg | **What changed** | Mỗi commit |
+| `docs/plans/*.md` | **PRD + TDD hybrid** — what/why a feature, how to implement | Each new feature |
+| `docs/adr/NNNN-*.md` | **ADR** — why we chose X over Y | When a significant decision is made (see triggers above) |
+| `docs/architecture.md` | **Current snapshot** — codebase map | Update whenever the structure changes |
+| `git log` + commit message | **What changed** | Every commit |
 
-Một plan có thể **sinh ra 0, 1 hoặc nhiều ADR**. Plan mô tả feature; ADR mô tả decision.
+A single plan can produce **0, 1, or many ADRs**. Plans describe features; ADRs describe decisions.
 
-## Workflow trong `/ship` skill
+## Workflow inside the `/ship` skill
 
-Skill `/ship` sẽ **prompt tự động** khi phát hiện plan có trigger (đổi schema, đổi contract, có từ "chọn X thay Y", v.v.). Xem chi tiết tại `.claude/commands/ship/SKILL.md`.
+The `/ship` skill **prompts automatically** when the plan looks like it has an ADR trigger (schema change, contract change, "choose X over Y" wording, etc.). See `.claude/commands/ship/SKILL.md` for details.
