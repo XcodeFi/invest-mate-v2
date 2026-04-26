@@ -2,6 +2,29 @@
 
 ---
 
+## [v2.53.0] — 2026-04-26 · Worker → Cloud Scheduler migration (free-tier friendly)
+
+### Hạ tầng (không có thay đổi UI)
+
+**Mục tiêu:** đưa workload background của app vào diện free tier Cloud Run sau khi `invest-mate-worker` always-on burns ~2,6M vCPU-seconds/tháng (vượt 360K free tier ~7×).
+
+**Thay đổi chính:**
+- ❌ **Xoá hẳn** service `invest-mate-worker` khỏi codebase (`src/InvestmentApp.Worker/`, `Dockerfile.worker`, `cloudbuild.yaml` worker steps).
+- ✅ **API endpoints mới** `/internal/jobs/{prices,snapshot,exchange-rate,scenario-eval}` (controller `InternalJobsController`) trigger từ Cloud Scheduler qua OIDC ID token.
+- ✅ **Auth scheme `GcpOidc`** + policy `GcpScheduler` (validate Google issuer/audience, email_verified=true, email ∈ `Jobs:AllowedSchedulerSAs` allowlist) — fail-closed nếu env var rỗng.
+- ✅ **`BacktestQueueService`** singleton in-process queue trong API (thay polling `BacktestJob`); recover Pending backtests on startup → không mất việc khi Cloud Run scale-down giữa chừng.
+- ✅ Logic `PriceSnapshotJob` extract sang `IPriceSnapshotJobService` (Infrastructure) — testable, reusable từ controller.
+
+**Tests mới:** 8 PriceSnapshotJobService + 8 SchedulerEmailAllowlist + 4 InternalJobsController + 3 BacktestQueueService = **23 tests mới**.
+
+**Deploy steps cuối (manual gcloud, owner thực hiện):** xem [docs/plans/done/worker-to-scheduler-migration.md](../../../docs/plans/done/worker-to-scheduler-migration.md) Phase 5 — tạo scheduler service account, 3 cron jobs, set `Jobs__AllowedSchedulerSAs` + `Jobs__ExpectedAudience` env vars trên API.
+
+**Kết quả mong đợi:** Cloud Run cost từ overrun ~$X/tháng → $0 (in free tier). Không thay đổi UX user-facing.
+
+ADR: [docs/adr/0001-worker-to-scheduler.md](../../../docs/adr/0001-worker-to-scheduler.md)
+
+---
+
 ## [v2.52.0] — 2026-04-24 · So sánh hiệu suất đầu tư với tiết kiệm
 
 ### Tính năng mới
