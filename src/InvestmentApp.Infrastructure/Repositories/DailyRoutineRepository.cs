@@ -12,9 +12,6 @@ public class DailyRoutineRepository : IDailyRoutineRepository
     {
         _collection = database.GetCollection<DailyRoutine>("daily_routines");
 
-        // Drop old unique index if it exists (was created with Unique=true, incompatible with soft-delete)
-        try { _collection.Indexes.DropOne("UserId_1_Date_1"); } catch { /* already gone */ }
-
         // Compound index for fast lookup by user + date (uniqueness enforced in application layer)
         var compoundIndex = Builders<DailyRoutine>.IndexKeys.Combine(
             Builders<DailyRoutine>.IndexKeys.Ascending(r => r.UserId),
