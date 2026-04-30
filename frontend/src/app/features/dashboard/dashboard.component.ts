@@ -228,7 +228,7 @@ interface RiskAlert {
             </div>
             <!-- Show next uncompleted items (max 3) -->
             <div class="space-y-1.5">
-              <div *ngFor="let item of getNextRoutineItems()" class="flex items-center gap-2">
+              <div *ngFor="let item of nextRoutineItems; trackBy: trackByRoutineIndex" class="flex items-center gap-2">
                 <button (click)="toggleRoutineItem(item)"
                   class="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all"
                   [class.bg-emerald-500]="item.isCompleted" [class.border-emerald-500]="item.isCompleted"
@@ -941,7 +941,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   qtRiskProfile: RiskProfile | null = null;
 
   // ─── Daily Routine Widget ──────────────────────────────────────────────────
-  todayRoutine: DailyRoutine | null = null;
+  // nextRoutineItems cached so the template *ngFor doesn't rebuild the array
+  // each change-detection pass — same anti-pattern as discipline-widget freeze fix.
+  nextRoutineItems: any[] = [];
+  private _todayRoutine: DailyRoutine | null = null;
+  get todayRoutine(): DailyRoutine | null { return this._todayRoutine; }
+  set todayRoutine(v: DailyRoutine | null) {
+    this._todayRoutine = v;
+    this.nextRoutineItems = this.computeNextRoutineItems(v);
+  }
   suggestedRoutineTemplate: RoutineTemplate | null = null;
 
   // ─── Watchlist Widget ──────────────────────────────────────────────────
@@ -1080,13 +1088,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  getNextRoutineItems(): any[] {
-    if (!this.todayRoutine) return [];
+  private computeNextRoutineItems(routine: DailyRoutine | null): any[] {
+    if (!routine) return [];
     // Show up to 4 items: first uncompleted from each group, then fill remaining
-    const uncompleted = this.todayRoutine.items.filter(i => !i.isCompleted);
-    const completed = this.todayRoutine.items.filter(i => i.isCompleted).slice(-1);
+    const uncompleted = routine.items.filter(i => !i.isCompleted);
+    const completed = routine.items.filter(i => i.isCompleted).slice(-1);
     return [...uncompleted.slice(0, 3), ...completed].slice(0, 4);
   }
+
+  trackByRoutineIndex(_: number, item: any): number { return item?.index ?? _; }
 
   toggleRoutineItem(item: any): void {
     if (!this.todayRoutine) return;

@@ -2854,11 +2854,25 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     return Math.floor(this.optimalShares / 100);
   }
 
+  // Cache filtered checklist by category. Cleared when checklist mutates so the
+  // *ngFor / @for in the template gets a stable array reference per CD pass.
+  private _checklistByCategoryCache = new Map<string, ChecklistItem[]>();
+
   getChecklistByCategory(cat: string): ChecklistItem[] {
-    return this.plan.checklist.filter(c => c.category === cat);
+    let cached = this._checklistByCategoryCache.get(cat);
+    if (!cached) {
+      cached = this.plan.checklist.filter(c => c.category === cat);
+      this._checklistByCategoryCache.set(cat, cached);
+    }
+    return cached;
+  }
+
+  private invalidateChecklistCache(): void {
+    this._checklistByCategoryCache.clear();
   }
 
   updateChecklistScore(): void {
+    this.invalidateChecklistCache();
     const totalWeight = this.plan.checklist.reduce((sum, c) => sum + (c.weight || 1), 0);
     const checkedWeight = this.plan.checklist.filter(c => c.checked).reduce((sum, c) => sum + (c.weight || 1), 0);
     this.checklistScore = totalWeight > 0 ? Math.round((checkedWeight / totalWeight) * 100) : 0;
@@ -3599,7 +3613,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   loadScenarioPresets(): void {
     if (this.scenarioPresets.length > 0) return;
     this.tradePlanService.getScenarioTemplates().subscribe({
-      next: (presets) => this.scenarioPresets = presets,
+      next: (presets) => { this.scenarioPresets = presets; this.refreshPresetSplit(); },
       error: () => this.notification.error('Lỗi', 'Không thể tải mẫu kịch bản')
     });
   }
@@ -3622,12 +3636,15 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     return this._cachedRootNodes;
   }
 
-  getScenarioChildNodes(parentId: string): ScenarioNodeForm[] {
-    return this._cachedChildMap.get(parentId) || [];
+  private static readonly EMPTY_SCENARIO_NODES: ReadonlyArray<ScenarioNodeForm> = [];
+
+  getScenarioChildNodes(parentId: string): ReadonlyArray<ScenarioNodeForm> {
+    return this._cachedChildMap.get(parentId) ?? TradePlanComponent.EMPTY_SCENARIO_NODES;
   }
 
   hasScenarioChildren(nodeId: string): boolean {
-    return (this._cachedChildMap.get(nodeId) || []).length > 0;
+    const arr = this._cachedChildMap.get(nodeId);
+    return !!arr && arr.length > 0;
   }
 
   toggleScenarioCollapse(nodeId: string): void {
@@ -3692,12 +3709,22 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.notification.success('Kịch bản', `Đã áp dụng mẫu "${preset.nameVi}"`);
   }
 
+  // Cached so the *ngFor in the template doesn't allocate a fresh filtered
+  // array each change-detection pass.
+  systemPresets: ScenarioPreset[] = [];
+  userPresets: ScenarioPreset[] = [];
+
+  private refreshPresetSplit(): void {
+    this.systemPresets = this.scenarioPresets.filter(p => p.isPreset);
+    this.userPresets = this.scenarioPresets.filter(p => !p.isPreset);
+  }
+
   getSystemPresets(): ScenarioPreset[] {
-    return this.scenarioPresets.filter(p => p.isPreset);
+    return this.systemPresets;
   }
 
   getUserPresets(): ScenarioPreset[] {
-    return this.scenarioPresets.filter(p => !p.isPreset);
+    return this.userPresets;
   }
 
   isPresetSelected(): boolean {
@@ -3728,6 +3755,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           nodes: payload,
           isPreset: false
         });
+        this.refreshPresetSplit();
         this.savingScenarioTemplate = false;
         this.showSaveScenarioTemplate = false;
         this.newScenarioTemplateName = '';
@@ -3746,6 +3774,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.tradePlanService.deleteScenarioTemplate(id).subscribe({
       next: () => {
         this.scenarioPresets = this.scenarioPresets.filter(p => p.id !== id);
+        this.refreshPresetSplit();
         if (this.selectedPresetId === id) this.selectedPresetId = '';
         this.notification.success('Mẫu kịch bản', 'Đã xoá mẫu');
       },
