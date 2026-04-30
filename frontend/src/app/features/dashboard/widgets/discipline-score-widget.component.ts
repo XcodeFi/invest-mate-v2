@@ -53,7 +53,7 @@ import {
 
         <!-- Sub-bars: 3 components -->
         <div class="space-y-2 mb-3">
-          <div *ngFor="let c of componentBars()" class="flex items-center gap-2 text-xs">
+          <div *ngFor="let c of bars; trackBy: trackByLabel" class="flex items-center gap-2 text-xs">
             <span class="w-36 text-gray-600 truncate" [title]="'Trọng số ' + c.weight + '%'">
               {{ c.label }}
             </span>
@@ -124,6 +124,11 @@ export class DisciplineScoreWidgetComponent implements OnInit {
   loading = false;
   error: string | null = null;
 
+  // Pre-computed bars to avoid returning a fresh array on every change-detection
+  // cycle (which froze Dashboard for users with multiple portfolios — the new
+  // array reference + many concurrent subscriptions saturated Angular CD).
+  bars: ReadonlyArray<{ label: string; value: number | null; weight: number }> = [];
+
   ngOnInit(): void {
     this.load();
     this.loadPendingCount();
@@ -148,6 +153,7 @@ export class DisciplineScoreWidgetComponent implements OnInit {
     this.disciplineService.getScore(this.days).subscribe({
       next: (s) => {
         this.score = s;
+        this.bars = this.buildBars(s);
         this.loading = false;
       },
       error: (err) => {
@@ -157,6 +163,17 @@ export class DisciplineScoreWidgetComponent implements OnInit {
       },
     });
   }
+
+  private buildBars(s: DisciplineScoreDto): ReadonlyArray<{ label: string; value: number | null; weight: number }> {
+    const c = s?.components;
+    return [
+      { label: 'Giữ SL đúng kế hoạch', value: c?.slIntegrity ?? null, weight: 50 },
+      { label: 'Plan đủ kỷ luật', value: c?.planQuality ?? null, weight: 30 },
+      { label: 'Review lý do đầu tư đúng hạn', value: c?.reviewTimeliness ?? null, weight: 20 },
+    ];
+  }
+
+  trackByLabel(_: number, c: { label: string }): string { return c.label; }
 
   /**
    * Ẩn widget khi chưa có dữ liệu:
@@ -188,14 +205,6 @@ export class DisciplineScoreWidgetComponent implements OnInit {
     return '🔴';
   }
 
-  componentBars() {
-    const c = this.score?.components;
-    return [
-      { label: 'Giữ SL đúng kế hoạch', value: c?.slIntegrity ?? null, weight: 50 },
-      { label: 'Plan đủ kỷ luật', value: c?.planQuality ?? null, weight: 30 },
-      { label: 'Review lý do đầu tư đúng hạn', value: c?.reviewTimeliness ?? null, weight: 20 },
-    ];
-  }
 
   componentBarColor(v: number | null): string {
     if (v === null) return 'bg-gray-300';

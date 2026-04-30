@@ -366,7 +366,7 @@ export class TradesComponent implements OnInit {
     }
     this.loadTrades();
     this.tradePlanService.getAll().subscribe({
-      next: (plans) => this.allPlans = plans,
+      next: (plans) => { this.allPlans = plans; this.refreshPlansBySymbol(); },
       error: () => {}
     });
   }
@@ -499,10 +499,24 @@ export class TradesComponent implements OnInit {
     this.linkingTradeId = trade.id;
   }
 
+  // Pre-grouped by uppercase symbol so the *ngFor in the trades table doesn't
+  // re-filter `allPlans` on every change-detection pass (with N trades × M plans
+  // this becomes O(N·M) per CD and was a freeze-class performance hazard).
+  private plansBySymbol = new Map<string, TradePlan[]>();
+  private static readonly EMPTY_PLANS: TradePlan[] = [];
+
+  private refreshPlansBySymbol(): void {
+    const next = new Map<string, TradePlan[]>();
+    for (const p of this.allPlans) {
+      const key = p.symbol.toUpperCase();
+      const arr = next.get(key);
+      if (arr) arr.push(p); else next.set(key, [p]);
+    }
+    this.plansBySymbol = next;
+  }
+
   getMatchingPlans(symbol: string): TradePlan[] {
-    return this.allPlans.filter(p =>
-      p.symbol.toUpperCase() === symbol.toUpperCase()
-    );
+    return this.plansBySymbol.get(symbol.toUpperCase()) ?? TradesComponent.EMPTY_PLANS;
   }
 
   linkTradeToPlan(trade: TradeResponseItem, plan: TradePlan): void {

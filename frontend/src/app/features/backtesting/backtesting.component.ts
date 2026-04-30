@@ -187,7 +187,7 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/t
           <div *ngIf="detailTab === 'equity' && selectedDetail.result">
             <div class="overflow-x-auto">
               <div class="min-w-[600px] h-64 flex items-end gap-px bg-gray-50 rounded-lg p-4">
-                <div *ngFor="let point of getChartPoints()" class="flex-1 flex flex-col items-center justify-end">
+                <div *ngFor="let point of chartPoints; trackBy: trackByIndex" class="flex-1 flex flex-col items-center justify-end">
                   <div class="w-full rounded-t"
                     [style.height.%]="point.heightPercent"
                     [class.bg-green-400]="point.return >= 0"
@@ -298,7 +298,16 @@ export class BacktestingComponent implements OnInit {
 
   backtests: BacktestSummary[] = [];
   strategies: Strategy[] = [];
-  selectedDetail: BacktestDetail | null = null;
+  // Chart points cached so the *ngFor in the template doesn't re-derive them on
+  // every change-detection pass — avoids the same CD-storm class as the
+  // discipline-widget freeze fix.
+  chartPoints: ReadonlyArray<{ heightPercent: number; return: number }> = [];
+  private _selectedDetail: BacktestDetail | null = null;
+  get selectedDetail(): BacktestDetail | null { return this._selectedDetail; }
+  set selectedDetail(v: BacktestDetail | null) {
+    this._selectedDetail = v;
+    this.chartPoints = this.computeChartPoints(v);
+  }
   loading = false;
   running = false;
   showRunForm = false;
@@ -414,9 +423,11 @@ export class BacktestingComponent implements OnInit {
     return map[status] || status;
   }
 
-  getChartPoints(): { heightPercent: number; return: number }[] {
-    if (!this.selectedDetail?.result?.equityCurve?.length) return [];
-    const curve = this.selectedDetail.result.equityCurve;
+  trackByIndex(i: number): number { return i; }
+
+  private computeChartPoints(detail: BacktestDetail | null): { heightPercent: number; return: number }[] {
+    if (!detail?.result?.equityCurve?.length) return [];
+    const curve = detail.result.equityCurve;
     const values = curve.map(p => p.portfolioValue);
     const min = Math.min(...values);
     const max = Math.max(...values);

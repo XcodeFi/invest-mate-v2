@@ -1504,6 +1504,16 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
       }));
 
     this.topEmotion = this.emotionDistribution.length > 0 ? this.emotionDistribution[0].label : '';
+
+    // Pre-compute distribution array per trend so the template *ngFor doesn't
+    // allocate a fresh sorted array on every change-detection pass.
+    const trends = this.timeline.emotionSummary.trends;
+    if (Array.isArray(trends)) {
+      for (const t of trends) {
+        (t as any)._distributionArray = this.computeTrendDistribution(t);
+      }
+    }
+
     this.computeCorrelationInsight();
     this.computeTrendInsight();
   }
@@ -1546,9 +1556,18 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
     this.trendInsight = parts.length > 0 ? `Xu hướng: ${parts.join(' · ')}` : '';
   }
 
-  // P7.6: Convert trend distribution to array for stacked bar
-  getTrendDistribution(trend: any): { label: string; count: number; percent: number }[] {
-    if (!trend.distribution) return [];
+  // P7.6: Convert trend distribution to array for stacked bar.
+  // Returns the trend's pre-computed `_distributionArray` (set during
+  // computeEmotionStats) so the *ngFor in the template gets a stable array
+  // reference per CD pass instead of allocating a fresh sorted array each time.
+  private static readonly EMPTY_TREND_DIST: ReadonlyArray<{ label: string; count: number; percent: number }> = [];
+
+  getTrendDistribution(trend: any): ReadonlyArray<{ label: string; count: number; percent: number }> {
+    return trend?._distributionArray ?? SymbolTimelineComponent.EMPTY_TREND_DIST;
+  }
+
+  private computeTrendDistribution(trend: any): { label: string; count: number; percent: number }[] {
+    if (!trend?.distribution) return [];
     const total = Object.values(trend.distribution as { [k: string]: number }).reduce((s: number, v) => s + (v as number), 0);
     if (total === 0) return [];
     return Object.entries(trend.distribution)
