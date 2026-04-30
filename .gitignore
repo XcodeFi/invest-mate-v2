@@ -497,3 +497,6 @@ frontend/.angular/cache/
 frontend/dist/
 src/InvestmentApp.Api/appsettings.Development.json
 /src/InvestmentApp.Api/appsettings.Development.json
+
+# Claude scratch — qa-verify reports, screenshots, ad-hoc investigation notes
+scratch/

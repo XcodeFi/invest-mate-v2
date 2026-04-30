@@ -13,6 +13,7 @@ Both sub-agents use **sonnet**. Main context verifies critical findings (confide
 
 ## Workflow
 
+0. **Secret scan (HARD GATE)** — see [references/secret-scan.md](references/secret-scan.md). Match → STOP, do not run sub-agents, do not commit.
 1. **Gather context** (inline) — PR state, diff (cap 8K lines), changed files, guidelines
 2. **Parallel review** (2 sub-agents, sonnet) — unified static + historical
 3. **Filter** — deduplicate, remove < 80 confidence
@@ -25,6 +26,7 @@ See [references/review-workflow.md](references/review-workflow.md) for detailed 
 
 ## Quick Start
 
+0. **Secret scan** (see [references/secret-scan.md](references/secret-scan.md)) — match → STOP, surface findings, do not proceed
 1. Get PR details (number, state, diff, changed files)
 2. If PR is closed/draft/trivial/already reviewed → stop and report why
 3. Read `copilot-instructions.md` and `CLAUDE.md` guidelines
