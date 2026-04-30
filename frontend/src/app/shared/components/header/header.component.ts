@@ -77,8 +77,8 @@ interface NavGroup {
               ❓ Hướng dẫn
             </a>
 
-            <!-- DEV Changelog Badge -->
-            <a routerLink="/changelog"
+            <!-- DEV Changelog Badge (admin only) -->
+            <a *ngIf="isAdmin()" routerLink="/changelog"
               class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-gray-800 text-gray-200 hover:bg-gray-700 transition-colors"
               title="Developer Changelog">
               DEV
@@ -174,8 +174,8 @@ interface NavGroup {
           </div>
         </div>
 
-        <!-- Mobile DEV link -->
-        <div class="border-t border-gray-200 px-4 py-2">
+        <!-- Mobile DEV link (admin only) -->
+        <div *ngIf="isAdmin()" class="border-t border-gray-200 px-4 py-2">
           <a routerLink="/changelog" (click)="mobileMenuOpen = false"
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-bold text-gray-500 hover:bg-gray-100 transition-colors">
             <span class="bg-gray-800 text-gray-200 px-1.5 py-0.5 rounded text-xs">DEV</span>
