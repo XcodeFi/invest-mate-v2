@@ -175,7 +175,8 @@ export const routes: Routes = [
   },
   {
     path: 'changelog',
-    loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent)
+    loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent),
+    canActivate: [AdminGuard]
   },
   {
     path: '**',
