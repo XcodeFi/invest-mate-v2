@@ -32,6 +32,10 @@ Orchestrates: Code Review → Update Documentation → Commit & PR.
 
 Uses **1 sub-agent** (`model: "sonnet"`) for static review.
 
+### Step 1.0 — Secret Scan (HARD GATE)
+
+Run the credential/URL scan from [`/code-review` references/secret-scan.md](../code-review/references/secret-scan.md) against `git diff <base>...HEAD`. Match → STOP, surface findings, do not run the review sub-agent and do not proceed to commit. Resume only after user removes (and rotates if needed) the secret.
+
 ### Step 1.1 — Run Review
 
 1. Get diff against base branch (`git diff <base>...HEAD --name-only` and `git diff <base>...HEAD`)
@@ -101,8 +105,9 @@ Before committing, summarize all docs updated and ask user whether anything else
 
 1. Run `dotnet test` if Phase 1 applied fixes. Otherwise skip.
 2. Stage: code + tests + docs + changelog
-3. **Commit message: Vietnamese with full diacritics, clear and specific** (e.g., `feat(trade-plan): thêm state machine và matrix editability`). This is the only Vietnamese-required text in this workflow (aside from UI text rules in CLAUDE.md).
-4. Commit (do NOT use `--no-verify`)
+3. **Re-run secret scan** on staged diff (`git diff --cached`) per [`/code-review` references/secret-scan.md](../code-review/references/secret-scan.md). Match → STOP, unstage, do not commit.
+4. **Commit message: Vietnamese with full diacritics, clear and specific** (e.g., `feat(trade-plan): thêm state machine và matrix editability`). This is the only Vietnamese-required text in this workflow (aside from UI text rules in CLAUDE.md).
+5. Commit (do NOT use `--no-verify`)
 
 ### Step 3.2 — Rebase + Push + Create PR
 

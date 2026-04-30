@@ -148,6 +148,10 @@ Clean up only obvious duplication or unclear naming. Run tests again.
 
 Uses **1 sub-agent** (`model: "sonnet"`) for unified static review. Historical context agent is skipped — no value for fresh code.
 
+### Step 3.0 — Secret Scan (HARD GATE)
+
+Run the credential/URL scan from [`/code-review` references/secret-scan.md](../code-review/references/secret-scan.md) against `git diff <base>...HEAD`. Match → STOP, surface findings, do not run the review sub-agent and do not advance to Phase 4-6. Resume only after user removes (and rotates if needed) the secret.
+
 ### Step 3.1 — Run Review
 
 Get diff against base branch. Detect affected stacks from changed files (frontend → Angular 19, backend → .NET 9, data access → MongoDB). Launch 1 sonnet agent covering guidelines, bugs, security, performance — but only check patterns for the affected stacks. Use the same checklist and scoring from the `/code-review` skill.
@@ -272,8 +276,9 @@ Update `frontend/src/assets/CHANGELOG.md`:
 
 1. Re-run `dotnet test` only if Phase 3/4 applied fixes. Otherwise tests already passed — skip.
 2. Stage relevant files (code + tests + docs + changelog)
-3. Write clear English commit message
-4. Commit
+3. **Re-run secret scan** on staged diff (`git diff --cached`) per [`/code-review` references/secret-scan.md](../code-review/references/secret-scan.md). Match → STOP, unstage, do not commit.
+4. Write clear English commit message
+5. Commit (do NOT use `--no-verify`)
 
 ### Step 6.2 — Create PR
 
