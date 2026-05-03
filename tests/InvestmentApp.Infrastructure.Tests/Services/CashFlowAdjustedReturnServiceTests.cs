@@ -155,9 +155,88 @@ public class CashFlowAdjustedReturnServiceTests
 
         var result = await _sut.CalculateTWRAsync(PortfolioId);
 
-        // Without the cap, TWR would be (100,000× * ~0) - 1 → huge negative garbage.
-        // With the cap, both outlier periods are skipped → TWR ≈ 0.
-        Math.Abs(result).Should().BeLessThan(1000m);
+        // Outlier @01-02 is skipped (return > 500% cap). The next valid period
+        // must use the pre-outlier baseline (01-01, 100M) — NOT the outlier
+        // value — so 01-01 → 01-30 ⇒ +5% emerges as a clean signal.
+        result.Should().BeApproximately(5m, 0.5m);
+    }
+
+    [Fact]
+    public async Task CalculateTWR_FlowDuringSkippedFirstPeriod_AttributedToNextValidPeriod()
+    {
+        // Discovered via prod data (user truong.pham@evizi.com): a corrupt
+        // first snapshot (V₀ < MinSnapshotValue, here negative) caused period
+        // 0→1 to be skipped, and the deposit that happened during that
+        // window was lost. The next period then read the natural value-jump
+        // (which actually reflects the deposit) as a fake +137% return.
+        //
+        // Fix invariant: when a period is skipped (corrupt baseline OR outlier
+        // capped), the flow window of the next valid period must extend back
+        // to the LAST GOOD snapshot date — never advance lastValidDate on skip.
+        SetupPortfolio(createdAt: new DateTime(2026, 1, 1));
+        var deposit = new CapitalFlow(PortfolioId, "user-1", CapitalFlowType.Deposit, 200_000_000m,
+            flowDate: new DateTime(2026, 1, 5)); // inside the skipped (01-01, 01-15] period
+        SetupFlows(deposit);
+        SetupSnapshots(
+            (new DateTime(2026, 1, 1), -10_000_000m),   // corrupt — skipped by MinSnapshotValue guard
+            (new DateTime(2026, 1, 15), 145_000_000m),  // post-deposit baseline
+            (new DateTime(2026, 2, 15), 345_000_000m)); // +200M jump should ALL be flow, not return
+
+        var result = await _sut.CalculateTWRAsync(PortfolioId);
+
+        // Without the fix: period (01-15, 02-15] reads (345−145−0)/145 ≈ +138%.
+        // With the fix: period (01-01, 02-15] reads (345−145−200)/145 ≈ 0%.
+        Math.Abs(result).Should().BeLessThan(5m,
+            "the 200M flow must still be attributed despite the skipped first period");
+    }
+
+    [Fact]
+    public async Task CalculateTWR_FlowOnCorruptSnapshotDate_StillAttributed()
+    {
+        // Tightest reproduction of the truong.pham@evizi.com prod incident.
+        // Day-0 deposit (e.g. payroll funding on portfolio creation day) has
+        // `FlowDate == snapshots[0].SnapshotDate` AND that snapshot is
+        // corrupt (V<MinSnapshotValue). The half-open `> snap[0].date`
+        // filter would drop the flow entirely; with the boundary-inclusive
+        // window for the first valid period, the deposit IS captured.
+        SetupPortfolio(createdAt: new DateTime(2026, 3, 9));
+        var deposit = new CapitalFlow(PortfolioId, "user-1", CapitalFlowType.Deposit, 200_000_000m,
+            flowDate: new DateTime(2026, 3, 9, 0, 0, 0, DateTimeKind.Utc)); // EXACT same instant as snap[0]
+        SetupFlows(deposit);
+        SetupSnapshots(
+            (new DateTime(2026, 3, 9), -39_900_000m),    // corrupt (matches the prod data point)
+            (new DateTime(2026, 3, 11), 145_000_000m),
+            (new DateTime(2026, 4, 26), 345_000_000m));
+
+        var result = await _sut.CalculateTWRAsync(PortfolioId);
+
+        // Without the boundary fix: flow on 03-09 fails `> 03-09` and is
+        // attributed to no period → next period reads (345−145−0)/145 ≈
+        // +138%. With the fix, first valid period captures the flow →
+        // periodReturn ≈ 0%.
+        Math.Abs(result).Should().BeLessThan(5m,
+            "the day-0 deposit must be captured even when flow date == corrupt snapshot date");
+    }
+
+    [Fact]
+    public async Task CalculateTWR_OutlierPeriod_FlowInOutlierPeriod_AttributedToNextPeriod()
+    {
+        // Same invariant for the outlier-cap skip path. A flow in a capped
+        // period must not vanish — the next period's window must absorb it.
+        SetupPortfolio(createdAt: new DateTime(2026, 1, 1));
+        var deposit = new CapitalFlow(PortfolioId, "user-1", CapitalFlowType.Deposit, 50_000_000m,
+            flowDate: new DateTime(2026, 1, 5));
+        SetupFlows(deposit);
+        SetupSnapshots(
+            (new DateTime(2026, 1, 1), 100_000_000m),
+            (new DateTime(2026, 1, 10), 100_000_000_000m), // outlier — capped
+            (new DateTime(2026, 1, 30), 155_000_000m));    // 100M + 50M deposit + 5M growth
+
+        var result = await _sut.CalculateTWRAsync(PortfolioId);
+
+        // Outlier (01-01, 01-10] skipped. With the fix: period (01-01, 01-30]
+        // includes the 50M flow → return = (155 − 100 − 50)/100 = +5%.
+        result.Should().BeApproximately(5m, 0.5m);
     }
 
     // ─── MWR tests ───────────────────────────────────────────────────────
