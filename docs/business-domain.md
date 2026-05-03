@@ -198,7 +198,7 @@ Chuyển tuần tự, không nhảy cóc. Backend auto-chain khi cần (VD: clie
 - **Risk Budget (P4)**: giới hạn số lệnh/ngày, giới hạn lỗ/ngày (%)
 
 ### 3.6. Phân tích Hiệu suất (Analytics)
-- **CAGR**: tính từ equity curve (ưu tiên) hoặc backend AdvancedAnalytics
+- **CAGR (household-level, 2026-05-03)**: headline trên Cockpit lấy từ `GET /api/v1/analytics/household/performance` — backend gộp snapshot tất cả portfolio của user vào 1 series tổng (sum `TotalValue` mỗi ngày, carry-forward; portfolio gia nhập muộn → first-snapshot value attribute như cash flow), apply công thức TWR rồi annualize. Có flag `isStable` (true ⇔ window ≥ 365 ngày) để FE render badge "chưa đủ 1 năm" nếu cửa sổ ngắn. CAGR per-portfolio vẫn còn ở `GET /portfolio/{id}/performance` cho các view chi tiết.
 - **Sharpe Ratio, Sortino Ratio**: cần có closed trades
 - **Max Drawdown**: mức sụt giảm lớn nhất từ đỉnh
 - **Win Rate, Profit Factor**: tỷ lệ thắng, hệ số lợi nhuận
@@ -378,7 +378,7 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 1. **Lô chẵn**: Mua cổ phiếu phải là bội của 100 (quy định sàn HOSE)
 2. **Không mua vượt cash**: Giá trị lệnh mua ≤ cash còn lại trong danh mục
 3. **Symbol uppercase**: Luôn normalize thành uppercase (VNM, FPT, VCB)
-4. **CAGR đơn nguồn**: Ưu tiên equity curve, fallback backend — không tính riêng
+4. **CAGR đơn nguồn**: Headline Cockpit lấy household CAGR từ `/analytics/household/performance` — không weighted-average từ per-portfolio (sai về cấu trúc cho returns nhân tính), không lấy `portfolios[0]` (lừa user khi danh mục lớn không phải đầu list).
 5. **Position size ≤ 100%**: Mẫu số dùng `Math.Max(netWorth, totalMarketValue)`
 6. **Soft delete**: Entities dùng `isDeleted` flag, không xóa vĩnh viễn
 7. **Tiền tệ**: Mặc định VND, format bằng `VndCurrencyPipe`

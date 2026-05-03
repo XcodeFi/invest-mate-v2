@@ -80,6 +80,8 @@ Theo dõi tăng trưởng kép trên Dashboard:
 3. Ước tính vốn sau 5/10/20 năm
 4. Progress bar % đạt mục tiêu
 
+**CAGR hiển thị là CAGR toàn bộ danh mục của bạn** (household-level — gộp snapshot mọi danh mục thành 1 series tổng rồi annualize), không phải CAGR của 1 danh mục lẻ. Khi cửa sổ dữ liệu < 1 năm, ô CAGR kèm badge "⚠️ X ngày · chưa đủ 1 năm" — số đó là **ngoại suy** từ kỳ ngắn nên dao động lớn, đừng dùng làm cam kết dài hạn.
+
 ---
 
 ## Snapshots (`/snapshots`)

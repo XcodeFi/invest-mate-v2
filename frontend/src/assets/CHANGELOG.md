@@ -2,6 +2,41 @@
 
 ---
 
+## [v2.54.0] — 2026-05-03 · Household CAGR + cảnh báo cửa sổ ngắn
+
+### Sửa lỗi cốt lõi
+
+**Headline CAGR trên Cockpit không còn lừa user.** Trước đây ô "CAGR hiện tại" lấy từ portfolio đầu tiên trong list (thường là portfolio nhỏ nhất, ví dụ 6.5% weight) → user có 2 danh mục, danh mục lớn (+25%/năm) bị "ẩn" sau danh mục nhỏ (−3%/năm) → headline đỏ trong khi tài sản thật đang lãi.
+
+**Fix:** Thêm endpoint `GET /api/v1/analytics/household/performance` tính CAGR trên **toàn bộ danh mục của user**:
+- Backend: `ICashFlowAdjustedReturnService.GetHouseholdReturnSummaryAsync(userId)` — gộp snapshot tất cả portfolio vào 1 series tổng (sum `TotalValue` mỗi ngày, carry-forward giữa các ngày miss), apply công thức TWR như per-portfolio (chia sẻ pattern `lastValidDate / lastValidValue / baselineEstablished` từ v2.53.1 — robust trước flow boundary và corrupt snapshots).
+- **Late-join attribution**: portfolio mới tham gia sau ngày đầu của series → first-snapshot value tính như cash flow, không bị đọc nhầm thành "tăng trưởng" nửa-vốn.
+- Annualize TWR → CAGR. Cùng guard cũ (`MinSnapshotValue=1000đ`, `MaxAbsPeriodReturn=500%`) để không bị 1 outlier phá cả chain.
+
+### UX mới
+
+- **Label đổi**: "CAGR hiện tại" → **"CAGR (toàn bộ N danh mục)"** khi N > 1.
+- **Badge xám "⚠️ X ngày · chưa đủ 1 năm"** hiển thị khi `daysSpanned < 365` — tránh user lầm CAGR ngoại suy từ vài tuần là tốc độ thực. Stable threshold = 365 ngày (1 năm tròn).
+- **Branch UI 3 nhánh** thay vì cryptic "--":
+  - `daysSpanned ≥ 30` → CAGR annualized + badge "chưa đủ 1 năm" nếu `< 365`.
+  - `1 ≤ daysSpanned < 30` → label đổi thành **"Tăng trưởng X ngày"**, hiển thị **TWR thô** (không annualize) + badge "Cần ≥ 30 ngày để có CAGR". Annualize từ 7 ngày sẽ ra số kỳ quặc; raw period return là honest hơn.
+  - `daysSpanned < 1` (chưa có snapshot) → "--" + hint "Chưa có danh mục" hoặc "Chưa đủ snapshot" thay vì im lặng.
+- Top header chip "Tổng tài sản" cũng dùng household CAGR (consistent).
+
+### Tests
+
+5 xUnit mới trong `CashFlowAdjustedReturnServiceTests`: empty user, single-portfolio = per-portfolio TWR, two aligned portfolios, late-join portfolio không inflate return, 365 ngày → `IsStable=true`.
+
+### Files chính
+
+- `src/InvestmentApp.Application/Common/Interfaces/ICashFlowAdjustedReturnService.cs` — thêm method + `HouseholdReturnSummary` DTO.
+- `src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs` — implementation aggregate.
+- `src/InvestmentApp.Api/Controllers/AdvancedAnalyticsController.cs` — endpoint `household/performance`.
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — bỏ `calculateCagrFromCurve` / `loadBackendCagr` / `calculateCagr` (per-portfolio), thay bằng `loadHouseholdCagr`.
+- `tests/InvestmentApp.Infrastructure.Tests/Services/CashFlowAdjustedReturnServiceTests.cs` — 5 tests mới.
+
+---
+
 ## [v2.53.1] — 2026-05-03 · Fix TWR — flow attribution across skipped periods
 
 ### Bug

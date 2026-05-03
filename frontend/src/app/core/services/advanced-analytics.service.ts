@@ -91,6 +91,19 @@ export interface BankRateSnapshot {
   fetchedAt: string;
 }
 
+export interface HouseholdReturnSummary {
+  userId: string;
+  portfolioCount: number;
+  totalValue: number;
+  timeWeightedReturn: number;
+  cagr: number;
+  firstSnapshotDate: string | null;
+  lastSnapshotDate: string | null;
+  daysSpanned: number;
+  /** True when daysSpanned ≥ 365 — CAGR not an extreme extrapolation. */
+  isStable: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -140,6 +153,11 @@ export class AdvancedAnalyticsService {
 
   getBankRates(): Observable<BankRateSnapshot> {
     return this.http.get<BankRateSnapshot>(`${this.API_URL}/bank-rates`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getHouseholdPerformance(): Observable<HouseholdReturnSummary> {
+    return this.http.get<HouseholdReturnSummary>(`${this.API_URL}/household/performance`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
