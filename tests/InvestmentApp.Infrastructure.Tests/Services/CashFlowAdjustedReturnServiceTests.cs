@@ -291,4 +291,136 @@ public class CashFlowAdjustedReturnServiceTests
         // currentValue = cashBalance + marketValue = 120M + 0 = 120M
         summary.CurrentValue.Should().Be(120_000_000m);
     }
+
+    // ─── Household tests ─────────────────────────────────────────────────
+
+    private const string UserId = "user-1";
+
+    private Portfolio MakePortfolio(string id, decimal initialCapital, DateTime createdAt)
+    {
+        var p = new Portfolio(UserId, $"PF-{id}", initialCapital);
+        typeof(Portfolio).GetProperty("Id")!.SetValue(p, id);
+        typeof(Portfolio).GetProperty("CreatedAt")!.SetValue(p, createdAt);
+        return p;
+    }
+
+    private void SetupPortfolioSnapshots(string portfolioId, params (DateTime date, decimal totalValue)[] points)
+    {
+        var list = points.Select(p => new PortfolioSnapshotEntity(
+            portfolioId, p.date, p.totalValue, 0, 0, 0, 0, 0, 0)).ToList();
+        _snapshotRepo.Setup(r => r.GetByPortfolioIdAsync(
+                portfolioId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(list);
+    }
+
+    private void SetupPortfolioFlows(string portfolioId, params CapitalFlow[] flows)
+    {
+        _flowRepo.Setup(r => r.GetByPortfolioIdAsync(portfolioId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(flows.ToList());
+    }
+
+    [Fact]
+    public async Task GetHouseholdReturnSummary_NoPortfolios_ReturnsEmptySummary()
+    {
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Portfolio>());
+
+        var summary = await _sut.GetHouseholdReturnSummaryAsync(UserId);
+
+        summary.UserId.Should().Be(UserId);
+        summary.PortfolioCount.Should().Be(0);
+        summary.TimeWeightedReturn.Should().Be(0);
+        summary.Cagr.Should().Be(0);
+        summary.IsStable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetHouseholdReturnSummary_SinglePortfolio_MatchesPerPortfolioTwr()
+    {
+        // 100M → 110M → 120M ⇒ twr 20%, daysSpanned ~30 → CAGR very large (annualization)
+        var p = MakePortfolio("pf-A", 100_000_000m, new DateTime(2026, 1, 1));
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Portfolio> { p });
+        SetupPortfolioSnapshots("pf-A",
+            (new DateTime(2026, 1, 1), 100_000_000m),
+            (new DateTime(2026, 1, 15), 110_000_000m),
+            (new DateTime(2026, 1, 31), 120_000_000m));
+        SetupPortfolioFlows("pf-A");
+
+        var summary = await _sut.GetHouseholdReturnSummaryAsync(UserId);
+
+        summary.PortfolioCount.Should().Be(1);
+        summary.TimeWeightedReturn.Should().BeApproximately(20m, 0.01m);
+        summary.TotalValue.Should().Be(120_000_000m);
+        summary.DaysSpanned.Should().Be(30);
+        summary.IsStable.Should().BeFalse(); // < 1 year
+    }
+
+    [Fact]
+    public async Task GetHouseholdReturnSummary_TwoAlignedPortfolios_AggregatesCorrectly()
+    {
+        // P1 100M → 110M (+10%); P2 200M → 210M (+5%) on same dates.
+        // Aggregate: 300M → 320M ⇒ twr ~6.67%
+        var p1 = MakePortfolio("pf-A", 100_000_000m, new DateTime(2026, 1, 1));
+        var p2 = MakePortfolio("pf-B", 200_000_000m, new DateTime(2026, 1, 1));
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Portfolio> { p1, p2 });
+        SetupPortfolioSnapshots("pf-A",
+            (new DateTime(2026, 1, 1), 100_000_000m),
+            (new DateTime(2026, 1, 31), 110_000_000m));
+        SetupPortfolioSnapshots("pf-B",
+            (new DateTime(2026, 1, 1), 200_000_000m),
+            (new DateTime(2026, 1, 31), 210_000_000m));
+        SetupPortfolioFlows("pf-A");
+        SetupPortfolioFlows("pf-B");
+
+        var summary = await _sut.GetHouseholdReturnSummaryAsync(UserId);
+
+        summary.PortfolioCount.Should().Be(2);
+        summary.TimeWeightedReturn.Should().BeApproximately(6.6667m, 0.01m);
+        summary.TotalValue.Should().Be(320_000_000m);
+    }
+
+    [Fact]
+    public async Task GetHouseholdReturnSummary_LateJoiningPortfolio_NotInflateReturn()
+    {
+        // P1 alone day 1: 100M. Day 15: P2 joins with 200M, P1 still 100M ⇒
+        // aggregate jumps 100M → 300M. Without flow attribution, periodReturn
+        // would be +200% (huge fake CAGR). With synthetic flow=200M on day 15,
+        // periodReturn = (300 − 100 − 200)/100 = 0% ⇒ aggregate TWR ≈ 0.
+        var p1 = MakePortfolio("pf-A", 100_000_000m, new DateTime(2026, 1, 1));
+        var p2 = MakePortfolio("pf-B", 200_000_000m, new DateTime(2026, 1, 15));
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Portfolio> { p1, p2 });
+        SetupPortfolioSnapshots("pf-A",
+            (new DateTime(2026, 1, 1), 100_000_000m),
+            (new DateTime(2026, 1, 15), 100_000_000m));
+        SetupPortfolioSnapshots("pf-B",
+            (new DateTime(2026, 1, 15), 200_000_000m));
+        SetupPortfolioFlows("pf-A");
+        SetupPortfolioFlows("pf-B");
+
+        var summary = await _sut.GetHouseholdReturnSummaryAsync(UserId);
+
+        summary.TimeWeightedReturn.Should().BeApproximately(0m, 0.01m);
+        summary.TotalValue.Should().Be(300_000_000m);
+    }
+
+    [Fact]
+    public async Task GetHouseholdReturnSummary_OneYearWindow_MarksStable()
+    {
+        // 365 days → years = 1.0 ⇒ IsStable = true
+        var p = MakePortfolio("pf-A", 100_000_000m, new DateTime(2025, 1, 1));
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Portfolio> { p });
+        SetupPortfolioSnapshots("pf-A",
+            (new DateTime(2025, 1, 1), 100_000_000m),
+            (new DateTime(2026, 1, 1), 110_000_000m));
+        SetupPortfolioFlows("pf-A");
+
+        var summary = await _sut.GetHouseholdReturnSummaryAsync(UserId);
+
+        summary.DaysSpanned.Should().Be(365);
+        summary.IsStable.Should().BeTrue();
+    }
 }

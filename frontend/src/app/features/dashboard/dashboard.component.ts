@@ -498,13 +498,52 @@ interface RiskAlert {
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Current CAGR vs Target -->
             <div class="text-center">
-              <div class="text-xs text-gray-500 mb-1">CAGR hiện tại</div>
-              <div class="text-3xl font-bold"
-                [class.text-emerald-600]="cagrValue > 0"
-                [class.text-red-600]="cagrValue < 0"
-                [class.text-gray-400]="cagrValue === 0">
-                {{ cagrValue !== 0 ? (cagrValue > 0 ? '+' : '') + cagrValue.toFixed(1) + '%' : '--' }}
-              </div>
+              <!-- Branch 1: CAGR available (≥ ~30 ngày) -->
+              <ng-container *ngIf="cagrValue !== 0">
+                <div class="text-xs text-gray-500 mb-1">
+                  CAGR
+                  <span *ngIf="cagrPortfolioCount > 1" class="text-gray-400">(toàn bộ {{ cagrPortfolioCount }} danh mục)</span>
+                </div>
+                <div class="text-3xl font-bold"
+                  [class.text-emerald-600]="cagrValue > 0"
+                  [class.text-red-600]="cagrValue < 0">
+                  {{ (cagrValue > 0 ? '+' : '') + cagrValue.toFixed(1) + '%' }}
+                </div>
+                <div *ngIf="!cagrIsStable" class="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600"
+                  title="CAGR annualize từ cửa sổ snapshot < 1 năm — sai số rất lớn nếu thị trường biến động trong giai đoạn này. Chỉ là ngoại suy.">
+                  ⚠️ {{ cagrDaysSpanned }} ngày · chưa đủ 1 năm
+                </div>
+              </ng-container>
+
+              <!-- Branch 2: window 1–29 ngày → show raw TWR (no annualize) so user
+                   sees something rather than a cryptic "--". Annualizing 7 ngày
+                   produces wild numbers; raw period return is honest. -->
+              <ng-container *ngIf="cagrValue === 0 && cagrTwrValue !== null && cagrDaysSpanned >= 1 && cagrDaysSpanned < 30">
+                <div class="text-xs text-gray-500 mb-1">
+                  Tăng trưởng {{ cagrDaysSpanned }} ngày
+                  <span *ngIf="cagrPortfolioCount > 1" class="text-gray-400">(toàn bộ {{ cagrPortfolioCount }} danh mục)</span>
+                </div>
+                <div class="text-3xl font-bold"
+                  [class.text-emerald-600]="cagrTwrValue > 0"
+                  [class.text-red-600]="cagrTwrValue < 0"
+                  [class.text-gray-400]="cagrTwrValue === 0">
+                  {{ (cagrTwrValue > 0 ? '+' : '') + cagrTwrValue.toFixed(2) + '%' }}
+                </div>
+                <div class="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600"
+                  title="Cần ≥ 30 ngày snapshot để tính CAGR có ý nghĩa. Hiện hiển thị TWR thô của giai đoạn.">
+                  ⚠️ Cần ≥ 30 ngày để có CAGR
+                </div>
+              </ng-container>
+
+              <!-- Branch 3: no portfolios / no snapshots -->
+              <ng-container *ngIf="cagrValue === 0 && (cagrTwrValue === null || cagrDaysSpanned < 1)">
+                <div class="text-xs text-gray-500 mb-1">CAGR</div>
+                <div class="text-3xl font-bold text-gray-400">--</div>
+                <div class="mt-1 text-[11px] text-gray-500">
+                  {{ cagrPortfolioCount === 0 ? 'Chưa có danh mục' : 'Chưa đủ snapshot' }}
+                </div>
+              </ng-container>
+
               <div *ngIf="cagrTargetSet" class="mt-1 text-sm">
                 <span class="text-gray-500">Mục tiêu: </span>
                 <span class="font-medium text-blue-600">{{ cagrTarget }}%</span>
@@ -858,6 +897,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   riskAlerts: RiskAlert[] = [];
   bannerDismissed = false;
   cagrValue = 0;
+  cagrTwrValue: number | null = null;  // raw period TWR for short windows (< 30d) where CAGR is suppressed
+  cagrIsStable = false;        // false ⇒ short window, label CAGR as extrapolation
+  cagrDaysSpanned = 0;         // length of the household snapshot window
+  cagrPortfolioCount = 0;      // # portfolios contributing to household CAGR
   cagrTarget = 15; // default CAGR target %
   cagrTargetSet = false;
   targetYears = 10;
@@ -1151,11 +1194,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const firstPortfolio = this.summary.portfolios[0];
     const portfolioId = firstPortfolio.portfolioId;
 
-    // Load TWR/MWR
+    // Load TWR/MWR for the per-portfolio TWR badge in the "Tổng tài sản" header.
+    // Headline CAGR is sourced from /analytics/household/performance (loadHouseholdCagr),
+    // not from this single-portfolio TWR.
     this.capitalFlowService.getTimeWeightedReturn(portfolioId).pipe(catchError(() => of(null))).subscribe(data => {
       this.adjustedReturn = data;
-      // TWR is flow-adjusted — prefer it over raw endpoint ratio for CAGR.
-      if (this.equityCurveData) this.calculateCagrFromCurve(this.equityCurveData);
     });
 
     // Load flow history for chart markers + smart nudge
@@ -1249,10 +1292,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.summary = data;
         this.isLoading = false;
-        this.cagrValue = 0; // Will be set by equity curve or backend CAGR
+        this.cagrValue = 0; // overwritten by household endpoint below
         this.loadRiskAlerts(data);
         this.loadEquityCurve();
         this.loadCapitalFlowData();
+        this.loadHouseholdCagr();
       },
       error: () => {
         this.isLoading = false;
@@ -1380,17 +1424,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.miniEquityChart?.destroy();
   }
 
-  private calculateCagr(): void {
-    const invested = this.pnlSummary.totalInvested;
-    const current = this.pnlSummary.totalPortfolioValue;
-    if (invested <= 0 || current <= 0) { this.cagrValue = 0; return; }
-
-    const totalReturn = current / invested;
-    const years = 1;
-    const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
-    this.cagrValue = isFinite(cagr) ? Math.max(-99.99, Math.min(9999.99, cagr)) : 0;
-    this.calculateProjections();
-  }
 
   private loadEquityCurve(): void {
     if (!this.summary?.portfolios?.length) return;
@@ -1400,81 +1433,37 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.equityCurveData = data;
         if (data.points.length > 1) {
-          this.calculateCagrFromCurve(data);
           this.computePeriodStats();
           setTimeout(() => this.renderMiniEquityChart());
-          // If curve didn't produce CAGR (< 30 days), still try backend
-          if (this.cagrValue === 0) {
-            this.loadBackendCagr(firstPortfolioId);
-          }
-        } else {
-          // No equity curve snapshots — use backend-calculated CAGR
-          this.loadBackendCagr(firstPortfolioId);
         }
       },
-      error: () => {
-        this.equityCurveData = null;
-        this.loadBackendCagr(firstPortfolioId);
-      }
+      error: () => { this.equityCurveData = null; }
     });
   }
 
-  private loadBackendCagr(portfolioId: string): void {
-    this.advancedAnalyticsService.getPerformance(portfolioId).subscribe({
-      next: (perf) => {
-        if (perf.cagr !== 0 && isFinite(perf.cagr)) {
-          this.cagrValue = Math.max(-99.99, Math.min(9999.99, perf.cagr));
-          this.calculateProjections();
-        } else {
-          // Fallback: tính CAGR đơn giản từ P&L khi không có snapshots
-          this.calculateCagr();
-        }
+  // Headline CAGR uses household aggregation across ALL of the user's portfolios:
+  // a single portfolio is never representative when the user has more than one,
+  // and a per-portfolio aggregate weighted-average is mathematically wrong for
+  // multiplicative returns. Backend builds a unified snapshot series and runs
+  // the same TWR formula on it; we just annualize and flag stability.
+  private loadHouseholdCagr(): void {
+    this.advancedAnalyticsService.getHouseholdPerformance().subscribe({
+      next: (h) => {
+        this.cagrValue = isFinite(h.cagr) ? Math.max(-99.99, Math.min(9999.99, h.cagr)) : 0;
+        this.cagrTwrValue = isFinite(h.timeWeightedReturn) ? h.timeWeightedReturn : null;
+        this.cagrIsStable = h.isStable;
+        this.cagrDaysSpanned = h.daysSpanned;
+        this.cagrPortfolioCount = h.portfolioCount;
+        this.calculateProjections();
       },
       error: () => {
-        // Fallback: tính CAGR đơn giản từ P&L
-        this.calculateCagr();
+        // Endpoint failed — leave CAGR at 0 (UI shows "--").
+        this.cagrValue = 0;
+        this.cagrTwrValue = null;
+        this.cagrIsStable = false;
+        this.cagrDaysSpanned = 0;
       }
     });
-  }
-
-  // Derive CAGR by annualizing TWR (flow-adjusted) over the curve's span.
-  // Raw endpoint ratio is wrong when flows exist: a portfolio that net-added
-  // 150M and ended up 50% higher shows a huge fake CAGR; one that net-withdrew
-  // shows a fake loss. TWR already nets out flows — annualize once.
-  private calculateCagrFromCurve(data: EquityCurveData): void {
-    if (!data.points.length) return;
-    const first = data.points[0];
-    const last = data.points[data.points.length - 1];
-
-    const startDate = new Date(first.date);
-    const endDate = new Date(last.date);
-    const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-    const years = diffDays / 365.25;
-
-    if (years < 0.08) return; // ~30 days minimum for meaningful CAGR
-
-    if (this.adjustedReturn && isFinite(this.adjustedReturn.timeWeightedReturn)) {
-      const twrFraction = this.adjustedReturn.timeWeightedReturn / 100;
-      if (twrFraction > -1) {
-        const cagr = (Math.pow(1 + twrFraction, 1 / years) - 1) * 100;
-        if (isFinite(cagr)) {
-          this.cagrValue = Math.max(-99.99, Math.min(9999.99, cagr));
-          this.calculateProjections();
-          return;
-        }
-      }
-    }
-
-    // TWR unavailable — fallback to endpoint ratio. Accurate only if there
-    // were no flows between first and last point.
-    if (!first.portfolioValue || first.portfolioValue <= 0) return;
-    if (!last.portfolioValue || last.portfolioValue <= 0) return;
-    const totalReturn = last.portfolioValue / first.portfolioValue;
-    const cagr = (Math.pow(totalReturn, 1 / years) - 1) * 100;
-    if (isFinite(cagr)) {
-      this.cagrValue = Math.max(-99.99, Math.min(9999.99, cagr));
-      this.calculateProjections();
-    }
   }
 
   setEquityRange(days: number): void {

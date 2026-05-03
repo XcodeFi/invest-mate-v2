@@ -18,11 +18,16 @@ public class AdvancedAnalyticsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IBankRateProvider _bankRateProvider;
+    private readonly ICashFlowAdjustedReturnService _cashFlowAdjustedReturnService;
 
-    public AdvancedAnalyticsController(IMediator mediator, IBankRateProvider bankRateProvider)
+    public AdvancedAnalyticsController(
+        IMediator mediator,
+        IBankRateProvider bankRateProvider,
+        ICashFlowAdjustedReturnService cashFlowAdjustedReturnService)
     {
         _mediator = mediator;
         _bankRateProvider = bankRateProvider;
+        _cashFlowAdjustedReturnService = cashFlowAdjustedReturnService;
     }
 
     private string GetUserId() =>
@@ -98,6 +103,19 @@ public class AdvancedAnalyticsController : ControllerBase
         };
         var result = await _mediator.Send(query, ct);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Household-level performance: TWR + CAGR aggregated across all portfolios of the caller.
+    /// CAGR is annualized from a household snapshot series; <c>isStable=true</c> when the
+    /// snapshot window spans at least 1 year — otherwise the CAGR is an extrapolation.
+    /// </summary>
+    [HttpGet("household/performance")]
+    [ProducesResponseType(typeof(HouseholdReturnSummary), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHouseholdPerformance(CancellationToken ct)
+    {
+        var summary = await _cashFlowAdjustedReturnService.GetHouseholdReturnSummaryAsync(GetUserId(), ct);
+        return Ok(summary);
     }
 
     /// <summary>

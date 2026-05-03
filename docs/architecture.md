@@ -141,7 +141,7 @@ are now **in-process** in the API:
 | MarketData | `/api/v1/market` | Price, batch prices, search, overview, top fluctuation |
 | PnL | `/api/v1/pnl` | Portfolio/position P&L |
 | Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets, **stress-test (P2)**, **budget (P4)** |
-| Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns, **vs-savings comparison (2026-04-24)** — `GET /portfolio/{id}/vs-savings?savingsRate=&asOf=` + `GET /bank-rates` (top 12T từ 24hmoney) |
+| Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns, **vs-savings comparison (2026-04-24)** — `GET /portfolio/{id}/vs-savings?savingsRate=&asOf=` + `GET /bank-rates` (top 12T từ 24hmoney), **household CAGR (2026-05-03)** — `GET /household/performance` returns aggregated TWR + CAGR across all of caller's portfolios with `isStable` flag (true ⇔ snapshot window ≥ 365 ngày) |
 | Ai | `/api/v1/ai` | Build context, stream responses, daily briefing, comprehensive analysis |
 | AiSettings | `/api/v1/ai-settings` | Provider/key management |
 | Alerts | `/api/v1/alerts` | Rules CRUD, history, unread count |

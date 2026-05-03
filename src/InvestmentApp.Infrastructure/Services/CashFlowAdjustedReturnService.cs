@@ -248,6 +248,166 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
         };
     }
 
+    public async Task<HouseholdReturnSummary> GetHouseholdReturnSummaryAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var portfolios = (await _portfolioRepository.GetByUserIdAsync(userId, cancellationToken)).ToList();
+        if (portfolios.Count == 0)
+        {
+            return new HouseholdReturnSummary { UserId = userId };
+        }
+
+        // Per-portfolio inputs (snapshots ordered, flows excluding seed).
+        var snapshotsByPortfolio = new Dictionary<string, List<PortfolioSnapshotEntity>>();
+        var allFlows = new List<(DateTime FlowDate, decimal SignedAmount)>();
+        foreach (var p in portfolios)
+        {
+            var snaps = (await _snapshotRepository.GetByPortfolioIdAsync(
+                p.Id, p.CreatedAt.Date, DateTime.UtcNow.Date, cancellationToken))
+                .OrderBy(s => s.SnapshotDate).ToList();
+            snapshotsByPortfolio[p.Id] = snaps;
+
+            var flows = (await _capitalFlowRepository.GetByPortfolioIdAsync(p.Id, cancellationToken))
+                .Where(f => !f.IsSeedDeposit);
+            foreach (var f in flows)
+                allFlows.Add((f.FlowDate, f.SignedAmount));
+        }
+
+        // Union of all snapshot dates across portfolios.
+        var unionDates = snapshotsByPortfolio.Values
+            .SelectMany(list => list.Select(s => s.SnapshotDate))
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        if (unionDates.Count < 2)
+        {
+            // Not enough series points to compute a TWR.
+            return new HouseholdReturnSummary
+            {
+                UserId = userId,
+                PortfolioCount = portfolios.Count,
+                FirstSnapshotDate = unionDates.FirstOrDefault(),
+                LastSnapshotDate = unionDates.LastOrDefault()
+            };
+        }
+
+        // Aggregate value per date = Σ(latest snapshot of each portfolio with date ≤ d).
+        // Carry-forward keeps the aggregate stable when one portfolio misses a day.
+        var aggregateByDate = new Dictionary<DateTime, decimal>(unionDates.Count);
+        foreach (var d in unionDates)
+        {
+            decimal sum = 0;
+            foreach (var (pid, snaps) in snapshotsByPortfolio)
+            {
+                // Latest snapshot for portfolio pid with SnapshotDate ≤ d (binary search-ish).
+                PortfolioSnapshotEntity? last = null;
+                foreach (var s in snaps)
+                {
+                    if (s.SnapshotDate <= d) last = s;
+                    else break; // snaps already ordered ascending
+                }
+                if (last != null) sum += last.TotalValue;
+            }
+            aggregateByDate[d] = sum;
+        }
+
+        // Synthetic flows: when a portfolio first contributes to the aggregate
+        // (first snapshot AFTER the first union date), its first-snapshot
+        // TotalValue is treated as an inflow on that date — otherwise the
+        // jump from "P2 not yet in aggregate" to "P2 in aggregate" would be
+        // misread as a huge return.
+        var firstUnionDate = unionDates[0];
+        var syntheticFlows = new List<(DateTime FlowDate, decimal SignedAmount)>();
+        foreach (var (pid, snaps) in snapshotsByPortfolio)
+        {
+            if (snaps.Count == 0) continue;
+            var firstSnap = snaps[0];
+            if (firstSnap.SnapshotDate > firstUnionDate)
+                syntheticFlows.Add((firstSnap.SnapshotDate, firstSnap.TotalValue));
+        }
+
+        var combinedFlows = allFlows.Concat(syntheticFlows).ToList();
+
+        // TWR loop on aggregate series — same `lastValidDate / lastValidValue /
+        // baselineEstablished` pattern as per-portfolio TWR (v2.53.1) so a flow
+        // landing on or inside a skipped/corrupt aggregate snapshot still gets
+        // attributed to the next valid period.
+        var lastValidDate = unionDates[0];
+        var lastValidValue = aggregateByDate[unionDates[0]];
+        var baselineEstablished = lastValidValue >= MinSnapshotValue;
+        decimal twr = 1m;
+
+        for (int i = 1; i < unionDates.Count; i++)
+        {
+            var currentValue = aggregateByDate[unionDates[i]];
+
+            if (lastValidValue < MinSnapshotValue)
+            {
+                _logger.LogWarning(
+                    "Skipping household TWR period for user {UserId}: lastValidValue={LastValue} below threshold {Threshold}",
+                    userId, lastValidValue, MinSnapshotValue);
+                if (currentValue >= MinSnapshotValue)
+                {
+                    lastValidValue = currentValue;
+                    // Don't advance lastValidDate so flows in the skipped span carry over.
+                }
+                continue;
+            }
+
+            var periodFlows = combinedFlows
+                .Where(f => (baselineEstablished ? f.FlowDate > lastValidDate : f.FlowDate >= lastValidDate)
+                            && f.FlowDate <= unionDates[i])
+                .Sum(f => f.SignedAmount);
+
+            var periodReturn = (currentValue - lastValidValue - periodFlows) / lastValidValue;
+
+            if (Math.Abs(periodReturn) > MaxAbsPeriodReturn)
+            {
+                _logger.LogWarning(
+                    "Skipping household TWR period for user {UserId}: |periodReturn|={PeriodReturn} exceeds cap {Cap}",
+                    userId, periodReturn, MaxAbsPeriodReturn);
+                continue;
+            }
+
+            twr *= (1 + periodReturn);
+            lastValidValue = currentValue;
+            lastValidDate = unionDates[i];
+            baselineEstablished = true;
+        }
+
+        var twrPct = Math.Round((twr - 1) * 100, 4);
+
+        // Annualize. < ~30 days → CAGR not meaningful; leave at 0.
+        var firstDate = unionDates[0];
+        var lastDate = unionDates[^1];
+        var daysSpanned = (int)Math.Round((lastDate - firstDate).TotalDays);
+        var years = daysSpanned / 365.25;
+        decimal cagr = 0;
+        if (years >= 0.08)
+        {
+            var twrFraction = (double)twrPct / 100.0;
+            if (twrFraction > -1)
+            {
+                var annualized = (decimal)(Math.Pow(1 + twrFraction, 1.0 / years) - 1) * 100;
+                if (!double.IsInfinity((double)annualized) && !double.IsNaN((double)annualized))
+                    cagr = Math.Round(Math.Clamp(annualized, -99.99m, 9999.99m), 2);
+            }
+        }
+
+        return new HouseholdReturnSummary
+        {
+            UserId = userId,
+            PortfolioCount = portfolios.Count,
+            TotalValue = aggregateByDate[lastDate],
+            TimeWeightedReturn = twrPct,
+            Cagr = cagr,
+            FirstSnapshotDate = firstDate,
+            LastSnapshotDate = lastDate,
+            DaysSpanned = daysSpanned,
+            IsStable = daysSpanned >= 365
+        };
+    }
+
     /// <summary>
     /// currentValue = cashBalance + marketValue where
     ///   cashBalance = InitialCapital + netFlow - gross_buys + gross_sells
