@@ -2,6 +2,36 @@
 
 ---
 
+## [v2.53.1] — 2026-05-03 · Fix TWR — flow attribution across skipped periods
+
+### Bug
+
+Một user (truong.pham@evizi.com) hiển thị TWR `+139.26%` trên 55 ngày, vô lý so với P&L thực tế (+0.7%). Truy ngược: snapshot đầu tiên ngày 2026-03-09 có `TotalValue = -39.9M` (corrupt — bug PnLService cũ), kèm 1 flow Deposit 200M cùng đúng ngày 2026-03-09T00:00:00Z. Filter `f.FlowDate > snap[0].SnapshotDate` loại bỏ flow này khỏi MỌI period, trong khi snapshot 2026-03-11 đã reflect deposit. Period (03-11, 04-26] vì thế đọc value-jump 145M → 345M = +137% như "tăng trưởng" → cap `MaxAbsPeriodReturn=500%` không chặn vì 137% < 500%.
+
+### Fix
+
+`CashFlowAdjustedReturnService.CalculateTWRAsync` chuyển sang track `lastValidDate` + `lastValidValue`:
+
+1. **Skip không advance baseline.** Khi period bị skip (corrupt prev value HOẶC outlier-capped), `lastValidDate` giữ nguyên ở snapshot trước đó. Period kế dùng nó làm boundary → flow window kéo dài cover skip-range, flows không biến mất.
+2. **Boundary inclusive cho first valid period.** Khi baseline chưa established (chỉ qua skip), filter dùng `>= lastValidDate` thay vì `> lastValidDate`. Trường hợp truong.pham: flow 03-09T00:00 == snap[0].date → giờ nằm trong period (03-09, 04-26] và được attribute đúng.
+
+### Verify
+
+- truong.pham@evizi.com "Đầu tư tăng trưởng": TWR `139.26%` → `0.80%` ✓
+- 4 tests mới + 1 test strengthened trong `CashFlowAdjustedReturnServiceTests` (boundary inclusion, flow during skipped first period, flow during outlier period, outlier strengthened to assert exact value 5%). Tất cả 1193 backend tests pass.
+
+### Files
+
+- `src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs` — refactor `CalculateTWRAsync` với pattern `lastValidDate / lastValidValue / baselineEstablished`
+- `tests/InvestmentApp.Infrastructure.Tests/Services/CashFlowAdjustedReturnServiceTests.cs` — 3 tests mới + 1 strengthened
+
+### Out-of-scope
+
+- Snapshot data corruption (`SnapshotService` ghi V<0) — bug riêng, sẽ cleanup `db.portfolio_snapshots` thủ công và fix root cause sau.
+- Household CAGR (`/analytics/household/performance`) — đã queue trong PR khác (cần fix này merge trước).
+
+---
+
 ## [v2.53.0] — 2026-04-26 · Worker → Cloud Scheduler migration (free-tier friendly)
 
 ### Hạ tầng (không có thay đổi UI)

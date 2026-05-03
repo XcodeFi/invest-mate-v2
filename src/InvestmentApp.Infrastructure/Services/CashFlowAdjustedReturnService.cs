@@ -66,30 +66,52 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
 
         if (snapshots.Count < 2) return 0;
 
+        // Track the last snapshot we *successfully* used as a return baseline.
+        // Critical: when a period is skipped (corrupt prev OR outlier-capped),
+        // we keep `lastValidDate` pointing at the older boundary so the next
+        // valid period's flow window extends back across the gap. Otherwise a
+        // deposit that landed inside a skipped period vanishes, and the value
+        // jump it caused is misread as +N00% return.
+        var lastValidDate = snapshots[0].SnapshotDate;
+        var lastValidValue = snapshots[0].TotalValue;
+        // Until we successfully use a snapshot as a baseline, treat the lower
+        // flow bound as inclusive (>=) so flows on the corrupt-baseline date
+        // itself (e.g. day-0 funding deposit before the snapshot ran) are
+        // captured in the first valid period.
+        var baselineEstablished = lastValidValue >= MinSnapshotValue;
         decimal twr = 1m;
 
         for (int i = 1; i < snapshots.Count; i++)
         {
-            var prevValue = snapshots[i - 1].TotalValue;
             var currentValue = snapshots[i].TotalValue;
 
-            if (prevValue < MinSnapshotValue)
+            if (lastValidValue < MinSnapshotValue)
             {
+                // No usable baseline yet. Adopt the first good value we see —
+                // but DON'T advance lastValidDate, so flows that fell inside
+                // the corrupt span carry over into the next computed period.
                 _logger.LogWarning(
-                    "Skipping TWR period for portfolio {PortfolioId}: prevValue={PrevValue} below threshold {Threshold}",
-                    portfolioId, prevValue, MinSnapshotValue);
+                    "Skipping TWR period for portfolio {PortfolioId}: lastValidValue={LastValue} below threshold {Threshold}",
+                    portfolioId, lastValidValue, MinSnapshotValue);
+                if (currentValue >= MinSnapshotValue)
+                {
+                    lastValidValue = currentValue;
+                }
                 continue;
             }
 
-            // Sum cash flows between two snapshot dates
             var periodFlows = flows
-                .Where(f => f.FlowDate > snapshots[i - 1].SnapshotDate && f.FlowDate <= snapshots[i].SnapshotDate)
+                .Where(f => (baselineEstablished ? f.FlowDate > lastValidDate : f.FlowDate >= lastValidDate)
+                            && f.FlowDate <= snapshots[i].SnapshotDate)
                 .Sum(f => f.SignedAmount);
 
-            var periodReturn = (currentValue - prevValue - periodFlows) / prevValue;
+            var periodReturn = (currentValue - lastValidValue - periodFlows) / lastValidValue;
 
             if (Math.Abs(periodReturn) > MaxAbsPeriodReturn)
             {
+                // Outlier-capped: do NOT advance baseline. Keep lastValidValue
+                // and lastValidDate so the next period's window absorbs any
+                // flow that landed inside this capped span.
                 _logger.LogWarning(
                     "Skipping TWR period for portfolio {PortfolioId}: |periodReturn|={PeriodReturn} exceeds cap {Cap}",
                     portfolioId, periodReturn, MaxAbsPeriodReturn);
@@ -97,6 +119,9 @@ public class CashFlowAdjustedReturnService : ICashFlowAdjustedReturnService
             }
 
             twr *= (1 + periodReturn);
+            lastValidValue = currentValue;
+            lastValidDate = snapshots[i].SnapshotDate;
+            baselineEstablished = true;
         }
 
         return Math.Round((twr - 1) * 100, 4); // Return as percentage
