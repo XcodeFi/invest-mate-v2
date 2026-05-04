@@ -141,5 +141,6 @@ public enum JournalEntryType
     PreTrade,       // Trước giao dịch
     DuringTrade,    // Trong khi nắm giữ
     PostTrade,      // Sau giao dịch
-    Review          // Tổng kết
+    Review,         // Tổng kết
+    Decision        // Ép user ghi lý do giữ thay vì hành động (P4 Decision Engine v1.1)
 }

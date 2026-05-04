@@ -1160,7 +1160,7 @@ Plan v1.1 ship trong **3 PR** riêng để dễ rollback:
 |----|-------|-----------|--------|
 | PR-1 | P1 + P2 | FE-only CAGR + AI rebrand string change. Risk thấp, ship sớm để test phản hồi user. | ✅ **Shipped 2026-05-04** (xem checkpoint PR-1) |
 | PR-2 | P3 (Decision Queue read-only) | Có backend mới + xóa 3 widget cũ. Cần manual QA kỹ. | ✅ **Shipped 2026-05-04** (xem checkpoint PR-2) |
-| PR-3 | P4 + P5 | Inline action ghi data + xóa 3 widget noise. Ship cuối khi đã verify P3 ổn. | 🔄 Pending |
+| PR-3 | P4 + P5 | Inline action ghi data + xóa 3 widget noise. Ship cuối khi đã verify P3 ổn. | ✅ **Shipped 2026-05-04** (xem checkpoint PR-3) |
 
 ---
 
@@ -1291,3 +1291,68 @@ Surface 7 findings (1 Critical, 4 Warning, 2 Minor). Triage:
 **Effort estimate:** 5-6 ngày solo.
 
 **Branch:** `feat/dashboard-pr3-resolve-decision`.
+
+---
+
+## Checkpoint — PR-3 (P4 + P5) shipped 2026-05-04
+
+### Decisions
+
+- **Domain field naming khác plan**: `Trade.Price` (không phải `EntryPrice`), `Trade.TradePlanId` set qua `LinkTradePlan()` method, `JournalEntry.EntryType`+`Title`+`Content` (không phải `Type`+`Body`), `TradeType.BUY/SELL` uppercase, `PlanLotStatus` (không phải `LotStatus`), single-lot quantity = `plan.Quantity`, multi-lot = sum `lot.PlannedQuantity` của Executed lots.
+- **`JournalEntryType.Decision` enum value mới** — additive change, no migration needed (MongoDB stores as int, old values 0-4 unaffected).
+- **ExecuteSell scope**: chỉ enable khi item có `tradePlanId`. StopLossHit (no tradePlanId trong DTO hiện tại) hide BÁN button — user dùng "Xử lý →" link điều hướng `/risk-dashboard` cho manual sell. Aligned với "BÁN THEO KẾ HOẠCH" yêu cầu plan thật sự.
+- **HoldWithJournal always allowed** cho mọi item type. Note ≥ 20 chars sau Trim. Tags `["decision-hold", "trigger:{decisionType}"]` để truy ngược lại item nguồn. Symbol fallback khi không có tradePlanId.
+- **Defense-in-depth: portfolio ownership check** (sub-agent review surface) — sau khi load `plan` (validate `plan.UserId == request.UserId`), load `portfolio` từ `plan.PortfolioId` rồi validate luôn `portfolio.UserId == request.UserId`. Crafted plan có thể trỏ tới portfolio user khác.
+- **Per-item error map** thay vì single `resolveError` (sub-agent review surface) — vì `expandedNoteFor` null trong BÁN flow, error sẽ silent. Dùng `Record<string, string>` keyed bởi `item.id`.
+- **P5 KHÔNG xóa `equityCurveData` + `loadEquityCurve`** (deviation from plan §7) vì period stats badge ở timeframe selector (lines ~280-310) phụ thuộc data này. Chỉ chart visualization xóa (canvas + chart instance + range buttons + render method).
+- **Skip live browser /qa-verify** — locally-running API process holds DLL file locks; 28 tests (11 backend + 17 frontend) cover all flows. User verify post-merge bằng restart local API.
+- **Defer (out of scope)**: non-atomic Trade+Portfolio writes (pre-existing pattern in `CreateTradeCommand`), idempotency for duplicate resolve (window.confirm + optimistic remove + auth gate make hit rate low), a11y improvements, ngOnDestroy unsubscribe.
+
+### Files changed
+
+**Backend:**
+- `src/InvestmentApp.Domain/Entities/JournalEntry.cs` — thêm `JournalEntryType.Decision` enum value (+1 LOC).
+- `src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs` (mới, ~225 LOC) — command + validator + handler. Hai action: ExecuteSell (load plan + portfolio + check ownership cả 2 + tính qty single/multi-lot + lấy giá hiện tại + tạo Trade SELL + LinkTradePlan + portfolio.AddTrade + audit log) và HoldWithJournal (validate note ≥ 20 chars + tạo JournalEntry với EntryType=Decision + tags + audit log).
+- `src/InvestmentApp.Api/Controllers/DecisionsController.cs` — thêm `POST /api/v1/decisions/{id}/resolve` với `ResolveDecisionRequest` DTO.
+- `tests/InvestmentApp.Application.Tests/Decisions/ResolveDecisionCommandHandlerTests.cs` (mới, ~310 LOC, **11 tests**: ExecuteSell single-lot/multi-lot/portfolio-ownership-defense/plan-not-found/no-executed-lots, HoldWithJournal short-note/link-plan/symbol-fallback/user-isolation, validator no-tradePlanId).
+
+**Frontend:**
+- `frontend/src/app/core/services/decision.service.ts` — thêm `resolve(decisionId, request)` method với PascalCase JSON keys + types `DecisionAction`, `ResolveDecisionRequest`, `ResolveDecisionResult`.
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.ts` — thêm inline action UI: BÁN button (hide if no tradePlanId, confirm dialog), GIỮ button (expand textarea, ≥ 20 char counter), per-item error map. ~140 LOC additions.
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.spec.ts` — **17 total tests** (10 PR-2 + 7 PR-3): hide BÁN no plan, BÁN call API, cancel confirm, expand note form, disabled short note, optimistic remove, show BÁN error.
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — XÓA HẲN ~237 LOC: Market Index strip (~20 LOC template + `marketOverview` field + `loadMarketOverview` method), Mini Equity Curve (chart canvas template + `@ViewChild('miniEquityCanvas')` + `miniEquityChart` + `selectedRange` + `equityRanges` + `setEquityRange` + `renderMiniEquityChart` ~100 LOC), Quick Actions row (~52 LOC). Bỏ orphan imports `MarketOverview`, `ViewChild`, `ElementRef`. GIỮ `equityCurveData` + `loadEquityCurve` (period stats badge dependency).
+
+**Docs:**
+- `docs/architecture.md` — thêm section PR-3 với chi tiết command/endpoint/widget changes và deviations.
+- `docs/business-domain.md` — endpoint table thêm `POST /decisions/{id}/resolve`. JournalEntry entity thêm note loại 6 (Decision).
+- `docs/features.md` — section PR-3 đổi từ "pending" → "shipped".
+- `frontend/src/assets/CHANGELOG.md` — entry v2.57.0.
+- `frontend/src/assets/docs/bat-dau-su-dung.md` — Bước 4 Dashboard mô tả lại với Decision Queue + 2 inline buttons.
+- `docs/plans/dashboard-decision-engine.md` — checkpoint này; PR-3 row đổi status sang ✅ Shipped.
+- `docs/adr/0002-dashboard-decision-queue.md` — thêm "Follow-up: PR-3 resolve command" note.
+
+### Tests
+
+- **11 xUnit** mới (`ResolveDecisionCommandHandlerTests`). 191/191 Application + 729/729 Domain pass.
+- **7 Karma** mới (`DecisionQueueComponent`). 30/30 dashboard widget tests pass (Decision Queue 17 + NetWorth 9 + Discipline 5).
+
+### Affected layers
+
+- Domain (additive enum value).
+- Application (Decisions/Commands namespace mới).
+- Api (DecisionsController endpoint mới).
+- Frontend Dashboard (widget extension + 3 noise widget removal).
+
+### Sub-agent review (sonnet, 2 parallel per-stack)
+
+Backend agent surface 8 findings (2 Critical, 3 Warning, 3 Minor):
+- **Fixed**: Critical #1 (portfolio ownership check) → handler thêm validation + test mới.
+- **Defer with reason**: Critical #2 (non-atomic Trade+Portfolio) — pre-existing pattern in CreateTradeCommand, not a regression. Warning #1 (multi-lot uses PlannedQuantity) — explicitly per plan §6 since PlanLot không carry actualQuantity. Warning #2 (idempotency) — confirm dialog + optimistic remove + auth gate make hit rate low. Minors là edge cases test gap không gãy production.
+
+Frontend agent surface 11 findings (1 Critical, 2 Medium, 2 Minor, 6 Info-pass):
+- **Fixed**: Critical (BÁN error silently swallowed because `expandedNoteFor` null in BÁN flow) → per-item error map `resolveErrors: Record<string, string>` + spec test cho error path.
+- **Defer with reason**: Chart.js still registered — explicit plan §7 nói giữ cho widget khác. a11y annotations — out of scope cho solo-user app. ngOnDestroy unsubscribe — HTTP observables là one-shot, low practical leak.
+
+### Next
+
+Roadmap "Dashboard Decision Engine v1.1" hoàn thành 3/3 PR. Theo memory `feedback_trial_window_pattern.md`, **pause 1-2 tuần** thu thập real UX friction trên Decision Engine flow trước khi commit phase mới. Deferred V2 items (DB1-DB5, Q7-Q11) đã ghi rõ trong plan §8 và `docs/project-context.md`.

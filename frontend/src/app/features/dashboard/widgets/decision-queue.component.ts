@@ -1,8 +1,10 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { catchError, of } from 'rxjs';
+import { catchError, finalize, of } from 'rxjs';
 import {
+  DecisionAction,
   DecisionItemDto,
   DecisionService,
   DecisionSeverity,
@@ -11,18 +13,23 @@ import {
 import { DisciplineService } from '../../../core/services/discipline.service';
 
 /**
- * Decision Queue — vị trí #1 trên Home (P3 Decision Engine v1.1).
+ * Decision Queue — vị trí #1 trên Home (P3 + P4 Decision Engine v1.1).
  * Gộp 3 nguồn alert (StopLoss + Scenario trigger + Thesis review) thành 1 widget duy nhất.
  *
  * Empty state positive (v1.1): khi 0 alert → "✅ Hôm nay đang kỷ luật + 🔥 streak X ngày"
- * thay vì widget biến mất hoàn toàn (fix Critical risk #4 từ Product/UX agent review).
+ * thay vì widget biến mất hoàn toàn.
  *
- * Inline action (BÁN/GIỮ) thuộc PR-3 (P4) — PR-2 chỉ render link "Xử lý →" tới page detail.
+ * Inline action (P4): mỗi item có 2 button BÁN THEO KẾ HOẠCH / GIỮ + GHI LÝ DO.
+ *  - BÁN: chỉ enable khi item có `tradePlanId` → confirm dialog → POST /resolve {action: ExecuteSell}.
+ *  - GIỮ: expand inline note form → ≥ 20 chars → POST /resolve {action: HoldWithJournal}.
+ *  - Optimistic remove item khỏi list sau khi resolve thành công.
  */
+const MIN_HOLD_NOTE_LENGTH = 20;
+
 @Component({
   selector: 'app-decision-queue',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <!-- Loading skeleton -->
     <div *ngIf="loading" data-test="decision-queue-loading"
@@ -88,11 +95,60 @@ import { DisciplineService } from '../../../core/services/discipline.service';
               </div>
             </div>
           </div>
-          <div class="flex justify-end mt-2">
+
+          <!-- Inline note form (GIỮ + GHI LÝ DO expanded) -->
+          <div *ngIf="expandedNoteFor === item.id" class="mt-3 space-y-2"
+               data-test="note-form">
+            <textarea [(ngModel)]="noteDraft"
+                      data-test="note-textarea"
+                      placeholder="Vì sao giữ? Ít nhất 20 ký tự — buộc bạn nghĩ kỹ trước khi bỏ qua tín hiệu."
+                      rows="3"
+                      [disabled]="resolving"
+                      class="w-full text-sm border border-amber-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-amber-400 disabled:bg-gray-50"></textarea>
+            <div class="text-xs text-gray-500">
+              {{ (noteDraft || '').trim().length }}/{{ minNoteLength }} ký tự
+            </div>
+            <div class="flex justify-end gap-2">
+              <button (click)="cancelNote()"
+                      [disabled]="resolving"
+                      class="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 disabled:opacity-50">
+                Hủy
+              </button>
+              <button (click)="submitHold(item)"
+                      [disabled]="!canSubmitHold || resolving"
+                      data-test="btn-submit-hold"
+                      class="px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-md font-medium">
+                {{ resolving ? 'Đang lưu...' : 'Lưu lý do + Giữ' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Action buttons (default) -->
+          <div *ngIf="expandedNoteFor !== item.id" class="flex flex-wrap justify-end gap-2 mt-2">
+            <button *ngIf="canExecuteSell(item)"
+                    (click)="onExecuteSell(item)"
+                    [disabled]="resolving"
+                    data-test="btn-sell"
+                    class="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white rounded-md font-bold transition-colors">
+              🔪 BÁN THEO KẾ HOẠCH
+            </button>
+            <button (click)="expandNote(item)"
+                    [disabled]="resolving"
+                    data-test="btn-hold"
+                    class="px-3 py-1.5 text-xs bg-amber-100 hover:bg-amber-200 disabled:opacity-50 text-amber-900 border border-amber-300 rounded-md font-medium transition-colors">
+              ✋ GIỮ + GHI LÝ DO
+            </button>
             <a [routerLink]="getActionRoute(item)" [queryParams]="getActionParams(item)"
                class="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors">
               Xử lý →
             </a>
+          </div>
+
+          <!-- Resolve error — hiện cho cả BÁN lẫn GIỮ flow, gắn theo item.id -->
+          <div *ngIf="errorFor(item.id)"
+               data-test="resolve-error"
+               class="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+            ⚠️ {{ errorFor(item.id) }}
           </div>
         </div>
       </div>
@@ -115,6 +171,17 @@ export class DecisionQueueComponent implements OnInit {
   streakDays: number | null = null;
   loading = true;
   readonly maxVisible = 5;
+  readonly minNoteLength = MIN_HOLD_NOTE_LENGTH;
+
+  expandedNoteFor: string | null = null;
+  noteDraft = '';
+  resolving = false;
+  /** Error map by item.id — surface BÁN errors at item-level (BÁN không expand note form). */
+  resolveErrors: Record<string, string> = {};
+
+  errorFor(itemId: string): string | null {
+    return this.resolveErrors[itemId] ?? null;
+  }
 
   ngOnInit(): void {
     this.loadQueue();
@@ -123,6 +190,10 @@ export class DecisionQueueComponent implements OnInit {
 
   get visibleItems(): DecisionItemDto[] {
     return this.items.slice(0, this.maxVisible);
+  }
+
+  get canSubmitHold(): boolean {
+    return (this.noteDraft || '').trim().length >= this.minNoteLength;
   }
 
   trackById(_: number, item: DecisionItemDto): string {
@@ -149,6 +220,11 @@ export class DecisionQueueComponent implements OnInit {
     return 'Review thesis';
   }
 
+  /** BÁN chỉ áp được khi item có tradePlanId — backend cần plan để tính quantity. */
+  canExecuteSell(item: DecisionItemDto): boolean {
+    return !!item.tradePlanId;
+  }
+
   getActionRoute(item: DecisionItemDto): string[] {
     if (item.type === 'StopLossHit') return ['/risk-dashboard'];
     if (item.type === 'ScenarioTrigger') return ['/trade-plan'];
@@ -166,6 +242,65 @@ export class DecisionQueueComponent implements OnInit {
       return { symbol: item.symbol };
     }
     return {};
+  }
+
+  expandNote(item: DecisionItemDto): void {
+    this.expandedNoteFor = item.id;
+    this.noteDraft = '';
+    delete this.resolveErrors[item.id];
+  }
+
+  cancelNote(): void {
+    if (this.expandedNoteFor) delete this.resolveErrors[this.expandedNoteFor];
+    this.expandedNoteFor = null;
+    this.noteDraft = '';
+  }
+
+  onExecuteSell(item: DecisionItemDto): void {
+    if (!this.canExecuteSell(item) || this.resolving) return;
+    const confirmed = window.confirm(
+      `Xác nhận BÁN ${item.symbol} theo plan?\n\n` +
+      `Hệ thống sẽ tạo lệnh bán với giá hiện tại + quantity tính từ TradePlan ${item.tradePlanId}.`
+    );
+    if (!confirmed) return;
+    this.runResolve(item, { action: 'ExecuteSell' as DecisionAction, tradePlanId: item.tradePlanId });
+  }
+
+  submitHold(item: DecisionItemDto): void {
+    if (!this.canSubmitHold || this.resolving) return;
+    this.runResolve(item, {
+      action: 'HoldWithJournal' as DecisionAction,
+      tradePlanId: item.tradePlanId,
+      symbol: item.symbol,
+      note: this.noteDraft.trim(),
+    });
+  }
+
+  private runResolve(item: DecisionItemDto, request: {
+    action: DecisionAction;
+    tradePlanId?: string | null;
+    symbol?: string | null;
+    note?: string | null;
+  }): void {
+    this.resolving = true;
+    delete this.resolveErrors[item.id];
+    this.decisionService
+      .resolve(item.id, request)
+      .pipe(
+        catchError((err) => {
+          this.resolveErrors[item.id] = err?.error?.message ?? 'Không thể xử lý — thử lại sau.';
+          return of(null);
+        }),
+        finalize(() => { this.resolving = false; })
+      )
+      .subscribe((result) => {
+        if (!result) return;
+        // Optimistic remove khỏi list — server-side đã persist trade/journal entry.
+        this.items = this.items.filter((i) => i.id !== item.id);
+        delete this.resolveErrors[item.id];
+        this.expandedNoteFor = null;
+        this.noteDraft = '';
+      });
   }
 
   private loadQueue(): void {

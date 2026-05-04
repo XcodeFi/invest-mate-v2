@@ -364,6 +364,34 @@ Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wirin
 
 Plan: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engine.md). Hybrid sau review 2 sub-agent (UX + Architect), adopt 3 / bác 5 đề xuất từ layout V2 brainstorm. Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
 
+**PR-3 (P4 + P5) shipped 2026-05-04:**
+
+- `src/InvestmentApp.Domain/Entities/JournalEntry.cs` — thêm `JournalEntryType.Decision` enum value (additive, no migration). Dùng cho `HoldWithJournal` flow trong P4.
+- `src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs` — command + validator + handler. Hai action:
+  - `ExecuteSell`: load `TradePlan` (validate UserId match), load `Portfolio` (defense-in-depth: validate UserId match), tính quantity (single-lot = `plan.Quantity`, multi-lot = sum `lot.PlannedQuantity` của Executed lots), lấy giá hiện tại qua `IStockPriceService.GetCurrentPriceAsync`, tạo Trade SELL + `LinkTradePlan(planId)` + `portfolio.AddTrade(trade)` + `_portfolioRepository.UpdateAsync`. Throw nếu position đã đóng (qty ≤ 0) hoặc giá fail-fetch.
+  - `HoldWithJournal`: validate note ≥ 20 chars (Trim), tạo `JournalEntry` với `EntryType=Decision`, `Title="Quyết định giữ — {symbol}"`, `Content=note`, `Tags=["decision-hold", "trigger:{decisionType}"]`, link plan nếu có. Fallback dùng `request.Symbol` khi không có plan (StopLossHit).
+- `src/InvestmentApp.Api/Controllers/DecisionsController.cs` — thêm `POST /api/v1/decisions/{id}/resolve` với body `ResolveDecisionRequest { Action, TradePlanId, Symbol, Note }` (PascalCase JSON keys). UserId từ JWT claim.
+- `frontend/src/app/core/services/decision.service.ts` — thêm `resolve(decisionId, request)` method gọi POST endpoint. Body PascalCase keys (per `learning_toolquirk_api_pascalcase_required.md`). Types `DecisionAction`, `ResolveDecisionRequest`, `ResolveDecisionResult`.
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.ts` — thêm inline action UI:
+  - `🔪 BÁN THEO KẾ HOẠCH` button: chỉ hiện khi `item.tradePlanId` non-empty (StopLossHit từ DTO không carry tradePlanId, dùng "Xử lý →" link điều hướng `/risk-dashboard` thay). `window.confirm` trước khi POST resolve. Optimistic remove khỏi list sau khi success.
+  - `✋ GIỮ + GHI LÝ DO` button: expand inline note textarea (≥ 20 chars để enable submit). Counter hiển thị real-time `{{n}}/20 ký tự`. Hủy clear draft.
+  - Per-item error map (`resolveErrors: Record<string, string>`) — hiện error cho cả BÁN lẫn GIỮ flow tại item-level.
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — XÓA 3 widget noise (P5):
+  - **Market Index strip** (~20 dòng template + `marketOverview` field + `loadMarketOverview` method). Đã có ở `/market-data`.
+  - **Mini Equity Curve chart** (~20 dòng template + `@ViewChild('miniEquityCanvas')` + `miniEquityChart` Chart instance + `selectedRange` + `equityRanges` array + `setEquityRange` method + `renderMiniEquityChart` method ~100 LOC). Full version ở `/analytics`. **GIỮ `equityCurveData` + `loadEquityCurve`** vì period stats badge ở timeframe selector vẫn phụ thuộc.
+  - **Quick Actions row** (~52 dòng template với 4 link Wizard/Market/Journals/Risk). Trùng với header menu + bottom-nav.
+  - Bỏ orphan imports `MarketOverview`, `ViewChild`, `ElementRef`. Net delete ~237 LOC.
+
+**Tests PR-3:** 11 xUnit (`ResolveDecisionCommandHandlerTests` — single-lot/multi-lot/short-note/link-plan/user-isolation/portfolio-ownership/plan-not-found/no-executed-lots/symbol-fallback/validator) + 7 Karma (BÁN call API + cancel confirm + expand note form + disabled short note + optimistic remove + hide BÁN no plan + show BÁN error). 191/191 Application + 729/729 Domain + 30/30 dashboard widget Karma pass.
+
+**Plan deviations từ spec gốc:**
+
+- Domain field naming khác plan: `Trade.Price` (không phải `EntryPrice`), `Trade.TradePlanId` set qua `LinkTradePlan()` method (không qua constructor), `JournalEntry.EntryType`+`Title`+`Content` (không phải `Type`+`Body`), `TradeType.BUY/SELL` uppercase, `PlanLotStatus` (không phải `LotStatus`), `PlanLot.PlannedQuantity` (multi-lot sum này thay vì `Quantity`).
+- Single-lot quantity dùng `plan.Quantity` (không phải `plan.PlannedQuantity` — plan dùng property tên khác).
+- `ExecuteSell` chỉ enable khi item có `tradePlanId` — StopLossHit không carry tradePlanId trong DTO hiện tại nên chỉ có "Xử lý →" + GIỮ. Spec cũ giả định mọi action đều available; deviation align với "BÁN THEO KẾ HOẠCH" yêu cầu plan thật sự.
+- `equityCurveData` + `loadEquityCurve` GIỮ trên dashboard (plan §7 nói xóa) vì period stats badge ở timeframe selector (lines ~280-310) phụ thuộc data này. Chỉ chart visualization được xóa.
+- Defense-in-depth: thêm portfolio ownership check sau khi load plan (sub-agent review surface — plan owner và portfolio owner không nhất thiết cùng user).
+
 **PR-2 (P3 — Decision Queue read-only) shipped 2026-05-04:**
 
 - `src/InvestmentApp.Application/Decisions/DTOs/DecisionItemDto.cs` — `DecisionItemDto`, `DecisionQueueDto`, enums `DecisionType` (StopLossHit / ScenarioTrigger / ThesisReviewDue), `DecisionSeverity` (Critical / Warning / Info). View-model thuần — không persist; Id là composite `{type}:{sourceId}`.
