@@ -20,6 +20,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { DisciplineScoreWidgetComponent } from './widgets/discipline-score-widget.component';
+import { NetWorthSummaryComponent } from './widgets/networth-summary.component';
 import { isBuyTrade } from '../../shared/constants/trade-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -39,7 +40,7 @@ interface RiskAlert {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent, NetWorthSummaryComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -58,8 +59,9 @@ interface RiskAlert {
                 + Tạo Danh mục mới
               </button>
               <button (click)="showAiPanel = true"
+                data-test="ai-button"
                 class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-1">
-                🤖 AI Bản tin Hôm nay
+                🥊 AI phản biện danh mục
               </button>
             </div>
           </div>
@@ -124,6 +126,15 @@ interface RiskAlert {
         <div class="mb-6">
           <app-discipline-score-widget></app-discipline-score-widget>
         </div>
+
+        <!-- NetWorth Summary widget (v1.1 P1) — compact 3-line block với Reality Gap CAGR.
+             Vị trí #2 sau Decision Queue (P3 chưa ship); Compound Growth Tracker đầy đủ
+             vẫn ở giữa page cho user muốn deep-dive. -->
+        <app-networth-summary
+          [summary]="netWorthSummary"
+          [cagrValue]="cagrValue"
+          [cagrTarget]="cagrTarget">
+        </app-networth-summary>
 
         <!-- Advisory Widget (P0.5) — Gợi ý hành động -->
         @if (advisories.length > 0) {
@@ -267,7 +278,9 @@ interface RiskAlert {
 
         </div> <!-- end Watchlist + Daily Routine grid -->
 
-        <!-- Personal Finance Widget -->
+        <!-- Personal Finance Widget — full version với health score + breakdown CK/Vàng/TK/DP/NR.
+             Coexist với <app-networth-summary> ở top: top widget = quick "are you on track?",
+             widget này = full breakdown khi user muốn deep-dive. Plan v1.1 chốt giữ cả 2. -->
         <a *ngIf="netWorthSummary && netWorthSummary.hasProfile" routerLink="/personal-finance"
            class="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 hover:border-blue-300 transition-colors">
           <div class="flex items-center justify-between mb-2">
@@ -517,7 +530,10 @@ interface RiskAlert {
 
               <!-- Branch 2: window 1–29 ngày → show raw TWR (no annualize) so user
                    sees something rather than a cryptic "--". Annualizing 7 ngày
-                   produces wild numbers; raw period return is honest. -->
+                   produces wild numbers; raw period return is honest.
+                   Giữ điều kiện cagrValue===0 để mutually exclusive với Branch 1
+                   (cagrValue !== 0). Branch 1 đã hiển thị warning badge "⚠️ X ngày
+                   chưa đủ 1 năm" cho window unstable >= 30 ngày, không cần Branch 2 chen vào. -->
               <ng-container *ngIf="cagrValue === 0 && cagrTwrValue !== null && cagrDaysSpanned >= 1 && cagrDaysSpanned < 30">
                 <div class="text-xs text-gray-500 mb-1">
                   Tăng trưởng {{ cagrDaysSpanned }} ngày
@@ -544,11 +560,11 @@ interface RiskAlert {
                 </div>
               </ng-container>
 
-              <div *ngIf="cagrTargetSet" class="mt-1 text-sm">
+              <div class="mt-1 text-sm">
                 <span class="text-gray-500">Mục tiêu: </span>
                 <span class="font-medium text-blue-600">{{ cagrTarget }}%</span>
               </div>
-              <div *ngIf="cagrTargetSet && cagrValue !== 0" class="mt-2">
+              <div *ngIf="cagrValue !== 0" class="mt-2">
                 <div class="w-full bg-gray-200 rounded-full h-2">
                   <div class="h-2 rounded-full transition-all duration-500"
                     [style.width.%]="getTargetProgress()"
@@ -557,6 +573,13 @@ interface RiskAlert {
                     [class.bg-amber-500]="getTargetProgress() < 50"></div>
                 </div>
                 <div class="text-xs text-gray-500 mt-1">{{ getTargetProgress().toFixed(0) }}% mục tiêu</div>
+                <!-- v1.1: Reality Gap label đỏ khi user lệch xa target. Dùng điểm % (không
+                     phải tỉ lệ) để đồng nhất với NetWorth widget — hiển thị khi CAGR thấp
+                     hơn target (kể cả negative). -->
+                <div *ngIf="cagrValue < cagrTarget && getTargetProgress() < 50"
+                     class="text-xs font-medium text-red-600 mt-1">
+                  ⚠️ Lệch {{ (cagrTarget - cagrValue).toFixed(1) }} điểm % so với mục tiêu
+                </div>
               </div>
             </div>
 
@@ -877,8 +900,8 @@ interface RiskAlert {
 
     <app-ai-chat-panel
       [(isOpen)]="showAiPanel"
-      title="Bản tin Đầu tư Hôm nay"
-      useCase="daily-briefing"
+      title="🥊 Phản biện danh mục"
+      useCase="portfolio-critique"
       [contextData]="emptyContext">
     </app-ai-chat-panel>
   `,
@@ -902,7 +925,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   cagrDaysSpanned = 0;         // length of the household snapshot window
   cagrPortfolioCount = 0;      // # portfolios contributing to household CAGR
   cagrTarget = 15; // default CAGR target %
-  cagrTargetSet = false;
+  // Default ON (v1.1) — Reality Gap CAGR luôn hiển thị từ lần mở app đầu tiên,
+  // không cần user click "Đặt mục tiêu" trước. Default cagrTarget = 15%/năm.
+  cagrTargetSet = true;
   targetYears = 10;
   showTargetEditor = false;
   targetValue = 0;

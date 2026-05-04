@@ -480,6 +480,8 @@ export class AiChatPanelComponent implements OnChanges, OnDestroy {
         return this.aiService.streamWatchlistScanner(ctx.watchlistId, question);
       case 'daily-briefing':
         return this.aiService.streamDailyBriefing(question);
+      case 'portfolio-critique':
+        return this.aiService.streamPortfolioCritique(question);
       case 'comprehensive-analysis':
         return this.aiService.streamComprehensiveAnalysis(ctx.symbol, question);
       case 'chat':

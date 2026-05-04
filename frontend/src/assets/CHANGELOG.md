@@ -2,6 +2,42 @@
 
 ---
 
+## [v2.55.0] — 2026-05-04 · Dashboard Decision Engine PR-1: Reality Gap CAGR + AI Phản biện
+
+### Mục tiêu
+
+Phase đầu tiên trong roadmap "Dashboard Decision Engine" — biến Dashboard từ "hiển thị trạng thái" thành "ép quyết định kỷ luật". Plan chi tiết: [`docs/plans/dashboard-decision-engine.md`](../../../docs/plans/dashboard-decision-engine.md). PR-1 ship 2 phase đầu (P1+P2), còn 3 phase tiếp theo (Decision Queue, Inline Actions, Remove noise widgets).
+
+### UX mới
+
+- **Reality Gap CAGR luôn hiển thị từ lần đầu mở Dashboard** — không cần click "Đặt mục tiêu" trước. Default target 15%/năm. Khi user lệch nhiều (progress < 50%) → hiển thị label đỏ `⚠️ Lệch X.X điểm % so với mục tiêu`.
+- **NetWorth widget compact ở vị trí #2 trên Home** — block ngắn 3 dòng (Net Worth + Reality Gap CAGR), giúp user thấy "đang on-track không?" ngay khi mở app, không cần scroll xuống Compound Growth Tracker. Personal Finance widget existing giữ nguyên cho deep-dive.
+- **AI rebrand "Bản tin Hôm nay" → "Phản biện danh mục"** — đổi vai AI từ news-reader (passive) → HLV phản biện (adversarial coach). Button label đổi `🤖 AI Bản tin Hôm nay` → `🥊 AI phản biện danh mục`. Prompt mới ép AI đưa ra **chính xác 3 điểm sai/yếu/lệch kỷ luật** + dùng động từ mệnh lệnh ('cắt', 'review', 'giảm') + KHÔNG khen, KHÔNG động viên. Ưu tiên thứ tự: vi phạm SL > thesis hết hạn > concentration > drawdown.
+
+### Sửa lỗi nhỏ
+
+- **Inconsistency label "Lệch X%"**: trước đây dùng tỉ lệ `(100 - progress)%`, đổi sang **điểm phần trăm** `(target - cagrValue) điểm %` — đồng nhất với NetWorth widget mới và đúng ngữ nghĩa hơn. Ví dụ: CAGR 5%, target 15% → label cũ "Lệch 67%" → label mới "Lệch 10.0 điểm %".
+
+### Tests
+
+- **6 xUnit mới** trong `AiAssistantServicePortfolioCritiqueTests` — lock prompt content (adversarial framing, không drift sang supportive theo update). 295/295 Infrastructure pass.
+- **9 Karma mới** trong `NetWorthSummaryComponent` — render/hide/gap label/boundary cases (cagrValue = target, negative CAGR). 14/14 Karma widget tests pass.
+
+### Files chính
+
+- `src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs` — thêm `BuildPortfolioCritiqueSystemPrompt` (public static) + `BuildPortfolioCritiqueContext` (delegate data từ daily-briefing).
+- `frontend/src/app/features/dashboard/widgets/networth-summary.component.ts` — standalone widget mới.
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — `cagrTargetSet=true` default, mount NetWorth widget, đổi gap label sang điểm %, AI rebrand.
+- `frontend/src/app/core/services/ai.service.ts` + `frontend/src/app/shared/components/ai-chat-panel/ai-chat-panel.component.ts` — wire `portfolio-critique` use-case.
+
+### Decisions chốt cho PR-1
+
+- Use-case `daily-briefing` **giữ nguyên** trong service (không deprecate) — `BuildPortfolioCritiqueContext` reuse data aggregation logic của nó. Dashboard không expose `daily-briefing` button nữa.
+- Personal Finance widget existing **không xóa** — coexist với NetWorth widget compact mới. Top widget = quick signal, mid widget = full breakdown.
+- Không tạo `dashboard.component.spec.ts` lớn (mock 15+ services) — value/cost không xứng. Coverage qua widget-level spec + manual QA.
+
+---
+
 ## [v2.54.0] — 2026-05-03 · Household CAGR + cảnh báo cửa sổ ngắn
 
 ### Sửa lỗi cốt lõi

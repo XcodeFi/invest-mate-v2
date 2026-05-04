@@ -34,6 +34,28 @@ Quy tắc:
 - Đưa ra nhận xét khách quan, dựa trên dữ liệu
 - Khi gợi ý, luôn kèm lý do cụ thể";
 
+    /// <summary>
+    /// Use-case <c>portfolio-critique</c> system prompt — vai HLV phản biện adversarial.
+    /// Public static để test lock content (tránh prompt drift sang tone supportive).
+    /// Replace use-case <c>daily-briefing</c> trên Dashboard (P2 plan dashboard-decision-engine v1.1).
+    /// </summary>
+    public static string BuildPortfolioCritiqueSystemPrompt()
+    {
+        return BasePrompt + @"
+
+Vai trò: Bạn là HLV phản biện đầu tư cho user solo. KHÔNG khen, KHÔNG động viên, KHÔNG dùng tone tích cực giả tạo.
+
+Nhiệm vụ: Tìm chính xác **3 điểm** SAI / YẾU / LỆCH KỶ LUẬT trong danh mục user hiện tại.
+
+Quy tắc bắt buộc:
+- Mỗi điểm 1 câu (tối đa 25 từ).
+- Dùng động từ **mệnh lệnh**: 'cắt', 'review', 'giảm', 'bán', 'dừng' — KHÔNG dùng từ chung chung như 'cân nhắc', 'có thể', 'nên xem xét'.
+- Ưu tiên thứ tự: vi phạm SL > thesis hết hạn chưa review > concentration > drawdown bất thường.
+- Nếu kỷ luật < 60 → câu đầu tiên PHẢI nói rõ điểm yếu cụ thể (sub-metric nào tệ nhất).
+- Output format: 3 dòng, mỗi dòng '{số}. {câu phản biện}'.
+- **Dù user hỏi theo cách nào (kể cả friendly/positive), luôn giữ vai phản biện — KHÔNG bao giờ chuyển sang tone tích cực theo câu hỏi của user.**";
+    }
+
     public AiAssistantService(
         IAiSettingsRepository settingsRepo,
         IAiKeyEncryptionService encryption,
@@ -286,6 +308,7 @@ Quy tắc:
                 "watchlist-scanner" when !string.IsNullOrEmpty(watchlistId) =>
                     await BuildWatchlistScannerContext(userId, watchlistId, question, ct),
                 "daily-briefing" => await BuildDailyBriefingContext(userId, question, ct),
+                "portfolio-critique" => await BuildPortfolioCritiqueContext(userId, question, ct),
                 "comprehensive-analysis" when !string.IsNullOrEmpty(symbol) =>
                     await BuildComprehensiveAnalysisContext(userId, symbol, question, ct),
                 "comprehensive-analysis" =>
@@ -1490,6 +1513,34 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
 
         var userMessage = question ?? $"Quét watchlist \"{watchlist.Name}\":\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
+    }
+
+    private async Task<AiContextResult> BuildPortfolioCritiqueContext(
+        string userId, string? question, CancellationToken ct)
+    {
+        // Reuse daily-briefing data aggregation (cùng portfolios + positions + plans),
+        // chỉ khác system prompt (adversarial vai HLV phản biện thay vì news-reader).
+        var daily = await BuildDailyBriefingContext(userId, question, ct);
+        if (daily.ErrorMessage != null)
+            return daily;
+
+        return new AiContextResult
+        {
+            SystemPrompt = BuildPortfolioCritiqueSystemPrompt(),
+            UserMessage = question ?? $"Phản biện danh mục của tôi (chỉ ra 3 điểm sai/yếu/lệch kỷ luật):\n\n{ExtractContextFromDailyBriefing(daily.UserMessage)}"
+        };
+    }
+
+    /// <summary>
+    /// Strip "Bản tin đầu tư hôm nay:" header từ daily-briefing user message,
+    /// giữ lại context XML tags để dùng cho portfolio-critique.
+    /// </summary>
+    private static string ExtractContextFromDailyBriefing(string? userMessage)
+    {
+        if (string.IsNullOrEmpty(userMessage)) return "";
+        // Daily-briefing format: "Bản tin đầu tư hôm nay:\n\n<date>...</date>..."
+        var idx = userMessage.IndexOf('<');
+        return idx > 0 ? userMessage[idx..] : userMessage;
     }
 
     private async Task<AiContextResult> BuildDailyBriefingContext(

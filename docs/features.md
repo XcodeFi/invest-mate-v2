@@ -745,7 +745,7 @@ Tích hợp AI làm trợ lý thông minh trong app — hỗ trợ đa nhà cung
 - **Factory:** `IAiChatServiceFactory` → resolve `ClaudeApiService` hoặc `GeminiApiService` theo provider
 - **Low-level Claude:** `ClaudeApiService` — gọi Anthropic Messages API (`stream: true`), parse SSE events
 - **Low-level Gemini:** `GeminiApiService` — gọi Gemini streaming API, role mapping "assistant" → "model", SSE format
-- **High-level:** `AiAssistantService` — 12 use cases, gather context, build Vietnamese system prompts with XML tagging, track token usage. Enriched prompts with cross-referencing data (market data, technicals, risk profile, historical trades, comprehensive stock data)
+- **High-level:** `AiAssistantService` — 13 use cases (incl. `portfolio-critique` 2026-05-04 — adversarial HLV phản biện coach role thay daily-briefing trên Dashboard), gather context, build Vietnamese system prompts with XML tagging, track token usage. Enriched prompts with cross-referencing data (market data, technicals, risk profile, historical trades, comprehensive stock data)
 - **Context builders:** Refactored — mỗi use case có private `BuildXxxContext()` method trả về `AiContextResult` (systemPrompt + userMessage), dùng chung cho cả streaming lẫn copy-prompt
 - **New dependencies:** `IRiskCalculationService`, `IRiskProfileRepository`, `IWatchlistRepository` — cho phép cross-reference data giữa các domain
 - **XML tagging:** Tất cả prompt dùng XML tags (`<portfolio>`, `<positions>`, `<fundamental_metrics>`, `<technical_signals>`, `<trade_plan>`, etc.) + markdown tables cho dữ liệu có cấu trúc → AI parse chính xác hơn

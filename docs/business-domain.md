@@ -338,7 +338,7 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
 | Fees | `/api/v1/fees` | Phí giao dịch |
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
-| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis** + JSON: build-context (copy prompt) |
+| AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis**, **portfolio-critique** (2026-05-04, adversarial coach role thay daily-briefing trên Dashboard) + JSON: build-context (copy prompt) |
 | Admin | `/api/v1/admin` | **Debug tooling (admin-only)**: `impersonate` bắt đầu phiên xem-như-user, `impersonate/stop` kết thúc. Chặn nested impersonate + block mutation theo config. |
 | PersonalFinance | `/api/v1/personal-finance` | **Tài chính cá nhân (Tier 3)**: profile, net worth summary với health score 0-100, live gold prices từ 24hmoney, CRUD accounts với Gold auto-calc, **CRUD debts + Net Worth + rule 4 cảnh báo nợ tiêu dùng lãi cao** |
 

@@ -114,7 +114,7 @@ are now **in-process** in the API:
 | PerformanceMetricsService | CAGR, Sharpe, Sortino, win rate, profit factor, equity curve | ISnapshotRepo, ITradeRepo |
 | PositionSizingService | 5 position sizing models: Fixed Risk, ATR-Based, Kelly Criterion (Half-Kelly, 25% cap), Turtle (1-unit entry), Volatility-Adjusted (ATR% scaling). Pure calculation, no DB dependencies | None (stateless) |
 | TechnicalIndicatorService | 10 indicators: EMA(20/21/50/200), RSI(14), MACD(12,26,9), Stochastic(14,3,3), ADX(14)+DI, OBV, MFI(14), Bollinger(20,2), ATR(14), Volume ratio. S/R, Fibonacci, 10-indicator voting signal, Confluence Score (0-100 weighted), Market Condition Classifier (ADX-based), Divergence Detection (RSI/MACD vs Price) | IMarketDataProvider |
-| AiAssistantService | AI prompt building for 12 use cases, streaming responses | 12+ repos and services |
+| AiAssistantService | AI prompt building for 13 use cases (incl. **portfolio-critique** 2026-05-04 — adversarial HLV phản biện coach role, replace daily-briefing trên Dashboard, ép 3 điểm phản biện + động từ mệnh lệnh, KHÔNG khen). Streaming responses + non-streaming `BuildContextAsync`. `BuildPortfolioCritiqueSystemPrompt` public static để test lock content. | 12+ repos and services |
 | HmoneyComprehensiveDataProvider | Comprehensive stock data from 24hmoney (financials, reports, dividends, foreign trading, recommendations) | HttpClient, IMemoryCache |
 | HmoneyMarketDataProvider | Real-time prices from 24hmoney.vn (prices ×1000 scaling) | HttpClient, IMemoryCache |
 | HmoneyGoldPriceProvider | Vàng Miếng + Nhẫn từ `24hmoney.vn/gia-vang` (HTML scrape với AngleSharp, không có JSON API). Filter 4 brand × 2 type, values là full VND (không scale). Two-tier cache: fresh 5 phút + stale 6h fallback khi 24hmoney down | HttpClient, IMemoryCache |
@@ -359,3 +359,17 @@ Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wirin
 **Post-review fixes** (3-agent review trước merge): timezone VN day-granularity (tránh off-by-one UTC+7), `GetActiveByUserIdAsync` thay `GetByUserIdAsync` (DB-level filter), widget flash reset, skip `LegacyExempt`, badge hiển thị trigger type cụ thể (thay `reasonLabel` sinh "Điều kiện sắp tới hạn" chung chung).
 
 **Tests:** 10 handler tests mới (`GetPendingThesisReviewsQueryHandlerTests`). 146/146 Application + 718/718 Domain + 249/249 Infrastructure pass.
+
+## Dashboard Decision Engine (V1.1 P1+P2 — 2026-05-04, in-progress)
+
+Plan: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engine.md). Hybrid sau review 2 sub-agent (UX + Architect), adopt 3 / bác 5 đề xuất từ layout V2 brainstorm. Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
+
+**PR-1 (P1+P2) shipped 2026-05-04:**
+
+- `src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs` — thêm use-case `portfolio-critique` (adversarial coach role thay daily-briefing trên Dashboard). `BuildPortfolioCritiqueSystemPrompt` public static để test lock content (3 điểm phản biện, mệnh lệnh, KHÔNG khen, KHÔNG động viên). `BuildPortfolioCritiqueContext` reuse data aggregation từ `BuildDailyBriefingContext`. Use-case `daily-briefing` giữ nguyên cho backend reuse, không expose trên Dashboard nữa.
+- `frontend/src/app/features/dashboard/widgets/networth-summary.component.ts` — standalone widget compact 3-line ở vị trí #2 trên Home, hiển thị Net Worth + Reality Gap CAGR (điểm % so với target 15%). Coexist với Personal Finance widget existing (full breakdown).
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — `cagrTargetSet=true` default (Reality Gap luôn hiển thị từ first load, không cần click "Đặt mục tiêu"). Reality Gap label đổi sang "điểm %" thay vì tỉ lệ. AI button rebrand "🥊 AI phản biện danh mục" + use-case `portfolio-critique`.
+- `frontend/src/app/core/services/ai.service.ts` — thêm method `streamPortfolioCritique(question?)`.
+- `frontend/src/app/shared/components/ai-chat-panel/ai-chat-panel.component.ts` — thêm route case `'portfolio-critique'`.
+
+**Tests:** 6 xUnit (AiAssistantServicePortfolioCritiqueTests — lock prompt content adversarial, không drift sang supportive) + 9 Karma (NetWorthSummaryComponent — render/hide/gap label/boundary cases incl. negative CAGR). 295/295 Infrastructure + 14/14 Karma pass.

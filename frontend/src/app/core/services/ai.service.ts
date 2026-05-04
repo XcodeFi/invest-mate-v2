@@ -127,6 +127,11 @@ export class AiService {
     return this.streamRequest('daily-briefing', { question });
   }
 
+  // v1.1 P2: AI rebrand "Bản tin" → "Phản biện danh mục" — adversarial coach role.
+  streamPortfolioCritique(question?: string): Observable<AiStreamChunk> {
+    return this.streamRequest('portfolio-critique', { question });
+  }
+
   streamComprehensiveAnalysis(symbol: string, question?: string): Observable<AiStreamChunk> {
     return this.streamRequest('comprehensive-analysis', { symbol, question });
   }
