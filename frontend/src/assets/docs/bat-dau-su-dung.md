@@ -63,11 +63,16 @@ Có 2 cách ghi giao dịch:
 
 Quay lại **Dashboard** (`/dashboard`) để xem:
 
-- **Summary cards**: Tổng giá trị, Đã đầu tư, Lãi/Lỗ, CAGR
-- **Equity Curve**: Biểu đồ tăng trưởng vốn theo thời gian
-- **Vị thế nổi bật**: Top 6 cổ phiếu đang nắm giữ
-- **Cảnh báo rủi ro**: Stop-loss gần ngưỡng, drawdown vượt mức
-- **Chỉ số thị trường**: VN-INDEX, VN30, HNX, UPCOM realtime
+- **🚨 Decision Queue (vị trí #1)**: Việc cần xử lý hôm nay — gộp Stop-loss / Scenario trigger / Thesis review thành 1 list. Mỗi item có 2 button:
+  - **🔪 BÁN THEO KẾ HOẠCH** — bán ngay theo plan với giá hiện tại (chỉ enable khi item có gắn Trade Plan).
+  - **✋ GIỮ + GHI LÝ DO** — bắt buộc nhập ≥ 20 ký tự để buộc nghĩ kỹ trước khi bỏ qua tín hiệu.
+  - Empty state: khi không có alert → `✅ Hôm nay đang kỷ luật + 🔥 streak X ngày`.
+- **NetWorth + Reality Gap CAGR**: cảnh báo lệch so với mục tiêu CAGR.
+- **Discipline Score**: điểm kỷ luật thesis.
+- **Summary cards**: Tổng giá trị, Đã đầu tư, Lãi/Lỗ, CAGR.
+- **Vị thế nổi bật**: Top 6 cổ phiếu đang nắm giữ.
+- **Watchlist**: phá pre-trade routine, kỷ luật entry.
+- Equity Curve đầy đủ ở trang `/analytics`. Chỉ số thị trường (VNINDEX/HNX/UPCOM/VN30) ở trang `/market-data`.
 
 ---
 

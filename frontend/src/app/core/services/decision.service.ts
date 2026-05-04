@@ -34,6 +34,26 @@ export interface DecisionQueueDto {
   totalCount: number;
 }
 
+/**
+ * Action mà user chọn cho 1 DecisionItem inline.
+ * `ExecuteSell` = BÁN theo plan. `HoldWithJournal` = GIỮ + ghi lý do.
+ * Khớp với backend enum `DecisionAction` (P4 — xem `docs/plans/dashboard-decision-engine.md` §6).
+ */
+export type DecisionAction = 'ExecuteSell' | 'HoldWithJournal';
+
+export interface ResolveDecisionRequest {
+  action: DecisionAction;
+  tradePlanId?: string | null;
+  symbol?: string | null;
+  note?: string | null;
+}
+
+export interface ResolveDecisionResult {
+  resultId: string;
+  message: string;
+  resultType: 'Trade' | 'JournalEntry';
+}
+
 @Injectable({ providedIn: 'root' })
 export class DecisionService {
   private readonly API_URL = `${environment.apiUrl}/decisions`;
@@ -51,6 +71,23 @@ export class DecisionService {
   getQueue(): Observable<DecisionQueueDto> {
     return this.http
       .get<DecisionQueueDto>(`${this.API_URL}/queue`, { headers: this.getHeaders() })
+      .pipe(catchError((err) => throwError(() => err)));
+  }
+
+  resolve(decisionId: string, request: ResolveDecisionRequest): Observable<ResolveDecisionResult> {
+    // PascalCase JSON keys (case-sensitive backend binding — see memory `learning_toolquirk_api_pascalcase_required.md`).
+    const body = {
+      Action: request.action,
+      TradePlanId: request.tradePlanId ?? null,
+      Symbol: request.symbol ?? null,
+      Note: request.note ?? null,
+    };
+    return this.http
+      .post<ResolveDecisionResult>(
+        `${this.API_URL}/${encodeURIComponent(decisionId)}/resolve`,
+        body,
+        { headers: this.getHeaders() }
+      )
       .pipe(catchError((err) => throwError(() => err)));
   }
 }

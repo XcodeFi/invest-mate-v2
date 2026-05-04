@@ -2,6 +2,44 @@
 
 ---
 
+## [v2.57.0] — 2026-05-04 · Dashboard Decision Engine PR-3: Inline BÁN/GIỮ + đơn giản hóa Home
+
+### Mục tiêu
+
+Phase cuối của roadmap "Dashboard Decision Engine" (plan: [`docs/plans/dashboard-decision-engine.md`](../../../docs/plans/dashboard-decision-engine.md)). PR-3 ship 2 việc cùng lúc:
+- **P4 — Inline action buttons** trong Decision Queue: mỗi alert có thể resolve ngay tại chỗ, không cần điều hướng.
+- **P5 — Đơn giản hóa Home**: xóa 3 widget noise (Market Index strip, Mini Equity Curve, Quick Actions) khỏi Dashboard.
+
+### UX mới
+
+- **🔪 BÁN THEO KẾ HOẠCH** — trong mỗi item của Decision Queue, khi item có gắn TradePlan, hiện button đỏ. Click → confirm dialog `"Xác nhận BÁN {symbol} theo plan?"` → tạo Trade SELL với quantity tính từ plan + giá hiện tại. Item tự động biến mất khỏi list (optimistic remove).
+- **✋ GIỮ + GHI LÝ DO** — button vàng mở textarea inline. **Bắt buộc nhập ≥ 20 ký tự** (counter `{{n}}/20 ký tự` real-time, button disabled cho đến khi đủ) — buộc bạn nghĩ kỹ trước khi bỏ qua tín hiệu cảnh báo. Sau submit, JournalEntry được tạo với loại `Decision` + tag `decision-hold` để tra cứu lại.
+- **Error feedback rõ ràng** — nếu BÁN/GIỮ thất bại (e.g. plan đã bị xóa, position đã đóng), hiện banner đỏ ngay dưới item kèm lý do thay vì silent fail.
+- **StopLossHit không có plan** — nếu alert là stop-loss thuần (không link plan), button BÁN ẩn; user dùng "Xử lý →" để tới `/risk-dashboard` xử lý thủ công.
+
+### Đã xóa khỏi Home (đơn giản hóa)
+
+- **Market Index strip** (4 ô VNINDEX/HNX/UPCOM/VN30) — không liên quan quyết định cá nhân, chỉ là noise macro. Đã có ở `/market-data`.
+- **Mini Equity Curve chart** (~100 LOC chart logic + range buttons 30D/90D/1Y/All) — dùng để review post-hoc, không phải quyết định ngay. Full version đã có ở `/analytics`.
+- **Quick Actions row** (4 link Wizard/Market/Journals/Risk) — trùng với menu header + bottom-nav.
+- **GIỮ Watchlist** — vẫn ở Home để phá pre-trade routine (kỷ luật entry).
+
+### Tests
+
+- **11 xUnit mới** trong `ResolveDecisionCommandHandlerTests`: ExecuteSell single-lot/multi-lot/user isolation/portfolio ownership defense/plan-not-found/no-executed-lots, HoldWithJournal short note/link plan/symbol fallback/user isolation, validator. 191/191 Application + 729/729 Domain pass.
+- **7 Karma mới** trong `DecisionQueueComponent`: BÁN call API + cancel confirm + expand note form + disabled short note + optimistic remove + hide BÁN no plan + show BÁN error. 30/30 dashboard widget tests pass.
+
+### Files chính
+
+- `src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs` (mới, ~225 LOC) — command + validator + handler.
+- `src/InvestmentApp.Domain/Entities/JournalEntry.cs` — thêm `JournalEntryType.Decision` enum value (additive, no migration).
+- `src/InvestmentApp.Api/Controllers/DecisionsController.cs` — thêm `POST /api/v1/decisions/{id}/resolve`.
+- `frontend/src/app/core/services/decision.service.ts` — thêm `resolve()` method + types.
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.ts` — inline BÁN/GIỮ buttons + per-item error map.
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — xóa Market Index + Mini Equity Curve + Quick Actions (~237 LOC net delete).
+
+---
+
 ## [v2.56.0] — 2026-05-04 · Dashboard Decision Engine PR-2: Decision Queue + Empty State Positive
 
 ### Mục tiêu

@@ -78,6 +78,16 @@ Aligned với USP và plan v1.1 đã chốt sau review 2 sub-agent. Risk rollbac
 
 ## References
 
-- Plan: `docs/plans/dashboard-decision-engine.md` (PR-2 / P3 + Checkpoint PR-2)
+- Plan: `docs/plans/dashboard-decision-engine.md` (PR-2 / P3 + Checkpoint PR-2 + PR-3)
 - PR: #TBD (fill after merge)
 - Related ADR: ADR-0001 (worker-to-scheduler — establishes "additive backend, frontend cleanup" pattern as low-risk)
+
+## Follow-up: PR-3 (P4 + P5) — 2026-05-04
+
+PR-3 ship inline action layer (BÁN/GIỮ) + xóa 3 widget noise khỏi Home. Không tạo ADR riêng vì đây là direct follow-on của decision đã accepted ở ADR này (Decision Queue concept). Các choice quan trọng:
+
+- **Tách Resolve thành command riêng** (không gộp vào GetDecisionQueueQuery) — read và write tách bạch, MediatR pipeline + FluentValidation nhất quán.
+- **`JournalEntryType.Decision` enum value mới** — additive change, no migration; old documents giữ nguyên loại 0-4.
+- **Defense-in-depth: kiểm tra ownership cả `plan.UserId` và `portfolio.UserId`** — sub-agent review surface một crafted plan có thể trỏ tới portfolio user khác.
+- **ExecuteSell chỉ enable khi item có `tradePlanId`** — StopLossHit (no plan link trong DTO) hide BÁN button; user dùng "Xử lý →" link cho manual sell. Aligned với "BÁN THEO KẾ HOẠCH" yêu cầu plan thật sự.
+- **P5 KHÔNG xóa `equityCurveData` + `loadEquityCurve`** trên dashboard.component.ts (deviation from plan §7) vì period stats badge ở timeframe selector phụ thuộc data này. Chỉ chart visualization xóa.

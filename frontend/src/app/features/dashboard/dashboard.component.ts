@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
@@ -7,7 +7,7 @@ import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { RiskService, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
-import { MarketDataService, MarketOverview, BatchPrice } from '../../core/services/market-data.service';
+import { MarketDataService, BatchPrice } from '../../core/services/market-data.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/services/daily-routine.service';
@@ -64,27 +64,6 @@ Chart.register(...registerables);
         <!-- Decision Queue (P3 v1.1) — vị trí #1 ở top, gộp 3 nguồn alert.
              Empty state positive: ✅ Hôm nay đang kỷ luật + 🔥 streak khi 0 alert. -->
         <app-decision-queue></app-decision-queue>
-
-        <!-- Market Overview Strip -->
-        <div *ngIf="marketOverview.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <div *ngFor="let idx of marketOverview"
-            class="bg-white rounded-lg border px-4 py-3 flex items-center justify-between"
-            [class.border-l-green-500]="idx.change >= 0" [class.border-l-red-500]="idx.change < 0"
-            style="border-left-width: 3px;">
-            <div>
-              <div class="text-xs font-medium text-gray-500">{{ idx.symbol }}</div>
-              <div class="text-lg font-bold" [class.text-green-600]="idx.change >= 0" [class.text-red-600]="idx.change < 0">
-                {{ idx.price.toLocaleString('vi-VN', {maximumFractionDigits: 2}) }}
-              </div>
-            </div>
-            <div class="text-right">
-              <div class="text-sm font-medium" [class.text-green-600]="idx.change >= 0" [class.text-red-600]="idx.change < 0">
-                {{ idx.changePercent >= 0 ? '+' : '' }}{{ idx.changePercent.toFixed(2) }}%
-              </div>
-              <div class="text-xs text-gray-400">KL: {{ idx.totalVolume >= 1000000 ? (idx.totalVolume / 1000000).toFixed(0) + 'M' : (idx.totalVolume / 1000).toFixed(0) + 'K' }}</div>
-            </div>
-          </div>
-        </div>
 
         <!-- Kỷ luật Thesis Widget (Vin-discipline §D6) -->
         <div class="mb-6">
@@ -627,27 +606,6 @@ Chart.register(...registerables);
           </div>
         </div>
 
-        <!-- Mini Equity Curve -->
-        <div *ngIf="equityCurveData && equityCurveData.points.length > 1" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Equity Curve</h2>
-            <div class="flex space-x-2">
-              <button *ngFor="let range of equityRanges"
-                (click)="setEquityRange(range.days)"
-                class="px-3 py-1 text-xs font-medium rounded-full transition-colors"
-                [class.bg-blue-600]="selectedRange === range.days"
-                [class.text-white]="selectedRange === range.days"
-                [class.bg-gray-100]="selectedRange !== range.days"
-                [class.text-gray-600]="selectedRange !== range.days">
-                {{ range.label }}
-              </button>
-            </div>
-          </div>
-          <div class="h-48">
-            <canvas #miniEquityCanvas></canvas>
-          </div>
-        </div>
-
         <!-- Quick Trade Widget -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
           <button (click)="qtExpanded = !qtExpanded"
@@ -744,60 +702,6 @@ Chart.register(...registerables);
           </div>
         </div>
 
-        <!-- Row 3: Quick Actions -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <a
-              routerLink="/trade-wizard"
-              class="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all duration-200 group cursor-pointer"
-            >
-              <div class="w-12 h-12 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mb-3 transition-colors">
-                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                </svg>
-              </div>
-              <span class="text-sm font-medium text-gray-700 group-hover:text-blue-700">Wizard Giao dịch</span>
-            </a>
-
-            <a
-              routerLink="/market-data"
-              class="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all duration-200 group cursor-pointer"
-            >
-              <div class="w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center mb-3 transition-colors">
-                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                </svg>
-              </div>
-              <span class="text-sm font-medium text-gray-700 group-hover:text-emerald-700">Xem Thị trường</span>
-            </a>
-
-            <a
-              routerLink="/journals"
-              class="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-violet-200 hover:bg-violet-50 transition-all duration-200 group cursor-pointer"
-            >
-              <div class="w-12 h-12 bg-violet-100 group-hover:bg-violet-200 rounded-xl flex items-center justify-center mb-3 transition-colors">
-                <svg class="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                </svg>
-              </div>
-              <span class="text-sm font-medium text-gray-700 group-hover:text-violet-700">Ghi Nhật ký</span>
-            </a>
-
-            <a
-              routerLink="/risk-dashboard"
-              class="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-amber-200 hover:bg-amber-50 transition-all duration-200 group cursor-pointer"
-            >
-              <div class="w-12 h-12 bg-amber-100 group-hover:bg-amber-200 rounded-xl flex items-center justify-center mb-3 transition-colors">
-                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                </svg>
-              </div>
-              <span class="text-sm font-medium text-gray-700 group-hover:text-amber-700">Quản lý Rủi ro</span>
-            </a>
-          </div>
-        </div>
-
       </div>
     </div>
 
@@ -811,9 +715,6 @@ Chart.register(...registerables);
   styles: []
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-  @ViewChild('miniEquityCanvas') miniEquityCanvas!: ElementRef<HTMLCanvasElement>;
-  private miniEquityChart: Chart | null = null;
-
   showAiPanel = false;
   readonly emptyContext = {};
   currentUser: User | null = null;
@@ -835,13 +736,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   actualProjection = 0;
   projections: { label: string; value: number }[] = [];
   equityCurveData: EquityCurveData | null = null;
-  selectedRange = 90;
-  equityRanges = [
-    { label: '30D', days: 30 },
-    { label: '90D', days: 90 },
-    { label: '1Y', days: 365 },
-    { label: 'All', days: 0 }
-  ];
 
   allocationColors = [
     '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b',
@@ -889,9 +783,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Shared utilities ────────────────────────────────────────────────────
   isBuyTrade = isBuyTrade;
-
-  // ─── Market Overview ─────────────────────────────────────────────────────
-  marketOverview: MarketOverview[] = [];
 
   // ─── Positions Widget ────────────────────────────────────────────────────
   topPositions: ActivePosition[] = [];
@@ -1016,7 +907,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
     this.loadDashboardData();
     this.loadTopPositions();
-    this.loadMarketOverview();
     this.loadDailyRoutine();
     this.loadWatchlistWidget();
     this.loadNetWorth();
@@ -1103,10 +993,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.capitalFlowService.getFlowHistory(portfolioId).pipe(catchError(() => of(null))).subscribe(history => {
       if (history) {
         this.flowHistory = history.flows || [];
-        // Re-render chart with flow markers
-        if (this.equityCurveData) {
-          setTimeout(() => this.renderMiniEquityChart());
-        }
         // Smart nudge: check if large equity change without recent flow
         this.checkSmartNudge(history.flows || []);
       }
@@ -1141,13 +1027,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   dismissNudge(): void {
     this.capitalFlowNudge = { show: false, message: '' };
-  }
-
-  private loadMarketOverview(): void {
-    this.marketDataService.getMarketOverview().subscribe({
-      next: data => this.marketOverview = data,
-      error: () => {}
-    });
   }
 
   private loadTopPositions(): void {
@@ -1252,7 +1131,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.miniEquityChart?.destroy();
+    // No chart instances to clean up — mini equity chart removed in v1.1 P5.
   }
 
 
@@ -1265,7 +1144,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.equityCurveData = data;
         if (data.points.length > 1) {
           this.computePeriodStats();
-          setTimeout(() => this.renderMiniEquityChart());
         }
       },
       error: () => { this.equityCurveData = null; }
@@ -1295,11 +1173,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cagrDaysSpanned = 0;
       }
     });
-  }
-
-  setEquityRange(days: number): void {
-    this.selectedRange = days;
-    setTimeout(() => this.renderMiniEquityChart());
   }
 
   // ─── Multi-timeframe ──────────────────────────────────────────────────────
@@ -1377,108 +1250,4 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }});
   }
 
-  private renderMiniEquityChart(): void {
-    if (!this.miniEquityCanvas?.nativeElement || !this.equityCurveData?.points?.length) return;
-    this.miniEquityChart?.destroy();
-
-    let points = this.equityCurveData.points;
-    if (this.selectedRange > 0) {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - this.selectedRange);
-      points = points.filter(p => new Date(p.date) >= cutoff);
-    }
-    if (points.length < 2) return;
-
-    const labels = points.map(p => new Date(p.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }));
-    const values = points.map(p => p.portfolioValue);
-    const isPositive = values[values.length - 1] >= values[0];
-
-    // Build capital flow scatter data
-    const datasets: any[] = [{
-      data: values,
-      borderColor: isPositive ? '#10b981' : '#ef4444',
-      backgroundColor: isPositive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-      fill: true,
-      tension: 0.3,
-      pointRadius: 0,
-      pointHoverRadius: 4,
-      borderWidth: 2
-    }];
-
-    if (this.flowHistory.length > 0) {
-      const depositData: (number | null)[] = new Array(labels.length).fill(null);
-      const withdrawData: (number | null)[] = new Array(labels.length).fill(null);
-      for (const flow of this.flowHistory) {
-        const flowLabel = new Date(flow.flowDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-        const idx = labels.indexOf(flowLabel);
-        if (idx === -1) continue;
-        const isInflow = ['Deposit', 'Dividend', 'Interest'].includes(flow.type);
-        if (isInflow) depositData[idx] = values[idx];
-        else withdrawData[idx] = values[idx];
-      }
-      if (depositData.some(d => d !== null)) {
-        datasets.push({
-          label: 'Nạp tiền',
-          data: depositData,
-          pointRadius: 6, pointHoverRadius: 8,
-          pointStyle: 'triangle',
-          backgroundColor: '#10b981', borderColor: '#10b981',
-          showLine: false, borderWidth: 0
-        });
-      }
-      if (withdrawData.some(d => d !== null)) {
-        datasets.push({
-          label: 'Rút tiền',
-          data: withdrawData,
-          pointRadius: 6, pointHoverRadius: 8,
-          pointStyle: 'triangle', rotation: 180,
-          backgroundColor: '#ef4444', borderColor: '#ef4444',
-          showLine: false, borderWidth: 0
-        });
-      }
-    }
-
-    this.miniEquityChart = new Chart(this.miniEquityCanvas.nativeElement, {
-      type: 'line',
-      data: {
-        labels,
-        datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const v = ctx.parsed.y ?? 0;
-                const prefix = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
-                if (Math.abs(v) >= 1e9) return prefix + (v / 1e9).toFixed(1) + ' tỷ';
-                if (Math.abs(v) >= 1e6) return prefix + (v / 1e6).toFixed(1) + ' tr';
-                return prefix + v.toLocaleString('vi-VN') + ' đ';
-              }
-            }
-          }
-        },
-        scales: {
-          y: {
-            ticks: {
-              callback: (v) => {
-                const n = Number(v);
-                if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(0) + 'B';
-                if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(0) + 'M';
-                return n.toLocaleString('vi-VN');
-              }
-            },
-            grid: { color: 'rgba(0,0,0,0.04)' }
-          },
-          x: {
-            grid: { display: false },
-            ticks: { maxTicksLimit: 8 }
-          }
-        }
-      }
-    });
-  }
 }

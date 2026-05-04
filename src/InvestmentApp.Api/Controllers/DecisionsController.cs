@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Decisions.Commands.ResolveDecision;
 using InvestmentApp.Application.Decisions.DTOs;
 using InvestmentApp.Application.Decisions.Queries.GetDecisionQueue;
 using MediatR;
@@ -34,4 +35,34 @@ public class DecisionsController : ControllerBase
         var result = await _mediator.Send(query, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Resolve 1 DecisionItem inline: BÁN theo plan hoặc GIỮ + ghi lý do (≥ 20 ký tự).
+    /// (P4 — Decision Engine v1.1 — xem `docs/plans/dashboard-decision-engine.md` §6)
+    /// </summary>
+    [HttpPost("{id}/resolve")]
+    [ProducesResponseType(typeof(ResolveDecisionResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Resolve(string id, [FromBody] ResolveDecisionRequest request, CancellationToken ct)
+    {
+        var command = new ResolveDecisionCommand
+        {
+            DecisionId = id,
+            Action = request.Action,
+            TradePlanId = request.TradePlanId,
+            Symbol = request.Symbol,
+            Note = request.Note,
+            UserId = GetUserId()
+        };
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
+    }
+}
+
+public class ResolveDecisionRequest
+{
+    public DecisionAction Action { get; set; }
+    public string? TradePlanId { get; set; }
+    public string? Symbol { get; set; }
+    public string? Note { get; set; }
 }

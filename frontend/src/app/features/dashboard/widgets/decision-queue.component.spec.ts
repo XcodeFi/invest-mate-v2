@@ -1,5 +1,5 @@
 /**
- * Decision Queue widget — vị trí #1 trên Home (P3 Decision Engine v1.1).
+ * Decision Queue widget — vị trí #1 trên Home (P3 + P4 Decision Engine v1.1).
  * Tests:
  *   1. Empty state hiển thị khi 0 alert + streak ≥ 1 day → ✅ "Hôm nay đang kỷ luật" + 🔥 X ngày.
  *   2. Empty state ẩn streak badge khi streak = 0 hoặc hasData = false.
@@ -7,13 +7,18 @@
  *   4. Cap 5 items, hiện overflow link khi tổng > 5.
  *   5. Severity/type label đúng tiếng Việt.
  *   6. Loading skeleton hiện trước khi service trả về.
+ *   7. (P4) BÁN button gọi resolve API với ExecuteSell + tradePlanId.
+ *   8. (P4) GIỮ button expand inline note form.
+ *   9. (P4) Submit button disabled khi note < 20 chars.
+ *  10. (P4) Item bị remove khỏi list sau resolve thành công.
+ *  11. (P4) BÁN button ẩn khi item không có tradePlanId.
  */
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { DecisionQueueComponent } from './decision-queue.component';
 import { DecisionService, DecisionItemDto, DecisionQueueDto } from '../../../core/services/decision.service';
 import { DisciplineService, DisciplineStreakDto } from '../../../core/services/discipline.service';
@@ -42,7 +47,7 @@ describe('DecisionQueueComponent', () => {
   let disciplineSpy: jasmine.SpyObj<DisciplineService>;
 
   function setup(queue: DecisionQueueDto, streak: DisciplineStreakDto) {
-    decisionSpy = jasmine.createSpyObj('DecisionService', ['getQueue']);
+    decisionSpy = jasmine.createSpyObj('DecisionService', ['getQueue', 'resolve']);
     disciplineSpy = jasmine.createSpyObj('DisciplineService', ['getStreak']);
     decisionSpy.getQueue.and.returnValue(of(queue));
     disciplineSpy.getStreak.and.returnValue(of(streak));
@@ -179,5 +184,104 @@ describe('DecisionQueueComponent', () => {
 
     expect(component.getActionRoute(item)).toEqual(['/trade-plan']);
     expect(component.getActionParams(item)).toEqual({ loadPlan: 'plan-1' });
+  });
+
+  // -----------------------------------------------------------------
+  // P4 inline actions — BÁN / GIỮ
+  // -----------------------------------------------------------------
+  it('hides BÁN button when item has no tradePlanId (StopLossHit fallback)', () => {
+    const item = mockItem({ tradePlanId: null });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css('[data-test="btn-sell"]'))).toBeFalsy();
+    expect(fixture.debugElement.query(By.css('[data-test="btn-hold"]'))).toBeTruthy();
+  });
+
+  it('calls resolve API with ExecuteSell when BÁN clicked + confirmed', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    const item = mockItem({ id: 'ScenarioTrigger:plan-x:n1', type: 'ScenarioTrigger', tradePlanId: 'plan-x' });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    decisionSpy.resolve.and.returnValue(of({ resultId: 't1', message: 'OK', resultType: 'Trade' }));
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('[data-test="btn-sell"]')).nativeElement.click();
+    fixture.detectChanges();
+
+    expect(decisionSpy.resolve).toHaveBeenCalledWith(
+      'ScenarioTrigger:plan-x:n1',
+      jasmine.objectContaining({ action: 'ExecuteSell', tradePlanId: 'plan-x' })
+    );
+  });
+
+  it('does NOT call resolve when user cancels BÁN confirm dialog', () => {
+    spyOn(window, 'confirm').and.returnValue(false);
+    const item = mockItem({ tradePlanId: 'plan-x' });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('[data-test="btn-sell"]')).nativeElement.click();
+
+    expect(decisionSpy.resolve).not.toHaveBeenCalled();
+  });
+
+  it('expands inline note form when GIỮ clicked', () => {
+    const item = mockItem();
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('[data-test="btn-hold"]')).nativeElement.click();
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css('[data-test="note-textarea"]'))).toBeTruthy();
+    // BÁN button hidden when note form expanded
+    expect(fixture.debugElement.query(By.css('[data-test="btn-sell"]'))).toBeFalsy();
+  });
+
+  it('disables submit button when note shorter than 20 chars', () => {
+    const item = mockItem();
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    component.expandNote(item);
+    component.noteDraft = 'ngắn';
+    fixture.detectChanges();
+
+    const btn: HTMLButtonElement = fixture.debugElement.query(By.css('[data-test="btn-submit-hold"]')).nativeElement;
+    expect(btn.disabled).toBeTrue();
+  });
+
+  it('shows error message at item-level when BÁN API fails', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    const item = mockItem({ id: 'i-err', symbol: 'FPT', tradePlanId: 'plan-1' });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    decisionSpy.resolve.and.returnValue(throwError(() => ({ error: { message: 'Plan đã bị xóa' } })));
+    fixture.detectChanges();
+
+    component.onExecuteSell(component.items[0]);
+    fixture.detectChanges();
+
+    const err = fixture.debugElement.query(By.css('[data-test="resolve-error"]'));
+    expect(err).toBeTruthy();
+    expect(err.nativeElement.textContent).toContain('Plan đã bị xóa');
+    // Item still in list (no optimistic remove on failure)
+    expect(component.items.length).toBe(1);
+  });
+
+  it('removes item from list after successful resolve (optimistic)', () => {
+    const items: DecisionItemDto[] = [
+      mockItem({ id: 'i1', symbol: 'FPT', tradePlanId: 'plan-1' }),
+      mockItem({ id: 'i2', symbol: 'VNM', tradePlanId: 'plan-2' }),
+    ];
+    setup({ items: [...items], totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    decisionSpy.resolve.and.returnValue(of({ resultId: 't1', message: 'OK', resultType: 'Trade' }));
+    fixture.detectChanges();
+
+    spyOn(window, 'confirm').and.returnValue(true);
+    component.onExecuteSell(component.items[0]);
+    fixture.detectChanges();
+
+    expect(component.items.length).toBe(1);
+    expect(component.items[0].id).toBe('i2');
   });
 });

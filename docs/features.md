@@ -1410,10 +1410,12 @@ Tổng 1106 tests pass. V1 thêm:
 - **Backend:** `DecisionsController.GetQueue` aggregate 3 sources qua `Task.WhenAll` (StopLossHit / ScenarioTrigger / ThesisReviewDue). `DisciplineController.GetDisciplineStreak` reuse logic SL-violation từ `DisciplineScoreCalculator`. 14 xUnit handler tests.
 - **Frontend:** `DecisionQueueComponent` + `DecisionService` + `DisciplineService.getStreak()`. XÓA HẲN 3 widget cũ trên Dashboard (~180 LOC). 10 Karma tests.
 
-### PR-3 (P4 + P5) — pending
+### PR-3 (P4 + P5) — shipped 2026-05-04
 
-- **P4 — Inline action buttons:** mỗi DecisionItem có 2 button resolve in-place (`🔪 BÁN THEO KẾ HOẠCH` / `✋ GIỮ + GHI LÝ DO ≥ 20 chars`). Tạo Trade với quantity từ TradePlan (sum Executed lots) hoặc tạo JournalEntry với `Type = Decision`.
-- **P5 — Remove 3 widget noise:** Market Index strip + Mini Equity Curve + Quick Actions. GIỮ Watchlist (UX agent flag mạnh: phá pre-trade routine entry discipline).
+- **P4 — Inline action buttons:** mỗi DecisionItem có 2 button resolve in-place. `🔪 BÁN THEO KẾ HOẠCH` chỉ enable khi item có `tradePlanId` — handler tạo Trade SELL với quantity từ plan (single-lot = `plan.Quantity`, multi-lot = sum `lot.PlannedQuantity` của Executed lots) + giá hiện tại từ `IStockPriceService` + `LinkTradePlan` + update portfolio. Confirm dialog trước khi POST. `✋ GIỮ + GHI LÝ DO` expand inline note textarea (≥ 20 ký tự sau Trim → enable submit), tạo `JournalEntry` với `EntryType=Decision` + Tags `["decision-hold", "trigger:{type}"]`. Optimistic remove khỏi list sau success. Per-item error map hiện error ở cả BÁN lẫn GIỮ flow. Defense-in-depth: validate cả `plan.UserId` và `portfolio.UserId` match request.UserId.
+- **P5 — Remove 3 widget noise:** Market Index strip (~20 LOC) + Mini Equity Curve chart (~100 LOC method + ~20 LOC template + `@ViewChild` + chart instance + range buttons) + Quick Actions row (~52 LOC) khỏi Home. GIỮ Watchlist (UX agent flag mạnh: phá pre-trade routine entry discipline). GIỮ `equityCurveData` + `loadEquityCurve` vì period stats badge ở timeframe selector vẫn phụ thuộc.
+- **Backend:** `ResolveDecisionCommand` + validator (Note ≥ 20 chars) + handler. Endpoint `POST /api/v1/decisions/{id}/resolve`. `JournalEntryType.Decision` enum value mới. 11 xUnit tests (single-lot, multi-lot, user isolation, portfolio ownership defense, plan-not-found, no-executed-lots, symbol fallback, validator).
+- **Frontend:** `DecisionService.resolve()` + `DecisionQueueComponent` mở rộng với inline buttons + per-item error handling. 7 Karma tests mới (BÁN call API, cancel confirm, expand note, disabled short note, optimistic remove, hide BÁN no plan, show BÁN error).
 
 ---
 
