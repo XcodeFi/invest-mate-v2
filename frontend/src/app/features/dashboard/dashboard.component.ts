@@ -5,7 +5,7 @@ import { RouterModule, Router } from '@angular/router';
 import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, PortfolioRiskSummary, PositionRiskItem, RiskProfile } from '../../core/services/risk.service';
+import { RiskService, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
 import { MarketDataService, MarketOverview, BatchPrice } from '../../core/services/market-data.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
@@ -13,14 +13,13 @@ import { NotificationService } from '../../core/services/notification.service';
 import { DailyRoutineService, DailyRoutine, RoutineTemplate } from '../../core/services/daily-routine.service';
 import { WatchlistService } from '../../core/services/watchlist.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
-import { JournalEntryService, PendingReviewTrade } from '../../core/services/journal-entry.service';
-import { TradePlanService, ScenarioAdvisoryDto } from '../../core/services/trade-plan.service';
 import { PersonalFinanceService, NetWorthSummaryDto } from '../../core/services/personal-finance.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { DisciplineScoreWidgetComponent } from './widgets/discipline-score-widget.component';
 import { NetWorthSummaryComponent } from './widgets/networth-summary.component';
+import { DecisionQueueComponent } from './widgets/decision-queue.component';
 import { isBuyTrade } from '../../shared/constants/trade-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -28,19 +27,10 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
-interface RiskAlert {
-  symbol: string;
-  portfolioName: string;
-  type: 'stop-loss' | 'drawdown';
-  message: string;
-  severity: 'warning' | 'danger';
-  value: number;
-}
-
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent, NetWorthSummaryComponent],
+  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent, NetWorthSummaryComponent, DecisionQueueComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -71,6 +61,10 @@ interface RiskAlert {
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+        <!-- Decision Queue (P3 v1.1) — vị trí #1 ở top, gộp 3 nguồn alert.
+             Empty state positive: ✅ Hôm nay đang kỷ luật + 🔥 streak khi 0 alert. -->
+        <app-decision-queue></app-decision-queue>
+
         <!-- Market Overview Strip -->
         <div *ngIf="marketOverview.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div *ngFor="let idx of marketOverview"
@@ -92,36 +86,6 @@ interface RiskAlert {
           </div>
         </div>
 
-        <!-- Risk Alert Banner (persistent top) -->
-        <div *ngIf="riskAlerts.length > 0" class="mb-6 bg-gradient-to-r rounded-xl p-4 border-2 shadow-sm"
-          [class.from-red-50]="hasDangerAlert" [class.to-orange-50]="hasDangerAlert" [class.border-red-300]="hasDangerAlert"
-          [class.from-amber-50]="!hasDangerAlert" [class.to-yellow-50]="!hasDangerAlert" [class.border-amber-300]="!hasDangerAlert">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <svg class="w-5 h-5" [class.text-red-600]="hasDangerAlert" [class.text-amber-600]="!hasDangerAlert"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-              </svg>
-              <span class="font-bold text-sm" [class.text-red-800]="hasDangerAlert" [class.text-amber-800]="!hasDangerAlert">
-                {{ riskAlerts.length }} cảnh báo rủi ro
-              </span>
-            </div>
-            <button (click)="bannerDismissed = true" *ngIf="!bannerDismissed" class="text-xs text-gray-500 hover:text-gray-700">Ẩn</button>
-          </div>
-          <div *ngIf="!bannerDismissed" class="space-y-1">
-            <div *ngFor="let alert of riskAlerts.slice(0, 3)" class="flex items-center gap-2 text-sm"
-              [class.text-red-700]="alert.severity === 'danger'" [class.text-amber-700]="alert.severity === 'warning'">
-              <span class="font-medium">{{ alert.symbol }}:</span> {{ alert.message }}
-            </div>
-            <a routerLink="/risk-dashboard"
-              class="inline-block mt-2 text-sm font-medium transition-colors"
-              [class.text-red-700]="hasDangerAlert" [class.hover:text-red-900]="hasDangerAlert"
-              [class.text-amber-700]="!hasDangerAlert" [class.hover:text-amber-900]="!hasDangerAlert">
-              Quản lý Rủi ro →
-            </a>
-          </div>
-        </div>
-
         <!-- Kỷ luật Thesis Widget (Vin-discipline §D6) -->
         <div class="mb-6">
           <app-discipline-score-widget></app-discipline-score-widget>
@@ -135,40 +99,6 @@ interface RiskAlert {
           [cagrValue]="cagrValue"
           [cagrTarget]="cagrTarget">
         </app-networth-summary>
-
-        <!-- Advisory Widget (P0.5) — Gợi ý hành động -->
-        @if (advisories.length > 0) {
-        <div class="mb-6 bg-amber-50 rounded-xl shadow-sm border border-amber-300 p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm font-semibold text-amber-900 flex items-center gap-2">
-              <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-              </svg>
-              Gợi ý hành động
-              <span class="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">{{ advisories.length }}</span>
-            </h2>
-          </div>
-          <div class="space-y-2">
-            @for (adv of advisories; track adv.nodeId) {
-            <div class="bg-white rounded-lg border border-amber-200 p-3 flex items-center justify-between gap-3">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-0.5">
-                  <span class="font-bold text-sm text-gray-900">{{ adv.symbol }}</span>
-                  <span class="text-xs text-blue-700 font-medium">{{ adv.currentPrice | vndCurrency }}</span>
-                </div>
-                <div class="text-xs text-amber-800 font-medium">{{ adv.nodeLabel }}</div>
-                <div class="text-xs text-gray-600">{{ adv.conditionDescription }}</div>
-                <div *ngIf="adv.message" class="text-xs text-gray-500 italic mt-0.5">{{ adv.message }}</div>
-              </div>
-              <a [routerLink]="['/trade-plan']" [queryParams]="{ loadPlan: adv.tradePlanId }"
-                class="flex-shrink-0 px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap">
-                Xem KH →
-              </a>
-            </div>
-            }
-          </div>
-        </div>
-        }
 
         <!-- Smart Nudge: Capital Flow -->
         <div *ngIf="capitalFlowNudge.show" class="mb-6 bg-blue-50 rounded-xl p-4 border border-blue-200 flex items-center justify-between">
@@ -814,33 +744,6 @@ interface RiskAlert {
           </div>
         </div>
 
-        <!-- Row 2.5: Chờ đánh giá -->
-        @if (pendingReviewTrades.length > 0) {
-        <div class="bg-white rounded-xl shadow-sm border border-amber-200 p-6 mb-8">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              Chờ đánh giá
-              <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ pendingReviewTrades.length }}</span>
-            </h2>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            @for (trade of pendingReviewTrades.slice(0, 6); track trade.tradeId) {
-            <a [routerLink]="['/symbol-timeline']" [queryParams]="{symbol: trade.symbol, tradeId: trade.tradeId}"
-               class="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-amber-300 hover:bg-amber-50 transition-all cursor-pointer">
-              <div>
-                <span class="font-semibold text-gray-900">{{ trade.symbol }}</span>
-                <span class="text-xs text-gray-500 ml-2">{{ trade.tradeDate | date:'dd/MM/yyyy' }}</span>
-              </div>
-              <div class="text-xs text-amber-600 font-medium">Đánh giá</div>
-            </a>
-            }
-          </div>
-        </div>
-        }
-
         <!-- Row 3: Quick Actions -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
@@ -917,8 +820,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   summary: OverallPnLSummary | null = null;
   portfolioSummaries: PortfolioSummary[] = [];
   isLoading = true;
-  riskAlerts: RiskAlert[] = [];
-  bannerDismissed = false;
   cagrValue = 0;
   cagrTwrValue: number | null = null;  // raw period TWR for short windows (< 30d) where CAGR is suppressed
   cagrIsStable = false;        // false ⇒ short window, label CAGR as extrapolation
@@ -946,10 +847,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b',
     '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'
   ];
-
-  get hasDangerAlert(): boolean {
-    return this.riskAlerts.some(a => a.severity === 'danger');
-  }
 
   get pnlSummary() {
     return {
@@ -1022,12 +919,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Watchlist Widget ──────────────────────────────────────────────────
   watchlistTopMovers: BatchPrice[] = [];
-
-  // ─── Pending Review Widget ──────────────────────────────────────────
-  pendingReviewTrades: PendingReviewTrade[] = [];
-
-  // ─── Advisory Widget (P0.5) ──────────────────────────────────────────
-  advisories: ScenarioAdvisoryDto[] = [];
 
   // ─── Capital Flow Visibility ──────────────────────────────────────────
   // cashBalance / totalAssets derived via getters from portfolioSummaries + summary.
@@ -1114,8 +1005,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private dailyRoutineService: DailyRoutineService,
     private watchlistService: WatchlistService,
     private capitalFlowService: CapitalFlowService,
-    private journalEntryService: JournalEntryService,
-    private tradePlanService: TradePlanService,
     private portfolioService: PortfolioService,
     private router: Router,
     private personalFinanceService: PersonalFinanceService
@@ -1130,8 +1019,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadMarketOverview();
     this.loadDailyRoutine();
     this.loadWatchlistWidget();
-    this.loadPendingReview();
-    this.loadAdvisories();
     this.loadNetWorth();
   }
 
@@ -1196,20 +1083,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.watchlistTopMovers = prices;
         });
       });
-    });
-  }
-
-  private loadPendingReview(): void {
-    this.journalEntryService.getPendingReview().subscribe({
-      next: (trades) => this.pendingReviewTrades = trades,
-      error: () => this.pendingReviewTrades = []
-    });
-  }
-
-  // ─── Advisory Widget (P0.5) ──────────────────────────────────────────
-  private loadAdvisories(): void {
-    this.tradePlanService.getAdvisories().pipe(catchError(() => of([]))).subscribe(advisories => {
-      this.advisories = advisories;
     });
   }
 
@@ -1318,79 +1191,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.summary = data;
         this.isLoading = false;
         this.cagrValue = 0; // overwritten by household endpoint below
-        this.loadRiskAlerts(data);
         this.loadEquityCurve();
         this.loadCapitalFlowData();
         this.loadHouseholdCagr();
       },
       error: () => {
         this.isLoading = false;
-      }
-    });
-  }
-
-  private loadRiskAlerts(summary: OverallPnLSummary): void {
-    if (!summary.portfolios || summary.portfolios.length === 0) return;
-
-    const riskRequests = summary.portfolios.map(p =>
-      this.riskService.getPortfolioRiskSummary(p.portfolioId)
-    );
-    const profileRequests = summary.portfolios.map(p =>
-      this.riskService.getRiskProfile(p.portfolioId).pipe(catchError(() => of(null)))
-    );
-
-    forkJoin([forkJoin(riskRequests), forkJoin(profileRequests)]).subscribe({
-      next: ([riskSummaries, profiles]) => {
-        const alerts: RiskAlert[] = [];
-
-        riskSummaries.forEach((risk, index) => {
-          const portfolio = summary.portfolios[index];
-          const profile = profiles[index];
-
-          risk.positions.forEach((pos: PositionRiskItem) => {
-            // Stop-loss proximity alert
-            if (pos.stopLossPrice != null && pos.distanceToStopLossPercent <= 5) {
-              alerts.push({
-                symbol: pos.symbol,
-                portfolioName: portfolio.portfolioName,
-                type: 'stop-loss',
-                message: `Cách stop-loss ${pos.distanceToStopLossPercent.toFixed(1)}% (${pos.stopLossPrice.toLocaleString('vi-VN')} VND)`,
-                severity: pos.distanceToStopLossPercent <= 2 ? 'danger' : 'warning',
-                value: pos.distanceToStopLossPercent
-              });
-            }
-
-            // Concentration alert: position > maxPositionSizePercent from risk profile
-            if (profile && pos.positionSizePercent > profile.maxPositionSizePercent) {
-              alerts.push({
-                symbol: pos.symbol,
-                portfolioName: portfolio.portfolioName,
-                type: 'stop-loss',
-                message: `Tập trung quá mức: ${pos.positionSizePercent.toFixed(1)}% danh mục (giới hạn ${profile.maxPositionSizePercent}%)`,
-                severity: pos.positionSizePercent > profile.maxPositionSizePercent * 1.5 ? 'danger' : 'warning',
-                value: pos.positionSizePercent
-              });
-            }
-          });
-
-          // Drawdown alert
-          if (risk.maxDrawdown > 10) {
-            alerts.push({
-              symbol: portfolio.portfolioName,
-              portfolioName: portfolio.portfolioName,
-              type: 'drawdown',
-              message: `Drawdown hiện tại: ${risk.maxDrawdown.toFixed(1)}%`,
-              severity: risk.maxDrawdown > 20 ? 'danger' : 'warning',
-              value: risk.maxDrawdown
-            });
-          }
-        });
-
-        alerts.sort((a, b) => b.value - a.value);
-        this.riskAlerts = alerts.slice(0, 5);
-      },
-      error: () => {
-        // Risk data unavailable — leave alerts empty
       }
     });
   }

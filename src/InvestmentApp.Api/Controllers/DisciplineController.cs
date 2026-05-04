@@ -54,4 +54,18 @@ public class DisciplineController : ControllerBase
         var result = await _mediator.Send(query);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Discipline streak — số ngày liên tiếp gần nhất user không có SL violation.
+    /// Cho empty state Decision Queue (P3 v1.1): khi 0 alert, hiển thị
+    /// "✅ Hôm nay đang kỷ luật + 🔥 X ngày" thay vì widget biến mất.
+    /// </summary>
+    [HttpGet("discipline-score/streak")]
+    [ProducesResponseType(typeof(DisciplineStreakDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDisciplineStreak()
+    {
+        var query = new GetDisciplineStreakQuery { UserId = GetUserId() };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
 }

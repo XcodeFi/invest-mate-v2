@@ -1158,8 +1158,8 @@ Plan v1.1 ship trong **3 PR** riêng để dễ rollback:
 
 | PR | Scope | Lý do tách | Status |
 |----|-------|-----------|--------|
-| PR-1 | P1 + P2 | FE-only CAGR + AI rebrand string change. Risk thấp, ship sớm để test phản hồi user. | ✅ **Shipped 2026-05-04** (xem checkpoint dưới) |
-| PR-2 | P3 (Decision Queue read-only) | Có backend mới + xóa 3 widget cũ. Cần manual QA kỹ. | 🔄 Pending |
+| PR-1 | P1 + P2 | FE-only CAGR + AI rebrand string change. Risk thấp, ship sớm để test phản hồi user. | ✅ **Shipped 2026-05-04** (xem checkpoint PR-1) |
+| PR-2 | P3 (Decision Queue read-only) | Có backend mới + xóa 3 widget cũ. Cần manual QA kỹ. | ✅ **Shipped 2026-05-04** (xem checkpoint PR-2) |
 | PR-3 | P4 + P5 | Inline action ghi data + xóa 3 widget noise. Ship cuối khi đã verify P3 ổn. | 🔄 Pending |
 
 ---
@@ -1227,3 +1227,67 @@ Surface 7 findings (1 Critical, 4 Warning, 2 Minor). Triage:
 **Effort estimate:** 4-5 ngày solo.
 
 **Branch:** Tạo từ master mới: `feat/dashboard-pr2-decision-queue`.
+
+---
+
+## Checkpoint — PR-2 (P3) shipped 2026-05-04
+
+### Decisions
+
+- **Plan deviation #1**: `IRiskService.GetStopLossAlertsAsync` không tồn tại — thực tế là `IRiskCalculationService.GetPortfolioRiskSummaryAsync` per-portfolio. User-level aggregation = iterate user portfolios qua `IPortfolioRepository.GetByUserIdAsync`.
+- **Threshold narrowing có chủ đích**: `loadRiskAlerts` cũ (đã xóa) flag distance ≤ 5% + concentration > maxPositionSizePercent + drawdown > 10%. Decision Queue chỉ flag `DistanceToStopLossPercent ≤ 2%` (≤ 0 = Critical, ≤ 2 = Warning) — thu hẹp scope vì Decision Queue = "việc cần làm NGAY", không phải "watch list". User vẫn xem được concentration/drawdown ở `/risk-dashboard`. Reserved enum value `ConcentrationRisk` trong `DecisionType` cho future expansion.
+- **Guard CurrentPrice ≤ 0**: `RiskCalculationService` return `DistanceToStopLossPercent=0` khi giá fail-fetch — guard riêng để không false-positive thành Critical "thủng SL" khi price API failure.
+- **Plan deviation #2**: tên thực tế là `GetScenarioAdvisoriesQuery` (không phải `GetActiveAdvisoriesQuery`). `IScenarioAdvisoryService.GetAdvisoriesAsync(userId)` đã có sẵn — gọi trực tiếp.
+- **DTO style**: dùng class (không record) để match convention codebase hiện có. `IsExternallyInitOnly` không phù hợp với MongoDB serialization patterns đang dùng.
+- **Streak algorithm — derived-on-demand**: chưa có collection daily snapshot. Logic mirror `DisciplineScoreCalculator.ComputeSlIntegrityAndStopHonor` (Buy: avgExit < SL = violation; Sell: avgExit > SL). Future PR có thể migrate sang stored daily snapshot nếu N+1 query trở thành vấn đề (hiện chấp nhận cho solo-user 1-3 plan/tháng).
+- **Inline action chuyển sang PR-3**: PR-2 chỉ render link "Xử lý →" tới page detail. P4 (BÁN/GIỮ inline) phụ thuộc vào ResolveDecision command + JournalEntryType.Decision enum — defer để giữ PR-2 read-only và rollback dễ.
+- **Severity Critical cho ThesisReviewDue ≥ 3 ngày**: match plan v1.1 spec. Chưa có entity migration nên tin vào DaysOverdue field từ `GetPendingThesisReviewsQuery` (đã tính VN timezone đúng).
+- **Dedupe rule**: cùng (Symbol, PortfolioId) → giữ severity cao nhất, tie-break ưu tiên StopLossHit. ThesisReviewDue thường có PortfolioId rỗng (plan không link portfolio direct) → không dedupe với SL.
+- **Skip dashboard.component.spec.ts lớn**: cùng lý do PR-1 (mock 15+ services). Coverage qua `DecisionQueueComponent` spec (10 tests) + manual QA.
+
+### Files changed
+
+**Backend:**
+- `src/InvestmentApp.Application/Decisions/DTOs/DecisionItemDto.cs` (mới, ~70 LOC) — DTOs + enums.
+- `src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs` (mới, ~210 LOC) — handler aggregate 3 sources qua `Task.WhenAll` + dedupe + sort.
+- `src/InvestmentApp.Application/Discipline/Queries/GetDisciplineStreakQuery.cs` (mới, ~110 LOC) — DTO + handler + `DetectViolation` helper mirror DisciplineScoreCalculator.
+- `src/InvestmentApp.Api/Controllers/DecisionsController.cs` (mới, ~37 LOC).
+- `src/InvestmentApp.Api/Controllers/DisciplineController.cs` — thêm endpoint `/discipline-score/streak` (~14 LOC).
+- `tests/InvestmentApp.Application.Tests/Decisions/GetDecisionQueueQueryHandlerTests.cs` (mới, ~280 LOC, **8 tests** — empty state, stop-loss critical/warning/no-SL, advisory, thesis review critical/warning, aggregate sort, dedupe, multi-portfolio).
+- `tests/InvestmentApp.Application.Tests/Discipline/GetDisciplineStreakQueryHandlerTests.cs` (mới, ~165 LOC, **6 tests** — no plans, no violations, SL violation, honored loss, winning trade, most-recent violation).
+
+**Frontend:**
+- `frontend/src/app/core/services/decision.service.ts` (mới, ~58 LOC).
+- `frontend/src/app/core/services/discipline.service.ts` — thêm `getStreak()` + interface `DisciplineStreakDto` (~15 LOC).
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.ts` (mới, ~190 LOC).
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.spec.ts` (mới, ~180 LOC, **10 tests** — empty state with/without streak, hides streak khi hasData=false, sort critical-first, cap 5 + overflow link, Vietnamese severity/type labels, action route helpers).
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — XÓA HẲN ~180 LOC: Risk Alert Banner template + `RiskAlert` interface + `riskAlerts`/`bannerDismissed` fields + `hasDangerAlert` getter + `loadRiskAlerts` method (65 LOC); Advisory Widget template + `advisories` field + `loadAdvisories`; Pending Review template + `pendingReviewTrades` field + `loadPendingReview`. Bỏ orphan imports `JournalEntryService`, `TradePlanService`, `PendingReviewTrade`, `ScenarioAdvisoryDto`, `PortfolioRiskSummary`, `PositionRiskItem`. Mount `<app-decision-queue>` ở vị trí #1 trước Discipline widget.
+
+**Docs:**
+- `docs/architecture.md` — thêm section PR-2 Decision Queue.
+- `docs/business-domain.md` — endpoint table: `/decisions/queue` + `/me/discipline-score/streak`.
+- `docs/features.md` — section "Dashboard Decision Engine V1.1" với PR-1/PR-2/PR-3 status.
+- `frontend/src/assets/CHANGELOG.md` — entry v2.56.0.
+- `docs/plans/dashboard-decision-engine.md` — checkpoint này.
+
+### Tests
+
+- **14 xUnit** mới (8 GetDecisionQueueQueryHandlerTests + 6 GetDisciplineStreakQueryHandlerTests). 178/178 Application pass.
+- **10 Karma** mới (DecisionQueueComponent). 24/24 dashboard widget tests pass (Decision Queue 10 + NetWorth 9 + Discipline 5).
+
+### Affected layers
+
+- Application (Decisions namespace mới + Discipline thêm streak query).
+- Api (DecisionsController mới + DisciplineController thêm endpoint).
+- Frontend Dashboard (3 widget cũ ra, Decision Queue widget vào).
+
+### Next — PR-3 (P4 inline actions + P5 remove noise widgets)
+
+**Build:**
+- Backend: `ResolveDecisionCommand` (`ExecuteSell` + `HoldWithJournal`) + validator (note ≥ 20 chars). `JournalEntryType.Decision` enum value mới.
+- Frontend: inline `🔪 BÁN THEO KẾ HOẠCH` + `✋ GIỮ + GHI LÝ DO` buttons trong DecisionQueueComponent. Optimistic remove item sau resolve.
+- Frontend P5: xóa Market Index strip + Mini Equity Curve + Quick Actions khỏi Home. GIỮ Watchlist (UX agent flag mạnh).
+
+**Effort estimate:** 5-6 ngày solo.
+
+**Branch:** `feat/dashboard-pr3-resolve-decision`.

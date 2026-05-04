@@ -61,6 +61,15 @@ export interface PendingThesisReviewDto {
   reasons: PendingReviewReasonDto[];
 }
 
+/**
+ * Discipline streak — số ngày liên tiếp gần nhất user không có SL violation.
+ * Cho empty state Decision Queue (P3 v1.1).
+ */
+export interface DisciplineStreakDto {
+  daysWithoutViolation: number;
+  hasData: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DisciplineService {
   private readonly API_URL = `${environment.apiUrl}/me`;
@@ -86,6 +95,14 @@ export class DisciplineService {
   getPendingReviews(): Observable<PendingThesisReviewDto[]> {
     return this.http
       .get<PendingThesisReviewDto[]>(`${this.API_URL}/thesis-reviews/pending`, {
+        headers: this.getHeaders(),
+      })
+      .pipe(catchError((err) => throwError(() => err)));
+  }
+
+  getStreak(): Observable<DisciplineStreakDto> {
+    return this.http
+      .get<DisciplineStreakDto>(`${this.API_URL}/discipline-score/streak`, {
         headers: this.getHeaders(),
       })
       .pipe(catchError((err) => throwError(() => err)));
