@@ -2,6 +2,54 @@
 
 ---
 
+## [v2.56.0] — 2026-05-04 · Dashboard Decision Engine PR-2: Decision Queue + Empty State Positive
+
+### Mục tiêu
+
+Phase thứ 2 của roadmap "Dashboard Decision Engine" (plan: [`docs/plans/dashboard-decision-engine.md`](../../../docs/plans/dashboard-decision-engine.md)). PR-2 ship P3 — gộp 3 widget alert rời (Risk Alert Banner + Advisory Widget + Pending Review section) thành **1 Decision Queue duy nhất** ở vị trí #1 trên Home, kèm empty state positive khi đang kỷ luật.
+
+### UX mới
+
+- **Decision Queue ở vị trí #1 trên Home** — gộp 3 nguồn alert thành 1 widget duy nhất với badge severity tiếng Việt (Khẩn cấp / Lưu ý / Thông tin). Cap 5 items hiển thị + overflow link "Xem tất cả → /risk-dashboard". Sort theo severity (Critical đầu tiên).
+- **Empty state positive** — khi 0 alert → hiển thị `✅ Hôm nay đang kỷ luật` + 🔥 streak X ngày (số ngày liên tiếp gần nhất không vi phạm SL). Thay thế hành vi cũ "widget biến mất" → app không còn rỗng. Streak ẩn khi user chưa có plan.
+- **Headline rõ ràng cho từng loại alert:**
+  - StopLossHit Critical: `FPT đã thủng SL 89.5 (giá 89.4)`
+  - StopLossHit Warning: `VNM cách SL 1.5% (SL 80,000)`
+  - ScenarioTrigger: dùng message gốc của scenario advisory
+  - ThesisReviewDue: `VNM thesis quá hạn review 5 ngày` hoặc `FPT đến hạn review thesis`
+- **Dedupe thông minh** — cùng (Symbol, PortfolioId) xuất hiện ở cả StopLossHit + ScenarioTrigger → giữ Critical, drop Warning. Không spam user.
+
+### Đã xóa khỏi Home
+
+- Risk Alert Banner (29 dòng template + properties + `loadRiskAlerts` method 65 LOC).
+- Advisory Widget (33 dòng template + properties + `loadAdvisories` method).
+- Pending Review section (26 dòng template + `loadPendingReview` method).
+- 3 widget này được Decision Queue thay thế hoàn toàn — không giữ duplicate UI để tránh confusion.
+
+### Tests
+
+- **14 xUnit mới**: 8 trong `GetDecisionQueueQueryHandlerTests` (aggregate 3 sources, dedupe, sort, multi-portfolio) + 6 trong `GetDisciplineStreakQueryHandlerTests` (no plans, no violations, SL violation detection mirror DisciplineScoreCalculator). 178/178 Application pass.
+- **10 Karma mới** trong `DecisionQueueComponent` — empty state with/without streak, hides streak khi `hasData=false`, render N items, cap 5 + overflow, Vietnamese severity/type labels, action route helpers per type. 24/24 dashboard widget tests pass.
+
+### Files chính
+
+- `src/InvestmentApp.Application/Decisions/{DTOs,Queries}/...` — `DecisionItemDto`, `GetDecisionQueueQueryHandler` aggregate 3 sources qua `Task.WhenAll` + dedupe + sort.
+- `src/InvestmentApp.Application/Discipline/Queries/GetDisciplineStreakQuery.cs` — handler tính `daysWithoutViolation` reuse logic SL-violation từ `DisciplineScoreCalculator`.
+- `src/InvestmentApp.Api/Controllers/DecisionsController.cs` — `GET /api/v1/decisions/queue`. `DisciplineController` thêm `GET /me/discipline-score/streak`.
+- `frontend/src/app/core/services/decision.service.ts` (mới) + extend `discipline.service.ts` với `getStreak()`.
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.ts` (mới) — widget mount ở top of main content.
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — net delete ~180 LOC (3 widget cũ + orphan imports).
+
+### Decisions chốt cho PR-2
+
+- **Plan deviation #1**: plan giả định `IRiskService.GetStopLossAlertsAsync` không tồn tại — thực tế là per-portfolio `IRiskCalculationService.GetPortfolioRiskSummaryAsync`. User-level aggregation = iterate user portfolios. Mirror đúng logic dashboard frontend trước đó.
+- **Plan deviation #2**: tên thực tế là `GetScenarioAdvisoriesQuery` (không phải `GetActiveAdvisoriesQuery`). Reuse trực tiếp.
+- **DTO style**: dùng class (không record) để match convention codebase hiện có.
+- **Streak algorithm**: derived-on-demand (chưa có collection daily snapshot). Logic mirror `DisciplineScoreCalculator.ComputeSlIntegrityAndStopHonor` để đảm bảo consistency với composite Discipline Score. Future PR có thể migrate sang stored snapshot nếu performance trở thành vấn đề.
+- **Inline action (BÁN/GIỮ)** chuyển sang PR-3 (P4) — PR-2 chỉ render link "Xử lý →" tới page detail.
+
+---
+
 ## [v2.55.0] — 2026-05-04 · Dashboard Decision Engine PR-1: Reality Gap CAGR + AI Phản biện
 
 ### Mục tiêu

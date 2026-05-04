@@ -360,9 +360,30 @@ Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wirin
 
 **Tests:** 10 handler tests mới (`GetPendingThesisReviewsQueryHandlerTests`). 146/146 Application + 718/718 Domain + 249/249 Infrastructure pass.
 
-## Dashboard Decision Engine (V1.1 P1+P2 — 2026-05-04, in-progress)
+## Dashboard Decision Engine (V1.1 — 2026-05-04, in-progress)
 
 Plan: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engine.md). Hybrid sau review 2 sub-agent (UX + Architect), adopt 3 / bác 5 đề xuất từ layout V2 brainstorm. Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
+
+**PR-2 (P3 — Decision Queue read-only) shipped 2026-05-04:**
+
+- `src/InvestmentApp.Application/Decisions/DTOs/DecisionItemDto.cs` — `DecisionItemDto`, `DecisionQueueDto`, enums `DecisionType` (StopLossHit / ScenarioTrigger / ThesisReviewDue), `DecisionSeverity` (Critical / Warning / Info). View-model thuần — không persist; Id là composite `{type}:{sourceId}`.
+- `src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs` — handler aggregate 3 nguồn: (1) per-portfolio `IRiskCalculationService.GetPortfolioRiskSummaryAsync` filter `DistanceToStopLossPercent ≤ 2%` (≤ 0 = Critical, ≤ 2 = Warning), (2) `IScenarioAdvisoryService.GetAdvisoriesAsync` (Warning), (3) `GetPendingThesisReviewsQuery` qua MediatR (DaysOverdue ≥ 3 = Critical, else Warning). Dedupe theo (Symbol, PortfolioId) giữ severity cao nhất, tie-break ưu tiên StopLossHit. Sort severity desc → DueAt asc. 3 source query song song qua `Task.WhenAll`.
+- `src/InvestmentApp.Application/Discipline/Queries/GetDisciplineStreakQuery.cs` — handler tính `daysWithoutViolation` cho empty state positive. Logic: số ngày kể từ exit gần nhất của closed loss trade KHÔNG tôn trọng plan SL (Buy: avgExit < SL; Sell: avgExit > SL — mirror logic của `DisciplineScoreCalculator.ComputeSlIntegrityAndStopHonor`). Nếu chưa có violation → days kể từ plan đầu tiên. `HasData = false` khi user chưa có plan nào — UI ẩn streak badge nhưng vẫn show empty state.
+- `src/InvestmentApp.Api/Controllers/DecisionsController.cs` — `GET /api/v1/decisions/queue` → `DecisionQueueDto`. JWT-authorized.
+- `src/InvestmentApp.Api/Controllers/DisciplineController.cs` — thêm `GET /api/v1/me/discipline-score/streak` → `DisciplineStreakDto`.
+- `frontend/src/app/core/services/decision.service.ts` — `getQueue()` gọi `/decisions/queue`. Interface `DecisionItemDto` + `DecisionQueueDto` + types `DecisionType` / `DecisionSeverity`.
+- `frontend/src/app/core/services/discipline.service.ts` — thêm `getStreak()` + interface `DisciplineStreakDto`.
+- `frontend/src/app/features/dashboard/widgets/decision-queue.component.ts` — standalone widget vị trí #1 trên Home. Empty state positive (v1.1): khi 0 alert hiển thị `✅ Hôm nay đang kỷ luật + 🔥 X ngày` thay vì biến mất. Active queue cap 5 items với overflow link `/risk-dashboard`. Severity badge tiếng Việt (Khẩn cấp / Lưu ý / Thông tin), type label (Stop-loss / Kịch bản / Review thesis). Inline action route theo type (StopLossHit → `/risk-dashboard`, ScenarioTrigger → `/trade-plan?loadPlan=...`, ThesisReviewDue → `/symbol-timeline`). Inline BÁN/GIỮ buttons để PR-3 (P4).
+- `frontend/src/app/features/dashboard/dashboard.component.ts` — XÓA HẲN 3 widget cũ: Risk Alert Banner (~29 dòng template + `RiskAlert` interface + `riskAlerts` field + `bannerDismissed` field + `hasDangerAlert` getter + `loadRiskAlerts` method 65 LOC), Advisory Widget (~33 dòng template + `advisories` field + `loadAdvisories` method), Pending Review section (~26 dòng template + `pendingReviewTrades` field + `loadPendingReview` method). Bỏ orphan imports `JournalEntryService`, `TradePlanService`, `PendingReviewTrade`, `ScenarioAdvisoryDto`, `PortfolioRiskSummary`, `PositionRiskItem`. Mount `<app-decision-queue>` ở vị trí #1 (top of main content). Tổng net delete ~180 LOC.
+
+**Tests:** 10 xUnit handler tests mới (8 GetDecisionQueueQueryHandlerTests + 6 GetDisciplineStreakQueryHandlerTests = 14 total) + 10 Karma DecisionQueueComponent (empty state with/without streak, hides streak khi hasData=false, sort critical-first, cap 5 + overflow link, Vietnamese labels, action route helpers). 178/178 Application + 24/24 Karma dashboard pass.
+
+**Plan deviations từ spec gốc:**
+
+- Plan giả định `IRiskService.GetStopLossAlertsAsync` — thực tế là `IRiskCalculationService.GetPortfolioRiskSummaryAsync` per-portfolio (mirror logic dashboard frontend trước đó). User-level aggregation = iterate tất cả portfolios.
+- Plan tên `GetActiveAdvisoriesQuery` — thực tế là `GetScenarioAdvisoriesQuery` đã tồn tại. Reuse trực tiếp.
+- DTO dùng class (không record) để match convention codebase hiện có.
+- Empty state streak chuyển từ stored snapshot lịch sử sang derived-on-demand (chưa có collection snapshot daily). Future PR có thể migrate sang stored daily nếu performance trở thành vấn đề (hiện N+1 trade query per closed plan, chấp nhận cho solo-user 1-3 plan/tháng).
 
 **PR-1 (P1+P2) shipped 2026-05-04:**
 

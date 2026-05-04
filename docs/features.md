@@ -1394,6 +1394,29 @@ Tổng 1106 tests pass. V1 thêm:
 
 ---
 
+## Dashboard Decision Engine V1.1 — 2026-05-04
+
+> Plan đầy đủ: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engine.md). Pivot Dashboard từ "display state" → "ép user xử lý quyết định kỷ luật". Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
+
+### PR-1 (P1+P2) — shipped 2026-05-04
+
+- **P1 — Reality Gap CAGR + NetWorth widget tách riêng:** `cagrTargetSet=true` default → user mở app lần đầu thấy ngay "đang lệch X điểm % so với mục tiêu CAGR 15%". Tách `<app-networth-summary>` thành widget compact 3-line ở vị trí #2 (sau Decision Queue), giữ Compound Growth Tracker đầy đủ ở giữa page.
+- **P2 — AI rebrand "Bản tin" → "Phản biện danh mục":** đổi vai AI từ news-reader (passive) → adversarial coach. Use-case backend `portfolio-critique` (3 điểm phản biện, mệnh lệnh, KHÔNG khen, KHÔNG động viên). Button label `🥊 AI phản biện danh mục`.
+
+### PR-2 (P3) — shipped 2026-05-04
+
+- **Decision Queue + Empty state Positive:** gộp 3 nguồn alert rời (Risk Alert Banner + Advisory Widget + Pending Review section) thành 1 widget duy nhất ở vị trí #1 trên Home. Sort severity desc (Critical đầu tiên), dedupe theo (Symbol, PortfolioId), cap 5 items với overflow link `/risk-dashboard`.
+- **Empty state positive (v1.1):** khi 0 alert → hiển thị `✅ Hôm nay đang kỷ luật + 🔥 X ngày` (streak = ngày liên tiếp gần nhất không có SL violation) thay vì widget biến mất. Streak ẩn khi user chưa có plan (`hasData = false`).
+- **Backend:** `DecisionsController.GetQueue` aggregate 3 sources qua `Task.WhenAll` (StopLossHit / ScenarioTrigger / ThesisReviewDue). `DisciplineController.GetDisciplineStreak` reuse logic SL-violation từ `DisciplineScoreCalculator`. 14 xUnit handler tests.
+- **Frontend:** `DecisionQueueComponent` + `DecisionService` + `DisciplineService.getStreak()`. XÓA HẲN 3 widget cũ trên Dashboard (~180 LOC). 10 Karma tests.
+
+### PR-3 (P4 + P5) — pending
+
+- **P4 — Inline action buttons:** mỗi DecisionItem có 2 button resolve in-place (`🔪 BÁN THEO KẾ HOẠCH` / `✋ GIỮ + GHI LÝ DO ≥ 20 chars`). Tạo Trade với quantity từ TradePlan (sum Executed lots) hoặc tạo JournalEntry với `Type = Decision`.
+- **P5 — Remove 3 widget noise:** Market Index strip + Mini Equity Curve + Quick Actions. GIỮ Watchlist (UX agent flag mạnh: phá pre-trade routine entry discipline).
+
+---
+
 ## Backlog (chưa implement)
 
 | # | Tính năng | Độ ưu tiên | Kế hoạch |

@@ -101,6 +101,7 @@ StyleCopReport.xml
 *.tmp
 *.tmp_proj
 *_wpftmp.csproj
+.tmp-logs/
 *.log
 *.tlog
 *.vspscc
