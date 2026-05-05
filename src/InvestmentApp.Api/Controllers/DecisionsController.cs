@@ -43,8 +43,14 @@ public class DecisionsController : ControllerBase
     [HttpPost("{id}/resolve")]
     [ProducesResponseType(typeof(ResolveDecisionResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Resolve(string id, [FromBody] ResolveDecisionRequest request, CancellationToken ct)
+    public async Task<IActionResult> Resolve(string id, [FromBody] ResolveDecisionRequest? request, CancellationToken ct)
     {
+        // ConfigureApiBehaviorOptions.SuppressModelStateInvalidFilter=true means a body that
+        // fails to deserialize lets `request` arrive as null instead of auto-400. Surface a
+        // useful 400 instead of dereferencing → NRE → 500.
+        if (request is null)
+            return BadRequest(new { error = "Body request không hợp lệ — kiểm tra Action/TradePlanId/Symbol/Note." });
+
         var command = new ResolveDecisionCommand
         {
             DecisionId = id,

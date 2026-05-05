@@ -1,5 +1,6 @@
 using System.Net;
 using InvestmentApp.Api.Auth;
+using InvestmentApp.Api.Configuration;
 using InvestmentApp.Api.Controllers;
 using InvestmentApp.Api.Middleware;
 using InvestmentApp.Application.Interfaces;
@@ -63,6 +64,7 @@ builder.Host.UseSerilog((context, config) =>
 
 // Add services to the container
 builder.Services.AddControllers()
+    .AddJsonOptions(opts => ApiJsonConfig.Configure(opts.JsonSerializerOptions))
     .ConfigureApiBehaviorOptions(options =>
     {
         // Disable automatic 400 for model state errors.
