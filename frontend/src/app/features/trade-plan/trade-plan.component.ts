@@ -1204,9 +1204,14 @@ interface InvalidationRuleForm {
                     [placeholder]="invalidationPlaceholder(rule.trigger)"></textarea>
                   <div class="flex items-center justify-between text-[10px]">
                     <span class="text-gray-500">Tối thiểu 20 ký tự để có thể chứng minh sai.</span>
-                    <span [ngClass]="(rule.detail || '').length >= 20 ? 'text-green-600' : 'text-red-500'">
-                      {{ (rule.detail || '').length }}/20
+                    <span [ngClass]="(rule.detail || '').trim().length >= 20 ? 'text-green-600' : 'text-red-500'">
+                      {{ (rule.detail || '').trim().length }}/20
                     </span>
+                  </div>
+                  <div *ngIf="invalidationDetailError(rule)"
+                       data-test="invalidation-detail-error"
+                       class="text-[10px] text-red-600 mt-0.5">
+                    ⚠️ {{ invalidationDetailError(rule) }}
                   </div>
                 </div>
               </div>
@@ -1618,22 +1623,23 @@ interface InvalidationRuleForm {
             <div class="mt-4 space-y-2">
               <!-- Draft/new/no-status: full save options -->
               <ng-container *ngIf="!selectedPlanStatus || selectedPlanStatus === 'Draft'">
-                <button (click)="saveDraft()" [disabled]="saving || !plan.symbol"
+                <button (click)="saveDraft()" [disabled]="!canSaveDraft()"
+                  data-test="btn-save-draft"
                   class="block w-full text-center border-2 border-blue-400 hover:bg-blue-50 text-blue-700 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
                   {{ saving ? 'Đang lưu...' : (selectedPlanId ? 'Cập nhật nháp' : 'Lưu nháp') }}
                 </button>
-                <button (click)="saveAndReady()" [disabled]="saving || !plan.symbol || !canTrade"
+                <button (click)="saveAndReady()" [disabled]="!canSaveDraft() || !canTrade"
                   class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
                   {{ saving ? 'Đang lưu...' : 'Lưu & Sẵn sàng' }}
                 </button>
               </ng-container>
               <!-- Ready: allow save update (notes/reason/context) -->
-              <button *ngIf="selectedPlanStatus === 'Ready'" (click)="saveDraft()" [disabled]="saving"
+              <button *ngIf="selectedPlanStatus === 'Ready'" (click)="saveDraft()" [disabled]="!canSaveDraft()"
                 class="block w-full text-center border-2 border-blue-400 hover:bg-blue-50 text-blue-700 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
                 {{ saving ? 'Đang lưu...' : 'Cập nhật kế hoạch' }}
               </button>
               <!-- InProgress: allow save for tighten-SL + notes + pending lots -->
-              <button *ngIf="selectedPlanStatus === 'InProgress'" (click)="saveDraft()" [disabled]="saving"
+              <button *ngIf="selectedPlanStatus === 'InProgress'" (click)="saveDraft()" [disabled]="!canSaveDraft()"
                 class="block w-full text-center border-2 border-amber-400 hover:bg-amber-50 text-amber-700 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
                 {{ saving ? 'Đang lưu...' : 'Cập nhật SL / lot / ghi chú' }}
               </button>
@@ -2208,6 +2214,51 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   removeInvalidationRule(index: number): void {
     this.plan.invalidationCriteria?.splice(index, 1);
+  }
+
+  /** Mỗi rule trong invalidationCriteria phải có Detail ≥ 20 ký tự sau Trim. */
+  static readonly INVALIDATION_DETAIL_MIN = 20;
+
+  /** Returns true when no rules exist or every rule has Detail.trim().length ≥ 20. */
+  isInvalidationCriteriaValid(): boolean {
+    const rules = this.plan?.invalidationCriteria ?? [];
+    return rules.every(r => (r.detail ?? '').trim().length >= TradePlanComponent.INVALIDATION_DETAIL_MIN);
+  }
+
+  /** Per-rule error string for inline display. Null when rule passes. */
+  invalidationDetailError(rule: InvalidationRuleForm): string | null {
+    const len = (rule.detail ?? '').trim().length;
+    if (len < TradePlanComponent.INVALIDATION_DETAIL_MIN) {
+      return `Cần ≥ ${TradePlanComponent.INVALIDATION_DETAIL_MIN} ký tự (hiện ${len}) để có thể chứng minh sai`;
+    }
+    return null;
+  }
+
+  /**
+   * Gate save buttons on invalidation rule completeness + minimum-viable plan fields.
+   * Stop-loss must be > 0 (downstream Risk service throws comparison errors otherwise).
+   */
+  canSaveDraft(): boolean {
+    if (this.saving) return false;
+    if (!this.plan?.symbol) return false;
+    if (!this.isInvalidationCriteriaValid()) return false;
+    if (this.plan.stopLoss != null && this.plan.stopLoss <= 0) return false;
+    return true;
+  }
+
+  /**
+   * Extract a human-readable error message from a backend ProblemDetails-shaped HTTP error.
+   * FluentValidation auto-validation returns 400 with {errors: {field: [msg, ...], ...}}.
+   * Falls back to err.error.title / err.error.detail / generic string.
+   */
+  private formatBackendError(err: any, fallback: string): string {
+    const errors = err?.error?.errors;
+    if (errors && typeof errors === 'object') {
+      const firstField = Object.keys(errors)[0];
+      const msgs = errors[firstField];
+      if (Array.isArray(msgs) && msgs.length > 0) return msgs[0];
+    }
+    return err?.error?.detail || err?.error?.title || fallback;
   }
 
   invalidationPlaceholder(trigger: string): string {
@@ -3162,9 +3213,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
             this.loadSavedPlans();
           }
         },
-        error: () => {
+        error: (err) => {
           this.saving = false;
-          this.notification.error('Lỗi', 'Không thể cập nhật kế hoạch');
+          this.notification.error('Lỗi', this.formatBackendError(err, 'Không thể cập nhật kế hoạch'));
         }
       });
     } else {
@@ -3213,9 +3264,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           this.notification.success('Kế hoạch', status === 'Ready' ? 'Đã tạo & sẵn sàng' : 'Đã lưu nháp');
           this.loadSavedPlans();
         },
-        error: () => {
+        error: (err) => {
           this.saving = false;
-          this.notification.error('Lỗi', 'Không thể lưu kế hoạch');
+          this.notification.error('Lỗi', this.formatBackendError(err, 'Không thể lưu kế hoạch'));
         }
       });
     }

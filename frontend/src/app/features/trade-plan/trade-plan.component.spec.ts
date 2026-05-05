@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { of, EMPTY } from 'rxjs';
+import { of, EMPTY, throwError } from 'rxjs';
 import { TradePlanComponent } from './trade-plan.component';
 import { StrategyService } from '../../core/services/strategy.service';
 import { PortfolioService } from '../../core/services/portfolio.service';
@@ -373,6 +373,93 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     it('returns Cancelled banner', () => {
       setStatus('Cancelled');
       expect(component.stateBanner?.tone).toBe('cancelled');
+    });
+  });
+
+  // ============================================
+  // Invalidation criteria validation (Detail ≥ 20 chars)
+  // — repro for production bug: empty detail saved silently as 204 No Content.
+  // ============================================
+  describe('invalidation criteria validation', () => {
+    it('isInvalidationCriteriaValid is true when no rules exist', () => {
+      component.plan.invalidationCriteria = [];
+      expect(component.isInvalidationCriteriaValid()).toBeTrue();
+    });
+
+    it('isInvalidationCriteriaValid is false when a rule has empty detail', () => {
+      component.plan.invalidationCriteria = [
+        { trigger: 'EarningsMiss', detail: '', checkDate: '', isTriggered: false, triggeredAt: null }
+      ];
+      expect(component.isInvalidationCriteriaValid()).toBeFalse();
+    });
+
+    it('isInvalidationCriteriaValid is false when a rule has detail < 20 chars', () => {
+      component.plan.invalidationCriteria = [
+        { trigger: 'EarningsMiss', detail: 'EPS giảm', checkDate: '', isTriggered: false, triggeredAt: null }
+      ];
+      expect(component.isInvalidationCriteriaValid()).toBeFalse();
+    });
+
+    it('isInvalidationCriteriaValid is false when a rule has whitespace-only detail of length ≥ 20', () => {
+      component.plan.invalidationCriteria = [
+        { trigger: 'EarningsMiss', detail: '                         ', checkDate: '', isTriggered: false, triggeredAt: null }
+      ];
+      expect(component.isInvalidationCriteriaValid()).toBeFalse();
+    });
+
+    it('isInvalidationCriteriaValid is true when every rule has detail.trim().length ≥ 20', () => {
+      component.plan.invalidationCriteria = [
+        { trigger: 'EarningsMiss', detail: 'BCTC Q1/2026 EPS < 20% YoY trong 2 quý liên tiếp', checkDate: '', isTriggered: false, triggeredAt: null },
+        { trigger: 'TrendBreak', detail: 'Đóng cửa dưới MA200 với volume > 2× TB20', checkDate: '', isTriggered: false, triggeredAt: null }
+      ];
+      expect(component.isInvalidationCriteriaValid()).toBeTrue();
+    });
+
+    it('isInvalidationCriteriaValid flags only the offending rule when mixed', () => {
+      component.plan.invalidationCriteria = [
+        { trigger: 'EarningsMiss', detail: 'BCTC Q1/2026 EPS giảm > 20% YoY', checkDate: '', isTriggered: false, triggeredAt: null },
+        { trigger: 'TrendBreak', detail: '', checkDate: '', isTriggered: false, triggeredAt: null }
+      ];
+      expect(component.isInvalidationCriteriaValid()).toBeFalse();
+      expect(component.invalidationDetailError(component.plan.invalidationCriteria[0])).toBeNull();
+      expect(component.invalidationDetailError(component.plan.invalidationCriteria[1])).toContain('20');
+    });
+  });
+
+  // ============================================
+  // saveDraft — surfaces BE validation errors instead of generic toast
+  // ============================================
+  describe('saveDraft error toast', () => {
+    it('shows specific BE validation message when 400 returned with errors dict', () => {
+      const planSpy = TestBed.inject(TradePlanService) as jasmine.SpyObj<TradePlanService>;
+      const notifSpy = TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>;
+
+      // Simulate BE 400 ProblemDetails (FluentValidation auto-validation shape).
+      planSpy.create.and.returnValue(throwError(() => ({
+        status: 400,
+        error: {
+          errors: {
+            'InvalidationCriteria[0].Detail': [
+              'Mô tả điều kiện phải có ít nhất 20 ký tự (sau Trim) để có thể chứng minh sai'
+            ]
+          }
+        }
+      })));
+
+      component.plan.symbol = 'VIC';
+      component.plan.entryPrice = 100_000;
+      component.plan.stopLoss = 95_000;
+      component.plan.target = 120_000;
+      component.plan.invalidationCriteria = [
+        { trigger: 'EarningsMiss', detail: '', checkDate: '', isTriggered: false, triggeredAt: null }
+      ];
+      component.selectedPlanId = null;
+
+      component.saveDraft();
+
+      expect(notifSpy.error).toHaveBeenCalled();
+      const errMsg = notifSpy.error.calls.mostRecent().args[1] as string;
+      expect(errMsg).toContain('20 ký tự');
     });
   });
 });
