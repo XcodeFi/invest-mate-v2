@@ -139,6 +139,7 @@ const MIN_HOLD_NOTE_LENGTH = 20;
               ✋ GIỮ + GHI LÝ DO
             </button>
             <a [routerLink]="getActionRoute(item)" [queryParams]="getActionParams(item)"
+               data-test="btn-process"
                class="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors">
               Xử lý →
             </a>
@@ -235,8 +236,12 @@ export class DecisionQueueComponent implements OnInit {
     if (item.type === 'ScenarioTrigger' && item.tradePlanId) {
       return { loadPlan: item.tradePlanId };
     }
-    if (item.type === 'ThesisReviewDue' && item.tradePlanId) {
-      return { symbol: item.symbol, planId: item.tradePlanId };
+    if (item.type === 'ThesisReviewDue') {
+      // Symbol luôn có; planId optional (data có thể thiếu trong edge case backend).
+      // Trước fix: gating cả param trên tradePlanId làm URL về /symbol-timeline trống → page rỗng.
+      const params: Record<string, string> = { symbol: item.symbol };
+      if (item.tradePlanId) params['planId'] = item.tradePlanId;
+      return params;
     }
     if (item.type === 'StopLossHit') {
       return { symbol: item.symbol };
