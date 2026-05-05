@@ -186,6 +186,34 @@ describe('DecisionQueueComponent', () => {
     expect(component.getActionParams(item)).toEqual({ loadPlan: 'plan-1' });
   });
 
+  it('routes ThesisReviewDue to /symbol-timeline with symbol + planId when tradePlanId present', () => {
+    const item = mockItem({ type: 'ThesisReviewDue', symbol: 'VNM', tradePlanId: 'plan-vnm' });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(component.getActionRoute(item)).toEqual(['/symbol-timeline']);
+    expect(component.getActionParams(item)).toEqual({ symbol: 'VNM', planId: 'plan-vnm' });
+  });
+
+  it('routes ThesisReviewDue to /symbol-timeline with symbol param even when tradePlanId missing', () => {
+    // Regression: bug từ PR-3 — fallback `return {}` khi tradePlanId null làm URL về /symbol-timeline
+    // không kèm ?symbol=... → page render rỗng "Chưa có dữ liệu timeline cho ".
+    const item = mockItem({ type: 'ThesisReviewDue', symbol: 'FPT', tradePlanId: null });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(component.getActionRoute(item)).toEqual(['/symbol-timeline']);
+    expect(component.getActionParams(item)).toEqual({ symbol: 'FPT' });
+  });
+
+  it('Xử lý link rendered with data-test="btn-process" for E2E consistency', () => {
+    const item = mockItem();
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css('[data-test="btn-process"]'))).toBeTruthy();
+  });
+
   // -----------------------------------------------------------------
   // P4 inline actions — BÁN / GIỮ
   // -----------------------------------------------------------------
