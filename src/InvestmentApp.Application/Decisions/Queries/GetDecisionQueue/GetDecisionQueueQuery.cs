@@ -32,6 +32,7 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
     private readonly ITradePlanRepository _planRepo;
     private readonly IRiskCalculationService _riskService;
     private readonly IScenarioAdvisoryService _advisoryService;
+    private readonly IJournalEntryRepository _journalRepo;
     private readonly IMediator _mediator;
 
     /// <summary>≤ 2% distance to SL → đưa vào queue.</summary>
@@ -43,17 +44,22 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
     /// <summary>Thesis quá hạn ≥ 3 ngày → Critical (match plan v1.1 spec).</summary>
     private const int ThesisOverdueCriticalDays = 3;
 
+    /// <summary>VN timezone offset — local day boundary for daily suppression reset.</summary>
+    private const int VnUtcOffsetHours = 7;
+
     public GetDecisionQueueQueryHandler(
         IPortfolioRepository portfolioRepo,
         ITradePlanRepository planRepo,
         IRiskCalculationService riskService,
         IScenarioAdvisoryService advisoryService,
+        IJournalEntryRepository journalRepo,
         IMediator mediator)
     {
         _portfolioRepo = portfolioRepo;
         _planRepo = planRepo;
         _riskService = riskService;
         _advisoryService = advisoryService;
+        _journalRepo = journalRepo;
         _mediator = mediator;
     }
 
@@ -64,8 +70,9 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
         var stopLossTask = LoadStopLossItemsAsync(portfolios, cancellationToken);
         var advisoriesTask = LoadAdvisoryItemsAsync(request.UserId, portfolios, cancellationToken);
         var reviewsTask = LoadThesisReviewItemsAsync(request.UserId, cancellationToken);
+        var resolvedTodayTask = LoadResolvedTodayAsync(request.UserId, cancellationToken);
 
-        await Task.WhenAll(stopLossTask, advisoriesTask, reviewsTask);
+        await Task.WhenAll(stopLossTask, advisoriesTask, reviewsTask, resolvedTodayTask);
 
         var combined = stopLossTask.Result
             .Concat(advisoriesTask.Result)
@@ -73,7 +80,16 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
             .ToList();
 
         var deduped = Dedupe(combined);
-        var sorted = deduped
+
+        // Per-day suppression: items resolved today (Decision journal in last VN day) drop out
+        // until next VN midnight. Refresh-after-resolve no longer surfaces the same item.
+        var (suppressedPlanIds, suppressedSymbolPortfolio) = resolvedTodayTask.Result;
+        var unsuppressed = deduped.Where(i =>
+            !(i.TradePlanId != null && suppressedPlanIds.Contains(i.TradePlanId))
+            && !suppressedSymbolPortfolio.Contains((i.Symbol, i.PortfolioId))
+        ).ToList();
+
+        var sorted = unsuppressed
             .OrderByDescending(i => (int)i.Severity == (int)DecisionSeverity.Critical ? 2
                                   : (int)i.Severity == (int)DecisionSeverity.Warning ? 1 : 0)
             .ThenBy(i => i.DueAt ?? DateTime.MaxValue)
@@ -84,6 +100,36 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
             Items = sorted,
             TotalCount = sorted.Count
         };
+    }
+
+    /// <summary>
+    /// Load Decision-type journal entries created on or after start-of-VN-day. Build two
+    /// suppression sets:
+    ///   - planIds: matches ScenarioTrigger / ThesisReviewDue items by TradePlanId.
+    ///   - (Symbol, PortfolioId) pairs: matches StopLossHit items (which carry no plan id).
+    /// </summary>
+    private async Task<(HashSet<string> PlanIds, HashSet<(string Symbol, string PortfolioId)> SymPort)>
+        LoadResolvedTodayAsync(string userId, CancellationToken ct)
+    {
+        var vnNow = DateTime.UtcNow.AddHours(VnUtcOffsetHours);
+        var vnDayStartUtc = vnNow.Date.AddHours(-VnUtcOffsetHours);
+
+        var journals = await _journalRepo.GetByUserIdAsync(userId, ct);
+        var todayDecisions = journals
+            .Where(j => j.EntryType == JournalEntryType.Decision && j.Timestamp >= vnDayStartUtc)
+            .ToList();
+
+        var planIds = todayDecisions
+            .Where(j => !string.IsNullOrEmpty(j.TradePlanId))
+            .Select(j => j.TradePlanId!)
+            .ToHashSet();
+
+        var symPort = todayDecisions
+            .Where(j => !string.IsNullOrEmpty(j.PortfolioId))
+            .Select(j => (j.Symbol, j.PortfolioId!))
+            .ToHashSet();
+
+        return (planIds, symPort);
     }
 
     private async Task<List<DecisionItemDto>> LoadStopLossItemsAsync(

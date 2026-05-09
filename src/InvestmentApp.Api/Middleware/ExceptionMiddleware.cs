@@ -1,5 +1,5 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Filters;
 using System.Net;
 
 namespace InvestmentApp.Api.Middleware;
@@ -31,6 +31,28 @@ public class ExceptionMiddleware
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
+
+        // FluentValidation ValidationException: surface as 400 ValidationProblemDetails so FE can
+        // parse the structured `errors` map. Keep this branch BEFORE the generic switch since
+        // ValidationException inherits from Exception, not from ArgumentException.
+        if (exception is ValidationException ve)
+        {
+            var errors = ve.Errors
+                .GroupBy(e => e.PropertyName)
+                .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+            var validationProblem = new ValidationProblemDetails(errors)
+            {
+                Type = "https://httpstatuses.com/400",
+                Title = "Validation Failed",
+                Status = (int)HttpStatusCode.BadRequest,
+                Instance = context.Request.Path
+            };
+
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await context.Response.WriteAsJsonAsync(validationProblem);
+            return;
+        }
 
         var statusCode = exception switch
         {
