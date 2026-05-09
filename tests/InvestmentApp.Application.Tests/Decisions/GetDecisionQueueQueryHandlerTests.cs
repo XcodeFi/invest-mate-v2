@@ -20,6 +20,7 @@ public class GetDecisionQueueQueryHandlerTests
     private readonly Mock<ITradePlanRepository> _planRepo = new();
     private readonly Mock<IRiskCalculationService> _riskService = new();
     private readonly Mock<IScenarioAdvisoryService> _advisoryService = new();
+    private readonly Mock<IJournalEntryRepository> _journalRepo = new();
     private readonly Mock<IMediator> _mediator = new();
     private readonly GetDecisionQueueQueryHandler _handler;
     private const string UserId = "user-1";
@@ -27,7 +28,8 @@ public class GetDecisionQueueQueryHandlerTests
     public GetDecisionQueueQueryHandlerTests()
     {
         _handler = new GetDecisionQueueQueryHandler(
-            _portfolioRepo.Object, _planRepo.Object, _riskService.Object, _advisoryService.Object, _mediator.Object);
+            _portfolioRepo.Object, _planRepo.Object, _riskService.Object, _advisoryService.Object,
+            _journalRepo.Object, _mediator.Object);
 
         // Defaults: tất cả nguồn empty — từng test override khi cần.
         _portfolioRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
@@ -36,6 +38,8 @@ public class GetDecisionQueueQueryHandlerTests
             .ReturnsAsync(Array.Empty<TradePlan>());
         _advisoryService.Setup(s => s.GetAdvisoriesAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ScenarioAdvisory>());
+        _journalRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<JournalEntry>());
         _mediator.Setup(m => m.Send(It.IsAny<GetPendingThesisReviewsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<PendingThesisReviewDto>());
     }
@@ -338,5 +342,138 @@ public class GetDecisionQueueQueryHandlerTests
                 Positions = positions.ToList(),
                 PositionCount = positions.Length
             });
+    }
+
+    // -----------------------------------------------------------------
+    // Per-day suppression — once user resolves an item today, that item
+    // does not reappear on refresh until next VN day. (Bug fix: previously
+    // refresh re-ran the source queries from scratch and showed the same
+    // item with same buttons — defeating the resolve action.)
+    // -----------------------------------------------------------------
+    /// <summary>VN day boundary in UTC — VN is UTC+7, so VN day starts 7h before UTC midnight.</summary>
+    private static DateTime VnTodayStartUtc()
+    {
+        var vnNow = DateTime.UtcNow.AddHours(7);
+        return vnNow.Date.AddHours(-7);
+    }
+
+    private void SetupDecisionJournal(JournalEntry entry)
+    {
+        _journalRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { entry });
+    }
+
+    private static JournalEntry MakeDecisionJournal(string symbol, string? portfolioId = null, string? tradePlanId = null, DateTime? timestamp = null)
+    {
+        return new JournalEntry(
+            userId: UserId,
+            symbol: symbol,
+            entryType: JournalEntryType.Decision,
+            title: $"Quyết định — {symbol}",
+            content: "test resolve marker",
+            portfolioId: portfolioId,
+            tradePlanId: tradePlanId,
+            tags: new List<string> { "decision-hold" },
+            timestamp: timestamp ?? DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task Handle_StopLossHitWithRecentDecisionJournalToday_IsSuppressed()
+    {
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        // Journal created today VN time, matches (Symbol, PortfolioId).
+        SetupDecisionJournal(MakeDecisionJournal("FPT", portfolioId: "p1", timestamp: VnTodayStartUtc().AddHours(2)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_StopLossHitWithDecisionJournalForDifferentPortfolio_NotSuppressed()
+    {
+        // Same symbol but different portfolio — separate position, separate decision.
+        var p1 = MakePortfolio("p1", "Main");
+        SetupPortfolios(p1);
+        SetupRiskSummary(p1.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        SetupDecisionJournal(MakeDecisionJournal("FPT", portfolioId: "p2-other", timestamp: VnTodayStartUtc().AddHours(1)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Handle_DecisionJournalFromYesterday_NotSuppressed()
+    {
+        // Daily reset semantics: yesterday's resolve doesn't carry over.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        // 1 minute before VN day boundary = yesterday VN.
+        SetupDecisionJournal(MakeDecisionJournal("FPT", portfolioId: "p1", timestamp: VnTodayStartUtc().AddMinutes(-1)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Handle_ScenarioTriggerWithDecisionJournalLinkedToPlan_IsSuppressed()
+    {
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupPlans(MakePlanForPortfolio("plan-fpt", "FPT", "p1"));
+        _advisoryService.Setup(s => s.GetAdvisoriesAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ScenarioAdvisory>
+            {
+                new() { TradePlanId = "plan-fpt", Symbol = "FPT", NodeId = "n1", Message = "m",
+                        ConditionDescription = "c", ActionDescription = "a", NodeLabel = "lbl", CurrentPrice = 89.4m }
+            });
+        // Journal links to the plan id — suppresses by tradePlanId.
+        SetupDecisionJournal(MakeDecisionJournal("FPT", portfolioId: "p1", tradePlanId: "plan-fpt", timestamp: VnTodayStartUtc().AddHours(3)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_ThesisReviewDueWithDecisionJournalLinkedToPlan_IsSuppressed()
+    {
+        SetupPlans(MakePlanForPortfolio("plan-vnm", "VNM", "p1"));
+        _mediator.Setup(m => m.Send(It.IsAny<GetPendingThesisReviewsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PendingThesisReviewDto>
+            {
+                new() { PlanId = "plan-vnm", Symbol = "VNM", DaysOverdue = 5,
+                        Reasons = new() { new() { Kind = "PeriodicReview", Detail = "x", DueDate = DateTime.UtcNow, DaysOverdue = 5 } } }
+            });
+        SetupDecisionJournal(MakeDecisionJournal("VNM", tradePlanId: "plan-vnm", timestamp: VnTodayStartUtc().AddHours(4)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_NonDecisionJournal_DoesNotSuppress()
+    {
+        // Other JournalEntryType (e.g. Observation) must not act as suppression.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+
+        var observationJournal = new JournalEntry(
+            userId: UserId, symbol: "FPT", entryType: JournalEntryType.Observation,
+            title: "Quan sát", content: "x", portfolioId: "p1",
+            timestamp: VnTodayStartUtc().AddHours(2));
+        _journalRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { observationJournal });
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
     }
 }

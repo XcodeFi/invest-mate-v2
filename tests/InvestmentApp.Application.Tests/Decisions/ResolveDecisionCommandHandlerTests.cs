@@ -91,6 +91,37 @@ public class ResolveDecisionCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ExecuteSell_AlsoCreatesDecisionJournalAsSuppressionMarker()
+    {
+        // Suppression model: every resolve writes a Decision journal that GetDecisionQueueQuery
+        // uses to filter the same item out for the rest of the VN day. ExecuteSell must create
+        // one too so refresh-after-BÁN doesn't show the same StopLossHit / ScenarioTrigger again.
+        var plan = MakeSingleLotPlan("plan1", "FPT", "p1", 100);
+        SetupPlan(plan);
+        SetupPortfolio("p1", UserId);
+        SetupCurrentPrice("FPT", 89.5m);
+
+        var cmd = new ResolveDecisionCommand
+        {
+            DecisionId = "ScenarioTrigger:plan1:n1",
+            Action = DecisionAction.ExecuteSell,
+            TradePlanId = "plan1",
+            UserId = UserId
+        };
+
+        await _handler.Handle(cmd, CancellationToken.None);
+
+        _journalRepo.Verify(r => r.AddAsync(
+            It.Is<JournalEntry>(j =>
+                j.EntryType == JournalEntryType.Decision
+                && j.Symbol == "FPT"
+                && j.TradePlanId == "plan1"
+                && j.PortfolioId == "p1"
+                && j.Tags.Contains("decision-sell")),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_ExecuteSell_RejectsForOtherUserPlan()
     {
         var plan = MakeSingleLotPlan("plan1", "FPT", "p1", 100, ownerUserId: OtherUserId);

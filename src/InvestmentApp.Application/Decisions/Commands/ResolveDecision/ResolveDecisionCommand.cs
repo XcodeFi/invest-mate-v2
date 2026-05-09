@@ -161,6 +161,21 @@ public class ResolveDecisionCommandHandler : IRequestHandler<ResolveDecisionComm
         portfolio.AddTrade(trade);
         await _portfolioRepo.UpdateAsync(portfolio, ct);
 
+        // Suppression marker — every resolve writes a Decision journal so GetDecisionQueueQuery
+        // can filter the same item out for the rest of the VN day. Without this, refresh-after-BÁN
+        // re-runs the source queries and the same StopLossHit / ScenarioTrigger / ThesisReviewDue
+        // surfaces again with the same buttons.
+        var decisionJournal = new JournalEntry(
+            userId: request.UserId,
+            symbol: plan.Symbol,
+            entryType: JournalEntryType.Decision,
+            title: $"Đã BÁN theo plan — {plan.Symbol}",
+            content: $"BÁN {quantity:N0} cổ {plan.Symbol} @ {price.Amount:N0} (resolve {request.DecisionId})",
+            portfolioId: plan.PortfolioId,
+            tradePlanId: plan.Id,
+            tags: new List<string> { "decision-sell", $"trigger:{request.DecisionId.Split(':')[0]}" });
+        await _journalRepo.AddAsync(decisionJournal, ct);
+
         await _auditService.LogAsync(new AuditEntry
         {
             UserId = request.UserId,
@@ -172,7 +187,8 @@ public class ResolveDecisionCommandHandler : IRequestHandler<ResolveDecisionComm
                 TradePlanId = plan.Id,
                 plan.Symbol,
                 Quantity = quantity,
-                Price = price.Amount
+                Price = price.Amount,
+                JournalEntryId = decisionJournal.Id
             }
         }, ct);
 
