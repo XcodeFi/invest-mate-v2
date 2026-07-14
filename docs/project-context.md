@@ -60,6 +60,21 @@ User đang dùng thực tế để cảm nhận UX trước khi quyết đầu t
 - Portfolio name badge trên card pending-review (khi user có > 1 portfolio)
 - Terminology revisit "Lý do đầu tư" vs "Luận điểm mua" — retail VN test coverage chưa đủ để chốt
 
+### Tài chính cá nhân — Goals/Forecast/Actual (Personal Fund layer)
+
+**Framing tổng:** vận hành tài chính cá nhân như **một quỹ tài chính quy mô cá nhân** (personal fund / one-person family office) — kết hợp lập báo cáo tài chính + kế hoạch năm như một công ty. User là "CFO của bản thân": đầu năm lập kế hoạch (mục tiêu + ngân sách phân bổ), trong năm theo dõi thực tế vs kế hoạch (variance analysis), cuối kỳ ra báo cáo (đạt/lệch bao nhiêu, vì sao). Phần "Tài chính cá nhân" hiện tại đã có **5 loại tài khoản (CK / Tiết kiệm / Dự phòng / Nhàn rỗi / Vàng) + phân bổ theo Financial Rules** — đó là phần *asset allocation* của quỹ. Goals/Forecast/Actual hoàn thiện thêm 3 trụ còn thiếu để ghép thành quỹ đầy đủ: **Plan → Forecast → Actual**.
+
+📋 **Plan đầy đủ:** [`docs/plans/personal-finance-goals.md`](plans/personal-finance-goals.md) — chia 4 phase V1→V4, ~14 file mới + 6 modify, ~75 tests, ~8.6 person-days. Hợp nhất từ 3-agent review (Architect / UX / Domain-Risk) ngày 2026-05-05.
+
+Tóm tắt 3 trụ:
+
+- **V1 — Mục tiêu (Goals)** — entity `Goal` embedded trong `FinancialProfile`, hard partition `Allocations[].AllocationVnd` per account (chống double-count), state machine Active/Achieved/Expired/Abandoned. Modal CRUD trên `/personal-finance` chèn giữa "Sức khỏe tài chính" và "Tài khoản".
+- **V2 — Snapshot cron + Actual history** — collection `goal_progress_snapshots`, monthly cron `/internal/jobs/networth-snapshot`, chart Actual % vs Linear expected % qua tháng (lightweight-charts).
+- **V3 — Forecast** — `IGoalForecastService` với 30-day SMA inputs (chống fluctuation Securities/Gold), accumulation rate split contribution vs market gains (winsorize p10/p90), blended CAGR per-account-type (CK 8% / Savings = user avg / Gold 6% / Emergency+IdleCash 0%), reuse `RateSource` enum + `[-10%, +50%]` caps từ `GetSavingsComparisonQuery`.
+- **V4 — Rule-conflict gate** — `GOAL_RULE_CONFLICT` 400 khi goal vi phạm `MaxInvestmentPercent ≤ 50%`, copy pattern `DISCIPLINE_GATE_FAILED` từ Vin-discipline V1. Inline banner gợi "trả nợ tiêu dùng lãi cao trước, mục tiêu sau" khi `HasHighInterestConsumerDebt() == true`.
+
+**Lưu ý lịch:** Plan này KHÔNG thay V2.2 (ThesisReviewService cron) đang là next-up của Vin-discipline. Hai cron job độc lập, không conflict. Nếu chốt làm Goals trước, V2.2 lùi 1-2 tuần.
+
 ### Improvement Proposals (P1-P4) — Done
 
 1. **P1: Post-Trade Review Workflow** — ✅ Pending review query, dashboard widget, trades journal column (dùng JournalEntry thay TradeJournal)

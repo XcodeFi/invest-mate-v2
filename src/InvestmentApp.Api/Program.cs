@@ -12,7 +12,7 @@ using InvestmentApp.Infrastructure.Persistence;
 using InvestmentApp.Infrastructure.Repositories;
 using InvestmentApp.Infrastructure.Seed;
 using InvestmentApp.Infrastructure.Services;
-using FluentValidation.AspNetCore;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -90,15 +90,18 @@ builder.Services.AddScoped<IMongoDatabase>(sp =>
 });
 
 // Configure MediatR - scans entire Application assembly for all handlers
+var applicationAssembly =
+    typeof(InvestmentApp.Application.Portfolios.Commands.CreatePortfolio.CreatePortfolioCommand).Assembly;
 builder.Services.AddMediatR(cfg =>
 {
-    cfg.RegisterServicesFromAssembly(
-        typeof(InvestmentApp.Application.Portfolios.Commands.CreatePortfolio.CreatePortfolioCommand).Assembly
-    );
+    cfg.RegisterServicesFromAssembly(applicationAssembly);
+    // Validators run in the pipeline (after controllers set server-side fields like UserId),
+    // not at the MVC model-binding stage — hence no AddFluentValidationAutoValidation here.
+    cfg.AddOpenBehavior(typeof(InvestmentApp.Application.Common.Behaviors.ValidationBehavior<,>));
 });
 
-// Configure FluentValidation
-builder.Services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
+// Configure FluentValidation - register all validators for the pipeline behavior above
+builder.Services.AddValidatorsFromAssembly(applicationAssembly);
 
 // Configure Repositories
 builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
@@ -125,8 +128,10 @@ builder.Services.AddScoped<IMarketEventRepository, MarketEventRepository>();
 builder.Services.AddScoped<IScenarioTemplateRepository, ScenarioTemplateRepository>();
 builder.Services.AddScoped<IImpersonationAuditRepository, ImpersonationAuditRepository>();
 builder.Services.AddScoped<IFinancialProfileRepository, FinancialProfileRepository>();
+builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 
 // Configure Services
+builder.Services.AddScoped<IApiKeyTokenService, ApiKeyTokenService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IStockPriceService, StockPriceService>();

@@ -182,6 +182,12 @@ public interface IAiSettingsRepository : IRepository<Domain.Entities.AiSettings>
     Task<Domain.Entities.AiSettings?> GetByUserIdIncludingDeletedAsync(string userId, CancellationToken cancellationToken = default);
 }
 
+public interface IApiKeyRepository : IRepository<ApiKey>
+{
+    Task<IEnumerable<ApiKey>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+    Task<ApiKey?> GetByHashAsync(string keyHash, CancellationToken cancellationToken = default);
+}
+
 public interface IFinancialProfileRepository : IRepository<FinancialProfile>
 {
     /// <summary>Lấy profile của user, null nếu chưa tồn tại. Loại bỏ soft-deleted records.</summary>
