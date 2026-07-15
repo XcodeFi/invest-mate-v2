@@ -148,6 +148,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'api-keys',
+    loadComponent: () => import('./features/api-keys/api-keys.component').then(m => m.ApiKeysComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'personal-finance',
     loadComponent: () => import('./features/personal-finance/personal-finance.component').then(m => m.PersonalFinanceComponent),
     canActivate: [AuthGuard]

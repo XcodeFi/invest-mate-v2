@@ -6,15 +6,16 @@
 project/
 ├── src/
 │   ├── InvestmentApp.Domain/           # Entities, Value Objects, Events (zero dependencies)
-│   │   ├── Entities/                   # 23 aggregate roots + nested classes (incl. FinancialProfile)
+│   │   ├── Entities/                   # 24 aggregate roots + nested classes (incl. FinancialProfile, ApiKey)
 │   │   ├── ValueObjects/               # Money, StockSymbol, Position, WatchlistItem, RoutineItem, ScenarioNode, TrailingStopConfig
 │   │   └── Events/                     # 14 domain event types
 │   │
 │   ├── InvestmentApp.Application/      # CQRS handlers, interfaces, DTOs (depends on Domain)
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
-│   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation)
-│   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~22)
+│   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation, IApiKeyTokenService)
+│   │   ├── Common/Behaviors/           # MediatR pipeline behaviors (ValidationBehavior<,>)
+│   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~23, incl. IApiKeyRepository)
 │   │   └── Services/                   # FeeCalculationService (app-level)
 │   │
 │   ├── InvestmentApp.Infrastructure/   # Implementations (depends on Application + Domain)
@@ -24,10 +25,10 @@ project/
 │   │   │   │   ├── HmoneyComprehensiveApiModels.cs     # API response models
 │   │   │   │   └── HmoneyGoldPriceProvider.cs          # Vàng Miếng/Nhẫn scrape (AngleSharp HTML parse)
 │   │   │   └── Tcbs/                   # TCBS fundamental data provider
-│   │   └── Repositories/              # 24 MongoDB repositories (incl. FinancialProfileRepository)
+│   │   └── Repositories/              # 25 MongoDB repositories (incl. FinancialProfileRepository, ApiKeyRepository)
 │   │
 │   └── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
-│       ├── Controllers/               # 28 API controllers (incl. PersonalFinanceController, InternalJobsController)
+│       ├── Controllers/               # 29 API controllers (incl. PersonalFinanceController, InternalJobsController, ApiKeysController)
 │       ├── Auth/                      # SchedulerEmailAllowlist, GcpOidcExtensions (Cloud Scheduler OIDC)
 │       ├── Authorization/             # RequireAdminAttribute
 │       ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception
@@ -36,8 +37,8 @@ project/
 │
 ├── frontend/                           # Angular 18 SPA
 │   └── src/app/
-│       ├── core/services/              # 25 Angular services (HTTP clients)
-│       ├── features/                   # 29 page components (standalone, inline templates)
+│       ├── core/services/              # 26 Angular services (HTTP clients, incl. api-keys.service.ts)
+│       ├── features/                   # 30 page components (standalone, inline templates)
 │       │   ├── dashboard/              # Investor Cockpit (main page + Personal Finance widget)
 │       │   ├── trade-wizard/           # 5-step disciplined trading flow
 │       │   ├── trade-plan/             # Entry/SL/TP planning with checklist
@@ -46,7 +47,8 @@ project/
 │       │   ├── campaign-analytics/     # Cross-plan campaign review analytics (P0.7)
 │       │   ├── risk-dashboard/         # Risk score, drawdown, VaR
 │       │   ├── personal-finance/       # Net worth + Gold/Savings tracking + health score (Tier 3)
-│       │   └── ...                     # (21 more feature pages)
+│       │   ├── api-keys/               # Personal Access Tokens management (route /api-keys)
+│       │   └── ...                     # (20 more feature pages)
 │       └── shared/
 │           ├── components/             # AiChatPanel, Header, PwaInstallBanner, etc.
 │           ├── directives/             # UppercaseDirective, NumMaskDirective
@@ -62,6 +64,8 @@ project/
     ├── business-domain.md              # Entity map, business rules, API endpoints
     ├── features.md                     # Feature list by phase
     ├── project-context.md              # Project goals, decisions, improvement plan
+    ├── adr/
+    │   └── 0003-per-user-api-keys.md       # Per-user Personal Access Tokens (PAT) cho non-interactive API access
     ├── plans/
     │   └── technical-analysis-features.md  # Lộ trình mở rộng TA & chiến lược (6 phases)
     └── references/                     # Tài liệu tham chiếu kiến thức giao dịch
@@ -104,6 +108,7 @@ are now **in-process** in the API:
 | JournalEntry | Standalone journal (không cần Trade), 5 loại entry, cảm xúc, snapshot giá |
 | MarketEvent | Sự kiện thị trường (7 loại: Earnings/Dividend/News/Macro...) |
 | FinancialProfile | Per-user 1:1. 5 loại account (Securities/Savings/Emergency/IdleCash/Gold) + **Debts[]** (6 loại: CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other) + FinancialRules (emergency months, max investment %, min savings %). Health score 0-100 với **4 rules** (rule 4: `-20` cứng khi có consumer debt lãi > 20%/năm). **Net Worth = Assets − Debt**. Gold account: brand + type + quantity → auto-calc Balance qua provider. Savings account có thêm `DepositDate` + `MaturityDate` optional cho sổ có kỳ hạn (2026-04-24); cả 2 set → enforce `Maturity >= Deposit`. `FinancialAccount.CreatedAt` immutable sau Create. Debts không xóa được khi Principal > 0 |
+| ApiKey | Per-user Personal Access Token. Lưu `KeyHash` (SHA-256 of plaintext token — plaintext chỉ trả về 1 lần lúc tạo), `UserId`, `Name`, `CreatedAt`, `LastUsedAt`, `IsRevoked`. Ownership-checked trên revoke. |
 
 ## Key Services (Infrastructure Layer)
 
@@ -128,6 +133,7 @@ are now **in-process** in the API:
 | CampaignReviewService | Auto-calculate P&L metrics for campaign review (amount, %, VND/ngày, annualized return, target achievement) | ITradeRepository, IPnLService |
 | VietstockEventProvider | Crawl news + corporate events from Vietstock API (CSRF token flow) | HttpClient |
 | DisciplineScoreCalculator | **Vin-discipline widget backend (2026-04-23)** — tính điểm kỷ luật thesis hybrid: SL-Integrity 50% + Plan Quality 30% + Review Timeliness 20%. Stop-Honor Rate primitive (trades lỗ đã đóng với exitPrice ≥ plannedSL / tổng lỗ). Null-safe re-normalize khi sub-metric thiếu denominator. Multi-lot per-lot matching theo `TradeIds`. Cache 5 phút, invalidate on `TradeClosedEvent`/`PlanReviewedEvent`/`TradePlanThesisInvalidatedEvent` | ITradePlanRepository, ITradeRepository, IMemoryCache |
+| ApiKeyTokenService | Implements `IApiKeyTokenService`. Generate cryptographically random plaintext token, hash via SHA-256, return both (plaintext returned to caller once, only hash persisted). Verify incoming token by hash lookup. | IApiKeyRepository |
 
 ## API Endpoints (28 Controllers)
 
@@ -161,6 +167,7 @@ are now **in-process** in the API:
 | MarketEvents | `/api/v1/market-events` | CRUD market events per symbol, crawl from Vietstock |
 | Admin | `/api/v1/admin` | **Impersonation (debug tooling)**: start/stop user impersonation. Restricted via `[RequireAdmin]` (role=Admin + no `amr=impersonate`). Mutation blocked during impersonation unless `Admin:AllowImpersonateMutations=true`. |
 | PersonalFinance | `/api/v1/personal-finance` | **Net worth tracking (Tier 3)**: GET `/` (profile, 404 if absent) + GET `/summary` (net worth + health score 0-100 + 4 rule checks + debts + `HasHighInterestConsumerDebt` flag) + GET `/gold-prices` (live from 24hmoney, cached 5 min) + PUT `/` (upsert profile) + PUT `/accounts` + DELETE `/accounts/{id}` (bảo vệ last Securities) + **PUT `/debts` (upsert debt)** + **DELETE `/debts/{id}` (reject nếu Principal > 0)** |
+| ApiKeys | `/api/v1/api-keys` | **Personal Access Tokens (ADR-0003)** — JWT-authed. `POST /` create (201, returns plaintext token once only); `GET /` list caller's keys; `DELETE /{id}` revoke (204, ownership-checked). |
 | InternalJobs | `/internal/jobs` | **Cloud Scheduler triggers (ADR-0001, 2026-04-26)**: POST `/snapshot` (TakeAllSnapshotsAsync) + POST `/prices` (PriceSnapshotJobService — fetch prices, refresh indices, check stop-loss/target) + POST `/exchange-rate` (RefreshRatesAsync) + POST `/scenario-eval` (EvaluateAllAsync). Auth: `[Authorize(Scheme=GcpOidc, Policy=GcpScheduler)]` — Google-issued OIDC ID token, email_verified=true, email ∈ `Jobs:AllowedSchedulerSAs` allowlist. Idempotent. |
 
 ## Health Endpoints (Minimal API, unauthenticated)
@@ -195,6 +202,7 @@ are now **in-process** in the API:
 - **PwaService** (`core/services/pwa.service.ts`) — install prompt management, SW update detection
 - **Key directives:** `appUppercase` (symbol input), `appNumMask` (number formatting)
 - **Key pipes:** `VndCurrencyPipe` (format tiền VND)
+- **Header nav "Quản lý" group** includes: ..., "Khóa API" → `/api-keys`
 
 ## PWA
 
@@ -208,7 +216,7 @@ are now **in-process** in the API:
 
 - **MongoDB** (Atlas cloud in production)
 - Repositories use generic `IRepository<T>` base with entity-specific extensions
-- **Indexes:** Compound indexes on (portfolioId + symbol), (userId + date), unique constraints on snapshots
+- **Indexes:** Compound indexes on (portfolioId + symbol), (userId + date), unique constraints on snapshots; `api_keys` collection: unique index on `KeyHash` + index on `UserId`
 - **Soft delete** pattern: `IsDeleted` flag, filtered in queries
 
 ## Testing
@@ -422,3 +430,22 @@ Plan: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engin
 - `frontend/src/app/shared/components/ai-chat-panel/ai-chat-panel.component.ts` — thêm route case `'portfolio-critique'`.
 
 **Tests:** 6 xUnit (AiAssistantServicePortfolioCritiqueTests — lock prompt content adversarial, không drift sang supportive) + 9 Karma (NetWorthSummaryComponent — render/hide/gap label/boundary cases incl. negative CAGR). 295/295 Infrastructure + 14/14 Karma pass.
+
+## Per-User API Keys (Personal Access Tokens)
+
+Feature cho phép non-interactive API access (e.g., local NPU assistant pulling daily digest). ADR: [`docs/adr/0003-per-user-api-keys.md`](adr/0003-per-user-api-keys.md).
+
+**Key files:**
+
+- `src/InvestmentApp.Domain/Entities/ApiKey.cs` — aggregate entity (`KeyHash`, `UserId`, `Name`, `CreatedAt`, `LastUsedAt`, `IsRevoked`)
+- `src/InvestmentApp.Application/ApiKeys/Commands/CreateApiKeyCommand.cs` — tạo token; handler gọi `IApiKeyTokenService.GenerateAsync`, persist hash, trả về plaintext token (một lần duy nhất)
+- `src/InvestmentApp.Application/ApiKeys/Commands/RevokeApiKeyCommand.cs` — revoke theo id; handler ownership-check `UserId` trước khi set `IsRevoked=true`
+- `src/InvestmentApp.Application/ApiKeys/Queries/GetApiKeysQuery.cs` — list keys của caller (không expose hash)
+- `src/InvestmentApp.Application/Common/Interfaces/IApiKeyTokenService.cs` — contract (generate + verify)
+- `src/InvestmentApp.Application/RepositoryInterfaces.cs` — `IApiKeyRepository` (thêm vào file chung ~23 interfaces)
+- `src/InvestmentApp.Application/Common/Behaviors/ValidationBehavior.cs` — MediatR pipeline behavior; `AddValidatorsFromAssembly` + remove `AddFluentValidationAutoValidation()` (validators run after controller sets server-side fields like `UserId`)
+- `src/InvestmentApp.Infrastructure/Repositories/ApiKeyRepository.cs` — Mongo collection `api_keys`; unique index `KeyHash`, index `UserId`
+- `src/InvestmentApp.Infrastructure/Services/ApiKeyTokenService.cs` — implements `IApiKeyTokenService`; cryptographic random token, SHA-256 hash
+- `src/InvestmentApp.Api/Controllers/ApiKeysController.cs` — JWT-authed; `POST /api/v1/api-keys` (201) + `GET /api/v1/api-keys` + `DELETE /api/v1/api-keys/{id}` (204)
+- `frontend/src/app/core/services/api-keys.service.ts` — HTTP client + TS DTOs
+- `frontend/src/app/features/api-keys/api-keys.component.ts` — standalone page, route `/api-keys`; tạo / revoke token, hiển thị plaintext token inline một lần sau create

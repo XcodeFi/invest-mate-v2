@@ -35,7 +35,7 @@ public class RevokeApiKeyCommandHandlerTests
 
         var act = () => _handler.Handle(new RevokeApiKeyCommand { Id = "missing", UserId = "user-1" }, CancellationToken.None);
 
-        await act.Should().ThrowAsync<Exception>();
+        await act.Should().ThrowAsync<KeyNotFoundException>();
         _repo.Verify(r => r.UpdateAsync(It.IsAny<ApiKey>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

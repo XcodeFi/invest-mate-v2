@@ -614,6 +614,48 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 
 ---
 
+## Khóa API cá nhân (Personal Access Token)
+
+> **Trạng thái:** ✅ Done | **ADR:** ADR-0003
+
+Cho phép công cụ ngoài (VD: trợ lý NPU kéo bản tin hằng ngày) truy cập API không tương tác, mà không cần luồng đăng nhập Google OAuth.
+
+### Tính năng chính
+
+- **Tạo nhiều khóa có tên**: mỗi khóa có tên tự đặt, thời hạn bắt buộc từ 1–365 ngày (mặc định 90 ngày).
+- **Định dạng token**: `imk_` + chuỗi ngẫu nhiên. Token chỉ hiển thị **một lần duy nhất** khi tạo — hệ thống không lưu token gốc, chỉ lưu hash SHA-256.
+- **Soft revoke**: thu hồi khóa bất kỳ lúc nào; khóa bị thu hồi hoặc hết hạn không thể dùng để xác thực.
+
+### Quản lý tại `/api-keys`
+
+Menu: **Quản lý → Khóa API 🔑**
+
+- Danh sách khóa: tên, prefix, ngày tạo, ngày hết hạn, lần dùng cuối, trạng thái (Hoạt động / Hết hạn / Đã thu hồi).
+- Modal tạo khóa mới: nhập tên + thời hạn → token hiển thị 1 lần, sau đó không thể xem lại.
+- Nút thu hồi (soft revoke) cho từng khóa.
+
+### Backend
+
+- **Entity:** `ApiKey` — UserId, Name, KeyPrefix (8 ký tự đầu để nhận diện), HashedSecret (SHA-256), ExpiresAt, LastUsedAt, RevokedAt.
+- **Auth middleware:** `ApiKeyAuthenticationHandler` — extract `Authorization: ApiKey imk_...` header, hash và so sánh với DB, kiểm tra hết hạn/revoke, populate claims từ UserId.
+- **Auth scheme:** song song với JwtBearer; controller tùy chọn scheme nào.
+
+**API Endpoints** (yêu cầu JWT — người dùng tự quản lý khóa của mình):
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `GET` | `/api/v1/api-keys` | Danh sách khóa (không trả token gốc) |
+| `POST` | `/api/v1/api-keys` | Tạo khóa mới — trả token gốc **duy nhất lần này** |
+| `DELETE` | `/api/v1/api-keys/{id}` | Thu hồi khóa (soft revoke) |
+
+### Frontend
+
+- **Page:** `features/api-keys/api-keys.component.ts` (`/api-keys`)
+- **Service:** `api-key.service.ts`
+- **Navigation:** Header (Quản lý group) — "Khóa API 🔑"
+
+---
+
 ## API Endpoints tổng hợp (Frontend → Backend)
 
 | Module | Endpoint | Auth |
@@ -675,6 +717,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | **AI** | `POST /api/v1/ai/daily-briefing` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/comprehensive-analysis` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/build-context` (JSON) | ✅ |
+| **API Keys** | `GET/POST/DELETE /api/v1/api-keys` | ✅ |
 
 ---
 
@@ -704,6 +747,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 | `/ai-settings` | `AiSettingsComponent` | Cấu hình AI đa nhà cung cấp (Claude/Gemini, API keys, model, usage) |
 | `/campaign-analytics` | `CampaignAnalyticsComponent` | Phân tích chiến dịch cross-plan: summary, so sánh, best/worst, lessons (P0.7) |
 | `/help` | `HelpComponent` | Hướng dẫn sử dụng: 8 chủ đề, full-text search tiếng Việt (không dấu), markdown rendering |
+| `/api-keys` | `ApiKeysComponent` | Quản lý khóa API cá nhân: danh sách, tạo mới (modal hiện token 1 lần), thu hồi |
 
 ---
 
