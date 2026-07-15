@@ -58,13 +58,13 @@ The **Next** field is critical — it tells the next cycle exactly where to star
 
 | Phase | Execution | Model |
 |---|---|---|
-| Phase 1: Analyze & Plan | Main context | **opus** (required) |
-| Phase 2: TDD | Main context (continues Phase 1) | opus |
+| Phase 1: Analyze & Plan | Main context | **opus** (required — planning) |
+| Phase 2: TDD | Main context (continues Phase 1) | **sonnet** (execution) |
 | Phase 3: Code Review | 1 sub-agent | **sonnet** |
 | Phase 4: Manual Verify | Main context | any |
 | Phase 5-6: Docs, Commit & PR | Main context | any |
 
-Phase 2 runs inline because it needs the plan context from Phase 1 — spawning a sub-agent would duplicate that context.
+Per the global tiering rule (Opus = plan, Sonnet = execute, Haiku = read/summarize): only Phase 1 needs opus. Phase 2 (TDD) is execution → sonnet. Phase 2 still runs **inline** (it needs Phase 1's plan context; a sub-agent would duplicate it), so when the session is on opus for Phase 1, switch with `/model sonnet` before Phase 2 — the plan lives in the plan file, so no context is lost.
 
 ---
 
