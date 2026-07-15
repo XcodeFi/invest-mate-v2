@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.58.0] — 2026-07-15 · Khóa API cá nhân (Personal Access Token)
+
+### Tính năng mới
+
+**🔑 Trang "Khóa API"** (menu Quản lý) — cho phép user tạo và thu hồi Personal Access Token để công cụ ngoài (VD: trợ lý NPU, script tự động) gọi API thay mặt tài khoản mà không cần đăng nhập.
+
+- **Tạo khóa**: đặt tên + chọn thời hạn 1–365 ngày → token đầy đủ hiển thị **đúng một lần** duy nhất khi tạo (không thể xem lại). Sau đó chỉ lưu hash bcrypt — không lưu token gốc.
+- **Thu hồi**: xóa khóa bất kỳ lúc nào; token tương ứng mất hiệu lực ngay lập tức.
+- **Danh sách khóa hiện có**: hiển thị tên, ngày tạo, ngày hết hạn, lần sử dụng cuối.
+
+### Files chính
+
+- `src/InvestmentApp.Domain/Entities/PersonalAccessToken.cs` (mới) — entity + hash logic.
+- `src/InvestmentApp.Application/ApiKeys/...` — `CreateApiKey` / `RevokeApiKey` / `GetApiKeys` commands+queries.
+- `src/InvestmentApp.Api/Controllers/ApiKeysController.cs` — 3 endpoints mới dưới `/api/v1/me/api-keys`.
+- `frontend/src/app/features/management/api-keys/api-keys.component.ts` (mới) — trang quản lý + one-time reveal modal.
+
+---
+
 ## [v2.57.0] — 2026-05-04 · Dashboard Decision Engine PR-3: Inline BÁN/GIỮ + đơn giản hóa Home
 
 ### Mục tiêu

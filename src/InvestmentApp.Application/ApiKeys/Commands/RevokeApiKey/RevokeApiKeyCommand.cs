@@ -22,7 +22,7 @@ public class RevokeApiKeyCommandHandler : IRequestHandler<RevokeApiKeyCommand, U
     public async Task<Unit> Handle(RevokeApiKeyCommand request, CancellationToken ct)
     {
         var apiKey = await _repo.GetByIdAsync(request.Id, ct)
-            ?? throw new Exception($"API key {request.Id} not found");
+            ?? throw new KeyNotFoundException($"API key {request.Id} not found");
 
         if (apiKey.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to revoke this API key");

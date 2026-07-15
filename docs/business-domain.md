@@ -62,7 +62,8 @@ User (1)
  │    └── Rules              ← EmergencyFundMonths (6) + MaxInvestmentPercent (50%) + MinSavingsPercent (30%)
  │
  ├── Role                     ← UserRole enum: User (default) / Admin (debug tooling)
- └── LastLoginAt (nullable)   ← Timestamp của lần login Google OAuth gần nhất (không cập nhật khi refresh/impersonate)
+ ├── LastLoginAt (nullable)   ← Timestamp của lần login Google OAuth gần nhất (không cập nhật khi refresh/impersonate)
+ └── ApiKey (N)               ← Personal access token (non-interactive API access, xem ADR-0003)
 
 ImpersonationAudit (independent, append-only)
  ├── AdminUserId, TargetUserId, Reason, IpAddress, UserAgent
@@ -94,6 +95,7 @@ ImpersonationAudit (independent, append-only)
 | Debt | FinancialProfile | N:1 | Embedded, 6 loại (CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other). Xóa chỉ được khi Principal=0 |
 | JournalEntry | User+Symbol | N:1 | Standalone, optional link Trade/TradePlan/Portfolio |
 | MarketEvent | Symbol | N:1 | Sự kiện thị trường (manual + auto) |
+| ApiKey | User | N:1 | Nhiều named key per user; collection `api_keys`, unique index `KeyHash`, index `UserId` |
 
 ---
 
@@ -313,6 +315,32 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 | `/api/v2/web/stock/foreign-trading-series` | Chuỗi giao dịch nước ngoài |
 | `/api/v2/web/announcement/report-analytics` | Báo cáo phân tích từ CTCK |
 
+### 3.14. API Key (Personal Access Token, ADR-0003)
+
+Token dạng `imk_` + base64url(32 random bytes) — cho phép truy cập API theo cơ chế non-interactive (CI/CD, script cá nhân). Plaintext token **chỉ trả về một lần duy nhất** khi tạo; hệ thống chỉ lưu `KeyHash` (SHA-256 hex). `Prefix` (`imk_` + vài ký tự đầu) dùng để hiển thị trong danh sách mà không lộ token.
+
+**Fields:**
+
+| Field | Kiểu | Ghi chú |
+|-------|------|---------|
+| `Id` | ObjectId | PK |
+| `UserId` | ObjectId | FK → User |
+| `Name` | string | Tên gợi nhớ do user đặt |
+| `KeyHash` | string | SHA-256 hex của plaintext token; unique index |
+| `Prefix` | string | `imk_` + vài ký tự đầu token (hiển thị only) |
+| `CreatedAt` | DateTime | Immutable |
+| `ExpiresAt` | DateTime | Bắt buộc; 1–365 ngày từ ngày tạo, default 90 ngày |
+| `LastUsedAt` | DateTime? | Cập nhật mỗi request xác thực thành công |
+| `RevokedAt` | DateTime? | Set khi revoke (soft-delete) |
+
+**Quy tắc nghiệp vụ:**
+- Token = `imk_` + base64url(32 random bytes). Plaintext hiển thị **một lần duy nhất** khi tạo (response 201); các lần sau chỉ thấy `Prefix`.
+- Expiry bắt buộc — không hỗ trợ "không bao giờ hết hạn". Khoảng [1, 365] ngày, default 90.
+- Một user có thể có nhiều named key cùng lúc.
+- Revoke là soft state: set `RevokedAt`, key vẫn xuất hiện trong danh sách nhưng không dùng được.
+- `IsActive` = `RevokedAt == null && DateTime.UtcNow < ExpiresAt`.
+- ApiKey auth scheme **chỉ được chấp nhận trên các endpoint opt-in** — không tự động áp dụng toàn API.
+
 ---
 
 ## 4. API Endpoints (tóm tắt)
@@ -343,6 +371,7 @@ Vàng cộng dồn vào investment total (cùng Securities) cho rule MaxInvestme
 | AI Settings | `/api/v1/ai-settings` | CRUD cấu hình AI (provider, API keys, model, usage) |
 | AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis**, **portfolio-critique** (2026-05-04, adversarial coach role thay daily-briefing trên Dashboard) + JSON: build-context (copy prompt) |
 | Admin | `/api/v1/admin` | **Debug tooling (admin-only)**: `impersonate` bắt đầu phiên xem-như-user, `impersonate/stop` kết thúc. Chặn nested impersonate + block mutation theo config. |
+| ApiKeys | `/api/v1/api-keys` | **Personal access tokens (ADR-0003)**: `POST` tạo key → 201 (trả plaintext một lần); `GET` danh sách (DTO không chứa hash/token); `DELETE /{id}` revoke → 204. Tất cả JWT-authed, owner-scoped. |
 | PersonalFinance | `/api/v1/personal-finance` | **Tài chính cá nhân (Tier 3)**: profile, net worth summary với health score 0-100, live gold prices từ 24hmoney, CRUD accounts với Gold auto-calc, **CRUD debts + Net Worth + rule 4 cảnh báo nợ tiêu dùng lãi cao** |
 
 ---

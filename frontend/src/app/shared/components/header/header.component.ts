@@ -279,6 +279,7 @@ export class HeaderComponent implements OnInit {
         { path: '/alerts', label: 'Cảnh báo', icon: '🔔' },
         { path: '/personal-finance', label: 'Tài chính cá nhân', icon: '💰' },
         { path: '/ai-settings', label: 'Cài đặt AI', icon: '🤖' },
+        { path: '/api-keys', label: 'Khóa API', icon: '🔑' },
       ]
     }
   ];
