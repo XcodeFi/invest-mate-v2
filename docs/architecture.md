@@ -29,7 +29,7 @@ project/
 │   │
 │   └── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
 │       ├── Controllers/               # 29 API controllers (incl. PersonalFinanceController, InternalJobsController, ApiKeysController)
-│       ├── Auth/                      # SchedulerEmailAllowlist, GcpOidcExtensions (Cloud Scheduler OIDC)
+│       ├── Auth/                      # SchedulerEmailAllowlist, GcpOidcExtensions (Cloud Scheduler OIDC), ApiKeyAuthExtensions (per-user PAT scheme)
 │       ├── Authorization/             # RequireAdminAttribute
 │       ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception
 │       ├── Services/                  # BacktestQueueService (in-process queue, replaces Worker poll)
@@ -447,5 +447,6 @@ Feature cho phép non-interactive API access (e.g., local NPU assistant pulling 
 - `src/InvestmentApp.Infrastructure/Repositories/ApiKeyRepository.cs` — Mongo collection `api_keys`; unique index `KeyHash`, index `UserId`
 - `src/InvestmentApp.Infrastructure/Services/ApiKeyTokenService.cs` — implements `IApiKeyTokenService`; cryptographic random token, SHA-256 hash
 - `src/InvestmentApp.Api/Controllers/ApiKeysController.cs` — JWT-authed; `POST /api/v1/api-keys` (201) + `GET /api/v1/api-keys` + `DELETE /api/v1/api-keys/{id}` (204)
+- `src/InvestmentApp.Api/Auth/ApiKeyAuthExtensions.cs` — `ApiKey` authentication scheme (`X-Api-Key` header → SHA-256 hash → `GetByHashAsync` → `IsActive` check → principal with `sub`=UserId; persists `LastUsedAt`, tolerating write failures). Opt-in only via `[Authorize(AuthenticationSchemes="ApiKey")]`; registered in `Program.cs` but never a default scheme
 - `frontend/src/app/core/services/api-keys.service.ts` — HTTP client + TS DTOs
 - `frontend/src/app/features/api-keys/api-keys.component.ts` — standalone page, route `/api-keys`; tạo / revoke token, hiển thị plaintext token inline một lần sau create

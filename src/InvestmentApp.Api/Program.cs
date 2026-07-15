@@ -352,7 +352,8 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 })
-.AddGcpOidc(builder.Configuration);
+.AddGcpOidc(builder.Configuration)
+.AddApiKey();
 
 // Allowlist for Cloud Scheduler service accounts that can call /internal/jobs/*
 builder.Services.AddSingleton(new SchedulerEmailAllowlist(
