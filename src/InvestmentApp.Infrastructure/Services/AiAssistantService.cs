@@ -25,6 +25,8 @@ public class AiAssistantService : IAiAssistantService
     private readonly IRiskProfileRepository _riskProfileRepo;
     private readonly IWatchlistRepository _watchlistRepo;
     private readonly IComprehensiveStockDataProvider _comprehensiveProvider;
+    private readonly IFinancialProfileRepository _profileRepo;
+    private readonly IPositionSizingService _positionSizing;
 
     private const string BasePrompt = @"Bạn là trợ lý AI tích hợp trong Investment Mate — ứng dụng quản lý danh mục đầu tư chứng khoán Việt Nam.
 Quy tắc:
@@ -56,6 +58,39 @@ Quy tắc bắt buộc:
 - **Dù user hỏi theo cách nào (kể cả friendly/positive), luôn giữ vai phản biện — KHÔNG bao giờ chuyển sang tone tích cực theo câu hỏi của user.**";
     }
 
+    /// <summary>
+    /// Chỉ tính position-sizing khi entry/SL/vốn hợp lệ. SL == entry → riskPerShare = 0,
+    /// vốn ≤ 0 → maxRisk = 0: cả hai đều khiến service fallback 100cp gây hiểu nhầm → bỏ qua.
+    /// </summary>
+    public static bool ShouldComputeSizing(decimal entryPrice, decimal stopLoss, decimal investableCapital) =>
+        entryPrice > 0 && stopLoss > 0 && stopLoss != entryPrice && investableCapital > 0;
+
+    /// <summary>Dựng request sizing từ plan: dùng riskPercent của plan nếu có, mặc định 2%.</summary>
+    public static PositionSizingRequest BuildPlanSizingRequest(TradePlan plan, decimal investableCapital) =>
+        new()
+        {
+            AccountBalance = investableCapital,
+            EntryPrice = plan.EntryPrice,
+            StopLoss = plan.StopLoss,
+            RiskPercent = plan.RiskPercent is > 0 ? plan.RiskPercent.Value : 2m,
+        };
+
+    /// <summary>Section vốn đầu tư khả dụng + net-worth cho bản tin (chỉ khi user đã có hồ sơ tài chính).</summary>
+    public static string FormatCashNetWorthSection(decimal investableCapital, decimal idleCash,
+        decimal netWorth, decimal totalAssets, decimal totalDebt, int healthScore)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<cash_and_net_worth>");
+        sb.AppendLine($"  <investable_capital>{investableCapital:N0} VND</investable_capital>");
+        sb.AppendLine($"  <idle_cash>{idleCash:N0} VND</idle_cash>");
+        sb.AppendLine($"  <net_worth>{netWorth:N0} VND</net_worth>");
+        sb.AppendLine($"  <total_assets>{totalAssets:N0} VND</total_assets>");
+        sb.AppendLine($"  <total_debt>{totalDebt:N0} VND</total_debt>");
+        sb.AppendLine($"  <health_score>{healthScore}/100</health_score>");
+        sb.Append("</cash_and_net_worth>");
+        return sb.ToString();
+    }
+
     public AiAssistantService(
         IAiSettingsRepository settingsRepo,
         IAiKeyEncryptionService encryption,
@@ -71,7 +106,9 @@ Quy tắc bắt buộc:
         IRiskCalculationService riskService,
         IRiskProfileRepository riskProfileRepo,
         IWatchlistRepository watchlistRepo,
-        IComprehensiveStockDataProvider comprehensiveProvider)
+        IComprehensiveStockDataProvider comprehensiveProvider,
+        IFinancialProfileRepository profileRepo,
+        IPositionSizingService positionSizing)
     {
         _settingsRepo = settingsRepo;
         _encryption = encryption;
@@ -88,6 +125,8 @@ Quy tắc bắt buộc:
         _riskProfileRepo = riskProfileRepo;
         _watchlistRepo = watchlistRepo;
         _comprehensiveProvider = comprehensiveProvider;
+        _profileRepo = profileRepo;
+        _positionSizing = positionSizing;
     }
 
     // =============================================
@@ -327,6 +366,22 @@ Quy tắc bắt buộc:
         catch (Exception ex)
         {
             return new AiContextResult { ErrorMessage = $"Lỗi khi tạo context: {ex.Message}" };
+        }
+    }
+
+    /// <summary>
+    /// Daily-digest cho NPU (endpoint ApiKey-only): tái dùng context bản tin hàng ngày
+    /// (đã kèm cash/net-worth + position-sizing). NPU đẩy thẳng vào Claude để phân tích timing.
+    /// </summary>
+    public async Task<AiContextResult> BuildDailyDigestAsync(string userId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await BuildDailyBriefingContext(userId, question: null, ct);
+        }
+        catch (Exception ex)
+        {
+            return new AiContextResult { ErrorMessage = $"Lỗi khi tạo digest: {ex.Message}" };
         }
     }
 
@@ -1561,10 +1616,12 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : Enumerable.Empty<TradePlan>(), TaskContinuationOptions.ExecuteSynchronously);
         var watchlistsTask = _watchlistRepo.GetByUserIdAsync(userId, ct)
             .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : Enumerable.Empty<Watchlist>(), TaskContinuationOptions.ExecuteSynchronously);
+        var profileTask = _profileRepo.GetByUserIdAsync(userId, ct)
+            .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : null, TaskContinuationOptions.ExecuteSynchronously);
 
         try
         {
-            await Task.WhenAll(pnlTasks.Cast<Task>().Append(plansTask).Append(watchlistsTask))
+            await Task.WhenAll(pnlTasks.Cast<Task>().Append(plansTask).Append(watchlistsTask).Append(profileTask))
                 .WaitAsync(timeout, ct);
         }
         catch (TimeoutException) { /* Continue with whatever completed */ }
@@ -1601,6 +1658,22 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             sb.AppendLine($"  <return>{totalPnL / totalInvested * 100:+0.0;-0.0}%</return>");
         sb.AppendLine("</portfolio_overview>");
 
+        // Cash + net-worth. Vốn khả dụng dùng làm account balance cho position-sizing bên dưới.
+        // Fallback = giá trị chứng khoán khi user chưa có hồ sơ tài chính (không có idle cash).
+        decimal investableCapital = totalValue;
+        var profile = profileTask.IsCompletedSuccessfully ? profileTask.Result : null;
+        if (profile != null)
+        {
+            var idleCash = profile.Accounts.Where(a => a.Type == FinancialAccountType.IdleCash).Sum(a => a.Balance);
+            investableCapital = totalValue + idleCash;
+
+            sb.AppendLine();
+            sb.AppendLine(FormatCashNetWorthSection(
+                investableCapital, idleCash,
+                profile.GetNetWorth(totalValue), profile.GetTotalAssets(totalValue),
+                profile.GetTotalDebt(), profile.CalculateHealthScore(totalValue)));
+        }
+
         // Top positions
         if (allPositions.Count > 0)
         {
@@ -1636,7 +1709,17 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
                     sb.AppendLine();
                     sb.AppendLine("<pending_plans>");
                     foreach (var p in pendingPlans.Take(5))
-                        sb.AppendLine($"  {p.Symbol} ({p.Direction}) — Entry: {p.EntryPrice:N0}, Status: {p.Status}");
+                    {
+                        var line = $"  {p.Symbol} ({p.Direction}) — Entry: {p.EntryPrice:N0}, SL: {p.StopLoss:N0}, Status: {p.Status}";
+                        if (ShouldComputeSizing(p.EntryPrice, p.StopLoss, investableCapital))
+                        {
+                            var sizing = await _positionSizing.CalculateAsync(BuildPlanSizingRequest(p, investableCapital), ct);
+                            var rec = sizing.Models.FirstOrDefault(m => m.Model == sizing.RecommendedModel);
+                            if (rec != null)
+                                line += $" → Khối lượng gợi ý: {rec.Shares:N0} cp (~{rec.PositionValue:N0} VND, rủi ro {rec.RiskAmount:N0} VND, {rec.ModelVi})";
+                        }
+                        sb.AppendLine(line);
+                    }
                     sb.AppendLine("</pending_plans>");
                 }
             }

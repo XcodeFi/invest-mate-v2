@@ -238,6 +238,12 @@ Bước 5: Nhật ký (update journal đã tạo)
 - User paste vào Claude Max / Gemini client app bên ngoài
 - Endpoint: `POST /api/v1/ai/build-context` → trả JSON `{ systemPrompt, userMessage }`
 
+### 3.11b. Daily digest cho NPU (ApiKey-authed, ADR-0003)
+- Endpoint: `POST /api/v1/ai/daily-digest` — **xác thực bằng ApiKey scheme** (header `X-Api-Key`), KHÔNG dùng JWT. Endpoint opt-in đầu tiên dùng scheme này.
+- Trả JSON `{ systemPrompt, userMessage }` giống build-context, nhưng context là bản tin hằng ngày đã bổ sung **cash/net-worth** + **position-sizing** cho các kế hoạch chờ (pending plans).
+- Trợ lý NPU kéo digest theo cron rồi đẩy thẳng vào Claude phân tích timing (server tính sẵn số, Claude nhận định định tính).
+- Scope theo owner của khóa (`sub` claim = UserId của khóa) — mỗi khóa chỉ đọc được dữ liệu của chủ khóa.
+
 ### 3.12. Tài chính cá nhân (Tier 3, 2026-04-22)
 
 Tổng quan tài sản + nguyên tắc tài chính + tracking vàng tích trữ. Scope solo user không quản lý chi tiêu.
@@ -372,6 +378,7 @@ Token dạng `imk_` + base64url(32 random bytes) — cho phép truy cập API th
 | AI | `/api/v1/ai` | Streaming SSE: journal-review, portfolio-review, trade-plan-advisor, chat, monthly-summary, stock-evaluation, **risk-assessment**, **position-advisor**, **trade-analysis**, **watchlist-scanner**, **daily-briefing**, **comprehensive-analysis**, **portfolio-critique** (2026-05-04, adversarial coach role thay daily-briefing trên Dashboard) + JSON: build-context (copy prompt) |
 | Admin | `/api/v1/admin` | **Debug tooling (admin-only)**: `impersonate` bắt đầu phiên xem-như-user, `impersonate/stop` kết thúc. Chặn nested impersonate + block mutation theo config. |
 | ApiKeys | `/api/v1/api-keys` | **Personal access tokens (ADR-0003)**: `POST` tạo key → 201 (trả plaintext một lần); `GET` danh sách (DTO không chứa hash/token); `DELETE /{id}` revoke → 204. Tất cả JWT-authed, owner-scoped. |
+| AI (ApiKey scheme) | `/api/v1/ai/daily-digest` | **Endpoint opt-in đầu tiên xác thực bằng ApiKey** (`X-Api-Key`, KHÔNG JWT): `POST` → JSON `{ systemPrompt, userMessage }` = bản tin hằng ngày + cash/net-worth + position-sizing. Controller riêng `AiDigestController` (không gộp vào `AiController` JWT-only vì 2 `[Authorize]` khác scheme cộng dồn AND). |
 | PersonalFinance | `/api/v1/personal-finance` | **Tài chính cá nhân (Tier 3)**: profile, net worth summary với health score 0-100, live gold prices từ 24hmoney, CRUD accounts với Gold auto-calc, **CRUD debts + Net Worth + rule 4 cảnh báo nợ tiêu dùng lãi cao** |
 
 ---

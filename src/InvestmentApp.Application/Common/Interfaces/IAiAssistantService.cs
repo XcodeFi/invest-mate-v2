@@ -24,4 +24,7 @@ public interface IAiAssistantService
         int? year, int? month, string? message, List<AiChatMessage>? history,
         string? watchlistId = null,
         CancellationToken ct = default);
+
+    // Daily digest for the NPU pull (ApiKey-authed endpoint) — briefing context + cash + sizing
+    Task<AiContextResult> BuildDailyDigestAsync(string userId, CancellationToken ct = default);
 }

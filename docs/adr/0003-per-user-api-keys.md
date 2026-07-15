@@ -1,7 +1,7 @@
 # ADR-0003 — Per-user API keys (PAT) for non-interactive automation auth
 
-- **Status:** Proposed
-- **Date:** 2026-07-14
+- **Status:** Accepted
+- **Date:** 2026-07-14 (accepted 2026-07-15 — backend fully landed through Slice 3; Slice 4 = NPU client, separate repo)
 - **Related plan:** `docs/plans/p1-daily-digest-api-keys.md`
 - **Affected layers:** Domain / Application / Infrastructure / Api
 

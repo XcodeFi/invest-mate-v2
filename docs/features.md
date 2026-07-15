@@ -637,16 +637,22 @@ Menu: **Quản lý → Khóa API 🔑**
 ### Backend
 
 - **Entity:** `ApiKey` — UserId, Name, KeyPrefix (8 ký tự đầu để nhận diện), HashedSecret (SHA-256), ExpiresAt, LastUsedAt, RevokedAt.
-- **Auth middleware:** `ApiKeyAuthenticationHandler` — extract `Authorization: ApiKey imk_...` header, hash và so sánh với DB, kiểm tra hết hạn/revoke, populate claims từ UserId.
-- **Auth scheme:** song song với JwtBearer; controller tùy chọn scheme nào.
+- **Auth middleware:** `ApiKeyAuthenticationHandler` — extract header `X-Api-Key: imk_...`, hash SHA-256 và so sánh với DB, kiểm tra hết hạn/revoke, populate claim `sub` = UserId của khóa.
+- **Auth scheme:** song song với JwtBearer; scheme `ApiKey` KHÔNG bao giờ là default → chỉ endpoint opt-in mới nhận (không blanket toàn API).
 
-**API Endpoints** (yêu cầu JWT — người dùng tự quản lý khóa của mình):
+**API Endpoints — quản lý khóa** (yêu cầu JWT — người dùng tự quản lý khóa của mình):
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | `GET` | `/api/v1/api-keys` | Danh sách khóa (không trả token gốc) |
 | `POST` | `/api/v1/api-keys` | Tạo khóa mới — trả token gốc **duy nhất lần này** |
 | `DELETE` | `/api/v1/api-keys/{id}` | Thu hồi khóa (soft revoke) |
+
+**Endpoint tiêu thụ ApiKey scheme** (xác thực bằng `X-Api-Key`, KHÔNG JWT):
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `POST` | `/api/v1/ai/daily-digest` | Bản tin hằng ngày (`{ systemPrompt, userMessage }`) + **cash/net-worth** + **position-sizing** cho pending plans. Controller riêng `AiDigestController`. Scope theo owner của khóa. NPU kéo theo cron → đẩy vào Claude. |
 
 ### Frontend
 

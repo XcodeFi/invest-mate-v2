@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.59.0] — 2026-07-15 · Daily digest endpoint cho trợ lý NPU (backend)
+
+### Tính năng mới
+
+**📰 Endpoint `POST /api/v1/ai/daily-digest`** — xác thực bằng Khóa API (`X-Api-Key`), là endpoint opt-in đầu tiên dùng ApiKey scheme (không cần JWT). Trả bản tin đầu tư hằng ngày để trợ lý NPU kéo theo cron rồi đẩy vào Claude phân tích timing.
+
+- Bản tin nay bổ sung **vốn khả dụng & net-worth** (`<cash_and_net_worth>`: chứng khoán + tiền nhàn rỗi, net worth, tổng nợ, điểm sức khỏe tài chính) và **gợi ý khối lượng vị thế** (position-sizing) cho các kế hoạch giao dịch đang chờ.
+- Mỗi khóa chỉ đọc được dữ liệu của chủ khóa. Bản tin trong app (daily-briefing) cũng được làm giàu tương ứng.
+
+### Files chính
+
+- `src/InvestmentApp.Api/Controllers/AiDigestController.cs` (mới).
+- `src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs` — `BuildDailyDigestAsync` + bổ sung cash/net-worth & position-sizing vào `BuildDailyBriefingContext`.
+- Tests: 8 xUnit mới (Infrastructure) — tổng backend 1313 pass.
+
+---
+
 ## [v2.58.0] — 2026-07-15 · Khóa API cá nhân (Personal Access Token)
 
 ### Tính năng mới
