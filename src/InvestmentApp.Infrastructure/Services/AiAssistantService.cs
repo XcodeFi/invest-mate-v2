@@ -1811,7 +1811,8 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
                 var items = watchlistsTask.Result
                     .SelectMany(wl => wl.Items)
                     .GroupBy(i => i.Symbol, StringComparer.OrdinalIgnoreCase)
-                    .Select(g => g.First())
+                    // Cùng mã ở nhiều watchlist: ưu tiên bản có đặt mục tiêu (đừng để mất target)
+                    .Select(g => g.OrderByDescending(i => i.TargetBuyPrice.HasValue || i.TargetSellPrice.HasValue).First())
                     .OrderByDescending(i => i.TargetBuyPrice.HasValue)
                     .Take(10)
                     .ToList();
