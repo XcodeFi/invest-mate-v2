@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.60.0] — 2026-07-16 · Bản tin: bối cảnh thị trường + watchlist (backend)
+
+### Tính năng mới
+
+**📈 Bản tin đầu tư nay có bối cảnh thị trường & watchlist đầy đủ** — bổ sung vào `BuildDailyBriefingContext` (dùng chung cho endpoint `daily-digest` của NPU và chat bản tin trong app).
+
+- **`<market_context>`** — VN-Index (điểm + %), độ rộng (mã tăng/giảm/trần/sàn), khối ngoại mua-bán ròng (tỷ VND). Giúp AI phân biệt "cả thị trường giảm" vs "chỉ mã của mình yếu" khi tư vấn tái cơ cấu danh mục.
+- **`<watchlist>`** — bảng mã đang theo dõi: giá, %ngày, khoảng cách tới mục tiêu mua, kèm tín hiệu 📉/📈 khi chạm mục tiêu. Thay cho cảnh báo chỉ hiện khi đã chạm giá → luôn thấy cơ hội.
+- Lấy dữ liệu song song, chịu timeout chung; thị trường/giá lỗi thì bỏ qua section, không vỡ bản tin. Contract endpoint không đổi.
+
+### Files chính
+
+- `src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs` — 2 helper `FormatMarketContextSection` / `FormatWatchlistSection` + orchestration + inject `IMarketDataProvider`.
+- Tests: 5 xUnit mới (Infrastructure) — 314 pass, không regression.
+
+---
+
 ## [v2.59.0] — 2026-07-15 · Daily digest endpoint cho trợ lý NPU (backend)
 
 ### Tính năng mới

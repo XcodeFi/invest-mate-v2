@@ -240,7 +240,7 @@ Bước 5: Nhật ký (update journal đã tạo)
 
 ### 3.11b. Daily digest cho NPU (ApiKey-authed, ADR-0003)
 - Endpoint: `POST /api/v1/ai/daily-digest` — **xác thực bằng ApiKey scheme** (header `X-Api-Key`), KHÔNG dùng JWT. Endpoint opt-in đầu tiên dùng scheme này.
-- Trả JSON `{ systemPrompt, userMessage }` giống build-context, nhưng context là bản tin hằng ngày đã bổ sung **cash/net-worth** + **position-sizing** cho các kế hoạch chờ (pending plans).
+- Trả JSON `{ systemPrompt, userMessage }` giống build-context, nhưng context là bản tin hằng ngày đã bổ sung **cash/net-worth** + **position-sizing** cho các kế hoạch chờ (pending plans) + **bối cảnh thị trường** `<market_context>` (VN-Index, độ rộng tăng/giảm/trần/sàn, khối ngoại mua-bán ròng tỷ VND — để quyết định tái cơ cấu) + **watchlist** `<watchlist>` đầy đủ (giá + %ngày + khoảng cách mục tiêu mua + tín hiệu 📉/📈 — để săn cơ hội).
 - Trợ lý NPU kéo digest theo cron rồi đẩy thẳng vào Claude phân tích timing (server tính sẵn số, Claude nhận định định tính).
 - Scope theo owner của khóa (`sub` claim = UserId của khóa) — mỗi khóa chỉ đọc được dữ liệu của chủ khóa.
 

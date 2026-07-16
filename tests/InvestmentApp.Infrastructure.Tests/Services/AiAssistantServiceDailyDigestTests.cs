@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.ValueObjects;
 using InvestmentApp.Infrastructure.Services;
 
 namespace InvestmentApp.Infrastructure.Tests.Services;
@@ -99,5 +100,81 @@ public class AiAssistantServiceDailyDigestTests
         section.Should().Contain("investable_capital");
         section.Should().Contain("net_worth");
         section.Should().Contain("78");
+    }
+
+    // --- FormatMarketContextSection: VN-Index + độ rộng + khối ngoại (Slice: market context) ---
+
+    [Fact]
+    public void FormatMarketContextSection_RendersIndexBreadthAndForeignNet()
+    {
+        var section = AiAssistantService.FormatMarketContextSection(new MarketIndexData
+        {
+            IndexSymbol = "VNINDEX", Close = 1250.5m, ChangePercent = -1.2m,
+            Advance = 150, Decline = 220, Ceiling = 10, Floor = 5,
+            ForeignBuyValue = 320m, ForeignSellValue = 510m
+        });
+
+        section.Should().Contain("<market_context>");
+        section.Should().Contain("</market_context>");
+        section.Should().Contain("1,250.5");        // Close:N2 (invariant)
+        section.Should().Contain("-1.2%");
+        section.Should().Contain("Tăng 150");
+        section.Should().Contain("Giảm 220");
+        section.Should().Contain("Trần 10");
+        section.Should().Contain("Sàn 5");
+        section.Should().Contain("-190");            // foreign net = 320 - 510
+        section.Should().Contain("tỷ");
+    }
+
+    [Fact]
+    public void FormatMarketContextSection_Null_ReturnsEmpty()
+    {
+        AiAssistantService.FormatMarketContextSection(null).Should().BeEmpty();
+    }
+
+    // --- FormatWatchlistSection: bảng mã theo dõi + khoảng cách target + tín hiệu cơ hội ---
+
+    [Fact]
+    public void FormatWatchlistSection_RendersTableDistanceAndBuySignal()
+    {
+        var entries = new List<(WatchlistItem, StockDetailInfo?)>
+        {
+            (new WatchlistItem { Symbol = "HPG", TargetBuyPrice = 25_000m },
+             new StockDetailInfo { Symbol = "HPG", Price = 26_500m, ChangePercent = 0.8m }),
+            (new WatchlistItem { Symbol = "SSI", TargetBuyPrice = 28_500m },
+             new StockDetailInfo { Symbol = "SSI", Price = 28_000m, ChangePercent = -0.3m }),
+        };
+
+        var section = AiAssistantService.FormatWatchlistSection(entries);
+
+        section.Should().Contain("<watchlist>");
+        section.Should().Contain("</watchlist>");
+        section.Should().Contain("HPG");
+        section.Should().Contain("26,500");
+        section.Should().Contain("+0.8%");
+        section.Should().Contain("+6.0%");          // (26500-25000)/25000
+        section.Should().Contain("📉 SSI");          // price 28,000 ≤ target 28,500 → cơ hội mua
+    }
+
+    [Fact]
+    public void FormatWatchlistSection_Empty_ReturnsEmpty()
+    {
+        AiAssistantService.FormatWatchlistSection(new List<(WatchlistItem, StockDetailInfo?)>())
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FormatWatchlistSection_NullPrice_ShowsSymbolAndTargetOnly()
+    {
+        var entries = new List<(WatchlistItem, StockDetailInfo?)>
+        {
+            (new WatchlistItem { Symbol = "VNM", TargetBuyPrice = 70_000m }, null),
+        };
+
+        var section = AiAssistantService.FormatWatchlistSection(entries);
+
+        section.Should().Contain("VNM");
+        section.Should().Contain("70,000");
+        section.Should().NotContain("📉");          // không có giá → không tín hiệu
     }
 }

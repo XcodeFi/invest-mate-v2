@@ -5,6 +5,7 @@ using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Portfolios.Queries;
 using InvestmentApp.Application.Services;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.ValueObjects;
 
 namespace InvestmentApp.Infrastructure.Services;
 
@@ -27,6 +28,7 @@ public class AiAssistantService : IAiAssistantService
     private readonly IComprehensiveStockDataProvider _comprehensiveProvider;
     private readonly IFinancialProfileRepository _profileRepo;
     private readonly IPositionSizingService _positionSizing;
+    private readonly IMarketDataProvider _marketDataProvider;
 
     private const string BasePrompt = @"Bạn là trợ lý AI tích hợp trong Investment Mate — ứng dụng quản lý danh mục đầu tư chứng khoán Việt Nam.
 Quy tắc:
@@ -91,6 +93,66 @@ Quy tắc bắt buộc:
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Bối cảnh thị trường: VN-Index + độ rộng (tăng/giảm/trần/sàn) + khối ngoại mua-bán ròng (tỷ VND).
+    /// Trả về chuỗi rỗng khi không có dữ liệu → caller bỏ qua section (không vỡ digest).
+    /// InvariantCulture cho số nhất quán với dữ liệu đã render sẵn của bản tin.
+    /// </summary>
+    public static string FormatMarketContextSection(MarketIndexData? data)
+    {
+        if (data == null) return string.Empty;
+        var foreignNet = data.ForeignBuyValue - data.ForeignSellValue;
+        var sb = new StringBuilder();
+        sb.AppendLine("<market_context>");
+        sb.AppendLine(FormattableString.Invariant(
+            $"  <vnindex>{data.Close:N2} ({data.ChangePercent:+0.0;-0.0}%)</vnindex>"));
+        sb.AppendLine(FormattableString.Invariant(
+            $"  <breadth>Tăng {data.Advance} / Giảm {data.Decline} / Trần {data.Ceiling} / Sàn {data.Floor}</breadth>"));
+        sb.AppendLine(FormattableString.Invariant(
+            $"  <foreign_net>{foreignNet:+#,0;-#,0} tỷ (mua {data.ForeignBuyValue:N0} / bán {data.ForeignSellValue:N0})</foreign_net>"));
+        sb.Append("</market_context>");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Watchlist: bảng mã theo dõi + giá + %ngày + khoảng cách tới mục tiêu mua, kèm tín hiệu
+    /// cơ hội (📉 giá ≤ mục tiêu mua / 📈 giá ≥ mục tiêu bán). Item không lấy được giá vẫn hiện
+    /// symbol + mục tiêu. Danh sách rỗng → chuỗi rỗng (caller bỏ qua section).
+    /// </summary>
+    public static string FormatWatchlistSection(IReadOnlyList<(WatchlistItem item, StockDetailInfo? detail)> entries)
+    {
+        if (entries == null || entries.Count == 0) return string.Empty;
+        var sb = new StringBuilder();
+        sb.AppendLine("<watchlist>");
+        sb.AppendLine("| Mã | Giá | %ngày | Mục tiêu mua | Cách target |");
+        sb.AppendLine("|----|-----|-------|--------------|-------------|");
+        var alerts = new List<string>();
+        foreach (var (item, detail) in entries)
+        {
+            var target = item.TargetBuyPrice.HasValue
+                ? FormattableString.Invariant($"{item.TargetBuyPrice.Value:N0}") : "";
+            var price = ""; var pct = ""; var dist = "";
+            if (detail != null)
+            {
+                price = FormattableString.Invariant($"{detail.Price:N0}");
+                pct = FormattableString.Invariant($"{detail.ChangePercent:+0.0;-0.0}%");
+                if (item.TargetBuyPrice is > 0)
+                    dist = FormattableString.Invariant(
+                        $"{(detail.Price - item.TargetBuyPrice.Value) / item.TargetBuyPrice.Value * 100:+0.0;-0.0}%");
+                if (item.TargetBuyPrice.HasValue && detail.Price <= item.TargetBuyPrice.Value)
+                    alerts.Add(FormattableString.Invariant(
+                        $"  📉 {item.Symbol}: giá {detail.Price:N0} ≤ mục tiêu mua {item.TargetBuyPrice.Value:N0} (cơ hội)"));
+                if (item.TargetSellPrice.HasValue && detail.Price >= item.TargetSellPrice.Value)
+                    alerts.Add(FormattableString.Invariant(
+                        $"  📈 {item.Symbol}: giá {detail.Price:N0} ≥ mục tiêu bán {item.TargetSellPrice.Value:N0} (cơ hội)"));
+            }
+            sb.AppendLine($"| {item.Symbol} | {price} | {pct} | {target} | {dist} |");
+        }
+        foreach (var a in alerts) sb.AppendLine(a);
+        sb.Append("</watchlist>");
+        return sb.ToString();
+    }
+
     public AiAssistantService(
         IAiSettingsRepository settingsRepo,
         IAiKeyEncryptionService encryption,
@@ -108,7 +170,8 @@ Quy tắc bắt buộc:
         IWatchlistRepository watchlistRepo,
         IComprehensiveStockDataProvider comprehensiveProvider,
         IFinancialProfileRepository profileRepo,
-        IPositionSizingService positionSizing)
+        IPositionSizingService positionSizing,
+        IMarketDataProvider marketDataProvider)
     {
         _settingsRepo = settingsRepo;
         _encryption = encryption;
@@ -127,6 +190,7 @@ Quy tắc bắt buộc:
         _comprehensiveProvider = comprehensiveProvider;
         _profileRepo = profileRepo;
         _positionSizing = positionSizing;
+        _marketDataProvider = marketDataProvider;
     }
 
     // =============================================
@@ -1618,16 +1682,28 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : Enumerable.Empty<Watchlist>(), TaskContinuationOptions.ExecuteSynchronously);
         var profileTask = _profileRepo.GetByUserIdAsync(userId, ct)
             .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : null, TaskContinuationOptions.ExecuteSynchronously);
+        // Bối cảnh thị trường — cùng đợt fetch song song, chung budget timeout (không mở window mới)
+        var marketTask = _marketDataProvider.GetIndexDataAsync("VNINDEX", ct)
+            .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : null, TaskContinuationOptions.ExecuteSynchronously);
 
         try
         {
-            await Task.WhenAll(pnlTasks.Cast<Task>().Append(plansTask).Append(watchlistsTask).Append(profileTask))
+            await Task.WhenAll(pnlTasks.Cast<Task>().Append(plansTask).Append(watchlistsTask).Append(profileTask).Append(marketTask))
                 .WaitAsync(timeout, ct);
         }
         catch (TimeoutException) { /* Continue with whatever completed */ }
 
         var sb = new StringBuilder();
         sb.AppendLine($"<date>{DateTime.UtcNow:dd/MM/yyyy (dddd)}</date>");
+
+        // Bối cảnh thị trường (VN-Index + độ rộng + khối ngoại) — bỏ qua nếu không có dữ liệu
+        var marketData = marketTask.IsCompletedSuccessfully ? marketTask.Result : null;
+        var marketSection = FormatMarketContextSection(marketData);
+        if (marketSection.Length > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine(marketSection);
+        }
 
         // Portfolio overview
         decimal totalInvested = 0, totalValue = 0, totalPnL = 0;
@@ -1726,21 +1802,23 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             catch { /* Skip */ }
         }
 
-        // Watchlist alerts — parallel stock detail fetches with timeout
+        // Watchlist — mã theo dõi + giá + khoảng cách target (song song, chung pattern timeout).
+        // Liệt kê đầy đủ (không chỉ mã đã chạm target) để luôn săn cơ hội; ưu tiên mã có mục tiêu mua.
         if (watchlistsTask.IsCompletedSuccessfully)
         {
             try
             {
-                var watchlists = watchlistsTask.Result;
-                var targetItems = watchlists
+                var items = watchlistsTask.Result
                     .SelectMany(wl => wl.Items)
-                    .Where(i => i.TargetBuyPrice.HasValue || i.TargetSellPrice.HasValue)
+                    .GroupBy(i => i.Symbol, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .OrderByDescending(i => i.TargetBuyPrice.HasValue)
                     .Take(10)
                     .ToList();
 
-                if (targetItems.Count > 0)
+                if (items.Count > 0)
                 {
-                    var detailTasks = targetItems.Select(item =>
+                    var detailTasks = items.Select(item =>
                         _stockInfoProvider.GetStockDetailAsync(item.Symbol, ct)
                             .ContinueWith(t => (item, detail: t.IsCompletedSuccessfully ? t.Result : null), TaskContinuationOptions.ExecuteSynchronously)
                     ).ToList();
@@ -1751,25 +1829,16 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
                     }
                     catch (TimeoutException) { /* Continue with whatever completed */ }
 
-                    var alertItems = new List<string>();
-                    foreach (var task in detailTasks)
-                    {
-                        if (!task.IsCompletedSuccessfully) continue;
-                        var (item, detail) = task.Result;
-                        if (detail == null) continue;
-                        if (item.TargetBuyPrice.HasValue && detail.Price <= item.TargetBuyPrice.Value)
-                            alertItems.Add($"📉 {item.Symbol}: giá {detail.Price:N0} ≤ mục tiêu mua {item.TargetBuyPrice:N0}");
-                        if (item.TargetSellPrice.HasValue && detail.Price >= item.TargetSellPrice.Value)
-                            alertItems.Add($"📈 {item.Symbol}: giá {detail.Price:N0} ≥ mục tiêu bán {item.TargetSellPrice:N0}");
-                    }
+                    var entries = detailTasks
+                        .Where(t => t.IsCompletedSuccessfully)
+                        .Select(t => t.Result)
+                        .ToList();
 
-                    if (alertItems.Count > 0)
+                    var watchlistSection = FormatWatchlistSection(entries);
+                    if (watchlistSection.Length > 0)
                     {
                         sb.AppendLine();
-                        sb.AppendLine("<watchlist_alerts>");
-                        foreach (var a in alertItems)
-                            sb.AppendLine($"  {a}");
-                        sb.AppendLine("</watchlist_alerts>");
+                        sb.AppendLine(watchlistSection);
                     }
                 }
             }
@@ -1780,10 +1849,11 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
 
 Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
 1. **Tóm tắt buổi sáng**: Tổng quan nhanh tình hình danh mục trong 3-5 dòng
-2. **Cần hành động ngay**: Vị thế gần SL hoặc lỗ nặng, kế hoạch cần thực thi
-3. **Cơ hội hôm nay**: Watchlist items gần giá mục tiêu, kế hoạch sẵn sàng thực thi
-4. **Cảnh báo rủi ro**: Tập trung quá mức, thiếu SL, drawdown
-5. **Checklist hôm nay**: 3-5 việc cụ thể nhà đầu tư nên làm hôm nay";
+2. **Bối cảnh thị trường**: Dùng <market_context> để phán đoán tái cơ cấu — VN-Index giảm mạnh + độ rộng tiêu cực (nhiều mã giảm/sàn) + khối ngoại bán ròng → thận trọng, cân nhắc giảm tỷ trọng đồng loạt; nếu thị trường ổn mà chỉ mã của mình yếu → xử lý riêng từng vị thế
+3. **Cần hành động ngay**: Vị thế gần SL hoặc lỗ nặng, kế hoạch cần thực thi
+4. **Cơ hội hôm nay**: Dựa <watchlist> (mã gần/đạt mục tiêu mua) + kế hoạch sẵn sàng thực thi
+5. **Cảnh báo rủi ro**: Tập trung quá mức, thiếu SL, drawdown
+6. **Checklist hôm nay**: 3-5 việc cụ thể nhà đầu tư nên làm hôm nay";
 
         var userMessage = question ?? $"Bản tin đầu tư hôm nay:\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
