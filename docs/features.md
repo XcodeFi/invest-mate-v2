@@ -652,7 +652,7 @@ Menu: **Quản lý → Khóa API 🔑**
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| `POST` | `/api/v1/ai/daily-digest` | Bản tin hằng ngày (`{ systemPrompt, userMessage }`) + **cash/net-worth** + **position-sizing** cho pending plans. Controller riêng `AiDigestController`. Scope theo owner của khóa. NPU kéo theo cron → đẩy vào Claude. |
+| `POST` | `/api/v1/ai/daily-digest` | Bản tin hằng ngày (`{ systemPrompt, userMessage }`) + **cash/net-worth** + **position-sizing** cho pending plans + **bối cảnh thị trường** (VN-Index/độ rộng/khối ngoại) + **watchlist** (giá + khoảng cách target). Controller riêng `AiDigestController`. Scope theo owner của khóa. NPU kéo theo cron → đẩy vào Claude. |
 
 ### Frontend
 
