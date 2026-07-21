@@ -2,6 +2,26 @@
 
 ---
 
+## [v2.61.0] — 2026-07-21 · AI Agent: bề mặt ghi trade plan qua Khóa API (backend)
+
+### Tính năng mới
+
+**🤖 Endpoint `api/v1/ai/agent/*`** — xác thực bằng Khóa API (`X-Api-Key`), mở rộng ADR-0003 sang thao tác **ghi**: để trợ lý NPU/Claude lập, sửa, chuyển trạng thái và thực hiện kế hoạch giao dịch từ chat sau khi người dùng "chốt". Re-dispatch các command sẵn có (không thêm business logic), tách controller riêng theo precedent `AiDigestController`.
+
+- **Curated + guard ở adapter:** tạo plan luôn ép Draft (bỏ `status`/`tradeId`), chặn `restore` (400), gán `UserId`/`Origin` server-side. Loại các thao tác phá huỷ (delete/abort/review/bulk) khỏi bề mặt agent.
+- **🔒 Vá IDOR:** `CreateTrade` và `BulkCreateTrades` trước đây chỉ kiểm portfolio tồn tại, không kiểm chủ sở hữu → nay assert `portfolio.UserId == sub`. Audit thêm dấu `Source=AI_AGENT`.
+- **Tài liệu cho Claude:** embedded `Docs/AI-Agent-TradePlan-API.md`, serve qua `GET /ai/agent/doc` với `ETag=docVersion` (NPU cache local, conditional GET 304 — chỉ tải lại khi deploy version mới). Drift test đảm bảo doc không lệch command.
+
+### Files chính
+
+- `src/InvestmentApp.Api/Controllers/AiAgentController.cs` (mới) — controller ApiKey mỏng + serve doc.
+- `src/InvestmentApp.Api/Docs/AI-Agent-TradePlan-API.md` (mới, embedded).
+- `src/InvestmentApp.Application/.../CreateTrade` + `BulkCreateTrades` — thêm `UserId` + ownership assert + audit `Source`.
+- `docs/adr/0004-ai-agent-write-surface-via-apikey.md` (mới, Accepted).
+- Tests: xUnit mới (IDOR ownership ×2, adapter guards, ETag/304, doc drift) — Application 228 + Api 77 pass, không regression.
+
+---
+
 ## [v2.60.0] — 2026-07-16 · Bản tin: bối cảnh thị trường + watchlist (backend)
 
 ### Tính năng mới

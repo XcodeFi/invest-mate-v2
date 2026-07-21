@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -6,6 +7,8 @@ namespace InvestmentApp.Application.Trades.Commands.CreateTrade;
 
 public class CreateTradeCommand : IRequest<string>
 {
+    [JsonIgnore] public string UserId { get; set; } = null!;   // server-set từ sub; dùng để kiểm sở hữu portfolio
+    [JsonIgnore] public string? Origin { get; set; }           // "AI_AGENT" khi tạo qua agent surface (audit)
     public string PortfolioId { get; set; } = null!;
     public string Symbol { get; set; } = null!;
     public string TradeType { get; set; } = null!;
@@ -39,6 +42,9 @@ public class CreateTradeCommandHandler : IRequestHandler<CreateTradeCommand, str
         if (portfolio == null)
             throw new InvalidOperationException("Portfolio not found");
 
+        if (portfolio.UserId != request.UserId)
+            throw new UnauthorizedAccessException("Not authorized to create a trade in this portfolio");
+
         // Parse trade type
         if (!Enum.TryParse<TradeType>(request.TradeType, true, out var tradeType))
             throw new ArgumentException("Invalid trade type");
@@ -71,7 +77,8 @@ public class CreateTradeCommandHandler : IRequestHandler<CreateTradeCommand, str
                 request.Quantity,
                 request.Price,
                 request.Fee,
-                request.Tax
+                request.Tax,
+                Source = request.Origin ?? "USER"
             }
         }, cancellationToken);
 

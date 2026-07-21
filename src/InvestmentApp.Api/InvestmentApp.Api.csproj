@@ -21,4 +21,8 @@
     <ProjectReference Include="..\InvestmentApp.Infrastructure\InvestmentApp.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Docs/AI-Agent-TradePlan-API.md" />
+  </ItemGroup>
+
 </Project>

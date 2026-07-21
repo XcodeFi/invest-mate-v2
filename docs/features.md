@@ -653,12 +653,54 @@ Menu: **Quản lý → Khóa API 🔑**
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | `POST` | `/api/v1/ai/daily-digest` | Bản tin hằng ngày (`{ systemPrompt, userMessage }`) + **cash/net-worth** + **position-sizing** cho pending plans + **bối cảnh thị trường** (VN-Index/độ rộng/khối ngoại) + **watchlist** (giá + khoảng cách target). Controller riêng `AiDigestController`. Scope theo owner của khóa. NPU kéo theo cron → đẩy vào Claude. |
+| `GET/POST/PUT/PATCH/GET` | `/api/v1/ai/agent/*` | **AI Agent write surface** — xem mục bên dưới. |
 
 ### Frontend
 
 - **Page:** `features/api-keys/api-keys.component.ts` (`/api-keys`)
 - **Service:** `api-key.service.ts`
 - **Navigation:** Header (Quản lý group) — "Khóa API 🔑"
+
+---
+
+## AI Agent Write Surface (ADR-0004)
+
+> **Trạng thái:** ✅ Done 2026-07-21 | **ADR:** ADR-0004 | **Extends:** ADR-0003 (per-user API keys)
+
+Cho phép NPU assistant / Claude lập, sửa, chuyển trạng thái, thực hiện trade plans và ghi trade trực tiếp qua API key — không cần đăng nhập trình duyệt. Re-dispatches toàn bộ MediatR commands hiện có, không thêm business logic trùng.
+
+### Tính năng chính
+
+- **Lập plan mới**: `POST /api/v1/ai/agent/trade-plans` (force Draft state, không thể tạo thẳng Ready).
+- **Đọc plans**: `GET /api/v1/ai/agent/trade-plans` + `GET /api/v1/ai/agent/trade-plans/{id}`.
+- **Sửa plan**: `PUT /api/v1/ai/agent/trade-plans/{id}` — cùng shape `UpdateTradePlanCommand`.
+- **Chuyển trạng thái**: `PATCH /api/v1/ai/agent/trade-plans/{id}/status` — chấp nhận mọi transition hợp lệ; `restore` bị chặn (400) để bảo vệ integrity.
+- **Ghi trade**: `POST /api/v1/ai/agent/trades` — tạo BUY/SELL trade với ownership-check đầy đủ.
+- **Tài liệu nhúng**: `GET /api/v1/ai/agent/doc` — trả API reference Markdown (file `AI-Agent-TradePlan-API.md`) với ETag = docVersion; NPU đọc để biết schema trước khi gọi.
+
+### Bảo mật
+
+- **Auth**: `[Authorize(Scheme=ApiKey)]` — xác thực bằng `X-Api-Key` header, giống `AiDigestController`. JWT không được chấp nhận tại endpoint này.
+- **IDOR fix**: `CreateTradeCommand` + `BulkCreateTradesCommand` handlers đã được vá — assert `portfolio.UserId == sub` sau khi load portfolio (trước chỉ kiểm tra tồn tại, không kiểm tra ownership). Fix áp dụng cho mọi caller, không chỉ AI Agent.
+- **Audit trail**: Mọi write action từ controller này ghi `Source=AI_AGENT` vào `Metadata` — có thể trace lại hành động nào do AI thực hiện.
+- **Scope**: mỗi ApiKey chỉ thao tác data của user sở hữu khóa (`sub` claim = UserId).
+
+### Backend
+
+- **Controller**: `src/InvestmentApp.Api/Controllers/AiAgentController.cs` — `[Authorize(Scheme=ApiKey)]` class-level. Pattern giống `AiDigestController`.
+- **Docs file**: `src/InvestmentApp.Api/Docs/AI-Agent-TradePlan-API.md` — nguồn sự thật cho NPU/Claude về request/response shapes.
+
+### Endpoint summary
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `GET` | `/api/v1/ai/agent/trade-plans` | Danh sách trade plans của owner |
+| `GET` | `/api/v1/ai/agent/trade-plans/{id}` | Chi tiết 1 plan (ownership-checked) |
+| `POST` | `/api/v1/ai/agent/trade-plans` | Tạo plan mới (force Draft) |
+| `PUT` | `/api/v1/ai/agent/trade-plans/{id}` | Sửa plan |
+| `PATCH` | `/api/v1/ai/agent/trade-plans/{id}/status` | Chuyển trạng thái (restore blocked) |
+| `POST` | `/api/v1/ai/agent/trades` | Ghi trade BUY/SELL |
+| `GET` | `/api/v1/ai/agent/doc` | API reference Markdown (ETag cache) |
 
 ---
 
@@ -724,6 +766,10 @@ Menu: **Quản lý → Khóa API 🔑**
 | **AI** | `POST /api/v1/ai/comprehensive-analysis` (SSE) | ✅ |
 | **AI** | `POST /api/v1/ai/build-context` (JSON) | ✅ |
 | **API Keys** | `GET/POST/DELETE /api/v1/api-keys` | ✅ |
+| **AI Digest (ApiKey)** | `POST /api/v1/ai/daily-digest` | 🔑 ApiKey |
+| **AI Agent (ApiKey)** | `GET/POST/PUT/PATCH /api/v1/ai/agent/trade-plans` | 🔑 ApiKey |
+| **AI Agent (ApiKey)** | `POST /api/v1/ai/agent/trades` | 🔑 ApiKey |
+| **AI Agent (ApiKey)** | `GET /api/v1/ai/agent/doc` | 🔑 ApiKey |
 
 ---
 
