@@ -33,6 +33,7 @@ public class TradesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateTrade([FromBody] CreateTradeCommand command)
     {
+        command.UserId = GetUserId();
         var tradeId = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetTrade), new { id = tradeId }, new { id = tradeId });
     }
@@ -72,9 +73,10 @@ public class TradesController : ControllerBase
     /// </summary>
     [HttpPost("bulk")]
     [ProducesResponseType(typeof(BulkCreateTradesResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> BulkCreateTrades([FromBody] BulkCreateTradesCommand command)
+    public async Task<IActionResult> BulkCreateTrades([FromBody] BulkCreateTradesCommand command, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(command);
+        command.UserId = GetUserId();
+        var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 

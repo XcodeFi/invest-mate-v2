@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -17,6 +18,7 @@ public class BulkTradeItem
 
 public class BulkCreateTradesCommand : IRequest<BulkCreateTradesResult>
 {
+    [JsonIgnore] public string UserId { get; set; } = null!;   // server-set từ sub; dùng để kiểm sở hữu portfolio
     public string PortfolioId { get; set; } = null!;
     public List<BulkTradeItem> Trades { get; set; } = new();
 }
@@ -44,6 +46,9 @@ public class BulkCreateTradesCommandHandler : IRequestHandler<BulkCreateTradesCo
     {
         var portfolio = await _portfolioRepository.GetByIdAsync(request.PortfolioId, cancellationToken)
             ?? throw new InvalidOperationException("Portfolio not found");
+
+        if (portfolio.UserId != request.UserId)
+            throw new UnauthorizedAccessException("Not authorized to bulk-create trades in this portfolio");
 
         var result = new BulkCreateTradesResult();
 

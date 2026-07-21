@@ -44,6 +44,8 @@ Transform from "trade recorder" to "opportunity finder":
 
 ### V2+ Roadmap — **trial window 1-2 tuần trước khi invest tiếp**
 
+**2026-07-21 — AI Agent write surface landed (ADR-0004):** NPU/Claude có thể lập/sửa/chuyển-trạng-thái/ghi-trade qua `POST /api/v1/ai/agent/*` (ApiKey auth, ownership-enforced). IDOR trong `CreateTradeCommand` + `BulkCreateTradesCommand` đã được đóng (`portfolio.UserId == sub` assert).
+
 User đang dùng thực tế để cảm nhận UX trước khi quyết đầu tư V2.2+. Deferred items:
 
 - **V2.2 — ThesisReviewService cron:** hosted daily 07:00 Asia/Ho_Chi_Minh → tạo Notification/AlertHistory cho plan due. User mở app thấy nudge. Effort ~2 ngày.

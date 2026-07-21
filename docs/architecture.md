@@ -28,7 +28,7 @@ project/
 │   │   └── Repositories/              # 25 MongoDB repositories (incl. FinancialProfileRepository, ApiKeyRepository)
 │   │
 │   └── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
-│       ├── Controllers/               # 30 API controllers (incl. PersonalFinanceController, InternalJobsController, ApiKeysController, AiDigestController)
+│       ├── Controllers/               # 31 API controllers (incl. PersonalFinanceController, InternalJobsController, ApiKeysController, AiDigestController, AiAgentController)
 │       ├── Auth/                      # SchedulerEmailAllowlist, GcpOidcExtensions (Cloud Scheduler OIDC), ApiKeyAuthExtensions (per-user PAT scheme)
 │       ├── Authorization/             # RequireAdminAttribute
 │       ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception
@@ -135,7 +135,7 @@ are now **in-process** in the API:
 | DisciplineScoreCalculator | **Vin-discipline widget backend (2026-04-23)** — tính điểm kỷ luật thesis hybrid: SL-Integrity 50% + Plan Quality 30% + Review Timeliness 20%. Stop-Honor Rate primitive (trades lỗ đã đóng với exitPrice ≥ plannedSL / tổng lỗ). Null-safe re-normalize khi sub-metric thiếu denominator. Multi-lot per-lot matching theo `TradeIds`. Cache 5 phút, invalidate on `TradeClosedEvent`/`PlanReviewedEvent`/`TradePlanThesisInvalidatedEvent` | ITradePlanRepository, ITradeRepository, IMemoryCache |
 | ApiKeyTokenService | Implements `IApiKeyTokenService`. Generate cryptographically random plaintext token, hash via SHA-256, return both (plaintext returned to caller once, only hash persisted). Verify incoming token by hash lookup. | IApiKeyRepository |
 
-## API Endpoints (28 Controllers)
+## API Endpoints (29 Controllers)
 
 | Controller | Base Route | Key Operations |
 |-----------|-----------|----------------|
@@ -169,6 +169,7 @@ are now **in-process** in the API:
 | PersonalFinance | `/api/v1/personal-finance` | **Net worth tracking (Tier 3)**: GET `/` (profile, 404 if absent) + GET `/summary` (net worth + health score 0-100 + 4 rule checks + debts + `HasHighInterestConsumerDebt` flag) + GET `/gold-prices` (live from 24hmoney, cached 5 min) + PUT `/` (upsert profile) + PUT `/accounts` + DELETE `/accounts/{id}` (bảo vệ last Securities) + **PUT `/debts` (upsert debt)** + **DELETE `/debts/{id}` (reject nếu Principal > 0)** |
 | ApiKeys | `/api/v1/api-keys` | **Personal Access Tokens (ADR-0003)** — JWT-authed. `POST /` create (201, returns plaintext token once only); `GET /` list caller's keys; `DELETE /{id}` revoke (204, ownership-checked). |
 | AiDigest | `/api/v1/ai/daily-digest` | **First ApiKey-scheme opt-in endpoint (ADR-0003, 2026-07-15)** — `[Authorize(Scheme=ApiKey)]` (header `X-Api-Key`, KHÔNG JWT). `POST` → `{ systemPrompt, userMessage }` = daily-briefing context + cash/net-worth + position-sizing + market-context (VN-Index/breadth/foreign, qua `IMarketDataProvider`) + watchlist (giá + distance-to-target). Controller riêng `AiDigestController` vì gộp vào `AiController` (JWT class-level) sẽ khiến 2 `[Authorize]` khác scheme cộng dồn (AND). Scope theo `sub` = owner của khóa. |
+| AiAgent | `/api/v1/ai/agent` | **ApiKey-scheme write-surface (ADR-0004, 2026-07-21)** — `[Authorize(Scheme=ApiKey)]`. Re-dispatches existing MediatR commands để NPU/Claude có thể lập/sửa/chuyển-trạng-thái/thực-hiện trade plans + ghi trade programmatically. Endpoints: `GET trade-plans`, `GET trade-plans/{id}`, `POST trade-plans` (forces Draft), `PUT trade-plans/{id}`, `PATCH trade-plans/{id}/status` (blocks `restore` → 400), `POST trades`, `GET doc` (embedded API reference, ETag=docVersion). Audit marker `Source=AI_AGENT` trong `Metadata`. Controller riêng (`AiAgentController`) — same pattern as `AiDigestController`. IDOR fix: `CreateTradeCommand` + `BulkCreateTradesCommand` handlers now assert `portfolio.UserId == sub` (ownership check, not just existence). Docs: `src/InvestmentApp.Api/Docs/AI-Agent-TradePlan-API.md`. |
 | InternalJobs | `/internal/jobs` | **Cloud Scheduler triggers (ADR-0001, 2026-04-26)**: POST `/snapshot` (TakeAllSnapshotsAsync) + POST `/prices` (PriceSnapshotJobService — fetch prices, refresh indices, check stop-loss/target) + POST `/exchange-rate` (RefreshRatesAsync) + POST `/scenario-eval` (EvaluateAllAsync). Auth: `[Authorize(Scheme=GcpOidc, Policy=GcpScheduler)]` — Google-issued OIDC ID token, email_verified=true, email ∈ `Jobs:AllowedSchedulerSAs` allowlist. Idempotent. |
 
 ## Health Endpoints (Minimal API, unauthenticated)
@@ -451,3 +452,10 @@ Feature cho phép non-interactive API access (e.g., local NPU assistant pulling 
 - `src/InvestmentApp.Api/Auth/ApiKeyAuthExtensions.cs` — `ApiKey` authentication scheme (`X-Api-Key` header → SHA-256 hash → `GetByHashAsync` → `IsActive` check → principal with `sub`=UserId; persists `LastUsedAt`, tolerating write failures). Opt-in only via `[Authorize(AuthenticationSchemes="ApiKey")]`; registered in `Program.cs` but never a default scheme
 - `frontend/src/app/core/services/api-keys.service.ts` — HTTP client + TS DTOs
 - `frontend/src/app/features/api-keys/api-keys.component.ts` — standalone page, route `/api-keys`; tạo / revoke token, hiển thị plaintext token inline một lần sau create
+
+**ApiKey-scheme opt-in endpoints (ADR-0003 → ADR-0004):**
+
+| Controller | Route | Scope |
+|-----------|-------|-------|
+| `AiDigestController` | `/api/v1/ai/daily-digest` | Read-only — daily digest context |
+| `AiAgentController` | `/api/v1/ai/agent` | **Curated write** — lập/sửa/thực-hiện trade plans + ghi trade; IDOR-safe (ownership assert trên mọi command) |

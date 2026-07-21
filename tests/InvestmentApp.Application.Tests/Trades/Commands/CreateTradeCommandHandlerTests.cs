@@ -35,6 +35,7 @@ public class CreateTradeCommandHandlerTests
 
         var command = new CreateTradeCommand
         {
+            UserId = portfolio.UserId,
             PortfolioId = portfolio.Id,
             Symbol = "VNM",
             TradeType = tradeType,
@@ -150,5 +151,38 @@ public class CreateTradeCommandHandlerTests
         capturedAudit!.Action.Should().Be("CREATE_TRADE");
         capturedAudit.EntityId.Should().Be(result);
         capturedAudit.UserId.Should().Be("user1");
+    }
+
+    [Fact]
+    public async Task Handle_PortfolioOwnedByAnotherUser_ThrowsUnauthorized()
+    {
+        // Arrange — command claims a different user than the portfolio owner (IDOR attempt)
+        var (_, command) = CreatePortfolioAndCommand();
+        command.UserId = "someone-else";
+
+        // Act
+        var act = () => _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+    }
+
+    [Fact]
+    public async Task Handle_OriginSet_WritesSourceToAuditMetadata()
+    {
+        // Arrange
+        var (_, command) = CreatePortfolioAndCommand();
+        command.Origin = "AI_AGENT";
+        AuditEntry? captured = null;
+        _auditService
+            .Setup(a => a.LogAsync(It.IsAny<AuditEntry>(), It.IsAny<CancellationToken>()))
+            .Callback<AuditEntry, CancellationToken>((e, _) => captured = e)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _handler.Handle(command, CancellationToken.None);
+
+        // Assert — Source lives in the freeform Metadata object
+        captured!.Metadata!.ToString().Should().Contain("AI_AGENT");
     }
 }
