@@ -15,6 +15,7 @@
 - **Symbol timeline** (đọc): `GET /symbols/{symbol}/timeline`.
 - **Kiến trúc:** 5 controller anh em nhỏ, cùng kế thừa `AiAgentControllerBase` (giữ `IMediator` + `GetUserId()`), mỗi controller pin scheme `ApiKey` — theo precedent một-controller-một-scheme. Ownership khóa theo `sub` = chủ khóa ở tầng handler (đã test ở Application layer). Giữ nguyên mã trạng thái nguồn; POST `Created` trỏ Location về agent surface.
 - **Doc tự cập nhật:** thêm 5 mục vào `Docs/AI-Agent-TradePlan-API.md` (embedded, serve qua `GET /ai/agent/doc` ETag/304) → NPU re-fetch thấy endpoint mới. Guard test chống quên cập nhật doc.
+- **🔒 Vá IDOR (`CreateJournal`):** handler trước chỉ kiểm trade tồn tại, không kiểm chủ sở hữu → nay assert `portfolio.UserId == sub` (qua `IPortfolioRepository`) — chặn ghi nhật ký lên trade của người khác. Cùng pattern IDOR fix của PR #122; áp cho mọi caller (JWT lẫn ApiKey).
 
 ### Files chính
 

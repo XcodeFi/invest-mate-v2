@@ -28,7 +28,7 @@ public class AgentExposeDocTests
     [InlineData("POST /api/v1/ai/agent/watchlists")]
     [InlineData("POST /api/v1/ai/agent/journal-entries")]
     [InlineData("GET /api/v1/ai/agent/journals")]
-    [InlineData("GET /api/v1/ai/agent/symbols/")]
+    [InlineData("GET /api/v1/ai/agent/symbols/{symbol}/timeline")]
     public void Doc_ContainsRoute(string route)
     {
         var doc = AiAgentController.LoadDoc();

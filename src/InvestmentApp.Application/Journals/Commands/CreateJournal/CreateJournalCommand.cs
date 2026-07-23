@@ -23,11 +23,16 @@ public class CreateJournalCommandHandler : IRequestHandler<CreateJournalCommand,
 {
     private readonly ITradeJournalRepository _journalRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public CreateJournalCommandHandler(ITradeJournalRepository journalRepository, ITradeRepository tradeRepository)
+    public CreateJournalCommandHandler(
+        ITradeJournalRepository journalRepository,
+        ITradeRepository tradeRepository,
+        IPortfolioRepository portfolioRepository)
     {
         _journalRepository = journalRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<string> Handle(CreateJournalCommand request, CancellationToken cancellationToken)
@@ -35,6 +40,11 @@ public class CreateJournalCommandHandler : IRequestHandler<CreateJournalCommand,
         // Verify trade exists
         var trade = await _tradeRepository.GetByIdAsync(request.TradeId, cancellationToken)
             ?? throw new Exception($"Trade {request.TradeId} not found");
+
+        // Ownership: the trade must belong to the caller (via its portfolio)
+        var portfolio = await _portfolioRepository.GetByIdAsync(trade.PortfolioId, cancellationToken);
+        if (portfolio == null || portfolio.UserId != request.UserId)
+            throw new UnauthorizedAccessException("Not authorized to journal this trade");
 
         // Check if journal already exists for this trade
         var existing = await _journalRepository.GetByTradeIdAsync(request.TradeId, cancellationToken);

@@ -312,15 +312,19 @@ public class AiAgentExposeControllersTests
     // ---- Journals ----
 
     [Fact]
-    public async Task Journal_GetByTrade_Null_Returns404()
+    public async Task Journal_GetByTrade_Null_Returns404_AndInjectsTradeIdAndUserId()
     {
+        GetJournalByTradeQuery? sent = null;
         _mediator.Setup(m => m.Send(It.IsAny<GetJournalByTradeQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<JournalDto?>, CancellationToken>((q, _) => sent = (GetJournalByTradeQuery)q)
             .ReturnsAsync((JournalDto?)null);
 
         var sut = WithApiKeyClaim(new AiAgentJournalsController(_mediator.Object), "user-1");
         var result = await sut.GetJournalByTrade("t-x");
 
         result.Should().BeOfType<NotFoundObjectResult>();
+        sent!.TradeId.Should().Be("t-x");
+        sent.UserId.Should().Be("user-1");
     }
 
     [Fact]
