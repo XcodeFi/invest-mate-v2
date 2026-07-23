@@ -12,6 +12,8 @@ using InvestmentApp.Application.Journals.Commands.UpdateJournal;
 using InvestmentApp.Application.Journals.Queries.GetJournalByTrade;
 using InvestmentApp.Application.Journals.Queries.GetJournals;
 using InvestmentApp.Application.Journals.Queries.GetTradesPendingReview;
+using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Portfolios.Queries.GetAllPortfolios;
 using InvestmentApp.Application.TradePlans.Queries.GetActivePositions;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
@@ -23,6 +25,8 @@ using InvestmentApp.Application.Watchlists.Commands.UpdateWatchlistItem;
 using InvestmentApp.Application.Watchlists.Dtos;
 using InvestmentApp.Application.Watchlists.Queries.GetWatchlistDetail;
 using InvestmentApp.Application.Watchlists.Queries.GetWatchlists;
+using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.ValueObjects;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -407,5 +411,74 @@ public class AiAgentExposeControllersTests
         result.Should().BeOfType<OkObjectResult>();
         sent!.UserId.Should().Be("user-1");
         sent.Symbol.Should().Be("VNM");
+    }
+
+    // ---- Portfolios ----
+
+    [Fact]
+    public async Task Portfolios_Get_InjectsUserId()
+    {
+        GetAllPortfoliosQuery? sent = null;
+        _mediator.Setup(m => m.Send(It.IsAny<GetAllPortfoliosQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<List<PortfolioSummaryDto>>, CancellationToken>((q, _) => sent = (GetAllPortfoliosQuery)q)
+            .ReturnsAsync(new List<PortfolioSummaryDto>());
+
+        var sut = WithApiKeyClaim(new AiAgentPortfoliosController(_mediator.Object), "user-1");
+        var result = await sut.GetPortfolios();
+
+        result.Should().BeOfType<OkObjectResult>();
+        sent!.UserId.Should().Be("user-1");
+    }
+
+    // ---- Fees ----
+
+    private static Mock<IFeeCalculationService> FeeServiceMock()
+    {
+        var mock = new Mock<IFeeCalculationService>();
+        mock.Setup(f => f.GetFeesSummary(It.IsAny<Money>(), It.IsAny<SecurityType>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .Returns(new TradingFeesSummary { TransactionFee = new Money(150000, "VND") });
+        mock.Setup(f => f.CalculateVAT(It.IsAny<Money>(), It.IsAny<string>()))
+            .Returns(new Money(15000, "VND"));
+        mock.Setup(f => f.CalculateSecuritiesTax(It.IsAny<Money>(), It.IsAny<SecurityType>(), It.IsAny<bool>()))
+            .Returns((Money amt, SecurityType _, bool isBuy) => new Money(isBuy ? 0m : amt.Amount * 0.001m, "VND"));
+        return mock;
+    }
+
+    [Fact]
+    public void Fees_Calculate_Sell_ComputesPitTax()
+    {
+        var sut = WithApiKeyClaim(new AiAgentFeesController(_mediator.Object, FeeServiceMock().Object), "user-1");
+
+        var result = sut.Calculate(new FeeCalculationRequest
+        { Symbol = "HHV", TradeType = "Sell", Quantity = 100, Price = 1000000 }) as OkObjectResult;
+
+        var resp = result!.Value as FeeCalculationResponse;
+        resp!.Tax.Should().Be(100000);          // 0.1% of 100,000,000
+        resp.TransactionFee.Should().Be(150000);
+        resp.Vat.Should().Be(15000);
+        resp.TotalFees.Should().Be(265000);
+    }
+
+    [Fact]
+    public void Fees_Calculate_Buy_ZeroTax()
+    {
+        var sut = WithApiKeyClaim(new AiAgentFeesController(_mediator.Object, FeeServiceMock().Object), "user-1");
+
+        var result = sut.Calculate(new FeeCalculationRequest
+        { Symbol = "VNM", TradeType = "Buy", Quantity = 100, Price = 1000000 }) as OkObjectResult;
+
+        var resp = result!.Value as FeeCalculationResponse;
+        resp!.Tax.Should().Be(0);
+    }
+
+    [Fact]
+    public void Fees_Calculate_NonPositiveAmount_Returns400()
+    {
+        var sut = WithApiKeyClaim(new AiAgentFeesController(_mediator.Object, FeeServiceMock().Object), "user-1");
+
+        var result = sut.Calculate(new FeeCalculationRequest
+        { Symbol = "VNM", TradeType = "Buy", Quantity = 0, Price = 1000000 });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 }

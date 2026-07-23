@@ -28,7 +28,7 @@ project/
 │   │   └── Repositories/              # 25 MongoDB repositories (incl. FinancialProfileRepository, ApiKeyRepository)
 │   │
 │   └── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
-│       ├── Controllers/               # 36 API controllers (incl. PersonalFinanceController, InternalJobsController, ApiKeysController, AiDigestController, AiAgentController + 5 AiAgent* expose controllers on AiAgentControllerBase)
+│       ├── Controllers/               # 38 API controllers (incl. PersonalFinanceController, InternalJobsController, ApiKeysController, AiDigestController, AiAgentController + 7 AiAgent* expose controllers on AiAgentControllerBase: Positions, Watchlists, JournalEntries, Journals, Symbols, Portfolios, Fees)
 │       ├── Auth/                      # SchedulerEmailAllowlist, GcpOidcExtensions (Cloud Scheduler OIDC), ApiKeyAuthExtensions (per-user PAT scheme)
 │       ├── Authorization/             # RequireAdminAttribute
 │       ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception
@@ -459,4 +459,5 @@ Feature cho phép non-interactive API access (e.g., local NPU assistant pulling 
 | Controller | Route | Scope |
 |-----------|-------|-------|
 | `AiDigestController` | `/api/v1/ai/daily-digest` | Read-only — daily digest context |
-| `AiAgentController` | `/api/v1/ai/agent` | **Curated write** — lập/sửa/thực-hiện trade plans + ghi trade; IDOR-safe (ownership assert trên mọi command) |
+| `AiAgentController` | `/api/v1/ai/agent` | **Curated write** — lập/sửa/thực-hiện trade plans + ghi trade; IDOR-safe (ownership assert trên mọi command). `POST trades` auto-resolve `portfolioId` (auto-pick khi 1 danh mục) + `fee`/`tax` (tự tính khi bỏ trống) — ADR-0005 |
+| `AiAgentPortfoliosController` / `AiAgentFeesController` | `/api/v1/ai/agent/{portfolios,fees/calculate}` | **Agent self-service (ADR-0005)** — `GET portfolios` (mirror GetAllPortfoliosQuery) + `POST fees/calculate` (mirror FeesController, inject IFeeCalculationService). Giúp agent lấy portfolioId + tính phí/thuế trước khi ghi trade |

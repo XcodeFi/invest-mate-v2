@@ -1,5 +1,7 @@
 using System.Reflection;
 using InvestmentApp.Api.Auth;
+using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Portfolios.Queries.GetAllPortfolios;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlanStatus;
@@ -23,8 +25,13 @@ namespace InvestmentApp.Api.Controllers;
 public class AiAgentController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IFeeCalculationService _feeService;
 
-    public AiAgentController(IMediator mediator) => _mediator = mediator;
+    public AiAgentController(IMediator mediator, IFeeCalculationService feeService)
+    {
+        _mediator = mediator;
+        _feeService = feeService;
+    }
 
     private string GetUserId() =>
         User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException();
@@ -75,10 +82,49 @@ public class AiAgentController : ControllerBase
     }
 
     [HttpPost("trades")]
-    public async Task<IActionResult> CreateTrade([FromBody] CreateTradeCommand command)
+    public async Task<IActionResult> CreateTrade([FromBody] AgentCreateTradeRequest request)
     {
-        command.UserId = GetUserId();
-        command.Origin = "AI_AGENT";
+        var userId = GetUserId();
+
+        // Resolve portfolio: auto-pick khi user chỉ có 1 danh mục (agent thường không truyền portfolioId).
+        var portfolioId = request.PortfolioId;
+        if (string.IsNullOrWhiteSpace(portfolioId))
+        {
+            var portfolios = await _mediator.Send(new GetAllPortfoliosQuery { UserId = userId });
+            if (portfolios.Count == 0)
+                return BadRequest(new { message = "Chưa có danh mục nào — tạo danh mục trước khi ghi lệnh." });
+            if (portfolios.Count > 1)
+                return BadRequest(new
+                {
+                    message = "Có nhiều danh mục — cần chỉ định portfolioId.",
+                    portfolios = portfolios.Select(p => new { p.Id, p.Name })
+                });
+            portfolioId = portfolios[0].Id;
+        }
+
+        // Resolve fee/tax: bỏ trống → tự tính (khớp cách FE điền); gửi giá trị (kể cả 0) → giữ nguyên.
+        var fee = request.Fee ?? 0m;
+        var tax = request.Tax ?? 0m;
+        if (request.Fee is null || request.Tax is null)
+        {
+            var calc = AgentTradeFeeCalculator.Calculate(_feeService, request.TradeType, request.Quantity, request.Price);
+            if (request.Fee is null) fee = calc.TotalFees;
+            if (request.Tax is null) tax = calc.Breakdown.Tax;
+        }
+
+        var command = new CreateTradeCommand
+        {
+            UserId = userId,
+            Origin = "AI_AGENT",
+            PortfolioId = portfolioId,
+            Symbol = request.Symbol,
+            TradeType = request.TradeType,
+            Quantity = request.Quantity,
+            Price = request.Price,
+            Fee = fee,
+            Tax = tax,
+            TradeDate = request.TradeDate
+        };
         var id = await _mediator.Send(command);
         return Created($"/api/v1/trades/{id}", new { id });
     }
