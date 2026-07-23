@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.63.0] — 2026-07-23 · AI Agent: đủ thông tin khi mở/đóng vị thế (portfolio + phí/thuế)
+
+### Tính năng mới
+
+**🤖 Agent tự đủ thông tin khi ghi trade** — trước đây NPU/Claude khi ghi trade phải hỏi lại người dùng `portfolioId` (bắt buộc, không có cách lấy) và `fee`/`tax` (mặc định 0 → sai). Mở rộng ADR-0005; tái dùng 100% `GetAllPortfoliosQuery` + `FeeCalculationService`, không thêm business logic ở Domain/Application.
+
+- **`GET /api/v1/ai/agent/portfolios`** — liệt kê danh mục của chủ khóa (lấy `portfolioId`).
+- **`POST /api/v1/ai/agent/fees/calculate`** — tính phí/thuế cho một giao dịch dự kiến (mirror `FeesController`); TNCN 0.1% chỉ khi SELL.
+- **`POST /api/v1/ai/agent/trades` nới lỏng:** `portfolioId` bỏ trống → auto-pick khi user có đúng 1 danh mục (0 hoặc >1 → `400` kèm hướng dẫn); `fee`/`tax` bỏ trống → tự tính (khớp cách app tính khi nhập tay), gửi giá trị kể cả `0` → giữ nguyên.
+- **Kiến trúc:** logic resolve/auto-compute nằm ở agent controller layer — JWT `CreateTradeCommand` không đổi; new logic khu trú trên agent surface. Ownership double-fence: list lọc theo `sub` + handler re-assert `portfolio.UserId == sub`.
+- **Doc tự cập nhật:** thêm mục Portfolios + Fees + ghi chú create-trade optional vào `Docs/AI-Agent-TradePlan-API.md` (serve qua `GET /ai/agent/doc` ETag/304). Guard test chống quên doc.
+
+### Files chính
+
+- `src/InvestmentApp.Api/Controllers/`: `AiAgentPortfoliosController.cs`, `AiAgentFeesController.cs`, `AgentTradeFeeCalculator.cs`, `AgentCreateTradeRequest.cs` (mới); `AiAgentController.cs` (enhance `CreateTrade` + inject `IFeeCalculationService`).
+- `src/InvestmentApp.Api/Docs/AI-Agent-TradePlan-API.md` — +2 mục + ghi chú create-trade.
+- `docs/adr/0005-agent-surface-auto-resolution.md` (mới).
+- Tests: 10 xUnit mới (Api) — portfolio resolve 4 case, fee/tax null-vs-0, fees BUY/SELL, doc guard. **121 Api pass**, không regression.
+
+---
+
 ## [v2.62.0] — 2026-07-23 · AI Agent: mở rộng bề mặt sang watchlist, danh mục & nhật ký (backend)
 
 ### Tính năng mới

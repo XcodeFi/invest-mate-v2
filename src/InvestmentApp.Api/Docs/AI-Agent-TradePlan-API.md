@@ -9,8 +9,10 @@ App là nhật ký/tracker — KHÔNG đặt lệnh sàn, KHÔNG tiền thật, 
 - Sửa plan → [Update Plan](#update-plan)
 - Chuyển trạng thái → [Status](#status)
 - Ghi trade / thực hiện → [Create Trade](#create-trade) + [Full-execute](#full-execute)
+- Tính phí/thuế trước khi ghi → [Fees](#fees)
 - Đọc plan → [Read](#read)
-- Đọc danh mục → [Positions](#positions)
+- Liệt kê danh mục (lấy portfolioId) → [Portfolios](#portfolios)
+- Đọc holdings thật → [Positions](#positions)
 - Quản watchlist (CRUD) → [Watchlists](#watchlists)
 - Nhật ký theo mã → [Journal Entries](#journal-entries)
 - Nhật ký theo trade → [Journals](#journals)
@@ -61,18 +63,32 @@ Trả về: `201 { "id": "<planId>" }`.
 `restore` bị chặn (400). `executed` cần `tradeId` (tạo trade trước).
 
 ## <a id="create-trade"></a>Create Trade
-`POST /api/v1/ai/agent/trades` body `{ "portfolioId","symbol","tradeType":"BUY|SELL","quantity","price","fee","tax","tradeDate?" }`.
+`POST /api/v1/ai/agent/trades` body `{ "portfolioId?","symbol","tradeType":"BUY|SELL","quantity","price","fee?","tax?","tradeDate?" }`.
 Trả về `201 { "id": "<tradeId>" }`. Portfolio phải thuộc bạn.
+- `portfolioId` **bỏ trống được**: nếu bạn chỉ có 1 danh mục → tự chọn; có >1 → `400` kèm danh sách `{id,name}` để chọn (dùng [Portfolios](#portfolios)); có 0 → `400`.
+- `fee`/`tax` **bỏ trống được**: server tự tính (phí giao dịch + VAT + thuế TNCN, đúng chiều BUY/SELL) — khớp cách app tính khi nhập tay. Gửi giá trị (kể cả `0`) → giữ nguyên, không tự tính. Muốn xem trước con số → gọi [Fees](#fees).
 
 ## <a id="full-execute"></a>Full-execute (thực hiện)
 1. `POST trade-plans` → planId. 2. `POST trades` → tradeId. 3. `PATCH trade-plans/{planId}/status {status:"executed", tradeId}`.
 Nếu bước 3 lỗi sau khi đã tạo trade: báo rõ `planId` + `tradeId` để dọn tay.
+Mẹo: bước 2 có thể bỏ `portfolioId`/`fee`/`tax` (xem [Create Trade](#create-trade)) — không phải hỏi lại người dùng khi chỉ có 1 danh mục.
+
+## <a id="fees"></a>Fees (tính phí/thuế)
+`POST /api/v1/ai/agent/fees/calculate` body `{ "symbol","tradeType":"BUY|SELL","quantity","price" }` →
+`200 { "transactionFee","tax","vat","totalFees","breakdown":{ "transactionFee","tax","vat" } }`.
+Thuế TNCN (`tax`) chỉ > 0 khi SELL (0.1%). Số tiền ≤ 0 → `400`. Dùng để xem trước trước khi ghi trade;
+khi ghi có thể để `fee=totalFees`, `tax=breakdown.tax` (hoặc bỏ trống để server tự điền y hệt).
 
 ---
 
 Các nhóm dưới đây thao tác trực tiếp trên dữ liệu thật của chủ khóa. Read chạy ngay. Watchlist/journal
 là **low-stakes** — agent được ghi/sửa/xóa mà không bắt buộc gate "chốt" như trade plan/trade (hành vi
 thuộc persona NPU, không phải backend). Mọi route scope theo `sub` = chủ khóa; không thấy dữ liệu người khác.
+
+## <a id="portfolios"></a>Portfolios (liệt kê danh mục)
+- `GET /api/v1/ai/agent/portfolios` — danh mục của bạn (`PortfolioSummaryDto` `{id, name, initialCapital,
+  netCashFlow, currentCapital, tradeCount, uniqueSymbols, ...}`). Dùng để lấy `portfolioId` khi ghi trade
+  (nhất là khi có >1 danh mục).
 
 ## <a id="positions"></a>Positions (đọc holdings thật)
 - `GET /api/v1/ai/agent/positions?portfolioId={id?}` — vị thế đang mở (qty, giá vốn bình quân, P/L) trên tất cả
