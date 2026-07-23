@@ -10,6 +10,11 @@ App là nhật ký/tracker — KHÔNG đặt lệnh sàn, KHÔNG tiền thật, 
 - Chuyển trạng thái → [Status](#status)
 - Ghi trade / thực hiện → [Create Trade](#create-trade) + [Full-execute](#full-execute)
 - Đọc plan → [Read](#read)
+- Đọc danh mục → [Positions](#positions)
+- Quản watchlist (CRUD) → [Watchlists](#watchlists)
+- Nhật ký theo mã → [Journal Entries](#journal-entries)
+- Nhật ký theo trade → [Journals](#journals)
+- Sự kiện theo mã → [Symbol timeline](#symbol-timeline)
 - Quy tắc bắt buộc → [Rules](#rules)
 
 ## Auth & lỗi
@@ -62,3 +67,49 @@ Trả về `201 { "id": "<tradeId>" }`. Portfolio phải thuộc bạn.
 ## <a id="full-execute"></a>Full-execute (thực hiện)
 1. `POST trade-plans` → planId. 2. `POST trades` → tradeId. 3. `PATCH trade-plans/{planId}/status {status:"executed", tradeId}`.
 Nếu bước 3 lỗi sau khi đã tạo trade: báo rõ `planId` + `tradeId` để dọn tay.
+
+---
+
+Các nhóm dưới đây thao tác trực tiếp trên dữ liệu thật của chủ khóa. Read chạy ngay. Watchlist/journal
+là **low-stakes** — agent được ghi/sửa/xóa mà không bắt buộc gate "chốt" như trade plan/trade (hành vi
+thuộc persona NPU, không phải backend). Mọi route scope theo `sub` = chủ khóa; không thấy dữ liệu người khác.
+
+## <a id="positions"></a>Positions (đọc holdings thật)
+- `GET /api/v1/ai/agent/positions?portfolioId={id?}` — vị thế đang mở (qty, giá vốn bình quân, P/L) trên tất cả
+  hoặc một danh mục. Trả `200` mảng `ActivePositionDto` `{portfolioId, symbol, quantity, averageCost,
+  currentPrice, marketValue, unrealizedPnL, unrealizedPnLPercent, ...}`.
+
+## <a id="watchlists"></a>Watchlists (CRUD đầy đủ)
+- `GET /api/v1/ai/agent/watchlists` — danh sách watchlist (`WatchlistDto` `{id, name, emoji, isDefault, sortOrder, itemCount}`).
+- `GET /api/v1/ai/agent/watchlists/{id}` — chi tiết + items (`WatchlistItemDto` `{symbol, note, targetBuyPrice?, targetSellPrice?, addedAt}`).
+- `POST /api/v1/ai/agent/watchlists` body `{ "name", "emoji"?, "isDefault"?, "sortOrder"? }` → `201 { ...WatchlistDto }`.
+- `PUT /api/v1/ai/agent/watchlists/{id}` body `{ "name", "emoji"?, "sortOrder"? }` → `204`.
+- `DELETE /api/v1/ai/agent/watchlists/{id}` → `204` (soft delete).
+- `POST /api/v1/ai/agent/watchlists/{id}/items` body `{ "symbol", "note"?, "targetBuyPrice"?, "targetSellPrice"? }` → `200` chi tiết mới.
+- `PUT /api/v1/ai/agent/watchlists/{id}/items/{symbol}` body `{ "note"?, "targetBuyPrice"?, "targetSellPrice"? }` → `200`.
+- `DELETE /api/v1/ai/agent/watchlists/{id}/items/{symbol}` → `200` chi tiết còn lại.
+- `POST /api/v1/ai/agent/watchlists/import-vn30` body `{ "watchlistId"? }` — nạp rổ VN30 vào watchlist có sẵn hoặc tạo mới.
+
+Ví dụ thêm mã theo dõi có giá mục tiêu:
+```json
+{ "symbol":"FPT", "note":"Cho vao khi ve vung ho tro", "targetBuyPrice":115, "targetSellPrice":140 }
+```
+
+## <a id="journal-entries"></a>Journal Entries (nhật ký theo mã/quyết định)
+- `POST /api/v1/ai/agent/journal-entries` body (chính) `{ "symbol", "entryType"(Observation|PreTrade|DuringTrade|PostTrade|Review|Decision),
+  "title", "content", "portfolioId"?, "tradeId"?, "tradePlanId"?, "emotionalState"?, "confidenceLevel"?(1-10),
+  "priceAtTime"?, "marketContext"?, "tags"?[], "timestamp"? }` → `201 { "id" }`.
+- `PUT /api/v1/ai/agent/journal-entries/{id}` body `{ "title"?, "content"?, "entryType"?, "emotionalState"?, "confidenceLevel"?, "marketContext"?, "tags"?[], "rating"? }` → `204`, không tồn tại → `404`.
+- `DELETE /api/v1/ai/agent/journal-entries/{id}` → `204`, không tồn tại → `404`.
+- `GET /api/v1/ai/agent/journal-entries/pending-review?portfolioId={id?}` — danh sách lệnh đã đóng còn chờ viết nhật ký.
+- `GET /api/v1/ai/agent/journal-entries?symbol={mã}&from=&to=` — nhật ký của một mã (`symbol` **bắt buộc**, thiếu → `400`).
+
+## <a id="journals"></a>Journals (nhật ký theo trade)
+- `GET /api/v1/ai/agent/journals?portfolioId={id?}` — mảng `JournalDto`.
+- `GET /api/v1/ai/agent/journals/trade/{tradeId}` — nhật ký của một trade; không có → `404`.
+- `POST /api/v1/ai/agent/journals` body `{ "tradeId", "portfolioId", "entryReason"?, "marketContext"?, "technicalSetup"?, "emotionalState"?, "confidenceLevel"?(1-10), "tradePlanId"? }` → `201 { "id" }`.
+- `PUT /api/v1/ai/agent/journals/{id}` body `{ "entryReason"?, "marketContext"?, "technicalSetup"?, "emotionalState"?, "confidenceLevel"?, "postTradeReview"?, "lessonsLearned"?, "rating"?, "tags"?[] }` → `204`.
+- `DELETE /api/v1/ai/agent/journals/{id}` → `204` (soft delete).
+
+## <a id="symbol-timeline"></a>Symbol timeline (sự kiện theo mã)
+- `GET /api/v1/ai/agent/symbols/{symbol}/timeline?from=&to=` — dòng thời gian hợp nhất của một mã (nhật ký + trade + sự kiện + cảnh báo), trả `SymbolTimelineDto`.

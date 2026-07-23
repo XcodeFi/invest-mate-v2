@@ -704,6 +704,36 @@ Cho phép NPU assistant / Claude lập, sửa, chuyển trạng thái, thực hi
 
 ---
 
+## AI Agent Surface — mở rộng watchlist / danh mục / nhật ký (extends ADR-0004)
+
+> **Trạng thái:** ✅ Done 2026-07-23 | **Extends:** ADR-0004 | **Spec:** `docs/superpowers/specs/2026-07-23-agent-watchlist-positions-expose-design.md`
+
+Mở rộng agent surface từ trade-plans/trades sang 5 nhóm nữa để NPU/Claude thao tác trực tiếp như tool, không phải đi vòng qua bản tin `daily-digest`. 5 controller anh em nhỏ cùng kế thừa `AiAgentControllerBase` (giữ `IMediator` + `GetUserId()`), mỗi controller pin scheme `ApiKey`. Mirror 5 controller JWT nguồn — re-dispatch MediatR sẵn có, `UserId` từ `sub`, **không thêm business logic**. Watchlist/journal write là low-stakes (không bắt gate "chốt" như trade plan/trade).
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| `GET` | `/api/v1/ai/agent/positions?portfolioId=` | Holdings thật (qty, giá vốn, P/L) |
+| `GET` | `/api/v1/ai/agent/watchlists` | Danh sách watchlist |
+| `GET` | `/api/v1/ai/agent/watchlists/{id}` | Chi tiết + items |
+| `POST` | `/api/v1/ai/agent/watchlists` | Tạo watchlist (201) |
+| `PUT` | `/api/v1/ai/agent/watchlists/{id}` | Sửa (204) |
+| `DELETE` | `/api/v1/ai/agent/watchlists/{id}` | Xóa (204, soft) |
+| `POST` | `/api/v1/ai/agent/watchlists/{id}/items` | Thêm mã |
+| `PUT` | `/api/v1/ai/agent/watchlists/{id}/items/{symbol}` | Sửa mã |
+| `DELETE` | `/api/v1/ai/agent/watchlists/{id}/items/{symbol}` | Xóa mã |
+| `POST` | `/api/v1/ai/agent/watchlists/import-vn30` | Nạp rổ VN30 |
+| `POST/PUT/DELETE` | `/api/v1/ai/agent/journal-entries[/{id}]` | Nhật ký theo mã (create/update→404/delete→404) |
+| `GET` | `/api/v1/ai/agent/journal-entries/pending-review` | Lệnh chờ viết nhật ký |
+| `GET` | `/api/v1/ai/agent/journal-entries?symbol=&from=&to=` | Nhật ký theo mã (symbol bắt buộc, thiếu→400) |
+| `GET` | `/api/v1/ai/agent/journals?portfolioId=` | Nhật ký theo trade |
+| `GET` | `/api/v1/ai/agent/journals/trade/{tradeId}` | Nhật ký của 1 trade (null→404) |
+| `POST/PUT/DELETE` | `/api/v1/ai/agent/journals[/{id}]` | create (201) / update (204) / delete (204, soft) |
+| `GET` | `/api/v1/ai/agent/symbols/{symbol}/timeline?from=&to=` | Dòng thời gian sự kiện của mã |
+
+Ownership khóa theo `sub` = chủ khóa ở tầng handler. Tài liệu 5 nhóm gộp vào `GET /ai/agent/doc` (5 mục mới, guard test chống drift).
+
+---
+
 ## API Endpoints tổng hợp (Frontend → Backend)
 
 | Module | Endpoint | Auth |

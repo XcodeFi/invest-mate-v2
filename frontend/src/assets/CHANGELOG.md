@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.62.0] — 2026-07-23 · AI Agent: mở rộng bề mặt sang watchlist, danh mục & nhật ký (backend)
+
+### Tính năng mới
+
+**🤖 5 nhóm endpoint mới trên `api/v1/ai/agent/*`** (xác thực Khóa API) — để trợ lý NPU/Claude đọc danh mục thật, quản watchlist, ghi/đọc nhật ký và xem sự kiện theo mã trực tiếp như tool, không phải đi vòng qua bản tin `daily-digest`. Mở rộng ADR-0004; tái dùng 100% command/query sẵn có (không thêm business logic).
+
+- **Positions** (đọc): `GET /positions` — holdings thật (qty, giá vốn, P/L).
+- **Watchlist** (CRUD đầy đủ, 9 route): list/detail/create/update/delete + thêm/sửa/xóa mã + import VN30.
+- **Journal Entries** (nhật ký theo mã, 5 route): create/update/delete + pending-review + tra theo mã.
+- **Journals** (nhật ký theo trade, 5 route): list + theo trade + create/update/delete.
+- **Symbol timeline** (đọc): `GET /symbols/{symbol}/timeline`.
+- **Kiến trúc:** 5 controller anh em nhỏ, cùng kế thừa `AiAgentControllerBase` (giữ `IMediator` + `GetUserId()`), mỗi controller pin scheme `ApiKey` — theo precedent một-controller-một-scheme. Ownership khóa theo `sub` = chủ khóa ở tầng handler (đã test ở Application layer). Giữ nguyên mã trạng thái nguồn; POST `Created` trỏ Location về agent surface.
+- **Doc tự cập nhật:** thêm 5 mục vào `Docs/AI-Agent-TradePlan-API.md` (embedded, serve qua `GET /ai/agent/doc` ETag/304) → NPU re-fetch thấy endpoint mới. Guard test chống quên cập nhật doc.
+
+### Files chính
+
+- `src/InvestmentApp.Api/Controllers/AiAgentControllerBase.cs` (mới) + 5 controller: `AiAgentPositionsController`, `AiAgentWatchlistsController`, `AiAgentJournalEntriesController`, `AiAgentJournalsController`, `AiAgentSymbolsController`.
+- `src/InvestmentApp.Api/Docs/AI-Agent-TradePlan-API.md` — +5 mục (route + shape DTO + ví dụ).
+- Tests: 37 xUnit mới (Api) — wiring/UserId-injection/route-binding/status-code + doc guard. 111 Api pass, không regression.
+
+---
+
 ## [v2.61.0] — 2026-07-21 · AI Agent: bề mặt ghi trade plan qua Khóa API (backend)
 
 ### Tính năng mới
