@@ -22,7 +22,7 @@ public class AiAgentFeesController : AiAgentControllerBase
     public IActionResult Calculate([FromBody] FeeCalculationRequest request)
     {
         if (request.Quantity * request.Price <= 0)
-            return BadRequest("Transaction amount must be positive");
+            return BadRequest("Số tiền giao dịch phải lớn hơn 0");
 
         return Ok(AgentTradeFeeCalculator.Calculate(
             _feeService, request.TradeType, request.Quantity, request.Price));
