@@ -343,6 +343,39 @@ describe('TradeCreateComponent — Bidirectional Auto-suggest', () => {
     });
   });
 
+  // --- onSubmit fee/tax mapping (double-count regression) ---
+
+  describe('onSubmit fee/tax payload', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+    });
+
+    it('should store fee = transactionFee + VAT (EXCLUDING tax) so consumers do not double-count TNCN', () => {
+      const tradeService = TestBed.inject(TradeService) as jasmine.SpyObj<TradeService>;
+      tradeService.create.and.returnValue(of({ id: 't1' } as any));
+
+      component.form.portfolioId = 'port-1';
+      component.form.symbol = 'HHV';
+      component.form.tradeType = TradeType.SELL;
+      component.form.quantity = 100;
+      component.form.price = 1000000;
+      // 150,000 broker + 15,000 VAT + 100,000 TNCN = 265,000 all-in
+      component.feeCalculation = {
+        transactionFee: 150000,
+        tax: 100000,
+        vat: 15000,
+        totalFees: 265000,
+        breakdown: { transactionFee: 150000, tax: 100000, vat: 15000 }
+      };
+
+      component.onSubmit();
+
+      const payload = tradeService.create.calls.mostRecent().args[0];
+      expect(payload.fee).toBe(165000);   // broker + VAT, NOT totalFees (265,000)
+      expect(payload.tax).toBe(100000);   // TNCN stored separately
+    });
+  });
+
   // --- Chip selection ---
 
   describe('selectPositionChip', () => {

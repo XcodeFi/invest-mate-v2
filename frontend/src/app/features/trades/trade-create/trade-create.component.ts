@@ -587,7 +587,9 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
       tradeType: this.form.tradeType,
       quantity: this.form.quantity,
       price: this.form.price,
-      fee: this.feeCalculation.totalFees,
+      // Fee = broker cost only (phí giao dịch + VAT). Thuế TNCN lưu riêng ở `tax`; consumers trừ
+      // `- Fee - Tax`, nên KHÔNG gộp tax vào fee (dùng totalFees sẽ trừ thuế 2 lần). Xem ADR-0006.
+      fee: this.feeCalculation.breakdown.transactionFee + this.feeCalculation.breakdown.vat,
       tax: this.feeCalculation.breakdown.tax,
       tradeDate: this.form.tradeDate || undefined
     };
