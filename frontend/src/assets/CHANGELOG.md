@@ -19,7 +19,7 @@
 - `src/InvestmentApp.Api/Controllers/`: `AiAgentPortfoliosController.cs`, `AiAgentFeesController.cs`, `AgentTradeFeeCalculator.cs`, `AgentCreateTradeRequest.cs` (mới); `AiAgentController.cs` (enhance `CreateTrade` + inject `IFeeCalculationService`).
 - `src/InvestmentApp.Api/Docs/AI-Agent-TradePlan-API.md` — +2 mục + ghi chú create-trade.
 - `docs/adr/0005-agent-surface-auto-resolution.md` (mới).
-- Tests: 10 xUnit mới (Api) — portfolio resolve 4 case, fee/tax null-vs-0, fees BUY/SELL, doc guard. **121 Api pass**, không regression.
+- Tests: 11 xUnit mới (Api) — portfolio resolve 4 case, fee/tax null-vs-0, auto-resolve cả hai path, fees BUY/SELL, doc guard. **122 Api pass**, không regression.
 
 ---
 

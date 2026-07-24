@@ -171,6 +171,29 @@ public class AiAgentControllerTests
     }
 
     [Fact]
+    public async Task CreateTrade_NoPortfolioId_AndNullFeeTax_ResolvesBoth()
+    {
+        // Both auto-resolve paths at once: single portfolio auto-picked + fee/tax auto-computed (SELL).
+        SetupPortfolios(("p9", "Danh mục chính"));
+        _fees.Setup(f => f.GetFeesSummary(It.IsAny<Money>(), It.IsAny<SecurityType>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .Returns(new TradingFeesSummary { TransactionFee = new Money(150000, "VND") });
+        _fees.Setup(f => f.CalculateVAT(It.IsAny<Money>(), It.IsAny<string>()))
+            .Returns(new Money(15000, "VND"));
+        _fees.Setup(f => f.CalculateSecuritiesTax(It.IsAny<Money>(), It.IsAny<SecurityType>(), It.IsAny<bool>()))
+            .Returns((Money amt, SecurityType _, bool isBuy) => new Money(isBuy ? 0m : amt.Amount * 0.001m, "VND"));
+        SetupCreateTradeCapture(out var sent);
+
+        await Sut().CreateTrade(new AgentCreateTradeRequest
+        {
+            Symbol = "HHV", TradeType = "SELL", Quantity = 100, Price = 1000000
+        });
+
+        sent()!.PortfolioId.Should().Be("p9");    // auto-picked
+        sent()!.Fee.Should().Be(265000);          // 150,000 + 15,000 + 100,000
+        sent()!.Tax.Should().Be(100000);          // TNCN 0.1% of 100,000,000
+    }
+
+    [Fact]
     public async Task CreateTrade_ExplicitZeroFeeTax_NotComputed()
     {
         SetupCreateTradeCapture(out var sent);
