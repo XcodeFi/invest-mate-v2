@@ -11,12 +11,16 @@ COPY src/InvestmentApp.Infrastructure/InvestmentApp.Infrastructure.csproj src/In
 
 RUN dotnet restore src/InvestmentApp.Api/InvestmentApp.Api.csproj
 
-# Copy source and publish
+# Copy source and publish. APP_VERSION (git short SHA from Cloud Build) is baked into the assembly
+# InformationalVersion so AiAgentController.DocVersion — and thus the /ai/agent/doc ETag — changes every
+# deploy. Without this the ETag is a constant "1.0.0" and agent clients (NPU) keep getting 304 with a stale doc.
+ARG APP_VERSION=dev
 COPY src/ src/
 RUN dotnet publish src/InvestmentApp.Api/InvestmentApp.Api.csproj \
     -c Release \
     -o /app/publish \
-    --no-restore
+    --no-restore \
+    -p:InformationalVersion=$APP_VERSION
 
 # Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
