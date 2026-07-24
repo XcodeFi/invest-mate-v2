@@ -108,7 +108,9 @@ public class AiAgentController : ControllerBase
         if (request.Fee is null || request.Tax is null)
         {
             var calc = AgentTradeFeeCalculator.Calculate(_feeService, request.TradeType, request.Quantity, request.Price);
-            if (request.Fee is null) fee = calc.TotalFees;
+            // Fee = broker cost only (transactionFee + VAT). Tax (TNCN) is stored SEPARATELY — consumers do
+            // `- Fee - Tax`, so folding tax into Fee would double-count it. Do NOT use calc.TotalFees here.
+            if (request.Fee is null) fee = calc.TransactionFee + calc.Vat;
             if (request.Tax is null) tax = calc.Breakdown.Tax;
         }
 

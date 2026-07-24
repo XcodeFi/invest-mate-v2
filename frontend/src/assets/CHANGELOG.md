@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.63.1] — 2026-07-24 · Sửa lỗi trừ thuế TNCN 2 lần khi bán (P/L danh mục)
+
+### Sửa lỗi
+
+**🐛 Thuế TNCN bị trừ 2 lần trên lệnh BÁN** — mọi phép tính net (P/L danh mục, campaign review, hiệu suất, chiến lược, realized-PnL) đều dùng `- Fee - Tax`, coi Fee và Tax là 2 khoản **tách biệt**. Nhưng khâu tạo lệnh lại lưu `Fee = totalFees` (đã gồm cả TNCN), còn `Tax` lưu TNCN lần nữa → lệnh BÁN bị trừ thuế 2 lần, sai proceeds + P/L. (Lệnh MUA không ảnh hưởng — TNCN = 0.)
+
+- **Fix producers** (giữ nguyên 7 consumer): lưu `Fee = phí giao dịch + VAT` (bỏ TNCN); `Tax` giữ TNCN riêng.
+  - FE `trade-create.component.ts` (`onSubmit`).
+  - Agent `AiAgentController.CreateTrade` (auto-fill dùng `transactionFee + vat`, không dùng `TotalFees`).
+- `AgentTradeFeeCalculator.TotalFees` / preview `/fees/calculate` giữ nguyên (tổng all-in đúng cho hiển thị).
+- Tests: cập nhật `CreateTrade_NullFeeTax_Sell_AutoComputes` (Fee=165k không gồm thuế) + `trade-create.component.spec.ts` onSubmit payload. Api **121 pass**, FE **138 pass**.
+- Xem [ADR-0006](../../../docs/adr/0006-trade-fee-excludes-tax.md). **⚠️ Cần migration** cho lệnh BÁN cũ (`Fee = Fee - Tax` khi `Tax > 0`) — chạy riêng, có xác nhận.
+
+---
+
 ## [v2.63.0] — 2026-07-23 · AI Agent: đủ thông tin khi mở/đóng vị thế (portfolio + phí/thuế)
 
 ### Tính năng mới

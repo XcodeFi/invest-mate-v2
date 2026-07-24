@@ -97,6 +97,8 @@ ImpersonationAudit (independent, append-only)
 | MarketEvent | Symbol | N:1 | Sự kiện thị trường (manual + auto) |
 | ApiKey | User | N:1 | Nhiều named key per user; collection `api_keys`, unique index `KeyHash`, index `UserId` |
 
+> **`Trade.Fee` vs `Trade.Tax` (bất biến quan trọng):** hai khoản **tách biệt, không chồng nhau**. `Fee` = phí giao dịch + VAT (chi phí môi giới); `Tax` = thuế TNCN (0.1%, chỉ lệnh BÁN). Mọi phép tính net dùng `Quantity*Price + Fee + Tax` (mua) / `- Fee - Tax` (bán) — KHÔNG được gộp thuế vào `Fee` (sẽ trừ 2 lần). Xem [ADR-0006](adr/0006-trade-fee-excludes-tax.md).
+
 ---
 
 ## 3. Các nghiệp vụ chính

@@ -152,7 +152,10 @@ public class AiAgentControllerTests
     [Fact]
     public async Task CreateTrade_NullFeeTax_Sell_AutoComputes()
     {
-        // amount = 100 * 1,000,000 = 100,000,000 → tax 0.1% = 100,000; fee = 150,000 + 15,000 + 100,000 = 265,000
+        // amount = 100 * 1,000,000 = 100,000,000.
+        // Fee = transactionFee 150,000 + VAT 15,000 = 165,000 — broker cost only.
+        // Tax = TNCN 0.1% = 100,000, stored SEPARATELY. Fee must NOT include Tax, otherwise every
+        // consumer (`- Fee - Tax` on sell) double-counts the tax. See ADR-0006.
         _fees.Setup(f => f.GetFeesSummary(It.IsAny<Money>(), It.IsAny<SecurityType>(), It.IsAny<bool>(), It.IsAny<bool>()))
             .Returns(new TradingFeesSummary { TransactionFee = new Money(150000, "VND") });
         _fees.Setup(f => f.CalculateVAT(It.IsAny<Money>(), It.IsAny<string>()))
@@ -166,7 +169,7 @@ public class AiAgentControllerTests
             PortfolioId = "p1", Symbol = "HHV", TradeType = "SELL", Quantity = 100, Price = 1000000
         });
 
-        sent()!.Fee.Should().Be(265000);
+        sent()!.Fee.Should().Be(165000);   // broker + VAT, EXCLUDES the separately-stored TNCN tax
         sent()!.Tax.Should().Be(100000);
     }
 
