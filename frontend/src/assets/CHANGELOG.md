@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.64.0] — 2026-07-24 · MCP server: mở toàn bộ bề mặt agent qua Model Context Protocol
+
+### Tính năng
+
+**🔌 MCP server (co-host trong `InvestmentApp.Api`)** — cho phép nhiều MCP client (Claude Desktop, IDE, NPU, host khác) cắm thẳng vào Invest Mate qua **tool có schema**, thay vì đọc doc markdown rồi tự dựng `curl`.
+
+- Endpoint `/mcp` (streamable HTTP, **stateless** — hợp Cloud Run multi-instance), sau **ApiKey scheme** hiện có (`UserId` = claim `sub`).
+- **29 tool** = full parity với bề mặt agent REST: trade plans (list/get/create/update/set-status), trades (create + calculate_fees), portfolios, positions, symbol timeline, watchlists (CRUD + items + import-vn30), journals (CRUD), journal-entries (CRUD + pending-review + by-symbol).
+- Mỗi tool re-dispatch đúng MediatR command/query có sẵn — **không thêm business logic**. Tool đọc gắn `ReadOnly`, tool ghi gắn `Destructive` → host MCP tự hỏi xác nhận.
+- REST `/ai/agent/*` giữ nguyên (additive). MCP thay doc markdown bằng `tools/list` discovery.
+- Package `ModelContextProtocol.AspNetCore 2.0.0-rc.1`. 35 test MCP pass (unit 29 tool + discovery annotations). Xem plan `docs/superpowers/plans/2026-07-24-mcp-server-implementation.md`.
+- **Còn lại (manual):** verify kết nối 1 host thật + quyết định ApiKey-vs-OAuth cho từng host.
+
+---
+
 ## [v2.63.1] — 2026-07-24 · Sửa lỗi trừ thuế TNCN 2 lần khi bán (P/L danh mục)
 
 ### Sửa lỗi

@@ -192,8 +192,8 @@ public class AiAgentControllerTests
         });
 
         sent()!.PortfolioId.Should().Be("p9");    // auto-picked
-        sent()!.Fee.Should().Be(265000);          // 150,000 + 15,000 + 100,000
-        sent()!.Tax.Should().Be(100000);          // TNCN 0.1% of 100,000,000
+        sent()!.Fee.Should().Be(165000);          // 150,000 broker + 15,000 VAT, EXCLUDES tax (ADR-0006)
+        sent()!.Tax.Should().Be(100000);          // TNCN 0.1% of 100,000,000, stored separately
     }
 
     [Fact]
