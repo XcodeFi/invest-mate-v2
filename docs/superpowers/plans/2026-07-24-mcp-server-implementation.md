@@ -1,5 +1,7 @@
 # MCP Server (co-host trong InvestmentApp.Api) Implementation Plan
 
+> **✅ DONE — merged as PR #129 (squash `e4973c1`, 2026-07-25).** 29 tools shipped (full parity with the AiAgent* surface), 36 MCP tests + 158 total pass. Follow-up (more/new tools): [`2026-07-25-mcp-tools-expansion-roadmap.md`](2026-07-25-mcp-tools-expansion-roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Expose the **full** existing AI-agent operation surface (29 tools = 1:1 parity with every `AiAgent*Controller` endpoint) as schema-typed MCP tools over remote streamable HTTP, co-hosted inside `InvestmentApp.Api`, behind the existing ApiKey scheme, dispatching to the same MediatR handlers the REST agent controllers already use. Genuinely new operations are deferred to a later plan (see "Future work").
