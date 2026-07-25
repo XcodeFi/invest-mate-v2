@@ -1,7 +1,7 @@
 # MCP Tools Expansion — Prioritized Roadmap
 
 **Ngày:** 2026-07-25
-**Trạng thái:** Draft roadmap — chờ chọn slice để viết plan chi tiết + thực hiện
+**Trạng thái:** P0 done (2026-07-25) — P1–P5 chờ chọn slice tiếp theo
 **Tiền đề:** PR #129 đã ship 29 tool (parity với `AiAgent*` REST surface). Đây là bước "thêm API mới" — expose các MediatR handler **chưa** có ở agent surface, **ưu tiên theo giá trị**.
 **Liên quan:** [`2026-07-24-mcp-server-implementation.md`](2026-07-24-mcp-server-implementation.md) (đã done), ADR-0003/0004/0005.
 
@@ -46,6 +46,13 @@ Lý do làm đầu: **cú nhảy năng lực lớn nhất** — cho agent "situa
 | `get_scenario_advisories` | `GetScenarioAdvisoriesQuery` → `List<ScenarioAdvisory>` | Cảnh báo kịch bản đang vi phạm |
 
 → **8 tool, 1 class `RiskTools` + `DecisionTools`** (hoặc gộp `SituationTools`). Ước lượng ~1 slice.
+
+### Checkpoint — P0 (done 2026-07-25)
+- **Decisions**: 2 class `DecisionTools` (queue/score/streak/thesis-reviews) + `RiskTools` (risk/SL-targets/trailing/advisories). Deviation vs bảng trên: `get_stop_loss_targets` + `get_trailing_stop_alerts` là **per-portfolio** (query yêu cầu `PortfolioId`, ownership check ở handler) — tool nhận `portfolioId` required giống `get_portfolio_risk`. `get_discipline_score` nhận `days` nullable → default 90.
+- **Files changed**: `src/InvestmentApp.Api/Mcp/{DecisionTools,RiskTools}.cs` (new), `tests/.../Mcp/{DecisionToolsTests,RiskToolsTests}.cs` (new), `McpToolDiscoveryTests.cs` (37 tool + 3 schema-leak assertions cho tool có `portfolioId`), plan chi tiết `docs/plans/mcp-p0-risk-decision-tools.md`.
+- **Tests**: +9 unit, suite 1.451 pass.
+- **Affected layers**: Api only (+ Api.Tests).
+- **Next**: P1 Performance & Wealth Analytics (8 read tool, §P1) — cùng pattern, thêm class `AnalyticsTools`. Verify signature từng query trước khi scaffold (một số có `PortfolioId`/date-range/`days`). Đọc checkpoint này + `PortfolioTools.cs` là đủ context.
 
 ### 🥈 P1 — Performance & Wealth Analytics (READ)
 
