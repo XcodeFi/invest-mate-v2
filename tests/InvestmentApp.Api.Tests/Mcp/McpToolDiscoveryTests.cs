@@ -1,7 +1,10 @@
 using FluentAssertions;
 using InvestmentApp.Api.Mcp;
+using InvestmentApp.Application.Interfaces;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
+using Moq;
 
 namespace InvestmentApp.Api.Tests.Mcp;
 
@@ -32,6 +35,12 @@ public class McpToolDiscoveryTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        // Register the same services the tools inject — the SDK excludes DI-registered
+        // service params from the generated tool schema. Missing a registration would
+        // silently leak that param (+ its whole object graph) into the tool's input schema.
+        services.AddSingleton(Mock.Of<IMediator>());
+        services.AddSingleton(Mock.Of<IFeeCalculationService>());
+        services.AddHttpContextAccessor();
         services.AddMcpServer().WithToolsFromAssembly(typeof(PortfolioTools).Assembly);
         return services.BuildServiceProvider().GetServices<McpServerTool>().ToList();
     }
@@ -59,5 +68,22 @@ public class McpToolDiscoveryTests
         var byName = Tools().ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.Annotations);
         foreach (var name in WriteTools)
             byName[name]!.DestructiveHint.Should().BeTrue($"{name} should be destructive");
+    }
+
+    [Fact]
+    public void Tool_Schemas_Exclude_Injected_Services_And_Include_Real_Args()
+    {
+        var schema = Tools().ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.InputSchema.GetRawText());
+
+        // DI-only tool → no injected services surface as tool inputs.
+        schema["list_portfolios"].Should().NotContain("mediator").And.NotContain("http");
+
+        // Sync tool injecting IFeeCalculationService → real args present, service absent.
+        schema["calculate_fees"].Should().Contain("tradeType").And.Contain("quantity");
+        schema["calculate_fees"].Should().NotContain("feeService");
+
+        // create_trade → real args present; mediator/feeService/http/ct excluded.
+        schema["create_trade"].Should().Contain("symbol");
+        schema["create_trade"].Should().NotContain("feeService").And.NotContain("mediator");
     }
 }
