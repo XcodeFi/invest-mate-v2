@@ -359,6 +359,13 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddSingleton(new SchedulerEmailAllowlist(
     builder.Configuration["Jobs:AllowedSchedulerSAs"]));
 
+// MCP server — expose the agent surface as schema-typed tools over streamable HTTP.
+// Stateless: no cross-instance session state (survives Cloud Run multi-instance scaling).
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddMcpServer()
+    .WithHttpTransport(options => options.Stateless = true)
+    .WithToolsFromAssembly();   // scans [McpServerToolType] classes in this assembly
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.SameSite = cookieSameSite;
@@ -459,6 +466,13 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// MCP endpoint behind the ApiKey scheme (per-user key = UserId via "sub" claim).
+app.MapMcp("/mcp")
+    .RequireAuthorization(new Microsoft.AspNetCore.Authorization.AuthorizeAttribute
+    {
+        AuthenticationSchemes = InvestmentApp.Api.Auth.ApiKeyAuthenticationDefaults.Scheme
+    });
+
 // Health check endpoints
 var appVersionEnv = Environment.GetEnvironmentVariable("APP_VERSION");
 var appVersion = string.IsNullOrWhiteSpace(appVersionEnv) ? "dev" : appVersionEnv;
@@ -495,3 +509,6 @@ app.MapGet("/health/ready", async (IMongoClient mongo) =>
 });
 
 app.Run();
+
+// Exposed for WebApplicationFactory<Program> in integration tests.
+public partial class Program;
