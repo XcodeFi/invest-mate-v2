@@ -30,7 +30,11 @@ public class McpToolDiscoveryTests
         // P1 — Performance & Wealth Analytics
         "get_performance", "get_equity_curve", "get_monthly_returns",
         "get_savings_comparison", "get_campaign_analytics", "get_net_worth_summary",
-        "get_flow_history", "get_adjusted_return"
+        "get_flow_history", "get_adjusted_return",
+        // P2 — Market Research (public data, no UserId)
+        "get_stock_detail", "get_stock_price", "get_stock_price_history",
+        "get_technical_analysis", "search_stocks", "get_market_overview",
+        "get_top_fluctuation", "get_batch_prices"
     };
 
     private static readonly string[] WriteTools =
@@ -58,12 +62,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_46_Tools()
+    public void Registers_All_54_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(46);
+        (ReadTools.Length + WriteTools.Length).Should().Be(54);
     }
 
     [Fact]
@@ -110,6 +114,13 @@ public class McpToolDiscoveryTests
         schema["get_performance"].Should().Contain("portfolioId").And.NotContain("mediator");
         schema["get_savings_comparison"].Should().Contain("annualRate").And.NotContain("mediator");
         schema["get_flow_history"].Should().Contain("from").And.Contain("to").And.NotContain("mediator");
+
+        // P2 market tools → public data, so no IHttpContextAccessor is injected at all;
+        // assert neither it nor IMediator leaks into the schema.
+        schema["get_stock_price_history"].Should().Contain("symbol").And.Contain("from")
+            .And.NotContain("mediator").And.NotContain("http");
+        schema["get_batch_prices"].Should().Contain("symbols").And.NotContain("mediator");
+        schema["get_market_overview"].Should().NotContain("mediator").And.NotContain("http");
     }
 
     [Fact]
@@ -127,5 +138,7 @@ public class McpToolDiscoveryTests
         Required(schema["get_savings_comparison"]).Should().BeEquivalentTo(new[] { "portfolioId" });
         Required(schema["get_flow_history"]).Should().BeEquivalentTo(new[] { "portfolioId" });
         Required(schema["get_campaign_analytics"]).Should().BeEmpty();
+        Required(schema["get_stock_price_history"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["get_top_fluctuation"]).Should().BeEmpty();
     }
 }

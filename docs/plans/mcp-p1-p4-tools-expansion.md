@@ -30,13 +30,37 @@ Lưu ý khi verify signature: market queries có thể **không có UserId** (d�
 
 ## Slice P3 — Portfolio & Trade Management (2 READ + 6 WRITE) — mở rộng `PortfolioTools`/`TradeTools`
 
-Branch: `feature/mcp-p3-portfolio-trade-mgmt`. READ: `get_portfolio`, `get_trades_by_portfolio`. WRITE (Destructive): `create_portfolio`, `update_portfolio`, `delete_portfolio`, `delete_trade`, `link_trade_to_plan`, `bulk_create_trades`.
-Verify: ownership + soft-delete semantics của delete handlers; `bulk_create_trades` shape (list DTO).
+Branch: `feature/mcp-p3-portfolio-trade-mgmt`. Signatures verified 2026-07-26:
+
+| Tool | Command/Query | Params ngoài UserId | Return |
+|---|---|---|---|
+| `get_portfolio` (R) | `Portfolios.Queries.GetPortfolio` | `Id` **req** | `PortfolioDto?` |
+| `get_trades_by_portfolio` (R) | `Trades.Queries.GetTradesByPortfolio` | `PortfolioId` **req**, `Symbol?`, `TradeType?`, `Page`=1, `PageSize`=20 | `TradeListDto` |
+| `create_portfolio` (W) | `Portfolios.Commands.CreatePortfolio` | `Name`, `InitialCapital` | `string` (id) |
+| `update_portfolio` (W) | `Portfolios.Commands.UpdatePortfolio` | `Id`, `Name` | `bool` |
+| `delete_portfolio` (W) | `Portfolios.Commands.DeletePortfolio` | `Id` | `bool` |
+| `delete_trade` (W) | `Trades.Commands.DeleteTrade` | `TradeId` | `bool` |
+| `link_trade_to_plan` (W) | `Trades.Commands.LinkTradeToPlan` | `TradeId`, `PlanId` | `bool` |
+| `bulk_create_trades` (W) | `Trades.Commands.BulkCreateTrades` | `PortfolioId`, `Trades: List<BulkTradeItem>` (Symbol/TradeType/Quantity/Price/Fee/Tax/TradeDate?) | `BulkCreateTradesResult` |
+
+Lưu ý: `CreatePortfolioCommand.UserId` và `UpdatePortfolioCommand.Id`/`UserId` là `string?` (nullable) — set như bình thường. `BulkCreateTrades` ownership qua `UnauthorizedAccessException`; partial-success (`SuccessCount`/`FailedCount`/`Errors`) → mô tả rõ trong `[Description]` để agent không hiểu nhầm là all-or-nothing. Áp dụng idiom optional-param (default) cho `symbol`/`tradeType`/`page`/`pageSize`.
 
 ## Slice P4 — Plan Execution & Discipline Actions (8 WRITE) — class `PlanActionTools`
 
-Branch: `feature/mcp-p4-plan-actions`. Tools: `resolve_decision` (ExecuteSell/HoldWithJournal), `review_trade_plan`, `abort_trade_plan`, `execute_lot`, `update_stop_loss`, `trigger_exit_target`, `set_stop_loss_target`, `set_risk_profile`.
-Stakes cao nhất — verify: state-machine guard trong handler (không nhảy cóc status), ownership, command required fields. Tất cả `Destructive = true`.
+Branch: `feature/mcp-p4-plan-actions`. Tất cả `Destructive = true`. Signatures verified 2026-07-26:
+
+| Tool | Command | Params ngoài UserId | Return |
+|---|---|---|---|
+| `resolve_decision` | `Decisions.Commands.ResolveDecision` | `DecisionId`, `Action` (enum `DecisionAction`: ExecuteSell/HoldWithJournal), `TradePlanId?` (req cho ExecuteSell), `Symbol?`, `Note?` (req ≥20 ký tự cho HoldWithJournal — FluentValidation) | `ResolveDecisionResult` |
+| `review_trade_plan` | `TradePlans.Commands.ReviewTradePlan` | `PlanId`, `LessonsLearned?` | `CampaignReviewDto` |
+| `abort_trade_plan` | `TradePlans.Commands.AbortTradePlan` | `PlanId`, `Trigger` (EarningsMiss/TrendBreak/NewsShock/ThesisTimeout/Manual), `Detail` (≥20 ký tự) | `AbortTradePlanResult` |
+| `execute_lot` | `TradePlans.Commands.ExecuteLot` | `PlanId`, `LotNumber` (int), `TradeId`, `ActualPrice` | `Unit` |
+| `update_stop_loss` | `TradePlans.Commands.UpdateStopLoss` | `PlanId`, `NewStopLoss`, `Reason?` | `Unit` |
+| `trigger_exit_target` | `TradePlans.Commands.TriggerExitTarget` | `PlanId`, `Level` (int), `TradeId` | `Unit` |
+| `set_stop_loss_target` | `Risk.Commands.SetStopLossTarget` | `TradeId`, `PortfolioId`, `Symbol`, `EntryPrice`, `StopLossPrice`, `TargetPrice`, `TrailingStopPercent?` | `string` (id) |
+| `set_risk_profile` | `Risk.Commands.SetRiskProfile` | `PortfolioId` + 7 field nullable (MaxPositionSizePercent, MaxSectorExposurePercent, MaxDrawdownAlertPercent, DefaultRiskRewardRatio, MaxPortfolioRiskPercent, MaxDailyTrades int?, DailyLossLimitPercent) | `string` (id) |
+
+Lưu ý: `Unit` (MediatR) làm return type của MCP tool — cân nhắc trả `bool`/string message thay vì `Unit` cho host dễ đọc; quyết định lúc scaffold. `LotNumber`/`Level` là `[JsonIgnore]` route param ở REST → thành param tường minh ở tool. `DecisionAction` là enum → xác nhận SDK sinh schema enum (string) chứ không phải int.
 
 ## Follow-up (ngoài 4 slice)
 
@@ -50,4 +74,12 @@ Stakes cao nhất — verify: state-machine guard trong handler (không nhảy c
 - **Tests**: Api 179 pass, suite 1.463.
 - **Review**: 1 sub-agent (fable) — 3 findings: unit-mismatch `annualRate` (90, fixed), optional-in-required (80, fixed bằng idiom mới), timeHorizon silent fallback (60, note description).
 - **Affected layers**: Api only.
-- **Next**: Slice P2 `MarketTools` — signatures ĐÃ verify (xem §P2): các query **không có UserId** → tool không inject `IHttpContextAccessor`; `get_batch_prices` nhận `List<string> symbols`; `get_stock_price_history` `from`/`to` **required** (DateTime); `get_top_fluctuation` `floor` optional default "10". Áp dụng idiom optional-param mới. Cần xác định ns của `TechnicalAnalysisResult` + các DTO (grep `^namespace` file query).
+- **Next (đã làm)**: Slice P2 `MarketTools` — signatures ĐÃ verify (xem §P2): các query **không có UserId** → tool không inject `IHttpContextAccessor`; `get_batch_prices` nhận `List<string> symbols`; `get_stock_price_history` `from`/`to` **required** (DateTime); `get_top_fluctuation` `floor` optional default "10". Áp dụng idiom optional-param mới. Cần xác định ns của `TechnicalAnalysisResult` + các DTO (grep `^namespace` file query).
+
+### Checkpoint — Slice P2 (done 2026-07-26)
+- **Decisions**: (1) market queries **không mang UserId** → tool chỉ inject `IMediator` + `ct`, không `IHttpContextAccessor` (verify: 8 handler chỉ chạm provider/repo global, không rò dữ liệu user); (2) symbol chuẩn hóa `ToUpperInvariant().Trim()` tại wrapper — lệch REST (pass raw) nhưng khớp quy ước symbol dự án + `GetTechnicalAnalysisQueryHandler` vốn đã ToUpper; (3) `get_stock_price_history` mặc định 3 tháng gần nhất, mirror `MarketDataController.GetPriceHistory`.
+- **Files changed**: `src/InvestmentApp.Api/Mcp/MarketTools.cs` (new), `tests/.../Mcp/MarketToolsTests.cs` (new, 12 tests), `McpToolDiscoveryTests.cs` (54 tool + 3 schema assertion P2), docs (architecture/business-domain/CHANGELOG v2.68.0).
+- **Tests**: Api 191 pass.
+- **Review**: 1 sub-agent (fable) — 3 findings P2, fix cả 3: lọc entry rỗng/null trong `get_batch_prices` (tránh NRE), guard keyword rỗng ở `search_stocks` (mirror 400 của REST), thêm schema-regression assertion cho tool P2.
+- **Affected layers**: Api only.
+- **Next**: Slice P3 `PortfolioTools`/`TradeTools` mở rộng — signatures ĐÃ verify (xem §P3). WRITE tool đầu tiên của đợt này → `Destructive = true`; mô tả rõ partial-success của `bulk_create_trades`.

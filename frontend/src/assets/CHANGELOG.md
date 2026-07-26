@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.68.0] — 2026-07-26 · MCP P2: 8 tool Market Research (chỉ đọc)
+
+### Tính năng
+
+**🔎 8 MCP read tool nghiên cứu thị trường** (slice P2): agent tự tra cứu mã trước khi tư vấn, không cần user copy dữ liệu vào.
+
+- `MarketTools`: `get_stock_detail`, `get_stock_price`, `get_stock_price_history` (mặc định 3 tháng gần nhất), `get_technical_analysis` (MA/RSI/MACD/Bollinger), `search_stocks`, `get_market_overview`, `get_top_fluctuation` (mặc định sàn HOSE), `get_batch_prices` (nhiều mã 1 lần).
+- Dữ liệu thị trường là **công khai** → các query không mang `UserId`, tool không inject `IHttpContextAccessor`. Symbol tự chuẩn hóa uppercase ở wrapper nên agent gửi `fpt` vẫn tra được.
+- Tổng tool: **46 → 54**. Tests: +10 unit + discovery 54 tool.
+
+---
+
 ## [v2.67.0] — 2026-07-26 · MCP P1: 8 tool Performance & Wealth Analytics (chỉ đọc)
 
 ### Tính năng
