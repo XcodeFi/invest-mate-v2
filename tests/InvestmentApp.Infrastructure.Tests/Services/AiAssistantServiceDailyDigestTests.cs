@@ -207,4 +207,58 @@ public class AiAssistantServiceDailyDigestTests
         section.Should().Contain("70,000");
         section.Should().NotContain("📉");          // không có giá → không tín hiệu
     }
+
+    // --- FormatPortfolioOverviewSection: tổng quan + bóc theo danh mục + realized P&L ---
+
+    [Fact]
+    public void FormatPortfolioOverviewSection_RendersTotalsAndPerPortfolioRows()
+    {
+        var rows = new List<PortfolioDigestRow>
+        {
+            new("24hmoney", MarketValue: 144_565_000m, Cash: 283_023_788m,
+                UnrealizedPnL: -35_600_000m, RealizedPnL: -35_922_000m),
+            new("Swing Trading", MarketValue: 20_395_000m, Cash: 4_879_900m,
+                UnrealizedPnL: -4_700_000m, RealizedPnL: 0m),
+        };
+
+        var section = AiAssistantService.FormatPortfolioOverviewSection(rows, totalInvested: 205_270_000m);
+
+        section.Should().Contain("<portfolio_overview>");
+        section.Should().Contain("</portfolio_overview>");
+        section.Should().Contain("<portfolios>2</portfolios>");
+        section.Should().Contain("<total_market_value>164,960,000 VND</total_market_value>");
+        section.Should().Contain("<total_cash>287,903,688 VND</total_cash>");
+        section.Should().Contain("<total_capital>452,863,688 VND</total_capital>");
+        section.Should().Contain("<realized_pnl>-35,922,000 VND</realized_pnl>");
+        section.Should().Contain("name=\"24hmoney\"");
+        section.Should().Contain("cash=\"283,023,788\"");
+        section.Should().Contain("realized=\"-35,922,000\"");
+    }
+
+    [Fact]
+    public void FormatPortfolioOverviewSection_CashUnavailableForOnePortfolio_ShowsNaAndExcludesFromTotal()
+    {
+        // Trades repo của 1 danh mục lỗi → cash danh mục đó n/a; total_cash chỉ cộng phần lấy được
+        // và phải nói rõ là chưa đầy đủ.
+        var rows = new List<PortfolioDigestRow>
+        {
+            new("A", 100_000_000m, Cash: 10_000_000m, UnrealizedPnL: 0m, RealizedPnL: 0m),
+            new("B", 50_000_000m, Cash: null, UnrealizedPnL: 0m, RealizedPnL: 0m),
+        };
+
+        var section = AiAssistantService.FormatPortfolioOverviewSection(rows, totalInvested: 150_000_000m);
+
+        section.Should().Contain("cash=\"n/a\"");
+        section.Should().Contain("<total_cash>10,000,000 VND (chưa đầy đủ: 1 danh mục không lấy được)</total_cash>");
+    }
+
+    [Fact]
+    public void FormatPortfolioOverviewSection_ZeroInvested_OmitsReturnInsteadOfDividingByZero()
+    {
+        var rows = new List<PortfolioDigestRow> { new("A", 0m, 0m, 0m, 0m) };
+
+        var section = AiAssistantService.FormatPortfolioOverviewSection(rows, totalInvested: 0m);
+
+        section.Should().NotContain("<return>");
+    }
 }

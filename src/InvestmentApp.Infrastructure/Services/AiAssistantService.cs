@@ -105,6 +105,43 @@ Quy tắc bắt buộc:
         return sb.ToString();
     }
 
+    /// <summary>Tổng quan danh mục + bóc từng danh mục. Cash null của một danh mục → "n/a", không cộng vào tổng.</summary>
+    public static string FormatPortfolioOverviewSection(IReadOnlyList<PortfolioDigestRow> rows, decimal totalInvested)
+    {
+        var totalMarketValue = rows.Sum(r => r.MarketValue);
+        var totalUnrealized = rows.Sum(r => r.UnrealizedPnL);
+        var totalRealized = rows.Sum(r => r.RealizedPnL);
+        var knownCash = rows.Where(r => r.Cash.HasValue).Sum(r => r.Cash!.Value);
+        var missingCashCount = rows.Count(r => !r.Cash.HasValue);
+
+        var cashText = missingCashCount == 0
+            ? $"{knownCash:N0} VND"
+            : $"{knownCash:N0} VND (chưa đầy đủ: {missingCashCount} danh mục không lấy được)";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<portfolio_overview>");
+        sb.AppendLine($"  <portfolios>{rows.Count}</portfolios>");
+        sb.AppendLine($"  <total_invested>{totalInvested:N0} VND</total_invested>");
+        sb.AppendLine($"  <total_market_value>{totalMarketValue:N0} VND</total_market_value>");
+        sb.AppendLine($"  <total_cash>{cashText}</total_cash>");
+        sb.AppendLine($"  <total_capital>{totalMarketValue + knownCash:N0} VND</total_capital>");
+        sb.AppendLine($"  <unrealized_pnl>{totalUnrealized:+#,0;-#,0} VND</unrealized_pnl>");
+        sb.AppendLine($"  <realized_pnl>{totalRealized:+#,0;-#,0} VND</realized_pnl>");
+        if (totalInvested > 0)
+            sb.AppendLine($"  <return>{(totalUnrealized + totalRealized) / totalInvested * 100:+0.0;-0.0}%</return>");
+
+        foreach (var r in rows)
+        {
+            var cash = r.Cash.HasValue ? $"{r.Cash.Value:N0}" : "n/a";
+            sb.AppendLine($"  <portfolio name=\"{r.Name}\" market_value=\"{r.MarketValue:N0}\" " +
+                          $"cash=\"{cash}\" unrealized=\"{r.UnrealizedPnL:+#,0;-#,0}\" " +
+                          $"realized=\"{r.RealizedPnL:+#,0;-#,0}\" />");
+        }
+
+        sb.Append("</portfolio_overview>");
+        return sb.ToString();
+    }
+
     /// <summary>
     /// Bối cảnh thị trường: VN-Index + độ rộng (tăng/giảm/trần/sàn) + khối ngoại mua-bán ròng (tỷ VND).
     /// Trả về chuỗi rỗng khi không có dữ liệu → caller bỏ qua section (không vỡ digest).
