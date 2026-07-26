@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InvestmentApp.Application.Decisions.DTOs;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
@@ -386,5 +387,58 @@ public class AiAssistantServiceDailyDigestTests
     public void FormatRecentTradesSection_Empty_ReturnsEmpty()
     {
         AiAssistantService.FormatRecentTradesSection(Array.Empty<TradeDigestRow>()).Should().BeEmpty();
+    }
+
+    // --- FormatDecisionQueueSection: "hôm nay cần quyết gì" ---
+
+    [Fact]
+    public void FormatDecisionQueueSection_RendersCriticalFirstWithPortfolioAndHeadline()
+    {
+        var items = new List<DecisionItemDto>
+        {
+            new()
+            {
+                Id = "ThesisReviewDue:tp2", Type = DecisionType.ThesisReviewDue,
+                Severity = DecisionSeverity.Warning, Symbol = "FPT", PortfolioName = "24hmoney",
+                Headline = "FPT quá hạn review thesis 4 ngày", ThesisOrReason = "Chờ KQKD Q2",
+            },
+            new()
+            {
+                Id = "StopLossHit:tp1", Type = DecisionType.StopLossHit,
+                Severity = DecisionSeverity.Critical, Symbol = "HHV", PortfolioName = "24hmoney",
+                Headline = "HHV xuyên SL 10.000 (giá 9.970)", ThesisOrReason = "Hạ tầng hưởng lợi đầu tư công",
+                CurrentPrice = 9_970m, PlannedExitPrice = 10_000m,
+            },
+        };
+
+        var section = AiAssistantService.FormatDecisionQueueSection(items);
+
+        section.Should().Contain("<decision_queue>");
+        section.Should().Contain("</decision_queue>");
+        section.Should().Contain("HHV xuyên SL 10.000 (giá 9.970)");
+        section.Should().Contain("24hmoney");
+        section.Should().Contain("Hạ tầng hưởng lợi đầu tư công");
+        section.Should().Contain("Chờ KQKD Q2");
+        // Critical phải đứng trước Warning
+        section.IndexOf("HHV", StringComparison.Ordinal)
+            .Should().BeLessThan(section.IndexOf("FPT", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FormatDecisionQueueSection_LabelsSeverityInVietnamese()
+    {
+        var items = new List<DecisionItemDto>
+        {
+            new() { Id = "x", Type = DecisionType.ScenarioTrigger, Severity = DecisionSeverity.Critical,
+                    Symbol = "MWG", PortfolioName = "A", Headline = "MWG trigger bán 30%" },
+        };
+
+        AiAssistantService.FormatDecisionQueueSection(items).Should().Contain("Gấp");
+    }
+
+    [Fact]
+    public void FormatDecisionQueueSection_Empty_ReturnsEmpty()
+    {
+        AiAssistantService.FormatDecisionQueueSection(Array.Empty<DecisionItemDto>()).Should().BeEmpty();
     }
 }

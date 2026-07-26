@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using InvestmentApp.Application.Common.Interfaces;
+using InvestmentApp.Application.Decisions.DTOs;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Portfolios.Queries;
 using InvestmentApp.Application.Services;
@@ -204,6 +205,39 @@ Quy tắc bắt buộc:
             sb.AppendLine($"(còn {omitted} lệnh khác — gọi get_trades_by_portfolio để xem đủ)");
 
         sb.Append("</recent_trades>");
+        return sb.ToString();
+    }
+
+    /// <summary>Hàng đợi quyết định — đã dedupe + sort sẵn ở query, ở đây sort lại theo severity cho chắc.</summary>
+    public static string FormatDecisionQueueSection(IReadOnlyList<DecisionItemDto> items)
+    {
+        if (items.Count == 0) return string.Empty;
+
+        static string SeverityVi(DecisionSeverity s) => s switch
+        {
+            DecisionSeverity.Critical => "Gấp",
+            DecisionSeverity.Warning => "Cần để ý",
+            _ => "Thông tin",
+        };
+
+        static string TypeVi(DecisionType t) => t switch
+        {
+            DecisionType.StopLossHit => "Chạm stop-loss",
+            DecisionType.ScenarioTrigger => "Scenario trigger",
+            _ => "Đến hạn review thesis",
+        };
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<decision_queue>");
+
+        foreach (var it in items.OrderBy(i => i.Severity).ThenBy(i => i.Symbol, StringComparer.OrdinalIgnoreCase))
+        {
+            sb.AppendLine($"  [{SeverityVi(it.Severity)}] {TypeVi(it.Type)} — {it.Headline} (danh mục: {it.PortfolioName})");
+            if (!string.IsNullOrWhiteSpace(it.ThesisOrReason))
+                sb.AppendLine($"    Lý do gốc: {it.ThesisOrReason}");
+        }
+
+        sb.Append("</decision_queue>");
         return sb.ToString();
     }
 
