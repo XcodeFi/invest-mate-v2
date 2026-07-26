@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.66.0] — 2026-07-26 · MCP: tool `get_daily_digest` (Phase B daily digest)
+
+### Tính năng
+
+**📰 MCP tool `get_daily_digest` (chỉ đọc)** — bản tin hằng ngày cho AI advisor (bối cảnh danh mục, số dư tiền mặt, gợi ý sizing) giờ lấy được qua MCP thay vì REST `POST /ai/daily-digest`, mở đường cho NPU `/stock` agent bỏ hẳn `curl`.
+
+- Thin wrapper trên `IAiAssistantService.BuildDailyDigestAsync` — không args, không business logic mới; lỗi (`ErrorMessage`) → `McpException` để MCP client thấy tool error rõ ràng.
+- Tổng tool: **37 → 38**. REST endpoint giữ nguyên (additive).
+- Tests: +2 unit (passthrough userId + error path) + discovery 38 tool + schema-leak guard.
+
+---
+
 ## [v2.65.0] — 2026-07-25 · MCP P0: 8 tool Decision & Risk Intelligence (chỉ đọc)
 
 ### Tính năng
