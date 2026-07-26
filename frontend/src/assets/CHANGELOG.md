@@ -2,6 +2,19 @@
 
 ---
 
+## [v2.65.0] — 2026-07-25 · MCP P0: 8 tool Decision & Risk Intelligence (chỉ đọc)
+
+### Tính năng
+
+**🧭 8 MCP read tool mới — "situational awareness" cho AI advisor** (slice P0 của roadmap mở rộng MCP): agent giờ đọc được trạng thái rủi ro/kỷ luật/quyết định thay vì chỉ CRUD hộ.
+
+- `DecisionTools`: `get_decision_queue` (hàng đợi quyết định hôm nay — gộp alert StopLoss + Scenario + Thesis-review, dedupe + sort severity), `get_discipline_score` (0–100, 3 thành phần, param `days` 7/30/90/365), `get_discipline_streak` (chuỗi ngày không vi phạm SL), `get_pending_thesis_reviews` (plan quá hạn review thesis + days-overdue).
+- `RiskTools`: `get_portfolio_risk` (volatility/VaR/Sharpe/max-drawdown theo danh mục), `get_stop_loss_targets`, `get_trailing_stop_alerts` (đều per-portfolio, ownership check ở handler), `get_scenario_advisories` (kịch bản đang vi phạm).
+- Toàn bộ `ReadOnly = true` — host MCP không cần confirm. Re-dispatch MediatR query sẵn có, không thêm business logic. Tổng tool: **29 → 37**.
+- Tests: +9 unit (UserId/param mapping) + discovery 37 tool + schema-leak guard cho 3 tool có `portfolioId`. Suite: **1.451 pass** (Domain 740, Api 167, Application 230, Infrastructure 314).
+
+---
+
 ## [v2.64.0] — 2026-07-24 · MCP server: mở toàn bộ bề mặt agent qua Model Context Protocol
 
 ### Tính năng

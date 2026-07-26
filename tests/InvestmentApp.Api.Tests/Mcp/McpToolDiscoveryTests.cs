@@ -9,7 +9,7 @@ using Moq;
 namespace InvestmentApp.Api.Tests.Mcp;
 
 /// <summary>
-/// Discovery-level check: the SDK registers all 29 slice-1 tools with correct read/destructive
+/// Discovery-level check: the SDK registers all tools with correct read/destructive
 /// annotations. Resolves tools straight from DI (no app boot → no Mongo/secret dependency).
 /// </summary>
 public class McpToolDiscoveryTests
@@ -19,7 +19,11 @@ public class McpToolDiscoveryTests
         "list_trade_plans", "get_trade_plan", "list_portfolios", "list_positions",
         "calculate_fees", "get_symbol_timeline", "list_watchlists", "get_watchlist",
         "list_journals", "get_journal_by_trade", "list_trades_pending_review",
-        "list_journal_entries_by_symbol"
+        "list_journal_entries_by_symbol",
+        // P0 — Decision & Risk Intelligence
+        "get_decision_queue", "get_discipline_score", "get_discipline_streak",
+        "get_pending_thesis_reviews", "get_portfolio_risk", "get_stop_loss_targets",
+        "get_trailing_stop_alerts", "get_scenario_advisories"
     };
 
     private static readonly string[] WriteTools =
@@ -46,12 +50,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_29_Slice1_Tools()
+    public void Registers_All_37_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(29);
+        (ReadTools.Length + WriteTools.Length).Should().Be(37);
     }
 
     [Fact]
@@ -85,5 +89,10 @@ public class McpToolDiscoveryTests
         // create_trade → real args present; mediator/feeService/http/ct excluded.
         schema["create_trade"].Should().Contain("symbol");
         schema["create_trade"].Should().NotContain("feeService").And.NotContain("mediator");
+
+        // P0 risk tools → portfolioId arg present; injected services absent.
+        schema["get_portfolio_risk"].Should().Contain("portfolioId").And.NotContain("mediator");
+        schema["get_stop_loss_targets"].Should().Contain("portfolioId").And.NotContain("mediator");
+        schema["get_trailing_stop_alerts"].Should().Contain("portfolioId").And.NotContain("mediator");
     }
 }
