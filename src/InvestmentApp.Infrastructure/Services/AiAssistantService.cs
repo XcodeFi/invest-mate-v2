@@ -142,6 +142,44 @@ Quy tắc bắt buộc:
         return sb.ToString();
     }
 
+    private const int PositionsCap = 15;
+
+    /// <summary>
+    /// Bảng vị thế. Phân biệt rõ 3 trạng thái: có số, "chưa đặt" (user chưa set SL),
+    /// và "n/a" (risk service không trả được).
+    /// </summary>
+    public static string FormatPositionsSection(IReadOnlyList<PositionDigestRow> rows)
+    {
+        if (rows.Count == 0) return string.Empty;
+
+        var shown = rows.OrderByDescending(r => r.MarketValue).Take(PositionsCap).ToList();
+        var omitted = rows.Count - shown.Count;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<positions>");
+        sb.AppendLine("| Mã | Danh mục | KL | Giá vốn | Giá | Giá trị | %DM | L/L % | L/L VND | SL | Cách SL |");
+        sb.AppendLine("|-----|----------|-----|---------|-----|---------|-----|-------|---------|-----|---------|");
+
+        foreach (var r in shown)
+        {
+            var sizePct = r.PositionSizePercent.HasValue ? $"{r.PositionSizePercent.Value:0.0}%" : "n/a";
+            var sl = r.StopLossPrice.HasValue ? $"{r.StopLossPrice.Value:N0}"
+                   : r.RiskDataAvailable ? "chưa đặt" : "n/a";
+            var distSl = r.DistanceToStopLossPercent.HasValue ? $"{r.DistanceToStopLossPercent.Value:+0.0;-0.0}%"
+                       : r.RiskDataAvailable ? "chưa đặt" : "n/a";
+
+            sb.AppendLine($"| {r.Symbol} | {r.PortfolioName} | {r.Quantity:N0} | {r.AverageCost:N0} | " +
+                          $"{r.CurrentPrice:N0} | {r.MarketValue:N0} | {sizePct} | " +
+                          $"{r.UnrealizedPnLPercent:+0.0;-0.0}% | {r.UnrealizedPnL:+#,0;-#,0} | {sl} | {distSl} |");
+        }
+
+        if (omitted > 0)
+            sb.AppendLine($"(còn {omitted} vị thế khác không hiển thị — gọi list_positions để xem đủ)");
+
+        sb.Append("</positions>");
+        return sb.ToString();
+    }
+
     /// <summary>
     /// Bối cảnh thị trường: VN-Index + độ rộng (tăng/giảm/trần/sàn) + khối ngoại mua-bán ròng (tỷ VND).
     /// Trả về chuỗi rỗng khi không có dữ liệu → caller bỏ qua section (không vỡ digest).

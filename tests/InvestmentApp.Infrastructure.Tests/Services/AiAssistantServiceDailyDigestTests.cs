@@ -261,4 +261,65 @@ public class AiAssistantServiceDailyDigestTests
 
         section.Should().NotContain("<return>");
     }
+
+    // --- FormatPositionsSection: bảng vị thế có danh mục + %DM + khoảng cách SL ---
+
+    private static PositionDigestRow Pos(string symbol, string portfolio, decimal? sizePct = 12m,
+        decimal? sl = 11_000m, decimal? distSl = 8.5m, bool riskOk = true)
+        => new(symbol, portfolio, Quantity: 14_500m, AverageCost: 12_426m, CurrentPrice: 9_970m,
+               MarketValue: 144_565_000m, UnrealizedPnL: -35_600_000m, UnrealizedPnLPercent: -19.7m,
+               PositionSizePercent: sizePct, StopLossPrice: sl, DistanceToStopLossPercent: distSl,
+               RiskDataAvailable: riskOk);
+
+    [Fact]
+    public void FormatPositionsSection_RendersPortfolioNameQuantityCostAndRiskColumns()
+    {
+        var section = AiAssistantService.FormatPositionsSection(new[] { Pos("HHV", "24hmoney", 87.6m) });
+
+        section.Should().Contain("<positions>");
+        section.Should().Contain("</positions>");
+        section.Should().Contain("| Mã | Danh mục | KL | Giá vốn | Giá | Giá trị | %DM | L/L % | L/L VND | SL | Cách SL |");
+        section.Should().Contain("HHV");
+        section.Should().Contain("24hmoney");
+        section.Should().Contain("14,500");
+        section.Should().Contain("12,426");
+        section.Should().Contain("87.6%");
+        section.Should().Contain("-19.7%");
+    }
+
+    [Fact]
+    public void FormatPositionsSection_NoStopLoss_ShowsExplicitNotSetNotBlank()
+    {
+        // StopLossPrice null = user CHƯA ĐẶT SL → phải nói rõ, đây là tín hiệu rủi ro
+        var section = AiAssistantService.FormatPositionsSection(
+            new[] { Pos("MWG", "Swing Trading", sl: null, distSl: null) });
+
+        section.Should().Contain("chưa đặt");
+    }
+
+    [Fact]
+    public void FormatPositionsSection_RiskDataUnavailable_ShowsNaNotZero()
+    {
+        var section = AiAssistantService.FormatPositionsSection(
+            new[] { Pos("FPT", "24hmoney", sizePct: null, sl: null, distSl: null, riskOk: false) });
+
+        section.Should().Contain("n/a");
+        section.Should().NotContain("0.0%");
+    }
+
+    [Fact]
+    public void FormatPositionsSection_MoreThan15Rows_StatesHowManyOmitted()
+    {
+        var rows = Enumerable.Range(1, 18).Select(i => Pos($"S{i:00}", "24hmoney")).ToList();
+
+        var section = AiAssistantService.FormatPositionsSection(rows);
+
+        section.Should().Contain("còn 3 vị thế khác không hiển thị");
+    }
+
+    [Fact]
+    public void FormatPositionsSection_Empty_ReturnsEmpty()
+    {
+        AiAssistantService.FormatPositionsSection(Array.Empty<PositionDigestRow>()).Should().BeEmpty();
+    }
 }
