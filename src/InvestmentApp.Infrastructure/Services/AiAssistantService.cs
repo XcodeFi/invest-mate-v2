@@ -88,17 +88,26 @@ Quy tắc bắt buộc:
     /// portfolio_cash (tiền trong tài khoản chứng khoán) luôn in — kể cả khi chưa có hồ sơ tài chính.
     /// idle_cash / net-worth / health chỉ in khi có hồ sơ. null → "n/a", không bao giờ in 0.
     /// </summary>
+    /// <param name="missingCashPortfolios">
+    /// Số danh mục không lấy được tiền mặt. &gt; 0 → cả portfolio_cash và investable_capital đều
+    /// bị THIẾU, phải nói rõ; nếu in trần con số thiếu thì advisor lại tưởng đó là tổng thật —
+    /// đúng hình thái của bug mà thay đổi này đang sửa.
+    /// </param>
     public static string FormatCashNetWorthSection(decimal investableCapital, decimal? portfolioCash,
-        decimal? idleCash, decimal? netWorth, decimal? totalAssets, decimal? totalDebt, int? healthScore)
+        decimal? idleCash, decimal? netWorth, decimal? totalAssets, decimal? totalDebt, int? healthScore,
+        int missingCashPortfolios = 0)
     {
         static string Vnd(decimal? v) => v.HasValue ? $"{v.Value:N0} VND" : "n/a";
+        var caveat = missingCashPortfolios > 0
+            ? $" (chưa đầy đủ: {missingCashPortfolios} danh mục không lấy được)"
+            : string.Empty;
 
         var sb = new StringBuilder();
         sb.AppendLine("<cash_and_net_worth>");
-        sb.AppendLine($"  <portfolio_cash>{Vnd(portfolioCash)}</portfolio_cash>");
+        sb.AppendLine($"  <portfolio_cash>{Vnd(portfolioCash)}{(portfolioCash.HasValue ? caveat : string.Empty)}</portfolio_cash>");
         if (idleCash.HasValue)
             sb.AppendLine($"  <idle_cash>{Vnd(idleCash)}</idle_cash>");
-        sb.AppendLine($"  <investable_capital>{investableCapital:N0} VND</investable_capital>");
+        sb.AppendLine($"  <investable_capital>{investableCapital:N0} VND{caveat}</investable_capital>");
         if (netWorth.HasValue)
             sb.AppendLine($"  <net_worth>{Vnd(netWorth)}</net_worth>");
         if (totalAssets.HasValue)
@@ -208,7 +217,8 @@ Quy tắc bắt buộc:
 
         var sb = new StringBuilder();
         sb.AppendLine("<recent_trades>");
-        sb.AppendLine("| Ngày | Danh mục | Mã | Loại | KL | Giá | Giá trị |");
+        // "Giá trị gộp" = KL × giá, CHƯA trừ phí/thuế — nói rõ để advisor không trích như tiền thực về.
+        sb.AppendLine("| Ngày | Danh mục | Mã | Loại | KL | Giá | Giá trị gộp (chưa gồm phí/thuế) |");
         sb.AppendLine("|------|----------|-----|------|-----|-----|---------|");
 
         foreach (var r in shown)
@@ -2030,7 +2040,8 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
         sb.AppendLine(FormatCashNetWorthSection(
             investableCapital, totalCash, idleCash,
             profile?.GetNetWorth(totalMarketValue), profile?.GetTotalAssets(totalMarketValue),
-            profile?.GetTotalDebt(), profile?.CalculateHealthScore(totalMarketValue)));
+            profile?.GetTotalDebt(), profile?.CalculateHealthScore(totalMarketValue),
+            portfolioRows.Count(r => !r.Cash.HasValue)));
 
         var positionsSection = FormatPositionsSection(positionRows);
         if (positionsSection.Length > 0) { sb.AppendLine(); sb.AppendLine(positionsSection); }

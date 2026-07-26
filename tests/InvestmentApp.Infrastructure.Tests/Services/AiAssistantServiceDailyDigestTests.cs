@@ -133,6 +133,31 @@ public class AiAssistantServiceDailyDigestTests
         section.Should().NotContain("<portfolio_cash>0 VND</portfolio_cash>");
     }
 
+    [Fact]
+    public void FormatCashNetWorthSection_PartialCash_FlagsBothCashAndCapitalAsIncomplete()
+    {
+        // Lấy được cash của 1/2 danh mục: in con số trần sẽ khiến advisor tưởng đó là tổng thật,
+        // rồi sizing chạy trên nền vốn thiếu — đúng hình thái của bug gốc.
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 200_000_000m, portfolioCash: 10_000_000m, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,
+            missingCashPortfolios: 1);
+
+        section.Should().Contain("<portfolio_cash>10,000,000 VND (chưa đầy đủ: 1 danh mục không lấy được)</portfolio_cash>");
+        section.Should().Contain("<investable_capital>200,000,000 VND (chưa đầy đủ: 1 danh mục không lấy được)</investable_capital>");
+    }
+
+    [Fact]
+    public void FormatCashNetWorthSection_CompleteCash_HasNoCaveat()
+    {
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 200_000_000m, portfolioCash: 10_000_000m, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,
+            missingCashPortfolios: 0);
+
+        section.Should().NotContain("chưa đầy đủ");
+    }
+
     // --- FormatMarketContextSection: VN-Index + độ rộng + khối ngoại (Slice: market context) ---
 
     [Fact]
@@ -371,6 +396,8 @@ public class AiAssistantServiceDailyDigestTests
         section.Should().Contain("BÁN");
         section.Should().Contain("14,500");
         section.Should().Contain("144,275,000");
+        // Nhãn phải nói rõ đây là giá trị gộp — tiền thực về đã trừ phí/thuế nên nhỏ hơn
+        section.Should().Contain("chưa gồm phí/thuế");
     }
 
     [Fact]
