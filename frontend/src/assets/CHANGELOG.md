@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.67.0] — 2026-07-26 · MCP P1: 8 tool Performance & Wealth Analytics (chỉ đọc)
+
+### Tính năng
+
+**📈 8 MCP read tool Analytics — "tôi đang làm ăn thế nào"** (slice P1 của roadmap mở rộng MCP): agent đánh giá được hiệu suất + của cải thay vì chỉ đọc trạng thái rủi ro.
+
+- `AnalyticsTools`: `get_performance` (total/MTD/YTD), `get_equity_curve`, `get_monthly_returns`, `get_savings_comparison` (alpha vs gửi tiết kiệm, param `annualRate`/`asOf`), `get_campaign_analytics` (win rate + best/worst, lọc `timeHorizon`), `get_net_worth_summary` (health score), `get_flow_history` (nạp/rút/cổ tức, lọc `from`/`to`), `get_adjusted_return` (TWR + MWR).
+- 6/8 tool per-portfolio (`portfolioId` required, ownership check ở handler). Toàn bộ `ReadOnly = true`. Tổng tool: **38 → 46**.
+- Tests: +9 unit + discovery 46 tool + schema assertions cho optional params (`annualRate`, `from`/`to`).
+
+---
+
 ## [v2.66.0] — 2026-07-26 · MCP: tool `get_daily_digest` (Phase B daily digest)
 
 ### Tính năng

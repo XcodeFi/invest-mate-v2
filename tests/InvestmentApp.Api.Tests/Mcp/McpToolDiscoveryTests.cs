@@ -26,7 +26,11 @@ public class McpToolDiscoveryTests
         "get_pending_thesis_reviews", "get_portfolio_risk", "get_stop_loss_targets",
         "get_trailing_stop_alerts", "get_scenario_advisories",
         // Phase B — daily digest
-        "get_daily_digest"
+        "get_daily_digest",
+        // P1 — Performance & Wealth Analytics
+        "get_performance", "get_equity_curve", "get_monthly_returns",
+        "get_savings_comparison", "get_campaign_analytics", "get_net_worth_summary",
+        "get_flow_history", "get_adjusted_return"
     };
 
     private static readonly string[] WriteTools =
@@ -54,12 +58,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_38_Tools()
+    public void Registers_All_46_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(38);
+        (ReadTools.Length + WriteTools.Length).Should().Be(46);
     }
 
     [Fact]
@@ -101,5 +105,27 @@ public class McpToolDiscoveryTests
 
         // get_daily_digest — no-args tool; injected services must not leak.
         schema["get_daily_digest"].Should().NotContain("aiAssistant").And.NotContain("http");
+
+        // P1 analytics tools → real args present; injected services absent.
+        schema["get_performance"].Should().Contain("portfolioId").And.NotContain("mediator");
+        schema["get_savings_comparison"].Should().Contain("annualRate").And.NotContain("mediator");
+        schema["get_flow_history"].Should().Contain("from").And.Contain("to").And.NotContain("mediator");
+    }
+
+    [Fact]
+    public void Optional_Params_Are_Not_Required_In_Schema()
+    {
+        // Params with C# defaults must drop out of the schema's "required" array —
+        // otherwise spec-compliant hosts can't omit them despite "bỏ trống = ..." descriptions.
+        var schema = Tools().ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.InputSchema);
+
+        static string[] Required(System.Text.Json.JsonElement el) =>
+            el.TryGetProperty("required", out var req)
+                ? req.EnumerateArray().Select(e => e.GetString()!).ToArray()
+                : Array.Empty<string>();
+
+        Required(schema["get_savings_comparison"]).Should().BeEquivalentTo(new[] { "portfolioId" });
+        Required(schema["get_flow_history"]).Should().BeEquivalentTo(new[] { "portfolioId" });
+        Required(schema["get_campaign_analytics"]).Should().BeEmpty();
     }
 }
