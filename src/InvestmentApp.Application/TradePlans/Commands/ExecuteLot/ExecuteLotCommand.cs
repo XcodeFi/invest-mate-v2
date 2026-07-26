@@ -20,11 +20,13 @@ public class ExecuteLotCommandHandler : IRequestHandler<ExecuteLotCommand, Unit>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public ExecuteLotCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository)
+    public ExecuteLotCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository, IPortfolioRepository portfolioRepository)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<Unit> Handle(ExecuteLotCommand request, CancellationToken cancellationToken)
@@ -37,10 +39,15 @@ public class ExecuteLotCommandHandler : IRequestHandler<ExecuteLotCommand, Unit>
 
         plan.ExecuteLot(request.LotNumber, request.TradeId, request.ActualPrice);
 
-        // Link trade back to plan
+        // Link trade back to plan. TradeId is caller-supplied, so the trade needs its own
+        // owner check (via its portfolio) — otherwise a crafted id mutates another user's trade.
         var trade = await _tradeRepository.GetByIdAsync(request.TradeId, cancellationToken);
         if (trade != null)
         {
+            var portfolio = await _portfolioRepository.GetByIdAsync(trade.PortfolioId, cancellationToken);
+            if (portfolio == null || portfolio.UserId != request.UserId)
+                throw new UnauthorizedAccessException("Not authorized to link this trade");
+
             trade.LinkTradePlan(plan.Id);
             await _tradeRepository.UpdateAsync(trade, cancellationToken);
         }

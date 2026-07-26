@@ -2,6 +2,19 @@
 
 ---
 
+## [v2.70.0] — 2026-07-26 · MCP P4: 8 tool thực thi kế hoạch (ghi, stakes cao)
+
+### Tính năng
+
+**⚡ 8 MCP write tool hành động theo kế hoạch** (slice P4 — hoàn tất roadmap P0→P4): agent chuyển từ "cố vấn được" sang "làm hộ được", mọi tool đều `Destructive` nên host MCP hỏi xác nhận trước khi chạy.
+
+- `PlanActionTools`: `resolve_decision` (ExecuteSell = **tạo lệnh bán thật** theo kế hoạch; HoldWithJournal = ghi nhật ký lý do giữ, note ≥ 20 ký tự), `review_trade_plan`, `abort_trade_plan` (hủy vì thesis bị phá — cần trigger + mô tả ≥ 20 ký tự), `execute_lot`, `update_stop_loss`, `trigger_exit_target`, `set_stop_loss_target`, `set_risk_profile`.
+- Enum (`DecisionAction`, `InvalidationTrigger`) nhận dạng chuỗi và được kiểm tra ngay tại tool — sai giá trị thì agent nhận lỗi tiếng Việt kèm danh sách hợp lệ, thay vì lỗi khó hiểu từ tầng dưới.
+- Ba command trả `Unit` được đổi thành câu xác nhận đọc được (vd "Đã dời cắt lỗ của kế hoạch … về 115.000").
+- Tổng tool: **62 → 70**. Tests: +11 unit + discovery 70 tool.
+
+---
+
 ## [v2.69.0] — 2026-07-26 · MCP P3: 8 tool quản lý danh mục & lệnh (2 đọc + 6 ghi)
 
 ### Tính năng

@@ -48,7 +48,10 @@ public class McpToolDiscoveryTests
         "create_journal_entry", "update_journal_entry", "delete_journal_entry",
         // P3 — Portfolio & Trade management (write side)
         "create_portfolio", "update_portfolio", "delete_portfolio",
-        "delete_trade", "link_trade_to_plan", "bulk_create_trades"
+        "delete_trade", "link_trade_to_plan", "bulk_create_trades",
+        // P4 — Plan execution & discipline actions
+        "resolve_decision", "review_trade_plan", "abort_trade_plan", "execute_lot",
+        "update_stop_loss", "trigger_exit_target", "set_stop_loss_target", "set_risk_profile"
     };
 
     private static IReadOnlyList<McpServerTool> Tools()
@@ -67,12 +70,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_62_Tools()
+    public void Registers_All_70_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(62);
+        (ReadTools.Length + WriteTools.Length).Should().Be(70);
     }
 
     [Fact]
@@ -146,5 +149,10 @@ public class McpToolDiscoveryTests
         Required(schema["get_stock_price_history"]).Should().BeEquivalentTo(new[] { "symbol" });
         Required(schema["get_top_fluctuation"]).Should().BeEmpty();
         Required(schema["get_trades_by_portfolio"]).Should().BeEquivalentTo(new[] { "portfolioId" });
+        Required(schema["resolve_decision"]).Should().BeEquivalentTo(new[] { "decisionId", "action" });
+        Required(schema["set_risk_profile"]).Should().BeEquivalentTo(new[] { "portfolioId" });
+        Required(schema["abort_trade_plan"]).Should().BeEquivalentTo(new[] { "planId", "trigger", "detail" });
+        Required(schema["set_stop_loss_target"]).Should().BeEquivalentTo(
+            new[] { "tradeId", "portfolioId", "symbol", "entryPrice", "stopLossPrice", "targetPrice" });
     }
 }
