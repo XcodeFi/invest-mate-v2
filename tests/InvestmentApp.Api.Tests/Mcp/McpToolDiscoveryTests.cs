@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InvestmentApp.Api.Mcp;
+using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +24,9 @@ public class McpToolDiscoveryTests
         // P0 — Decision & Risk Intelligence
         "get_decision_queue", "get_discipline_score", "get_discipline_streak",
         "get_pending_thesis_reviews", "get_portfolio_risk", "get_stop_loss_targets",
-        "get_trailing_stop_alerts", "get_scenario_advisories"
+        "get_trailing_stop_alerts", "get_scenario_advisories",
+        // Phase B — daily digest
+        "get_daily_digest"
     };
 
     private static readonly string[] WriteTools =
@@ -44,18 +47,19 @@ public class McpToolDiscoveryTests
         // silently leak that param (+ its whole object graph) into the tool's input schema.
         services.AddSingleton(Mock.Of<IMediator>());
         services.AddSingleton(Mock.Of<IFeeCalculationService>());
+        services.AddSingleton(Mock.Of<IAiAssistantService>());
         services.AddHttpContextAccessor();
         services.AddMcpServer().WithToolsFromAssembly(typeof(PortfolioTools).Assembly);
         return services.BuildServiceProvider().GetServices<McpServerTool>().ToList();
     }
 
     [Fact]
-    public void Registers_All_37_Tools()
+    public void Registers_All_38_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(37);
+        (ReadTools.Length + WriteTools.Length).Should().Be(38);
     }
 
     [Fact]
@@ -94,5 +98,8 @@ public class McpToolDiscoveryTests
         schema["get_portfolio_risk"].Should().Contain("portfolioId").And.NotContain("mediator");
         schema["get_stop_loss_targets"].Should().Contain("portfolioId").And.NotContain("mediator");
         schema["get_trailing_stop_alerts"].Should().Contain("portfolioId").And.NotContain("mediator");
+
+        // get_daily_digest — no-args tool; injected services must not leak.
+        schema["get_daily_digest"].Should().NotContain("aiAssistant").And.NotContain("http");
     }
 }
