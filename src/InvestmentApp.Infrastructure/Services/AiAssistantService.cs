@@ -180,6 +180,33 @@ Quy tắc bắt buộc:
         return sb.ToString();
     }
 
+    private const int RecentTradesCap = 20;
+    private const int RecentTradeWindowDays = 14;
+
+    /// <summary>Lệnh gần đây. Lọc theo cửa sổ ngày thực hiện ở call site; ở đây chỉ render.</summary>
+    public static string FormatRecentTradesSection(IReadOnlyList<TradeDigestRow> rows)
+    {
+        if (rows.Count == 0) return string.Empty;
+
+        var shown = rows.OrderByDescending(r => r.TradeDate).Take(RecentTradesCap).ToList();
+        var omitted = rows.Count - shown.Count;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<recent_trades>");
+        sb.AppendLine("| Ngày | Danh mục | Mã | Loại | KL | Giá | Giá trị |");
+        sb.AppendLine("|------|----------|-----|------|-----|-----|---------|");
+
+        foreach (var r in shown)
+            sb.AppendLine($"| {r.TradeDate:dd/MM/yyyy} | {r.PortfolioName} | {r.Symbol} | " +
+                          $"{(r.IsBuy ? "MUA" : "BÁN")} | {r.Quantity:N0} | {r.Price:N0} | {r.GrossValue:N0} |");
+
+        if (omitted > 0)
+            sb.AppendLine($"(còn {omitted} lệnh khác — gọi get_trades_by_portfolio để xem đủ)");
+
+        sb.Append("</recent_trades>");
+        return sb.ToString();
+    }
+
     /// <summary>
     /// Bối cảnh thị trường: VN-Index + độ rộng (tăng/giảm/trần/sàn) + khối ngoại mua-bán ròng (tỷ VND).
     /// Trả về chuỗi rỗng khi không có dữ liệu → caller bỏ qua section (không vỡ digest).

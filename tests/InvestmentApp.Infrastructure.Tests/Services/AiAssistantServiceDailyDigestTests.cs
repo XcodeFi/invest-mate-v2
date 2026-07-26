@@ -322,4 +322,69 @@ public class AiAssistantServiceDailyDigestTests
     {
         AiAssistantService.FormatPositionsSection(Array.Empty<PositionDigestRow>()).Should().BeEmpty();
     }
+
+    // --- FormatRecentTradesSection: lệnh gần đây (làm hiện việc "đã bán nửa HHV") ---
+
+    [Fact]
+    public void FormatRecentTradesSection_RendersSellTradeWithPortfolioAndValue()
+    {
+        var rows = new List<TradeDigestRow>
+        {
+            new(new DateTime(2026, 7, 24), "24hmoney", "HHV", IsBuy: false,
+                Quantity: 14_500m, Price: 9_950m, GrossValue: 144_275_000m),
+        };
+
+        var section = AiAssistantService.FormatRecentTradesSection(rows);
+
+        section.Should().Contain("<recent_trades>");
+        section.Should().Contain("</recent_trades>");
+        section.Should().Contain("24/07/2026");
+        section.Should().Contain("24hmoney");
+        section.Should().Contain("HHV");
+        section.Should().Contain("BÁN");
+        section.Should().Contain("14,500");
+        section.Should().Contain("144,275,000");
+    }
+
+    [Fact]
+    public void FormatRecentTradesSection_BuyTrade_LabelledMua()
+    {
+        var rows = new List<TradeDigestRow>
+        {
+            new(new DateTime(2026, 7, 20), "Swing Trading", "HPG", true, 1_000m, 25_000m, 25_000_000m),
+        };
+
+        AiAssistantService.FormatRecentTradesSection(rows).Should().Contain("MUA");
+    }
+
+    [Fact]
+    public void FormatRecentTradesSection_SortedNewestFirst()
+    {
+        var rows = new List<TradeDigestRow>
+        {
+            new(new DateTime(2026, 7, 10), "A", "OLD", true, 1m, 1_000m, 1_000m),
+            new(new DateTime(2026, 7, 24), "A", "NEW", true, 1m, 1_000m, 1_000m),
+        };
+
+        var section = AiAssistantService.FormatRecentTradesSection(rows);
+
+        section.IndexOf("NEW", StringComparison.Ordinal)
+            .Should().BeLessThan(section.IndexOf("OLD", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FormatRecentTradesSection_MoreThan20Rows_StatesHowManyOmitted()
+    {
+        var rows = Enumerable.Range(1, 23)
+            .Select(i => new TradeDigestRow(new DateTime(2026, 7, 20), "A", $"S{i:00}", true, 1m, 1_000m, 1_000m))
+            .ToList();
+
+        AiAssistantService.FormatRecentTradesSection(rows).Should().Contain("còn 3 lệnh khác");
+    }
+
+    [Fact]
+    public void FormatRecentTradesSection_Empty_ReturnsEmpty()
+    {
+        AiAssistantService.FormatRecentTradesSection(Array.Empty<TradeDigestRow>()).Should().BeEmpty();
+    }
 }
