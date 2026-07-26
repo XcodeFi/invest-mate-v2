@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.68.0] — 2026-07-26 · Sửa lỗi bản tin hằng ngày báo sai tiền mặt
+
+### Sửa lỗi
+
+**💰 Bản tin báo "không có tiền mặt" dù tài khoản còn số dư.** Bản tin chỉ đọc tiền mặt từ hồ sơ tài chính cá nhân, nên tiền thu về từ các lệnh bán bị bỏ sót hoàn toàn. Hậu quả nặng hơn con số hiển thị: đó cũng là nền vốn dùng để tính khối lượng gợi ý, nên **mọi gợi ý khối lượng mua đều thấp hơn thực tế**.
+
+- Bản tin nay tách rõ **tiền trong tài khoản chứng khoán** (gồm tiền vừa bán) và **tiền nhàn rỗi ngoài tài khoản**. Phần tiền trong tài khoản luôn được hiển thị, kể cả khi chưa lập hồ sơ tài chính.
+- Sửa chỉ số lợi nhuận bị lệch: trước đây cộng lãi/lỗ đã thực hiện vào tử số nhưng mẫu số chỉ là giá vốn phần đang nắm, làm con số âm nặng hơn thực tế. Nay tách thành **lợi nhuận chưa thực hiện** (trên giá vốn đang nắm) và **tổng lợi nhuận** (trên tổng tiền đã mua).
+- Giá trị chưa lấy được nay hiển thị `n/a` thay vì `0` — trước đây một số liệu thiếu bị trình bày như một sự thật.
+
+### Tính năng
+
+**🧭 Bản tin có đủ dữ kiện để ra quyết định.** Bổ sung vào bản tin hằng ngày:
+
+- Bóc số liệu **theo từng danh mục** + **lãi/lỗ đã thực hiện** (trước đây gộp chung nên không biết nên xử lý ở danh mục nào).
+- Bảng **vị thế đầy đủ**: tên danh mục, khối lượng, giá vốn, % tỷ trọng danh mục, khoảng cách tới điểm cắt lỗ. Mã chưa đặt cắt lỗ được ghi rõ "chưa đặt".
+- **Lệnh 14 ngày gần nhất** — để không nhận định một vị thế mà bỏ qua việc vừa bán bớt.
+- **Hàng đợi quyết định** hôm nay (chạm cắt lỗ / scenario trigger / đến hạn review luận điểm), sắp theo mức nghiêm trọng.
+- **Cảnh báo rủi ro theo rủi ro thật** thay cho ngưỡng "lỗ hơn 5%" cũ: xuyên cắt lỗ, sát cắt lỗ, tập trung quá mức, chưa đặt cắt lỗ, lỗ nặng.
+
+---
+
 ## [v2.67.0] — 2026-07-26 · MCP P1: 8 tool Performance & Wealth Analytics (chỉ đọc)
 
 ### Tính năng

@@ -246,6 +246,18 @@ Bước 5: Nhật ký (update journal đã tạo)
 - Trợ lý NPU kéo digest theo cron rồi đẩy thẳng vào Claude phân tích timing (server tính sẵn số, Claude nhận định định tính).
 - Scope theo owner của khóa (`sub` claim = UserId của khóa) — mỗi khóa chỉ đọc được dữ liệu của chủ khóa.
 
+**Hai loại tiền mặt — không được lẫn (2026-07-26, ADR-0007):**
+
+| Khái niệm | Nghĩa | Nguồn |
+|---|---|---|
+| `portfolio_cash` | Tiền **chưa giải ngân trong tài khoản chứng khoán** — gồm cả tiền vừa thu về từ lệnh bán | Suy ra: `InitialCapital + nạp/rút (đã loại seed) − tổng tiền mua (gồm phí+thuế) + tổng tiền bán (trừ phí+thuế)`, qua `PortfolioCashCalculator` |
+| `idle_cash` | Tiền nhàn rỗi **ngoài** tài khoản chứng khoán — user tự khai | `FinancialProfile.Accounts` loại `IdleCash` (§3.12) |
+| `investable_capital` | Nền vốn cho position sizing | `giá trị thị trường + portfolio_cash + idle_cash` |
+
+Trước 2026-07-26 bản tin chỉ đọc `idle_cash`, nên tiền thu từ lệnh bán vô hình: bản tin báo "không có tiền mặt" và khối lượng gợi ý thấp hơn thực tế. `portfolio_cash` nay **luôn được in**, kể cả khi user chưa lập hồ sơ tài chính.
+
+**Các section khác đã bổ sung cùng dịp:** `<portfolio_overview>` bóc theo từng danh mục + `<realized_pnl>`; `<positions>` (tên danh mục, KL, giá vốn, %DM, khoảng cách tới SL — ô SL ghi "chưa đặt" nghĩa là user chưa có stop-loss, khác với `n/a` là chưa lấy được dữ liệu); `<recent_trades>` 14 ngày; `<decision_queue>`; `<risk_alerts>` theo luật rủi ro thay cho ngưỡng lỗ −5% cũ; `<drill_down>` liệt kê tool tra sâu. Hai chỉ số lợi nhuận có mẫu số riêng: `<unrealized_return>` (trên giá vốn phần đang nắm) và `<total_return>` (trên tổng tiền đã mua) — không trộn vào một con số.
+
 ### 3.12. Tài chính cá nhân (Tier 3, 2026-04-22)
 
 Tổng quan tài sản + nguyên tắc tài chính + tracking vàng tích trữ. Scope solo user không quản lý chi tiêu.
