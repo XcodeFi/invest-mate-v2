@@ -34,7 +34,9 @@ public class McpToolDiscoveryTests
         // P2 — Market Research (public data, no UserId)
         "get_stock_detail", "get_stock_price", "get_stock_price_history",
         "get_technical_analysis", "search_stocks", "get_market_overview",
-        "get_top_fluctuation", "get_batch_prices"
+        "get_top_fluctuation", "get_batch_prices",
+        // P3 — Portfolio & Trade management (read side)
+        "get_portfolio", "get_trades_by_portfolio"
     };
 
     private static readonly string[] WriteTools =
@@ -43,7 +45,10 @@ public class McpToolDiscoveryTests
         "create_watchlist", "update_watchlist", "delete_watchlist", "add_watchlist_item",
         "update_watchlist_item", "remove_watchlist_item", "import_vn30",
         "create_journal", "update_journal", "delete_journal",
-        "create_journal_entry", "update_journal_entry", "delete_journal_entry"
+        "create_journal_entry", "update_journal_entry", "delete_journal_entry",
+        // P3 — Portfolio & Trade management (write side)
+        "create_portfolio", "update_portfolio", "delete_portfolio",
+        "delete_trade", "link_trade_to_plan", "bulk_create_trades"
     };
 
     private static IReadOnlyList<McpServerTool> Tools()
@@ -62,12 +67,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_54_Tools()
+    public void Registers_All_62_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(54);
+        (ReadTools.Length + WriteTools.Length).Should().Be(62);
     }
 
     [Fact]
@@ -140,5 +145,6 @@ public class McpToolDiscoveryTests
         Required(schema["get_campaign_analytics"]).Should().BeEmpty();
         Required(schema["get_stock_price_history"]).Should().BeEquivalentTo(new[] { "symbol" });
         Required(schema["get_top_fluctuation"]).Should().BeEmpty();
+        Required(schema["get_trades_by_portfolio"]).Should().BeEquivalentTo(new[] { "portfolioId" });
     }
 }

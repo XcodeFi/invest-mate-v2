@@ -2,6 +2,19 @@
 
 ---
 
+## [v2.69.0] — 2026-07-26 · MCP P3: 8 tool quản lý danh mục & lệnh (2 đọc + 6 ghi)
+
+### Tính năng
+
+**🗂️ 8 MCP tool quản lý danh mục/lệnh** (slice P3) — agent tự quản được danh mục, không chỉ đọc.
+
+- Đọc: `get_portfolio` (chi tiết 1 danh mục), `get_trades_by_portfolio` (phân trang, lọc theo mã/loại lệnh).
+- Ghi (`Destructive` → host MCP hỏi xác nhận): `create_portfolio`, `update_portfolio` (đổi tên), `delete_portfolio`, `delete_trade`, `link_trade_to_plan`, `bulk_create_trades`.
+- `bulk_create_trades` trả kết quả **thành công một phần** (`successCount`/`failedCount`/`errors`) và **không** tự tính fee/tax (khác `create_trade`) — mô tả tool nói rõ để agent không hiểu nhầm.
+- Tổng tool: **54 → 62**. Tests: +10 unit + discovery 62 tool.
+
+---
+
 ## [v2.68.0] — 2026-07-26 · MCP P2: 8 tool Market Research (chỉ đọc)
 
 ### Tính năng

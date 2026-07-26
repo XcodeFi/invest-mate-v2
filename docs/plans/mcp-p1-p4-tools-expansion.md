@@ -83,3 +83,15 @@ Lưu ý: `Unit` (MediatR) làm return type của MCP tool — cân nhắc trả 
 - **Review**: 1 sub-agent (fable) — 3 findings P2, fix cả 3: lọc entry rỗng/null trong `get_batch_prices` (tránh NRE), guard keyword rỗng ở `search_stocks` (mirror 400 của REST), thêm schema-regression assertion cho tool P2.
 - **Affected layers**: Api only.
 - **Next**: Slice P3 `PortfolioTools`/`TradeTools` mở rộng — signatures ĐÃ verify (xem §P3). WRITE tool đầu tiên của đợt này → `Destructive = true`; mô tả rõ partial-success của `bulk_create_trades`.
+
+### Checkpoint — Slice P3 (done 2026-07-26)
+- **Decisions**: (1) mở rộng `PortfolioTools`/`TradeTools` sẵn có thay vì tạo class mới (tool cùng nhóm nghiệp vụ); (2) `bulk_create_trades` chuẩn hóa symbol + reject row thiếu symbol tại wrapper (handler chỉ NRE per-row, UX agent kém); (3) mô tả tool nói đúng bản chất xóa: `delete_trade` = **hard delete**, `delete_portfolio` = **soft delete** (review bắt được mô tả ban đầu bị ngược).
+- **Files changed**: `Mcp/PortfolioTools.cs` + `Mcp/TradeTools.cs` (mở rộng), `tests/.../Mcp/PortfolioTradeMgmtToolsTests.cs` (new, 11 tests), `McpToolDiscoveryTests.cs` (62 tool), **3 handler test mới** ở Application.Tests (DeleteTrade/LinkTradeToPlan/DeletePortfolio — trước đó không có regression guard cho nhánh từ chối cross-user), docs + CHANGELOG v2.69.0.
+- **Tests**: Api 202, Application 240, suite 1.496 pass.
+- **Review**: 1 sub-agent (fable) — ownership PASS cả 6 write (đã trace handler; `link_trade_to_plan` check cả trade→portfolio VÀ plan.UserId). 5 findings, fix 3: thiếu handler test (P1/85), mô tả xóa ngược (P2/80), symbol null trong bulk (P2/70).
+- **Phát hiện khi viết test**: `link_trade_to_plan` vào plan chưa InProgress → handler gọi `plan.Execute()` → **throw** `InvalidOperationException` thay vì trả false. Là behavior sẵn có, nay phơi ra cho agent. Đã ghi test document + cảnh báo trong `[Description]`; **không** sửa handler (ngoài scope slice).
+- **Affected layers**: Api + Application.Tests.
+- **Follow-up chưa fix (chờ quyết định)**:
+  - Sau `delete_portfolio` (soft), các lệnh con vẫn tồn tại nhưng vĩnh viễn không thao tác được (`GetByIdAsync` lọc `IsDeleted`) → `delete_trade`/`link` trả `false` im lặng. Cần quyết định cascade/cleanup.
+  - `BulkTradeItem.Fee`/`Tax` là `decimal` non-nullable → host bỏ trống = ghi 0, lệch P/L. Cân nhắc đổi `decimal?` + đưa row thiếu vào `Errors`.
+- **Next**: Slice P4 `PlanActionTools` — signatures ĐÃ verify (§P4). Nhớ: quyết định return type thay `Unit`; `DecisionAction` enum → check schema sinh string; state-machine guard tương tự bug link ở trên (test cả nhánh sai trạng thái).
