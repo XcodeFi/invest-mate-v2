@@ -241,6 +241,64 @@ Quy tắc bắt buộc:
         return sb.ToString();
     }
 
+    private const decimal NearStopLossPercent = 3m;
+    private const decimal ConcentrationPercent = 30m;
+    private const decimal HeavyLossPercent = -15m;
+
+    /// <summary>
+    /// Cảnh báo rủi ro theo mức nghiêm trọng. Một vị thế có thể trúng nhiều luật —
+    /// in tất cả các luật nó trúng để agent thấy đủ bức tranh.
+    /// </summary>
+    public static string FormatRiskAlertsSection(IReadOnlyList<PositionDigestRow> rows)
+    {
+        var lines = new List<string>();
+
+        foreach (var r in rows.Where(r => r.DistanceToStopLossPercent <= 0)
+                              .OrderBy(r => r.DistanceToStopLossPercent))
+            lines.Add($"  🔴 {r.Symbol} ({r.PortfolioName}): đã xuyên stop-loss — giá {r.CurrentPrice:N0}, SL {r.StopLossPrice:N0}");
+
+        foreach (var r in rows.Where(r => r.DistanceToStopLossPercent > 0
+                                       && r.DistanceToStopLossPercent <= NearStopLossPercent)
+                              .OrderBy(r => r.DistanceToStopLossPercent))
+            lines.Add($"  🟠 {r.Symbol} ({r.PortfolioName}): sát stop-loss — còn {r.DistanceToStopLossPercent:0.0}%");
+
+        foreach (var r in rows.Where(r => r.PositionSizePercent >= ConcentrationPercent)
+                              .OrderByDescending(r => r.PositionSizePercent))
+            lines.Add($"  ⚠️ {r.Symbol} ({r.PortfolioName}): tập trung quá mức — {r.PositionSizePercent!.Value:0.0}% danh mục");
+
+        foreach (var r in rows.Where(r => r.RiskDataAvailable && !r.StopLossPrice.HasValue))
+            lines.Add($"  ⚠️ {r.Symbol} ({r.PortfolioName}): chưa đặt stop-loss");
+
+        foreach (var r in rows.Where(r => r.UnrealizedPnLPercent <= HeavyLossPercent)
+                              .OrderBy(r => r.UnrealizedPnLPercent))
+            lines.Add($"  📉 {r.Symbol} ({r.PortfolioName}): lỗ nặng {r.UnrealizedPnLPercent:+0.0;-0.0}% ({r.UnrealizedPnL:+#,0;-#,0} VND)");
+
+        if (lines.Count == 0) return string.Empty;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<risk_alerts>");
+        foreach (var l in lines) sb.AppendLine(l);
+        sb.Append("</risk_alerts>");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Cho agent biết dữ liệu nào KHÔNG có trong bản tin và tool nào tra được —
+    /// để nó không trả lời chắc chắn từ dữ liệu mình không có.
+    /// </summary>
+    public static string FormatDrillDownSection()
+        => """
+           <drill_down>
+             Bản tin chỉ chứa dữ liệu đủ để quyết định. Cần sâu hơn thì gọi tool:
+             - Hiệu suất lịch sử (TWR/CAGR/Sharpe/max drawdown): get_performance, get_adjusted_return
+             - Đường vốn, lợi nhuận theo tháng: get_equity_curve, get_monthly_returns
+             - Phân tích kỹ thuật, lịch sử giá: get_technical_analysis, get_stock_price_history
+             - Kỷ luật, streak: get_discipline_score, get_discipline_streak
+             - Dòng thời gian một mã: get_symbol_timeline
+             - Vị thế/lệnh đầy đủ: list_positions, get_trades_by_portfolio
+           </drill_down>
+           """;
+
     /// <summary>
     /// Bối cảnh thị trường: VN-Index + độ rộng (tăng/giảm/trần/sàn) + khối ngoại mua-bán ròng (tỷ VND).
     /// Trả về chuỗi rỗng khi không có dữ liệu → caller bỏ qua section (không vỡ digest).

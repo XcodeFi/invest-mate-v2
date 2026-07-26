@@ -441,4 +441,92 @@ public class AiAssistantServiceDailyDigestTests
     {
         AiAssistantService.FormatDecisionQueueSection(Array.Empty<DecisionItemDto>()).Should().BeEmpty();
     }
+
+    // --- FormatRiskAlertsSection: luật theo rủi ro thay vì ngưỡng lỗ tuyệt đối ---
+
+    [Fact]
+    public void FormatRiskAlertsSection_BreachedStopLoss_FlaggedFirst()
+    {
+        var rows = new[]
+        {
+            Pos("HHV", "24hmoney", sizePct: 87.6m, sl: 10_000m, distSl: -0.3m),
+            // HPG phải an toàn trên MỌI luật — kể cả luật lỗ nặng, nên ghi đè L/L mặc định của Pos().
+            Pos("HPG", "Swing Trading", sizePct: 5m, sl: 20_000m, distSl: 12m) with { UnrealizedPnLPercent = 3m },
+        };
+
+        var section = AiAssistantService.FormatRiskAlertsSection(rows);
+
+        section.Should().Contain("<risk_alerts>");
+        section.Should().Contain("</risk_alerts>");
+        section.Should().Contain("HHV");
+        section.Should().Contain("xuyên stop-loss");
+        section.Should().NotContain("HPG");
+    }
+
+    [Fact]
+    public void FormatRiskAlertsSection_NearStopLossWithin3Percent_Flagged()
+    {
+        var section = AiAssistantService.FormatRiskAlertsSection(
+            new[] { Pos("MWG", "A", sizePct: 5m, sl: 50_000m, distSl: 2.1m) });
+
+        section.Should().Contain("sát stop-loss");
+    }
+
+    [Fact]
+    public void FormatRiskAlertsSection_ConcentrationAtLeast30Percent_FlaggedWithActualPercent()
+    {
+        var section = AiAssistantService.FormatRiskAlertsSection(
+            new[] { Pos("HHV", "24hmoney", sizePct: 87.6m, sl: 5_000m, distSl: 50m) });
+
+        section.Should().Contain("tập trung quá mức");
+        section.Should().Contain("87.6%");
+    }
+
+    [Fact]
+    public void FormatRiskAlertsSection_MissingStopLoss_Flagged()
+    {
+        var section = AiAssistantService.FormatRiskAlertsSection(
+            new[] { Pos("FPT", "24hmoney", sizePct: 5m, sl: null, distSl: null) });
+
+        section.Should().Contain("chưa đặt stop-loss");
+    }
+
+    [Fact]
+    public void FormatRiskAlertsSection_LossAtOrBeyondMinus15Percent_Flagged()
+    {
+        var row = Pos("MWG", "A", sizePct: 5m, sl: 5_000m, distSl: 40m) with { UnrealizedPnLPercent = -16m };
+
+        AiAssistantService.FormatRiskAlertsSection(new[] { row }).Should().Contain("lỗ nặng");
+    }
+
+    [Fact]
+    public void FormatRiskAlertsSection_LossOnlyMinus8Percent_NotFlagged()
+    {
+        // Ngưỡng cũ -5% quá nhiễu; nay -15%
+        var row = Pos("MWG", "A", sizePct: 5m, sl: 5_000m, distSl: 40m) with { UnrealizedPnLPercent = -8m };
+
+        AiAssistantService.FormatRiskAlertsSection(new[] { row }).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FormatRiskAlertsSection_NoAlerts_ReturnsEmpty()
+    {
+        var row = Pos("HPG", "A", sizePct: 5m, sl: 20_000m, distSl: 15m) with { UnrealizedPnLPercent = 3m };
+
+        AiAssistantService.FormatRiskAlertsSection(new[] { row }).Should().BeEmpty();
+    }
+
+    // --- FormatDrillDownSection: cho agent biết còn tool nào để tra sâu hơn ---
+
+    [Fact]
+    public void FormatDrillDownSection_ListsToolsForDeeperQuestions()
+    {
+        var section = AiAssistantService.FormatDrillDownSection();
+
+        section.Should().Contain("<drill_down>");
+        section.Should().Contain("</drill_down>");
+        section.Should().Contain("get_performance");
+        section.Should().Contain("get_technical_analysis");
+        section.Should().Contain("get_discipline_score");
+    }
 }
