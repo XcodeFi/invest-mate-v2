@@ -222,7 +222,8 @@ public class AiAssistantServiceDailyDigestTests
                 UnrealizedPnL: -4_700_000m, RealizedPnL: 0m),
         };
 
-        var section = AiAssistantService.FormatPortfolioOverviewSection(rows, totalInvested: 205_270_000m);
+        var section = AiAssistantService.FormatPortfolioOverviewSection(
+            rows, totalInvested: 205_270_000m, totalGrossBuys: 400_000_000m);
 
         section.Should().Contain("<portfolio_overview>");
         section.Should().Contain("</portfolio_overview>");
@@ -247,20 +248,45 @@ public class AiAssistantServiceDailyDigestTests
             new("B", 50_000_000m, Cash: null, UnrealizedPnL: 0m, RealizedPnL: 0m),
         };
 
-        var section = AiAssistantService.FormatPortfolioOverviewSection(rows, totalInvested: 150_000_000m);
+        var section = AiAssistantService.FormatPortfolioOverviewSection(
+            rows, totalInvested: 150_000_000m, totalGrossBuys: null);
 
         section.Should().Contain("cash=\"n/a\"");
         section.Should().Contain("<total_cash>10,000,000 VND (chưa đầy đủ: 1 danh mục không lấy được)</total_cash>");
+        // Thiếu lệnh của 1 danh mục → không đủ cơ sở tính mẫu số, thà bỏ hẳn hơn in số sai
+        section.Should().NotContain("<total_return>");
     }
 
     [Fact]
-    public void FormatPortfolioOverviewSection_ZeroInvested_OmitsReturnInsteadOfDividingByZero()
+    public void FormatPortfolioOverviewSection_ZeroDenominators_OmitReturnsInsteadOfDividingByZero()
     {
         var rows = new List<PortfolioDigestRow> { new("A", 0m, 0m, 0m, 0m) };
 
-        var section = AiAssistantService.FormatPortfolioOverviewSection(rows, totalInvested: 0m);
+        var section = AiAssistantService.FormatPortfolioOverviewSection(rows, totalInvested: 0m, totalGrossBuys: 0m);
 
-        section.Should().NotContain("<return>");
+        section.Should().NotContain("<unrealized_return>");
+        section.Should().NotContain("<total_return>");
+    }
+
+    [Fact]
+    public void FormatPortfolioOverviewSection_TwoReturnMetrics_UseTheirOwnDenominators()
+    {
+        // Lỗi đã bắt được khi soi payload thật: cộng realized vào tử số nhưng mẫu số vẫn là
+        // giá vốn phần ĐANG NẮM → -39.7% trong khi vị thế thực chỉ lỗ -19.8%.
+        var rows = new List<PortfolioDigestRow>
+        {
+            new("24hmoney", MarketValue: 144_565_000m, Cash: 0m,
+                UnrealizedPnL: -35_612_000m, RealizedPnL: -35_922_000m),
+        };
+
+        var section = AiAssistantService.FormatPortfolioOverviewSection(
+            rows, totalInvested: 180_177_000m, totalGrossBuys: 360_354_000m);
+
+        // -35,612,000 / 180,177,000 = -19.8%
+        section.Should().Contain("<unrealized_return>-19.8%");
+        // (-35,612,000 + -35,922,000) / 360,354,000 = -19.9%
+        section.Should().Contain("<total_return>-19.9%");
+        section.Should().NotContain("-39.7%");
     }
 
     // --- FormatPositionsSection: bảng vị thế có danh mục + %DM + khoảng cách SL ---

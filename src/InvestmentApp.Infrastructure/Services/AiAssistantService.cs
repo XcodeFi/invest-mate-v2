@@ -5,8 +5,11 @@ using InvestmentApp.Application.Decisions.DTOs;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Portfolios.Queries;
 using InvestmentApp.Application.Services;
+using InvestmentApp.Application.Common;
+using InvestmentApp.Application.Decisions.Queries.GetDecisionQueue;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
+using MediatR;
 
 namespace InvestmentApp.Infrastructure.Services;
 
@@ -30,6 +33,8 @@ public class AiAssistantService : IAiAssistantService
     private readonly IFinancialProfileRepository _profileRepo;
     private readonly IPositionSizingService _positionSizing;
     private readonly IMarketDataProvider _marketDataProvider;
+    private readonly ICapitalFlowRepository _capitalFlowRepo;
+    private readonly IMediator _mediator;
 
     private const string BasePrompt = @"Bạn là trợ lý AI tích hợp trong Investment Mate — ứng dụng quản lý danh mục đầu tư chứng khoán Việt Nam.
 Quy tắc:
@@ -106,8 +111,15 @@ Quy tắc bắt buộc:
         return sb.ToString();
     }
 
-    /// <summary>Tổng quan danh mục + bóc từng danh mục. Cash null của một danh mục → "n/a", không cộng vào tổng.</summary>
-    public static string FormatPortfolioOverviewSection(IReadOnlyList<PortfolioDigestRow> rows, decimal totalInvested)
+    /// <summary>
+    /// Tổng quan danh mục + bóc từng danh mục. Cash null của một danh mục → "n/a", không cộng vào tổng.
+    /// Hai chỉ số lợi nhuận có mẫu số KHÁC nhau nên không được trộn:
+    /// unrealized_return = lãi/lỗ chưa thực hiện / giá vốn phần đang nắm;
+    /// total_return = (chưa thực hiện + đã thực hiện) / tổng tiền đã mua.
+    /// </summary>
+    /// <param name="totalGrossBuys">null nếu thiếu dữ liệu lệnh của bất kỳ danh mục nào → bỏ total_return.</param>
+    public static string FormatPortfolioOverviewSection(IReadOnlyList<PortfolioDigestRow> rows,
+        decimal totalInvested, decimal? totalGrossBuys)
     {
         var totalMarketValue = rows.Sum(r => r.MarketValue);
         var totalUnrealized = rows.Sum(r => r.UnrealizedPnL);
@@ -129,7 +141,9 @@ Quy tắc bắt buộc:
         sb.AppendLine($"  <unrealized_pnl>{totalUnrealized:+#,0;-#,0} VND</unrealized_pnl>");
         sb.AppendLine($"  <realized_pnl>{totalRealized:+#,0;-#,0} VND</realized_pnl>");
         if (totalInvested > 0)
-            sb.AppendLine($"  <return>{(totalUnrealized + totalRealized) / totalInvested * 100:+0.0;-0.0}%</return>");
+            sb.AppendLine($"  <unrealized_return>{totalUnrealized / totalInvested * 100:+0.0;-0.0}% (trên giá vốn phần đang nắm)</unrealized_return>");
+        if (totalGrossBuys > 0)
+            sb.AppendLine($"  <total_return>{(totalUnrealized + totalRealized) / totalGrossBuys.Value * 100:+0.0;-0.0}% (trên tổng tiền đã mua)</total_return>");
 
         foreach (var r in rows)
         {
@@ -377,7 +391,9 @@ Quy tắc bắt buộc:
         IComprehensiveStockDataProvider comprehensiveProvider,
         IFinancialProfileRepository profileRepo,
         IPositionSizingService positionSizing,
-        IMarketDataProvider marketDataProvider)
+        IMarketDataProvider marketDataProvider,
+        ICapitalFlowRepository capitalFlowRepo,
+        IMediator mediator)
     {
         _settingsRepo = settingsRepo;
         _encryption = encryption;
@@ -397,6 +413,8 @@ Quy tắc bắt buộc:
         _profileRepo = profileRepo;
         _positionSizing = positionSizing;
         _marketDataProvider = marketDataProvider;
+        _capitalFlowRepo = capitalFlowRepo;
+        _mediator = mediator;
     }
 
     // =============================================
@@ -1891,10 +1909,29 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
         // Bối cảnh thị trường — cùng đợt fetch song song, chung budget timeout (không mở window mới)
         var marketTask = _marketDataProvider.GetIndexDataAsync("VNINDEX", ct)
             .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : null, TaskContinuationOptions.ExecuteSynchronously);
+        // Trades + capital flows: cần cho tiền mặt danh mục VÀ cho <recent_trades> (lọc lại in-memory,
+        // không tốn thêm call). Risk summary: %DM + khoảng cách SL.
+        var tradeTasks = portfolioList.Select(p =>
+            _tradeRepo.GetByPortfolioIdAsync(p.Id, ct)
+                .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result.ToList() : null, TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+        var flowTasks = portfolioList.Select(p =>
+            _capitalFlowRepo.GetTotalFlowByPortfolioIdAsync(p.Id, ct)
+                .ContinueWith(t => t.IsCompletedSuccessfully ? (decimal?)t.Result : null, TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+        var riskTasks = portfolioList.Select(p =>
+            _riskService.GetPortfolioRiskSummaryAsync(p.Id, ct)
+                .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : null, TaskContinuationOptions.ExecuteSynchronously)
+        ).ToList();
+        var decisionTask = _mediator.Send(new GetDecisionQueueQuery { UserId = userId }, ct)
+            .ContinueWith(t => t.IsCompletedSuccessfully ? t.Result : null, TaskContinuationOptions.ExecuteSynchronously);
 
         try
         {
-            await Task.WhenAll(pnlTasks.Cast<Task>().Append(plansTask).Append(watchlistsTask).Append(profileTask).Append(marketTask))
+            await Task.WhenAll(pnlTasks.Cast<Task>()
+                    .Concat(tradeTasks).Concat(flowTasks).Concat(riskTasks)
+                    .Append(decisionTask)
+                    .Append(plansTask).Append(watchlistsTask).Append(profileTask).Append(marketTask))
                 .WaitAsync(timeout, ct);
         }
         catch (TimeoutException) { /* Continue with whatever completed */ }
@@ -1911,73 +1948,105 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             sb.AppendLine(marketSection);
         }
 
-        // Portfolio overview
-        decimal totalInvested = 0, totalValue = 0, totalPnL = 0;
-        var allPositions = new List<PositionPnL>();
+        // Gom từng danh mục: PnL + cash + risk. Index khớp nhau vì cùng dựng từ portfolioList.
+        var portfolioRows = new List<PortfolioDigestRow>();
+        var positionRows = new List<PositionDigestRow>();
+        var tradeRows = new List<TradeDigestRow>();
+        decimal totalInvested = 0;
+        // grossBuys = mẫu số của total_return. Thiếu lệnh của bất kỳ danh mục nào → không đủ cơ sở tính.
+        decimal grossBuysKnown = 0;
+        var anyTradesMissing = false;
+        var tradeCutoff = DateTime.UtcNow.Date.AddDays(-RecentTradeWindowDays);
 
-        foreach (var task in pnlTasks)
+        for (var i = 0; i < portfolioList.Count; i++)
         {
-            if (task.IsCompletedSuccessfully)
+            var p = portfolioList[i];
+            var pnl = pnlTasks[i].IsCompletedSuccessfully ? pnlTasks[i].Result : null;
+            var trades = tradeTasks[i].IsCompletedSuccessfully ? tradeTasks[i].Result : null;
+            var netFlow = flowTasks[i].IsCompletedSuccessfully ? flowTasks[i].Result : null;
+            var risk = riskTasks[i].IsCompletedSuccessfully ? riskTasks[i].Result : null;
+
+            if (pnl != null) totalInvested += pnl.TotalInvested;
+
+            // Cash chỉ tính khi có ĐỦ trades + netFlow; thiếu một trong hai → n/a, tuyệt đối không in 0.
+            decimal? cash = trades != null && netFlow.HasValue
+                ? PortfolioCashCalculator.Compute(p.InitialCapital, netFlow.Value, trades)
+                : null;
+
+            if (trades == null)
+                anyTradesMissing = true;
+            else
+                grossBuysKnown += trades.Where(t => t.TradeType == TradeType.BUY)
+                    .Sum(t => t.Quantity * t.Price + t.Fee + t.Tax);
+
+            portfolioRows.Add(new PortfolioDigestRow(
+                p.Name, pnl?.TotalMarketValue ?? 0m, cash,
+                pnl?.TotalUnrealizedPnL ?? 0m, pnl?.TotalRealizedPnL ?? 0m));
+
+            var riskBySymbol = risk?.Positions.ToDictionary(x => x.Symbol, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pos in pnl?.Positions ?? new List<PositionPnL>())
             {
-                var pnl = task.Result;
-                if (pnl != null)
-                {
-                    totalInvested += pnl.TotalInvested;
-                    totalValue += pnl.TotalMarketValue;
-                    totalPnL += pnl.TotalUnrealizedPnL;
-                    allPositions.AddRange(pnl.Positions);
-                }
+                PositionRiskItem? item = null;
+                if (riskBySymbol != null && riskBySymbol.TryGetValue(pos.Symbol, out var found))
+                    item = found;
+
+                positionRows.Add(new PositionDigestRow(
+                    pos.Symbol, p.Name, pos.Quantity, pos.AverageCost, pos.CurrentPrice,
+                    pos.MarketValue, pos.UnrealizedPnL, pos.UnrealizedPnLPercentage,
+                    PositionSizePercent: item?.PositionSizePercent,
+                    StopLossPrice: item?.StopLossPrice,
+                    // Khoảng cách tới SL chỉ có nghĩa khi SL đã được đặt.
+                    DistanceToStopLossPercent: item is { StopLossPrice: not null }
+                        ? item.DistanceToStopLossPercent
+                        : null,
+                    RiskDataAvailable: risk != null));
             }
+
+            foreach (var t in (trades ?? new List<Trade>()).Where(t => t.TradeDate.Date >= tradeCutoff))
+                tradeRows.Add(new TradeDigestRow(
+                    t.TradeDate, p.Name, t.Symbol, t.TradeType == TradeType.BUY,
+                    t.Quantity, t.Price, t.Quantity * t.Price));
         }
 
         sb.AppendLine();
-        sb.AppendLine("<portfolio_overview>");
-        sb.AppendLine($"  <portfolios>{portfolioList.Count}</portfolios>");
-        sb.AppendLine($"  <total_invested>{totalInvested:N0} VND</total_invested>");
-        sb.AppendLine($"  <total_value>{totalValue:N0} VND</total_value>");
-        sb.AppendLine($"  <unrealized_pnl>{totalPnL:+#,0;-#,0} VND</unrealized_pnl>");
-        if (totalInvested > 0)
-            sb.AppendLine($"  <return>{totalPnL / totalInvested * 100:+0.0;-0.0}%</return>");
-        sb.AppendLine("</portfolio_overview>");
+        sb.AppendLine(FormatPortfolioOverviewSection(portfolioRows, totalInvested,
+            anyTradesMissing ? null : grossBuysKnown));
 
-        // Cash + net-worth. Vốn khả dụng dùng làm account balance cho position-sizing bên dưới.
-        // Fallback = giá trị chứng khoán khi user chưa có hồ sơ tài chính (không có idle cash).
-        decimal investableCapital = totalValue;
+        // Cash + net-worth. investableCapital là account balance cho position sizing bên dưới —
+        // trước đây thiếu toàn bộ tiền mặt danh mục nên mọi khối lượng gợi ý đều thấp hơn thực tế.
+        var totalMarketValue = portfolioRows.Sum(r => r.MarketValue);
+        decimal? totalCash = portfolioRows.Count > 0 && portfolioRows.All(r => !r.Cash.HasValue)
+            ? null
+            : portfolioRows.Where(r => r.Cash.HasValue).Sum(r => r.Cash!.Value);
+
         var profile = profileTask.IsCompletedSuccessfully ? profileTask.Result : null;
-        if (profile != null)
-        {
-            var idleCash = profile.Accounts.Where(a => a.Type == FinancialAccountType.IdleCash).Sum(a => a.Balance);
-            investableCapital = totalValue + idleCash;
+        decimal? idleCash = profile?.Accounts
+            .Where(a => a.Type == FinancialAccountType.IdleCash).Sum(a => a.Balance);
 
-            sb.AppendLine();
-            sb.AppendLine(FormatCashNetWorthSection(
-                investableCapital, portfolioCash: null, idleCash,
-                profile.GetNetWorth(totalValue), profile.GetTotalAssets(totalValue),
-                profile.GetTotalDebt(), profile.CalculateHealthScore(totalValue)));
+        var investableCapital = totalMarketValue + (totalCash ?? 0m) + (idleCash ?? 0m);
+
+        sb.AppendLine();
+        sb.AppendLine(FormatCashNetWorthSection(
+            investableCapital, totalCash, idleCash,
+            profile?.GetNetWorth(totalMarketValue), profile?.GetTotalAssets(totalMarketValue),
+            profile?.GetTotalDebt(), profile?.CalculateHealthScore(totalMarketValue)));
+
+        var positionsSection = FormatPositionsSection(positionRows);
+        if (positionsSection.Length > 0) { sb.AppendLine(); sb.AppendLine(positionsSection); }
+
+        var tradesSection = FormatRecentTradesSection(tradeRows);
+        if (tradesSection.Length > 0) { sb.AppendLine(); sb.AppendLine(tradesSection); }
+
+        var decisionQueue = decisionTask.IsCompletedSuccessfully ? decisionTask.Result : null;
+        if (decisionQueue != null)
+        {
+            var decisionSection = FormatDecisionQueueSection(decisionQueue.Items);
+            if (decisionSection.Length > 0) { sb.AppendLine(); sb.AppendLine(decisionSection); }
         }
 
-        // Top positions
-        if (allPositions.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("<top_positions>");
-            sb.AppendLine("| Mã | Giá trị | Lãi/Lỗ % |");
-            sb.AppendLine("|-----|---------|----------|");
-            foreach (var pos in allPositions.OrderByDescending(p => p.MarketValue).Take(10))
-                sb.AppendLine($"| {pos.Symbol} | {pos.MarketValue:N0} | {pos.TotalPnLPercent:+0.0;-0.0}% |");
-            sb.AppendLine("</top_positions>");
-
-            // Risk alerts: positions with heavy loss or near SL
-            var riskyPositions = allPositions.Where(p => p.TotalPnLPercent < -5).ToList();
-            if (riskyPositions.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("<risk_alerts>");
-                foreach (var rp in riskyPositions.OrderBy(p => p.TotalPnLPercent))
-                    sb.AppendLine($"  ⚠️ {rp.Symbol}: {rp.TotalPnLPercent:+0.0;-0.0}% (lỗ {rp.TotalPnL:N0} VND)");
-                sb.AppendLine("</risk_alerts>");
-            }
-        }
+        var alertsSection = FormatRiskAlertsSection(positionRows);
+        if (alertsSection.Length > 0) { sb.AppendLine(); sb.AppendLine(alertsSection); }
 
         // Pending trade plans
         if (plansTask.IsCompletedSuccessfully)
@@ -2051,15 +2120,25 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             catch { /* Skip */ }
         }
 
+        sb.AppendLine();
+        sb.AppendLine(FormatDrillDownSection());
+
         var systemPrompt = BasePrompt + @"
 
 Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
 1. **Tóm tắt buổi sáng**: Tổng quan nhanh tình hình danh mục trong 3-5 dòng
 2. **Bối cảnh thị trường**: Dùng <market_context> để phán đoán tái cơ cấu — VN-Index giảm mạnh + độ rộng tiêu cực (nhiều mã giảm/sàn) + khối ngoại bán ròng → thận trọng, cân nhắc giảm tỷ trọng đồng loạt; nếu thị trường ổn mà chỉ mã của mình yếu → xử lý riêng từng vị thế
-3. **Cần hành động ngay**: Vị thế gần SL hoặc lỗ nặng, kế hoạch cần thực thi
+3. **Cần hành động ngay**: Bắt đầu bằng <decision_queue> (việc cần quyết hôm nay), rồi tới vị thế gần SL hoặc lỗ nặng, kế hoạch cần thực thi
 4. **Cơ hội hôm nay**: Dựa <watchlist> (mã gần/đạt mục tiêu mua) + kế hoạch sẵn sàng thực thi
 5. **Cảnh báo rủi ro**: Tập trung quá mức, thiếu SL, drawdown
-6. **Checklist hôm nay**: 3-5 việc cụ thể nhà đầu tư nên làm hôm nay";
+6. **Checklist hôm nay**: 3-5 việc cụ thể nhà đầu tư nên làm hôm nay
+7. **Luật đọc dữ liệu (bắt buộc)**:
+   - `n/a` nghĩa là CHƯA LẤY ĐƯỢC dữ liệu, KHÔNG phải bằng 0. Không được kết luận 'không có' từ `n/a` — hãy nói rõ là chưa có dữ liệu.
+   - Tiền khả dụng = <portfolio_cash> (tiền trong tài khoản chứng khoán) + <idle_cash> (tiền ngoài, từ hồ sơ tài chính). Đừng nói 'hết tiền' khi <portfolio_cash> còn số dư.
+   - Luôn nêu TÊN DANH MỤC khi khuyên mua/bán, vì mỗi vị thế thuộc một danh mục cụ thể.
+   - Đọc <recent_trades> trước khi nhận định một vị thế — có thể người dùng vừa bán bớt.
+   - Cột SL ghi 'chưa đặt' nghĩa là người dùng chưa có stop-loss cho mã đó — đây là rủi ro, không phải thiếu dữ liệu.
+   - Nếu cần dữ liệu không có trong bản tin, gọi tool ở <drill_down> thay vì suy đoán.";
 
         var userMessage = question ?? $"Bản tin đầu tư hôm nay:\n\n{sb}";
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
