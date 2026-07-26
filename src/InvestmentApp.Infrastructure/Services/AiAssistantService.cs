@@ -77,18 +77,30 @@ Quy tắc bắt buộc:
             RiskPercent = plan.RiskPercent is > 0 ? plan.RiskPercent.Value : 2m,
         };
 
-    /// <summary>Section vốn đầu tư khả dụng + net-worth cho bản tin (chỉ khi user đã có hồ sơ tài chính).</summary>
-    public static string FormatCashNetWorthSection(decimal investableCapital, decimal idleCash,
-        decimal netWorth, decimal totalAssets, decimal totalDebt, int healthScore)
+    /// <summary>
+    /// Section vốn đầu tư khả dụng + net-worth cho bản tin.
+    /// portfolio_cash (tiền trong tài khoản chứng khoán) luôn in — kể cả khi chưa có hồ sơ tài chính.
+    /// idle_cash / net-worth / health chỉ in khi có hồ sơ. null → "n/a", không bao giờ in 0.
+    /// </summary>
+    public static string FormatCashNetWorthSection(decimal investableCapital, decimal? portfolioCash,
+        decimal? idleCash, decimal? netWorth, decimal? totalAssets, decimal? totalDebt, int? healthScore)
     {
+        static string Vnd(decimal? v) => v.HasValue ? $"{v.Value:N0} VND" : "n/a";
+
         var sb = new StringBuilder();
         sb.AppendLine("<cash_and_net_worth>");
+        sb.AppendLine($"  <portfolio_cash>{Vnd(portfolioCash)}</portfolio_cash>");
+        if (idleCash.HasValue)
+            sb.AppendLine($"  <idle_cash>{Vnd(idleCash)}</idle_cash>");
         sb.AppendLine($"  <investable_capital>{investableCapital:N0} VND</investable_capital>");
-        sb.AppendLine($"  <idle_cash>{idleCash:N0} VND</idle_cash>");
-        sb.AppendLine($"  <net_worth>{netWorth:N0} VND</net_worth>");
-        sb.AppendLine($"  <total_assets>{totalAssets:N0} VND</total_assets>");
-        sb.AppendLine($"  <total_debt>{totalDebt:N0} VND</total_debt>");
-        sb.AppendLine($"  <health_score>{healthScore}/100</health_score>");
+        if (netWorth.HasValue)
+            sb.AppendLine($"  <net_worth>{Vnd(netWorth)}</net_worth>");
+        if (totalAssets.HasValue)
+            sb.AppendLine($"  <total_assets>{Vnd(totalAssets)}</total_assets>");
+        if (totalDebt.HasValue)
+            sb.AppendLine($"  <total_debt>{Vnd(totalDebt)}</total_debt>");
+        if (healthScore.HasValue)
+            sb.AppendLine($"  <health_score>{healthScore.Value}/100</health_score>");
         sb.Append("</cash_and_net_worth>");
         return sb.ToString();
     }
@@ -1745,7 +1757,7 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
 
             sb.AppendLine();
             sb.AppendLine(FormatCashNetWorthSection(
-                investableCapital, idleCash,
+                investableCapital, portfolioCash: null, idleCash,
                 profile.GetNetWorth(totalValue), profile.GetTotalAssets(totalValue),
                 profile.GetTotalDebt(), profile.CalculateHealthScore(totalValue)));
         }

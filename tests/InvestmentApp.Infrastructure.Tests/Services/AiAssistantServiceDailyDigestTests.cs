@@ -86,20 +86,50 @@ public class AiAssistantServiceDailyDigestTests
         rec.Shares.Should().Be(1000);
     }
 
-    // --- FormatCashNetWorthSection: render đủ tag + số liệu ---
+    // --- FormatCashNetWorthSection: tách portfolio_cash (TK chứng khoán) vs idle_cash (hồ sơ tài chính) ---
 
     [Fact]
-    public void FormatCashNetWorthSection_ContainsTagsAndValues()
+    public void FormatCashNetWorthSection_WithProfile_RendersBothCashSources()
     {
         var section = AiAssistantService.FormatCashNetWorthSection(
-            investableCapital: 150_000_000m, idleCash: 50_000_000m, netWorth: 300_000_000m,
-            totalAssets: 320_000_000m, totalDebt: 20_000_000m, healthScore: 78);
+            investableCapital: 500_000_000m, portfolioCash: 287_903_688m, idleCash: 50_000_000m,
+            netWorth: 300_000_000m, totalAssets: 320_000_000m, totalDebt: 20_000_000m, healthScore: 78);
 
         section.Should().Contain("<cash_and_net_worth>");
         section.Should().Contain("</cash_and_net_worth>");
-        section.Should().Contain("investable_capital");
-        section.Should().Contain("net_worth");
+        section.Should().Contain("<portfolio_cash>287,903,688 VND</portfolio_cash>");
+        section.Should().Contain("<idle_cash>50,000,000 VND</idle_cash>");
+        section.Should().Contain("<investable_capital>500,000,000 VND</investable_capital>");
         section.Should().Contain("78");
+    }
+
+    [Fact]
+    public void FormatCashNetWorthSection_NoProfile_StillRendersPortfolioCashAndCapital()
+    {
+        // Bug gốc: cả block bị bọc trong `if (profile != null)` → user chưa có hồ sơ tài chính
+        // thì mất sạch thông tin tiền. Nay portfolio_cash phải luôn hiện.
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 452_903_688m, portfolioCash: 287_903_688m, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null);
+
+        section.Should().Contain("<portfolio_cash>287,903,688 VND</portfolio_cash>");
+        section.Should().Contain("<investable_capital>452,903,688 VND</investable_capital>");
+        // Assert theo dạng tag: chuỗi bọc ngoài <cash_and_net_worth> vốn đã chứa "net_worth".
+        section.Should().NotContain("<idle_cash>");
+        section.Should().NotContain("<net_worth>");
+        section.Should().NotContain("<health_score>");
+    }
+
+    [Fact]
+    public void FormatCashNetWorthSection_CashUnavailable_RendersNaNotZero()
+    {
+        // Luật cứng: không in 0 cho giá trị chưa fetch được.
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 164_960_000m, portfolioCash: null, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null);
+
+        section.Should().Contain("<portfolio_cash>n/a</portfolio_cash>");
+        section.Should().NotContain("<portfolio_cash>0 VND</portfolio_cash>");
     }
 
     // --- FormatMarketContextSection: VN-Index + độ rộng + khối ngoại (Slice: market context) ---
