@@ -1993,7 +1993,12 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
                 p.Name, pnl?.TotalMarketValue ?? 0m, cash,
                 pnl?.TotalUnrealizedPnL ?? 0m, pnl?.TotalRealizedPnL ?? 0m));
 
-            var riskBySymbol = risk?.Positions.ToDictionary(x => x.Symbol, StringComparer.OrdinalIgnoreCase);
+            // GroupBy trước ToDictionary: risk service gom nhóm phân biệt hoa/thường, còn Trade
+            // deserialize từ Mongo không đi qua ToUpper() của ctor — nên "HHV" và "hhv" có thể
+            // cùng tồn tại. ToDictionary trần sẽ ném và giết cả bản tin.
+            var riskBySymbol = risk?.Positions
+                .GroupBy(x => x.Symbol, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             foreach (var pos in pnl?.Positions ?? new List<PositionPnL>())
             {

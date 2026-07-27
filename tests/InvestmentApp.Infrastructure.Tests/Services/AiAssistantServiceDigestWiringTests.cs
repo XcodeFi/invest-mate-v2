@@ -38,7 +38,8 @@ public class AiAssistantServiceDigestWiringTests
     private static readonly DateTime SellDate = DateTime.UtcNow.Date.AddDays(-2);
     private static readonly DateTime BuyDate = DateTime.UtcNow.Date.AddDays(-60);
 
-    private static AiAssistantService BuildService(out Portfolio portfolio, bool riskAvailable = true)
+    private static AiAssistantService BuildService(out Portfolio portfolio, bool riskAvailable = true,
+        bool duplicateCasedRiskSymbol = false)
     {
         portfolio = new Portfolio(UserId, "24hmoney", InitialCapital);
 
@@ -79,6 +80,15 @@ public class AiAssistantServiceDigestWiringTests
                 },
             },
         };
+
+        // Trade deserialize từ Mongo không đi qua ToUpper() của ctor, còn risk service gom nhóm
+        // phân biệt hoa/thường → cùng một mã có thể ra 2 item khác vỏ chữ.
+        if (duplicateCasedRiskSymbol)
+            risk.Positions.Add(new PositionRiskItem
+            {
+                Symbol = "hhv", Quantity = 1m, CurrentPrice = CurrentPrice,
+                MarketValue = 9_970m, PositionSizePercent = 0.1m,
+            });
 
         var decisionQueue = new DecisionQueueDto
         {
@@ -164,9 +174,10 @@ public class AiAssistantServiceDigestWiringTests
             mediator.Object);
     }
 
-    private static async Task<string> BuildPayload(bool riskAvailable = true)
+    private static async Task<string> BuildPayload(bool riskAvailable = true,
+        bool duplicateCasedRiskSymbol = false)
     {
-        var svc = BuildService(out _, riskAvailable);
+        var svc = BuildService(out _, riskAvailable, duplicateCasedRiskSymbol);
         var result = await svc.BuildDailyDigestAsync(UserId);
         result.ErrorMessage.Should().BeNull();
         return result.UserMessage!;
@@ -272,6 +283,18 @@ public class AiAssistantServiceDigestWiringTests
         var req = AiAssistantService.BuildPlanSizingRequest(plan, capital);
         var sizing = await new PositionSizingService().CalculateAsync(req);
         return sizing.Models.First(m => m.Model == sizing.RecommendedModel).Shares;
+    }
+
+    [Fact]
+    public async Task Digest_DuplicateCasedSymbolInRiskData_StillRendersInsteadOfKillingWholeDigest()
+    {
+        // Một dòng trade cũ ghi "hhv" thay vì "HHV" từng đủ để ném ArgumentException từ
+        // ToDictionary và biến CẢ bản tin thành ErrorMessage. Mọi block khác đều degrade
+        // từng phần, chỗ này không được là ngoại lệ.
+        var payload = await BuildPayload(duplicateCasedRiskSymbol: true);
+
+        payload.Should().Contain("<positions>");
+        payload.Should().Contain($"<portfolio_cash>{ExpectedCash:N0} VND</portfolio_cash>");
     }
 
     [Fact]
