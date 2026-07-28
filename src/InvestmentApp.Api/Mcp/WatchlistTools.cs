@@ -34,21 +34,37 @@ public static class WatchlistTools
     [McpServerTool(Name = "create_watchlist", Destructive = true)]
     [Description("Tạo watchlist mới.")]
     public static async Task<WatchlistDto> CreateWatchlist(
-        CreateWatchlistCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
-    {
-        command.UserId = http.GetUserId();
-        return await mediator.Send(command, ct);
-    }
+        [Description("Tên watchlist.")] string name,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Emoji đại diện (bỏ trống = ⭐).")] string? emoji = null,
+        [Description("Đặt làm watchlist mặc định (bỏ trống = false).")] bool? isDefault = null,
+        [Description("Thứ tự sắp xếp (bỏ trống = 0).")] int? sortOrder = null)
+        => await mediator.Send(new CreateWatchlistCommand
+        {
+            UserId = http.GetUserId(),
+            Name = name,
+            Emoji = emoji ?? "⭐",
+            IsDefault = isDefault ?? false,
+            SortOrder = sortOrder ?? 0
+        }, ct);
 
     [McpServerTool(Name = "update_watchlist", Destructive = true)]
-    [Description("Cập nhật watchlist theo id (đổi tên, mô tả…).")]
+    [Description("Cập nhật watchlist theo id (đổi tên, emoji, thứ tự).")]
     public static async Task<string> UpdateWatchlist(
         [Description("ID watchlist.")] string id,
-        UpdateWatchlistCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        [Description("Tên mới.")] string name,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Emoji đại diện (bỏ trống = ⭐).")] string? emoji = null,
+        [Description("Thứ tự sắp xếp (bỏ trống = 0).")] int? sortOrder = null)
     {
-        command.Id = id;
-        command.UserId = http.GetUserId();
-        await mediator.Send(command, ct);
+        await mediator.Send(new UpdateWatchlistCommand
+        {
+            Id = id,
+            UserId = http.GetUserId(),
+            Name = name,
+            Emoji = emoji ?? "⭐",
+            SortOrder = sortOrder ?? 0
+        }, ct);
         return "ok";
     }
 
@@ -66,25 +82,39 @@ public static class WatchlistTools
     [Description("Thêm một mã vào watchlist. Trả về watchlist sau khi cập nhật.")]
     public static async Task<WatchlistDetailDto> AddWatchlistItem(
         [Description("ID watchlist.")] string id,
-        AddWatchlistItemCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
-    {
-        command.WatchlistId = id;
-        command.UserId = http.GetUserId();
-        return await mediator.Send(command, ct);
-    }
+        [Description("Mã chứng khoán.")] string symbol,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Ghi chú (bỏ trống = không ghi chú).")] string? note = null,
+        [Description("Giá mua mục tiêu, VND (bỏ trống = không đặt).")] decimal? targetBuyPrice = null,
+        [Description("Giá bán mục tiêu, VND (bỏ trống = không đặt).")] decimal? targetSellPrice = null)
+        => await mediator.Send(new AddWatchlistItemCommand
+        {
+            WatchlistId = id,
+            UserId = http.GetUserId(),
+            Symbol = symbol,
+            Note = note,
+            TargetBuyPrice = targetBuyPrice,
+            TargetSellPrice = targetSellPrice
+        }, ct);
 
     [McpServerTool(Name = "update_watchlist_item", Destructive = true)]
     [Description("Cập nhật một mã trong watchlist (ghi chú, mục tiêu…).")]
     public static async Task<WatchlistDetailDto> UpdateWatchlistItem(
         [Description("ID watchlist.")] string id,
         [Description("Mã chứng khoán.")] string symbol,
-        UpdateWatchlistItemCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
-    {
-        command.WatchlistId = id;
-        command.Symbol = symbol;
-        command.UserId = http.GetUserId();
-        return await mediator.Send(command, ct);
-    }
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Ghi chú (bỏ trống = xóa ghi chú).")] string? note = null,
+        [Description("Giá mua mục tiêu, VND (bỏ trống = xóa mục tiêu).")] decimal? targetBuyPrice = null,
+        [Description("Giá bán mục tiêu, VND (bỏ trống = xóa mục tiêu).")] decimal? targetSellPrice = null)
+        => await mediator.Send(new UpdateWatchlistItemCommand
+        {
+            WatchlistId = id,
+            UserId = http.GetUserId(),
+            Symbol = symbol,
+            Note = note,
+            TargetBuyPrice = targetBuyPrice,
+            TargetSellPrice = targetSellPrice
+        }, ct);
 
     [McpServerTool(Name = "remove_watchlist_item", Destructive = true)]
     [Description("Bỏ một mã khỏi watchlist. Trả về watchlist sau khi cập nhật.")]
@@ -100,9 +130,11 @@ public static class WatchlistTools
     [McpServerTool(Name = "import_vn30", Destructive = true)]
     [Description("Nhập toàn bộ rổ VN30 vào watchlist.")]
     public static async Task<WatchlistDetailDto> ImportVn30(
-        ImportVn30Command command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
-    {
-        command.UserId = http.GetUserId();
-        return await mediator.Send(command, ct);
-    }
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID watchlist đích (bỏ trống = tạo/dùng watchlist VN30 mặc định).")] string? watchlistId = null)
+        => await mediator.Send(new ImportVn30Command
+        {
+            UserId = http.GetUserId(),
+            WatchlistId = watchlistId
+        }, ct);
 }

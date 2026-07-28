@@ -16,22 +16,64 @@ public static class JournalEntryTools
     [McpServerTool(Name = "create_journal_entry", Destructive = true)]
     [Description("Tạo một mục nhật ký theo mã (standalone, không gắn lệnh).")]
     public static async Task<string> CreateJournalEntry(
-        CreateJournalEntryCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
-    {
-        command.UserId = http.GetUserId();
-        return await mediator.Send(command, ct);
-    }
+        [Description("Mã chứng khoán.")] string symbol,
+        [Description("Loại mục, đúng 1 trong: Observation/PreTrade/DuringTrade/PostTrade/Review.")] string entryType,
+        [Description("Tiêu đề ngắn.")] string title,
+        [Description("Nội dung ghi chú.")] string content,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID danh mục liên quan (bỏ trống = không gắn danh mục).")] string? portfolioId = null,
+        [Description("ID lệnh liên quan (bỏ trống = không gắn lệnh).")] string? tradeId = null,
+        [Description("ID kế hoạch liên quan (bỏ trống = không gắn kế hoạch).")] string? tradePlanId = null,
+        [Description("Trạng thái cảm xúc lúc ghi (bỏ trống = không ghi nhận).")] string? emotionalState = null,
+        [Description("Mức độ tự tin 1–10 (bỏ trống = không ghi nhận).")] int? confidenceLevel = null,
+        [Description("Giá tại thời điểm ghi, VND (bỏ trống = tự lấy giá hiện tại).")] decimal? priceAtTime = null,
+        [Description("Bối cảnh thị trường (bỏ trống = không ghi nhận).")] string? marketContext = null,
+        [Description("Danh sách tag (bỏ trống = không gắn tag).")] List<string>? tags = null,
+        [Description("Thời điểm ghi ISO-8601 (bỏ trống = hiện tại).")] DateTime? timestamp = null)
+        => await mediator.Send(new CreateJournalEntryCommand
+        {
+            UserId = http.GetUserId(),
+            Symbol = symbol,
+            EntryType = entryType,
+            Title = title,
+            Content = content,
+            PortfolioId = portfolioId,
+            TradeId = tradeId,
+            TradePlanId = tradePlanId,
+            EmotionalState = emotionalState,
+            ConfidenceLevel = confidenceLevel,
+            PriceAtTime = priceAtTime,
+            MarketContext = marketContext,
+            Tags = tags,
+            Timestamp = timestamp
+        }, ct);
 
     [McpServerTool(Name = "update_journal_entry", Destructive = true)]
-    [Description("Cập nhật một mục nhật ký theo id. Trả về false nếu không tìm thấy.")]
+    [Description("Cập nhật một mục nhật ký theo id. Chỉ trường được truyền mới bị thay đổi. Trả về false nếu không tìm thấy.")]
     public static async Task<bool> UpdateJournalEntry(
         [Description("ID mục nhật ký.")] string id,
-        UpdateJournalEntryCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
-    {
-        command.Id = id;
-        command.UserId = http.GetUserId();
-        return await mediator.Send(command, ct);
-    }
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Tiêu đề mới (bỏ trống = giữ nguyên).")] string? title = null,
+        [Description("Nội dung mới (bỏ trống = giữ nguyên).")] string? content = null,
+        [Description("Loại mục mới: Observation/PreTrade/DuringTrade/PostTrade/Review (bỏ trống = giữ nguyên).")] string? entryType = null,
+        [Description("Trạng thái cảm xúc mới (bỏ trống = giữ nguyên).")] string? emotionalState = null,
+        [Description("Mức độ tự tin 1–10 (bỏ trống = giữ nguyên).")] int? confidenceLevel = null,
+        [Description("Bối cảnh thị trường mới (bỏ trống = giữ nguyên).")] string? marketContext = null,
+        [Description("Danh sách tag mới, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<string>? tags = null,
+        [Description("Đánh giá 1–5 (bỏ trống = giữ nguyên).")] int? rating = null)
+        => await mediator.Send(new UpdateJournalEntryCommand
+        {
+            Id = id,
+            UserId = http.GetUserId(),
+            Title = title,
+            Content = content,
+            EntryType = entryType,
+            EmotionalState = emotionalState,
+            ConfidenceLevel = confidenceLevel,
+            MarketContext = marketContext,
+            Tags = tags,
+            Rating = rating
+        }, ct);
 
     [McpServerTool(Name = "delete_journal_entry", Destructive = true)]
     [Description("Xóa một mục nhật ký theo id. Trả về false nếu không tìm thấy.")]

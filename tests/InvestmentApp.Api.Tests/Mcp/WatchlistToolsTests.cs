@@ -42,15 +42,17 @@ public class WatchlistToolsTests
     public async Task CreateWatchlist_SetsUserId()
     {
         McpTestContext.Capture<WatchlistDto, CreateWatchlistCommand>(_mediator, out var sent, new WatchlistDto());
-        await WatchlistTools.CreateWatchlist(new CreateWatchlistCommand(), _mediator.Object, _http, CancellationToken.None);
+        await WatchlistTools.CreateWatchlist("Theo dõi", _mediator.Object, _http, CancellationToken.None);
         sent()!.UserId.Should().Be("u-1");
+        sent()!.Name.Should().Be("Theo dõi");
+        sent()!.Emoji.Should().Be("⭐");
     }
 
     [Fact]
     public async Task UpdateWatchlist_SetsIdAndUserId()
     {
         McpTestContext.Capture<Unit, UpdateWatchlistCommand>(_mediator, out var sent, Unit.Value);
-        await WatchlistTools.UpdateWatchlist("w1", new UpdateWatchlistCommand(), _mediator.Object, _http, CancellationToken.None);
+        await WatchlistTools.UpdateWatchlist("w1", "Tên mới", _mediator.Object, _http, CancellationToken.None);
         sent()!.Id.Should().Be("w1");
         sent()!.UserId.Should().Be("u-1");
     }
@@ -68,8 +70,9 @@ public class WatchlistToolsTests
     public async Task AddWatchlistItem_SetsWatchlistIdAndUserId()
     {
         McpTestContext.Capture<WatchlistDetailDto, AddWatchlistItemCommand>(_mediator, out var sent, new WatchlistDetailDto());
-        await WatchlistTools.AddWatchlistItem("w1", new AddWatchlistItemCommand { Symbol = "VNM" }, _mediator.Object, _http, CancellationToken.None);
+        await WatchlistTools.AddWatchlistItem("w1", "VNM", _mediator.Object, _http, CancellationToken.None);
         sent()!.WatchlistId.Should().Be("w1");
+        sent()!.Symbol.Should().Be("VNM");
         sent()!.UserId.Should().Be("u-1");
     }
 
@@ -77,7 +80,7 @@ public class WatchlistToolsTests
     public async Task UpdateWatchlistItem_SetsWatchlistId_Symbol_UserId()
     {
         McpTestContext.Capture<WatchlistDetailDto, UpdateWatchlistItemCommand>(_mediator, out var sent, new WatchlistDetailDto());
-        await WatchlistTools.UpdateWatchlistItem("w1", "VNM", new UpdateWatchlistItemCommand(), _mediator.Object, _http, CancellationToken.None);
+        await WatchlistTools.UpdateWatchlistItem("w1", "VNM", _mediator.Object, _http, CancellationToken.None);
         sent()!.WatchlistId.Should().Be("w1");
         sent()!.Symbol.Should().Be("VNM");
         sent()!.UserId.Should().Be("u-1");
@@ -97,7 +100,7 @@ public class WatchlistToolsTests
     public async Task ImportVn30_SetsUserId()
     {
         McpTestContext.Capture<WatchlistDetailDto, ImportVn30Command>(_mediator, out var sent, new WatchlistDetailDto());
-        await WatchlistTools.ImportVn30(new ImportVn30Command(), _mediator.Object, _http, CancellationToken.None);
+        await WatchlistTools.ImportVn30(_mediator.Object, _http, CancellationToken.None);
         sent()!.UserId.Should().Be("u-1");
     }
 }

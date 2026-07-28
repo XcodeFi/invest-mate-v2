@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.68.1] — 2026-07-28 · Sửa lỗi trợ lý AI không ghi được nhật ký
+
+### Sửa lỗi
+
+**📝 Nhờ trợ lý AI ghi nhật ký thị trường luôn thất bại.** Lệnh tạo nhật ký độc lập (và 9 lệnh ghi khác qua trợ lý AI) khai báo tham số sai hình dạng: trợ lý phải bọc toàn bộ dữ liệu trong một lớp `command` mới gọi được, nhưng không có gì trong mô tả cho biết điều đó. Kết quả: mọi lần gọi đều báo lỗi giống nhau bất kể sửa nội dung, nên trông như lỗi phía server — trong khi lệnh chỉ-đọc như xem danh sách nhật ký vẫn chạy bình thường.
+
+- 10 lệnh ghi qua trợ lý AI nay nhận dữ liệu trực tiếp, không cần lớp bọc: tạo/sửa nhật ký độc lập, tạo/sửa nhật ký theo lệnh, tạo/sửa danh sách theo dõi, thêm/sửa mã trong danh sách, nhập rổ VN30, tạo/sửa kế hoạch giao dịch.
+- Mỗi trường nay có mô tả tiếng Việt và ghi rõ giá trị mặc định khi bỏ trống, nên trợ lý chỉ cần gửi phần nó biết thay vì phải điền đủ mọi trường.
+- Kế hoạch giao dịch tạo qua trợ lý AI nay **không thể** nhận trạng thái/mã lệnh từ bên ngoài — luôn ở trạng thái Nháp.
+
+---
+
 ## [v2.68.0] — 2026-07-26 · Sửa lỗi bản tin hằng ngày báo sai tiền mặt
 
 ### Sửa lỗi

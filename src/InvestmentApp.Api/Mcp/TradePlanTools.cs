@@ -29,23 +29,122 @@ public static class TradePlanTools
     [McpServerTool(Name = "create_trade_plan", Destructive = true)]
     [Description("Tạo kế hoạch giao dịch mới. Luôn tạo ở trạng thái Nháp (Draft) — agent không tự khớp lệnh.")]
     public static async Task<string> CreateTradePlan(
-        CreateTradePlanCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
-    {
-        command.UserId = http.GetUserId();
-        command.Status = null;   // ép Draft (ADR-0004)
-        command.TradeId = null;
-        return await mediator.Send(command, ct);
-    }
+        [Description("Mã chứng khoán.")] string symbol,
+        [Description("Giá vào dự kiến, VND.")] decimal entryPrice,
+        [Description("Giá cắt lỗ, VND.")] decimal stopLoss,
+        [Description("Giá mục tiêu, VND.")] decimal target,
+        [Description("Khối lượng dự kiến.")] int quantity,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID danh mục (bỏ trống = không gắn danh mục).")] string? portfolioId = null,
+        [Description("Chiều lệnh: Buy hoặc Sell (bỏ trống = Buy).")] string? direction = null,
+        [Description("ID chiến lược (bỏ trống = không gắn chiến lược).")] string? strategyId = null,
+        [Description("Bối cảnh thị trường: Trending/Ranging/Volatile… (bỏ trống = Trending).")] string? marketCondition = null,
+        [Description("Luận điểm đầu tư (bỏ trống = không ghi nhận).")] string? thesis = null,
+        [Description("Ghi chú thêm (bỏ trống = không ghi nhận).")] string? notes = null,
+        [Description("Mức độ tự tin 1–10 (bỏ trống = 5).")] int? confidenceLevel = null,
+        [Description("% tài khoản chấp nhận rủi ro (bỏ trống = không tính).")] decimal? riskPercent = null,
+        [Description("Giá trị tài khoản dùng để tính rủi ro, VND (bỏ trống = không tính).")] decimal? accountBalance = null,
+        [Description("Tỷ lệ lời/lỗ kỳ vọng (bỏ trống = không ghi nhận, hệ thống KHÔNG tự tính).")] decimal? riskRewardRatio = null,
+        [Description("Ngày dự kiến review ISO-8601 (bỏ trống = không đặt).")] DateTime? expectedReviewDate = null,
+        [Description("Tầm nhìn: ShortTerm/MediumTerm/LongTerm (bỏ trống = không đặt).")] string? timeHorizon = null,
+        [Description("Điều kiện phủ định luận điểm (bỏ trống = không có).")] List<InvalidationRuleDto>? invalidationCriteria = null,
+        [Description("Checklist trước khi vào lệnh (bỏ trống = không có).")] List<ChecklistItemDto>? checklist = null,
+        [Description("Kiểu vào lệnh nhiều lô: Single/Scaled (bỏ trống = vào một lần).")] string? entryMode = null,
+        [Description("Các lô vào lệnh, chỉ dùng khi entryMode = Scaled (bỏ trống = không chia lô).")] List<PlanLotDto>? lots = null,
+        [Description("Các mốc chốt lời (bỏ trống = không đặt).")] List<ExitTargetDto>? exitTargets = null,
+        [Description("Kiểu chiến lược thoát: Simple/Advanced (bỏ trống = Simple).")] string? exitStrategyMode = null,
+        [Description("Cây kịch bản, chỉ dùng khi exitStrategyMode = Advanced (bỏ trống = không có).")] List<ScenarioNodeDto>? scenarioNodes = null)
+        // Status/TradeId cố tình không mở ra MCP — kế hoạch luôn tạo ở Draft (ADR-0004).
+        => await mediator.Send(new CreateTradePlanCommand
+        {
+            UserId = http.GetUserId(),
+            Symbol = symbol,
+            EntryPrice = entryPrice,
+            StopLoss = stopLoss,
+            Target = target,
+            Quantity = quantity,
+            PortfolioId = portfolioId,
+            Direction = direction ?? "Buy",
+            StrategyId = strategyId,
+            MarketCondition = marketCondition ?? "Trending",
+            Thesis = thesis,
+            Notes = notes,
+            ConfidenceLevel = confidenceLevel ?? 5,
+            RiskPercent = riskPercent,
+            AccountBalance = accountBalance,
+            RiskRewardRatio = riskRewardRatio,
+            ExpectedReviewDate = expectedReviewDate,
+            TimeHorizon = timeHorizon,
+            InvalidationCriteria = invalidationCriteria,
+            Checklist = checklist,
+            EntryMode = entryMode,
+            Lots = lots,
+            ExitTargets = exitTargets,
+            ExitStrategyMode = exitStrategyMode,
+            ScenarioNodes = scenarioNodes,
+            Status = null,
+            TradeId = null
+        }, ct);
 
     [McpServerTool(Name = "update_trade_plan", Destructive = true)]
-    [Description("Cập nhật một kế hoạch giao dịch theo id.")]
+    [Description("Cập nhật một kế hoạch giao dịch theo id. Chỉ trường được truyền mới bị thay đổi.")]
     public static async Task<string> UpdateTradePlan(
         [Description("ID kế hoạch.")] string id,
-        UpdateTradePlanCommand command, IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Mã chứng khoán (bỏ trống = giữ nguyên).")] string? symbol = null,
+        [Description("ID danh mục (bỏ trống = giữ nguyên).")] string? portfolioId = null,
+        [Description("Chiều lệnh: Buy hoặc Sell (bỏ trống = giữ nguyên).")] string? direction = null,
+        [Description("Giá vào dự kiến, VND (bỏ trống = giữ nguyên).")] decimal? entryPrice = null,
+        [Description("Giá cắt lỗ, VND (bỏ trống = giữ nguyên).")] decimal? stopLoss = null,
+        [Description("Giá mục tiêu, VND (bỏ trống = giữ nguyên).")] decimal? target = null,
+        [Description("Khối lượng dự kiến (bỏ trống = giữ nguyên).")] int? quantity = null,
+        [Description("ID chiến lược (bỏ trống = giữ nguyên).")] string? strategyId = null,
+        [Description("Bối cảnh thị trường (bỏ trống = giữ nguyên).")] string? marketCondition = null,
+        [Description("Luận điểm đầu tư (bỏ trống = giữ nguyên).")] string? thesis = null,
+        [Description("Ghi chú thêm (bỏ trống = giữ nguyên).")] string? notes = null,
+        [Description("Mức độ tự tin 1–10 (bỏ trống = giữ nguyên).")] int? confidenceLevel = null,
+        [Description("% tài khoản chấp nhận rủi ro (bỏ trống = giữ nguyên).")] decimal? riskPercent = null,
+        [Description("Giá trị tài khoản dùng để tính rủi ro, VND (bỏ trống = giữ nguyên).")] decimal? accountBalance = null,
+        [Description("Tỷ lệ lời/lỗ kỳ vọng (bỏ trống = giữ nguyên).")] decimal? riskRewardRatio = null,
+        [Description("Ngày dự kiến review ISO-8601 (bỏ trống = giữ nguyên).")] DateTime? expectedReviewDate = null,
+        [Description("Điều kiện phủ định luận điểm, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<InvalidationRuleDto>? invalidationCriteria = null,
+        [Description("Checklist, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ChecklistItemDto>? checklist = null,
+        [Description("Kiểu vào lệnh nhiều lô: Single/Scaled (bỏ trống = giữ nguyên).")] string? entryMode = null,
+        [Description("Các lô vào lệnh, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<PlanLotDto>? lots = null,
+        [Description("Các mốc chốt lời, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ExitTargetDto>? exitTargets = null,
+        [Description("Kiểu chiến lược thoát: Simple/Advanced (bỏ trống = giữ nguyên).")] string? exitStrategyMode = null,
+        [Description("Cây kịch bản, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ScenarioNodeDto>? scenarioNodes = null,
+        [Description("Tầm nhìn: ShortTerm/MediumTerm/LongTerm (bỏ trống = giữ nguyên).")] string? timeHorizon = null)
     {
-        command.Id = id;
-        command.UserId = http.GetUserId();
-        await mediator.Send(command, ct);
+        await mediator.Send(new UpdateTradePlanCommand
+        {
+            Id = id,
+            UserId = http.GetUserId(),
+            Symbol = symbol,
+            PortfolioId = portfolioId,
+            Direction = direction,
+            EntryPrice = entryPrice,
+            StopLoss = stopLoss,
+            Target = target,
+            Quantity = quantity,
+            StrategyId = strategyId,
+            MarketCondition = marketCondition,
+            Thesis = thesis,
+            Notes = notes,
+            ConfidenceLevel = confidenceLevel,
+            RiskPercent = riskPercent,
+            AccountBalance = accountBalance,
+            RiskRewardRatio = riskRewardRatio,
+            ExpectedReviewDate = expectedReviewDate,
+            InvalidationCriteria = invalidationCriteria,
+            Checklist = checklist,
+            EntryMode = entryMode,
+            Lots = lots,
+            ExitTargets = exitTargets,
+            ExitStrategyMode = exitStrategyMode,
+            ScenarioNodes = scenarioNodes,
+            TimeHorizon = timeHorizon
+        }, ct);
         return "ok";
     }
 

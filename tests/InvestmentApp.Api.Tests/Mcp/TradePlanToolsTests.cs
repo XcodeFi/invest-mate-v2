@@ -36,22 +36,27 @@ public class TradePlanToolsTests
     {
         McpTestContext.Capture<string, CreateTradePlanCommand>(_mediator, out var sent, "plan-new");
         var id = await TradePlanTools.CreateTradePlan(
-            new CreateTradePlanCommand { Symbol = "VNM", Status = "Executed", TradeId = "t-x" },
+            "VNM", entryPrice: 80000, stopLoss: 75000, target: 95000, quantity: 100,
             _mediator.Object, McpTestContext.WithUser("u-3"), CancellationToken.None);
         id.Should().Be("plan-new");
+        // Status/TradeId không còn nằm trong tham số tool → luôn Draft (ADR-0004).
         sent()!.Status.Should().BeNull();
         sent()!.TradeId.Should().BeNull();
         sent()!.UserId.Should().Be("u-3");
+        sent()!.Symbol.Should().Be("VNM");
+        sent()!.Direction.Should().Be("Buy");
+        sent()!.ConfidenceLevel.Should().Be(5);
     }
 
     [Fact]
     public async Task UpdateTradePlan_SetsIdAndUserId()
     {
         McpTestContext.Capture<Unit, UpdateTradePlanCommand>(_mediator, out var sent, Unit.Value);
-        await TradePlanTools.UpdateTradePlan("plan-1", new UpdateTradePlanCommand { Symbol = "SSI" },
-            _mediator.Object, McpTestContext.WithUser("u-4"), CancellationToken.None);
+        await TradePlanTools.UpdateTradePlan("plan-1",
+            _mediator.Object, McpTestContext.WithUser("u-4"), CancellationToken.None, symbol: "SSI");
         sent()!.Id.Should().Be("plan-1");
         sent()!.UserId.Should().Be("u-4");
+        sent()!.Symbol.Should().Be("SSI");
     }
 
     [Fact]
