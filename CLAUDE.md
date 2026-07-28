@@ -47,7 +47,7 @@
 
 - Inline templates trong `@Component({ template: \`...\` })` — không dùng file `.html` riêng.
 - Services nằm trong `core/services/`, shared code trong `shared/`.
-- Commit message bằng tiếng Anh, UI text bằng tiếng Việt có dấu.
+- **Commit message bằng tiếng Việt có dấu đầy đủ**, rõ và cụ thể (VD: `fix(mcp): nhận tham số phẳng thay cho lớp bọc command`). Giữ prefix conventional-commit tiếng Anh (`feat`/`fix`/`docs`/`refactor`). UI text cũng tiếng Việt có dấu.
 
 ## Trước khi Commit
 

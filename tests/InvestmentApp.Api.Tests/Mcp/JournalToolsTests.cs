@@ -38,16 +38,18 @@ public class JournalToolsTests
     public async Task CreateJournal_SetsUserId()
     {
         McpTestContext.Capture<string, CreateJournalCommand>(_mediator, out var sent, "j1");
-        var id = await JournalTools.CreateJournal(new CreateJournalCommand(), _mediator.Object, _http, CancellationToken.None);
+        var id = await JournalTools.CreateJournal("t1", "p1", _mediator.Object, _http, CancellationToken.None);
         id.Should().Be("j1");
         sent()!.UserId.Should().Be("u-1");
+        sent()!.TradeId.Should().Be("t1");
+        sent()!.ConfidenceLevel.Should().Be(5);
     }
 
     [Fact]
     public async Task UpdateJournal_SetsIdAndUserId()
     {
         McpTestContext.Capture<Unit, UpdateJournalCommand>(_mediator, out var sent, Unit.Value);
-        await JournalTools.UpdateJournal("j1", new UpdateJournalCommand(), _mediator.Object, _http, CancellationToken.None);
+        await JournalTools.UpdateJournal("j1", _mediator.Object, _http, CancellationToken.None);
         sent()!.Id.Should().Be("j1");
         sent()!.UserId.Should().Be("u-1");
     }

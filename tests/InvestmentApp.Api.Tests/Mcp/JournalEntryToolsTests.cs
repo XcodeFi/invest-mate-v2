@@ -20,16 +20,17 @@ public class JournalEntryToolsTests
     public async Task CreateJournalEntry_SetsUserId()
     {
         McpTestContext.Capture<string, CreateJournalEntryCommand>(_mediator, out var sent, "e1");
-        var id = await JournalEntryTools.CreateJournalEntry(new CreateJournalEntryCommand { Symbol = "VNM" }, _mediator.Object, _http, CancellationToken.None);
+        var id = await JournalEntryTools.CreateJournalEntry("VNM", "Observation", "Tiêu đề", "Nội dung", _mediator.Object, _http, CancellationToken.None);
         id.Should().Be("e1");
         sent()!.UserId.Should().Be("u-1");
+        sent()!.Symbol.Should().Be("VNM");
     }
 
     [Fact]
     public async Task UpdateJournalEntry_SetsIdAndUserId()
     {
         McpTestContext.Capture<bool, UpdateJournalEntryCommand>(_mediator, out var sent, true);
-        await JournalEntryTools.UpdateJournalEntry("e1", new UpdateJournalEntryCommand(), _mediator.Object, _http, CancellationToken.None);
+        await JournalEntryTools.UpdateJournalEntry("e1", _mediator.Object, _http, CancellationToken.None);
         sent()!.Id.Should().Be("e1");
         sent()!.UserId.Should().Be("u-1");
     }

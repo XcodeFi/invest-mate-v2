@@ -113,6 +113,21 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
+    public void No_Tool_Wraps_Its_Args_In_A_Command_Object()
+    {
+        // Taking a MediatR command as the tool parameter generates a nested {"command":{...}}
+        // schema — callers sending flat args fail with "missing ... required parameter 'command'".
+        // Every tool must expose its arguments flat, like create_trade does.
+        foreach (var tool in Tools())
+        {
+            var schema = tool.ProtocolTool.InputSchema;
+            if (!schema.TryGetProperty("properties", out var props)) continue;
+            props.EnumerateObject().Select(p => p.Name).Should()
+                .NotContain("command", $"{tool.ProtocolTool.Name} must take flat args, not a command wrapper");
+        }
+    }
+
+    [Fact]
     public void Optional_Params_Are_Not_Required_In_Schema()
     {
         // Params with C# defaults must drop out of the schema's "required" array —
@@ -123,6 +138,21 @@ public class McpToolDiscoveryTests
             el.TryGetProperty("required", out var req)
                 ? req.EnumerateArray().Select(e => e.GetString()!).ToArray()
                 : Array.Empty<string>();
+
+        // Write tools: only genuinely mandatory fields are required; the rest are omittable.
+        Required(schema["create_journal_entry"]).Should()
+            .BeEquivalentTo(new[] { "symbol", "entryType", "title", "content" });
+        Required(schema["update_journal_entry"]).Should().BeEquivalentTo(new[] { "id" });
+        Required(schema["create_journal"]).Should().BeEquivalentTo(new[] { "tradeId", "portfolioId" });
+        Required(schema["create_trade_plan"]).Should()
+            .BeEquivalentTo(new[] { "symbol", "entryPrice", "stopLoss", "target", "quantity" });
+        Required(schema["create_watchlist"]).Should().BeEquivalentTo(new[] { "name" });
+        Required(schema["import_vn30"]).Should().BeEmpty();
+        Required(schema["update_journal"]).Should().BeEquivalentTo(new[] { "id" });
+        Required(schema["update_trade_plan"]).Should().BeEquivalentTo(new[] { "id" });
+        Required(schema["update_watchlist"]).Should().BeEquivalentTo(new[] { "id", "name" });
+        Required(schema["add_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });
+        Required(schema["update_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });
 
         Required(schema["get_savings_comparison"]).Should().BeEquivalentTo(new[] { "portfolioId" });
         Required(schema["get_flow_history"]).Should().BeEquivalentTo(new[] { "portfolioId" });
