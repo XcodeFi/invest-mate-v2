@@ -47,6 +47,9 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
     /// <summary>VN timezone offset — local day boundary for daily suppression reset.</summary>
     private const int VnUtcOffsetHours = 7;
 
+    /// <summary>Tag mà ResolveDecision ghi kèm mọi journal resolve: "trigger:{DecisionType}".</summary>
+    private const string TriggerTagPrefix = "trigger:";
+
     public GetDecisionQueueQueryHandler(
         IPortfolioRepository portfolioRepo,
         ITradePlanRepository planRepo,
@@ -83,10 +86,11 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
 
         // Per-day suppression: items resolved today (Decision journal in last VN day) drop out
         // until next VN midnight. Refresh-after-resolve no longer surfaces the same item.
-        var (suppressedPlanIds, suppressedSymbolPortfolio) = resolvedTodayTask.Result;
+        var (suppressedPlanIds, suppressedSymbolPortfolio, suppressedSymbolType) = resolvedTodayTask.Result;
         var unsuppressed = deduped.Where(i =>
             !(i.TradePlanId != null && suppressedPlanIds.Contains(i.TradePlanId))
             && !suppressedSymbolPortfolio.Contains((i.Symbol, i.PortfolioId))
+            && !suppressedSymbolType.Contains((i.Symbol, i.Type.ToString()))
         ).ToList();
 
         var sorted = unsuppressed
@@ -103,12 +107,16 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
     }
 
     /// <summary>
-    /// Load Decision-type journal entries created on or after start-of-VN-day. Build two
+    /// Load Decision-type journal entries created on or after start-of-VN-day. Build three
     /// suppression sets:
     ///   - planIds: matches ScenarioTrigger / ThesisReviewDue items by TradePlanId.
-    ///   - (Symbol, PortfolioId) pairs: matches StopLossHit items (which carry no plan id).
+    ///   - symPort: (Symbol, PortfolioId) pairs — items resolved kèm portfolio.
+    ///   - symType: (Symbol, DecisionType) từ tag "trigger:" — dành riêng cho entry không có
+    ///     cả portfolioId lẫn tradePlanId, thứ mà hai tập trên không bắt được.
     /// </summary>
-    private async Task<(HashSet<string> PlanIds, HashSet<(string Symbol, string PortfolioId)> SymPort)>
+    private async Task<(HashSet<string> PlanIds,
+                        HashSet<(string Symbol, string PortfolioId)> SymPort,
+                        HashSet<(string Symbol, string Type)> SymType)>
         LoadResolvedTodayAsync(string userId, CancellationToken ct)
     {
         var vnNow = DateTime.UtcNow.AddHours(VnUtcOffsetHours);
@@ -129,7 +137,16 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
             .Select(j => (j.Symbol, j.PortfolioId!))
             .ToHashSet();
 
-        return (planIds, symPort);
+        var symType = todayDecisions
+            .Where(j => string.IsNullOrEmpty(j.PortfolioId) && string.IsNullOrEmpty(j.TradePlanId))
+            .Select(j => (
+                j.Symbol,
+                Tag: j.Tags.FirstOrDefault(t => t.StartsWith(TriggerTagPrefix, StringComparison.Ordinal))))
+            .Where(x => x.Tag != null)
+            .Select(x => (x.Symbol, Type: x.Tag![TriggerTagPrefix.Length..]))
+            .ToHashSet();
+
+        return (planIds, symPort, symType);
     }
 
     private async Task<List<DecisionItemDto>> LoadStopLossItemsAsync(

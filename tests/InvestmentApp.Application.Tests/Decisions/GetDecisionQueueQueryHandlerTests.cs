@@ -363,8 +363,11 @@ public class GetDecisionQueueQueryHandlerTests
             .ReturnsAsync(new[] { entry });
     }
 
-    private static JournalEntry MakeDecisionJournal(string symbol, string? portfolioId = null, string? tradePlanId = null, DateTime? timestamp = null)
+    private static JournalEntry MakeDecisionJournal(string symbol, string? portfolioId = null, string? tradePlanId = null, DateTime? timestamp = null, string? triggerType = null)
     {
+        var tags = new List<string> { "decision-hold" };
+        if (triggerType != null) tags.Add($"trigger:{triggerType}");
+
         return new JournalEntry(
             userId: UserId,
             symbol: symbol,
@@ -373,7 +376,7 @@ public class GetDecisionQueueQueryHandlerTests
             content: "test resolve marker",
             portfolioId: portfolioId,
             tradePlanId: tradePlanId,
-            tags: new List<string> { "decision-hold" },
+            tags: tags,
             timestamp: timestamp ?? DateTime.UtcNow);
     }
 
@@ -475,5 +478,39 @@ public class GetDecisionQueueQueryHandlerTests
         var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
 
         result.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Handle_StopLossHitResolvedSymbolOnly_IsSuppressed()
+    {
+        // Đường thật của ResolveDecision cho StopLossHit: HandleHoldWithJournalAsync đi nhánh
+        // symbol-only nên journal không có portfolioId lẫn tradePlanId — chỉ còn tag trigger:{Type}.
+        // Trước fix, entry này rơi khỏi cả hai tập suppression nên card hiện lại sau refresh.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        SetupDecisionJournal(MakeDecisionJournal(
+            "FPT", triggerType: "StopLossHit", timestamp: VnTodayStartUtc().AddHours(2)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_SymbolOnlyResolveOfDifferentType_DoesNotSuppress()
+    {
+        // Suppression phải theo (symbol, type). Resolve một loại quyết định khác trên cùng mã
+        // không được làm im cảnh báo stop-loss.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        SetupDecisionJournal(MakeDecisionJournal(
+            "FPT", triggerType: "BuyOpportunity", timestamp: VnTodayStartUtc().AddHours(2)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Type.Should().Be(DecisionType.StopLossHit);
     }
 }
