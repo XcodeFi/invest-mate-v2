@@ -68,16 +68,30 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
 
-        var threshold = (plan.AccountBalance ?? 0m) * 0.05m;
+        // UpdateTradePlanCommand.Quantity là int?, EntryPrice là decimal?, AccountBalance là
+        // decimal? — update là PARTIAL (TradePlan.Update chỉ gán khi HasValue). Mọi vế của
+        // phép so sánh phải fallback về giá trị cũ, nếu không gate sẽ im lặng bỏ qua.
         var oldSize = plan.Quantity * plan.EntryPrice;
         var newSize = (request.Quantity ?? plan.Quantity) * (request.EntryPrice ?? plan.EntryPrice);
+        var newBalance = request.AccountBalance ?? plan.AccountBalance;
+
+        var oldThreshold = (plan.AccountBalance ?? 0m) * 0.05m;
+        var newThreshold = (newBalance ?? 0m) * 0.05m;
+
+        // So TỶ LỆ ở hai thời điểm, mỗi vế dùng số dư của chính thời điểm đó. Nếu ngưỡng
+        // mới vẫn tính theo số dư cũ thì một request vừa nâng size vừa hạ số dư sẽ lọt.
+        var wasBelow = !plan.AccountBalance.HasValue
+            || plan.AccountBalance.Value <= 0m
+            || oldSize < oldThreshold;
+        var isNowAtOrAbove = newBalance.HasValue
+            && newBalance.Value > 0m
+            && newSize >= newThreshold;
 
         // Vá cửa hậu "tạo nhỏ rồi sửa lớn". Chỉ bắn khi thực sự vượt ngưỡng lên,
         // để không phá nguyên tắc "plan có rồi thì thôi".
-        if (plan.AccountBalance.HasValue && plan.AccountBalance.Value > 0m
-            && oldSize < threshold && newSize >= threshold)
+        if (wasBelow && isNowAtOrAbove)
         {
-            await _dossierGate.EnsureAsync(plan.UserId, plan.Symbol, newSize, plan.AccountBalance, cancellationToken);
+            await _dossierGate.EnsureAsync(plan.UserId, plan.Symbol, newSize, newBalance, cancellationToken);
         }
 
         var checklist = request.Checklist?.Select(c => new ChecklistItem

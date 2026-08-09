@@ -115,6 +115,40 @@ public class TradePlanDossierGateWiringTests
         _gate.VerifyNoOtherCalls();
     }
 
+    [Fact]
+    public async Task Update_OnlyQuantitySent_ShouldFallBackToExistingEntryPrice()
+    {
+        // Ghim fallback partial-update. Không có test này thì ai đó đổi lại thành
+        // request.EntryPrice thẳng là size về 0, gate im lặng, cửa hậu mở lại.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+
+        var command = TestFactory.UpdateCommand(quantity: 120, entryPrice: null);
+
+        await handler.Handle(command, default);
+
+        // 120 × 100.000 = 12tr = 12% > 5%
+        _gate.Verify(g => g.EnsureAsync(It.IsAny<string>(), It.IsAny<string>(),
+            12_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_LoweringAccountBalanceAcrossThreshold_ShouldRunGate()
+    {
+        // Cửa hậu đường số dư: size mới 4tr vẫn dưới ngưỡng CŨ (5tr), nhưng cùng
+        // request hạ số dư còn 50tr nên tỷ lệ thật thành 8%.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+
+        var command = TestFactory.UpdateCommand(quantity: 40, entryPrice: 100_000m);
+        command.AccountBalance = 50_000_000m;
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync(It.IsAny<string>(), It.IsAny<string>(),
+            4_000_000m, 50_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static class TestFactory
     {
         public static CreateTradePlanCommandHandler CreateTradePlanHandler(
@@ -150,7 +184,7 @@ public class TradePlanDossierGateWiringTests
             return new UpdateTradePlanCommandHandler(repository.Object, gate);
         }
 
-        public static UpdateTradePlanCommand UpdateCommand(int quantity, decimal entryPrice) => new()
+        public static UpdateTradePlanCommand UpdateCommand(int quantity, decimal? entryPrice) => new()
         {
             Id = "plan-1",
             UserId = "user-1",
