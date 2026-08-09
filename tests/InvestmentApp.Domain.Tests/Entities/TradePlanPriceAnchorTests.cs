@@ -45,6 +45,60 @@ public class TradePlanPriceAnchorTests
     }
 
     [Fact]
+    public void Update_KeepsAnchor_WhenPricesAreResentUnchanged()
+    {
+        // Form sửa kế hoạch gửi lại TOÀN BỘ trường mỗi lần lưu, kể cả giá không đổi.
+        // Dời mốc theo "có gửi giá" sẽ khiến sửa mỗi ghi chú cũng huỷ việc điều chỉnh
+        // theo sự kiện quyền đã xảy ra — đúng cái lỗi tính năng này sinh ra để chặn.
+        var plan = NewPlan();
+        var before = plan.PricesSetAt;
+
+        plan.Update(
+            entryPrice: 30_000m, stopLoss: 27_000m, target: 36_000m,
+            notes: "Chỉ sửa ghi chú");
+
+        plan.PricesSetAt.Should().Be(before);
+    }
+
+    [Fact]
+    public void SetScenarioNodes_KeepsScenarioAnchor_WhenThresholdsAreResentUnchanged()
+    {
+        var plan = NewPlan();
+        plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
+        plan.SetScenarioNodes(Nodes(36_000m));
+        var before = plan.ScenarioPricesSetAt;
+
+        plan.SetScenarioNodes(Nodes(36_000m));
+
+        plan.ScenarioPricesSetAt.Should().Be(before);
+    }
+
+    [Fact]
+    public void SetScenarioNodes_MovesScenarioAnchor_WhenAThresholdActuallyChanges()
+    {
+        var plan = NewPlan();
+        plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
+        plan.SetScenarioNodes(Nodes(36_000m));
+        var before = plan.ScenarioPricesSetAt!.Value;
+
+        plan.SetScenarioNodes(Nodes(38_000m));
+
+        plan.ScenarioPricesSetAt.Should().BeAfter(before);
+    }
+
+    private static List<ScenarioNode> Nodes(decimal threshold) => new()
+    {
+        new()
+        {
+            NodeId = "n1",
+            Label = "Chốt lời",
+            ConditionType = ScenarioConditionType.PriceAbove,
+            ConditionValue = threshold,
+            ActionType = ScenarioActionType.SellAll
+        }
+    };
+
+    [Fact]
     public void TriggerScenarioNode_KeepsAnchor()
     {
         // UpdatedAt nhảy khi kích hoạt nhánh — mốc giá thì không được nhảy theo,

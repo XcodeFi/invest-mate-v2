@@ -214,6 +214,40 @@ public class ScenarioCorporateActionTests
     }
 
     [Fact]
+    public async Task FirstEverTrailingWrite_StampsTheBasis_SoTheNextActionIsNotAppliedTwice()
+    {
+        // Trailing stop kích hoạt LẦN ĐẦU sau khi sự kiện A đã qua ngày GDKHQ.
+        // HighestPrice ghi thẳng giá thị trường hiện tại (đã phản ánh A) nhưng nếu không đóng
+        // mốc, lần rebase sau sẽ lùi về mốc kế hoạch và chia cho A thêm một lần nữa.
+        var trailing = new ScenarioNode
+        {
+            NodeId = "trail",
+            ParentId = null,
+            Order = 0,
+            Label = "Kích hoạt trailing",
+            ConditionType = ScenarioConditionType.PriceAbove,
+            ConditionValue = 32_000m,
+            ActionType = ScenarioActionType.ActivateTrailingStop,
+            TrailingStopConfig = new TrailingStopConfig
+            {
+                Method = TrailingStopMethod.Percentage,
+                TrailValue = 8m
+                // HighestPrice và CurrentTrailingStop đều null — chưa từng ghi nhận
+            }
+        };
+
+        var plan = PlanWith(trailing);
+        SetupPlan(plan, 30_100m, StockDividend30()); // 32.000 / 1,3 = 24.615 → kích hoạt
+
+        var results = await _sut.EvaluateAllAsync();
+
+        results.Should().ContainSingle();
+        var config = plan.ScenarioNodes![0].TrailingStopConfig!;
+        config.HighestPrice.Should().Be(30_100m);
+        config.PriceBasisAt.Should().NotBeNull("giá vừa ghi đã ở mặt bằng sau sự kiện");
+    }
+
+    [Fact]
     public async Task TrailingStopState_IsNotRebasedTwice()
     {
         var trailing = new ScenarioNode

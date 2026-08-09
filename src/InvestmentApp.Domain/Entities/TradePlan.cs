@@ -135,6 +135,14 @@ public class TradePlan : AggregateRoot
         if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed)
             throw new InvalidOperationException("Cannot update an executed or reviewed plan");
 
+        // So sánh TRƯỚC khi gán. Form sửa kế hoạch gửi lại toàn bộ trường mỗi lần lưu, nên
+        // "có gửi giá" không có nghĩa là giá đổi — dời mốc theo đó thì sửa mỗi ghi chú cũng
+        // huỷ việc điều chỉnh theo sự kiện quyền.
+        var priceChanged =
+            (entryPrice.HasValue && entryPrice.Value != EntryPrice) ||
+            (stopLoss.HasValue && stopLoss.Value != StopLoss) ||
+            (target.HasValue && target.Value != Target);
+
         if (symbol != null) Symbol = symbol.ToUpper().Trim();
         if (direction != null) Direction = direction;
         if (entryPrice.HasValue) EntryPrice = entryPrice.Value;
@@ -154,8 +162,7 @@ public class TradePlan : AggregateRoot
         if (timeHorizon.HasValue) TimeHorizon = timeHorizon.Value;
         if (invalidationCriteria != null) InvalidationCriteria = invalidationCriteria;
         if (expectedReviewDate.HasValue) ExpectedReviewDate = expectedReviewDate.Value;
-        if (entryPrice.HasValue || stopLoss.HasValue || target.HasValue)
-            PricesSetAt = DateTime.UtcNow;
+        if (priceChanged) PricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -479,13 +486,23 @@ public class TradePlan : AggregateRoot
         var nodeIds = nodes.Select(n => n.NodeId).ToHashSet();
         if (nodes.Any(n => n.ParentId != null && !nodeIds.Contains(n.ParentId)))
             throw new ArgumentException("ScenarioNode references a non-existent parent");
+        // Chỉ dời mốc của riêng cây kịch bản (giá nhập của kế hoạch không hề được đặt lại),
+        // và chỉ khi ngưỡng thực sự đổi — form gửi lại toàn bộ node mỗi lần lưu.
+        var thresholdsChanged = PriceSignature(nodes) != PriceSignature(ScenarioNodes);
+
         ScenarioNodes = nodes;
-        // Ngưỡng của node là giá tuyệt đối vừa nhập theo mặt bằng hiện tại — nhưng chỉ dời
-        // mốc của riêng cây kịch bản, giá nhập của kế hoạch không hề được đặt lại.
-        ScenarioPricesSetAt = DateTime.UtcNow;
+        if (thresholdsChanged) ScenarioPricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
+
+    /// <summary>Chữ ký của mọi con số mang giá trong cây kịch bản.</summary>
+    private static string PriceSignature(IEnumerable<ScenarioNode>? nodes)
+        => nodes == null
+            ? string.Empty
+            : string.Join("|", nodes.Select(n =>
+                $"{n.NodeId}:{n.ConditionValue}:{n.ActionValue}:{n.TrailingStopConfig?.ActivationPrice}" +
+                $":{n.TrailingStopConfig?.TrailValue}:{n.TrailingStopConfig?.StepSize}"));
 
     public void TriggerScenarioNode(string nodeId, string? tradeId = null)
     {

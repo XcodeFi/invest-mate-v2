@@ -1564,6 +1564,8 @@ Ghi nhận cổ tức tiền mặt, cổ tức cổ phiếu và chia tách cổ 
 
 **Chưa làm — thống kê, không ra quyết định:** `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`; tự động lấy sự kiện từ 24hmoney; quyền mua ưu đãi và sáp nhập.
 
+**Chưa làm — MCP:** chưa có `CorporateActionTools`, nên agent không nhập/xác nhận/xoá được sự kiện quyền. Ghi trong [backlog MCP](plans/mcp-p1-p4-tools-expansion.md#follow-up-ngoài-4-slice).
+
 ### Đợt 2 — hạn mức rủi ro & kịch bản thoát lệnh (2026-08-09)
 
 | Đường | Sai ở đâu trước đây | Sửa |

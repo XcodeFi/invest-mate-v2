@@ -131,6 +131,7 @@ Bản ghi **bất biến** — sửa = xoá và tạo lại. `Trade` không bao 
 | **Giá vs. khoảng cách giá** | Mức giá điều chỉnh bằng `AdjustPrice` (trừ cổ tức tiền mặt, rồi chia hệ số). Khoảng cách giá — biên trượt `FixedAmount`, `StepSize` — dùng `AdjustDelta`: **chỉ chia hệ số**, vì cổ tức tiền mặt dịch cả mặt bằng chứ không làm khoảng cách hẹp lại. |
 | **Không phải số nào cũng là giá** | `ScenarioNode.ConditionValue` là giá với `PriceAbove`/`PriceBelow`, là **phần trăm** với `PricePercentChange`, là **số ngày** với `TimeElapsed`. `TrailValue` chỉ là tiền khi `Method = FixedAmount`. `ActionValue` chỉ là giá với `MoveStopLoss`. |
 | **Quan sát thị trường thì rebase, không điều chỉnh khi đọc** | `TrailingStopConfig.HighestPrice` / `CurrentTrailingStop` là giá ghi nhận từ thị trường rồi **ghi đè trở lại** entity. Điều chỉnh khi đọc sẽ hạ chồng lần: lần ghi kế tiếp lưu giá ở mặt bằng mới, lần đọc sau lại chia tiếp. Vì vậy quy đổi **đúng một lần** rồi đánh dấu bằng `PriceBasisAt`. |
+| **Đóng mốc ở MỌI lần ghi, không chỉ khi rebase** | Giá ghi trực tiếp từ thị trường cũng đã ở mặt bằng sau mọi sự kiện đã qua ngày GDKHQ. Không đóng `PriceBasisAt` ngay lúc đó thì lần rebase sau lùi về mốc kế hoạch và chia lại các sự kiện đã phản ánh. Bẫy nằm ở nhánh **ghi lần đầu**, khi hàm rebase thoát sớm vì chưa có giá trị nào để quy đổi. |
 
 **Nguồn duy nhất dựng vị thế:** `PositionBuilder.Build(trades, actions, asOf)` (`Application/Common`). Mọi service cần giá vốn / số lượng phải gọi vào đây, không tự `GroupBy` trên `Trade` thô. Xem [ADR-0010](adr/0010-corporate-actions-position-projection.md).
 
@@ -146,10 +147,12 @@ Chuyển tuần tự, không nhảy cóc. Backend auto-chain khi cần (VD: clie
 
 | Field | Bao trùm | Dời khi |
 |---|---|---|
-| `PricesSetAt` | `EntryPrice`, `StopLoss`, `Target` | ctor, `Update()` có `entryPrice`/`stopLoss`/`target`, `UpdateStopLossWithHistory()` |
-| `ScenarioPricesSetAt` | ngưỡng node, `ActivationPrice`, `TrailValue`, `StepSize`, `ActionValue` của `MoveStopLoss` | `SetScenarioNodes()` |
+| `PricesSetAt` | `EntryPrice`, `StopLoss`, `Target` | ctor; `Update()` khi giá **thực sự đổi**; `UpdateStopLossWithHistory()` |
+| `ScenarioPricesSetAt` | ngưỡng node, `ActivationPrice`, `TrailValue`, `StepSize`, `ActionValue` của `MoveStopLoss` | `SetScenarioNodes()` khi chữ ký giá của cây kịch bản **thực sự đổi** |
 
 Tách hai mốc vì sửa nhánh kịch bản không đặt lại giá nhập — dùng chung một mốc thì thao tác đó sẽ vô hiệu hoá việc điều chỉnh giá nhập. Null → `ScenarioPricesSetAt` lùi về `PricesSetAt`, `PricesSetAt` lùi về `CreatedAt`.
+
+**Bắt buộc so sánh giá trị, không chỉ kiểm tra "có gửi lên hay không".** Form sửa kế hoạch gửi lại **toàn bộ** trường mỗi lần lưu — cả `entryPrice`/`stopLoss`/`target` lẫn `scenarioNodes` — nên `entryPrice.HasValue` luôn đúng. Dời mốc theo đó thì sửa mỗi ghi chú cũng đặt lại mặt bằng giá và huỷ việc điều chỉnh theo sự kiện quyền đã xảy ra.
 
 **CampaignReviewData (P0.7):** Value object embedded trong TradePlan khi chuyển sang Reviewed — chứa auto-calculated metrics: P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons learned
 

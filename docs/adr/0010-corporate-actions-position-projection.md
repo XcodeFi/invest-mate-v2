@@ -105,6 +105,13 @@ Mốc thời gian đi kèm: `TradePlan.PricesSetAt` thay cho `UpdatedAt` — `Up
 
 Cả hai đã tồn tại từ PR #145; PR này làm chúng nặng thêm vì đưa `PositionBuilder` vào đường khoá giao dịch.
 
+### Hai điều kiện để cơ chế "rebase một lần" thực sự đúng một lần
+
+Review PR #146 cho thấy cơ chế mốc dễ hỏng theo hai cách, cả hai đều đã sửa:
+
+- **Đóng mốc ở mọi lần ghi, không chỉ khi rebase.** `RebaseTrailingState` thoát sớm khi cả `HighestPrice` lẫn `CurrentTrailingStop` còn null, nên lần ghi ĐẦU TIÊN (lúc trailing stop vừa kích hoạt) không đóng mốc. Nếu lần đó rơi sau ngày GDKHQ của sự kiện A, giá vừa ghi đã phản ánh A nhưng mốc vẫn null → lần rebase kế tiếp lùi về mốc kế hoạch và chia cho A thêm lần nữa. Nay `ScenarioEvaluationService` đóng `PriceBasisAt` ngay tại chỗ gán `HighestPrice`.
+- **Dời mốc theo giá trị đổi, không theo "có gửi lên".** Form sửa kế hoạch gửi lại toàn bộ trường mỗi lần lưu, kể cả `entryPrice` và `scenarioNodes` không đổi. `Update()` và `SetScenarioNodes()` nay so sánh giá trị cũ/mới trước khi dời mốc — nếu không, sửa mỗi ghi chú cũng đặt lại mặt bằng giá và vô hiệu hoá toàn bộ tính năng này.
+
 Hai DTO tạo/lưu kịch bản dựng `TrailingStopConfig` mới và không mang `PriceBasisAt`, nhưng `SetScenarioNodes` luôn đặt lại `PricesSetAt` nên mốc dự phòng thành "bây giờ" — không có sự kiện nào sau đó, không rebase nhầm.
 
 ## References

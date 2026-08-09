@@ -269,6 +269,10 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                         continue;
                 }
                 config.HighestPrice = currentPrice;
+                // Giá vừa ghi là giá thị trường hôm nay, tức đã ở mặt bằng sau mọi sự kiện đã
+                // qua ngày GDKHQ. Phải đóng mốc ngay cả khi RebaseTrailingState không chạy
+                // (lần ghi đầu tiên), nếu không lần rebase sau sẽ chia lại từ mốc kế hoạch.
+                config.PriceBasisAt = DateTime.UtcNow;
 
                 // Fetch ATR lazily (only when an ATR node is encountered)
                 if (config.Method == TrailingStopMethod.ATR && !atrFetched)
