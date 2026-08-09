@@ -1198,6 +1198,40 @@ Chỉ chạy gate khi size **cũ dưới ngưỡng và size mới từ ngưỡng
 
         _gate.VerifyNoOtherCalls();
     }
+
+    [Fact]
+    public async Task Update_OnlyQuantitySent_ShouldFallBackToExistingEntryPrice()
+    {
+        // Ghim fallback partial-update. Không có test này thì ai đó đổi lại thành
+        // request.EntryPrice thẳng là size về 0, gate im lặng, cửa hậu mở lại.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+
+        var command = TestFactory.UpdateCommand(quantity: 120, entryPrice: null);
+
+        await handler.Handle(command, default);
+
+        // 120 × 100.000 = 12tr = 12% > 5%
+        _gate.Verify(g => g.EnsureAsync(It.IsAny<string>(), It.IsAny<string>(),
+            12_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_LoweringAccountBalanceAcrossThreshold_ShouldRunGate()
+    {
+        // Cửa hậu đường số dư: size mới 4tr vẫn dưới ngưỡng CŨ (5tr), nhưng cùng
+        // request hạ số dư còn 50tr nên tỷ lệ thật thành 8%.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+
+        var command = TestFactory.UpdateCommand(quantity: 40, entryPrice: 100_000m);
+        command.AccountBalance = 50_000_000m;
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync(It.IsAny<string>(), It.IsAny<string>(),
+            4_000_000m, 50_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
 ```
 
 - [ ] **Step 2: Chạy test, xác nhận fail**
@@ -1210,20 +1244,30 @@ Expected: FAIL — 4 test mới đỏ
 Sau khi load plan cũ, trước khi gọi `plan.Update(...)`:
 
 ```csharp
-var threshold = (plan.AccountBalance ?? 0m) * 0.05m;
+// UpdateTradePlanCommand.Quantity là int?, EntryPrice là decimal?, AccountBalance là
+// decimal? — update là PARTIAL (TradePlan.Update chỉ gán khi HasValue). Mọi vế của
+// phép so sánh phải fallback về giá trị cũ, nếu không gate sẽ im lặng bỏ qua.
 var oldSize = plan.Quantity * plan.EntryPrice;
-
-// UpdateTradePlanCommand.Quantity là int? và EntryPrice là decimal? — update là
-// PARTIAL (TradePlan.Update chỉ gán khi HasValue). Phải fallback về giá trị cũ,
-// nếu không thì sửa mỗi Quantity sẽ tính size bằng 0 và gate không bao giờ bắn.
 var newSize = (request.Quantity ?? plan.Quantity) * (request.EntryPrice ?? plan.EntryPrice);
+var newBalance = request.AccountBalance ?? plan.AccountBalance;
+
+var oldThreshold = (plan.AccountBalance ?? 0m) * 0.05m;
+var newThreshold = (newBalance ?? 0m) * 0.05m;
+
+// So TỶ LỆ ở hai thời điểm, mỗi vế dùng số dư của chính thời điểm đó. Nếu ngưỡng
+// mới vẫn tính theo số dư cũ thì một request vừa nâng size vừa hạ số dư sẽ lọt.
+var wasBelow = !plan.AccountBalance.HasValue
+    || plan.AccountBalance.Value <= 0m
+    || oldSize < oldThreshold;
+var isNowAtOrAbove = newBalance.HasValue
+    && newBalance.Value > 0m
+    && newSize >= newThreshold;
 
 // Vá cửa hậu "tạo nhỏ rồi sửa lớn". Chỉ bắn khi thực sự vượt ngưỡng lên,
 // để không phá nguyên tắc "plan có rồi thì thôi".
-if (plan.AccountBalance.HasValue && plan.AccountBalance.Value > 0m
-    && oldSize < threshold && newSize >= threshold)
+if (wasBelow && isNowAtOrAbove)
 {
-    await _dossierGate.EnsureAsync(plan.UserId, plan.Symbol, newSize, plan.AccountBalance, cancellationToken);
+    await _dossierGate.EnsureAsync(plan.UserId, plan.Symbol, newSize, newBalance, cancellationToken);
 }
 ```
 

@@ -131,9 +131,22 @@ Gate nằm ở **Application layer**, không nằm trong entity `TradePlan` — 
 | Điểm bắn | Khi nào |
 |---|---|
 | `CreateTradePlanCommandHandler` ([CreateTradePlanCommand.cs:69](../../../src/InvestmentApp.Application/TradePlans/Commands/CreateTradePlan/CreateTradePlanCommand.cs#L69)) | **Đầu** `Handle`, trước khi construct entity |
-| `UpdateTradePlanCommandHandler` | Chỉ khi size cũ `< 5%` **và** size mới `≥ 5%` |
+| `UpdateTradePlanCommandHandler` | Chỉ khi **tỷ lệ** cũ `< 5%` **và** tỷ lệ mới `≥ 5%` |
 
-Khi `AccountBalance` null thì không có ngưỡng nào để vượt, nên luồng sửa **không bao giờ** chạy gate. Đây là hệ quả có ý thức của Q4 (không biết số dư thì coi như lệnh nhỏ), không phải trường hợp bị bỏ sót.
+Điều được so là **tỷ lệ**, không phải size tuyệt đối — và cả hai vế phải dùng đúng số dư của thời điểm tương ứng:
+
+```
+oldRatio  dùng plan.Quantity × plan.EntryPrice        / plan.AccountBalance
+newRatio  dùng (request.Quantity ?? plan.Quantity)
+          × (request.EntryPrice ?? plan.EntryPrice)   / (request.AccountBalance ?? plan.AccountBalance)
+```
+
+Hai chỗ dễ sai, cả hai đều mở lại đúng cửa hậu mà luồng này sinh ra để bịt:
+
+- **Update là partial.** `Quantity` là `int?`, `EntryPrice` là `decimal?`, và `TradePlan.Update` chỉ gán khi `HasValue`. Không fallback về giá trị cũ thì sửa mỗi `Quantity` sẽ cho size bằng 0 và gate không bao giờ bắn.
+- **`AccountBalance` cũng nằm trong cùng payload sửa.** Tính ngưỡng theo số dư cũ thì một request vừa nâng size vừa hạ số dư sẽ lọt: plan 2M trên 100M, sửa lên 4M kèm hạ số dư còn 50M → ngưỡng cũ 5M nên 4M < 5M, gate không bắn, còn tỷ lệ thật là 8%. Form FE gửi lại toàn bộ field mỗi lần lưu nên đây không phải trường hợp hiếm.
+
+`AccountBalance` null hoặc ≤ 0 ở **cả hai** thời điểm ⇒ không có ngưỡng nào để vượt ⇒ không chạy gate. Đây là hệ quả có ý thức của Q4 (không biết số dư thì coi như lệnh nhỏ), không phải bỏ sót.
 
 Đặt ở đầu `Handle` là có chủ đích: nhánh auto-transition `Draft → Ready → InProgress` khi `request.Status == "Executed"` ([cùng file, dòng 156–163](../../../src/InvestmentApp.Application/TradePlans/Commands/CreateTradePlan/CreateTradePlanCommand.cs#L156-L163)) nằm *sau* điểm bắn, nên tự động được bao. Không có đường lách qua wizard.
 
