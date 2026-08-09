@@ -13,7 +13,7 @@ project/
 │   ├── InvestmentApp.Application/      # CQRS handlers, interfaces, DTOs (depends on Domain)
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
-│   │   ├── Common/                     # Hàm thuần dùng chung: PortfolioCashCalculator, PositionBuilder (nguồn DUY NHẤT dựng vị thế — mọi service cần giá vốn/số lượng phải gọi vào đây, không tự GroupBy trên Trade thô), CorporateActionAdjuster (điều chỉnh giá ngưỡng tại thời điểm đọc). Xem ADR-0010
+│   │   ├── Common/                     # Hàm thuần dùng chung: PortfolioCashCalculator, PositionBuilder (nguồn DUY NHẤT dựng vị thế — mọi service cần giá vốn/số lượng phải gọi vào đây, không tự GroupBy trên Trade thô), CorporateActionAdjuster (điều chỉnh giá ngưỡng tại thời điểm đọc), TradePlanPriceAdjuster (quy giá trên TradePlan về mặt bằng hiện tại). Xem ADR-0010
 │   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation, IApiKeyTokenService)
 │   │   ├── Common/Behaviors/           # MediatR pipeline behaviors (ValidationBehavior<,>)
 │   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~23, incl. IApiKeyRepository)
@@ -117,7 +117,7 @@ are now **in-process** in the API:
 | Service | Responsibility | Key Dependencies |
 |---------|---------------|-----------------|
 | PnLService | P&L realized + unrealized. **Từ 2026-08-08 (ADR-0010) tính qua `PositionBuilder`** — không còn tự gộp `Trade` thô, không còn hard-code `"USD"`, có tính phí/thuế. Trả thêm `SettledQuantity`/`PendingQuantity`/`DividendNet`/`PendingDividend`/`TotalPnLWithDividend` | ITradeRepository, IStockPriceService, **ICorporateActionRepository** |
-| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts. **Giá vào/cắt lỗ/mục tiêu điều chỉnh qua `CorporateActionAdjuster` tại thời điểm đọc** — không thì báo "đã thủng SL" sai sau ngày GDKHQ | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider, **ICorporateActionRepository** |
+| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts, hạn mức rủi ro ngày, stress test. **Giá vào/cắt lỗ/mục tiêu điều chỉnh qua `CorporateActionAdjuster` tại thời điểm đọc**; số lượng và giá vốn lấy từ `PositionBuilder` — cả 4 method đã đấu nối (ADR-0010) | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider, **ICorporateActionRepository** |
 | PerformanceMetricsService | CAGR, Sharpe, Sortino, win rate, profit factor, equity curve | ISnapshotRepo, ITradeRepo |
 | PositionSizingService | 5 position sizing models: Fixed Risk, ATR-Based, Kelly Criterion (Half-Kelly, 25% cap), Turtle (1-unit entry), Volatility-Adjusted (ATR% scaling). Pure calculation, no DB dependencies | None (stateless) |
 | TechnicalIndicatorService | 10 indicators: EMA(20/21/50/200), RSI(14), MACD(12,26,9), Stochastic(14,3,3), ADX(14)+DI, OBV, MFI(14), Bollinger(20,2), ATR(14), Volume ratio. S/R, Fibonacci, 10-indicator voting signal, Confluence Score (0-100 weighted), Market Condition Classifier (ADX-based), Divergence Detection (RSI/MACD vs Price) | IMarketDataProvider |
@@ -130,7 +130,7 @@ are now **in-process** in the API:
 | TcbsFundamentalDataProvider | P/E, EPS, ROE from TCBS API | HttpClient, IMemoryCache |
 | SnapshotService | Daily portfolio snapshots with position weights | IPnLService |
 | AlertEvaluationService | Price/drawdown/portfolio value alerts | ISnapshotRepo, IStockPriceRepo |
-| ScenarioEvaluationService | Auto-evaluate scenario playbooks every 15 min, trigger actions, create AlertHistory | ITradePlanRepo, IStockPriceService |
+| ScenarioEvaluationService | Auto-evaluate scenario playbooks every 15 min, trigger actions, create AlertHistory. **Giá trên kế hoạch quy về mặt bằng hiện tại qua `TradePlanPriceAdjuster`** (mốc `TradePlan.PricesSetAt`); trạng thái trượt `HighestPrice`/`CurrentTrailingStop` được rebase một lần và đánh dấu bằng `TrailingStopConfig.PriceBasisAt` | ITradePlanRepo, IStockPriceService, **ICorporateActionRepository** |
 | BehavioralAnalysisService | Detect FOMO, panic sell, revenge trading, overtrading patterns | JournalEntry, Trade data |
 | CampaignReviewService | Auto-calculate P&L metrics for campaign review (amount, %, VND/ngày, annualized return, target achievement) | ITradeRepository, IPnLService |
 | VietstockEventProvider | Crawl news + corporate events from Vietstock API (CSRF token flow) | HttpClient |

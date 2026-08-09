@@ -13,6 +13,7 @@ public class ScenarioEvaluationServiceTests
     private readonly Mock<IStockPriceRepository> _stockPriceRepo;
     private readonly Mock<IAlertHistoryRepository> _alertHistoryRepo;
     private readonly Mock<ITechnicalIndicatorService> _technicalIndicatorService;
+    private readonly Mock<ICorporateActionRepository> _corporateActionRepo;
     private readonly Mock<ILogger<ScenarioEvaluationService>> _logger;
     private readonly ScenarioEvaluationService _sut;
 
@@ -23,11 +24,16 @@ public class ScenarioEvaluationServiceTests
         _alertHistoryRepo = new Mock<IAlertHistoryRepository>();
         _technicalIndicatorService = new Mock<ITechnicalIndicatorService>();
         _logger = new Mock<ILogger<ScenarioEvaluationService>>();
+        _corporateActionRepo = new Mock<ICorporateActionRepository>();
+        _corporateActionRepo
+            .Setup(r => r.GetByPortfolioIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<CorporateAction>());
         _sut = new ScenarioEvaluationService(
             _tradePlanRepo.Object,
             _stockPriceRepo.Object,
             _alertHistoryRepo.Object,
             _technicalIndicatorService.Object,
+            _corporateActionRepo.Object,
             _logger.Object);
     }
 

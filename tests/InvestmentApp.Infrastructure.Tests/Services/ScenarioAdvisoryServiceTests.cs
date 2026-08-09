@@ -11,13 +11,19 @@ public class ScenarioAdvisoryServiceTests
 {
     private readonly Mock<ITradePlanRepository> _tradePlanRepo;
     private readonly Mock<IMarketDataProvider> _marketDataProvider;
+    private readonly Mock<ICorporateActionRepository> _corporateActionRepo;
     private readonly ScenarioAdvisoryService _sut;
 
     public ScenarioAdvisoryServiceTests()
     {
         _tradePlanRepo = new Mock<ITradePlanRepository>();
         _marketDataProvider = new Mock<IMarketDataProvider>();
-        _sut = new ScenarioAdvisoryService(_tradePlanRepo.Object, _marketDataProvider.Object);
+        _corporateActionRepo = new Mock<ICorporateActionRepository>();
+        _corporateActionRepo
+            .Setup(r => r.GetByPortfolioIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<CorporateAction>());
+        _sut = new ScenarioAdvisoryService(
+            _tradePlanRepo.Object, _marketDataProvider.Object, _corporateActionRepo.Object);
     }
 
     // =========================================================================

@@ -63,6 +63,20 @@ public class TradePlan : AggregateRoot
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
+    /// <summary>
+    /// Lần cuối người dùng đặt lại các mức giá của kế hoạch. Là mốc để điều chỉnh
+    /// giá theo sự kiện quyền — <c>UpdatedAt</c> không dùng được vì còn nhảy mỗi lần
+    /// một nhánh kịch bản kích hoạt. Null với kế hoạch cũ → lùi về <c>CreatedAt</c>.
+    /// </summary>
+    public DateTime? PricesSetAt { get; private set; }
+
+    /// <summary>
+    /// Mốc riêng cho ngưỡng giá nằm trong cây kịch bản. Tách khỏi <see cref="PricesSetAt"/>
+    /// vì sửa nhánh kịch bản không đụng gì tới giá nhập — dùng chung một mốc thì thao tác đó
+    /// sẽ vô hiệu hoá việc điều chỉnh giá nhập. Null → lùi về <see cref="PricesSetAt"/>.
+    /// </summary>
+    public DateTime? ScenarioPricesSetAt { get; private set; }
+
     [BsonConstructor]
     public TradePlan() { } // MongoDB
 
@@ -104,6 +118,7 @@ public class TradePlan : AggregateRoot
         IsDeleted = false;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        PricesSetAt = CreatedAt;
     }
 
     public void Update(string? symbol = null, string? direction = null,
@@ -119,6 +134,14 @@ public class TradePlan : AggregateRoot
     {
         if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed)
             throw new InvalidOperationException("Cannot update an executed or reviewed plan");
+
+        // So sánh TRƯỚC khi gán. Form sửa kế hoạch gửi lại toàn bộ trường mỗi lần lưu, nên
+        // "có gửi giá" không có nghĩa là giá đổi — dời mốc theo đó thì sửa mỗi ghi chú cũng
+        // huỷ việc điều chỉnh theo sự kiện quyền.
+        var priceChanged =
+            (entryPrice.HasValue && entryPrice.Value != EntryPrice) ||
+            (stopLoss.HasValue && stopLoss.Value != StopLoss) ||
+            (target.HasValue && target.Value != Target);
 
         if (symbol != null) Symbol = symbol.ToUpper().Trim();
         if (direction != null) Direction = direction;
@@ -139,6 +162,7 @@ public class TradePlan : AggregateRoot
         if (timeHorizon.HasValue) TimeHorizon = timeHorizon.Value;
         if (invalidationCriteria != null) InvalidationCriteria = invalidationCriteria;
         if (expectedReviewDate.HasValue) ExpectedReviewDate = expectedReviewDate.Value;
+        if (priceChanged) PricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -437,6 +461,7 @@ public class TradePlan : AggregateRoot
             ChangedAt = DateTime.UtcNow
         });
         StopLoss = newStopLoss;
+        PricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -461,10 +486,23 @@ public class TradePlan : AggregateRoot
         var nodeIds = nodes.Select(n => n.NodeId).ToHashSet();
         if (nodes.Any(n => n.ParentId != null && !nodeIds.Contains(n.ParentId)))
             throw new ArgumentException("ScenarioNode references a non-existent parent");
+        // Chỉ dời mốc của riêng cây kịch bản (giá nhập của kế hoạch không hề được đặt lại),
+        // và chỉ khi ngưỡng thực sự đổi — form gửi lại toàn bộ node mỗi lần lưu.
+        var thresholdsChanged = PriceSignature(nodes) != PriceSignature(ScenarioNodes);
+
         ScenarioNodes = nodes;
+        if (thresholdsChanged) ScenarioPricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
+
+    /// <summary>Chữ ký của mọi con số mang giá trong cây kịch bản.</summary>
+    private static string PriceSignature(IEnumerable<ScenarioNode>? nodes)
+        => nodes == null
+            ? string.Empty
+            : string.Join("|", nodes.Select(n =>
+                $"{n.NodeId}:{n.ConditionValue}:{n.ActionValue}:{n.TrailingStopConfig?.ActivationPrice}" +
+                $":{n.TrailingStopConfig?.TrailValue}:{n.TrailingStopConfig?.StepSize}"));
 
     public void TriggerScenarioNode(string nodeId, string? tradeId = null)
     {
@@ -644,6 +682,14 @@ public class TrailingStopConfig
     public decimal? StepSize { get; set; }
     public decimal? CurrentTrailingStop { get; set; }
     public decimal? HighestPrice { get; set; }
+
+    /// <summary>
+    /// Mặt bằng giá của <see cref="HighestPrice"/> / <see cref="CurrentTrailingStop"/>.
+    /// Hai giá trị này được ghi nhận từ thị trường rồi ghi đè trở lại, nên phải quy về
+    /// mặt bằng mới đúng một lần sau sự kiện quyền — khác các ngưỡng do người dùng đặt,
+    /// vốn điều chỉnh tại thời điểm đọc. Null → lùi về mốc giá của kế hoạch.
+    /// </summary>
+    public DateTime? PriceBasisAt { get; set; }
 }
 
 public class ScenarioNode
