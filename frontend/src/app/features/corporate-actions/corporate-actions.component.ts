@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
@@ -164,7 +164,7 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
             <div class="space-y-3">
               <div>
                 <label class="block text-sm">Mã chứng khoán</label>
-                <input appUppercase [(ngModel)]="form.symbol" (ngModelChange)="onSymbolChange()"
+                <input appUppercase [(ngModel)]="form.symbol"
                        class="w-full rounded border px-2 py-1 dark:bg-gray-800"
                        placeholder="VD: HPG" />
               </div>
@@ -291,13 +291,16 @@ export class CorporateActionsComponent implements OnInit {
 
   form = this.emptyForm();
 
-  matchedPosition = computed(() =>
-    this.positions().find(p => p.symbol === this.formSymbol()) ?? null
-  );
+  // Method chứ KHÔNG phải computed(): `form` là object thường nên computed sẽ không
+  // đăng ký dependency lên các field của nó và ô xem trước đứng im khi người dùng gõ.
+  // ngModel kích hoạt change detection nên method chạy lại mỗi cycle.
+  matchedPosition(): ActivePosition | null {
+    const symbol = (this.form.symbol ?? '').toUpperCase().trim();
+    if (!symbol) return null;
+    return this.positions().find(p => p.symbol === symbol) ?? null;
+  }
 
-  private formSymbol = signal('');
-
-  preview = computed<AdjustmentPreview | null>(() => {
+  preview(): AdjustmentPreview | null {
     const pos = this.matchedPosition();
     if (!pos) return null;
     const totalCost = pos.quantity * pos.averageCost;
@@ -309,7 +312,7 @@ export class CorporateActionsComponent implements OnInit {
       this.form.percentOfPar, this.form.ratioOld, ratioNew,
       this.form.taxRatePercent ?? DEFAULT_TAX_PERCENT
     );
-  });
+  }
 
   ngOnInit(): void {
     this.portfolioService.getAll().subscribe({
@@ -352,17 +355,12 @@ export class CorporateActionsComponent implements OnInit {
 
   openForm(): void {
     this.form = this.emptyForm();
-    this.formSymbol.set('');
     this.formError.set(null);
     this.formOpen.set(true);
   }
 
   closeForm(): void {
     this.formOpen.set(false);
-  }
-
-  onSymbolChange(): void {
-    this.formSymbol.set((this.form.symbol ?? '').toUpperCase().trim());
   }
 
   save(): void {

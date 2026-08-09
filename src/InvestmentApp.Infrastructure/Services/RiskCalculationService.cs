@@ -142,7 +142,11 @@ public class RiskCalculationService : IRiskCalculationService
                     PositionSizePercent = positionSizePercent,
                     StopLossPrice = adjustedStopLoss,
                     TargetPrice = adjustedTarget,
-                    RiskRewardRatio = adjustedRiskPerShare > 0 ? adjustedReward / adjustedRiskPerShare : 0,
+                    // null = chưa đặt stop-loss (khác hẳn "tỷ lệ bằng 0"). Bản tin AI kiểm
+                    // HasValue để in "—", nên trả 0 ở đây sẽ đọc thành R:R = 0.
+                    RiskRewardRatio = slTarget == null
+                        ? null
+                        : adjustedRiskPerShare > 0 ? adjustedReward / adjustedRiskPerShare : 0,
                     RiskPerShare = adjustedRiskPerShare,
                     RiskAmount = adjustedRiskPerShare.HasValue ? adjustedRiskPerShare * positionPnl.Quantity : null,
                     DistanceToStopLossPercent = adjustedStopLoss.HasValue && positionPnl.CurrentPrice > 0

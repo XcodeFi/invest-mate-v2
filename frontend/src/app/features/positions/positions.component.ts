@@ -141,10 +141,12 @@ interface PortfolioGroup {
                   <div>
                     <div class="text-xs text-gray-500">Số lượng</div>
                     <div class="font-medium">
-                      {{ pos.quantity | number:'1.0-0' }} CP
+                      <!-- Số đã về làm số chính để đối chiếu sổ công ty chứng khoán;
+                           badge cộng thêm phần chờ về nên tổng đọc ra đúng. -->
+                      {{ (pos.pendingQuantity > 0 ? pos.settledQuantity : pos.quantity) | number:'1.0-0' }} CP
                       @if (pos.pendingQuantity > 0) {
                         <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700"
-                              title="Cổ phiếu từ sự kiện quyền, chưa về tài khoản">
+                              [title]="'Cổ phiếu từ sự kiện quyền chưa về tài khoản — lãi/lỗ đã tính trên tổng ' + pos.quantity + ' CP'">
                           +{{ pos.pendingQuantity | number:'1.0-0' }} chờ về
                         </span>
                       }

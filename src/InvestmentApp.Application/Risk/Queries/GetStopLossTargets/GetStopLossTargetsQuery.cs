@@ -1,4 +1,5 @@
 using MediatR;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 
 namespace InvestmentApp.Application.Risk.Queries.GetStopLossTargets;
@@ -37,13 +38,16 @@ public class GetStopLossTargetsQueryHandler : IRequestHandler<GetStopLossTargets
 {
     private readonly IStopLossTargetRepository _stopLossTargetRepository;
     private readonly IPortfolioRepository _portfolioRepository;
+    private readonly ICorporateActionRepository _corporateActionRepository;
 
     public GetStopLossTargetsQueryHandler(
         IStopLossTargetRepository stopLossTargetRepository,
-        IPortfolioRepository portfolioRepository)
+        IPortfolioRepository portfolioRepository,
+        ICorporateActionRepository corporateActionRepository)
     {
         _stopLossTargetRepository = stopLossTargetRepository;
         _portfolioRepository = portfolioRepository;
+        _corporateActionRepository = corporateActionRepository;
     }
 
     public async Task<StopLossTargetsDto> Handle(GetStopLossTargetsQuery request, CancellationToken cancellationToken)
@@ -54,25 +58,42 @@ public class GetStopLossTargetsQueryHandler : IRequestHandler<GetStopLossTargets
 
         var targets = await _stopLossTargetRepository.GetByPortfolioIdAsync(request.PortfolioId, cancellationToken);
 
+        // Ngưỡng lưu giá tuyệt đối tại lần sửa gần nhất. Phải điều chỉnh giống
+        // RiskCalculationService, không thì hai bề mặt đọc lệch nhau sau ngày GDKHQ.
+        var actionsBySymbol = (await _corporateActionRepository
+                .GetByPortfolioIdAsync(request.PortfolioId, cancellationToken))
+            .ToLookup(a => a.Symbol, StringComparer.OrdinalIgnoreCase);
+
         return new StopLossTargetsDto
         {
             PortfolioId = request.PortfolioId,
-            Items = targets.Select(t => new StopLossTargetItemDto
+            Items = targets.Select(t =>
             {
-                Id = t.Id,
-                TradeId = t.TradeId,
-                Symbol = t.Symbol,
-                EntryPrice = t.EntryPrice,
-                StopLossPrice = t.StopLossPrice,
-                TargetPrice = t.TargetPrice,
-                TrailingStopPercent = t.TrailingStopPercent,
-                TrailingStopPrice = t.TrailingStopPrice,
-                IsStopLossTriggered = t.IsStopLossTriggered,
-                IsTargetTriggered = t.IsTargetTriggered,
-                TriggeredAt = t.TriggeredAt,
-                RiskRewardRatio = t.GetRiskRewardRatio(),
-                RiskPerShare = t.GetRiskPerShare(),
-                CreatedAt = t.CreatedAt
+                var actions = actionsBySymbol[t.Symbol];
+                var entry = CorporateActionAdjuster.AdjustPrice(t.EntryPrice, t.UpdatedAt, actions);
+                var stopLoss = CorporateActionAdjuster.AdjustPrice(t.StopLossPrice, t.UpdatedAt, actions);
+                var target = CorporateActionAdjuster.AdjustPrice(t.TargetPrice, t.UpdatedAt, actions);
+                var riskPerShare = entry - stopLoss;
+
+                return new StopLossTargetItemDto
+                {
+                    Id = t.Id,
+                    TradeId = t.TradeId,
+                    Symbol = t.Symbol,
+                    EntryPrice = entry,
+                    StopLossPrice = stopLoss,
+                    TargetPrice = target,
+                    TrailingStopPercent = t.TrailingStopPercent,
+                    TrailingStopPrice = t.TrailingStopPrice.HasValue
+                        ? CorporateActionAdjuster.AdjustPrice(t.TrailingStopPrice.Value, t.UpdatedAt, actions)
+                        : null,
+                    IsStopLossTriggered = t.IsStopLossTriggered,
+                    IsTargetTriggered = t.IsTargetTriggered,
+                    TriggeredAt = t.TriggeredAt,
+                    RiskRewardRatio = riskPerShare > 0 ? (target - entry) / riskPerShare : 0,
+                    RiskPerShare = riskPerShare,
+                    CreatedAt = t.CreatedAt
+                };
             }).ToList()
         };
     }
