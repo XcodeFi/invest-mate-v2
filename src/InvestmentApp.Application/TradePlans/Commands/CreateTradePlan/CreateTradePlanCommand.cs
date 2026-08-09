@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Domain.Entities;
@@ -70,15 +71,21 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly ICompanyDossierGate _dossierGate;
 
-    public CreateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository)
+    public CreateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository,
+        ICompanyDossierGate dossierGate)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _dossierGate = dossierGate;
     }
 
     public async Task<string> Handle(CreateTradePlanCommand request, CancellationToken cancellationToken)
     {
+        var planSize = request.Quantity * request.EntryPrice;
+        await _dossierGate.EnsureAsync(request.UserId, request.Symbol, planSize, request.AccountBalance, cancellationToken);
+
         var checklist = request.Checklist?.Select(c => new ChecklistItem
         {
             Label = c.Label,
