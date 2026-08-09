@@ -31,7 +31,7 @@
 - `src/InvestmentApp.Domain/Entities/CompanyDossier.cs` — aggregate + `MoatItem` + `RiskFactor` + `DossierFreshness`. Một file vì ba type sau chỉ tồn tại phục vụ aggregate này, theo đúng cách `InvalidationRule.cs` gom rule + enum.
 
 **Application**
-- `src/InvestmentApp.Application/Common/Interfaces/ICompanyDossierRepository.cs`
+- `src/InvestmentApp.Application/Common/Interfaces/ICompanyDossierRepository.cs` — lưu ý project có **hai** chỗ khai repository interface: file gộp `src/InvestmentApp.Application/RepositoryInterfaces.cs` (phần lớn, thừa kế `IRepository<T>` để lấy `AddAsync`/`UpdateAsync`) và các file rời trong `Common/Interfaces/` (VD `IScenarioTemplateRepository.cs`). Hồ sơ đi theo kiểu file rời, không thừa kế `IRepository<T>` vì nó cần khóa `(UserId, Symbol)` chứ không phải khóa `Id`.
 - `src/InvestmentApp.Application/CompanyDossiers/DTOs/CompanyDossierDto.cs` — DTO + `DossierGateStatusDto`
 - `src/InvestmentApp.Application/CompanyDossiers/Gate/ICompanyDossierGate.cs` — interface + `DossierGateResult` + `DossierGateException`
 - `src/InvestmentApp.Application/CompanyDossiers/Gate/CompanyDossierGate.cs` — implementation
@@ -1046,7 +1046,8 @@ public class TradePlanDossierGateWiringTests
         var act = () => handler.Handle(command, default);
 
         await act.Should().ThrowAsync<DossierGateException>();
-        repo.Verify(r => r.CreateAsync(It.IsAny<Domain.Entities.TradePlan>()), Times.Never);
+        // ITradePlanRepository thừa kế IRepository<T> — method là AddAsync, không phải CreateAsync.
+        repo.Verify(r => r.AddAsync(It.IsAny<Domain.Entities.TradePlan>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
