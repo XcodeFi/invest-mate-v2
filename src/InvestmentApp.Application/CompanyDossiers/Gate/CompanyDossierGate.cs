@@ -27,7 +27,11 @@ public class CompanyDossierGate : ICompanyDossierGate
             case DossierFreshness.Expired: return DossierGateResult.Fail("expired");
         }
 
+        // Guard `> 0` là bắt buộc để khớp TradePlan.EnsureDisciplineGate:171.
+        // Thiếu nó thì AccountBalance = 0 cho threshold = 0, mọi lệnh >= 0 nên
+        // MỌI lệnh rơi vào tầng lớn — trong khi số dư 0 nghĩa là chưa biết gì, đúng như null.
         var requireFull = accountBalance.HasValue
+            && accountBalance.Value > 0m
             && planSize >= accountBalance.Value * LargeTierThreshold;
 
         var missing = requireFull ? CheckLarge(dossier) : CheckSmall(dossier);

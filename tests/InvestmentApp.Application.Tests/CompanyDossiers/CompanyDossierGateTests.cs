@@ -149,6 +149,19 @@ public class CompanyDossierGateTests
         result.Passed.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1_000_000)]
+    public async Task NonPositiveAccountBalance_ShouldUseSmallTier(decimal balance)
+    {
+        // Khớp guard `AccountBalance.Value > 0m` của TradePlan.EnsureDisciplineGate:179.
+        // Thiếu guard này thì threshold = 0 và mọi lệnh rơi vào tầng lớn.
+        Setup(Dossier(businessModel: "Bán thép", moatLength: 5, riskCount: 1, signalLength: 10));
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, balance, default);
+
+        result.Passed.Should().BeTrue();
+    }
+
     [Fact]
     public async Task LargeTier_VietnameseBusinessModelOf30Chars_ShouldPass()
     {
