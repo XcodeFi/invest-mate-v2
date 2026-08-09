@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-23
-- **Related plan:** `docs/plans/p3-agent-position-portfolio-fee.md`
+- **Related plan:** `docs/plans/done/p3-agent-position-portfolio-fee.md`
 - **Affected layers:** Api
 
 ## Context
@@ -54,7 +54,7 @@ The AI-agent surface (`/api/v1/ai/agent`, ApiKey scheme — see ADR-0004) lets N
 
 ## References
 
-- Plan: `docs/plans/p3-agent-position-portfolio-fee.md`
+- Plan: `docs/plans/done/p3-agent-position-portfolio-fee.md`
 - Spec: `docs/superpowers/specs/2026-07-23-agent-position-open-portfolio-fee-design.md`
 - Extends: ADR-0004 (AI-agent write surface via ApiKey)
 - PR: #TBD (fill in after merge)

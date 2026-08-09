@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-04-26
-- **Related plan:** [`docs/plans/worker-to-scheduler-migration.md`](../plans/worker-to-scheduler-migration.md)
+- **Related plan:** [`docs/plans/worker-to-scheduler-migration.md`](../plans/done/worker-to-scheduler-migration.md)
 - **Affected layers:** Api / Infrastructure / Infra-external
 
 ## Context
@@ -79,7 +79,7 @@ Trade-off chấp nhận: API container có thêm 4 internal endpoints + 1 backgr
 
 ## References
 
-- Plan: [`docs/plans/worker-to-scheduler-migration.md`](../plans/worker-to-scheduler-migration.md)
+- Plan: [`docs/plans/worker-to-scheduler-migration.md`](../plans/done/worker-to-scheduler-migration.md)
 - PR: TBD
 - External:
   - [Cloud Scheduler with OIDC for Cloud Run](https://cloud.google.com/run/docs/triggering/using-scheduler)

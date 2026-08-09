@@ -2,7 +2,7 @@
 
 > Tài liệu kế hoạch — bổ sung kỷ luật **thesis-driven** vào quy trình tạo Trade Plan, lấy cảm hứng từ case study Vinpearl Air 2019-2020 (Vingroup "dám dừng đúng lúc dù đã đầu tư sâu").
 > Ngày tạo: 2026-04-23
-> Trạng thái: **Đang thảo luận, chưa triển khai**
+> Trạng thái: **V1 đã ship (PR #93), V2.1 đã ship (PR #94) — V2.2/V2.3/V3/V4 còn defer**
 > Quyết định đã chốt (2026-04-23):
 >
 > - **Q1:** Viết plan trước, bàn chi tiết sau ✅

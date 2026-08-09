@@ -49,7 +49,7 @@ Lý do làm đầu: **cú nhảy năng lực lớn nhất** — cho agent "situa
 
 ### Checkpoint — P0 (done 2026-07-25)
 - **Decisions**: 2 class `DecisionTools` (queue/score/streak/thesis-reviews) + `RiskTools` (risk/SL-targets/trailing/advisories). Deviation vs bảng trên: `get_stop_loss_targets` + `get_trailing_stop_alerts` là **per-portfolio** (query yêu cầu `PortfolioId`, ownership check ở handler) — tool nhận `portfolioId` required giống `get_portfolio_risk`. `get_discipline_score` nhận `days` nullable → default 90.
-- **Files changed**: `src/InvestmentApp.Api/Mcp/{DecisionTools,RiskTools}.cs` (new), `tests/.../Mcp/{DecisionToolsTests,RiskToolsTests}.cs` (new), `McpToolDiscoveryTests.cs` (37 tool + 3 schema-leak assertions cho tool có `portfolioId`), plan chi tiết `docs/plans/mcp-p0-risk-decision-tools.md`.
+- **Files changed**: `src/InvestmentApp.Api/Mcp/{DecisionTools,RiskTools}.cs` (new), `tests/.../Mcp/{DecisionToolsTests,RiskToolsTests}.cs` (new), `McpToolDiscoveryTests.cs` (37 tool + 3 schema-leak assertions cho tool có `portfolioId`), plan chi tiết `docs/plans/done/mcp-p0-risk-decision-tools.md`.
 - **Tests**: +9 unit, suite 1.451 pass.
 - **Affected layers**: Api only (+ Api.Tests).
 - **Next**: P1 Performance & Wealth Analytics (8 read tool, §P1) — cùng pattern, thêm class `AnalyticsTools`. Verify signature từng query trước khi scaffold (một số có `PortfolioId`/date-range/`days`). Đọc checkpoint này + `PortfolioTools.cs` là đủ context.

@@ -2,7 +2,7 @@
 
 ## Now (done this session)
 
-- **Feature start:** NPU daily digest pull + per-user API keys (PAT). Plan: [`docs/plans/p1-daily-digest-api-keys.md`](../plans/p1-daily-digest-api-keys.md). Decision: [`ADR-0003`](../adr/0003-per-user-api-keys.md) (Proposed).
+- **Feature start:** NPU daily digest pull + per-user API keys (PAT). Plan: [`docs/plans/done/p1-daily-digest-api-keys.md`](../plans/done/p1-daily-digest-api-keys.md). Decision: [`ADR-0003`](../adr/0003-per-user-api-keys.md) (Proposed).
 - **Slice 1a done:** `ApiKey` domain entity (`src/InvestmentApp.Domain/Entities/ApiKey.cs`) + 11 tests.
 - **Slice 1b-i done:** `ApiKeyTokenService` (Infrastructure) + `IApiKeyTokenService` + `IApiKeyRepository` iface + `CreateApiKeyCommand` (+ handler + validator). 6 + 2 tests.
 - **Total: 19 tests green.** Build green.

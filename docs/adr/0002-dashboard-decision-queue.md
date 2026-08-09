@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-05-04
-- **Related plan:** `docs/plans/dashboard-decision-engine.md` (PR-2 / P3)
+- **Related plan:** `docs/plans/done/dashboard-decision-engine.md` (PR-2 / P3)
 - **Affected layers:** Application, Api, Frontend
 
 ## Context
@@ -78,7 +78,7 @@ Aligned với USP và plan v1.1 đã chốt sau review 2 sub-agent. Risk rollbac
 
 ## References
 
-- Plan: `docs/plans/dashboard-decision-engine.md` (PR-2 / P3 + Checkpoint PR-2 + PR-3)
+- Plan: `docs/plans/done/dashboard-decision-engine.md` (PR-2 / P3 + Checkpoint PR-2 + PR-3)
 - PR: #TBD (fill after merge)
 - Related ADR: ADR-0001 (worker-to-scheduler — establishes "additive backend, frontend cleanup" pattern as low-risk)
 

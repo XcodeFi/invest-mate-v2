@@ -8,7 +8,7 @@
 
 ## 1. Problem
 
-`invest-mate-worker` đang deploy với `--min-instances=1 --no-cpu-throttling` ([cloudbuild.yaml:158-163](../../cloudbuild.yaml#L158-L163)) → chạy 24/7.
+`invest-mate-worker` đang deploy với `--min-instances=1 --no-cpu-throttling` ([cloudbuild.yaml:158-163](../../../cloudbuild.yaml#L158-L163)) → chạy 24/7.
 
 **Chi phí thực tế:**
 - 1 vCPU × 86.400s × 30 ngày ≈ **2,6M vCPU-seconds/tháng**
@@ -198,10 +198,10 @@ gcloud scheduler jobs create http invest-mate-snapshot \
 
 ### Phase 6 — Docs + cleanup
 
-1. Update [`docs/architecture.md`](../architecture.md) — bỏ `InvestmentApp.Worker` khỏi service list, thêm Internal Jobs section.
-2. Update [`docs/business-domain.md`](../business-domain.md) nếu cần (job docs).
+1. Update [`docs/architecture.md`](../../architecture.md) — bỏ `InvestmentApp.Worker` khỏi service list, thêm Internal Jobs section.
+2. Update [`docs/business-domain.md`](../../business-domain.md) nếu cần (job docs).
 3. Mark this plan done, move to `docs/plans/done/`.
-4. Update [`frontend/src/assets/CHANGELOG.md`](../../frontend/src/assets/CHANGELOG.md) — Internal infra change, no user-facing UI change.
+4. Update [`frontend/src/assets/CHANGELOG.md`](../../../frontend/src/assets/CHANGELOG.md) — Internal infra change, no user-facing UI change.
 
 ---
 

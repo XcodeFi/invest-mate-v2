@@ -375,7 +375,7 @@ Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wirin
 
 ## Dashboard Decision Engine (V1.1 — 2026-05-04, in-progress)
 
-Plan: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engine.md). Hybrid sau review 2 sub-agent (UX + Architect), adopt 3 / bác 5 đề xuất từ layout V2 brainstorm. Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
+Plan: [`docs/plans/done/dashboard-decision-engine.md`](plans/done/dashboard-decision-engine.md). Hybrid sau review 2 sub-agent (UX + Architect), adopt 3 / bác 5 đề xuất từ layout V2 brainstorm. Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
 
 **Tín hiệu phía vào lệnh (2026-08-09, [ADR-0009](adr/0009-decision-queue-entry-side-signals.md)):** `GetDecisionQueueQuery` từ **3 → 5 nguồn**. Handler nhận thêm `IWatchlistRepository` + `IStockPriceService` (cả hai `AddScoped`, `Program.cs:125,137`), task cơ hội chạy song song trong `Task.WhenAll` sẵn có.
 
