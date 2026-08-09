@@ -108,17 +108,19 @@ Tính server-side, **day-granularity theo `Asia/Ho_Chi_Minh`** bằng `TimeZoneI
 
 `ConfirmedAt` **chỉ được đặt bởi đúng một phương thức** `Confirm()`, và phương thức đó chỉ với tới được qua `POST /company-dossiers/{symbol}/confirm` (JWT). Không đường nào khác đặt được nó — đó là cách thực thi Q8 ở tầng domain thay vì trông vào kỷ luật của tầng gọi.
 
+**Chỉ `Confirm()` đẩy đồng hồ hạn tươi.** Không thao tác nào khác chạm `ReviewedAt`. Nếu sửa nội dung cũng đẩy đồng hồ thì hồ sơ đã `Expired` chỉ cần sửa một ký tự trong ô ghi chú tự do là quay về `Fresh` — không đọc tin nào, không ký gì, đúng cái mốc 180 ngày sinh ra để chặn.
+
 | Hành động | `ReviewedAt` | `ConfirmedAt` |
 |---|---|---|
-| Người dùng sửa nội dung — `PUT` (JWT) | `now` | **giữ nguyên** |
-| Agent sửa nội dung — `upsert_company_dossier` (MCP) | `now` | **về `null`**, đặt `AgentDraftedAt = now` |
+| Người dùng sửa nội dung — `PUT` (JWT) | **giữ nguyên** | **giữ nguyên** |
+| Agent sửa nội dung — `upsert_company_dossier` (MCP) | **giữ nguyên** | **về `null`**, đặt `AgentDraftedAt = now` |
 | `POST .../confirm` — nút ký | `now` | `now` |
 
 Ba hệ quả của Q10:
 
-- Người dùng tự sửa thì không phải ký lại — đang đọc chính cái mình viết.
+- Người dùng tự sửa thì không phải ký lại — đang đọc chính cái mình viết. Hồ sơ đang `Fresh` sửa xong vẫn `Fresh`.
 - Agent sửa thì hồ sơ tụt về `Unconfirmed`, gate chặn cho tới khi người dùng mở trang, đọc, ký. Trang chi tiết phải hiển thị rõ **"Agent đã cập nhật lúc … — chưa xác nhận"**, để không ai tưởng đã lưu là đã xong.
-- Hồ sơ `Expired` (180 ngày) phải ký lại mới về `Fresh`. Ở trạng thái này nhãn nút đổi thành **"Đã cập nhật tin mới và xác nhận"** thay vì "Vẫn đúng" — vì mục đích của lần ký này là xác nhận đã soát tin mới, không phải xác nhận nội dung cũ vẫn đúng.
+- Hồ sơ `Expired` (180 ngày) phải ký lại mới về `Fresh`, **kể cả khi người dùng vừa sửa nội dung**. Sửa không đẩy đồng hồ, nên hồ sơ hết hạn vẫn hết hạn cho tới lúc bấm ký. Ở trạng thái này nhãn nút đổi thành **"Đã cập nhật tin mới và xác nhận"** thay vì "Vẫn đúng" — vì mục đích của lần ký này là xác nhận đã soát tin mới, không phải xác nhận nội dung cũ vẫn đúng.
 
 ## 5. Gate
 

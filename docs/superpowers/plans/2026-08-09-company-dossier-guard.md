@@ -181,6 +181,48 @@ public class CompanyDossierTests
     }
 
     [Fact]
+    public void UpdateByOwner_ShouldNotPushTheFreshnessClock()
+    {
+        // Chỉ Confirm() đẩy đồng hồ. Nếu sửa nội dung cũng đẩy thì hồ sơ đã
+        // hết hạn chỉ cần sửa một ký tự ở ô ghi chú là hồi sinh mà không ai đọc tin mới.
+        var dossier = Create();
+        dossier.Confirm();
+        var reviewedAt = dossier.ReviewedAt;
+
+        dossier.UpdateByOwner("Người dùng sửa lại đúng một chỗ nhỏ", dossier.Moats.ToList(),
+            dossier.RiskFactors.ToList(), "thêm ghi chú");
+
+        dossier.ReviewedAt.Should().Be(reviewedAt);
+    }
+
+    [Fact]
+    public void UpdateByOwner_OnExpiredDossier_ShouldStayExpiredUntilSigned()
+    {
+        var dossier = Create();
+        dossier.Confirm();
+        var now = dossier.ReviewedAt.AddDays(200);
+        dossier.GetFreshness(now).Should().Be(DossierFreshness.Expired);
+
+        dossier.UpdateByOwner("Sửa nội dung nhưng chưa ký lại", dossier.Moats.ToList(),
+            dossier.RiskFactors.ToList(), null);
+
+        dossier.GetFreshness(now).Should().Be(DossierFreshness.Expired);
+    }
+
+    [Fact]
+    public void UpdateByAgent_ShouldNotPushTheFreshnessClock()
+    {
+        var dossier = Create();
+        dossier.Confirm();
+        var reviewedAt = dossier.ReviewedAt;
+
+        dossier.UpdateByAgent("Agent viết lại mô hình kinh doanh", dossier.Moats.ToList(),
+            dossier.RiskFactors.ToList(), null);
+
+        dossier.ReviewedAt.Should().Be(reviewedAt);
+    }
+
+    [Fact]
     public void Confirm_ShouldSetBothTimestamps()
     {
         var dossier = Create();
@@ -302,8 +344,8 @@ public class CompanyDossier : AggregateRoot
         List<MoatItem> moats, List<RiskFactor> riskFactors, string? notes = null)
     {
         Id = Guid.NewGuid().ToString();
-        UserId = Require(userId, nameof(userId));
-        Symbol = Require(symbol, nameof(symbol)).ToUpperInvariant();
+        UserId = Require(userId, "Mã người dùng");
+        Symbol = Require(symbol, "Mã cổ phiếu").ToUpperInvariant();
         BusinessModel = businessModel?.Trim() ?? string.Empty;
         Moats = moats ?? new();
         RiskFactors = Normalize(riskFactors ?? new());
@@ -352,13 +394,15 @@ public class CompanyDossier : AggregateRoot
         Moats = moats ?? new();
         RiskFactors = Normalize(riskFactors ?? new());
         Notes = notes;
-        ReviewedAt = UpdatedAt = DateTime.UtcNow;
+        // KHÔNG chạm ReviewedAt — chỉ Confirm() đẩy đồng hồ hạn tươi. Nếu sửa
+        // nội dung cũng đẩy, hồ sơ Expired chỉ cần sửa một ký tự là hồi sinh.
+        UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
 
-    private static string Require(string value, string name)
+    private static string Require(string value, string label)
         => string.IsNullOrWhiteSpace(value)
-            ? throw new ArgumentException($"{name} không được rỗng", name)
+            ? throw new ArgumentException($"{label} không được rỗng")
             : value.Trim();
 
     private static List<RiskFactor> Normalize(List<RiskFactor> factors)
