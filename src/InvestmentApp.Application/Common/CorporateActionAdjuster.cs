@@ -13,8 +13,8 @@ public static class CorporateActionAdjuster
     {
         var setAtDate = setAt.Date;
         var ordered = actions
-            .Where(a => a.ExDate > setAtDate)
-            .OrderBy(a => a.ExDate)
+            .Where(a => a.ExDate.Date > setAtDate)
+            .OrderBy(a => a.ExDate.Date)
             .ThenBy(a => a.Type == CorporateActionType.CashDividend ? 0 : 1);
 
         var result = price;

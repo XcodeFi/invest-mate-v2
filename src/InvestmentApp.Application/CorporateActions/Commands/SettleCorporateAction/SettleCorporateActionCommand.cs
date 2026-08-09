@@ -51,8 +51,10 @@ public class SettleCorporateActionCommandHandler
                 var amount = await ComputeNetDividendAsync(action, cancellationToken);
                 if (amount > 0)
                 {
+                    // Dùng action.SettledAt — MarkSettled đã chuẩn hoá về nửa đêm UTC.
+                    // Truyền request.SettledAt thô sẽ bị Mongo đẩy lùi một ngày theo múi giờ.
                     var flow = new CapitalFlow(action.PortfolioId, action.UserId, CapitalFlowType.Dividend,
-                        amount, "VND", $"Cổ tức tiền mặt {action.Symbol} ({action.DeclaredText})", request.SettledAt);
+                        amount, "VND", $"Cổ tức tiền mặt {action.Symbol} ({action.DeclaredText})", action.SettledAt);
                     flow.LinkCorporateAction(action.Id, action.Symbol);
                     await _flows.AddAsync(flow, cancellationToken);
                     action.LinkCapitalFlow(flow.Id);
@@ -69,10 +71,10 @@ public class SettleCorporateActionCommandHandler
     {
         var trades = await _trades.GetByPortfolioIdAndSymbolAsync(action.PortfolioId, action.Symbol, cancellationToken);
         var priorActions = (await _actions.GetByPortfolioIdAndSymbolAsync(action.PortfolioId, action.Symbol, cancellationToken))
-            .Where(a => a.Id != action.Id && a.ExDate < action.ExDate);
+            .Where(a => a.Id != action.Id && a.ExDate.Date < action.ExDate.Date);
 
         var position = PositionBuilder
-            .Build(trades, priorActions, asOf: action.ExDate.AddDays(-1))
+            .Build(trades, priorActions, asOf: action.ExDate.Date.AddDays(-1))
             .FirstOrDefault(p => string.Equals(p.Symbol, action.Symbol, StringComparison.OrdinalIgnoreCase));
 
         return (position?.TotalQuantity ?? 0m) * action.NetPerShare;

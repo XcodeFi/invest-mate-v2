@@ -12,6 +12,7 @@ public class GetAndDeleteCorporateActionTests
 {
     private readonly Mock<ICorporateActionRepository> _actions = new();
     private readonly Mock<IPortfolioRepository> _portfolios = new();
+    private readonly Mock<ICapitalFlowRepository> _flows = new();
 
     private static CorporateAction Hpg() =>
         CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130,
@@ -68,7 +69,7 @@ public class GetAndDeleteCorporateActionTests
             new DateTime(2026, 6, 10), null);
         _actions.Setup(r => r.GetByIdAsync("a1", It.IsAny<CancellationToken>())).ReturnsAsync(action);
 
-        var handler = new DeleteCorporateActionCommandHandler(_actions.Object);
+        var handler = new DeleteCorporateActionCommandHandler(_actions.Object, _flows.Object);
         var act = () => handler.Handle(new DeleteCorporateActionCommand("u1", "a1"), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
@@ -76,18 +77,37 @@ public class GetAndDeleteCorporateActionTests
     }
 
     [Fact]
-    public async Task Delete_SuKienDaSinhDongTien_ThiChanLai_TranhDongTienMoCoi()
+    public async Task Delete_SuKienDaSinhDongTien_ThiXoaLuonDongTien_KhongDeMoCoi()
     {
         var action = CorporateAction.CashDividend("p1", "u1", "SAB", 5m,
             new DateTime(2026, 6, 10), new DateTime(2026, 7, 10), 5m);
         action.LinkCapitalFlow("f1");
         _actions.Setup(r => r.GetByIdAsync("a1", It.IsAny<CancellationToken>())).ReturnsAsync(action);
+        _flows.Setup(r => r.GetByIdAsync("f1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CapitalFlow("p1", "u1", CapitalFlowType.Dividend, 475_000m));
 
-        var handler = new DeleteCorporateActionCommandHandler(_actions.Object);
-        var act = () => handler.Handle(new DeleteCorporateActionCommand("u1", "a1"), CancellationToken.None);
+        var handler = new DeleteCorporateActionCommandHandler(_actions.Object, _flows.Object);
+        await handler.Handle(new DeleteCorporateActionCommand("u1", "a1"), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>();
-        _actions.Verify(r => r.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _flows.Verify(r => r.DeleteAsync("f1", It.IsAny<CancellationToken>()), Times.Once);
+        _actions.Verify(r => r.DeleteAsync("a1", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Delete_DongTienLienKetCuaNguoiKhac_ThiKhongXoaDongTienDo()
+    {
+        var action = CorporateAction.CashDividend("p1", "u1", "SAB", 5m,
+            new DateTime(2026, 6, 10), new DateTime(2026, 7, 10), 5m);
+        action.LinkCapitalFlow("f9");
+        _actions.Setup(r => r.GetByIdAsync("a1", It.IsAny<CancellationToken>())).ReturnsAsync(action);
+        _flows.Setup(r => r.GetByIdAsync("f9", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CapitalFlow("p9", "u2", CapitalFlowType.Dividend, 475_000m));
+
+        var handler = new DeleteCorporateActionCommandHandler(_actions.Object, _flows.Object);
+        await handler.Handle(new DeleteCorporateActionCommand("u1", "a1"), CancellationToken.None);
+
+        _flows.Verify(r => r.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _actions.Verify(r => r.DeleteAsync("a1", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -95,7 +115,7 @@ public class GetAndDeleteCorporateActionTests
     {
         _actions.Setup(r => r.GetByIdAsync("a1", It.IsAny<CancellationToken>())).ReturnsAsync(Hpg());
 
-        var handler = new DeleteCorporateActionCommandHandler(_actions.Object);
+        var handler = new DeleteCorporateActionCommandHandler(_actions.Object, _flows.Object);
         await handler.Handle(new DeleteCorporateActionCommand("u1", "a1"), CancellationToken.None);
 
         _actions.Verify(r => r.DeleteAsync("a1", It.IsAny<CancellationToken>()), Times.Once);

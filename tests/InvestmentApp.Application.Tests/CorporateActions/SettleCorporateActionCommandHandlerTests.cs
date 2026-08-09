@@ -54,6 +54,8 @@ public class SettleCorporateActionCommandHandlerTests
         created!.Amount.Should().Be(475_000m);
         created.Type.Should().Be(CapitalFlowType.Dividend);
         created.Symbol.Should().Be("SAB");
+        // Ngày dòng tiền phải là ngày xác nhận, không bị múi giờ đẩy lùi một ngày
+        created.FlowDate.Should().Be(SettledAt);
         action.CapitalFlowId.Should().Be(created.Id);
     }
 

@@ -71,6 +71,25 @@ public class CorporateActionTests
     }
 
     [Fact]
+    public void MocNgay_LaNuaDemUtc_DeMongoRoundTripKhongLechMuiGio()
+    {
+        // Mongo ghi DateTime local rồi đọc lại thành UTC. Nếu ExDate là nửa đêm giờ local
+        // (+07) thì xuống DB thành 17:00Z hôm trước, đọc lên không còn nửa đêm và mọi
+        // so sánh ở biên lệch đúng 1 ngày — tiền cổ tức tính sai số lượng.
+        var local = new DateTime(2026, 6, 10, 0, 0, 0, DateTimeKind.Local);
+        var action = CorporateAction.CashDividend("p1", "u1", "SAB", 5m, local,
+            new DateTime(2026, 7, 10, 9, 30, 0, DateTimeKind.Local), 5m);
+        action.MarkSettled(new DateTime(2026, 7, 12, 15, 45, 0, DateTimeKind.Local));
+
+        action.ExDate.Kind.Should().Be(DateTimeKind.Utc);
+        action.ExDate.TimeOfDay.Should().Be(TimeSpan.Zero);
+        action.SettlementDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        action.SettlementDate!.Value.TimeOfDay.Should().Be(TimeSpan.Zero);
+        action.SettledAt!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        action.SettledAt!.Value.TimeOfDay.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
     public void MarkSettled_TruocNgayGDKHQ_ThiNem()
     {
         var action = CorporateAction.StockDividend("p1", "u1", "HPG", 100m, 130m, Ex, null);

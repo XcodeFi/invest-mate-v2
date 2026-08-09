@@ -14,8 +14,16 @@ public class CorporateAction : AggregateRoot
     public string UserId { get; private set; } = null!;
     public string Symbol { get; private set; } = null!;
     public CorporateActionType Type { get; private set; }
+
+    // Ba mốc dưới là ngày thuần. Không ép Kind = Utc thì Mongo ghi nửa đêm giờ local
+    // thành 17:00Z hôm trước, đọc lên không còn là nửa đêm và mọi so sánh ở biên lệch 1 ngày.
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime ExDate { get; private set; }
+
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? SettlementDate { get; private set; }
+
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? SettledAt { get; private set; }
     public decimal? AmountPerShare { get; private set; }
     public decimal? TaxRatePercent { get; private set; }
@@ -37,10 +45,10 @@ public class CorporateAction : AggregateRoot
         UserId = userId ?? throw new ArgumentNullException(nameof(userId));
         Symbol = symbol?.ToUpper().Trim() ?? throw new ArgumentNullException(nameof(symbol));
         Type = type;
-        ExDate = exDate.Date;
-        if (settlementDate.HasValue && settlementDate.Value.Date < ExDate)
+        ExDate = AsUtcDate(exDate);
+        if (settlementDate.HasValue && AsUtcDate(settlementDate.Value) < ExDate)
             throw new ArgumentException("Ngày về không được trước ngày GDKHQ", nameof(settlementDate));
-        SettlementDate = settlementDate?.Date;
+        SettlementDate = settlementDate.HasValue ? AsUtcDate(settlementDate.Value) : null;
         DeclaredText = declaredText;
         Note = note;
         CreatedAt = DateTime.UtcNow;
@@ -102,11 +110,15 @@ public class CorporateAction : AggregateRoot
 
     public void MarkSettled(DateTime settledAt)
     {
-        if (settledAt.Date < ExDate)
+        if (AsUtcDate(settledAt) < ExDate)
             throw new ArgumentException("Ngày về không được trước ngày GDKHQ", nameof(settledAt));
-        SettledAt = settledAt.Date;
+        SettledAt = AsUtcDate(settledAt);
         IncrementVersion();
     }
+
+    /// <summary>Nửa đêm UTC — để Mongo round-trip không đẩy ngày lệch theo múi giờ.</summary>
+    private static DateTime AsUtcDate(DateTime value)
+        => DateTime.SpecifyKind(value.Date, DateTimeKind.Utc);
 
     public void LinkCapitalFlow(string capitalFlowId)
     {

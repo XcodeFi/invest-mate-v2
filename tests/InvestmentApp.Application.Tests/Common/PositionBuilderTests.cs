@@ -191,6 +191,21 @@ public class PositionBuilderTests
     }
 
     [Fact]
+    public void ExDateBiLechGioSauRoundTripMongo_VanApDungDungNgay()
+    {
+        // Bản ghi cũ trong Mongo có ExDate 2026-06-10T17:00Z thay vì nửa đêm.
+        // So sánh phải chuẩn hoá về .Date, không thì sự kiện bị loại oan ở đúng ngày biên.
+        var trades = new[] { Buy("HPG", 1000, 25_000, new DateTime(2026, 1, 5)) };
+        var action = CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, Settled);
+        typeof(CorporateAction).GetProperty(nameof(CorporateAction.ExDate))!
+            .SetValue(action, new DateTime(2026, 6, 10, 17, 0, 0, DateTimeKind.Utc));
+
+        var pos = PositionBuilder.Build(trades, new[] { action }, asOf: Ex).Single();
+
+        pos.TotalQuantity.Should().Be(1300);
+    }
+
+    [Fact]
     public void GiaoDichSauAsOf_ThiKhongTinh()
     {
         var trades = new[]

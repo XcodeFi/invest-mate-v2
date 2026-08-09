@@ -50,8 +50,9 @@ public static class PositionBuilder
             .Where(t => t.TradeDate.Date <= asOfDate)
             .Select(t => (Date: t.TradeDate.Date, Order: 0, Trade: (Trade?)t, Action: (CorporateAction?)null))
             .Concat(actions
-                .Where(a => a.ExDate <= asOfDate)
-                .Select(a => (Date: a.ExDate, Order: a.Type == CorporateActionType.CashDividend ? 1 : 2,
+                // .Date cả hai vế: bản ghi cũ trong Mongo có thể không còn là nửa đêm
+                .Where(a => a.ExDate.Date <= asOfDate)
+                .Select(a => (Date: a.ExDate.Date, Order: a.Type == CorporateActionType.CashDividend ? 1 : 2,
                               Trade: (Trade?)null, Action: (CorporateAction?)a)))
             .OrderBy(e => e.Date).ThenBy(e => e.Order)
             .ToList();
@@ -120,7 +121,7 @@ public static class PositionBuilder
     }
 
     private static bool IsSettled(CorporateAction action, DateTime asOfDate)
-        => action.SettledAt.HasValue && action.SettledAt.Value <= asOfDate;
+        => action.SettledAt.HasValue && action.SettledAt.Value.Date <= asOfDate;
 
     private static State GetState(Dictionary<string, State> states, string symbol)
     {
