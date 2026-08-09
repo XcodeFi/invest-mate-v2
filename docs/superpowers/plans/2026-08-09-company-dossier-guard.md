@@ -1212,11 +1212,16 @@ Sau khi load plan cũ, trước khi gọi `plan.Update(...)`:
 ```csharp
 var threshold = (plan.AccountBalance ?? 0m) * 0.05m;
 var oldSize = plan.Quantity * plan.EntryPrice;
-var newSize = request.Quantity * request.EntryPrice;
+
+// UpdateTradePlanCommand.Quantity là int? và EntryPrice là decimal? — update là
+// PARTIAL (TradePlan.Update chỉ gán khi HasValue). Phải fallback về giá trị cũ,
+// nếu không thì sửa mỗi Quantity sẽ tính size bằng 0 và gate không bao giờ bắn.
+var newSize = (request.Quantity ?? plan.Quantity) * (request.EntryPrice ?? plan.EntryPrice);
 
 // Vá cửa hậu "tạo nhỏ rồi sửa lớn". Chỉ bắn khi thực sự vượt ngưỡng lên,
 // để không phá nguyên tắc "plan có rồi thì thôi".
-if (plan.AccountBalance.HasValue && oldSize < threshold && newSize >= threshold)
+if (plan.AccountBalance.HasValue && plan.AccountBalance.Value > 0m
+    && oldSize < threshold && newSize >= threshold)
 {
     await _dossierGate.EnsureAsync(plan.UserId, plan.Symbol, newSize, plan.AccountBalance, cancellationToken);
 }
