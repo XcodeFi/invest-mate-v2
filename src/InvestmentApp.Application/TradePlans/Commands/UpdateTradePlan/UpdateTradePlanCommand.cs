@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -51,10 +52,12 @@ public class UpdateTradePlanCommand : IRequest<Unit>
 public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanCommand, Unit>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
+    private readonly ICompanyDossierGate _dossierGate;
 
-    public UpdateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository)
+    public UpdateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ICompanyDossierGate dossierGate)
     {
         _tradePlanRepository = tradePlanRepository;
+        _dossierGate = dossierGate;
     }
 
     public async Task<Unit> Handle(UpdateTradePlanCommand request, CancellationToken cancellationToken)
@@ -64,6 +67,18 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
 
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
+
+        var threshold = (plan.AccountBalance ?? 0m) * 0.05m;
+        var oldSize = plan.Quantity * plan.EntryPrice;
+        var newSize = (request.Quantity ?? plan.Quantity) * (request.EntryPrice ?? plan.EntryPrice);
+
+        // Vá cửa hậu "tạo nhỏ rồi sửa lớn". Chỉ bắn khi thực sự vượt ngưỡng lên,
+        // để không phá nguyên tắc "plan có rồi thì thôi".
+        if (plan.AccountBalance.HasValue && plan.AccountBalance.Value > 0m
+            && oldSize < threshold && newSize >= threshold)
+        {
+            await _dossierGate.EnsureAsync(plan.UserId, plan.Symbol, newSize, plan.AccountBalance, cancellationToken);
+        }
 
         var checklist = request.Checklist?.Select(c => new ChecklistItem
         {
