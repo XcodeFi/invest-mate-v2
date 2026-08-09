@@ -12,6 +12,7 @@ public class PnLServiceTests
     private readonly Mock<ITradeRepository> _tradeRepoMock;
     private readonly Mock<IPortfolioRepository> _portfolioRepoMock;
     private readonly Mock<IStockPriceService> _priceServiceMock;
+    private readonly Mock<ICorporateActionRepository> _corporateActionRepoMock;
     private readonly PnLService _sut;
 
     private const string PortfolioId = "portfolio-1";
@@ -21,7 +22,18 @@ public class PnLServiceTests
         _tradeRepoMock = new Mock<ITradeRepository>();
         _portfolioRepoMock = new Mock<IPortfolioRepository>();
         _priceServiceMock = new Mock<IStockPriceService>();
-        _sut = new PnLService(_tradeRepoMock.Object, _portfolioRepoMock.Object, _priceServiceMock.Object);
+        _corporateActionRepoMock = new Mock<ICorporateActionRepository>();
+
+        // Mặc định: không có sự kiện quyền — các test cũ giữ nguyên kỳ vọng
+        _corporateActionRepoMock
+            .Setup(r => r.GetByPortfolioIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<CorporateAction>());
+        _corporateActionRepoMock
+            .Setup(r => r.GetByPortfolioIdAndSymbolAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<CorporateAction>());
+
+        _sut = new PnLService(_tradeRepoMock.Object, _portfolioRepoMock.Object,
+            _priceServiceMock.Object, _corporateActionRepoMock.Object);
     }
 
     // ─── Helper methods ─────────────────────────────────────────────────
