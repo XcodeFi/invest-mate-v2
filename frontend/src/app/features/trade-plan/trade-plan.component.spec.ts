@@ -462,4 +462,39 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       expect(errMsg).toContain('20 ký tự');
     });
   });
+
+  // ============================================
+  // dossierGateQueryParams — forward size context sang trang hồ sơ (Step 6 banner link)
+  // ============================================
+  describe('dossierGateQueryParams', () => {
+    it('carries quantity/entryPrice/accountBalance when the form has them', () => {
+      component.plan.quantity = 500;
+      component.plan.entryPrice = 28000;
+      component.accountBalance = 200_000_000;
+
+      expect(component.dossierGateQueryParams()).toEqual({
+        quantity: 500,
+        entryPrice: 28000,
+        accountBalance: 200_000_000,
+      });
+    });
+
+    it('falls back to optimalShares when quantity is not manually set', () => {
+      component.plan.quantity = 0;
+      component.optimalShares = 350;
+      component.plan.entryPrice = 28000;
+      component.accountBalance = 200_000_000;
+
+      expect(component.dossierGateQueryParams()['quantity']).toBe(350);
+    });
+
+    it('omits params that are empty instead of sending blanks/zeros', () => {
+      component.plan.quantity = 0;
+      component.optimalShares = 0;
+      component.plan.entryPrice = 0;
+      component.accountBalance = 0;
+
+      expect(component.dossierGateQueryParams()).toEqual({});
+    });
+  });
 });

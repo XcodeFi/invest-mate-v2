@@ -1,7 +1,7 @@
-import { Component, OnInit, Optional } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   CompanyDossierService,
   RiskFactorDto,
@@ -16,7 +16,7 @@ const MIN_BUSINESS_MODEL_LEN = 30;
 @Component({
   selector: 'app-company-dossier-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="container mx-auto px-4 py-6 max-w-4xl">
       <div class="flex items-center justify-between mb-6">
@@ -29,7 +29,7 @@ const MIN_BUSINESS_MODEL_LEN = 30;
             <span *ngIf="reviewedAt" class="text-xs text-gray-400">Soát gần nhất: {{ reviewedAt | date:'short' }}</span>
           </div>
         </div>
-        <button (click)="goToList()" class="text-sm text-blue-600 hover:underline whitespace-nowrap">← Danh sách hồ sơ</button>
+        <a routerLink="/company-dossier" class="text-sm text-blue-600 hover:underline whitespace-nowrap">← Danh sách hồ sơ</a>
       </div>
 
       <div *ngIf="loading" class="text-center text-gray-400 py-10">Đang tải...</div>
@@ -162,14 +162,13 @@ export class CompanyDossierDetailComponent implements OnInit {
   readonly triggerOptions = Object.entries(INVALIDATION_TRIGGER_LABELS).map(([value, label]) => ({ value, label }));
 
   constructor(
-    @Optional() private route: ActivatedRoute | null,
-    @Optional() private router: Router | null,
+    private route: ActivatedRoute,
+    private router: Router,
     private dossierService: CompanyDossierService,
     private notification: NotificationService,
   ) {}
 
   ngOnInit(): void {
-    if (!this.route) return;
     const symbolParam = this.route.snapshot.paramMap.get('symbol');
     this.symbol = (symbolParam ?? '').toUpperCase().trim();
 
@@ -350,16 +349,12 @@ export class CompanyDossierDetailComponent implements OnInit {
     });
   }
 
-  goToList(): void {
-    this.router?.navigate(['/company-dossier']);
-  }
-
   private goBackToTradePlan(): void {
     const draft = this.consumePendingPlanDraft();
     const queryParams = draft
       ? { symbol: draft['symbol'], entry: draft['entryPrice'], sl: draft['stopLoss'], tp: draft['target'] }
       : {};
-    this.router?.navigate(['/trade-plan'], { queryParams });
+    this.router.navigate(['/trade-plan'], { queryParams });
   }
 
   consumePendingPlanDraft(): Record<string, unknown> | null {

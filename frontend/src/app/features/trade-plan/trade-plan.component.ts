@@ -1635,7 +1635,8 @@ interface DossierGateError {
                 <li *ngIf="dossierGateError.reason !== 'insufficient'">{{ dossierGateReasonText(dossierGateError.reason) }}</li>
                 <li *ngFor="let m of dossierGateError.missing">{{ m }}</li>
               </ul>
-              <a [routerLink]="['/company-dossier', dossierGateError.symbol]" class="inline-block mt-2 text-sm font-medium text-red-700 hover:underline">
+              <a [routerLink]="['/company-dossier', dossierGateError.symbol]" [queryParams]="dossierGateQueryParams()"
+                class="inline-block mt-2 text-sm font-medium text-red-700 hover:underline">
                 → Viết hồ sơ {{ dossierGateError.symbol }}
               </a>
             </div>
@@ -2285,6 +2286,20 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   dossierGateReasonText(reason: string): string {
     return (GATE_REASON_TEXT as Record<string, string>)[reason] || '';
+  }
+
+  /**
+   * Forward giá trị hiện tại của form sang trang hồ sơ để ô đếm ký tự tính được % size —
+   * chính người dùng vừa bị chặn ở size này nên cả ba giá trị đều có sẵn. Bỏ qua giá trị
+   * rỗng/0 để trang hồ sơ rơi về chế độ không kèm size thay vì tính % từ số liệu giả.
+   */
+  dossierGateQueryParams(): Record<string, number> {
+    const params: Record<string, number> = {};
+    const quantity = this.plan.quantity || this.optimalShares;
+    if (quantity) params['quantity'] = quantity;
+    if (this.plan.entryPrice) params['entryPrice'] = this.plan.entryPrice;
+    if (this.accountBalance) params['accountBalance'] = this.accountBalance;
+    return params;
   }
 
   /**
