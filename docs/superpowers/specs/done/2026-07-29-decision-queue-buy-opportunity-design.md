@@ -10,13 +10,13 @@
 
 ### 1.1 Decision Queue chỉ có phía thoát hàng, không có phía vào lệnh
 
-`DecisionType` hiện chỉ có 3 giá trị — `StopLossHit`, `ScenarioTrigger`, `ThesisReviewDue` ([`DecisionItemDto.cs:7-17`](../../../src/InvestmentApp.Application/Decisions/DTOs/DecisionItemDto.cs#L7-L17)) — **toàn bộ là phòng thủ**. MCP tool `get_decision_queue` tự mô tả là *"Trả lời câu 'hôm nay cần quyết gì'"* ([`DecisionTools.cs:16`](../../../src/InvestmentApp.Api/Mcp/DecisionTools.cs#L16)), nhưng về mặt **cấu trúc** nó không thể chứa một cơ hội mua.
+`DecisionType` hiện chỉ có 3 giá trị — `StopLossHit`, `ScenarioTrigger`, `ThesisReviewDue` ([`DecisionItemDto.cs:7-17`](../../../../src/InvestmentApp.Application/Decisions/DTOs/DecisionItemDto.cs#L7-L17)) — **toàn bộ là phòng thủ**. MCP tool `get_decision_queue` tự mô tả là *"Trả lời câu 'hôm nay cần quyết gì'"* ([`DecisionTools.cs:16`](../../../../src/InvestmentApp.Api/Mcp/DecisionTools.cs#L16)), nhưng về mặt **cấu trúc** nó không thể chứa một cơ hội mua.
 
-Cơ hội mua hiện chỉ sống trong bản tin dạng văn bản: `FormatWatchlistSection` in dòng `📉 {symbol}: giá {price} ≤ mục tiêu mua {target} (cơ hội)` ([`AiAssistantService.cs:372-374`](../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L372-L374)). Hệ quả: cơ hội **không** được dedupe, **không** có suppression theo ngày, **không** resolve được, và **không** xuất hiện ở Dashboard.
+Cơ hội mua hiện chỉ sống trong bản tin dạng văn bản: `FormatWatchlistSection` in dòng `📉 {symbol}: giá {price} ≤ mục tiêu mua {target} (cơ hội)` ([`AiAssistantService.cs:372-374`](../../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L372-L374)). Hệ quả: cơ hội **không** được dedupe, **không** có suppression theo ngày, **không** resolve được, và **không** xuất hiện ở Dashboard.
 
 ### 1.2 Vị thế không có stop-loss bị bỏ qua im lặng
 
-[`GetDecisionQueueQuery.cs:155`](../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L155):
+[`GetDecisionQueueQuery.cs:155`](../../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L155):
 
 ```csharp
 foreach (var pos in summary.Positions)
@@ -28,7 +28,7 @@ Vị thế **chưa đặt SL** không bao giờ vào queue. Đây là hướng s
 
 ### 1.3 Bug có sẵn: resolve xong item hiện lại ngay
 
-`HandleHoldWithJournalAsync` khi request không có `TradePlanId` đi vào nhánh symbol-only và để `portfolioId` giữ nguyên `null` ([`ResolveDecisionCommand.cs:219-222`](../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L219-L222)):
+`HandleHoldWithJournalAsync` khi request không có `TradePlanId` đi vào nhánh symbol-only và để `portfolioId` giữ nguyên `null` ([`ResolveDecisionCommand.cs:219-222`](../../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L219-L222)):
 
 ```csharp
 else if (!string.IsNullOrEmpty(request.Symbol))
@@ -37,14 +37,14 @@ else if (!string.IsNullOrEmpty(request.Symbol))
 }
 ```
 
-Nhưng `LoadResolvedTodayAsync` lọc bỏ chính những entry đó trước khi build suppression set ([`:127-130`](../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L127-L130)):
+Nhưng `LoadResolvedTodayAsync` lọc bỏ chính những entry đó trước khi build suppression set ([`:127-130`](../../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L127-L130)):
 
 ```csharp
 var symPort = todayDecisions
     .Where(j => !string.IsNullOrEmpty(j.PortfolioId))   // ← entry symbol-only rơi ở đây
 ```
 
-`StopLossHit` được tạo với `TradePlanId = null` ([`:176`](../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L176)) và FE gửi `{ symbol }` trần cho nó ([`decision-queue.component.ts:241-243`](../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L241-L243)) → **mọi lần "GIỮ + ghi lý do" trên card `StopLossHit` đều không suppress được**, card hiện lại sau refresh. Đúng thứ mà comment ở [`ResolveDecisionCommand.cs:164-167`](../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L164-L167) tuyên bố đã ngăn.
+`StopLossHit` được tạo với `TradePlanId = null` ([`:176`](../../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L176)) và FE gửi `{ symbol }` trần cho nó ([`decision-queue.component.ts:241-243`](../../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L241-L243)) → **mọi lần "GIỮ + ghi lý do" trên card `StopLossHit` đều không suppress được**, card hiện lại sau refresh. Đúng thứ mà comment ở [`ResolveDecisionCommand.cs:164-167`](../../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L164-L167) tuyên bố đã ngăn.
 
 Hai type mới đều không có `tradePlanId` → đi vào đúng đường ống hỏng này. Không sửa thì tính năng mới ship ra là hỏng sẵn.
 
@@ -58,7 +58,7 @@ typeLabel(t: DecisionType): string {
 }
 ```
 
-`typeLabel()` và `getActionRoute()` đều dùng chuỗi `if` kết bằng `return` mặc định ([`:217-232`](../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L217-L232)). Type mới sẽ bị dán nhãn **"Review thesis"** và điều hướng về `/symbol-timeline` — sai, không cảnh báo, không lỗi build.
+`typeLabel()` và `getActionRoute()` đều dùng chuỗi `if` kết bằng `return` mặc định ([`:217-232`](../../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L217-L232)). Type mới sẽ bị dán nhãn **"Review thesis"** và điều hướng về `/symbol-timeline` — sai, không cảnh báo, không lỗi build.
 
 ### 1.5 Gap dữ liệu (không giải bằng code)
 
@@ -105,9 +105,9 @@ VNM/MSN/BVH có `TargetBuyPrice = null` → nhánh cơ hội ở §1.1 chưa bao
 | `BuyOpportunity` | `IWatchlistRepository.GetByUserIdAsync` + `IStockPriceService.GetCurrentPricesAsync` | `TargetBuyPrice > 0` **và** giá hiện tại `> 0` **và** giá ≤ `TargetBuyPrice` | `Info` |
 | `MissingStopLoss` | `IRiskCalculationService.GetPortfolioRiskSummaryAsync` (đã fetch sẵn) | `StopLossPrice == null` **và** `CurrentPrice > 0` | `Warning` |
 
-**Vì sao `BuyOpportunity` = `Info`:** thứ tự sort là Critical → Warning → Info ([`:92-96`](../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L92-L96)). Đặt `Info` khiến cơ hội luôn nằm **dưới** mọi cảnh báo rủi ro — đúng thứ tự nên làm việc: xử lý vị thế đang chảy máu trước, mua thêm sau. Việc này kích hoạt `DecisionSeverity.Info` hiện đang mang comment *"reserved cho V2"* ([`DecisionItemDto.cs:27-28`](../../../src/InvestmentApp.Application/Decisions/DTOs/DecisionItemDto.cs#L27-L28)) — comment đó phải sửa.
+**Vì sao `BuyOpportunity` = `Info`:** thứ tự sort là Critical → Warning → Info ([`:92-96`](../../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L92-L96)). Đặt `Info` khiến cơ hội luôn nằm **dưới** mọi cảnh báo rủi ro — đúng thứ tự nên làm việc: xử lý vị thế đang chảy máu trước, mua thêm sau. Việc này kích hoạt `DecisionSeverity.Info` hiện đang mang comment *"reserved cho V2"* ([`DecisionItemDto.cs:27-28`](../../../../src/InvestmentApp.Application/Decisions/DTOs/DecisionItemDto.cs#L27-L28)) — comment đó phải sửa.
 
-**Guard `CurrentPrice > 0`** ở cả hai type sao chép logic có sẵn tại [`:158`](../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L158). Symbol không lấy được giá là *"chưa biết"*, không phải *"thiếu SL"* hay *"chạm mục tiêu"*.
+**Guard `CurrentPrice > 0`** ở cả hai type sao chép logic có sẵn tại [`:158`](../../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L158). Symbol không lấy được giá là *"chưa biết"*, không phải *"thiếu SL"* hay *"chạm mục tiêu"*.
 
 **Trường DTO:**
 
@@ -120,15 +120,15 @@ VNM/MSN/BVH có `TargetBuyPrice = null` → nhánh cơ hội ở §1.1 chưa bao
 | `CurrentPrice` | giá hiện tại | giá hiện tại |
 | `TradePlanId` | `null` | `null` |
 
-`TradePlanId = null` ở cả hai khiến `canExecuteSell()` trả `false` ([`decision-queue.component.ts:224-226`](../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L224-L226)) → nút BÁN tự ẩn. Đúng mong muốn: BÁN vô nghĩa với cả cơ hội mua lẫn lời nhắc đặt SL.
+`TradePlanId = null` ở cả hai khiến `canExecuteSell()` trả `false` ([`decision-queue.component.ts:224-226`](../../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L224-L226)) → nút BÁN tự ẩn. Đúng mong muốn: BÁN vô nghĩa với cả cơ hội mua lẫn lời nhắc đặt SL.
 
 ### 4.2 Thêm tập suppression thứ ba cho entry symbol-only
 
-**Sửa lại so với đề xuất ban đầu.** Ý định đầu tiên là *thay* khoá `(symbol, portfolioId)` bằng `(symbol, type)`. Rà test cho thấy làm vậy sẽ phá [`Handle_StopLossHitWithDecisionJournalForDifferentPortfolio_NotSuppressed`](../../../tests/InvestmentApp.Application.Tests/Decisions/GetDecisionQueueQueryHandlerTests.cs#L394-L406) — test cố ý bảo vệ ngữ nghĩa *"cùng mã ở hai danh mục là hai quyết định khác nhau"*. Ngữ nghĩa đó đúng và đáng giữ.
+**Sửa lại so với đề xuất ban đầu.** Ý định đầu tiên là *thay* khoá `(symbol, portfolioId)` bằng `(symbol, type)`. Rà test cho thấy làm vậy sẽ phá [`Handle_StopLossHitWithDecisionJournalForDifferentPortfolio_NotSuppressed`](../../../../tests/InvestmentApp.Application.Tests/Decisions/GetDecisionQueueQueryHandlerTests.cs#L394-L406) — test cố ý bảo vệ ngữ nghĩa *"cùng mã ở hai danh mục là hai quyết định khác nhau"*. Ngữ nghĩa đó đúng và đáng giữ.
 
 Cách vá **cộng thêm thuần**: giữ nguyên hai tập hiện có, thêm tập thứ ba chỉ dành cho entry mà **cả** `PortfolioId` **và** `TradePlanId` đều null — đúng và chỉ đúng những entry đang rơi mất.
 
-`ResolveDecisionCommand` **đã** ghi type vào tag: `$"trigger:{request.DecisionId.Split(':')[0]}"` ([`:176`](../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L176), [`:236`](../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L236)). `DecisionId` luôn có dạng `{Type}:{...}` nên phần tử đầu chính là tên type. Journal đã tồn tại trong prod **đã có sẵn tag này** — không cần backfill.
+`ResolveDecisionCommand` **đã** ghi type vào tag: `$"trigger:{request.DecisionId.Split(':')[0]}"` ([`:176`](../../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L176), [`:236`](../../../../src/InvestmentApp.Application/Decisions/Commands/ResolveDecision/ResolveDecisionCommand.cs#L236)). `DecisionId` luôn có dạng `{Type}:{...}` nên phần tử đầu chính là tên type. Journal đã tồn tại trong prod **đã có sẵn tag này** — không cần backfill.
 
 `LoadResolvedTodayAsync` trả thêm `HashSet<(string Symbol, string Type)> symType`, build từ:
 
@@ -151,20 +151,20 @@ Filter thêm một mệnh đề: `(item.Symbol, item.Type.ToString()) ∈ symTyp
 
 ### 4.3 Chi phí giá & độ trễ
 
-Handler hiện chưa gọi price service nào. `BuyOpportunity` cần giá cho tối đa N symbol trong watchlist. Dùng `IStockPriceService.GetCurrentPricesAsync(IEnumerable<StockSymbol>)` — batch một lần ([`IStockPriceService.cs:8`](../../../src/InvestmentApp.Application/Common/Interfaces/IStockPriceService.cs#L8)).
+Handler hiện chưa gọi price service nào. `BuyOpportunity` cần giá cho tối đa N symbol trong watchlist. Dùng `IStockPriceService.GetCurrentPricesAsync(IEnumerable<StockSymbol>)` — batch một lần ([`IStockPriceService.cs:8`](../../../../src/InvestmentApp.Application/Common/Interfaces/IStockPriceService.cs#L8)).
 
 Hai ràng buộc:
 
 1. **Chỉ fetch giá cho symbol có `TargetBuyPrice > 0`.** Item không đặt mục tiêu thì không thể sinh cơ hội — fetch giá cho nó là lãng phí thuần.
 2. **`GetCurrentPricesAsync` không nhận `CancellationToken`** (khác mọi interface khác trong Application). Bọc trong `try/catch` + `WaitAsync(timeout)`; lỗi hoặc quá hạn → phần `BuyOpportunity` vắng mặt, phần còn lại của queue vẫn trả bình thường. Cùng nguyên tắc "block nào chậm thì vắng mặt" đã áp dụng cho bản tin.
 
-Task này chạy song song với 4 task hiện có trong `Task.WhenAll` ([`:70-75`](../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L70-L75)), không nối tiếp.
+Task này chạy song song với 4 task hiện có trong `Task.WhenAll` ([`:70-75`](../../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L70-L75)), không nối tiếp.
 
 `MissingStopLoss` **không tốn thêm gì** — dùng lại `summary.Positions` mà `LoadStopLossItemsAsync` đã fetch. Gộp vào cùng vòng lặp, tách nhánh trước dòng `continue`.
 
 ### 4.4 Dedupe
 
-`Dedupe` gom theo `(Symbol, PortfolioId)` và bỏ qua nhóm có `PortfolioId` rỗng ([`:275-280`](../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L275-L280)).
+`Dedupe` gom theo `(Symbol, PortfolioId)` và bỏ qua nhóm có `PortfolioId` rỗng ([`:275-280`](../../../../src/InvestmentApp.Application/Decisions/Queries/GetDecisionQueue/GetDecisionQueueQuery.cs#L275-L280)).
 
 - `BuyOpportunity` có `PortfolioId = ""` → thoát dedupe, giữ nguyên. Đúng: cơ hội mua VNM và cảnh báo SL VNM là hai việc khác nhau, không được nuốt nhau.
 - `MissingStopLoss` có `PortfolioId` thật → vào dedupe. Nhưng nó **loại trừ lẫn nhau** với `StopLossHit` theo định nghĩa (`StopLossPrice == null` vs `!= null`), nên không bao giờ đụng độ. Tie-break hiện tại không cần đổi.
@@ -177,13 +177,13 @@ Task này chạy song song với 4 task hiện có trong `Task.WhenAll` ([`:70-7
 | `typeLabel()` | Chuyển sang `Record<DecisionType, string>` — thiếu key là **lỗi biên dịch**, không còn fallthrough. Nhãn: `Cơ hội mua`, `Thiếu stop-loss` |
 | `getActionRoute()` | Cùng cách. `BuyOpportunity` → `/watchlist`; `MissingStopLoss` → `/risk-dashboard` |
 | `getActionParams()` | Cả hai trả `{ symbol }` |
-| Badge severity | `Info` đã có nhãn "Thông tin" ([`:211-215`](../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L211-L215)) — kiểm tra widget đã có style cho `Info` chưa; nếu chưa thì thêm |
+| Badge severity | `Info` đã có nhãn "Thông tin" ([`:211-215`](../../../../frontend/src/app/features/dashboard/widgets/decision-queue.component.ts#L211-L215)) — kiểm tra widget đã có style cho `Info` chưa; nếu chưa thì thêm |
 
 Việc đổi `typeLabel`/`getActionRoute` sang `Record` là điểm then chốt: nó biến §1.4 từ lỗi thầm lặng thành lỗi biên dịch cho mọi type thêm về sau.
 
 ### 4.6 Mô tả MCP tool
 
-`[Description]` của `get_decision_queue` đang liệt kê đúng ba nguồn ([`DecisionTools.cs:16`](../../../src/InvestmentApp.Api/Mcp/DecisionTools.cs#L16)) → phải cập nhật thành năm. Signature không đổi.
+`[Description]` của `get_decision_queue` đang liệt kê đúng ba nguồn ([`DecisionTools.cs:16`](../../../../src/InvestmentApp.Api/Mcp/DecisionTools.cs#L16)) → phải cập nhật thành năm. Signature không đổi.
 
 ---
 
@@ -210,10 +210,10 @@ Việc đổi `typeLabel`/`getActionRoute` sang `Record` là điểm then chốt
 
 ## 6. Tài liệu phải cập nhật
 
-- [`docs/architecture.md`](../../architecture.md) — nguồn của Decision Queue: 3 → 5
-- [`docs/business-domain.md`](../../business-domain.md) — quy tắc `BuyOpportunity` / `MissingStopLoss`
-- [`docs/features.md`](../../features.md)
-- [`frontend/src/assets/CHANGELOG.md`](../../../frontend/src/assets/CHANGELOG.md)
+- [`docs/architecture.md`](../../../architecture.md) — nguồn của Decision Queue: 3 → 5
+- [`docs/business-domain.md`](../../../business-domain.md) — quy tắc `BuyOpportunity` / `MissingStopLoss`
+- [`docs/features.md`](../../../features.md)
+- [`frontend/src/assets/CHANGELOG.md`](../../../../frontend/src/assets/CHANGELOG.md)
 - User guide trong `frontend/src/assets/docs/` + đăng ký Help topic
 - **ADR** — đổi khoá suppression là thay đổi contract cross-layer, và kích hoạt `Info` đi ngược comment "reserved cho V2". Đủ trigger viết ADR.
 

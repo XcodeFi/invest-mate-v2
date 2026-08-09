@@ -1,6 +1,6 @@
 # Plan — Expose read/write endpoints onto the AI-agent surface
 
-**Design spec:** [`docs/superpowers/specs/2026-07-23-agent-watchlist-positions-expose-design.md`](../superpowers/specs/2026-07-23-agent-watchlist-positions-expose-design.md)
+**Design spec:** [`docs/superpowers/specs/done/2026-07-23-agent-watchlist-positions-expose-design.md`](../../superpowers/specs/done/2026-07-23-agent-watchlist-positions-expose-design.md)
 **Branch:** `feature/ai-agent-expose-watchlist-positions`
 **Scope:** `InvestmentApp.Api` only (5 new controllers + shared base + embedded doc + tests). No Application/Domain/Frontend changes.
 **ADR:** Not required — extends accepted ADR-0004 (agent write-surface via ApiKey) with more domains under the same decision. Sibling-controller design (approach B) captured in the spec. A one-line pointer added to ADR-0004 Consequences.

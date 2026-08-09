@@ -1,6 +1,6 @@
 # MCP Server (co-host trong InvestmentApp.Api) Implementation Plan
 
-> **✅ DONE — merged as PR #129 (squash `e4973c1`, 2026-07-25).** 29 tools shipped (full parity with the AiAgent* surface), 36 MCP tests + 158 total pass. Follow-up (more/new tools): [`2026-07-25-mcp-tools-expansion-roadmap.md`](2026-07-25-mcp-tools-expansion-roadmap.md).
+> **✅ DONE — merged as PR #129 (squash `e4973c1`, 2026-07-25).** 29 tools shipped (full parity with the AiAgent* surface), 36 MCP tests + 158 total pass. Follow-up (more/new tools): [`2026-07-25-mcp-tools-expansion-roadmap.md`](../2026-07-25-mcp-tools-expansion-roadmap.md).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

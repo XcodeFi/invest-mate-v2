@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-26
-- **Related plan:** `docs/superpowers/plans/2026-07-26-daily-digest-decision-context.md`
+- **Related plan:** `docs/superpowers/plans/done/2026-07-26-daily-digest-decision-context.md`
 - **Affected layers:** Application / Infrastructure
 
 ## Context
@@ -79,6 +79,6 @@ Trade-off chấp nhận: **tạm thời có hai con số cash cùng tồn tại*
 
 ## References
 
-- Spec: `docs/superpowers/specs/2026-07-26-daily-digest-decision-context-design.md`
-- Plan: `docs/superpowers/plans/2026-07-26-daily-digest-decision-context.md`
+- Spec: `docs/superpowers/specs/done/2026-07-26-daily-digest-decision-context-design.md`
+- Plan: `docs/superpowers/plans/done/2026-07-26-daily-digest-decision-context.md`
 - PR: #XX (fill in after merge)

@@ -10,7 +10,7 @@
 
 ### 1.1 Bug gốc: `idle_cash` luôn báo 0 dù danh mục đang giữ tiền
 
-[`AiAssistantService.cs:1743`](../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L1743) đọc tiền mặt **chỉ** từ hồ sơ tài chính cá nhân, không bao giờ đọc tiền trong tài khoản chứng khoán:
+[`AiAssistantService.cs:1743`](../../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L1743) đọc tiền mặt **chỉ** từ hồ sơ tài chính cá nhân, không bao giờ đọc tiền trong tài khoản chứng khoán:
 
 ```csharp
 var idleCash = profile.Accounts.Where(a => a.Type == FinancialAccountType.IdleCash).Sum(a => a.Balance);
@@ -19,14 +19,14 @@ investableCapital = totalValue + idleCash;
 
 Sự cố thực tế 2026-07-26: user đã bán 14.500 cp HHV ngày 24/07 thu ~143,9tr. Bản tin báo `idle_cash = 0 VND`, agent kết luận *"không có tiền mặt, không còn dư địa xoay xở"* và khuyên *"muốn mua phải bán bớt trước"* — trong khi thực tế có ~288tr tiền mặt.
 
-**Hệ quả nặng hơn con số hiển thị:** `investableCapital` chính là account balance đưa vào position sizing ([`:1790-1792`](../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L1790-L1792)). Nền vốn thiếu ~288tr → **mọi khối lượng gợi ý trong `<pending_plans>` đều sai và thấp hơn thực tế**. Thêm nữa, cả block `<cash_and_net_worth>` bị bọc trong `if (profile != null)` nên user chưa có hồ sơ tài chính thì mất sạch thông tin tiền.
+**Hệ quả nặng hơn con số hiển thị:** `investableCapital` chính là account balance đưa vào position sizing ([`:1790-1792`](../../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L1790-L1792)). Nền vốn thiếu ~288tr → **mọi khối lượng gợi ý trong `<pending_plans>` đều sai và thấp hơn thực tế**. Thêm nữa, cả block `<cash_and_net_worth>` bị bọc trong `if (profile != null)` nên user chưa có hồ sơ tài chính thì mất sạch thông tin tiền.
 
 ### 1.2 Bản tin mất 2 chiều thông tin
 
 Bản tin gộp mọi thứ theo user rồi vứt mất:
 
 - **Chiều "ở đâu"** — positions gộp chung mọi danh mục, không có tên danh mục. Agent không thể khuyên "bán ở danh mục nào".
-- **Chiều "đã làm gì"** — `TotalRealizedPnL` **đã có sẵn** trong `PortfolioPnLSummary` mà bản tin đang fetch ([`PnLService.cs:50`](../../../src/InvestmentApp.Infrastructure/Services/PnLService.cs#L50)) nhưng không in ra. Lệnh bán nửa HHV vô hình → agent tưởng vị thế còn nguyên.
+- **Chiều "đã làm gì"** — `TotalRealizedPnL` **đã có sẵn** trong `PortfolioPnLSummary` mà bản tin đang fetch ([`PnLService.cs:50`](../../../../src/InvestmentApp.Infrastructure/Services/PnLService.cs#L50)) nhưng không in ra. Lệnh bán nửa HHV vô hình → agent tưởng vị thế còn nguyên.
 
 ### 1.3 Các nguồn dữ liệu đã có nhưng bản tin không dùng
 
@@ -109,7 +109,7 @@ flowchart TD
 
 | Thêm | Vị trí interface | Ghi chú |
 |---|---|---|
-| `ICapitalFlowRepository` | [`Application/RepositoryInterfaces.cs:63`](../../../src/InvestmentApp.Application/RepositoryInterfaces.cs#L63), namespace `Application.Interfaces` | Trivial, cùng lớp với các repo đang inject |
+| `ICapitalFlowRepository` | [`Application/RepositoryInterfaces.cs:63`](../../../../src/InvestmentApp.Application/RepositoryInterfaces.cs#L63), namespace `Application.Interfaces` | Trivial, cùng lớp với các repo đang inject |
 | `IMediator` | MediatR (Application đã reference) | **Lần đầu Infrastructure dùng `IMediator`** — xem quyết định bên dưới |
 
 **Quyết định về `IMediator`:** hiện không có source file nào trong Infrastructure dùng `IMediator`. Hai lựa chọn:
@@ -201,21 +201,21 @@ grossBuys  = Σ (Quantity × Price + Fee + Tax)  với TradeType == BUY
 grossSells = Σ (Quantity × Price − Fee − Tax)  với TradeType == SELL
 ```
 
-Lấy nguyên từ [`CashFlowAdjustedReturnService.cs:432`](../../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L432) — công thức đã được dùng và khớp với hero card capital-flows trên UI.
+Lấy nguyên từ [`CashFlowAdjustedReturnService.cs:432`](../../../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L432) — công thức đã được dùng và khớp với hero card capital-flows trên UI.
 
 ### 6.2 Đã verify: không có bug đếm 2 lần vốn ban đầu
 
-Nghi vấn: `InitialCapital + totalFlows` có thể cộng đôi seed deposit (tạo tự động ở [`CreatePortfolioCommandHandler.cs:32-38`](../../../src/InvestmentApp.Application/Portfolios/Commands/CreatePortfolio/CreatePortfolioCommandHandler.cs#L32-L38)).
+Nghi vấn: `InitialCapital + totalFlows` có thể cộng đôi seed deposit (tạo tự động ở [`CreatePortfolioCommandHandler.cs:32-38`](../../../../src/InvestmentApp.Application/Portfolios/Commands/CreatePortfolio/CreatePortfolioCommandHandler.cs#L32-L38)).
 
-**Kết luận: không.** [`CapitalFlowRepository.cs:63`](../../../src/InvestmentApp.Infrastructure/Repositories/CapitalFlowRepository.cs#L63) đã lọc `!f.IsSeedDeposit`. An toàn dùng trực tiếp.
+**Kết luận: không.** [`CapitalFlowRepository.cs:63`](../../../../src/InvestmentApp.Infrastructure/Repositories/CapitalFlowRepository.cs#L63) đã lọc `!f.IsSeedDeposit`. An toàn dùng trực tiếp.
 
 ### 6.3 Codebase đang có 2 công thức cash khác nhau — có thật, cần ADR
 
 | Nơi | Công thức | Tính lãi/lỗ đã thực hiện? |
 |---|---|---|
-| [`CashFlowAdjustedReturnService.cs:432`](../../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L432) | `Initial + flows − grossBuys + grossSells` | ✅ có |
-| [`RiskCalculationService.cs:91`](../../../src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs#L91) | `Initial + flows − TotalInvested` | ❌ không |
-| [`SnapshotService.cs:53`](../../../src/InvestmentApp.Infrastructure/Services/SnapshotService.cs#L53) | `Initial + flows − TotalInvested` | ❌ không |
+| [`CashFlowAdjustedReturnService.cs:432`](../../../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L432) | `Initial + flows − grossBuys + grossSells` | ✅ có |
+| [`RiskCalculationService.cs:91`](../../../../src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs#L91) | `Initial + flows − TotalInvested` | ❌ không |
+| [`SnapshotService.cs:53`](../../../../src/InvestmentApp.Infrastructure/Services/SnapshotService.cs#L53) | `Initial + flows − TotalInvested` | ❌ không |
 
 Hai công thức cho ra **số khác nhau ngay khi có vị thế đã chốt** — đúng tình huống HHV. `TotalInvested` chỉ phản ánh vị thế đang mở, nên bỏ mất lãi/lỗ đã thực hiện.
 

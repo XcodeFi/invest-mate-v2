@@ -45,6 +45,6 @@ Toàn bộ test xanh: **1.508 pass / 0 fail** (Domain 740 · Application 236 · 
 - `tests/InvestmentApp.Infrastructure.Tests/Services/AiAssistantServiceDigestWiringTests.cs` (mới)
 - `tests/InvestmentApp.Infrastructure.Tests/Services/AiAssistantServiceDailyDigestTests.cs`
 - `docs/adr/0007-portfolio-cash-formula-divergence.md` (mới)
-- `docs/superpowers/specs/2026-07-26-daily-digest-decision-context-design.md` (mới)
-- `docs/superpowers/plans/2026-07-26-daily-digest-decision-context.md` (mới)
+- `docs/superpowers/specs/done/2026-07-26-daily-digest-decision-context-design.md` (mới)
+- `docs/superpowers/plans/done/2026-07-26-daily-digest-decision-context.md` (mới)
 - `docs/architecture.md`, `docs/business-domain.md`, `frontend/src/assets/CHANGELOG.md` (v2.68.0)
