@@ -15,16 +15,23 @@ public class PriceSnapshotJobServiceTests
     private readonly Mock<IMarketIndexRepository> _indexRepo = new();
     private readonly Mock<IMarketDataProvider> _marketData = new();
     private readonly Mock<IStopLossTargetRepository> _slRepo = new();
+    private readonly Mock<ICorporateActionRepository> _corporateActionRepo = new();
     private readonly PriceSnapshotJobService _sut;
 
     public PriceSnapshotJobServiceTests()
     {
+        // Mặc định: không có sự kiện quyền — các test cũ giữ nguyên kỳ vọng
+        _corporateActionRepo
+            .Setup(r => r.GetByPortfolioIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<CorporateAction>());
+
         _sut = new PriceSnapshotJobService(
             _tradeRepo.Object,
             _priceRepo.Object,
             _indexRepo.Object,
             _marketData.Object,
             _slRepo.Object,
+            _corporateActionRepo.Object,
             NullLogger<PriceSnapshotJobService>.Instance);
 
         _slRepo.Setup(r => r.GetUntriggeredAsync(It.IsAny<CancellationToken>()))

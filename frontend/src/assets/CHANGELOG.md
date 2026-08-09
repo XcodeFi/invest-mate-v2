@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.70.0] — 2026-08-09 · Cổ tức và chia tách không còn làm danh mục trông như lỗ
+
+### Tính năng
+
+**🎁 Sự kiện quyền.** Trang mới `/corporate-actions` để nhập cổ tức tiền mặt, cổ tức cổ phiếu và chia tách cổ phiếu. Nhập xong, app tính lại giá vốn và lãi/lỗ cho đúng.
+
+Điểm khó nhất của bài toán này là **khoảng chờ**: ngày giao dịch không hưởng quyền (GDKHQ) sàn đã điều chỉnh giá xuống, nhưng cổ phiếu hoặc tiền chỉ về tài khoản sau đó 1–2 tháng. Với HPG trả cổ tức cổ phiếu 30%, giá tham chiếu giảm 23,08% ngay lập tức trong khi 300 cổ phiếu chưa về — danh mục trông như **bốc hơi 23%** dù không mất gì.
+
+Cách xử lý: ghi nhận ngay tại ngày GDKHQ nhưng đánh dấu phần tăng thêm là **"chờ về"**. Màn hình vị thế hiển thị `1.000 CP (+300 chờ về)` — con số 1.000 vẫn khớp sổ công ty chứng khoán để đối chiếu, còn mọi phép tính lãi/lỗ dùng tổng 1.300. Khi cổ phiếu về thật, bấm "Xác nhận đã về", không con số nào nhảy.
+
+**💰 Cổ tức tiền mặt gắn với từng mã.** Thêm hai cột trên màn hình vị thế: **Cổ tức đã nhận** và **Tổng lãi/lỗ gồm cổ tức**. Cổ tức tiền mặt không làm giảm giá vốn (đúng bản chất và đúng cơ sở tính thuế TNCN 5%), nên nếu chỉ nhìn cột "% lãi/lỗ" thì mã trả cổ tức đều như SAB sẽ trông như lỗ dần qua năm tháng. Cột mới trả lại bức tranh thật.
+
+Lưu ý về đơn vị: "cổ tức 5%" nghĩa là 5% của **mệnh giá 10.000đ** = 500đ mỗi cổ phiếu, không phải 5% giá thị trường. Form nhập có ô xem trước để bạn kiểm tra trước khi lưu.
+
+### Sửa lỗi
+
+**🚨 Cảnh báo cắt lỗ kích hoạt nhầm sau ngày GDKHQ.** Ngưỡng cắt lỗ lưu giá tuyệt đối tại lúc đặt. Sau khi giá bị điều chỉnh giảm 23%, mọi ngưỡng cũ bị xuyên thủng ngay dù vị thế vẫn đang lãi. Nay ngưỡng cắt lỗ, mục tiêu và giá vào đều được điều chỉnh theo cùng hệ số.
+
+**🧮 Giá vốn tính sai ở màn hình lãi/lỗ.** Phép tính cũ lấy trung bình toàn bộ lệnh mua kể cả phần đã bán hết, bỏ qua phí và thuế, và gắn nhãn tiền tệ USD. Nay tính lại đúng theo phần đang nắm giữ, có phí/thuế, đơn vị VND.
+
+---
+
 ## [v2.69.0] — 2026-08-09 · Hàng đợi quyết định bắt được cả cơ hội mua
 
 ### Tính năng

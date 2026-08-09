@@ -164,6 +164,7 @@ export class HelpComponent implements OnInit, OnDestroy {
     { id: 'cong-cu-ho-tro', title: 'Công cụ hỗ trợ', description: 'Watchlist, nhật ký, daily routine, AI assistant', icon: '🧰', color: 'indigo' },
     { id: 'chien-luoc-giao-dich', title: 'Chiến lược giao dịch', description: '7 chiến lược, kết hợp chỉ báo, 10 nguyên tắc', icon: '🎯', color: 'amber' },
     { id: 'tai-chinh-ca-nhan', title: 'Tài chính cá nhân', description: '5 loại tài khoản, vàng tích trữ, sức khỏe tài chính 6/50/30', icon: '💰', color: 'yellow' },
+    { id: 'su-kien-quyen', title: 'Sự kiện quyền', description: 'Cổ tức tiền mặt, cổ tức cổ phiếu, chia tách và tính lại giá vốn', icon: '🎁', color: 'pink' },
   ];
 
   topicContents: TopicContent[] = [];

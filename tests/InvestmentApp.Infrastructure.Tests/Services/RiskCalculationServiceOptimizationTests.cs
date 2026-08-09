@@ -23,6 +23,7 @@ public class RiskCalculationServiceOptimizationTests
     private readonly Mock<IFundamentalDataProvider> _fundamentalProvider;
     private readonly Mock<IComprehensiveStockDataProvider> _comprehensiveProvider;
     private readonly Mock<IMarketDataProvider> _marketDataProvider;
+    private readonly Mock<ICorporateActionRepository> _corporateActionRepository;
     private readonly Mock<ILogger<RiskCalculationService>> _logger;
     private readonly RiskCalculationService _sut;
 
@@ -43,6 +44,10 @@ public class RiskCalculationServiceOptimizationTests
         _fundamentalProvider = new Mock<IFundamentalDataProvider>();
         _comprehensiveProvider = new Mock<IComprehensiveStockDataProvider>();
         _marketDataProvider = new Mock<IMarketDataProvider>();
+        _corporateActionRepository = new Mock<ICorporateActionRepository>();
+        _corporateActionRepository
+            .Setup(r => r.GetByPortfolioIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<CorporateAction>());
         _logger = new Mock<ILogger<RiskCalculationService>>();
 
         _sut = new RiskCalculationService(
@@ -58,6 +63,7 @@ public class RiskCalculationServiceOptimizationTests
             _fundamentalProvider.Object,
             _comprehensiveProvider.Object,
             _marketDataProvider.Object,
+            _corporateActionRepository.Object,
             _logger.Object);
     }
 

@@ -140,7 +140,17 @@ interface PortfolioGroup {
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                   <div>
                     <div class="text-xs text-gray-500">Số lượng</div>
-                    <div class="font-medium">{{ pos.quantity | number:'1.0-0' }} CP</div>
+                    <div class="font-medium">
+                      <!-- Tổng làm số chính để khớp với "Giá TB" và "Giá trị" bên cạnh
+                           (đều tính trên tổng); "trong đó" tránh đọc nhầm thành phép cộng. -->
+                      {{ pos.quantity | number:'1.0-0' }} CP
+                      @if (pos.pendingQuantity > 0) {
+                        <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700"
+                              [title]="'Đã về tài khoản ' + pos.settledQuantity + ' CP, còn lại từ sự kiện quyền chưa về'">
+                          trong đó {{ pos.pendingQuantity | number:'1.0-0' }} chờ về
+                        </span>
+                      }
+                    </div>
                   </div>
                   <div>
                     <div class="text-xs text-gray-500">Giá TB</div>
@@ -161,6 +171,30 @@ interface PortfolioGroup {
                     </div>
                   </div>
                 </div>
+
+                @if (pos.dividendNet > 0 || pos.pendingDividend > 0) {
+                  <div class="mt-3 grid grid-cols-2 gap-3 rounded bg-gray-50 px-3 py-2 text-sm">
+                    <div>
+                      <div class="text-xs text-gray-500">Cổ tức đã nhận</div>
+                      <div class="font-medium">
+                        {{ pos.dividendNet | vndCurrency }}
+                        @if (pos.pendingDividend > 0) {
+                          <span class="block text-xs text-amber-600">
+                            +{{ pos.pendingDividend | vndCurrency }} chờ về
+                          </span>
+                        }
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-500">Tổng lãi/lỗ gồm cổ tức</div>
+                      <div class="font-medium"
+                           [class.text-green-600]="pos.totalPnLWithDividend >= 0"
+                           [class.text-red-600]="pos.totalPnLWithDividend < 0">
+                        {{ pos.totalPnLWithDividend | vndCurrency }}
+                      </div>
+                    </div>
+                  </div>
+                }
 
                 <!-- SL/TP Distance Bar -->
                 <div *ngIf="pos.linkedPlan && pos.linkedPlan.stopLoss && pos.linkedPlan.target" class="mt-3">

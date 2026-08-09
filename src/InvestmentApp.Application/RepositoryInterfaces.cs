@@ -67,6 +67,13 @@ public interface ICapitalFlowRepository : IRepository<CapitalFlow>
     Task<decimal> GetTotalFlowByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default);
 }
 
+public interface ICorporateActionRepository : IRepository<CorporateAction>
+{
+    Task<IEnumerable<CorporateAction>> GetByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<CorporateAction>> GetByPortfolioIdAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
+    Task<IEnumerable<CorporateAction>> GetByPortfolioIdsAsync(IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default);
+}
+
 public interface IPortfolioSnapshotRepository : IRepository<PortfolioSnapshotEntity>
 {
     Task<PortfolioSnapshotEntity?> GetByPortfolioIdAndDateAsync(string portfolioId, DateTime date, CancellationToken cancellationToken = default);

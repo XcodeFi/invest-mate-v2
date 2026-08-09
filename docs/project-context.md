@@ -117,6 +117,9 @@ Tóm tắt 3 trụ:
 
 ## Common Pitfalls (từ past bugs)
 
+- **"Cổ tức 5%" là 5% MỆNH GIÁ, không phải 5% giá thị trường** — mệnh giá CP niêm yết VN cố định 10.000đ, nên 5% = 500đ/CP. Với mã giá 55.000 thì đó chỉ là 0,91%. Entity `CorporateAction` bắt buộc lưu `AmountPerShare` đã quy đổi ra đồng, không lưu số `5` trần — nếu để trần, sớm muộn sẽ có chỗ nhân nhầm vào giá thị trường. Đối xứng: cổ tức **cổ phiếu** 30% thì giá giảm `1/1,3` = **23,08%**, không phải 30%.
+- **Ngưỡng giá tuyệt đối phải điều chỉnh theo sự kiện quyền** — `StopLossTarget` lưu `EntryPrice`/`StopLossPrice`/`TargetPrice`/`TrailingStopPrice` là giá tuyệt đối tại lúc đặt. Sau ngày GDKHQ giá thị trường bị điều chỉnh giảm 23% → ngưỡng cũ bị xuyên thủng ngay lập tức dù vị thế vẫn lãi, cắt lỗ bắn nhầm hàng loạt. Điều chỉnh **tại thời điểm đọc** qua `CorporateActionAdjuster`, không sửa dữ liệu (xoá sự kiện thì ngưỡng tự quay về cũ). Cùng bẫy áp cho mọi field giá tuyệt đối lưu kèm timestamp.
+- **Toán vị thế bị nhân bản ~15 service** — trước ADR-0010, mỗi service tự `GroupBy(t => t.Symbol)` trên `Trade` thô. Thêm bất kỳ thứ gì làm lệch số lượng/giá vốn (sự kiện quyền, lot matching, phí) là mỗi màn hình ra một con số khác nhau. Nguồn duy nhất giờ là `PositionBuilder.Build(trades, actions, asOf)`. Trước khi viết logic tính giá vốn mới, kiểm tra service đó đã gọi `PositionBuilder` hay `IPnLService` chưa — nhiều service đã đi qua `IPnLService` nên tự đúng, sửa thêm là thừa.
 - **`[contextData]="{}"` in Angular templates** — Creates new object reference every change detection cycle, causes infinite loop. Use `readonly emptyContext = {}` as stable reference.
 - **`CancelAfter()` in .NET** — Only cancels the token, doesn't stop tasks that don't check it. Use `.WaitAsync(TimeSpan)` which throws `TimeoutException` independently.
 - **24hmoney prices** — API returns prices in units of 1,000 VND. Must multiply by 1,000.
