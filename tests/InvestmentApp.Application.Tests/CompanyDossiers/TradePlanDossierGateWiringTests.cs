@@ -36,7 +36,7 @@ public class TradePlanDossierGateWiringTests
             .ThrowsAsync(new DossierGateException("HPG",
                 DossierGateResult.Fail("missing")));
 
-        var handler = TestFactory.CreateTradePlanHandler(_gate.Object, out _);
+        var handler = TestFactory.CreateTradePlanHandler(_gate.Object, out var repo);
         var command = TestFactory.CreateCommand(userId: "user-1", symbol: "HPG");
         command.Status = "Executed";
         command.TradeId = "trade-1";
@@ -44,6 +44,10 @@ public class TradePlanDossierGateWiringTests
         var act = () => handler.Handle(command, default);
 
         await act.Should().ThrowAsync<DossierGateException>();
+        // Assert "có throw" là không đủ: mock gate luôn throw nên test pass y như nhau
+        // dù gate chạy trước hay sau khối auto-transition. Phải chứng minh plan chưa
+        // bao giờ được ghi xuống, đó mới là bằng chứng gate chặn TRƯỚC.
+        repo.Verify(r => r.AddAsync(It.IsAny<TradePlan>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
