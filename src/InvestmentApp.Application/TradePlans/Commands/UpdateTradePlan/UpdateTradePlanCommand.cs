@@ -75,8 +75,8 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         var newSize = (request.Quantity ?? plan.Quantity) * (request.EntryPrice ?? plan.EntryPrice);
         var newBalance = request.AccountBalance ?? plan.AccountBalance;
 
-        var oldThreshold = (plan.AccountBalance ?? 0m) * 0.05m;
-        var newThreshold = (newBalance ?? 0m) * 0.05m;
+        var oldThreshold = (plan.AccountBalance ?? 0m) * TradePlan.LargeTierThreshold;
+        var newThreshold = (newBalance ?? 0m) * TradePlan.LargeTierThreshold;
 
         // So TỶ LỆ ở hai thời điểm, mỗi vế dùng số dư của chính thời điểm đó. Nếu ngưỡng
         // mới vẫn tính theo số dư cũ thì một request vừa nâng size vừa hạ số dư sẽ lọt.
@@ -87,11 +87,15 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
             && newBalance.Value > 0m
             && newSize >= newThreshold;
 
-        // Vá cửa hậu "tạo nhỏ rồi sửa lớn". Chỉ bắn khi thực sự vượt ngưỡng lên,
-        // để không phá nguyên tắc "plan có rồi thì thôi".
-        if (wasBelow && isNowAtOrAbove)
+        // Đổi mã là mở một vị thế mới ở một công ty khác, nên áp đúng cổng mà đường TẠO
+        // sẽ áp — chấm theo mã MỚI, với mọi lần đổi mã (không chỉ khi vượt ngưỡng): đường
+        // tạo chặn cả lệnh nhỏ (bậc nhỏ đòi BusinessModel), nên đường sửa cũng phải vậy.
+        var newSymbol = (request.Symbol ?? plan.Symbol).ToUpper().Trim();
+        var symbolChanged = newSymbol != plan.Symbol;
+
+        if (symbolChanged || (wasBelow && isNowAtOrAbove))
         {
-            await _dossierGate.EnsureAsync(plan.UserId, plan.Symbol, newSize, newBalance, cancellationToken);
+            await _dossierGate.EnsureAsync(plan.UserId, newSymbol, newSize, newBalance, cancellationToken);
         }
 
         var checklist = request.Checklist?.Select(c => new ChecklistItem

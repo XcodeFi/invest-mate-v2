@@ -84,7 +84,8 @@ public class CompanyDossierQueryTests
     {
         _gate.Setup(g => g.EvaluateAsync("user-1", "HPG", 20_000_000m, 100_000_000m, default))
             .ReturnsAsync(DossierGateResult.Ok());
-        var handler = new GetDossierGateStatusQueryHandler(_gate.Object);
+        _repo.Setup(r => r.GetAsync("user-1", "HPG")).ReturnsAsync((CompanyDossier?)null);
+        var handler = new GetDossierGateStatusQueryHandler(_gate.Object, _repo.Object);
 
         var result = await handler.Handle(new GetDossierGateStatusQuery
         {
@@ -105,12 +106,50 @@ public class CompanyDossierQueryTests
     {
         _gate.Setup(g => g.EvaluateAsync("user-1", "HPG", 0m, null, default))
             .ReturnsAsync(DossierGateResult.Fail("missing"));
-        var handler = new GetDossierGateStatusQueryHandler(_gate.Object);
+        _repo.Setup(r => r.GetAsync("user-1", "HPG")).ReturnsAsync((CompanyDossier?)null);
+        var handler = new GetDossierGateStatusQueryHandler(_gate.Object, _repo.Object);
 
         var result = await handler.Handle(
             new GetDossierGateStatusQuery { UserId = "user-1", Symbol = "HPG" }, default);
 
         result.Passed.Should().BeFalse();
         result.Reason.Should().Be("missing");
+    }
+
+    [Fact]
+    public async Task GateStatus_WhenNoDossier_ShouldMapFreshnessNull()
+    {
+        _gate.Setup(g => g.EvaluateAsync("user-1", "HPG", 0m, null, default))
+            .ReturnsAsync(DossierGateResult.Fail("missing"));
+        _repo.Setup(r => r.GetAsync("user-1", "HPG")).ReturnsAsync((CompanyDossier?)null);
+        var handler = new GetDossierGateStatusQueryHandler(_gate.Object, _repo.Object);
+
+        var result = await handler.Handle(
+            new GetDossierGateStatusQuery { UserId = "user-1", Symbol = "HPG" }, default);
+
+        result.Freshness.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GateStatus_WhenDossierNeedsReview_ShouldPassButMapFreshnessNeedsReview()
+    {
+        // NeedsReview (90–179 ngày) KHÔNG chặn cổng, nên trước đây passed=true, reason=null
+        // và không có cách nào biết mà nhắc "nên xem lại". Freshness phải lộ ra điều đó.
+        var dossier = NewDossier();
+        dossier.Confirm();
+        typeof(CompanyDossier).GetProperty(nameof(CompanyDossier.ReviewedAt))!
+            .SetValue(dossier, DateTime.UtcNow.AddDays(-120));
+        _gate.Setup(g => g.EvaluateAsync("user-1", "HPG", 0m, 100_000_000m, default))
+            .ReturnsAsync(DossierGateResult.Ok());
+        _repo.Setup(r => r.GetAsync("user-1", "HPG")).ReturnsAsync(dossier);
+        var handler = new GetDossierGateStatusQueryHandler(_gate.Object, _repo.Object);
+
+        var result = await handler.Handle(new GetDossierGateStatusQuery
+        {
+            UserId = "user-1", Symbol = "HPG", AccountBalance = 100_000_000m
+        }, default);
+
+        result.Passed.Should().BeTrue();
+        result.Freshness.Should().Be("NeedsReview");
     }
 }

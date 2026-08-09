@@ -41,14 +41,27 @@ public class CompanyDossiersController : ControllerBase
 
     [HttpGet("{symbol}/gate-status")]
     [ProducesResponseType(typeof(DossierGateStatusDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GateStatus(string symbol,
         [FromQuery] int? quantity, [FromQuery] decimal? entryPrice,
         [FromQuery] decimal? accountBalance, CancellationToken ct)
-        => Ok(await _mediator.Send(new GetDossierGateStatusQuery
+    {
+        // Đoán giá trị thiếu (0) khiến plan thật ra ở bậc lớn lại được chấm ở bậc nhỏ —
+        // endpoint kiểm tra trước khi tạo plan không được phép nói khác với đường tạo thật.
+        var missing = new List<string>();
+        if (quantity is null) missing.Add("quantity");
+        if (entryPrice is null) missing.Add("entryPrice");
+        if (accountBalance is null) missing.Add("accountBalance");
+
+        if (missing.Count > 0)
+            return BadRequest(new { error = $"Thiếu tham số bắt buộc: {string.Join(", ", missing)}" });
+
+        return Ok(await _mediator.Send(new GetDossierGateStatusQuery
         {
             UserId = GetUserId(), Symbol = symbol,
             Quantity = quantity, EntryPrice = entryPrice, AccountBalance = accountBalance
         }, ct));
+    }
 
     [HttpPut("{symbol}")]
     [ProducesResponseType(StatusCodes.Status200OK)]

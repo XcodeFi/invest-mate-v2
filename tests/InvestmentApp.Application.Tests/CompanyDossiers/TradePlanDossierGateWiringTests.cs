@@ -149,6 +149,70 @@ public class TradePlanDossierGateWiringTests
             4_000_000m, 50_000_000m, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task Update_SymbolChangedAndCrossesThreshold_ShouldRunGateWithNewSymbol()
+    {
+        // Đổi mã A→B kèm nâng size lên ngưỡng lớn. Cửa hậu cũ chấm A (mã cũ) — A đỗ,
+        // nhưng vị thế thật lại mở ở B, B không có hồ sơ nào. Phải chấm mã MỚI.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+        var command = TestFactory.UpdateCommand(quantity: 120, entryPrice: 100_000m, symbol: "VNM");
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "VNM",
+            12_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_SymbolChangedButStillBelowThreshold_ShouldRunGateWithNewSymbol()
+    {
+        // Đổi mã A→B, size không đổi và vẫn dưới ngưỡng. wasBelow&&isNowAtOrAbove cũ sẽ
+        // là false nên cổng cũ không chạy — nhưng đổi mã là mở vị thế mới ở công ty khác,
+        // đường tạo chặn cả lệnh nhỏ (bậc nhỏ đòi BusinessModel) nên đường sửa cũng phải vậy.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+        var command = TestFactory.UpdateCommand(quantity: 20, entryPrice: 100_000m, symbol: "VNM");
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "VNM",
+            2_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_SymbolChangedAndGateBlocks_ShouldNotPersist()
+    {
+        // Đường sửa hiện chưa có test nào ghim việc cổng chặn được phần ghi xuống DB —
+        // đường tạo có (Create_WhenGateBlocks_ShouldThrowBeforePersisting), đường sửa không.
+        _gate.Setup(g => g.EnsureAsync("user-1", "VNM", It.IsAny<decimal>(),
+                It.IsAny<decimal?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DossierGateException("VNM", DossierGateResult.Fail("missing")));
+
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m,
+            out var repository);
+        var command = TestFactory.UpdateCommand(quantity: 120, entryPrice: 100_000m, symbol: "VNM");
+
+        var act = () => handler.Handle(command, default);
+
+        await act.Should().ThrowAsync<DossierGateException>();
+        repository.Verify(r => r.UpdateAsync(It.IsAny<TradePlan>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Update_SymbolUnchangedAndBelowThreshold_ShouldNotRunGate()
+    {
+        // Giữ nguyên "plan có rồi thì thôi" — không đổi mã, không vượt ngưỡng.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+        var command = TestFactory.UpdateCommand(quantity: 25, entryPrice: 100_000m);
+
+        await handler.Handle(command, default);
+
+        _gate.VerifyNoOtherCalls();
+    }
+
     private static class TestFactory
     {
         public static CreateTradePlanCommandHandler CreateTradePlanHandler(
@@ -174,8 +238,13 @@ public class TradePlanDossierGateWiringTests
 
         public static UpdateTradePlanCommandHandler UpdateTradePlanHandler(
             ICompanyDossierGate gate, int existingQuantity, decimal existingEntryPrice, decimal? accountBalance)
+            => UpdateTradePlanHandler(gate, existingQuantity, existingEntryPrice, accountBalance, out _);
+
+        public static UpdateTradePlanCommandHandler UpdateTradePlanHandler(
+            ICompanyDossierGate gate, int existingQuantity, decimal existingEntryPrice, decimal? accountBalance,
+            out Mock<ITradePlanRepository> repository)
         {
-            var repository = new Mock<ITradePlanRepository>();
+            repository = new Mock<ITradePlanRepository>();
             var plan = new TradePlan("user-1", "HPG", "Buy",
                 existingEntryPrice, existingEntryPrice * 0.9m, existingEntryPrice * 1.2m, existingQuantity,
                 accountBalance: accountBalance,
@@ -184,10 +253,11 @@ public class TradePlanDossierGateWiringTests
             return new UpdateTradePlanCommandHandler(repository.Object, gate);
         }
 
-        public static UpdateTradePlanCommand UpdateCommand(int quantity, decimal? entryPrice) => new()
+        public static UpdateTradePlanCommand UpdateCommand(int quantity, decimal? entryPrice, string? symbol = null) => new()
         {
             Id = "plan-1",
             UserId = "user-1",
+            Symbol = symbol,
             Quantity = quantity,
             EntryPrice = entryPrice
         };

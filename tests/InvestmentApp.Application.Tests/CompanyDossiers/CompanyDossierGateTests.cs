@@ -227,6 +227,48 @@ public class CompanyDossierGateTests
     }
 
     [Fact]
+    public async Task SmallTier_MoatWithBlankDescription_ShouldBlock()
+    {
+        // MoatItem.Description không được entity validate — moat rỗng vẫn tạo được.
+        // Cổng phải đếm moat CÓ MÔ TẢ, không phải chỉ đếm số phần tử trong list.
+        var d = new CompanyDossier("user-1", "HPG", "Bán thép xây dựng và HRC cho nhà thầu nội địa",
+            new List<MoatItem> { new() { Description = "   " } },
+            new List<RiskFactor> { new() { Rank = 1, ObservableSignal = new string('x', 10) } });
+        d.Confirm();
+        Setup(d);
+
+        var result = await Sut().EvaluateAsync("user-1", "HPG", SmallSize, Account, default);
+
+        result.Passed.Should().BeFalse();
+        result.Reason.Should().Be("insufficient");
+        result.Missing.Should().Contain(m => m.Contains("moats"));
+    }
+
+    [Fact]
+    public async Task LargeTier_RiskFactorWithBlankDescription_ShouldBlock()
+    {
+        // RiskFactor.Description cũng chỉ bắt buộc ObservableSignal ở entity — cùng lỗ hổng
+        // như moat, chỉ khác là bậc lớn đếm Count nên phải thêm cảnh báo riêng, không đổi
+        // câu "riskFactors: cần ≥ 3, đang có N" đang được ghim ở test khác.
+        var risks = new List<RiskFactor>
+        {
+            new() { Rank = 1, Description = "  ", ObservableSignal = new string('x', 30) },
+            new() { Rank = 2, Description = "Rủi ro số 2", ObservableSignal = new string('x', 30) },
+            new() { Rank = 3, Description = "Rủi ro số 3", ObservableSignal = new string('x', 30) }
+        };
+        var d = new CompanyDossier("user-1", "HPG", "Bán thép xây dựng cho nhà thầu nội địa toàn quốc",
+            new List<MoatItem> { new() { Description = new string('m', 40) } },
+            risks);
+        d.Confirm();
+        Setup(d);
+
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, Account, default);
+
+        result.Passed.Should().BeFalse();
+        result.Missing.Should().Contain(m => m.Contains("riskFactors") && m.Contains("mô tả") && m.Contains("1"));
+    }
+
+    [Fact]
     public async Task EnsureAsync_WhenBlocked_ShouldThrowWithPayload()
     {
         Setup(null);

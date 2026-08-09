@@ -5,7 +5,6 @@ namespace InvestmentApp.Application.CompanyDossiers.Gate;
 
 public class CompanyDossierGate : ICompanyDossierGate
 {
-    private const decimal LargeTierThreshold = 0.05m;
     private const int LargeBusinessModelMinChars = 30;
     private const int LargeMoatMinChars = 30;
     private const int LargeRiskFactorMinCount = 3;
@@ -32,13 +31,13 @@ public class CompanyDossierGate : ICompanyDossierGate
         // MỌI lệnh rơi vào tầng lớn — trong khi số dư 0 nghĩa là chưa biết gì, đúng như null.
         var requireFull = accountBalance.HasValue
             && accountBalance.Value > 0m
-            && planSize >= accountBalance.Value * LargeTierThreshold;
+            && planSize >= accountBalance.Value * TradePlan.LargeTierThreshold;
 
         var missing = requireFull ? CheckLarge(dossier) : CheckSmall(dossier);
 
         return missing.Count == 0
             ? DossierGateResult.Ok()
-            : new DossierGateResult(false, "insufficient", missing);
+            : DossierGateResult.Fail("insufficient", missing.ToArray());
     }
 
     public async Task EnsureAsync(string userId, string symbol,
@@ -56,8 +55,8 @@ public class CompanyDossierGate : ICompanyDossierGate
         if (string.IsNullOrWhiteSpace(d.BusinessModel))
             missing.Add("businessModel: cần ít nhất một câu, đang để trống");
 
-        if (d.Moats.Count == 0)
-            missing.Add("moats: cần ≥ 1, đang có 0");
+        if (!d.Moats.Any(m => !string.IsNullOrWhiteSpace(m.Description)))
+            missing.Add("moats: cần ≥ 1 moat có mô tả, đang có 0");
 
         if (d.RiskFactors.Count == 0)
             missing.Add("riskFactors: cần ≥ 1, đang có 0");
@@ -90,6 +89,17 @@ public class CompanyDossierGate : ICompanyDossierGate
 
         if (shortSignals.Count > 0)
             missing.Add($"observableSignal: cần ≥ {LargeSignalMinChars} ký tự ở yếu tố {string.Join(", ", shortSignals)}");
+
+        // RiskFactor.Description cũng chỉ bắt buộc ObservableSignal ở entity, không bắt
+        // buộc Description — cùng lỗ hổng như moat. Không đổi câu đếm ở trên (test khác
+        // đã ghim), thêm cảnh báo riêng cho hạng có mô tả rỗng.
+        var emptyDescriptionRanks = d.RiskFactors
+            .Where(r => string.IsNullOrWhiteSpace(r.Description))
+            .Select(r => r.Rank.ToString())
+            .ToList();
+
+        if (emptyDescriptionRanks.Count > 0)
+            missing.Add($"riskFactors: mô tả không được để trống ở hạng {string.Join(", ", emptyDescriptionRanks)}");
 
         return missing;
     }

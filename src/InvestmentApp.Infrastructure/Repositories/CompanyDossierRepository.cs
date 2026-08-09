@@ -17,7 +17,7 @@ public class CompanyDossierRepository : ICompanyDossierRepository
         var keys = Builders<CompanyDossier>.IndexKeys
             .Ascending(d => d.UserId)
             .Ascending(d => d.Symbol);
-        _collection.Indexes.CreateOneAsync(new CreateIndexModel<CompanyDossier>(
+        _collection.Indexes.CreateOne(new CreateIndexModel<CompanyDossier>(
             keys,
             new CreateIndexOptions { Unique = true, Name = "ux_user_symbol" }));
     }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentAssertions;
 using InvestmentApp.Api.Controllers;
 using InvestmentApp.Application.CompanyDossiers.Commands.UpsertCompanyDossier;
+using InvestmentApp.Application.CompanyDossiers.Queries.GetDossierGateStatus;
 using InvestmentApp.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -65,5 +66,44 @@ public class CompanyDossiersControllerTests
         result.Should().BeOfType<BadRequestObjectResult>();
         _mediator.Verify(m => m.Send(It.IsAny<UpsertCompanyDossierCommand>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// GetDossierGateStatusQueryHandler đổi giá trị thiếu bằng 0, nên một caller quên
+    /// accountBalance (rất dễ, vì nó không nằm trong URL) sẽ được chấm ở bậc nhỏ, trong khi
+    /// POST /trade-plans mang AccountBalance trong body và bị chấm ở bậc lớn. Endpoint này
+    /// không được phép đoán — thiếu tham số nào phải trả 400, không được tự điền 0.
+    /// </summary>
+    [Fact]
+    public async Task GateStatus_WhenAccountBalanceMissing_ReturnsBadRequest_AndDoesNotDispatch()
+    {
+        var result = await Sut().GateStatus("HPG", quantity: 100, entryPrice: 10_000m, accountBalance: null, default);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        _mediator.Verify(m => m.Send(It.IsAny<GetDossierGateStatusQuery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GateStatus_WhenQuantityAndEntryPriceMissing_ReturnsBadRequest_AndDoesNotDispatch()
+    {
+        var result = await Sut().GateStatus("HPG", quantity: null, entryPrice: null, accountBalance: 100_000_000m, default);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        _mediator.Verify(m => m.Send(It.IsAny<GetDossierGateStatusQuery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GateStatus_WhenAllParamsPresent_Dispatches()
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<GetDossierGateStatusQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new InvestmentApp.Application.CompanyDossiers.DTOs.DossierGateStatusDto { Symbol = "HPG" });
+
+        var result = await Sut().GateStatus("HPG", quantity: 100, entryPrice: 10_000m, accountBalance: 100_000_000m, default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        _mediator.Verify(m => m.Send(It.IsAny<GetDossierGateStatusQuery>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

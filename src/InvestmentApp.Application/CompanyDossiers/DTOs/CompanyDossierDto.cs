@@ -36,4 +36,7 @@ public class DossierGateStatusDto
     public bool Passed { get; set; }
     public string? Reason { get; set; }
     public List<string> Missing { get; set; } = new();
+
+    /// <summary>"Unconfirmed" | "Fresh" | "NeedsReview" | "Expired" | null khi chưa có hồ sơ.</summary>
+    public string? Freshness { get; set; }
 }

@@ -97,7 +97,7 @@ public class CompanyDossier : AggregateRoot
         {
             if (string.IsNullOrWhiteSpace(f.ObservableSignal))
                 throw new ArgumentException(
-                    "Mỗi yếu tố rủi ro phải có dấu hiệu quan sát được", nameof(factors));
+                    "Mỗi yếu tố rủi ro phải có dấu hiệu quan sát được");
         }
 
         if (factors.Count(f => f.IsDealBreaker) > 1)
