@@ -139,7 +139,15 @@ Khi `AccountBalance` null thì không có ngưỡng nào để vượt, nên lu�
 
 ### 5.2 Ngưỡng
 
-Phản chiếu đúng công thức `EnsureDisciplineGate`: `size = Quantity × EntryPrice`, `threshold = AccountBalance × 0.05`, `AccountBalance` null ⇒ coi như tầng nhỏ.
+Phản chiếu đúng công thức `EnsureDisciplineGate` ([TradePlan.cs:177-180](../../../src/InvestmentApp.Domain/Entities/TradePlan.cs#L177-L180)):
+
+```
+requireFullDiscipline = AccountBalance.HasValue
+                     && AccountBalance.Value > 0
+                     && Quantity × EntryPrice >= AccountBalance.Value × 0.05
+```
+
+`AccountBalance` null **hoặc ≤ 0** ⇒ coi như tầng nhỏ. Điều kiện `> 0` là bắt buộc, không phải phòng xa: thiếu nó thì `AccountBalance = 0` cho `threshold = 0`, mọi lệnh đều `>= 0`, nên **mọi** lệnh rơi vào tầng lớn — trong khi số dư bằng 0 nghĩa là chưa biết gì, đúng như null. Hai gate phải khớp nhau ở điểm này, nếu không cùng một lệnh sẽ bị hai gate phân loại ngược nhau.
 
 | | Nhỏ (`size < 5%` hoặc không biết số dư) | Lớn (`size ≥ 5%`) |
 |---|---|---|

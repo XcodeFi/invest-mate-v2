@@ -748,6 +748,19 @@ public class CompanyDossierGateTests
         result.Passed.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1_000_000)]
+    public async Task NonPositiveAccountBalance_ShouldUseSmallTier(decimal balance)
+    {
+        // Khớp guard `AccountBalance.Value > 0m` của TradePlan.EnsureDisciplineGate:179.
+        // Thiếu guard này thì threshold = 0 và mọi lệnh rơi vào tầng lớn.
+        Setup(Dossier(businessModel: "Bán thép", moatLength: 5, riskCount: 1, signalLength: 10));
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, balance, default);
+
+        result.Passed.Should().BeTrue();
+    }
+
     [Fact]
     public async Task LargeTier_VietnameseBusinessModelOf30Chars_ShouldPass()
     {
@@ -851,7 +864,11 @@ public class CompanyDossierGate : ICompanyDossierGate
             case DossierFreshness.Expired: return DossierGateResult.Fail("expired");
         }
 
+        // Guard `> 0` là bắt buộc để khớp TradePlan.EnsureDisciplineGate:171.
+        // Thiếu nó thì AccountBalance = 0 cho threshold = 0, mọi lệnh >= 0 nên
+        // MỌI lệnh rơi vào tầng lớn — trong khi số dư 0 nghĩa là chưa biết gì, đúng như null.
         var requireFull = accountBalance.HasValue
+            && accountBalance.Value > 0m
             && planSize >= accountBalance.Value * LargeTierThreshold;
 
         var missing = requireFull ? CheckLarge(dossier) : CheckSmall(dossier);
