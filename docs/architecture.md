@@ -377,6 +377,13 @@ Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wirin
 
 Plan: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engine.md). Hybrid sau review 2 sub-agent (UX + Architect), adopt 3 / bác 5 đề xuất từ layout V2 brainstorm. Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
 
+**Tín hiệu phía vào lệnh (2026-08-09, [ADR-0009](adr/0009-decision-queue-entry-side-signals.md)):** `GetDecisionQueueQuery` từ **3 → 5 nguồn**. Handler nhận thêm `IWatchlistRepository` + `IStockPriceService` (cả hai `AddScoped`, `Program.cs:125,137`), task cơ hội chạy song song trong `Task.WhenAll` sẵn có.
+
+- `MissingStopLoss` (Warning) — tái dùng `PortfolioRiskSummary` đã fetch, không tốn thêm I/O. Guard `CurrentPrice <= 0` **dời lên trước** nhánh null-SL để giá fail-fetch không bị đọc thành "thiếu SL".
+- `BuyOpportunity` (Info, `PortfolioId` rỗng → thoát dedupe) — chỉ fetch giá cho mã có `TargetBuyPrice > 0`; `IStockPriceService.GetCurrentPricesAsync` **không nhận `CancellationToken`** nên bọc `WaitAsync(5s, ct)` thủ công; lỗi/timeout → trả rỗng theo idiom `catch { skip }` của `AiAssistantService`, không làm hỏng queue. Dictionary giá bọc lại `StringComparer.OrdinalIgnoreCase` vì provider có thể trả key khác hoa/thường.
+- **Suppression vá bug có sẵn:** `LoadResolvedTodayAsync` trả thêm tập thứ ba `(Symbol, Type)` dựng từ tag `trigger:{Type}`, chỉ nhận journal có **cả** `PortfolioId` lẫn `TradePlanId` null. Trước đó `HandleHoldWithJournalAsync` nhánh symbol-only để `portfolioId` null còn `LoadResolvedTodayAsync` lại lọc bỏ đúng entry đó → resolve `StopLossHit` xong card hiện lại ngay. Hai tập cũ giữ nguyên nên toàn bộ test suppression cũ vẫn xanh không sửa dòng nào.
+- Frontend: `typeLabel`/`getActionRoute` chuyển từ chuỗi `if` fallthrough sang `Record<DecisionType, …>` — thêm type mới mà quên nhãn là **lỗi biên dịch**, kèm fallback runtime (`?? 'Khác'` / `/symbol-timeline`) cho trường hợp FE cache cũ gặp API mới.
+
 **PR-3 (P4 + P5) shipped 2026-05-04:**
 
 - `src/InvestmentApp.Domain/Entities/JournalEntry.cs` — thêm `JournalEntryType.Decision` enum value (additive, no migration). Dùng cho `HoldWithJournal` flow trong P4.

@@ -1532,8 +1532,9 @@ Tổng 1106 tests pass. V1 thêm:
 ### PR-2 (P3) — shipped 2026-05-04
 
 - **Decision Queue + Empty state Positive:** gộp 3 nguồn alert rời (Risk Alert Banner + Advisory Widget + Pending Review section) thành 1 widget duy nhất ở vị trí #1 trên Home. Sort severity desc (Critical đầu tiên), dedupe theo (Symbol, PortfolioId), cap 5 items với overflow link `/risk-dashboard`.
+- **Tín hiệu phía vào lệnh (2026-08-09, ADR-0009):** queue thêm 2 loại. **Thiếu stop-loss** (Warning) — vị thế đang mở chưa đặt SL, trước đây bị bỏ qua im lặng nên rủi ro lớn nhất lại vô hình. **Cơ hội mua** (Info) — mã trong watchlist có giá về ≤ "Mục tiêu mua"; xếp dưới mọi cảnh báo rủi ro để dọn vị thế đang lỗ trước khi mua thêm. Cả hai không có `tradePlanId` nên nút BÁN tự ẩn.
 - **Empty state positive (v1.1):** khi 0 alert → hiển thị `✅ Hôm nay đang kỷ luật + 🔥 X ngày` (streak = ngày liên tiếp gần nhất không có SL violation) thay vì widget biến mất. Streak ẩn khi user chưa có plan (`hasData = false`).
-- **Backend:** `DecisionsController.GetQueue` aggregate 3 sources qua `Task.WhenAll` (StopLossHit / ScenarioTrigger / ThesisReviewDue). `DisciplineController.GetDisciplineStreak` reuse logic SL-violation từ `DisciplineScoreCalculator`. 14 xUnit handler tests.
+- **Backend:** `DecisionsController.GetQueue` aggregate 5 sources qua `Task.WhenAll` (StopLossHit / ScenarioTrigger / ThesisReviewDue / MissingStopLoss / BuyOpportunity). `DisciplineController.GetDisciplineStreak` reuse logic SL-violation từ `DisciplineScoreCalculator`. 28 xUnit handler tests.
 - **Frontend:** `DecisionQueueComponent` + `DecisionService` + `DisciplineService.getStreak()`. XÓA HẲN 3 widget cũ trên Dashboard (~180 LOC). 10 Karma tests.
 
 ### PR-3 (P4 + P5) — shipped 2026-05-04

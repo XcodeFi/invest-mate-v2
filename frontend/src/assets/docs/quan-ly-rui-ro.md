@@ -40,6 +40,25 @@ Dashboard hiển thị cảnh báo khi:
 - **Drawdown vượt mức**: > 10% → warning, > 20% → danger
 - **Tập trung danh mục**: Một vị thế chiếm quá nhiều % → cảnh báo
 
+### Hàng đợi quyết định trên Trang chủ
+
+Widget ở vị trí đầu Trang chủ gộp mọi việc cần quyết trong ngày, xếp theo mức khẩn cấp:
+
+| Thẻ | Mức | Nghĩa là gì |
+|---|---|---|
+| **Stop-loss** | Khẩn cấp / Lưu ý | Giá đã thủng hoặc đang sát stop-loss |
+| **Kịch bản** | Lưu ý | Một nhánh kịch bản trong kế hoạch đã kích hoạt |
+| **Review thesis** | Khẩn cấp / Lưu ý | Luận điểm đầu tư đến hạn xem lại |
+| **Thiếu stop-loss** | Lưu ý | Vị thế đang mở nhưng **chưa** đặt stop-loss |
+| **Cơ hội mua** | Thông tin | Mã theo dõi có giá về ≤ "Mục tiêu mua" bạn đặt |
+
+Hai điều nên biết:
+
+- **"Thiếu stop-loss" là loại thẻ đáng xử lý trước tiên.** Vị thế không có stop-loss là vị thế có mức lỗ không giới hạn. Trước đây các vị thế này không xuất hiện ở đâu cả, nên hàng đợi rỗng dễ bị hiểu nhầm thành "danh mục an toàn".
+- **"Cơ hội mua" luôn nằm dưới cùng.** Đó là chủ ý: dọn xong vị thế đang chảy máu rồi hãy tính chuyện mua thêm. Muốn nhận thẻ này, vào **Danh sách theo dõi** và điền **"Mục tiêu mua"** cho mã — để trống thì hệ thống không có mốc nào để so sánh và sẽ không bao giờ báo.
+
+Bấm **"Giữ + ghi lý do"** (tối thiểu 20 ký tự) để tạm gác một thẻ — nó sẽ im đến hết ngày rồi quay lại vào hôm sau nếu tình trạng chưa đổi.
+
 ---
 
 ## Position Sizing

@@ -874,6 +874,33 @@ Thẻ `MissingStopLoss` từ Task 2 chính là thứ nhắc việc thứ hai —
 
 ---
 
+## Checkpoint — Task 1–5 (2026-08-09)
+
+- **Trạng thái:** Task 1–5 code xong. Task 1 đã commit (`08020a1`), Task 2–5 chưa commit.
+- **Tests:** Application 246/246, Api 193/193, Frontend 21/21. Build FE sạch.
+- **Lệch so với plan:**
+  - Câu hỏi treo về `IsDeleted` đã giải: `WatchlistRepository.GetByUserIdAsync` **đã** lọc `!w.IsDeleted` (`:49`) → không thêm filter.
+  - Code review đề nghị inject `ILogger` vào handler — **bác**, vì 0/137 handler trong Application dùng `ILogger` và `AiAssistantService` dùng đúng idiom `catch { skip }` cho khối enrichment tùy chọn.
+  - Thêm ngoài plan: fallback runtime `?? 'Khác'` / `?? ['/symbol-timeline']` cho `Record` lookup, phòng FE cache cũ gặp API đã thêm type mới.
+  - Thêm ngoài plan: vá doc-drift XML comment ở `DecisionItemDto`, `GetDecisionQueueQuery`, `DecisionsController` (đều còn ghi "3 nguồn").
+- **Docs đã cập nhật:** `architecture.md`, `business-domain.md`, `features.md`, `CHANGELOG.md` (v2.69.0), `frontend/src/assets/docs/quan-ly-rui-ro.md`, ADR-0009.
+- **Phase 4 — verify trên dữ liệu prod (acc test) đã xong.** Chạy localhost API với `Jwt__Key` prod truyền qua env (không ghi vào repo), gọi `GET /api/v1/decisions/queue`:
+
+  ```
+  [1] MissingStopLoss  Warning  HHV  pf='1eb8c52c'  HHV chưa đặt stop-loss (giá 10,050)
+  [2] BuyOpportunity   Info     HHV  pf='(rỗng)'    HHV giá 10,050 ≤ mục tiêu mua 11,000
+  ```
+
+  Một kết quả chứng minh 3 việc: `BuyOpportunity` chạy thật, thứ tự Warning-trên-Info đúng, và dedupe không nuốt nhau dù **cùng mã**. Dashboard render đúng hai thẻ, nhãn tiếng Việt đủ dấu, nút BÁN ẩn ở cả hai (không có `tradePlanId`).
+
+  Để lấp ô `BuyOpportunity` phải tạo watchlist tạm trên DB prod cho acc test — **đã xoá sau khi verify**, queue trở về baseline 1 item.
+
+  **Chưa verify được:** vị thế **có** SL không sinh trùng `MissingStopLoss` — acc test không có vị thế nào có SL. Chỉ unit test phủ.
+
+- **Next:** commit + PR.
+
+---
+
 ## Ghi chú thẩm định plan
 
 Các điểm đã đối chiếu với code thật trong lúc lập plan:

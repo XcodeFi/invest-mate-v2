@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.69.0] — 2026-08-09 · Hàng đợi quyết định bắt được cả cơ hội mua
+
+### Tính năng
+
+**🎯 Hàng đợi quyết định nay nhìn được cả hai chiều.** Trước đây hàng đợi chỉ có tín hiệu phòng thủ — chạm stop-loss, kịch bản kích hoạt, thesis đến hạn review. Nó tự nhận là "hôm nay cần quyết gì" nhưng về cấu trúc thì không thể chứa một cơ hội mua. Nay thêm hai loại:
+
+- **Cơ hội mua** — mã trong danh sách theo dõi có giá về ≤ "Mục tiêu mua" bạn đặt. Xếp **dưới** mọi cảnh báo rủi ro, vì nên dọn vị thế đang lỗ trước khi mua thêm. Muốn nhận thẻ này, hãy đặt "Mục tiêu mua" cho mã trong danh sách theo dõi — bỏ trống thì hệ thống không có mốc nào để so.
+- **Thiếu stop-loss** — vị thế đang mở mà chưa đặt stop-loss.
+
+### Sửa lỗi
+
+**🕳️ Vị thế chưa đặt stop-loss bị bỏ qua hoàn toàn.** Hàng đợi trước đây lặng lẽ bỏ qua mọi vị thế chưa có stop-loss, nên hàng đợi rỗng đọc như "danh mục an toàn" trong khi thực tế là "rủi ro chưa đo được" — chính những vị thế nguy hiểm nhất lại vô hình.
+
+**🔁 Bấm "Giữ + ghi lý do" xong thẻ hiện lại ngay.** Với thẻ không gắn kế hoạch giao dịch (điển hình là cảnh báo stop-loss), việc ghi nhận quyết định không được lưu đúng chỗ nên lần làm mới kế tiếp thẻ cũ quay lại y nguyên. Nay đã im đúng đến hết ngày.
+
+---
+
 ## [v2.68.1] — 2026-07-28 · Sửa lỗi trợ lý AI không ghi được nhật ký
 
 ### Sửa lỗi
