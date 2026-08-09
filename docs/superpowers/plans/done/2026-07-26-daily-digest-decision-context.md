@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 9, xUnit + FluentAssertions + Moq, MediatR, MongoDB Driver 3.6.0, ModelContextProtocol.AspNetCore 2.0.0-rc.1
 
-**Spec:** [`docs/superpowers/specs/2026-07-26-daily-digest-decision-context-design.md`](../specs/2026-07-26-daily-digest-decision-context-design.md)
+**Spec:** [`docs/superpowers/specs/2026-07-26-daily-digest-decision-context-design.md`](../../specs/done/2026-07-26-daily-digest-decision-context-design.md)
 
 ## Global Constraints
 

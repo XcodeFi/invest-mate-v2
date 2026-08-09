@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 9, MediatR, xUnit + FluentAssertions + Moq, Angular 19 standalone + inline template, Karma/Jasmine.
 
-**Spec:** [`docs/superpowers/specs/2026-07-29-decision-queue-buy-opportunity-design.md`](../specs/2026-07-29-decision-queue-buy-opportunity-design.md)
+**Spec:** [`docs/superpowers/specs/2026-07-29-decision-queue-buy-opportunity-design.md`](../../specs/done/2026-07-29-decision-queue-buy-opportunity-design.md)
 
 ## Global Constraints
 
@@ -835,7 +835,7 @@ Expected: PASS. Nếu có test khoá cứng chuỗi description, cập nhật ch
 
 - [ ] **Step 3: Viết ADR**
 
-Đọc [`docs/adr/README.md`](../../adr/README.md) để lấy số thứ tự và [`docs/adr/template.md`](../../adr/template.md) để lấy cấu trúc. Nội dung cần chốt:
+Đọc [`docs/adr/README.md`](../../../adr/README.md) để lấy số thứ tự và [`docs/adr/template.md`](../../../adr/template.md) để lấy cấu trúc. Nội dung cần chốt:
 
 - **Bối cảnh:** Decision Queue chỉ có tín hiệu phía thoát hàng; vị thế thiếu SL vô hình; entry symbol-only không suppress được.
 - **Quyết định:** thêm `BuyOpportunity` (Info) + `MissingStopLoss` (Warning); thêm tập suppression thứ ba theo `(symbol, type)` từ tag `trigger:` cho entry không portfolio/không plan.

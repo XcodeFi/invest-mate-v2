@@ -706,7 +706,7 @@ Cho phép NPU assistant / Claude lập, sửa, chuyển trạng thái, thực hi
 
 ## AI Agent Surface — mở rộng watchlist / danh mục / nhật ký (extends ADR-0004)
 
-> **Trạng thái:** ✅ Done 2026-07-23 | **Extends:** ADR-0004 | **Spec:** `docs/superpowers/specs/2026-07-23-agent-watchlist-positions-expose-design.md`
+> **Trạng thái:** ✅ Done 2026-07-23 | **Extends:** ADR-0004 | **Spec:** `docs/superpowers/specs/done/2026-07-23-agent-watchlist-positions-expose-design.md`
 
 Mở rộng agent surface từ trade-plans/trades sang 5 nhóm nữa để NPU/Claude thao tác trực tiếp như tool, không phải đi vòng qua bản tin `daily-digest`. 5 controller anh em nhỏ cùng kế thừa `AiAgentControllerBase` (giữ `IMediator` + `GetUserId()`), mỗi controller pin scheme `ApiKey`. Mirror 5 controller JWT nguồn — re-dispatch MediatR sẵn có, `UserId` từ `sub`, **không thêm business logic**. Watchlist/journal write là low-stakes (không bắt gate "chốt" như trade plan/trade).
 

@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-09
-- **Related plan:** `docs/superpowers/plans/2026-07-29-decision-queue-buy-opportunity.md`
+- **Related plan:** `docs/superpowers/plans/done/2026-07-29-decision-queue-buy-opportunity.md`
 - **Affected layers:** Application / Api / Frontend
 
 ## Context
@@ -110,7 +110,7 @@ Kèm theo, thêm hai `DecisionType`:
 
 ## References
 
-- Plan: `docs/superpowers/plans/2026-07-29-decision-queue-buy-opportunity.md`
-- Spec: `docs/superpowers/specs/2026-07-29-decision-queue-buy-opportunity-design.md`
+- Plan: `docs/superpowers/plans/done/2026-07-29-decision-queue-buy-opportunity.md`
+- Spec: `docs/superpowers/specs/done/2026-07-29-decision-queue-buy-opportunity-design.md`
 - Tiền nhiệm: ADR-0002 (Dashboard Decision Queue) — ADR này mở rộng, không thay thế
 - PR: #XX (điền sau khi merge)
