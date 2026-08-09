@@ -1,7 +1,7 @@
 # Plan: Personal Tool Audit + Indicator Tier Cleanup (v2)
 
 > Status: Draft v2 (pivoted after critique)
-> Author: Trường Phạm
+> Author: XcodeFi
 > Created: 2026-05-05
 > Updated: 2026-05-05 (pivot — skip heavy instrumentation, cut deadwood ngay hôm nay)
 > Roadmap parent: Personal infrastructure maturity (post v2.57.0)

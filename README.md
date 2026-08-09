@@ -5,7 +5,7 @@
 [![Angular](https://img.shields.io/badge/Angular-19-red.svg)](https://angular.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Hệ thống quản lý danh mục đầu tư doanh nghiệp được xây dựng theo kiến trúc Clean Architecture, CQRS, và Domain-Driven Design (DDD). Hỗ trợ xác thực Google OAuth, tính toán P&L theo phương pháp chi phí trung bình, và xử lý nền tảng thời gian thực.
+Ứng dụng quản lý danh mục đầu tư cá nhân, xây dựng theo kiến trúc Clean Architecture, CQRS, và Domain-Driven Design (DDD). Hỗ trợ xác thực Google OAuth, tính toán P&L theo phương pháp chi phí trung bình, và xử lý nền tảng thời gian thực.
 
 ## ✨ Tính năng Chính
 
@@ -205,7 +205,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 👥 Tác giả
 
-- **Trường Phạm** - [XcodeFi](https://github.com/XcodeFi)
+- [XcodeFi](https://github.com/XcodeFi)
 
 ## 🙏 Lời cảm ơn
 
@@ -216,5 +216,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-**Lưu ý**: Đây là dự án doanh nghiệp với yêu cầu bảo mật và hiệu suất cao. Đảm bảo tuân thủ các best practices trong production deployment.</content>
+**Lưu ý**: Dự án cá nhân, chạy production trên Cloud Run với dữ liệu đầu tư thật — giữ nguyên các gate về bảo mật và kiểm thử trước khi deploy.</content>
 <parameter name="filePath">d:\invest-mate-v2\project\README.md
