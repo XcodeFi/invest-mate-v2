@@ -34,7 +34,7 @@ User portfolio thực tế: Vốn hiện tại 252.967.000đ, Tổng tài sản 
 
 ### TWR — `CashFlowAdjustedReturnService.CalculateTWRAsync`
 
-File: [`src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs:37-75`](../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L37)
+File: [`src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs:37-75`](../../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L37)
 
 **Công thức:** `TWR = Π(1 + R_i) − 1` với `R_i = (V_i − V_{i-1} − C_i) / V_{i-1}`
 
@@ -51,7 +51,7 @@ File: [`src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.
 
 ### MWR — `CashFlowAdjustedReturnService.CalculateMWRAsync`
 
-File: [`src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs:81-148`](../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L81)
+File: [`src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs:81-148`](../../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs#L81)
 
 **Newton-Raphson IRR** với `npv = −InitialCapital + Σ(−signedFlow/factor) + currentValue/endFactor`.
 
@@ -61,7 +61,7 @@ File: [`src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.
 
 ### CAGR — `dashboard.component.ts:calculateCagrFromCurve`
 
-File: [`frontend/src/app/features/dashboard/dashboard.component.ts:1340-1360`](../../frontend/src/app/features/dashboard/dashboard.component.ts#L1340)
+File: [`frontend/src/app/features/dashboard/dashboard.component.ts:1340-1360`](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L1340)
 
 **Công thức:** `CAGR = (last.portfolioValue / first.portfolioValue)^(1/years) − 1`
 

@@ -2,7 +2,7 @@
 
 > Tài liệu kế hoạch — thiết kế chức năng chia sẻ tài khoản đầu tư (vợ-chồng, co-investor) + công cụ admin impersonate phục vụ debug.
 > Cập nhật lần cuối: 2026-04-20 (rev 2 — vá theo review: controller naming, JournalEntry/AlertRule quyền, InviteEmail, CreatedByUserId, cache invalidation, impersonation revocation, phân pha nhỏ hơn)
-> Trạng thái: **Đang thảo luận, chưa triển khai**
+> Trạng thái: **Phase 1 (impersonation) đã ship 2026-04-21 (v2.45.0) — xem §2.7. Phần chia sẻ tài khoản (§1) + Phase 2/3 chưa triển khai**
 
 ---
 

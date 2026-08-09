@@ -1522,7 +1522,7 @@ Tổng 1106 tests pass. V1 thêm:
 
 ## Dashboard Decision Engine V1.1 — 2026-05-04
 
-> Plan đầy đủ: [`docs/plans/dashboard-decision-engine.md`](plans/dashboard-decision-engine.md). Pivot Dashboard từ "display state" → "ép user xử lý quyết định kỷ luật". Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
+> Plan đầy đủ: [`docs/plans/done/dashboard-decision-engine.md`](plans/done/dashboard-decision-engine.md). Pivot Dashboard từ "display state" → "ép user xử lý quyết định kỷ luật". Roadmap 5 phase ship trong 3 PR (~2.5 tuần solo).
 
 ### PR-1 (P1+P2) — shipped 2026-05-04
 

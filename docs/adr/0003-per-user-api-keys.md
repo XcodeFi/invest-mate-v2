@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-14 (accepted 2026-07-15 — backend fully landed through Slice 3; Slice 4 = NPU client, separate repo)
-- **Related plan:** `docs/plans/p1-daily-digest-api-keys.md`
+- **Related plan:** `docs/plans/done/p1-daily-digest-api-keys.md`
 - **Affected layers:** Domain / Application / Infrastructure / Api
 
 ## Context
@@ -66,6 +66,6 @@ It is the only option that carries per-user identity (the stated reason: each us
 
 ## References
 
-- Plan: `docs/plans/p1-daily-digest-api-keys.md`
+- Plan: `docs/plans/done/p1-daily-digest-api-keys.md`
 - PR: #XX (fill in after merge)
 - External: prior art — GitHub personal access tokens (hash-at-rest, prefix display, expiry).

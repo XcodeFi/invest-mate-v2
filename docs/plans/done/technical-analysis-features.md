@@ -2,7 +2,7 @@
 
 > **Ngày tạo:** 2026-04-10
 > **Trạng thái:** P1-P6 Done ✅ — Roadmap hoàn thành
-> **Reference:** [`docs/references/`](../references/README.md) — 3 tài liệu kiến thức nền tảng
+> **Reference:** [`docs/references/`](../../references/README.md) — 3 tài liệu kiến thức nền tảng
 
 ---
 
@@ -164,4 +164,4 @@ P1 (Indicators)  ──→  P2 (Confluence + Divergence)  ──→  P5 (Strateg
 
 ---
 
-*Tài liệu tham chiếu chi tiết: [`docs/references/`](../references/README.md)*
+*Tài liệu tham chiếu chi tiết: [`docs/references/`](../../references/README.md)*

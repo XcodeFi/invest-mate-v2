@@ -16,7 +16,7 @@
 
 ### Hiện trạng (đã verify với code)
 
-Dashboard hiện tại có **16 widget** xếp dọc trong [`dashboard.component.ts`](../../frontend/src/app/features/dashboard/dashboard.component.ts) (1653 LOC):
+Dashboard hiện tại có **16 widget** xếp dọc trong [`dashboard.component.ts`](../../../frontend/src/app/features/dashboard/dashboard.component.ts) (1653 LOC):
 
 1. Header + AI button
 2. Market index strip (VNINDEX, HNX...)
@@ -42,13 +42,13 @@ Dashboard hiện tại có **16 widget** xếp dọc trong [`dashboard.component
 
 | # | Vấn đề | Vị trí code | Mức độ |
 |---|--------|-------------|--------|
-| 1 | Decision triggers scattered ở 3 banner rời (Risk Alert + Advisory + Pending Review) | [dashboard.component.ts:93-160](../../frontend/src/app/features/dashboard/dashboard.component.ts#L93-L160), [:794-819](../../frontend/src/app/features/dashboard/dashboard.component.ts#L794-L819) | 🔴 Critical |
-| 2 | Inline action không có — chỉ navigate qua trang khác | [dashboard.component.ts:114-119](../../frontend/src/app/features/dashboard/dashboard.component.ts#L114-L119), [:152-155](../../frontend/src/app/features/dashboard/dashboard.component.ts#L152-L155), [:807-815](../../frontend/src/app/features/dashboard/dashboard.component.ts#L807-L815) | 🔴 Critical |
-| 3 | Reality Gap CAGR ẩn mặc định (`cagrTargetSet = false`) | [dashboard.component.ts:551](../../frontend/src/app/features/dashboard/dashboard.component.ts#L551), [:905](../../frontend/src/app/features/dashboard/dashboard.component.ts#L905) | 🟡 Medium |
-| 4 | Discipline warning generic ("hãy review") không nói plan nào | [discipline-score-widget.component.ts:96-101](../../frontend/src/app/features/dashboard/widgets/discipline-score-widget.component.ts#L96-L101) | 🟡 Medium |
-| 5 | CAGR check `!== 0` sai khi CAGR thật sự = 0% | [dashboard.component.ts:502](../../frontend/src/app/features/dashboard/dashboard.component.ts#L502) | 🟢 Low (edge case) |
-| 6 | AI button positioning passive ("Bản tin") | [dashboard.component.ts:60-63](../../frontend/src/app/features/dashboard/dashboard.component.ts#L60-L63) | 🟡 Medium |
-| 7 | Quick Actions tĩnh, không context-aware | [dashboard.component.ts:822-873](../../frontend/src/app/features/dashboard/dashboard.component.ts#L822-L873) | 🟢 Low |
+| 1 | Decision triggers scattered ở 3 banner rời (Risk Alert + Advisory + Pending Review) | [dashboard.component.ts:93-160](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L93-L160), [:794-819](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L794-L819) | 🔴 Critical |
+| 2 | Inline action không có — chỉ navigate qua trang khác | [dashboard.component.ts:114-119](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L114-L119), [:152-155](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L152-L155), [:807-815](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L807-L815) | 🔴 Critical |
+| 3 | Reality Gap CAGR ẩn mặc định (`cagrTargetSet = false`) | [dashboard.component.ts:551](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L551), [:905](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L905) | 🟡 Medium |
+| 4 | Discipline warning generic ("hãy review") không nói plan nào | [discipline-score-widget.component.ts:96-101](../../../frontend/src/app/features/dashboard/widgets/discipline-score-widget.component.ts#L96-L101) | 🟡 Medium |
+| 5 | CAGR check `!== 0` sai khi CAGR thật sự = 0% | [dashboard.component.ts:502](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L502) | 🟢 Low (edge case) |
+| 6 | AI button positioning passive ("Bản tin") | [dashboard.component.ts:60-63](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L60-L63) | 🟡 Medium |
+| 7 | Quick Actions tĩnh, không context-aware | [dashboard.component.ts:822-873](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L822-L873) | 🟢 Low |
 
 ---
 
@@ -183,18 +183,18 @@ it('should show TWR branch when cagrValue=0 but cagrTwrValue is non-null', () =>
 
 ### Implementation (Green)
 
-**[dashboard.component.ts:905](../../frontend/src/app/features/dashboard/dashboard.component.ts#L905):**
+**[dashboard.component.ts:905](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L905):**
 ```typescript
 cagrTargetSet = true;  // was: false
 ```
 
-**[dashboard.component.ts:551](../../frontend/src/app/features/dashboard/dashboard.component.ts#L551):**
+**[dashboard.component.ts:551](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L551):**
 ```html
 <!-- Was: *ngIf="cagrTargetSet && cagrValue !== 0" -->
 <div *ngIf="cagrValue !== 0" class="mt-2">
 ```
 
-**[dashboard.component.ts:521,539](../../frontend/src/app/features/dashboard/dashboard.component.ts#L521):**
+**[dashboard.component.ts:521,539](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L521):**
 ```html
 <!-- Branch 2 condition - was: cagrValue === 0 && cagrTwrValue !== null && ... -->
 <ng-container *ngIf="!cagrIsStable && cagrTwrValue !== null && cagrDaysSpanned >= 1 && cagrDaysSpanned < 30">
@@ -382,7 +382,7 @@ it('should render AI button with critique label and pass critique use-case to pa
 
 ### Implementation (Green)
 
-**[dashboard.component.ts:60-63](../../frontend/src/app/features/dashboard/dashboard.component.ts#L60-L63):**
+**[dashboard.component.ts:60-63](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L60-L63):**
 ```html
 <button (click)="showAiPanel = true"
   data-test="ai-button"
@@ -391,7 +391,7 @@ it('should render AI button with critique label and pass critique use-case to pa
 </button>
 ```
 
-**[dashboard.component.ts:878-883](../../frontend/src/app/features/dashboard/dashboard.component.ts#L878-L883):**
+**[dashboard.component.ts:878-883](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L878-L883):**
 ```html
 <app-ai-chat-panel
   [(isOpen)]="showAiPanel"
@@ -724,9 +724,9 @@ Theo Q1 đã chốt — **xóa hoàn toàn** trong cùng commit:
 
 | Widget | Vị trí xóa |
 |--------|-----------|
-| Risk Alert Banner | [dashboard.component.ts:93-121](../../frontend/src/app/features/dashboard/dashboard.component.ts#L93-L121) (29 dòng template) + property `riskAlerts`, `bannerDismissed`, `hasDangerAlert` getter, logic load risk alerts |
-| Advisory Widget | [dashboard.component.ts:128-160](../../frontend/src/app/features/dashboard/dashboard.component.ts#L128-L160) (33 dòng template) + property `advisories`, method `loadAdvisories()` |
-| Pending Review section | [dashboard.component.ts:794-819](../../frontend/src/app/features/dashboard/dashboard.component.ts#L794-L819) (26 dòng template) + property `pendingReviewTrades`, method `loadPendingReview()` |
+| Risk Alert Banner | [dashboard.component.ts:93-121](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L93-L121) (29 dòng template) + property `riskAlerts`, `bannerDismissed`, `hasDangerAlert` getter, logic load risk alerts |
+| Advisory Widget | [dashboard.component.ts:128-160](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L128-L160) (33 dòng template) + property `advisories`, method `loadAdvisories()` |
+| Pending Review section | [dashboard.component.ts:794-819](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L794-L819) (26 dòng template) + property `pendingReviewTrades`, method `loadPendingReview()` |
 
 **Add:** `<app-decision-queue></app-decision-queue>` ở vị trí ngay sau header (trên cả Discipline widget).
 
@@ -1042,13 +1042,13 @@ Giảm noise trên Home. 3 widget đều có route riêng → unlink khỏi Home
 
 ### Implementation
 
-**[dashboard.component.ts](../../frontend/src/app/features/dashboard/dashboard.component.ts):**
+**[dashboard.component.ts](../../../frontend/src/app/features/dashboard/dashboard.component.ts):**
 
 | Vị trí xóa | LOC ước tính |
 |-----------|--------------|
-| Market Index strip [:73-91](../../frontend/src/app/features/dashboard/dashboard.component.ts#L73-L91) + property `marketOverview: MarketOverview[]` + method `loadMarketOverview()` | ~30 LOC |
-| Mini Equity Curve [:678-696](../../frontend/src/app/features/dashboard/dashboard.component.ts#L678-L696) + `@ViewChild('miniEquityCanvas')` + `miniEquityChart` + `equityCurveData` + `selectedRange` + `equityRanges` + chart init/destroy logic | ~50 LOC |
-| Quick Actions [:822-873](../../frontend/src/app/features/dashboard/dashboard.component.ts#L822-L873) | ~52 LOC template |
+| Market Index strip [:73-91](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L73-L91) + property `marketOverview: MarketOverview[]` + method `loadMarketOverview()` | ~30 LOC |
+| Mini Equity Curve [:678-696](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L678-L696) + `@ViewChild('miniEquityCanvas')` + `miniEquityChart` + `equityCurveData` + `selectedRange` + `equityRanges` + chart init/destroy logic | ~50 LOC |
+| Quick Actions [:822-873](../../../frontend/src/app/features/dashboard/dashboard.component.ts#L822-L873) | ~52 LOC template |
 
 ### Side-effects cần check
 
@@ -1191,7 +1191,7 @@ Plan v1.1 ship trong **3 PR** riêng để dễ rollback:
 - `docs/architecture.md` — section "Dashboard Decision Engine V1.1 P1+P2".
 - `docs/business-domain.md` — AI endpoint table thêm `portfolio-critique`.
 - `frontend/src/assets/CHANGELOG.md` — entry v2.55.0.
-- `docs/plans/dashboard-decision-engine.md` — checkpoint này.
+- `docs/plans/done/dashboard-decision-engine.md` — checkpoint này.
 
 ### Tests
 
@@ -1212,7 +1212,7 @@ Surface 7 findings (1 Critical, 4 Warning, 2 Minor). Triage:
 ### Next — PR-2 (P3 Decision Queue + Empty State Positive)
 
 **Read trước khi bắt đầu:**
-- `docs/plans/dashboard-decision-engine.md` section "5. P3" (cho full TDD spec)
+- `docs/plans/done/dashboard-decision-engine.md` section "5. P3" (cho full TDD spec)
 - `src/InvestmentApp.Application/Risk/` cho `IRiskService.GetStopLossAlertsAsync` pattern
 - `src/InvestmentApp.Application/TradePlans/Queries/GetActiveAdvisories/` (P0.5 advisory)
 - `src/InvestmentApp.Application/TradePlans/Queries/GetPendingThesisReviews/` (existing pattern reuse)
@@ -1268,7 +1268,7 @@ Surface 7 findings (1 Critical, 4 Warning, 2 Minor). Triage:
 - `docs/business-domain.md` — endpoint table: `/decisions/queue` + `/me/discipline-score/streak`.
 - `docs/features.md` — section "Dashboard Decision Engine V1.1" với PR-1/PR-2/PR-3 status.
 - `frontend/src/assets/CHANGELOG.md` — entry v2.56.0.
-- `docs/plans/dashboard-decision-engine.md` — checkpoint này.
+- `docs/plans/done/dashboard-decision-engine.md` — checkpoint này.
 
 ### Tests
 
@@ -1328,7 +1328,7 @@ Surface 7 findings (1 Critical, 4 Warning, 2 Minor). Triage:
 - `docs/features.md` — section PR-3 đổi từ "pending" → "shipped".
 - `frontend/src/assets/CHANGELOG.md` — entry v2.57.0.
 - `frontend/src/assets/docs/bat-dau-su-dung.md` — Bước 4 Dashboard mô tả lại với Decision Queue + 2 inline buttons.
-- `docs/plans/dashboard-decision-engine.md` — checkpoint này; PR-3 row đổi status sang ✅ Shipped.
+- `docs/plans/done/dashboard-decision-engine.md` — checkpoint này; PR-3 row đổi status sang ✅ Shipped.
 - `docs/adr/0002-dashboard-decision-queue.md` — thêm "Follow-up: PR-3 resolve command" note.
 
 ### Tests

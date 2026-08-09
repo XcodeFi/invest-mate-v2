@@ -725,25 +725,25 @@ Check `frontend/src/app/core/services/help.service.ts` (hoặc tương đương)
 ## Tham chiếu file
 
 Backend:
-- [src/InvestmentApp.Domain/Entities/FinancialAccount.cs](../../src/InvestmentApp.Domain/Entities/FinancialAccount.cs)
-- [src/InvestmentApp.Domain/Entities/FinancialProfile.cs](../../src/InvestmentApp.Domain/Entities/FinancialProfile.cs) (method UpsertAccount line 68, ValidateAccountFields line 267)
-- [src/InvestmentApp.Domain/Entities/Debt.cs](../../src/InvestmentApp.Domain/Entities/Debt.cs) (reference pattern)
-- [src/InvestmentApp.Application/PersonalFinance/Commands/UpsertFinancialAccount/UpsertFinancialAccountCommand.cs](../../src/InvestmentApp.Application/PersonalFinance/Commands/UpsertFinancialAccount/UpsertFinancialAccountCommand.cs)
-- [src/InvestmentApp.Application/PersonalFinance/Commands/UpsertDebt/UpsertDebtCommand.cs](../../src/InvestmentApp.Application/PersonalFinance/Commands/UpsertDebt/UpsertDebtCommand.cs) (UTC normalize reference line 40-45)
-- [src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceDto.cs](../../src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceDto.cs)
-- [src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceMapper.cs](../../src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceMapper.cs)
+- [src/InvestmentApp.Domain/Entities/FinancialAccount.cs](../../../src/InvestmentApp.Domain/Entities/FinancialAccount.cs)
+- [src/InvestmentApp.Domain/Entities/FinancialProfile.cs](../../../src/InvestmentApp.Domain/Entities/FinancialProfile.cs) (method UpsertAccount line 68, ValidateAccountFields line 267)
+- [src/InvestmentApp.Domain/Entities/Debt.cs](../../../src/InvestmentApp.Domain/Entities/Debt.cs) (reference pattern)
+- [src/InvestmentApp.Application/PersonalFinance/Commands/UpsertFinancialAccount/UpsertFinancialAccountCommand.cs](../../../src/InvestmentApp.Application/PersonalFinance/Commands/UpsertFinancialAccount/UpsertFinancialAccountCommand.cs)
+- [src/InvestmentApp.Application/PersonalFinance/Commands/UpsertDebt/UpsertDebtCommand.cs](../../../src/InvestmentApp.Application/PersonalFinance/Commands/UpsertDebt/UpsertDebtCommand.cs) (UTC normalize reference line 40-45)
+- [src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceDto.cs](../../../src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceDto.cs)
+- [src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceMapper.cs](../../../src/InvestmentApp.Application/PersonalFinance/Dtos/PersonalFinanceMapper.cs)
 
 Backend tests:
-- [tests/InvestmentApp.Domain.Tests/](../../tests/InvestmentApp.Domain.Tests/)
-- [tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertFinancialAccountCommandHandlerTests.cs](../../tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertFinancialAccountCommandHandlerTests.cs)
-- [tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertDebtCommandHandlerTests.cs](../../tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertDebtCommandHandlerTests.cs) (reference `Handle_MaturityDate_NormalizedToUtcMidnight`)
+- [tests/InvestmentApp.Domain.Tests/](../../../tests/InvestmentApp.Domain.Tests/)
+- [tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertFinancialAccountCommandHandlerTests.cs](../../../tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertFinancialAccountCommandHandlerTests.cs)
+- [tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertDebtCommandHandlerTests.cs](../../../tests/InvestmentApp.Application.Tests/PersonalFinance/Commands/UpsertDebtCommandHandlerTests.cs) (reference `Handle_MaturityDate_NormalizedToUtcMidnight`)
 
 Frontend:
-- [frontend/src/app/features/personal-finance/personal-finance.component.ts](../../frontend/src/app/features/personal-finance/personal-finance.component.ts)
-- [frontend/src/app/core/services/personal-finance.service.ts](../../frontend/src/app/core/services/personal-finance.service.ts)
+- [frontend/src/app/features/personal-finance/personal-finance.component.ts](../../../frontend/src/app/features/personal-finance/personal-finance.component.ts)
+- [frontend/src/app/core/services/personal-finance.service.ts](../../../frontend/src/app/core/services/personal-finance.service.ts)
 
 Docs cần update:
-- [docs/business-domain.md](../business-domain.md)
-- [docs/features.md](../features.md)
-- [frontend/src/assets/CHANGELOG.md](../../frontend/src/assets/CHANGELOG.md)
-- [frontend/src/assets/docs/tai-chinh-ca-nhan.md](../../frontend/src/assets/docs/tai-chinh-ca-nhan.md)
+- [docs/business-domain.md](../../business-domain.md)
+- [docs/features.md](../../features.md)
+- [frontend/src/assets/CHANGELOG.md](../../../frontend/src/assets/CHANGELOG.md)
+- [frontend/src/assets/docs/tai-chinh-ca-nhan.md](../../../frontend/src/assets/docs/tai-chinh-ca-nhan.md)

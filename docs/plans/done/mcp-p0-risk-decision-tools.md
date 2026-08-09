@@ -1,7 +1,7 @@
 # MCP P0 — Decision & Risk Intelligence Tools (8 READ tools)
 
 **Ngày:** 2026-07-25
-**Nguồn:** [`docs/superpowers/plans/2026-07-25-mcp-tools-expansion-roadmap.md`](../superpowers/plans/2026-07-25-mcp-tools-expansion-roadmap.md) — slice P0.
+**Nguồn:** [`docs/superpowers/plans/2026-07-25-mcp-tools-expansion-roadmap.md`](../../superpowers/plans/2026-07-25-mcp-tools-expansion-roadmap.md) — slice P0.
 **ADR:** not required — lặp lại đúng pattern PR #129 (ADR-0003/0004/0005), không có contract/schema/trade-off mới.
 
 ## What

@@ -722,24 +722,24 @@ Cloud Build / Cloud Run deploy cần inject 2 biến này. Thêm vào runbook de
 ## Tham chiếu file
 
 Pattern reference:
-- [src/InvestmentApp.Infrastructure/Services/Hmoney/HmoneyGoldPriceProvider.cs](../../src/InvestmentApp.Infrastructure/Services/Hmoney/HmoneyGoldPriceProvider.cs) — copy pattern
-- [src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs](../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs) — pattern math service
-- [src/InvestmentApp.Infrastructure/Services/PerformanceMetricsService.cs](../../src/InvestmentApp.Infrastructure/Services/PerformanceMetricsService.cs) — pattern CAGR/Sharpe
+- [src/InvestmentApp.Infrastructure/Services/Hmoney/HmoneyGoldPriceProvider.cs](../../../src/InvestmentApp.Infrastructure/Services/Hmoney/HmoneyGoldPriceProvider.cs) — copy pattern
+- [src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs](../../../src/InvestmentApp.Infrastructure/Services/CashFlowAdjustedReturnService.cs) — pattern math service
+- [src/InvestmentApp.Infrastructure/Services/PerformanceMetricsService.cs](../../../src/InvestmentApp.Infrastructure/Services/PerformanceMetricsService.cs) — pattern CAGR/Sharpe
 
 Target files:
-- [src/InvestmentApp.Domain/Entities/CapitalFlow.cs](../../src/InvestmentApp.Domain/Entities/CapitalFlow.cs)
-- [src/InvestmentApp.Domain/Entities/PortfolioSnapshotEntity.cs](../../src/InvestmentApp.Domain/Entities/PortfolioSnapshotEntity.cs)
-- [src/InvestmentApp.Api/Controllers/AdvancedAnalyticsController.cs](../../src/InvestmentApp.Api/Controllers/AdvancedAnalyticsController.cs)
-- [src/InvestmentApp.Api/Program.cs](../../src/InvestmentApp.Api/Program.cs) — DI registration
-- [src/InvestmentApp.Api/appsettings.json](../../src/InvestmentApp.Api/appsettings.json) — new section
-- [frontend/src/app/features/analytics/analytics.component.ts](../../frontend/src/app/features/analytics/analytics.component.ts)
-- [frontend/src/app/features/dashboard/dashboard.component.ts](../../frontend/src/app/features/dashboard/dashboard.component.ts) — lines 638-657 area
-- [frontend/src/app/core/services/advanced-analytics.service.ts](../../frontend/src/app/core/services/advanced-analytics.service.ts)
+- [src/InvestmentApp.Domain/Entities/CapitalFlow.cs](../../../src/InvestmentApp.Domain/Entities/CapitalFlow.cs)
+- [src/InvestmentApp.Domain/Entities/PortfolioSnapshotEntity.cs](../../../src/InvestmentApp.Domain/Entities/PortfolioSnapshotEntity.cs)
+- [src/InvestmentApp.Api/Controllers/AdvancedAnalyticsController.cs](../../../src/InvestmentApp.Api/Controllers/AdvancedAnalyticsController.cs)
+- [src/InvestmentApp.Api/Program.cs](../../../src/InvestmentApp.Api/Program.cs) — DI registration
+- [src/InvestmentApp.Api/appsettings.json](../../../src/InvestmentApp.Api/appsettings.json) — new section
+- [frontend/src/app/features/analytics/analytics.component.ts](../../../frontend/src/app/features/analytics/analytics.component.ts)
+- [frontend/src/app/features/dashboard/dashboard.component.ts](../../../frontend/src/app/features/dashboard/dashboard.component.ts) — lines 638-657 area
+- [frontend/src/app/core/services/advanced-analytics.service.ts](../../../frontend/src/app/core/services/advanced-analytics.service.ts)
 
 Plan liên quan:
 - [savings-term-dates.md](savings-term-dates.md) — hook D11
-- [done/p3-twr-mwr-cagr-fix.md](done/p3-twr-mwr-cagr-fix.md) — math conventions
-- [done/personal-finance.md](done/personal-finance.md) — context Personal Finance
+- [done/p3-twr-mwr-cagr-fix.md](p3-twr-mwr-cagr-fix.md) — math conventions
+- [done/personal-finance.md](personal-finance.md) — context Personal Finance
 
 External source (user confirmed):
 - https://24hmoney.vn/lai-suat-gui-ngan-hang — primary scrape target, SSR daily refresh

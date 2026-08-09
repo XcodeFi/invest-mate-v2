@@ -32,7 +32,7 @@ git checkout master && git pull --ff-only
 git checkout -b feature/mcp-daily-digest-tool --no-track
 ```
 
-Lưu ý: file untracked `docs/handoffs/HANDOFF-2026-07-25-mcp-p0-tools.md` (nếu còn) không chặn checkout — để nguyên. Nếu `git status` báo file plan này (`docs/plans/mcp-daily-digest-tool.md`) untracked thì nó sẽ được commit cùng Task 4.
+Lưu ý: file untracked `docs/handoffs/HANDOFF-2026-07-25-mcp-p0-tools.md` (nếu còn) không chặn checkout — để nguyên. Nếu `git status` báo file plan này (`docs/plans/done/mcp-daily-digest-tool.md`) untracked thì nó sẽ được commit cùng Task 4.
 
 ---
 
@@ -166,7 +166,7 @@ Expected: tất cả PASS, không regression.
 - Modify: `docs/architecture.md` (dòng ~32 và ~175)
 - Modify: `docs/business-domain.md` (dòng ~387)
 - Modify: `frontend/src/assets/CHANGELOG.md` (prepend entry mới)
-- Commit kèm: `docs/plans/mcp-daily-digest-tool.md` (file plan này)
+- Commit kèm: `docs/plans/done/mcp-daily-digest-tool.md` (file plan này)
 
 - [ ] **Step 1: `docs/architecture.md`**
 
@@ -206,7 +206,7 @@ Chạy review sub-agent trên diff (`/code-review` flow); scan diff không có k
 - [ ] **Step 6: Commit + push + PR (hỏi Truong xác nhận trước từng bước)**
 
 ```bash
-git add src/InvestmentApp.Api/Mcp/DigestTools.cs tests/InvestmentApp.Api.Tests/Mcp/DigestToolsTests.cs tests/InvestmentApp.Api.Tests/Mcp/McpToolDiscoveryTests.cs docs/architecture.md docs/business-domain.md frontend/src/assets/CHANGELOG.md docs/plans/mcp-daily-digest-tool.md
+git add src/InvestmentApp.Api/Mcp/DigestTools.cs tests/InvestmentApp.Api.Tests/Mcp/DigestToolsTests.cs tests/InvestmentApp.Api.Tests/Mcp/McpToolDiscoveryTests.cs docs/architecture.md docs/business-domain.md frontend/src/assets/CHANGELOG.md docs/plans/done/mcp-daily-digest-tool.md
 git commit -m "feat(mcp): add get_daily_digest tool (Phase B daily digest)"
 git push -u origin feature/mcp-daily-digest-tool
 gh pr create --base master --title "feat(mcp): get_daily_digest tool (Phase B daily digest)" --body "Exposes the daily digest (portfolio context + cash + sizing) as read-only MCP tool \`get_daily_digest\` — thin wrapper over \`IAiAssistantService.BuildDailyDigestAsync\`, \`ErrorMessage\` → \`McpException\`, no new business logic. Tool count 37 → 38. Phase B.1 of the npu-assistant MCP migration (lets the /stock agent drop \`Bash(curl:*)\`). Tests: +2 unit, discovery 38, schema-leak guard. REST \`POST /ai/daily-digest\` unchanged (additive)."

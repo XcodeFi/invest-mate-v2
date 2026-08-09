@@ -2,7 +2,7 @@
 
 **Goal:** The local NPU assistant pulls a daily digest (holdings + status + watchlist + cash + position-sizing) from the API on a cron using a per-user API key, then feeds it to Claude for buy/sell timing analysis.
 
-**Decisions:** [`ADR-0003`](../adr/0003-per-user-api-keys.md) — per-user API keys (PAT) with expiry.
+**Decisions:** [`ADR-0003`](../../adr/0003-per-user-api-keys.md) — per-user API keys (PAT) with expiry.
 
 - **Hybrid analysis:** server pre-computes position-sizing (`PositionSizingService`); Claude (via NPU) does qualitative timing/judgment.
 - **Endpoint:** new `POST /api/v1/ai/daily-digest`, accepts the `ApiKey` scheme only (leaves `build-context` JWT-only untouched).
