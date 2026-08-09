@@ -2498,3 +2498,11 @@ Chạy skill `/pr`. Không tự gõ `gh pr create`.
 - **Affected layers**: Domain / Application / Infrastructure / Api
 - **Chưa làm**: Phase 4 manual verify — `appsettings.Development` trỏ vào MongoDB prod nên không curl tạo dữ liệu thật. Verify khi có DB dev, hoặc gộp vào lần verify của Task 14–15.
 - **Next**: Task 9 — đấu nối `PnLService` vào `PositionBuilder`. Đọc `src/InvestmentApp.Infrastructure/Services/PnLService.cs` và `src/InvestmentApp.Application/Portfolios/Queries/PnLModels.cs`. Lưu ý `PnLService` hiện hard-code tiền tệ `"USD"` và bỏ qua phí/thuế — Task 9 viết lại hẳn, test cũ kỳ vọng `"USD"` là bug đang sửa. Sau đó Task 10–13 (vị thế, cắt lỗ, snapshot, rủi ro), chạy `dotnet test` sau **từng** task.
+
+## Checkpoint — Task 9–17 (done, 2026-08-08)
+
+- **Phát hiện lớn nhất:** `SnapshotService` và phần số lượng của `RiskCalculationService` **không cần sửa** — cả hai đã đi qua `IPnLService`, nên Task 9 sửa upstream là tự đúng. Plan giả định phải sửa từng chỗ; thực tế chỉ cần đo lại và viết test khoá hành vi.
+- **Ngoài phạm vi plan nhưng bắt buộc:** ngưỡng cắt lỗ kích hoạt ở `PriceSnapshotJobService`, không phải `RiskCalculationService`. Phải sửa cả hai — job bắn cảnh báo và service feed decision queue.
+- **Files changed thêm:** `PnLService`, `PnLModels`, `GetActivePositionsQuery`, `PriceSnapshotJobService`, `RiskCalculationService`, `positions.service.ts`, `positions.component.ts`, `corporate-action.service.ts`, `corporate-actions.component.ts`, `app.routes.ts`, `help.component.ts`, docs + CHANGELOG + `su-kien-quyen.md`.
+- **Tests:** backend 1.595 pass, frontend 152 pass, build 0 lỗi.
+- **Chưa làm:** Phase 4 manual verify trên trình duyệt — `appsettings.Development` trỏ MongoDB prod. Cần DB dev hoặc chạy `/qa-verify` với tài khoản test trước khi merge.

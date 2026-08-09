@@ -1546,6 +1546,23 @@ Tổng 1106 tests pass. V1 thêm:
 
 ---
 
+## Sự kiện quyền (cổ tức & chia tách) — 2026-08-08
+
+Ghi nhận cổ tức tiền mặt, cổ tức cổ phiếu và chia tách cổ phiếu; tính lại giá vốn và lãi/lỗ. Chi tiết quyết định kiến trúc: [ADR-0010](adr/0010-corporate-actions-position-projection.md). Hướng dẫn người dùng: `frontend/src/assets/docs/su-kien-quyen.md` (Help topic `su-kien-quyen`).
+
+**Vấn đề đã sửa:** trước đây app không biết đến sự kiện quyền, nên từ ngày GDKHQ tới ngày cổ phiếu về tài khoản (1–2 tháng), danh mục hiển thị **lỗ giả 23%** và cảnh báo cắt lỗ **kích hoạt nhầm**.
+
+| Thành phần | Vai trò |
+|---|---|
+| `CorporateAction` (Domain) | Bản ghi bất biến. Ba loại: `CashDividend`, `StockDividend`, `StockSplit` |
+| `PositionBuilder` (Application/Common) | Hàm thuần dựng vị thế đã điều chỉnh — **nguồn duy nhất** cho giá vốn/số lượng |
+| `CorporateActionAdjuster` (Application/Common) | Điều chỉnh giá ngưỡng (vào/cắt lỗ/mục tiêu) tại thời điểm đọc |
+| `/corporate-actions` (Frontend) | Nhập, xem trước tác động, xác nhận đã về, xoá |
+
+**Đã đấu nối:** `PnLService`, `GetActivePositionsQuery`, `PriceSnapshotJobService` (job cảnh báo), `RiskCalculationService`. `SnapshotService` và phần số lượng của risk service tự đúng vì đã đi qua `IPnLService`.
+
+**Chưa làm (phase 2):** tự động lấy sự kiện từ 24hmoney; `BacktestEngine` / `BehavioralAnalysisService` / `StrategyPerformanceService` / `CampaignReviewService` / `DisciplineScoreCalculator`; quyền mua ưu đãi và sáp nhập; `TradePlan` không tự điều chỉnh giá (chỉ cảnh báo — người dùng tự sửa).
+
 ## Backlog (chưa implement)
 
 | # | Tính năng | Độ ưu tiên | Kế hoạch |

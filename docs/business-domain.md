@@ -22,7 +22,8 @@ Chiến lược → Kế hoạch GD → Checklist → Thực thi → Nhật ký 
 User (1)
  ├── Portfolio (N)          ← Danh mục đầu tư
  │    ├── Trade (N)         ← Giao dịch mua/bán
- │    ├── CapitalFlow (N)   ← Nạp/rút/cổ tức
+ │    ├── CapitalFlow (N)   ← Nạp/rút/cổ tức (có Symbol khi sinh từ CorporateAction)
+ │    ├── CorporateAction (N) ← Sự kiện quyền: cổ tức tiền/cổ phiếu, chia tách
  │    ├── RiskProfile (1)   ← Cấu hình rủi ro
  │    └── Snapshot (N)      ← Ảnh chụp trạng thái theo ngày
  │
@@ -109,6 +110,23 @@ ImpersonationAudit (independent, append-only)
 - **Vốn hiện tại** (`CurrentCapital`) = `InitialCapital + Σ SignedAmount` — đây là giá trị "vốn ròng" hiện tại của danh mục, phản ánh mọi nạp/rút/cổ tức/phí đã xảy ra
 - **Cash còn lại** = `CurrentCapital − TotalInvested + TotalSold` — tiền mặt khả dụng để vào lệnh mới
 - **Quy tắc:** Mọi chỗ tính position sizing, account balance, allocation % phải dùng `CurrentCapital` (không dùng `InitialCapital`) để phản ánh đúng vốn user đang có.
+
+### 3.1b. Sự kiện quyền (CorporateAction)
+
+Bản ghi **bất biến** — sửa = xoá và tạo lại. `Trade` không bao giờ bị sửa theo sự kiện quyền.
+
+| Quy tắc | Chi tiết |
+|---|---|
+| **Đơn vị cổ tức tiền mặt** | "5%" = 5% × **mệnh giá 10.000đ** = 500đ/CP. **Không** phải 5% giá thị trường. Entity lưu `AmountPerShare` đã quy đổi ra đồng. |
+| **Thuế** | TNCN 5% khấu trừ tại nguồn → `NetPerShare = AmountPerShare × 0,95`. Giá tham chiếu trừ theo số **trước** thuế. |
+| **Hệ số cổ phiếu** | `Multiplier = RatioNew / RatioOld`, trong đó `RatioNew` là **tổng** sau sự kiện (30% → `100:130` → 1,3). Giá điều chỉnh `P / Multiplier` → giảm 23,08%, không phải 30%. |
+| **Giá vốn** | Cổ tức cổ phiếu và chia tách **giảm** giá vốn (`TotalCost` không đổi, số lượng tăng). Cổ tức tiền mặt **không** đổi giá vốn — là thu nhập. |
+| **Cùng ngày GDKHQ** | Áp tiền mặt trước (tính trên số lượng cũ), rồi mới nhân hệ số: `P_adj = (P − CashPerShare) / Multiplier`. |
+| **Cổ phiếu lẻ** | `floor()` — phần lẻ bị huỷ (137 × 1,3 = 178). |
+| **Chờ về** | Tại `ExDate` áp ngay vào giá vốn và tổng số lượng; phần tăng thêm nằm ở `PendingQuantity` cho tới khi người dùng bấm xác nhận (`SettledAt`). `TotalQuantity = Settled + Pending` dùng cho **mọi** phép tính. |
+| **Ngưỡng giá** | `StopLossTarget` lưu giá tuyệt đối → điều chỉnh **tại thời điểm đọc** qua `CorporateActionAdjuster`, không sửa dữ liệu. `TradePlan` không tự sửa. |
+
+**Nguồn duy nhất dựng vị thế:** `PositionBuilder.Build(trades, actions, asOf)` (`Application/Common`). Mọi service cần giá vốn / số lượng phải gọi vào đây, không tự `GroupBy` trên `Trade` thô. Xem [ADR-0010](adr/0010-corporate-actions-position-projection.md).
 
 ### 3.2. Kế hoạch Giao dịch (TradePlan)
 Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cancelled → Restore → Draft`
@@ -420,6 +438,7 @@ Token dạng `imk_` + base64url(32 random bytes) — cho phép truy cập API th
 | `/risk-dashboard` | Dashboard RR | Tổng quan sức khỏe rủi ro |
 | `/alerts` | Cảnh báo | Rules & lịch sử cảnh báo |
 | `/capital-flows` | Dòng tiền | Nạp/rút/cổ tức |
+| `/corporate-actions` | Sự kiện quyền | Cổ tức tiền mặt, cổ tức cổ phiếu, chia tách |
 | `/snapshots` | Lịch sử | Ảnh chụp & so sánh danh mục |
 | `/market-data` | Thị trường | Chỉ số thị trường, tra cứu cổ phiếu chi tiết, **phân tích kỹ thuật (EMA/RSI/MACD/Volume/S&R)**, **AI đánh giá nhanh mã (fundamental + technical)**, tìm kiếm mã, top biến động, bảng giá nhanh, lịch sử giá |
 | `/backtesting` | Kiểm thử | Mô phỏng chiến lược |

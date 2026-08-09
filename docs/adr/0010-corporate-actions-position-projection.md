@@ -1,6 +1,6 @@
 # ADR-0010 — Chiếu vị thế qua `PositionBuilder` thay vì sửa `Trade` khi có sự kiện quyền
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-08
 - **Related plan:** `docs/superpowers/plans/2026-08-08-corporate-actions.md`
 - **Affected layers:** Domain / Application / Infrastructure / Api / Frontend

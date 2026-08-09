@@ -13,6 +13,7 @@ project/
 │   ├── InvestmentApp.Application/      # CQRS handlers, interfaces, DTOs (depends on Domain)
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
+│   │   ├── Common/                     # Hàm thuần dùng chung: PortfolioCashCalculator, PositionBuilder (nguồn DUY NHẤT dựng vị thế — mọi service cần giá vốn/số lượng phải gọi vào đây, không tự GroupBy trên Trade thô), CorporateActionAdjuster (điều chỉnh giá ngưỡng tại thời điểm đọc). Xem ADR-0010
 │   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation, IApiKeyTokenService)
 │   │   ├── Common/Behaviors/           # MediatR pipeline behaviors (ValidationBehavior<,>)
 │   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~23, incl. IApiKeyRepository)
@@ -115,8 +116,8 @@ are now **in-process** in the API:
 
 | Service | Responsibility | Key Dependencies |
 |---------|---------------|-----------------|
-| PnLService | FIFO P&L calculation (realized + unrealized) | ITradeRepository, IStockPriceService |
-| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider |
+| PnLService | P&L realized + unrealized. **Từ 2026-08-08 (ADR-0010) tính qua `PositionBuilder`** — không còn tự gộp `Trade` thô, không còn hard-code `"USD"`, có tính phí/thuế. Trả thêm `SettledQuantity`/`PendingQuantity`/`DividendNet`/`PendingDividend`/`TotalPnLWithDividend` | ITradeRepository, IStockPriceService, **ICorporateActionRepository** |
+| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts. **Giá vào/cắt lỗ/mục tiêu điều chỉnh qua `CorporateActionAdjuster` tại thời điểm đọc** — không thì báo "đã thủng SL" sai sau ngày GDKHQ | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider, **ICorporateActionRepository** |
 | PerformanceMetricsService | CAGR, Sharpe, Sortino, win rate, profit factor, equity curve | ISnapshotRepo, ITradeRepo |
 | PositionSizingService | 5 position sizing models: Fixed Risk, ATR-Based, Kelly Criterion (Half-Kelly, 25% cap), Turtle (1-unit entry), Volatility-Adjusted (ATR% scaling). Pure calculation, no DB dependencies | None (stateless) |
 | TechnicalIndicatorService | 10 indicators: EMA(20/21/50/200), RSI(14), MACD(12,26,9), Stochastic(14,3,3), ADX(14)+DI, OBV, MFI(14), Bollinger(20,2), ATR(14), Volume ratio. S/R, Fibonacci, 10-indicator voting signal, Confluence Score (0-100 weighted), Market Condition Classifier (ADX-based), Divergence Detection (RSI/MACD vs Price) | IMarketDataProvider |
@@ -156,6 +157,7 @@ are now **in-process** in the API:
 | Strategies | `/api/v1/strategies` | CRUD, performance, templates |
 | Journals | `/api/v1/journals` | CRUD, link to trade |
 | CapitalFlows | `/api/v1/capital-flows` | Record, history, adjusted returns (TWR/MWR) |
+| CorporateActions | `/api/v1/corporate-actions` | Sự kiện quyền: list theo danh mục, tạo, xác nhận đã về (`/{id}/settle`), xoá. Ownership check theo chuỗi portfolio → action (ADR-0010) |
 | Positions | `/api/v1/positions` | Active positions with P&L |
 | DailyRoutines | `/api/v1/daily-routines` | Today routine, complete item, templates |
 | Snapshots | `/api/v1/snapshots` | Take, range query, compare |
