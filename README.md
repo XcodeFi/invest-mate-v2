@@ -1,6 +1,6 @@
 # Investment Mate v2 - Hệ thống Quản lý Danh mục Đầu tư Doanh nghiệp
 
-[![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green.svg)](https://www.mongodb.com/)
 [![Angular](https://img.shields.io/badge/Angular-19-red.svg)](https://angular.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -100,14 +100,20 @@ InvestmentApp.sln
 │   ├── InvestmentApp.Infrastructure/# Infrastructure Layer - Repositories, External Services
 │   └── InvestmentApp.Worker/        # Background Worker - P&L calculations, snapshots
 ├── tests/                           # Unit & Integration Tests
-├── docs/                            # Documentation
+├── docs/
+│   ├── adr/                         # Architectural Decision Records
+│   ├── plans/                       # Kế hoạch đang làm (done/ = đã ship)
+│   ├── handoffs/                    # Ghi chú bàn giao cuối phiên làm việc
+│   ├── references/                  # Tài liệu tham khảo về chiến lược & chỉ báo
+│   ├── superpowers/                 # Plan & spec sinh từ workflow /ship
+│   └── archive/                     # Tài liệu cũ, giữ để tra cứu
 └── .github/                         # GitHub Actions, Copilot instructions
 ```
 
 ## 🚀 Bắt đầu Nhanh
 
 ### Yêu cầu Hệ thống
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 - Node.js 18+ & npm
 - MongoDB 7.0+
 - Docker & Docker Compose (khuyến nghị)
@@ -116,8 +122,8 @@ InvestmentApp.sln
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/investment-mate-v2.git
-cd investment-mate-v2
+git clone https://github.com/XcodeFi/invest-mate-v2.git
+cd invest-mate-v2
 
 # Setup backend
 cd src/InvestmentApp.Api
@@ -137,10 +143,22 @@ Chi tiết cài đặt xem [docs/getting-started.md](docs/getting-started.md)
 
 ## 📚 Tài liệu
 
+Đọc theo thứ tự ưu tiên khi bắt đầu làm việc với codebase:
+
+- [🏗️ Kiến trúc](docs/architecture.md) - Codebase map, service dependencies, API endpoints
+- [🧩 Nghiệp vụ & Entity](docs/business-domain.md) - Entity relationships, business rules, external APIs
+- [🧭 Bối cảnh dự án](docs/project-context.md) - Mục tiêu, quyết định UX, các pitfall đã gặp
+- [✨ Tính năng theo phase](docs/features.md) - Danh sách tính năng đầy đủ
+- [📐 ADR](docs/adr/README.md) - Các quyết định kiến trúc quan trọng (why X over Y)
+
+Tài liệu vận hành & tham khảo:
+
 - [🚀 Bắt đầu](docs/getting-started.md) - Hướng dẫn cài đặt chi tiết
-- [🏗️ Kiến trúc](docs/architecture.md) - Thiết kế hệ thống
 - [📋 Chiến lược & Rủi ro](docs/strategy-templates.md) - 14 chiến lược mẫu & 4 mức rủi ro
-- [🔧 API Documentation](docs/api.md) - REST API endpoints
+- [🎯 Kế hoạch giao dịch](docs/trade-plans.md) - Vòng đời trade plan
+- [🤖 AI Integration](docs/ai-integration.md) - AI assistant, agent surface, MCP tools
+- [📚 Tài liệu tham khảo](docs/references/README.md) - Phân tích kỹ thuật, chỉ báo, quản lý rủi ro
+- [🗂️ Kế hoạch](docs/plans/) - Plan đang triển khai; đã ship nằm ở [`done/`](docs/plans/done/)
 - [🤖 AI Agent Guide](AI_AGENT_GUIDE_ENTERPRISE.md) - Hướng dẫn cho AI development
 
 ## 🧪 Testing
@@ -187,7 +205,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 👥 Tác giả
 
-- **Your Name** - *Initial work* - [your-github](https://github.com/your-github)
+- **Trường Phạm** - [XcodeFi](https://github.com/XcodeFi)
 
 ## 🙏 Lời cảm ơn
 
