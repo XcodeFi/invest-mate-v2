@@ -191,7 +191,7 @@ public class DisciplineScoreCalculator : IDisciplineScoreCalculator
         decimal size = plan.Quantity * plan.EntryPrice;
         bool strict = plan.AccountBalance.HasValue
                       && plan.AccountBalance.Value > 0m
-                      && size >= plan.AccountBalance.Value * 0.05m;
+                      && size >= plan.AccountBalance.Value * TradePlan.LargeTierThreshold;
 
         if (strict)
         {
