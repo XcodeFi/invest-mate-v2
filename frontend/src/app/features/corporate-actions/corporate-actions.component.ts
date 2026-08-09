@@ -74,7 +74,7 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
       <div class="flex items-center justify-between mb-4">
         <div>
           <h1 class="text-xl font-semibold">Sự kiện quyền</h1>
-          <p class="text-sm text-gray-500 dark:text-gray-400">
+          <p class="text-sm text-gray-500">
             Cổ tức tiền mặt, cổ tức cổ phiếu và chia tách — dùng để tính lại giá vốn và lãi/lỗ.
           </p>
         </div>
@@ -86,8 +86,8 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
       </div>
 
       <div class="mb-4">
-        <label class="mr-2 text-sm">Danh mục</label>
-        <select class="rounded border px-2 py-1 text-sm dark:bg-gray-800"
+        <label class="text-sm font-medium text-gray-700 mr-2">Danh mục</label>
+        <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[200px]"
                 [(ngModel)]="selectedPortfolioId" (ngModelChange)="reload()">
           @for (p of portfolios(); track p.id) {
             <option [value]="p.id">{{ p.name }}</option>
@@ -158,20 +158,20 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
 
       @if (formOpen()) {
         <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div class="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl dark:bg-gray-900">
+          <div class="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
             <h2 class="mb-4 text-lg font-semibold">Thêm sự kiện quyền</h2>
 
             <div class="space-y-3">
               <div>
-                <label class="block text-sm">Mã chứng khoán</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mã chứng khoán</label>
                 <input appUppercase [(ngModel)]="form.symbol"
-                       class="w-full rounded border px-2 py-1 dark:bg-gray-800"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                        placeholder="VD: HPG" />
               </div>
 
               <div>
-                <label class="block text-sm">Loại sự kiện</label>
-                <select [(ngModel)]="form.type" class="w-full rounded border px-2 py-1 dark:bg-gray-800">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Loại sự kiện</label>
+                <select [(ngModel)]="form.type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                   <option value="CashDividend">Cổ tức tiền mặt</option>
                   <option value="StockDividend">Cổ tức cổ phiếu</option>
                   <option value="StockSplit">Chia tách cổ phiếu</option>
@@ -180,28 +180,28 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
 
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label class="block text-sm">Ngày GDKHQ</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Ngày GDKHQ</label>
                   <input type="date" [(ngModel)]="form.exDate"
-                         class="w-full rounded border px-2 py-1 dark:bg-gray-800" />
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label class="block text-sm">Ngày về (dự kiến)</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Ngày về (dự kiến)</label>
                   <input type="date" [(ngModel)]="form.settlementDate"
-                         class="w-full rounded border px-2 py-1 dark:bg-gray-800" />
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
               @if (form.type === 'CashDividend') {
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-sm">Tỷ lệ (% mệnh giá)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tỷ lệ (% mệnh giá)</label>
                     <input type="number" [(ngModel)]="form.percentOfPar" min="0" step="0.01"
-                           class="w-full rounded border px-2 py-1 dark:bg-gray-800" placeholder="VD: 5" />
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="VD: 5" />
                   </div>
                   <div>
-                    <label class="block text-sm">Thuế TNCN (%)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Thuế TNCN (%)</label>
                     <input type="number" [(ngModel)]="form.taxRatePercent" min="0" max="99" step="0.1"
-                           class="w-full rounded border px-2 py-1 dark:bg-gray-800" />
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </div>
                 <p class="text-xs text-gray-500">
@@ -210,14 +210,14 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
               } @else {
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-sm">Cứ mỗi (CP cũ)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cứ mỗi (CP cũ)</label>
                     <input type="number" [(ngModel)]="form.ratioOld" min="1" step="1"
-                           class="w-full rounded border px-2 py-1 dark:bg-gray-800" placeholder="VD: 10" />
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="VD: 10" />
                   </div>
                   <div>
-                    <label class="block text-sm">Nhận thêm (CP)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nhận thêm (CP)</label>
                     <input type="number" [(ngModel)]="form.bonusShares" min="1" step="1"
-                           class="w-full rounded border px-2 py-1 dark:bg-gray-800" placeholder="VD: 3" />
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="VD: 3" />
                   </div>
                 </div>
                 <p class="text-xs text-gray-500">
@@ -226,12 +226,12 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
               }
 
               <div>
-                <label class="block text-sm">Ghi chú</label>
-                <input [(ngModel)]="form.note" class="w-full rounded border px-2 py-1 dark:bg-gray-800" />
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                <input [(ngModel)]="form.note" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
               </div>
 
               @if (matchedPosition(); as pos) {
-                <div class="rounded bg-blue-50 p-3 text-sm dark:bg-blue-950">
+                <div class="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm">
                   <p class="font-medium">Xem trước tác động lên {{ pos.symbol }}</p>
                   @if (preview(); as pv) {
                     <p>
