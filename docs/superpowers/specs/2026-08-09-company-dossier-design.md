@@ -150,7 +150,7 @@ Phản chiếu đúng công thức `EnsureDisciplineGate`: `size = Quantity × E
 
 ### 5.3 Lỗi trả về
 
-`InvalidOperationException` → HTTP 400, khớp cách controller đang map `DISCIPLINE_GATE_FAILED`:
+Gate throw `DossierGateException : InvalidOperationException` mang theo kết quả đánh giá. `ExceptionMiddleware` cần **một nhánh riêng đặt trước switch chung**, vì switch hiện tại map `InvalidOperationException → 409 Conflict` (đã kiểm tra [ExceptionMiddleware.cs:62](../../../src/InvestmentApp.Api/Middleware/ExceptionMiddleware.cs#L62)) — không phải 400. Kế thừa từ `InvalidOperationException` để nếu nhánh mới bị xóa thì hành vi thoái về 409 chứ không thành 500.
 
 ```json
 {
