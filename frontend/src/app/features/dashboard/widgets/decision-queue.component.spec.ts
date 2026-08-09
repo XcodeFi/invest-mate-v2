@@ -186,6 +186,34 @@ describe('DecisionQueueComponent', () => {
     expect(component.getActionParams(item)).toEqual({ loadPlan: 'plan-1' });
   });
 
+  it('routes ThesisReviewDue to /symbol-timeline with symbol + planId when tradePlanId present', () => {
+    const item = mockItem({ type: 'ThesisReviewDue', symbol: 'VNM', tradePlanId: 'plan-vnm' });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(component.getActionRoute(item)).toEqual(['/symbol-timeline']);
+    expect(component.getActionParams(item)).toEqual({ symbol: 'VNM', planId: 'plan-vnm' });
+  });
+
+  it('routes ThesisReviewDue to /symbol-timeline with symbol param even when tradePlanId missing', () => {
+    // Phòng thủ, không phải regression: backend luôn set TradePlanId = plan.Id cho ThesisReviewDue.
+    // Chốt luật "không nhánh nào được làm mất symbol" — mất symbol thì /symbol-timeline render rỗng.
+    const item = mockItem({ type: 'ThesisReviewDue', symbol: 'FPT', tradePlanId: null });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(component.getActionRoute(item)).toEqual(['/symbol-timeline']);
+    expect(component.getActionParams(item)).toEqual({ symbol: 'FPT' });
+  });
+
+  it('Xử lý link rendered with data-test="btn-process" for E2E consistency', () => {
+    const item = mockItem();
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css('[data-test="btn-process"]'))).toBeTruthy();
+  });
+
   // -----------------------------------------------------------------
   // P4 inline actions — BÁN / GIỮ
   // -----------------------------------------------------------------
@@ -334,6 +362,16 @@ describe('DecisionQueueComponent', () => {
 
     expect(component.typeLabel(unknown)).toBe('Khác');
     expect(component.getActionRoute(mockItem({ type: unknown }))).toEqual(['/symbol-timeline']);
+    expect(component.getActionParams(mockItem({ type: unknown, symbol: 'SSI' }))).toEqual({ symbol: 'SSI' });
+  });
+
+  it('không nhánh nào của getActionParams được làm mất symbol', () => {
+    setup({ items: [], totalCount: 0 }, { daysWithoutViolation: 0, hasData: false });
+
+    // ScenarioTrigger thiếu plan: trước đây rơi vào `return {}` → /trade-plan trống trơn.
+    expect(component.getActionParams(
+      mockItem({ type: 'ScenarioTrigger', symbol: 'HPG', tradePlanId: null })
+    )).toEqual({ symbol: 'HPG' });
   });
 
   it('ẩn nút BÁN cho cả hai loại mới (không có tradePlanId)', () => {

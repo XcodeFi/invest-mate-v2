@@ -58,7 +58,11 @@ public class DecisionItemDto
     public decimal? CurrentPrice { get; set; }
     public decimal? PlannedExitPrice { get; set; }
 
-    /// <summary>TradePlanId nếu source có plan (StopLossHit/ScenarioTrigger/ThesisReviewDue đều có).</summary>
+    /// <summary>
+    /// TradePlanId nếu item bắt nguồn từ một kế hoạch: ScenarioTrigger và ThesisReviewDue luôn có.
+    /// StopLossHit / MissingStopLoss / BuyOpportunity luôn null — chúng sinh từ vị thế hoặc watchlist,
+    /// không từ plan. Đừng dùng trường này để nhận diện phạm vi danh mục; dùng <see cref="PortfolioId"/>.
+    /// </summary>
     public string? TradePlanId { get; set; }
 
     /// <summary>Hạn xử lý (cho ThesisReviewDue) hoặc thời điểm trigger (StopLoss/Scenario).</summary>

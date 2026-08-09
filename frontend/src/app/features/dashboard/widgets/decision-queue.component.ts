@@ -139,6 +139,7 @@ const MIN_HOLD_NOTE_LENGTH = 20;
               ✋ GIỮ + GHI LÝ DO
             </button>
             <a [routerLink]="getActionRoute(item)" [queryParams]="getActionParams(item)"
+               data-test="btn-process"
                class="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors">
               Xử lý →
             </a>
@@ -254,12 +255,9 @@ export class DecisionQueueComponent implements OnInit {
     if (item.type === 'ThesisReviewDue' && item.tradePlanId) {
       return { symbol: item.symbol, planId: item.tradePlanId };
     }
-    if (item.type === 'StopLossHit'
-      || item.type === 'BuyOpportunity'
-      || item.type === 'MissingStopLoss') {
-      return { symbol: item.symbol };
-    }
-    return {};
+    // Mặc định symbol thay vì {}: mọi item đều có symbol, nên type mới thêm sau này
+    // tự có param đúng thay vì âm thầm điều hướng tới trang trống.
+    return { symbol: item.symbol };
   }
 
   expandNote(item: DecisionItemDto): void {
