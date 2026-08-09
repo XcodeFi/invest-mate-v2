@@ -1,4 +1,5 @@
 using FluentValidation;
+using InvestmentApp.Application.CompanyDossiers.Gate;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -31,6 +32,21 @@ public class ExceptionMiddleware
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
+
+        // Đặt TRƯỚC switch chung: switch map InvalidOperationException → 409,
+        // còn gate cần 400 kèm body có cấu trúc để FE liệt kê được thiếu gì.
+        if (exception is DossierGateException dge)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                code = "DOSSIER_GATE_FAILED",
+                symbol = dge.Symbol,
+                reason = dge.Result.Reason,
+                missing = dge.Result.Missing
+            });
+            return;
+        }
 
         // FluentValidation ValidationException: surface as 400 ValidationProblemDetails so FE can
         // parse the structured `errors` map. Keep this branch BEFORE the generic switch since
