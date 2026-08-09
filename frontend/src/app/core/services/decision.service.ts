@@ -10,7 +10,12 @@ import { AuthService } from './auth.service';
  * thành 1 list duy nhất ép user xử lý quyết định kỷ luật.
  * Xem `docs/plans/dashboard-decision-engine.md` §5 (P3).
  */
-export type DecisionType = 'StopLossHit' | 'ScenarioTrigger' | 'ThesisReviewDue';
+export type DecisionType =
+  | 'StopLossHit'
+  | 'ScenarioTrigger'
+  | 'ThesisReviewDue'
+  | 'BuyOpportunity'
+  | 'MissingStopLoss';
 export type DecisionSeverity = 'Critical' | 'Warning' | 'Info';
 
 export interface DecisionItemDto {

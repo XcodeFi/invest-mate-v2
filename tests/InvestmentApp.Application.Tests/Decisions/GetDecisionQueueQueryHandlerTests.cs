@@ -5,6 +5,7 @@ using InvestmentApp.Application.Decisions.Queries.GetDecisionQueue;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Queries.GetPendingThesisReviews;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.ValueObjects;
 using MediatR;
 using Moq;
 
@@ -22,6 +23,8 @@ public class GetDecisionQueueQueryHandlerTests
     private readonly Mock<IScenarioAdvisoryService> _advisoryService = new();
     private readonly Mock<IJournalEntryRepository> _journalRepo = new();
     private readonly Mock<IMediator> _mediator = new();
+    private readonly Mock<IWatchlistRepository> _watchlistRepo = new();
+    private readonly Mock<IStockPriceService> _priceService = new();
     private readonly GetDecisionQueueQueryHandler _handler;
     private const string UserId = "user-1";
 
@@ -29,7 +32,7 @@ public class GetDecisionQueueQueryHandlerTests
     {
         _handler = new GetDecisionQueueQueryHandler(
             _portfolioRepo.Object, _planRepo.Object, _riskService.Object, _advisoryService.Object,
-            _journalRepo.Object, _mediator.Object);
+            _journalRepo.Object, _mediator.Object, _watchlistRepo.Object, _priceService.Object);
 
         // Defaults: tất cả nguồn empty — từng test override khi cần.
         _portfolioRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
@@ -42,6 +45,10 @@ public class GetDecisionQueueQueryHandlerTests
             .ReturnsAsync(Array.Empty<JournalEntry>());
         _mediator.Setup(m => m.Send(It.IsAny<GetPendingThesisReviewsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<PendingThesisReviewDto>());
+        _watchlistRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Watchlist>());
+        _priceService.Setup(s => s.GetCurrentPricesAsync(It.IsAny<IEnumerable<StockSymbol>>()))
+            .ReturnsAsync(new Dictionary<string, Money>());
     }
 
     // ---------------------------------------------------------------
@@ -105,15 +112,51 @@ public class GetDecisionQueueQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PositionWithoutSL_NotIncluded()
+    public async Task Handle_PositionWithoutSL_AddsMissingStopLossWarning()
     {
+        // Trước đây vị thế không SL bị `continue` bỏ qua — queue rỗng đọc như "an toàn"
+        // trong khi thực tế là "rủi ro chưa đo được". Giờ nó phải hiện ra.
         var portfolio = MakePortfolio("p1", "Main");
         SetupPortfolios(portfolio);
         SetupRiskSummary(portfolio.Id, MakePosition("MWG", stopLossPrice: null, currentPrice: 50m, distanceToSlPercent: 0m));
 
         var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
 
+        result.Items.Should().HaveCount(1);
+        var item = result.Items[0];
+        item.Type.Should().Be(DecisionType.MissingStopLoss);
+        item.Severity.Should().Be(DecisionSeverity.Warning);
+        item.Symbol.Should().Be("MWG");
+        item.PortfolioId.Should().Be("p1");
+        item.TradePlanId.Should().BeNull();
+        item.Headline.Should().Contain("chưa đặt stop-loss");
+    }
+
+    [Fact]
+    public async Task Handle_PositionWithoutSLAndZeroPrice_NotIncluded()
+    {
+        // Giá fail fetch là "chưa biết", không phải "thiếu SL". Không được báo động nhầm.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("MWG", stopLossPrice: null, currentPrice: 0m, distanceToSlPercent: 0m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
         result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_PositionWithSL_DoesNotAlsoEmitMissingStopLoss()
+    {
+        // Hai type loại trừ nhau theo định nghĩa — không được sinh cả hai cho cùng vị thế.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", stopLossPrice: 89.5m, currentPrice: 89.4m, distanceToSlPercent: -0.1m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Type.Should().Be(DecisionType.StopLossHit);
     }
 
     // ---------------------------------------------------------------
@@ -344,6 +387,28 @@ public class GetDecisionQueueQueryHandlerTests
             });
     }
 
+    private static Watchlist MakeWatchlist(params WatchlistItem[] items)
+    {
+        var wl = new Watchlist(UserId, "Theo dõi");
+        foreach (var i in items) wl.AddItem(i.Symbol, i.Note, i.TargetBuyPrice, i.TargetSellPrice);
+        return wl;
+    }
+
+    private static WatchlistItem MakeWatchItem(string symbol, decimal? targetBuy, string? note = null)
+        => new() { Symbol = symbol, TargetBuyPrice = targetBuy, Note = note, AddedAt = DateTime.UtcNow };
+
+    private void SetupWatchlist(params WatchlistItem[] items)
+    {
+        _watchlistRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { MakeWatchlist(items) });
+    }
+
+    private void SetupPrices(params (string Symbol, decimal Price)[] prices)
+    {
+        _priceService.Setup(s => s.GetCurrentPricesAsync(It.IsAny<IEnumerable<StockSymbol>>()))
+            .ReturnsAsync(prices.ToDictionary(p => p.Symbol, p => new Money(p.Price)));
+    }
+
     // -----------------------------------------------------------------
     // Per-day suppression — once user resolves an item today, that item
     // does not reappear on refresh until next VN day. (Bug fix: previously
@@ -512,5 +577,101 @@ public class GetDecisionQueueQueryHandlerTests
 
         result.Items.Should().HaveCount(1);
         result.Items[0].Type.Should().Be(DecisionType.StopLossHit);
+    }
+
+    // ---------------------------------------------------------------
+    // Source 4: buy opportunities (watchlist chạm mục tiêu mua)
+    // ---------------------------------------------------------------
+    [Fact]
+    public async Task Handle_WatchlistPriceAtOrBelowTarget_AddsInfoBuyOpportunity()
+    {
+        SetupWatchlist(MakeWatchItem("VNM", targetBuy: 60_000m, note: "Chờ về vùng hỗ trợ"));
+        SetupPrices(("VNM", 59_500m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+        var item = result.Items[0];
+        item.Type.Should().Be(DecisionType.BuyOpportunity);
+        item.Severity.Should().Be(DecisionSeverity.Info);
+        item.Symbol.Should().Be("VNM");
+        item.PortfolioId.Should().BeEmpty();
+        item.TradePlanId.Should().BeNull();
+        item.ThesisOrReason.Should().Be("Chờ về vùng hỗ trợ");
+        item.Headline.Should().Contain("mục tiêu mua");
+    }
+
+    [Fact]
+    public async Task Handle_WatchlistWithoutTarget_NoOpportunity()
+    {
+        SetupWatchlist(MakeWatchItem("MSN", targetBuy: null));
+        SetupPrices(("MSN", 60_000m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_WatchlistPriceAboveTarget_NoOpportunity()
+    {
+        SetupWatchlist(MakeWatchItem("BVH", targetBuy: 40_000m));
+        SetupPrices(("BVH", 44_000m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_PriceServiceThrows_QueueStillReturnsOtherSources()
+    {
+        // Nguyên tắc "block nào chậm/hỏng thì vắng mặt, không làm hỏng cả queue".
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        SetupWatchlist(MakeWatchItem("VNM", targetBuy: 60_000m));
+        _priceService.Setup(s => s.GetCurrentPricesAsync(It.IsAny<IEnumerable<StockSymbol>>()))
+            .ThrowsAsync(new HttpRequestException("provider down"));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Type.Should().Be(DecisionType.StopLossHit);
+    }
+
+    [Fact]
+    public async Task Handle_OpportunitySortsBelowRiskWarnings()
+    {
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("MWG", stopLossPrice: null, currentPrice: 50m, distanceToSlPercent: 0m));
+        SetupWatchlist(MakeWatchItem("VNM", targetBuy: 60_000m));
+        SetupPrices(("VNM", 59_000m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(2);
+        result.Items[0].Type.Should().Be(DecisionType.MissingStopLoss);   // Warning lên trước
+        result.Items[1].Type.Should().Be(DecisionType.BuyOpportunity);    // Info xuống sau
+    }
+
+    [Fact]
+    public async Task Handle_SameSymbolOpportunityAndStopLoss_BothSurvive()
+    {
+        // BuyOpportunity có PortfolioId rỗng nên thoát dedupe (Dedupe bỏ qua nhóm PortfolioId rỗng).
+        // "FPT chạm mục tiêu mua" và "FPT thủng SL" là hai việc khác nhau, không được nuốt nhau.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        SetupWatchlist(MakeWatchItem("FPT", targetBuy: 90_000m));
+        SetupPrices(("FPT", 89_000m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(2);
+        result.Items.Select(i => i.Type).Should()
+            .Contain(DecisionType.StopLossHit).And
+            .Contain(DecisionType.BuyOpportunity);
     }
 }
