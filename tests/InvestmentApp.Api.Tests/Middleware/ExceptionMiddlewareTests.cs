@@ -5,6 +5,7 @@ using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
 using InvestmentApp.Api.Middleware;
+using InvestmentApp.Application.CompanyDossiers.Gate;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -81,6 +82,29 @@ public class ExceptionMiddlewareTests
     {
         var (status, _) = await InvokeAsync(new InvalidOperationException("conflict"));
         status.Should().Be((int)HttpStatusCode.Conflict);
+    }
+
+    /// <summary>
+    /// DossierGateException kế thừa InvalidOperationException có chủ đích (fail-safe: nếu nhánh
+    /// riêng bị xóa thì thoái về 409, không phải 500) — nên nhánh riêng PHẢI đứng trước switch
+    /// chung để không rơi vào case InvalidOperationException ở trên. Test này cùng với
+    /// <see cref="InvalidOperationException_Returns_409_Conflict"/> chứng minh nhánh mới không
+    /// nuốt case InvalidOperationException thường (409 vẫn đúng cho plain InvalidOperationException).
+    /// </summary>
+    [Fact]
+    public async Task DossierGateException_Returns_400_With_StructuredBody()
+    {
+        var result = new DossierGateResult(false, "insufficient",
+            new List<string> { "moats: cần ≥ 1, đang có 0" });
+        var (status, body) = await InvokeAsync(new DossierGateException("HPG", result));
+
+        status.Should().Be((int)HttpStatusCode.BadRequest);
+
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("code").GetString().Should().Be("DOSSIER_GATE_FAILED");
+        doc.RootElement.GetProperty("symbol").GetString().Should().Be("HPG");
+        doc.RootElement.GetProperty("reason").GetString().Should().Be("insufficient");
+        doc.RootElement.GetProperty("missing")[0].GetString().Should().Contain("moats");
     }
 
     [Fact]

@@ -35,7 +35,7 @@ public class UpsertCompanyDossierCommandHandler : IRequestHandler<UpsertCompanyD
             if (request.ByAgent)
                 created.UpdateByAgent(request.BusinessModel, request.Moats, request.RiskFactors, request.Notes);
 
-            await CreateOrThrowConflict(created, request.Symbol);
+            await _repo.CreateAsync(created);
             return created.Id;
         }
 
@@ -46,26 +46,5 @@ public class UpsertCompanyDossierCommandHandler : IRequestHandler<UpsertCompanyD
 
         await _repo.UpdateAsync(existing);
         return existing.Id;
-    }
-
-    /// <summary>
-    /// Race hiếm: 2 request PUT trùng (userId, symbol) đến gần đồng thời — cả hai GetAsync
-    /// ra null rồi cùng CreateAsync, cái sau va unique index ux_user_symbol ở Infrastructure.
-    /// Application không phụ thuộc MongoDB.Driver (repository là interface), nên không bắt
-    /// theo type MongoWriteException được; nhận diện qua message "E11000" mà driver luôn phát
-    /// ra rồi dịch thành InvalidOperationException (đã có sẵn nhánh 409 trong ExceptionMiddleware).
-    /// Đơn phiên đơn user nên đây là race hẹp — không cần retry hay lock.
-    /// </summary>
-    private async Task CreateOrThrowConflict(CompanyDossier dossier, string symbol)
-    {
-        try
-        {
-            await _repo.CreateAsync(dossier);
-        }
-        catch (Exception ex) when (ex.Message.Contains("E11000"))
-        {
-            throw new InvalidOperationException(
-                $"Hồ sơ cho mã {symbol.Trim().ToUpperInvariant()} đã tồn tại, tải lại và cập nhật.", ex);
-        }
     }
 }
