@@ -2,7 +2,7 @@
 
 ## Project Owner
 
-- **Trường Phạm Văn** — Vietnamese investor, full-stack developer
+- **XcodeFi** — Vietnamese investor, full-stack developer
 - Focus: disciplined investing workflow (Strategy → Plan → Trade → Risk → Compound Growth)
 - Communication: Vietnamese language, technical terms in English
 - Values: UX workflow continuity, Vietnamese language quality (diacritics critical)
