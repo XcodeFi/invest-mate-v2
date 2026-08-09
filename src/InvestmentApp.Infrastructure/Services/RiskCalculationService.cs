@@ -118,13 +118,13 @@ public class RiskCalculationService : IRiskCalculationService
 
                 var symbolActions = actionsBySymbol[symbolGroup.Key];
                 decimal? adjustedStopLoss = slTarget != null
-                    ? CorporateActionAdjuster.AdjustPrice(slTarget.StopLossPrice, slTarget.CreatedAt, symbolActions)
+                    ? CorporateActionAdjuster.AdjustPrice(slTarget.StopLossPrice, slTarget.UpdatedAt, symbolActions)
                     : null;
                 decimal? adjustedTarget = slTarget != null
-                    ? CorporateActionAdjuster.AdjustPrice(slTarget.TargetPrice, slTarget.CreatedAt, symbolActions)
+                    ? CorporateActionAdjuster.AdjustPrice(slTarget.TargetPrice, slTarget.UpdatedAt, symbolActions)
                     : null;
                 decimal? adjustedEntry = slTarget != null
-                    ? CorporateActionAdjuster.AdjustPrice(slTarget.EntryPrice, slTarget.CreatedAt, symbolActions)
+                    ? CorporateActionAdjuster.AdjustPrice(slTarget.EntryPrice, slTarget.UpdatedAt, symbolActions)
                     : null;
                 var adjustedRiskPerShare = adjustedEntry.HasValue && adjustedStopLoss.HasValue
                     ? adjustedEntry.Value - adjustedStopLoss.Value
@@ -474,6 +474,8 @@ public class RiskCalculationService : IRiskCalculationService
         var result = new TrailingStopAlertsResult { PortfolioId = portfolioId };
 
         var slTargets = await _stopLossTargetRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var actionsBySymbol = (await _corporateActionRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken))
+            .ToLookup(a => a.Symbol, StringComparer.OrdinalIgnoreCase);
 
         // Filter to active trailing stops only
         var activeTrailingStops = slTargets
@@ -493,7 +495,10 @@ public class RiskCalculationService : IRiskCalculationService
 
                 if (currentPrice <= 0 || !target.TrailingStopPrice.HasValue) continue;
 
-                var trailingStopPrice = target.TrailingStopPrice.Value;
+                // TrailingStopPrice cũng là giá tuyệt đối — không điều chỉnh thì sau ngày GDKHQ
+                // khoảng cách tính ra vô nghĩa và báo "danger" sai.
+                var trailingStopPrice = CorporateActionAdjuster.AdjustPrice(
+                    target.TrailingStopPrice.Value, target.UpdatedAt, actionsBySymbol[target.Symbol]);
                 var distancePercent = currentPrice > 0
                     ? ((currentPrice - trailingStopPrice) / currentPrice) * 100
                     : 0;

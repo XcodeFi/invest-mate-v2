@@ -125,8 +125,8 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
                     ? found
                     : Array.Empty<CorporateAction>();
 
-            var stopLossPrice = CorporateActionAdjuster.AdjustPrice(slt.StopLossPrice, slt.CreatedAt, actions);
-            var targetPrice = CorporateActionAdjuster.AdjustPrice(slt.TargetPrice, slt.CreatedAt, actions);
+            var stopLossPrice = CorporateActionAdjuster.AdjustPrice(slt.StopLossPrice, slt.UpdatedAt, actions);
+            var targetPrice = CorporateActionAdjuster.AdjustPrice(slt.TargetPrice, slt.UpdatedAt, actions);
 
             if (stopLossPrice > 0 && currentPrice <= stopLossPrice)
             {

@@ -28,16 +28,20 @@ public class StopLossCorporateActionTests
         _trades.Object, _prices.Object, _indices.Object, _marketData.Object,
         _slRepo.Object, _actions.Object, NullLogger<PriceSnapshotJobService>.Instance);
 
-    /// <summary>Giá vào 25.000, cắt lỗ 22.000, mục tiêu 40.000 — đặt ngày 2026-01-05.</summary>
-    private static StopLossTarget HpgTarget()
+    /// <summary>
+    /// Giá vào 25.000, cắt lỗ 22.000, mục tiêu 40.000. Mốc điều chỉnh là <c>UpdatedAt</c> —
+    /// lần sửa gần nhất, chứ không phải lúc tạo: sửa cắt lỗ SAU sự kiện quyền nghĩa là
+    /// người dùng đã nhập theo giá mới, điều chỉnh thêm lần nữa sẽ giấu mất lệnh cắt lỗ thật.
+    /// </summary>
+    private static StopLossTarget HpgTarget(DateTime? updatedAt = null)
     {
         var target = new StopLossTarget("t1", "p1", "u1", "HPG", 25_000m, 22_000m, 40_000m);
-        typeof(StopLossTarget).GetProperty(nameof(StopLossTarget.CreatedAt))!
-            .SetValue(target, SetAt);
+        typeof(StopLossTarget).GetProperty(nameof(StopLossTarget.UpdatedAt))!
+            .SetValue(target, updatedAt ?? SetAt);
         return target;
     }
 
-    private void SetupJob(decimal closePrice, params CorporateAction[] actions)
+    private void SetupJob(decimal closePrice, CorporateAction[] actions, DateTime? updatedAt = null)
     {
         _trades.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { new Trade("p1", "HPG", TradeType.BUY, 1000, 25_000m) });
@@ -58,7 +62,7 @@ public class StopLossCorporateActionTests
             });
 
         _slRepo.Setup(r => r.GetUntriggeredAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { HpgTarget() });
+            .ReturnsAsync(new[] { HpgTarget(updatedAt) });
 
         _actions.Setup(r => r.GetByPortfolioIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(actions);
@@ -69,7 +73,7 @@ public class StopLossCorporateActionTests
     {
         // Giá 23.100 sau điều chỉnh ≈ 30.030 trước điều chỉnh — vị thế vẫn đang lãi.
         // Ngưỡng cắt lỗ điều chỉnh = 22.000 / 1,3 ≈ 16.923 → không được bắn.
-        SetupJob(23_100m, CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, null));
+        SetupJob(23_100m, new[] { CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, null) });
 
         var result = await Sut().RunAsync();
 
@@ -80,7 +84,7 @@ public class StopLossCorporateActionTests
     [Fact]
     public async Task GiaXuyenThungNguongDaDieuChinh_ThiVanKichHoat()
     {
-        SetupJob(16_000m, CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, null));
+        SetupJob(16_000m, new[] { CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, null) });
 
         var result = await Sut().RunAsync();
 
@@ -90,7 +94,22 @@ public class StopLossCorporateActionTests
     [Fact]
     public async Task KhongCoSuKienQuyen_ThiGiuNguyenHanhViCu()
     {
-        SetupJob(21_000m);
+        SetupJob(21_000m, Array.Empty<CorporateAction>());
+
+        var result = await Sut().RunAsync();
+
+        result.StopLossTriggered.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SuaCatLoSauSuKienQuyen_ThiKhongDieuChinhChongLen()
+    {
+        // Người dùng sửa cắt lỗ về 22.000 vào ngày 2026-07-01, tức SAU ngày GDKHQ —
+        // con số đó đã theo giá mới. Nếu vẫn lấy mốc CreatedAt mà điều chỉnh tiếp,
+        // ngưỡng tụt còn ~16.923 và lệnh cắt lỗ thật bị giấu mất.
+        SetupJob(21_000m,
+            new[] { CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, null) },
+            updatedAt: new DateTime(2026, 7, 1));
 
         var result = await Sut().RunAsync();
 
@@ -101,7 +120,7 @@ public class StopLossCorporateActionTests
     public async Task MucTieuCungDuocDieuChinh_KhongChotLaiNham()
     {
         // Mục tiêu 40.000 điều chỉnh còn ≈ 30.769. Giá 31.000 → đã đạt mục tiêu thật.
-        SetupJob(31_000m, CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, null));
+        SetupJob(31_000m, new[] { CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, null) });
 
         var result = await Sut().RunAsync();
 
