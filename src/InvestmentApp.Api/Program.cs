@@ -5,6 +5,7 @@ using InvestmentApp.Api.Controllers;
 using InvestmentApp.Api.Middleware;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Common.Interfaces;
+using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.Services;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Infrastructure.Configuration;
@@ -114,6 +115,7 @@ builder.Services.AddScoped<ICorporateActionRepository, CorporateActionRepository
 builder.Services.AddScoped<IPortfolioSnapshotRepository, PortfolioSnapshotRepository>();
 builder.Services.AddScoped<IRiskProfileRepository, RiskProfileRepository>();
 builder.Services.AddScoped<ICompanyDossierRepository, CompanyDossierRepository>();
+builder.Services.AddScoped<ICompanyDossierGate, CompanyDossierGate>();
 builder.Services.AddScoped<IStopLossTargetRepository, StopLossTargetRepository>();
 builder.Services.AddScoped<IStrategyRepository, StrategyRepository>();
 builder.Services.AddScoped<ITradeJournalRepository, TradeJournalRepository>();
