@@ -775,6 +775,57 @@ public class CompanyDossierGateTests
     }
 
     [Fact]
+    public async Task ExpiredAndThin_ShouldReportExpiredNotInsufficient()
+    {
+        // Ghim thứ tự ưu tiên. Code hiện đúng vì switch freshness return trước
+        // mọi kiểm tra nội dung, nhưng không có test thì refactor đảo thứ tự sẽ lặng lẽ hồi quy.
+        Setup(Dossier(ageDays: 200, riskCount: 1, businessModel: "Ngắn"));
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, Account, default);
+
+        result.Reason.Should().Be("expired");
+    }
+
+    [Fact]
+    public async Task SizeExactlyAtFivePercent_ShouldUseLargeTier()
+    {
+        // Ghim `>=` chứ không phải `>`. Không có test ở đúng mốc thì off-by-one
+        // ở biên ngưỡng lọt qua toàn bộ suite.
+        Setup(Dossier(businessModel: "Bán thép", moatLength: 5, riskCount: 1, signalLength: 10));
+        var result = await Sut().EvaluateAsync("user-1", "HPG", Account * 0.05m, Account, default);
+
+        result.Passed.Should().BeFalse();
+        result.Reason.Should().Be("insufficient");
+    }
+
+    [Fact]
+    public async Task NeedsReview_ShouldStillPassTheGate()
+    {
+        // 90–179 ngày chỉ nhắc, không chặn. Chỉ Expired mới chặn.
+        Setup(Dossier(ageDays: 120));
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, Account, default);
+
+        result.Passed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task LargeTier_ShortMoat_ShouldReportCurrentLongestLength()
+    {
+        Setup(Dossier(moatLength: 12));
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, Account, default);
+
+        result.Missing.Should().Contain(m => m.Contains("moats") && m.Contains("12"));
+    }
+
+    [Fact]
+    public async Task LargeTier_ShortSignal_ShouldReportCurrentLength()
+    {
+        Setup(Dossier(signalLength: 19));
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, Account, default);
+
+        result.Missing.Should().Contain(m => m.Contains("observableSignal") && m.Contains("19 ký tự"));
+    }
+
+    [Fact]
     public async Task EnsureAsync_WhenBlocked_ShouldThrowWithPayload()
     {
         Setup(null);
@@ -910,18 +961,23 @@ public class CompanyDossierGate : ICompanyDossierGate
             missing.Add($"businessModel: cần ≥ {LargeBusinessModelMinChars} ký tự, đang có {d.BusinessModel.Length}");
 
         if (!d.Moats.Any(m => m.Description.Length >= LargeMoatMinChars))
-            missing.Add($"moats: cần ít nhất 1 moat mô tả ≥ {LargeMoatMinChars} ký tự");
+        {
+            var longest = d.Moats.Count == 0 ? 0 : d.Moats.Max(m => m.Description.Length);
+            missing.Add($"moats: cần ít nhất 1 moat mô tả ≥ {LargeMoatMinChars} ký tự, dài nhất đang có {longest}");
+        }
 
         if (d.RiskFactors.Count < LargeRiskFactorMinCount)
             missing.Add($"riskFactors: cần ≥ {LargeRiskFactorMinCount}, đang có {d.RiskFactors.Count}");
 
+        // Nêu luôn độ dài hiện tại của từng cái thiếu — nói "chưa đủ" mà không nói
+        // thiếu bao nhiêu thì người dùng phải đoán.
         var shortSignals = d.RiskFactors
             .Where(r => r.ObservableSignal.Length < LargeSignalMinChars)
-            .Select(r => r.Rank)
+            .Select(r => $"hạng {r.Rank} ({r.ObservableSignal.Length} ký tự)")
             .ToList();
 
         if (shortSignals.Count > 0)
-            missing.Add($"observableSignal: cần ≥ {LargeSignalMinChars} ký tự ở yếu tố hạng {string.Join(", ", shortSignals)}");
+            missing.Add($"observableSignal: cần ≥ {LargeSignalMinChars} ký tự ở yếu tố {string.Join(", ", shortSignals)}");
 
         return missing;
     }
