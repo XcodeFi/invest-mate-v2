@@ -50,6 +50,14 @@ Chặn ở lúc tạo plan đi ngược tiền lệ trong codebase (gate hiện 
 | Q11 | **Tối đa 1 `RiskFactor` được đánh dấu `IsDealBreaker`.** | `Rank` đã đo mức độ; cờ này chỉ cần trả lời "cái nào là công tắc bán hết". Cho đánh dấu nhiều thì từ "hủy diệt" mất nghĩa. |
 | Q12 | **Tầng nhỏ vẫn bắt buộc `BusinessModel` không rỗng** (một câu là đủ). | Một câu ~15 giây, và đó là câu chặn "mua theo tin". Lệnh nhỏ hôm nay thường thành position lớn tháng sau do DCA — lúc đó gate luồng sửa mới bắt viết thì tiền đã vào rồi. |
 
+### 2.4 Chốt thêm ở vòng review toàn nhánh (2026-08-09)
+
+| # | Quyết định | Lý do |
+|---|---|---|
+| Q13 | **Đổi `Symbol` khi sửa plan thì luôn chạy gate, chấm theo mã mới** — không cần vượt ngưỡng. | Trỏ plan sang mã khác là mở vị thế mới ở một công ty khác, không phải điều chỉnh size. Đường **tạo** đã chặn cả lệnh nhỏ (Q12), nên chặn mọi lần đổi mã chỉ làm đường **sửa** nhất quán với đường **tạo**. Q6 nói về việc không soi lại plan cũ, không nói về việc cho phép tráo công ty bên trong một plan cũ. |
+| Q14 | **Không có grandfathering, không có `LegacyExempt` tương đương.** Từ lúc deploy, mọi plan mới đều cần hồ sơ, kể cả mã đã giữ nhiều tháng. | Hệ quả trực tiếp của Q3 + Q6: plan đang chạy được yên, nhưng plan **mới** thì không có ngoại lệ nào. Gate thesis từng có `LegacyExempt` cho giai đoạn chuyển tiếp; gate này cố ý không có, vì hồ sơ là thứ viết một lần dùng mãi chứ không phải gánh nặng mỗi lệnh. Đánh đổi: lệnh đầu tiên sau khi deploy chắc chắn bị chặn. |
+| Q15 | **Chặng 1 làm tắt đường ghi trade plan của agent**, cho tới khi chặng 2 có `upsert_company_dossier`. | Gate sống trên `CreateTradePlanCommand`, mà cả cửa ApiKey lẫn MCP đều dispatch vào đó — nên agent bị chặn với mọi mã và không có cách tự sửa. Đây là lý do **không được cắt chặng 2**. Ngoài ra `DossierGateException` nếu nổ trong một MCP tool thì không đi qua `ExceptionMiddleware`, nên agent chỉ nhận được câu thông báo và mất `missing[]`. |
+
 ## 3. Mô hình dữ liệu
 
 Collection `company_dossiers`, field BSON **PascalCase** (project không đăng ký convention camelCase nào).
@@ -131,7 +139,7 @@ Gate nằm ở **Application layer**, không nằm trong entity `TradePlan` — 
 | Điểm bắn | Khi nào |
 |---|---|
 | `CreateTradePlanCommandHandler` ([CreateTradePlanCommand.cs:69](../../../src/InvestmentApp.Application/TradePlans/Commands/CreateTradePlan/CreateTradePlanCommand.cs#L69)) | **Đầu** `Handle`, trước khi construct entity |
-| `UpdateTradePlanCommandHandler` | Chỉ khi **tỷ lệ** cũ `< 5%` **và** tỷ lệ mới `≥ 5%` |
+| `UpdateTradePlanCommandHandler` | Khi **tỷ lệ** cũ `< 5%` **và** tỷ lệ mới `≥ 5%`, **hoặc** khi `Symbol` đổi (Q13) |
 
 Điều được so là **tỷ lệ**, không phải size tuyệt đối — và cả hai vế phải dùng đúng số dư của thời điểm tương ứng:
 
@@ -145,6 +153,9 @@ Hai chỗ dễ sai, cả hai đều mở lại đúng cửa hậu mà luồng n�
 
 - **Update là partial.** `Quantity` là `int?`, `EntryPrice` là `decimal?`, và `TradePlan.Update` chỉ gán khi `HasValue`. Không fallback về giá trị cũ thì sửa mỗi `Quantity` sẽ cho size bằng 0 và gate không bao giờ bắn.
 - **`AccountBalance` cũng nằm trong cùng payload sửa.** Tính ngưỡng theo số dư cũ thì một request vừa nâng size vừa hạ số dư sẽ lọt: plan 2M trên 100M, sửa lên 4M kèm hạ số dư còn 50M → ngưỡng cũ 5M nên 4M < 5M, gate không bắn, còn tỷ lệ thật là 8%. Form FE gửi lại toàn bộ field mỗi lần lưu nên đây không phải trường hợp hiếm.
+- **`Symbol` cũng sửa được, và nó là đầu vào thứ ba của phép so.** Gate phải chấm theo **mã mới**, chuẩn hoá `ToUpper().Trim()` như entity. Đọc `plan.Symbol` là đọc mã cũ, vì `plan.Update(request.Symbol, …)` chạy sau điểm bắn: plan 2% mã A đã có hồ sơ ký, sửa sang mã B kèm nâng lên 12% thì gate chạy nhưng chấm A và A đỗ — thành vị thế 12% ở B không có hồ sơ nào. Biến thể không đổi size còn không chạy gate lần nào.
+
+Ba cửa hậu trên cùng một họ: **một đầu vào của phép so đọc ở thời điểm sai.** Khi thêm field nào vào `TradePlan.Update` mà gate có dùng, kiểm lại danh sách này.
 
 `AccountBalance` null hoặc ≤ 0 ở **cả hai** thời điểm ⇒ không có ngưỡng nào để vượt ⇒ không chạy gate. Đây là hệ quả có ý thức của Q4 (không biết số dư thì coi như lệnh nhỏ), không phải bỏ sót.
 
@@ -184,11 +195,20 @@ Gate throw `DossierGateException : InvalidOperationException` mang theo kết qu
 }
 ```
 
-`missing` phải nói **cần bao nhiêu và đang có bao nhiêu**. Thông báo "chưa đủ hồ sơ" không nói thiếu gì sẽ buộc người dùng đoán.
+`missing` phải nói **cần bao nhiêu và đang có bao nhiêu**. Thông báo "chưa đủ hồ sơ" không nói thiếu gì sẽ buộc người dùng đoán. Với ba lý do `missing` / `unconfirmed` / `expired` thì `missing` rỗng — bản thân `reason` đã đủ để FE chọn câu chữ, và ba câu đó phải cố định một chỗ chứ không tự phát mỗi component.
+
+### 5.3b Endpoint kiểm tra trước: `GET /api/v1/company-dossiers/{symbol}/gate-status`
+
+`DossierGateStatusDto { Symbol, Passed, Reason, Missing[], Freshness }`.
+
+Hai điều kiện để endpoint này không nói dối:
+
+- **`quantity`, `entryPrice`, `accountBalance` là bắt buộc**, thiếu thì 400. Thay giá trị thiếu bằng 0 nghĩa là chấm ở **bậc nhỏ**, trong khi `POST /trade-plans` mang `AccountBalance` trong body và bị chấm ở **bậc lớn** — bước kiểm tra trước nói đỗ rồi lệnh tạo thật trả 400. Một endpoint pre-flight đoán là một endpoint nói dối.
+- **Phải có `Freshness`**, vì `NeedsReview` (90–179 ngày) *không* chặn gate. Không có field này thì hồ sơ cũ bốn tháng trả về `passed=true, reason=null` và UI không có gì để nhắc "nên xem lại" — tức là mất đúng nửa sau của Q5.
 
 ### 5.4 Không có retro-check
 
-Plan tạo trước ngày deploy không bị kiểm tra lại, không cần cờ legacy trên `TradePlan`. Gate chỉ tồn tại trên đường tạo mới và đường sửa-vượt-ngưỡng. Mọi phương thức điều khiển rủi ro của plan đang chạy (`UpdateStopLossWithHistory`, `TriggerScenarioNode`, `TriggerExitTarget`, `ExecuteLot`, `AbortWithThesisInvalidation`) **không** bị chạm tới.
+Plan tạo trước ngày deploy không bị kiểm tra lại, không cần cờ legacy trên `TradePlan`. Lưu ý đây **không** phải grandfathering cho plan mới: xem Q14. Gate chỉ tồn tại trên đường tạo mới và đường sửa-vượt-ngưỡng. Mọi phương thức điều khiển rủi ro của plan đang chạy (`UpdateStopLossWithHistory`, `TriggerScenarioNode`, `TriggerExitTarget`, `ExecuteLot`, `AbortWithThesisInvalidation`) **không** bị chạm tới.
 
 ## 6. Hồ sơ trả lại thời gian nó lấy
 
