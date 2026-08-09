@@ -68,10 +68,15 @@ public static class PositionBuilder
                 }
                 else
                 {
+                    // Không bán được nhiều hơn đang giữ. Dữ liệu lệch (nhập thiếu lệnh mua cũ)
+                    // sẽ bị chặn ở đây, thay vì đẩy số lượng và giá vốn xuống âm.
+                    var sellable = Math.Min(trade.Quantity, s.Total);
+                    if (sellable <= 0) continue;
+
                     var avg = s.AvgCost;
-                    s.RealizedPnL += trade.Quantity * (trade.Price - avg) - trade.Fee - trade.Tax;
-                    s.TotalCost -= trade.Quantity * avg;
-                    s.Settled -= trade.Quantity;
+                    s.RealizedPnL += sellable * (trade.Price - avg) - trade.Fee - trade.Tax;
+                    s.TotalCost -= sellable * avg;
+                    s.Settled -= sellable;
                 }
                 continue;
             }

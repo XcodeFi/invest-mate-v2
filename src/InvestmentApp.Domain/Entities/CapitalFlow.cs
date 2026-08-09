@@ -18,6 +18,12 @@ public class CapitalFlow : AggregateRoot
     public DateTime CreatedAt { get; private set; }
     public bool IsSeedDeposit { get; private set; }
 
+    /// <summary>Mã chứng khoán sinh ra dòng tiền này (cổ tức). Null với nạp/rút thường.</summary>
+    public string? Symbol { get; private set; }
+
+    /// <summary>Sự kiện quyền đã sinh ra dòng tiền này. Null nếu nhập tay.</summary>
+    public string? CorporateActionId { get; private set; }
+
     [BsonConstructor]
     public CapitalFlow() { } // For MongoDB
 
@@ -38,6 +44,12 @@ public class CapitalFlow : AggregateRoot
     public void UpdateNote(string? note)
     {
         Note = note;
+    }
+
+    public void LinkCorporateAction(string corporateActionId, string symbol)
+    {
+        CorporateActionId = corporateActionId;
+        Symbol = symbol?.ToUpper().Trim();
     }
 
     /// <summary>

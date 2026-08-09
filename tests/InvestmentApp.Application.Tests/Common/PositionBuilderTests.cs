@@ -174,6 +174,23 @@ public class PositionBuilderTests
     }
 
     [Fact]
+    public void BanNhieuHonDangGiu_ThiKhongDaySoLuongXuongAm()
+    {
+        var trades = new[]
+        {
+            Buy("HPG", 500, 25_000, new DateTime(2026, 1, 5)),
+            Sell("HPG", 600, 30_000, new DateTime(2026, 3, 1))
+        };
+
+        var pos = PositionBuilder.Build(trades, Array.Empty<CorporateAction>(), asOf: Far).Single();
+
+        pos.TotalQuantity.Should().Be(0);
+        pos.SettledQuantity.Should().Be(0);
+        pos.TotalCost.Should().Be(0);
+        pos.RealizedPnL.Should().Be(2_500_000); // chỉ 500 CP thực có được tính
+    }
+
+    [Fact]
     public void GiaoDichSauAsOf_ThiKhongTinh()
     {
         var trades = new[]

@@ -110,6 +110,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IStockPriceRepository, StockPriceRepository>();
 builder.Services.AddScoped<IMarketIndexRepository, MarketIndexRepository>();
 builder.Services.AddScoped<ICapitalFlowRepository, CapitalFlowRepository>();
+builder.Services.AddScoped<ICorporateActionRepository, CorporateActionRepository>();
 builder.Services.AddScoped<IPortfolioSnapshotRepository, PortfolioSnapshotRepository>();
 builder.Services.AddScoped<IRiskProfileRepository, RiskProfileRepository>();
 builder.Services.AddScoped<IStopLossTargetRepository, StopLossTargetRepository>();

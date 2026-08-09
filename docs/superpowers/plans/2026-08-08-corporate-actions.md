@@ -2479,3 +2479,22 @@ Chạy skill `/pr`. Không tự gõ `gh pr create`.
 **Placeholder scan:** Task 10, 11, 12 mô tả test bằng chú thích thay vì code đầy đủ, vì nội dung phụ thuộc chữ ký hàm và danh sách dependency của service hiện có — bước đầu tiên của mỗi task đó là đọc file để lấy chữ ký thật. Đây là ràng buộc thực tế, không phải chỗ trống bỏ ngỏ: mỗi chú thích đã nêu đủ dữ liệu vào, thao tác và con số kỳ vọng.
 
 **Type consistency:** `AdjustedPosition` (Task 2) → dùng ở Task 7, 9, 10, 12, 13. `CorporateAction.Multiplier` / `NetPerShare` / `AmountPerShare` (Task 1) → dùng ở Task 2, 3, 7. `ICorporateActionRepository.GetByPortfolioIdAsync` / `GetByPortfolioIdAndSymbolAsync` / `GetByPortfolioIdsAsync` (Task 4) → dùng ở Task 5, 6, 7, 9, 10, 12, 13. `CorporateActionType` dùng chung tên ở cả .NET và TypeScript (`'CashDividend' | 'StockDividend' | 'StockSplit'`) — hợp lệ vì `JsonStringEnumConverter` đã đăng ký toàn cục tại [`ApiJsonConfig.cs:28`](../../../src/InvestmentApp.Api/Configuration/ApiJsonConfig.cs#L28).
+
+---
+
+## Checkpoint — Task 1–8 (done, 2026-08-08)
+
+- **Decisions**: giữ nguyên spec. Ba sửa đổi phát sinh từ code review, đã áp dụng:
+  - `SettleCorporateActionCommand` — kiểm chủ sở hữu `CapitalFlow` khi liên kết dòng tiền cũ (IDOR: trước đó load theo id client gửi rồi ghi đè, không kiểm `UserId`/`PortfolioId`).
+  - `DeleteCorporateActionCommand` — chặn xoá sự kiện đã sinh dòng tiền, tránh `CapitalFlow` mồ côi.
+  - `PositionBuilder` — kẹp số lượng bán theo số đang giữ, không để số lượng và giá vốn xuống âm.
+- **Files changed**:
+  - Domain: `CorporateAction.cs` (mới), `CapitalFlow.cs` (+`Symbol`, +`CorporateActionId`, +`LinkCorporateAction`)
+  - Application: `Common/PositionBuilder.cs`, `Common/CorporateActionAdjuster.cs`, `CorporateActions/**` (create, delete, settle, get), `RepositoryInterfaces.cs` (+`ICorporateActionRepository`)
+  - Infrastructure: `Repositories/CorporateActionRepository.cs`
+  - Api: `Controllers/CorporateActionsController.cs`, `Program.cs` (DI)
+  - Docs: `docs/adr/0010-corporate-actions-position-projection.md` (Proposed)
+- **Tests**: 34 test mới (8 Domain + 26 Application). Toàn bộ suite 1.581 pass, không regression.
+- **Affected layers**: Domain / Application / Infrastructure / Api
+- **Chưa làm**: Phase 4 manual verify — `appsettings.Development` trỏ vào MongoDB prod nên không curl tạo dữ liệu thật. Verify khi có DB dev, hoặc gộp vào lần verify của Task 14–15.
+- **Next**: Task 9 — đấu nối `PnLService` vào `PositionBuilder`. Đọc `src/InvestmentApp.Infrastructure/Services/PnLService.cs` và `src/InvestmentApp.Application/Portfolios/Queries/PnLModels.cs`. Lưu ý `PnLService` hiện hard-code tiền tệ `"USD"` và bỏ qua phí/thuế — Task 9 viết lại hẳn, test cũ kỳ vọng `"USD"` là bug đang sửa. Sau đó Task 10–13 (vị thế, cắt lỗ, snapshot, rủi ro), chạy `dotnet test` sau **từng** task.
