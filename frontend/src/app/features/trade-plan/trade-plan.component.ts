@@ -10,6 +10,7 @@ import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/ser
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { GATE_REASON_TEXT } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
@@ -92,6 +93,14 @@ interface InvalidationRuleForm {
   checkDate: string;
   isTriggered: boolean;
   triggeredAt: string | null;
+}
+
+// Body của lỗi 400 DOSSIER_GATE_FAILED — phân biệt bằng `code`, không bằng status 400.
+interface DossierGateError {
+  code: string;
+  symbol: string;
+  reason: 'missing' | 'unconfirmed' | 'expired' | 'insufficient';
+  missing: string[];
 }
 
 @Component({
@@ -1619,6 +1628,18 @@ interface InvalidationRuleForm {
               {{ getMissingCritical() }}
             </div>
 
+            <!-- Dossier gate banner — chặn tạo/sửa plan vì hồ sơ công ty chưa đủ (Step 6) -->
+            <div *ngIf="dossierGateError" class="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
+              <div class="text-sm font-semibold text-red-700 mb-1">Không thể lưu — cổng hồ sơ công ty chặn</div>
+              <ul class="text-sm text-red-600 list-disc list-inside">
+                <li *ngIf="dossierGateError.reason !== 'insufficient'">{{ dossierGateReasonText(dossierGateError.reason) }}</li>
+                <li *ngFor="let m of dossierGateError.missing">{{ m }}</li>
+              </ul>
+              <a [routerLink]="['/company-dossier', dossierGateError.symbol]" class="inline-block mt-2 text-sm font-medium text-red-700 hover:underline">
+                → Viết hồ sơ {{ dossierGateError.symbol }}
+              </a>
+            </div>
+
             <!-- Save buttons (state-aware) -->
             <div class="mt-4 space-y-2">
               <!-- Draft/new/no-status: full save options -->
@@ -1972,6 +1993,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   selectedPlanStatus = '';
   pendingLoadPlanId: string | null = null;
   saving = false;
+  dossierGateError: DossierGateError | null = null;
   planFilterTab = 'all';
   planFilterTabs = [
     { key: 'all', label: 'Tất cả' },
@@ -2259,6 +2281,24 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       if (Array.isArray(msgs) && msgs.length > 0) return msgs[0];
     }
     return err?.error?.detail || err?.error?.title || fallback;
+  }
+
+  dossierGateReasonText(reason: string): string {
+    return (GATE_REASON_TEXT as Record<string, string>)[reason] || '';
+  }
+
+  /**
+   * DOSSIER_GATE_FAILED phân biệt bằng `code`, không bằng status 400 — FluentValidation cũng trả 400
+   * nhưng body khác hoàn toàn ({ errors: {...} }). Nhận sai thì người dùng thấy "chưa có hồ sơ" trong
+   * khi thật ra họ điền thiếu field. Trả true nếu đã xử lý xong lỗi này (caller không cần báo thêm).
+   */
+  private handleDossierGateError(err: any): boolean {
+    if (err?.error?.code === 'DOSSIER_GATE_FAILED') {
+      this.dossierGateError = err.error as DossierGateError;
+      return true;
+    }
+    this.dossierGateError = null;
+    return false;
   }
 
   invalidationPlaceholder(trigger: string): string {
@@ -3149,6 +3189,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       return;
     }
     this.saving = true;
+    this.dossierGateError = null;
     const checklist = this.plan.checklist.map(c => ({
       label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint
     }));
@@ -3215,6 +3256,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.saving = false;
+          if (this.handleDossierGateError(err)) return;
           this.notification.error('Lỗi', this.formatBackendError(err, 'Không thể cập nhật kế hoạch'));
         }
       });
@@ -3266,6 +3308,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.saving = false;
+          if (this.handleDossierGateError(err)) return;
           this.notification.error('Lỗi', this.formatBackendError(err, 'Không thể lưu kế hoạch'));
         }
       });
