@@ -30,8 +30,8 @@ public class CompanyDossier : AggregateRoot
         List<MoatItem> moats, List<RiskFactor> riskFactors, string? notes = null)
     {
         Id = Guid.NewGuid().ToString();
-        UserId = Require(userId, nameof(userId));
-        Symbol = Require(symbol, nameof(symbol)).ToUpperInvariant();
+        UserId = Require(userId, "Mã người dùng");
+        Symbol = Require(symbol, "Mã cổ phiếu").ToUpperInvariant();
         BusinessModel = businessModel?.Trim() ?? string.Empty;
         Moats = moats ?? new();
         RiskFactors = Normalize(riskFactors ?? new());
@@ -80,13 +80,15 @@ public class CompanyDossier : AggregateRoot
         Moats = moats ?? new();
         RiskFactors = Normalize(riskFactors ?? new());
         Notes = notes;
-        ReviewedAt = UpdatedAt = DateTime.UtcNow;
+        // KHÔNG chạm ReviewedAt — chỉ Confirm() đẩy đồng hồ hạn tươi. Nếu sửa
+        // nội dung cũng đẩy, hồ sơ Expired chỉ cần sửa một ký tự là hồi sinh.
+        UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
 
-    private static string Require(string value, string name)
+    private static string Require(string value, string label)
         => string.IsNullOrWhiteSpace(value)
-            ? throw new ArgumentException($"{name} không được rỗng", name)
+            ? throw new ArgumentException($"{label} không được rỗng")
             : value.Trim();
 
     private static List<RiskFactor> Normalize(List<RiskFactor> factors)

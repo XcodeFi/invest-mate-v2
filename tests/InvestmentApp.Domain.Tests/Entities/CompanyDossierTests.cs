@@ -84,6 +84,48 @@ public class CompanyDossierTests
     }
 
     [Fact]
+    public void UpdateByOwner_ShouldNotPushTheFreshnessClock()
+    {
+        // Chỉ Confirm() đẩy đồng hồ. Nếu sửa nội dung cũng đẩy thì hồ sơ đã
+        // hết hạn chỉ cần sửa một ký tự ở ô ghi chú là hồi sinh mà không ai đọc tin mới.
+        var dossier = Create();
+        dossier.Confirm();
+        var reviewedAt = dossier.ReviewedAt;
+
+        dossier.UpdateByOwner("Người dùng sửa lại đúng một chỗ nhỏ", dossier.Moats.ToList(),
+            dossier.RiskFactors.ToList(), "thêm ghi chú");
+
+        dossier.ReviewedAt.Should().Be(reviewedAt);
+    }
+
+    [Fact]
+    public void UpdateByOwner_OnExpiredDossier_ShouldStayExpiredUntilSigned()
+    {
+        var dossier = Create();
+        dossier.Confirm();
+        var now = dossier.ReviewedAt.AddDays(200);
+        dossier.GetFreshness(now).Should().Be(DossierFreshness.Expired);
+
+        dossier.UpdateByOwner("Sửa nội dung nhưng chưa ký lại", dossier.Moats.ToList(),
+            dossier.RiskFactors.ToList(), null);
+
+        dossier.GetFreshness(now).Should().Be(DossierFreshness.Expired);
+    }
+
+    [Fact]
+    public void UpdateByAgent_ShouldNotPushTheFreshnessClock()
+    {
+        var dossier = Create();
+        dossier.Confirm();
+        var reviewedAt = dossier.ReviewedAt;
+
+        dossier.UpdateByAgent("Agent viết lại mô hình kinh doanh", dossier.Moats.ToList(),
+            dossier.RiskFactors.ToList(), null);
+
+        dossier.ReviewedAt.Should().Be(reviewedAt);
+    }
+
+    [Fact]
     public void Confirm_ShouldSetBothTimestamps()
     {
         var dossier = Create();
