@@ -1559,9 +1559,15 @@ Ghi nhận cổ tức tiền mặt, cổ tức cổ phiếu và chia tách cổ 
 | `CorporateActionAdjuster` (Application/Common) | Điều chỉnh giá ngưỡng (vào/cắt lỗ/mục tiêu) tại thời điểm đọc |
 | `/corporate-actions` (Frontend) | Nhập, xem trước tác động, xác nhận đã về, xoá |
 
-**Đã đấu nối:** `PnLService`, `GetActivePositionsQuery`, `PriceSnapshotJobService` (job cảnh báo), `RiskCalculationService`. `SnapshotService` và phần số lượng của risk service tự đúng vì đã đi qua `IPnLService`.
+**Đã đấu nối:** `PnLService`, `GetActivePositionsQuery`, `PriceSnapshotJobService` (job cảnh báo), `GetStopLossTargetsQuery`, và **hai method** của `RiskCalculationService` là `GetPortfolioRiskSummaryAsync` + `GetTrailingStopAlertsAsync`. `SnapshotService` tự đúng vì đã đi qua `IPnLService`.
 
-**Chưa làm (phase 2):** tự động lấy sự kiện từ 24hmoney; `BacktestEngine` / `BehavioralAnalysisService` / `StrategyPerformanceService` / `CampaignReviewService` / `DisciplineScoreCalculator`; quyền mua ưu đãi và sáp nhập; `TradePlan` không tự điều chỉnh giá (chỉ cảnh báo — người dùng tự sửa).
+**Chưa làm — ưu tiên cao, là đường ra quyết định tự động:**
+- `RiskCalculationService.CheckRiskBudgetAsync` — dựng `avgBuyPrice` từ trade thô rồi có thể **khoá giao dịch** nhầm sau ngày GDKHQ. Cùng file: `CalculateStressTestAsync`.
+- `ScenarioEvaluationService` / `ScenarioAdvisoryService` — so `TradePlan.EntryPrice` với giá đã điều chỉnh, chạy qua job nền → **kịch bản tự kích hoạt sai**.
+
+Cả hai **không phải regression** của tính năng này (giá thị trường vẫn tụt dù app có biết hay không), nhưng giờ đã có `CorporateActionAdjuster` để sửa.
+
+**Chưa làm — thống kê, không ra quyết định:** `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`; tự động lấy sự kiện từ 24hmoney; quyền mua ưu đãi và sáp nhập.
 
 ## Backlog (chưa implement)
 

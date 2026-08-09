@@ -77,7 +77,12 @@ Hai quyết định phụ đi kèm:
 - Migration: không có. Dữ liệu cũ giữ nguyên; sự kiện lịch sử nhập tay.
 - Tests: `PositionBuilderTests`, `CorporateActionAdjusterTests`, và test đấu nối cho từng service trong 5 điểm phase 1.
 - Docs: `docs/business-domain.md` (entity + quy tắc nghiệp vụ), `docs/architecture.md` (ghi rõ mọi service cần giá vốn phải gọi `PositionBuilder`), `docs/features.md`, `docs/project-context.md`, hướng dẫn người dùng `frontend/src/assets/docs/su-kien-quyen.md`.
-- Đấu nối nốt phase 2: `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`.
+- Đấu nối nốt phase 2. Hai mục đầu là **đường ra quyết định tự động**, ưu tiên cao hơn hẳn phần còn lại:
+  1. **`RiskCalculationService.CheckRiskBudgetAsync`** — tự dựng `avgBuyPrice = buys.Average(b => b.Price)` từ trade thô (trung bình *không trọng số*) rồi có thể đặt `IsLocked = true`. Sau ngày GDKHQ giá bán đã điều chỉnh còn giá mua thì chưa → lãi/lỗ ngày âm giả → **khoá giao dịch nhầm**. Cùng file cũng có `CalculateStressTestAsync` tự dựng `positionMap` từ trade thô.
+  2. **`ScenarioEvaluationService` / `ScenarioAdvisoryService`** — so `TradePlan.EntryPrice` với giá thị trường đã điều chỉnh, chạy qua job nền `InternalJobsController` → **điều kiện kịch bản tự kích hoạt sai**. ADR này xếp `TradePlan` vào diện "chỉ cảnh báo", nhưng đó là đánh giá thiếu: giá kế hoạch không chỉ để hiển thị, nó còn nuôi máy đánh giá kịch bản.
+  3. Còn lại (thống kê, không ra quyết định): `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`, nhánh dự phòng dựng vị thế từ trade thô trong `AiAssistantService`.
+
+  Lưu ý: cả (1) và (2) **không phải regression do ADR này gây ra** — giá thị trường vẫn bị điều chỉnh dù app có biết đến sự kiện quyền hay không. Nhưng phần "Positive" ở trên từng nói `RiskCalculationService` đã được phủ; đúng ra chỉ `GetPortfolioRiskSummaryAsync` và `GetTrailingStopAlertsAsync` trong file đó được phủ.
 
 ## References
 
