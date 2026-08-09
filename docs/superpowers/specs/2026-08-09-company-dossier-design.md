@@ -42,11 +42,13 @@ Chặn ở lúc tạo plan đi ngược tiền lệ trong codebase (gate hiện 
 - Nút **"Tạo Trade Plan từ gợi ý"** ở market-data không còn tạo được plan trực tiếp cho mã chưa có hồ sơ. Xử lý ở mục 8.2 — điều hướng sang trang hồ sơ và giữ nguyên entry/SL/TP đã auto-fill.
 - Khi giá đang chạm điểm mua mà hồ sơ chưa có, người dùng chịu áp lực viết vội. Đây là chi phí có thật của Q3. Bước xác nhận ở Q8 không giảm được áp lực này; MCP (mục 7) là cách giảm duy nhất.
 
-### 2.3 Điểm cần xác nhận ở vòng review spec
+### 2.3 Chốt thêm ở vòng review spec (2026-08-09)
 
-1. **Tầng nhỏ có nên bắt buộc `BusinessModel` không rỗng** (mục 5.2) — hiện spec bắt buộc, nghĩa là ngay cả lệnh dò đường 0,1% tài khoản cũng phải viết một câu về cỗ máy kiếm tiền.
-2. **`ConfirmedAt` có hết hiệu lực cùng lúc với `ReviewedAt`** hay chỉ cần ký một lần đầu (mục 4). Spec hiện tại: hai mốc luôn được đặt cùng nhau, ký lại mỗi lần soát lại.
-3. **Tối đa một yếu tố "hủy diệt"** (mục 3) — hay cho phép nhiều.
+| # | Quyết định | Lý do |
+|---|---|---|
+| Q10 | **Ký một lần là đủ; chỉ phải ký lại khi hồ sơ hết hiệu lực, hoặc khi agent sửa nội dung.** Người dùng tự sửa qua UI thì `ConfirmedAt` giữ nguyên. | Tự sửa thì đang đọc chính cái mình viết — bắt ký lại là nghi thức rỗng. Nhưng agent sửa thì người dùng chưa đọc bản mới, nên phải ký lại; nếu không thì `upsert_company_dossier` trên một hồ sơ đã ký chính là cửa hậu của Q8. Phân biệt theo **ai sửa**, không theo **có sửa hay không**. |
+| Q11 | **Tối đa 1 `RiskFactor` được đánh dấu `IsDealBreaker`.** | `Rank` đã đo mức độ; cờ này chỉ cần trả lời "cái nào là công tắc bán hết". Cho đánh dấu nhiều thì từ "hủy diệt" mất nghĩa. |
+| Q12 | **Tầng nhỏ vẫn bắt buộc `BusinessModel` không rỗng** (một câu là đủ). | Một câu ~15 giây, và đó là câu chặn "mua theo tin". Lệnh nhỏ hôm nay thường thành position lớn tháng sau do DCA — lúc đó gate luồng sửa mới bắt viết thì tiền đã vào rồi. |
 
 ## 3. Mô hình dữ liệu
 
@@ -87,9 +89,11 @@ RiskFactor                    // value object
 |---|---|
 | `Symbol` đã normalize, không rỗng | `ArgumentException` |
 | `ObservableSignal` của mọi `RiskFactor` không rỗng | `ArgumentException` — không có dấu hiệu thì không phải rủi ro, chỉ là nỗi lo |
-| Tối đa 1 `RiskFactor` có `IsDealBreaker = true` | `InvalidOperationException` |
+| Tối đa 1 `RiskFactor` có `IsDealBreaker = true` (Q11) | `InvalidOperationException` |
 | `Rank` dense 1..N | entity tự chuẩn hóa, không throw |
-| Mọi thao tác sửa nội dung ⇒ `ConfirmedAt = null` | — (xem mục 4) |
+| Sửa nội dung **qua agent** ⇒ `ConfirmedAt = null`; sửa qua UI ⇒ giữ nguyên (Q10) | — (xem mục 4) |
+
+Entity phải phơi **hai phương thức sửa nội dung riêng biệt** — ví dụ `UpdateByOwner(...)` và `UpdateByAgent(...)` — chứ không phải một phương thức nhận cờ `isAgent`. Cờ boolean truyền từ ngoài vào sớm muộn sẽ có chỗ gọi truyền sai; hai phương thức thì gọi sai là compile được nhưng đọc code thấy ngay.
 
 ## 4. Hạn tươi và bước ký
 
@@ -106,10 +110,15 @@ Tính server-side, **day-granularity theo `Asia/Ho_Chi_Minh`** bằng `TimeZoneI
 
 | Hành động | `ReviewedAt` | `ConfirmedAt` |
 |---|---|---|
-| Sửa nội dung — `PUT` (JWT) hoặc `upsert_company_dossier` (MCP) | `now` | **về `null`** |
-| `POST .../confirm` — nút "Tôi đã đọc và chịu trách nhiệm" / "Vẫn đúng" | `now` | `now` |
+| Người dùng sửa nội dung — `PUT` (JWT) | `now` | **giữ nguyên** |
+| Agent sửa nội dung — `upsert_company_dossier` (MCP) | `now` | **về `null`**, đặt `AgentDraftedAt = now` |
+| `POST .../confirm` — nút ký | `now` | `now` |
 
-Nghĩa là mọi lần sửa nội dung đều phải ký lại, dù người sửa là agent hay chính người dùng. Sửa xong mà chưa ký thì hồ sơ ở `Unconfirmed` và gate vẫn chặn. Trang chi tiết hiển thị rõ trạng thái này để không ai tưởng đã lưu là đã xong.
+Ba hệ quả của Q10:
+
+- Người dùng tự sửa thì không phải ký lại — đang đọc chính cái mình viết.
+- Agent sửa thì hồ sơ tụt về `Unconfirmed`, gate chặn cho tới khi người dùng mở trang, đọc, ký. Trang chi tiết phải hiển thị rõ **"Agent đã cập nhật lúc … — chưa xác nhận"**, để không ai tưởng đã lưu là đã xong.
+- Hồ sơ `Expired` (180 ngày) phải ký lại mới về `Fresh`. Ở trạng thái này nhãn nút đổi thành **"Đã cập nhật tin mới và xác nhận"** thay vì "Vẫn đúng" — vì mục đích của lần ký này là xác nhận đã soát tin mới, không phải xác nhận nội dung cũ vẫn đúng.
 
 ## 5. Gate
 
@@ -243,39 +252,44 @@ Kèm một **discovery test assert thẳng vào `InputSchema` thô**: mảng `re
 3. Thêm `RiskFactor` thứ hai với `IsDealBreaker = true` → throw.
 4. Xóa `RiskFactor` giữa danh sách → `Rank` dense lại 1..N.
 5. Đổi thứ tự → `Rank` khớp thứ tự mới.
-6. Sửa nội dung → `ConfirmedAt` về null.
-7. `Confirm()` → `ReviewedAt` và `ConfirmedAt` cùng `now`.
-8. Biên hạn tươi: 89 / 90 / 179 / 180 ngày → `Fresh` / `NeedsReview` / `NeedsReview` / `Expired`.
-9. `ConfirmedAt == null` → `Unconfirmed` bất kể `ReviewedAt` mới thế nào.
+6. `UpdateByAgent(...)` trên hồ sơ đã ký → `ConfirmedAt` về null, `AgentDraftedAt` được đặt (Q10).
+7. `UpdateByOwner(...)` trên hồ sơ đã ký → `ConfirmedAt` **giữ nguyên**, `ReviewedAt` được đặt lại (Q10).
+8. `Confirm()` → `ReviewedAt` và `ConfirmedAt` cùng `now`.
+9. `Confirm()` trên hồ sơ `Expired` → về `Fresh`.
+10. Biên hạn tươi: 89 / 90 / 179 / 180 ngày → `Fresh` / `NeedsReview` / `NeedsReview` / `Expired`.
+11. `ConfirmedAt == null` → `Unconfirmed` bất kể `ReviewedAt` mới thế nào.
 
 **Application** — `CompanyDossierGateTests.cs`
 
-10. Không có hồ sơ → `reason = "missing"`.
-11. Có hồ sơ đủ nội dung nhưng `ConfirmedAt == null` → `reason = "unconfirmed"`.
-12. Hồ sơ 180 ngày → `reason = "expired"`.
-13. Tầng nhỏ: `BusinessModel` không rỗng + 1 moat + 1 rủi ro có dấu hiệu → qua.
-14. Tầng nhỏ thiếu `BusinessModel` → chặn.
-15. Tầng lớn: 2 rủi ro → chặn, `missing` nói "cần ≥ 3, đang có 2".
-16. Tầng lớn: `ObservableSignal` 19 ký tự → chặn.
-17. `AccountBalance` null → áp tầng nhỏ.
-18. `BusinessModel` tiếng Việt có dấu 30 ký tự → qua (không bị đếm lệch).
-19. `CreateTradePlanCommand` với `Status = "Executed"` → gate chạy trước auto-transition, không lách được.
-20. `UpdateTradePlanCommand` sửa size từ 2% lên 12%, hồ sơ mỏng → chặn.
-21. `UpdateTradePlanCommand` sửa size từ 2% lên 3% → **không** chạy gate.
-22. `UpdateTradePlanCommand` trên plan đang `InProgress`, không đổi size → không chạy gate.
-23. `GetCompanyFundamentalsQuery` khi provider trả null cả `Company` và `Indicators` → lỗi rõ ràng, không trả object rỗng.
-24. `GetCompanyFundamentalsQuery` khi `IncomeStatements` rỗng nhưng `Indicators` có → DTO đánh dấu phần thiếu.
-25. Đề xuất `InvalidationRule` từ Top-3 `RiskFactor` — đúng thứ tự Rank, `Detail` ghép đúng format.
+12. Không có hồ sơ → `reason = "missing"`.
+13. Có hồ sơ đủ nội dung nhưng `ConfirmedAt == null` → `reason = "unconfirmed"`.
+14. Hồ sơ 180 ngày → `reason = "expired"`.
+15. Hồ sơ đã ký, agent vừa `upsert` → `reason = "unconfirmed"`, gate chặn (Q10 — cửa hậu đã bịt).
+16. Hồ sơ đã ký, người dùng vừa `PUT` → qua gate, không bắt ký lại (Q10).
+17. Tầng nhỏ: `BusinessModel` không rỗng + 1 moat + 1 rủi ro có dấu hiệu → qua.
+18. Tầng nhỏ thiếu `BusinessModel` → chặn (Q12).
+19. Tầng lớn: 2 rủi ro → chặn, `missing` nói "cần ≥ 3, đang có 2".
+20. Tầng lớn: `ObservableSignal` 19 ký tự → chặn.
+21. `AccountBalance` null → áp tầng nhỏ.
+22. `BusinessModel` tiếng Việt có dấu 30 ký tự → qua (không bị đếm lệch).
+23. `CreateTradePlanCommand` với `Status = "Executed"` → gate chạy trước auto-transition, không lách được.
+24. `UpdateTradePlanCommand` sửa size từ 2% lên 12%, hồ sơ mỏng → chặn.
+25. `UpdateTradePlanCommand` sửa size từ 2% lên 3% → **không** chạy gate.
+26. `UpdateTradePlanCommand` trên plan đang `InProgress`, không đổi size → không chạy gate.
+27. `GetCompanyFundamentalsQuery` khi provider trả null cả `Company` và `Indicators` → lỗi rõ ràng, không trả object rỗng.
+28. `GetCompanyFundamentalsQuery` khi `IncomeStatements` rỗng nhưng `Indicators` có → DTO đánh dấu phần thiếu.
+29. Đề xuất `InvalidationRule` từ Top-3 `RiskFactor` — đúng thứ tự Rank, `Detail` ghép đúng format.
 
 **Api**
 
-26. `POST /trade-plans` mã chưa có hồ sơ → 400, body đúng shape mục 5.3.
-27. `POST /company-dossiers` trùng `(UserId, Symbol)` → 409, không phải 500.
-28. `POST /company-dossiers/{symbol}/confirm` → `ConfirmedAt` được đặt.
-29. `GET /market/stock/{symbol}/fundamentals` trả đủ các nhóm của mục 7.
-30. Discovery test: `InputSchema` thô của `upsert_company_dossier` — `required` đúng danh sách, không có key `command`.
+30. `POST /trade-plans` mã chưa có hồ sơ → 400, body đúng shape mục 5.3.
+31. `POST /company-dossiers` trùng `(UserId, Symbol)` → 409, không phải 500.
+32. `POST /company-dossiers/{symbol}/confirm` → `ConfirmedAt` được đặt.
+33. `GET /market/stock/{symbol}/fundamentals` trả đủ các nhóm của mục 7.
+34. Discovery test: `InputSchema` thô của `upsert_company_dossier` — `required` đúng danh sách, không có key `command`.
+35. Discovery test: **không tồn tại** MCP tool nào đặt được `ConfirmedAt` (Q8 — assert theo danh sách tool, để lần sau ai thêm tool confirm là test đỏ).
 
-**Frontend** — 3–5 spec: banner `DOSSIER_GATE_FAILED` liệt kê đúng `missing`; nút ▲▼ đổi thứ tự; nút ký disabled khi nội dung chưa đủ; luồng `returnTo=trade-plan` giữ được entry/SL/TP.
+**Frontend** — 4–6 spec: banner `DOSSIER_GATE_FAILED` liệt kê đúng `missing`; nút ▲▼ đổi thứ tự; nút ký disabled khi nội dung chưa đủ; luồng `returnTo=trade-plan` giữ được entry/SL/TP; nhãn nút ký đổi thành "Đã cập nhật tin mới và xác nhận" khi hồ sơ `Expired`; hiển thị "Agent đã cập nhật lúc … — chưa xác nhận".
 
 ## 11. Tài liệu phải cập nhật trước khi commit
 
