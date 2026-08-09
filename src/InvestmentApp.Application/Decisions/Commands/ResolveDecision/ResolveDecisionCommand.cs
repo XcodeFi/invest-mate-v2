@@ -41,6 +41,13 @@ public class ResolveDecisionCommand : IRequest<ResolveDecisionResult>
     /// <summary>Symbol (cho HoldWithJournal khi không có TradePlanId — e.g. StopLossHit không link plan).</summary>
     public string? Symbol { get; set; }
 
+    /// <summary>
+    /// Danh mục của item (cho HoldWithJournal khi không có TradePlanId). Bắt buộc phải ghi vào journal,
+    /// nếu không suppression mất phạm vi danh mục và resolve một mã ở danh mục này sẽ giấu cảnh báo
+    /// cùng mã ở danh mục khác. Rỗng với item không thuộc danh mục nào (BuyOpportunity).
+    /// </summary>
+    public string? PortfolioId { get; set; }
+
     /// <summary>Lý do giữ — bắt buộc cho HoldWithJournal, ≥ 20 ký tự.</summary>
     public string? Note { get; set; }
 
@@ -219,6 +226,9 @@ public class ResolveDecisionCommandHandler : IRequestHandler<ResolveDecisionComm
         else if (!string.IsNullOrEmpty(request.Symbol))
         {
             symbol = request.Symbol;
+            // Giữ lại danh mục để GetDecisionQueueQuery suppress đúng phạm vi. Bỏ trống ở đây
+            // chính là lỗi khiến resolve StopLossHit tràn sang mọi danh mục cùng mã.
+            portfolioId = string.IsNullOrEmpty(request.PortfolioId) ? null : request.PortfolioId;
         }
         else
         {

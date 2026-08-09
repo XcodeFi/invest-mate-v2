@@ -214,10 +214,28 @@ export class DecisionQueueComponent implements OnInit {
     return 'Thông tin';
   }
 
+  /** Record thay vì chuỗi if: thêm DecisionType mới mà quên nhãn sẽ lỗi biên dịch,
+   *  thay vì âm thầm dán nhãn sai như bản fallthrough trước đây. */
+  private static readonly TYPE_LABELS: Record<DecisionType, string> = {
+    StopLossHit: 'Stop-loss',
+    ScenarioTrigger: 'Kịch bản',
+    ThesisReviewDue: 'Review thesis',
+    BuyOpportunity: 'Cơ hội mua',
+    MissingStopLoss: 'Thiếu stop-loss',
+  };
+
+  private static readonly TYPE_ROUTES: Record<DecisionType, string[]> = {
+    StopLossHit: ['/risk-dashboard'],
+    ScenarioTrigger: ['/trade-plan'],
+    ThesisReviewDue: ['/symbol-timeline'],
+    BuyOpportunity: ['/watchlist'],
+    MissingStopLoss: ['/risk-dashboard'],
+  };
+
+  /** Fallback cho trường hợp FE cache cũ gặp API đã thêm type mới — hiện "Khác"
+   *  còn hơn nhãn rỗng. Record vẫn giữ nguyên tính exhaustive lúc biên dịch. */
   typeLabel(t: DecisionType): string {
-    if (t === 'StopLossHit') return 'Stop-loss';
-    if (t === 'ScenarioTrigger') return 'Kịch bản';
-    return 'Review thesis';
+    return DecisionQueueComponent.TYPE_LABELS[t] ?? 'Khác';
   }
 
   /** BÁN chỉ áp được khi item có tradePlanId — backend cần plan để tính quantity. */
@@ -226,9 +244,7 @@ export class DecisionQueueComponent implements OnInit {
   }
 
   getActionRoute(item: DecisionItemDto): string[] {
-    if (item.type === 'StopLossHit') return ['/risk-dashboard'];
-    if (item.type === 'ScenarioTrigger') return ['/trade-plan'];
-    return ['/symbol-timeline'];
+    return DecisionQueueComponent.TYPE_ROUTES[item.type] ?? ['/symbol-timeline'];
   }
 
   getActionParams(item: DecisionItemDto): Record<string, string> {
@@ -238,7 +254,9 @@ export class DecisionQueueComponent implements OnInit {
     if (item.type === 'ThesisReviewDue' && item.tradePlanId) {
       return { symbol: item.symbol, planId: item.tradePlanId };
     }
-    if (item.type === 'StopLossHit') {
+    if (item.type === 'StopLossHit'
+      || item.type === 'BuyOpportunity'
+      || item.type === 'MissingStopLoss') {
       return { symbol: item.symbol };
     }
     return {};
@@ -272,6 +290,7 @@ export class DecisionQueueComponent implements OnInit {
       action: 'HoldWithJournal' as DecisionAction,
       tradePlanId: item.tradePlanId,
       symbol: item.symbol,
+      portfolioId: item.portfolioId,
       note: this.noteDraft.trim(),
     });
   }
@@ -280,6 +299,7 @@ export class DecisionQueueComponent implements OnInit {
     action: DecisionAction;
     tradePlanId?: string | null;
     symbol?: string | null;
+    portfolioId?: string | null;
     note?: string | null;
   }): void {
     this.resolving = true;

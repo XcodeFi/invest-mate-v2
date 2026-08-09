@@ -20,7 +20,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 import { DecisionQueueComponent } from './decision-queue.component';
-import { DecisionService, DecisionItemDto, DecisionQueueDto } from '../../../core/services/decision.service';
+import { DecisionService, DecisionItemDto, DecisionQueueDto, DecisionType } from '../../../core/services/decision.service';
 import { DisciplineService, DisciplineStreakDto } from '../../../core/services/discipline.service';
 
 const mockItem = (over: Partial<DecisionItemDto> = {}): DecisionItemDto => ({
@@ -283,5 +283,63 @@ describe('DecisionQueueComponent', () => {
 
     expect(component.items.length).toBe(1);
     expect(component.items[0].id).toBe('i2');
+  });
+
+  // -----------------------------------------------------------------
+  // Hai loại quyết định phía vào lệnh (BuyOpportunity / MissingStopLoss).
+  // Bản cũ dùng chuỗi if kết bằng return mặc định nên type lạ bị dán nhãn
+  // "Review thesis" và điều hướng về /symbol-timeline — sai mà không báo lỗi.
+  // -----------------------------------------------------------------
+  it('trả nhãn tiếng Việt cho mọi loại quyết định', () => {
+    setup({ items: [], totalCount: 0 }, { daysWithoutViolation: 0, hasData: false });
+
+    expect(component.typeLabel('StopLossHit')).toBe('Stop-loss');
+    expect(component.typeLabel('ScenarioTrigger')).toBe('Kịch bản');
+    expect(component.typeLabel('ThesisReviewDue')).toBe('Review thesis');
+    expect(component.typeLabel('BuyOpportunity')).toBe('Cơ hội mua');
+    expect(component.typeLabel('MissingStopLoss')).toBe('Thiếu stop-loss');
+  });
+
+  it('điều hướng đúng màn cho hai loại mới', () => {
+    setup({ items: [], totalCount: 0 }, { daysWithoutViolation: 0, hasData: false });
+
+    expect(component.getActionRoute(mockItem({ type: 'BuyOpportunity' }))).toEqual(['/watchlist']);
+    expect(component.getActionRoute(mockItem({ type: 'MissingStopLoss' }))).toEqual(['/risk-dashboard']);
+    expect(component.getActionParams(mockItem({ type: 'BuyOpportunity', symbol: 'VNM' }))).toEqual({ symbol: 'VNM' });
+    expect(component.getActionParams(mockItem({ type: 'MissingStopLoss', symbol: 'MWG' }))).toEqual({ symbol: 'MWG' });
+  });
+
+  it('gửi kèm portfolioId khi GIỮ + ghi lý do', () => {
+    // Thiếu portfolioId thì backend ghi journal không gắn danh mục, suppression mất phạm vi
+    // và resolve một mã ở danh mục này sẽ giấu cảnh báo cùng mã ở danh mục khác.
+    const item = mockItem({ id: 'i1', type: 'StopLossHit', portfolioId: 'p1', symbol: 'FPT', tradePlanId: null });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    decisionSpy.resolve.and.returnValue(of({ resultId: 'j1', message: 'OK', resultType: 'JournalEntry' }));
+    fixture.detectChanges();
+
+    component.expandNote(component.items[0]);
+    component.noteDraft = 'Giữ vì thị trường chung đang hồi phục';
+    component.submitHold(component.items[0]);
+
+    expect(decisionSpy.resolve).toHaveBeenCalledWith('i1', jasmine.objectContaining({
+      action: 'HoldWithJournal',
+      symbol: 'FPT',
+      portfolioId: 'p1',
+    }));
+  });
+
+  it('không để trống nhãn/route khi gặp type lạ (FE cache cũ vs API mới)', () => {
+    setup({ items: [], totalCount: 0 }, { daysWithoutViolation: 0, hasData: false });
+    const unknown = 'SomeFutureType' as DecisionType;
+
+    expect(component.typeLabel(unknown)).toBe('Khác');
+    expect(component.getActionRoute(mockItem({ type: unknown }))).toEqual(['/symbol-timeline']);
+  });
+
+  it('ẩn nút BÁN cho cả hai loại mới (không có tradePlanId)', () => {
+    setup({ items: [], totalCount: 0 }, { daysWithoutViolation: 0, hasData: false });
+
+    expect(component.canExecuteSell(mockItem({ type: 'BuyOpportunity', tradePlanId: null }))).toBeFalse();
+    expect(component.canExecuteSell(mockItem({ type: 'MissingStopLoss', tradePlanId: null }))).toBeFalse();
   });
 });

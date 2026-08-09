@@ -25,7 +25,8 @@ public class DecisionsController : ControllerBase
 
     /// <summary>
     /// Decision Queue cho Dashboard — gộp StopLoss + Scenario advisory + Thesis review
-    /// thành 1 list duy nhất, sort theo severity desc. (P3 — Decision Engine v1.1)
+    /// + Cơ hội mua (watchlist chạm mục tiêu) + Vị thế thiếu stop-loss thành 1 list duy nhất,
+    /// sort theo severity desc. (P3 — Decision Engine v1.1; ADR-0009)
     /// </summary>
     [HttpGet("queue")]
     [ProducesResponseType(typeof(DecisionQueueDto), StatusCodes.Status200OK)]
@@ -57,6 +58,7 @@ public class DecisionsController : ControllerBase
             Action = request.Action,
             TradePlanId = request.TradePlanId,
             Symbol = request.Symbol,
+            PortfolioId = request.PortfolioId,
             Note = request.Note,
             UserId = GetUserId()
         };
@@ -70,5 +72,6 @@ public class ResolveDecisionRequest
     public DecisionAction Action { get; set; }
     public string? TradePlanId { get; set; }
     public string? Symbol { get; set; }
+    public string? PortfolioId { get; set; }
     public string? Note { get; set; }
 }

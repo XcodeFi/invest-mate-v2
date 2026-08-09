@@ -13,7 +13,7 @@ namespace InvestmentApp.Api.Mcp;
 public static class DecisionTools
 {
     [McpServerTool(Name = "get_decision_queue", ReadOnly = true)]
-    [Description("Hàng đợi quyết định hôm nay — gộp cảnh báo StopLoss + Scenario + Thesis-review đã dedupe, sort theo severity. Trả lời câu 'hôm nay cần quyết gì'.")]
+    [Description("Hàng đợi quyết định hôm nay — gộp StopLoss + Scenario + Thesis-review + Cơ hội mua (watchlist chạm mục tiêu) + Vị thế thiếu stop-loss, đã dedupe, sort theo severity. Trả lời câu 'hôm nay cần quyết gì'.")]
     public static async Task<DecisionQueueDto> GetDecisionQueue(
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
         => await mediator.Send(new GetDecisionQueueQuery { UserId = http.GetUserId() }, ct);

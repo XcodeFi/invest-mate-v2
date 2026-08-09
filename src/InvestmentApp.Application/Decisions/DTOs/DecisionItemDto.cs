@@ -1,8 +1,10 @@
 namespace InvestmentApp.Application.Decisions.DTOs;
 
 /// <summary>
-/// Loại quyết định mà user cần xử lý — gộp 3 nguồn alert (StopLoss / Scenario trigger / Thesis review)
-/// thành 1 queue duy nhất ở Dashboard. Xem `docs/plans/dashboard-decision-engine.md` §5 (P3).
+/// Loại quyết định mà user cần xử lý — gộp 5 nguồn alert thành 1 queue duy nhất ở Dashboard:
+/// 3 nguồn phòng thủ (StopLoss / Scenario trigger / Thesis review) + 2 nguồn phía vào lệnh
+/// (Cơ hội mua / Thiếu stop-loss). Xem `docs/plans/dashboard-decision-engine.md` §5 (P3)
+/// và `docs/adr/0009-decision-queue-entry-side-signals.md`.
 /// </summary>
 public enum DecisionType
 {
@@ -13,7 +15,13 @@ public enum DecisionType
     ScenarioTrigger,
 
     /// <summary>Thesis hết hạn review hoặc invalidation rule đến hạn check.</summary>
-    ThesisReviewDue
+    ThesisReviewDue,
+
+    /// <summary>Mã trong watchlist có giá ≤ mục tiêu mua — cơ hội vào lệnh.</summary>
+    BuyOpportunity,
+
+    /// <summary>Vị thế đang mở nhưng chưa đặt stop-loss — rủi ro chưa được giới hạn.</summary>
+    MissingStopLoss
 }
 
 public enum DecisionSeverity
@@ -24,7 +32,7 @@ public enum DecisionSeverity
     /// <summary>Cần để ý (gần SL, thesis sắp đến hạn, scenario trigger).</summary>
     Warning,
 
-    /// <summary>Thông tin (reserved cho V2).</summary>
+    /// <summary>Thông tin — cơ hội mua, xếp dưới mọi cảnh báo rủi ro.</summary>
     Info
 }
 
