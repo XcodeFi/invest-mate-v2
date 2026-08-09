@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
 using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
@@ -24,6 +25,7 @@ public class RiskCalculationService : IRiskCalculationService
     private readonly IFundamentalDataProvider _fundamentalDataProvider;
     private readonly IComprehensiveStockDataProvider _comprehensiveProvider;
     private readonly IMarketDataProvider _marketDataProvider;
+    private readonly ICorporateActionRepository _corporateActionRepository;
     private readonly ILogger<RiskCalculationService> _logger;
 
     public RiskCalculationService(
@@ -39,6 +41,7 @@ public class RiskCalculationService : IRiskCalculationService
         IFundamentalDataProvider fundamentalDataProvider,
         IComprehensiveStockDataProvider comprehensiveProvider,
         IMarketDataProvider marketDataProvider,
+        ICorporateActionRepository corporateActionRepository,
         ILogger<RiskCalculationService> logger)
     {
         _portfolioRepository = portfolioRepository;
@@ -53,6 +56,7 @@ public class RiskCalculationService : IRiskCalculationService
         _fundamentalDataProvider = fundamentalDataProvider;
         _comprehensiveProvider = comprehensiveProvider;
         _marketDataProvider = marketDataProvider;
+        _corporateActionRepository = corporateActionRepository;
         _logger = logger;
     }
 
@@ -85,6 +89,12 @@ public class RiskCalculationService : IRiskCalculationService
             .GroupBy(s => s.Symbol)
             .ToDictionary(g => g.Key, g => g.Last());
 
+        // Ngưỡng lưu là giá tuyệt đối tại lúc đặt — sau ngày GDKHQ phải điều chỉnh
+        // theo cùng hệ số với giá thị trường, không thì báo "đã thủng SL" sai.
+        var corporateActions = (await _corporateActionRepository
+            .GetByPortfolioIdAsync(portfolioId, cancellationToken)).ToList();
+        var actionsBySymbol = corporateActions.ToLookup(a => a.Symbol, StringComparer.OrdinalIgnoreCase);
+
         // Calculate total portfolio value
         var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
         var totalFlows = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolioId, cancellationToken);
@@ -106,6 +116,23 @@ public class RiskCalculationService : IRiskCalculationService
                 var positionSizePercent = totalValue > 0 ? (positionPnl.MarketValue / totalValue) * 100 : 0;
                 slTargetMap.TryGetValue(symbolGroup.Key, out var slTarget);
 
+                var symbolActions = actionsBySymbol[symbolGroup.Key];
+                decimal? adjustedStopLoss = slTarget != null
+                    ? CorporateActionAdjuster.AdjustPrice(slTarget.StopLossPrice, slTarget.CreatedAt, symbolActions)
+                    : null;
+                decimal? adjustedTarget = slTarget != null
+                    ? CorporateActionAdjuster.AdjustPrice(slTarget.TargetPrice, slTarget.CreatedAt, symbolActions)
+                    : null;
+                decimal? adjustedEntry = slTarget != null
+                    ? CorporateActionAdjuster.AdjustPrice(slTarget.EntryPrice, slTarget.CreatedAt, symbolActions)
+                    : null;
+                var adjustedRiskPerShare = adjustedEntry.HasValue && adjustedStopLoss.HasValue
+                    ? adjustedEntry.Value - adjustedStopLoss.Value
+                    : (decimal?)null;
+                var adjustedReward = adjustedEntry.HasValue && adjustedTarget.HasValue
+                    ? adjustedTarget.Value - adjustedEntry.Value
+                    : (decimal?)null;
+
                 var item = new PositionRiskItem
                 {
                     Symbol = symbolGroup.Key,
@@ -113,15 +140,15 @@ public class RiskCalculationService : IRiskCalculationService
                     CurrentPrice = positionPnl.CurrentPrice,
                     MarketValue = positionPnl.MarketValue,
                     PositionSizePercent = positionSizePercent,
-                    StopLossPrice = slTarget?.StopLossPrice,
-                    TargetPrice = slTarget?.TargetPrice,
-                    RiskRewardRatio = slTarget?.GetRiskRewardRatio(),
-                    RiskPerShare = slTarget?.GetRiskPerShare(),
-                    RiskAmount = slTarget != null ? slTarget.GetRiskPerShare() * positionPnl.Quantity : null,
-                    DistanceToStopLossPercent = slTarget != null && positionPnl.CurrentPrice > 0
-                        ? ((positionPnl.CurrentPrice - slTarget.StopLossPrice) / positionPnl.CurrentPrice) * 100 : 0,
-                    DistanceToTargetPercent = slTarget != null && positionPnl.CurrentPrice > 0
-                        ? ((slTarget.TargetPrice - positionPnl.CurrentPrice) / positionPnl.CurrentPrice) * 100 : 0
+                    StopLossPrice = adjustedStopLoss,
+                    TargetPrice = adjustedTarget,
+                    RiskRewardRatio = adjustedRiskPerShare > 0 ? adjustedReward / adjustedRiskPerShare : 0,
+                    RiskPerShare = adjustedRiskPerShare,
+                    RiskAmount = adjustedRiskPerShare.HasValue ? adjustedRiskPerShare * positionPnl.Quantity : null,
+                    DistanceToStopLossPercent = adjustedStopLoss.HasValue && positionPnl.CurrentPrice > 0
+                        ? ((positionPnl.CurrentPrice - adjustedStopLoss.Value) / positionPnl.CurrentPrice) * 100 : 0,
+                    DistanceToTargetPercent = adjustedTarget.HasValue && positionPnl.CurrentPrice > 0
+                        ? ((adjustedTarget.Value - positionPnl.CurrentPrice) / positionPnl.CurrentPrice) * 100 : 0
                 };
                 positions.Add(item);
             }

@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
@@ -12,6 +13,7 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
     private readonly IMarketIndexRepository _indexRepo;
     private readonly IMarketDataProvider _marketData;
     private readonly IStopLossTargetRepository _slRepo;
+    private readonly ICorporateActionRepository _corporateActionRepo;
     private readonly ILogger<PriceSnapshotJobService> _logger;
 
     private static readonly string[] TrackedIndices = new[] { "VNINDEX", "VN30" };
@@ -22,6 +24,7 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
         IMarketIndexRepository indexRepo,
         IMarketDataProvider marketData,
         IStopLossTargetRepository slRepo,
+        ICorporateActionRepository corporateActionRepo,
         ILogger<PriceSnapshotJobService> logger)
     {
         _tradeRepo = tradeRepo;
@@ -29,6 +32,7 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
         _indexRepo = indexRepo;
         _marketData = marketData;
         _slRepo = slRepo;
+        _corporateActionRepo = corporateActionRepo;
         _logger = logger;
     }
 
@@ -97,10 +101,14 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
         Dictionary<string, StockPriceData> prices,
         CancellationToken cancellationToken)
     {
-        var untriggered = await _slRepo.GetUntriggeredAsync(cancellationToken);
+        var untriggered = (await _slRepo.GetUntriggeredAsync(cancellationToken)).ToList();
 
         // Build case-insensitive lookup once
         var priceLookup = new Dictionary<string, StockPriceData>(prices, StringComparer.OrdinalIgnoreCase);
+
+        // Ngưỡng lưu là giá tuyệt đối tại lúc đặt. Sau ngày GDKHQ giá thị trường đã bị
+        // điều chỉnh, nên phải điều chỉnh ngưỡng tương ứng — không thì cắt lỗ bắn nhầm.
+        var actionLookup = await BuildActionLookupAsync(untriggered, cancellationToken);
 
         var slCount = 0;
         var targetCount = 0;
@@ -112,14 +120,22 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
             var currentPrice = price.Close;
             var triggered = false;
 
-            if (slt.StopLossPrice > 0 && currentPrice <= slt.StopLossPrice)
+            IEnumerable<CorporateAction> actions =
+                actionLookup.TryGetValue((slt.PortfolioId, slt.Symbol.ToUpperInvariant()), out var found)
+                    ? found
+                    : Array.Empty<CorporateAction>();
+
+            var stopLossPrice = CorporateActionAdjuster.AdjustPrice(slt.StopLossPrice, slt.CreatedAt, actions);
+            var targetPrice = CorporateActionAdjuster.AdjustPrice(slt.TargetPrice, slt.CreatedAt, actions);
+
+            if (stopLossPrice > 0 && currentPrice <= stopLossPrice)
             {
                 slt.TriggerStopLoss();
                 slCount++;
                 triggered = true;
                 _logger.LogWarning("Stop-loss triggered for trade {TradeId} at {Price}", slt.TradeId, currentPrice);
             }
-            else if (slt.TargetPrice > 0 && currentPrice >= slt.TargetPrice)
+            else if (targetPrice > 0 && currentPrice >= targetPrice)
             {
                 slt.TriggerTarget();
                 targetCount++;
@@ -132,5 +148,20 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
         }
 
         return (slCount, targetCount);
+    }
+
+    /// <summary>Sự kiện quyền theo (danh mục, mã) cho toàn bộ ngưỡng chưa kích hoạt — một truy vấn duy nhất.</summary>
+    private async Task<Dictionary<(string PortfolioId, string Symbol), List<CorporateAction>>> BuildActionLookupAsync(
+        IReadOnlyCollection<StopLossTarget> targets, CancellationToken cancellationToken)
+    {
+        var portfolioIds = targets.Select(t => t.PortfolioId).Distinct().ToList();
+        if (portfolioIds.Count == 0)
+            return new Dictionary<(string, string), List<CorporateAction>>();
+
+        var actions = await _corporateActionRepo.GetByPortfolioIdsAsync(portfolioIds, cancellationToken);
+
+        return actions
+            .GroupBy(a => (a.PortfolioId, a.Symbol.ToUpperInvariant()))
+            .ToDictionary(g => g.Key, g => g.ToList());
     }
 }

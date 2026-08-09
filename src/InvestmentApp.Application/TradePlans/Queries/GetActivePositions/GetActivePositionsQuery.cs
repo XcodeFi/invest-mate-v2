@@ -24,6 +24,11 @@ public class ActivePositionDto
     public decimal UnrealizedPnL { get; set; }
     public decimal UnrealizedPnLPercent { get; set; }
     public decimal RealizedPnL { get; set; }
+    public decimal SettledQuantity { get; set; }
+    public decimal PendingQuantity { get; set; }
+    public decimal DividendNet { get; set; }
+    public decimal PendingDividend { get; set; }
+    public decimal TotalPnLWithDividend { get; set; }
     public TradePlanDto? LinkedPlan { get; set; }
     public List<TradeSummaryDto> RecentTrades { get; set; } = new();
     public string? NextAction { get; set; }
@@ -126,6 +131,11 @@ public class GetActivePositionsQueryHandler : IRequestHandler<GetActivePositions
                     UnrealizedPnL = pos.UnrealizedPnL,
                     UnrealizedPnLPercent = pos.UnrealizedPnLPercentage,
                     RealizedPnL = pos.RealizedPnL,
+                    SettledQuantity = pos.SettledQuantity,
+                    PendingQuantity = pos.PendingQuantity,
+                    DividendNet = pos.DividendNet,
+                    PendingDividend = pos.PendingDividend,
+                    TotalPnLWithDividend = pos.TotalPnLWithDividend,
                     LinkedPlan = plan != null ? GetTradePlansQueryHandler.MapToDto(plan) : null,
                     RecentTrades = trades,
                     NextAction = nextAction
