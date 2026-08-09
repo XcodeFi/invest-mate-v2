@@ -73,18 +73,23 @@ public class CompanyDossierGate : ICompanyDossierGate
             missing.Add($"businessModel: cần ≥ {LargeBusinessModelMinChars} ký tự, đang có {d.BusinessModel.Length}");
 
         if (!d.Moats.Any(m => m.Description.Length >= LargeMoatMinChars))
-            missing.Add($"moats: cần ít nhất 1 moat mô tả ≥ {LargeMoatMinChars} ký tự");
+        {
+            var longest = d.Moats.Count == 0 ? 0 : d.Moats.Max(m => m.Description.Length);
+            missing.Add($"moats: cần ít nhất 1 moat mô tả ≥ {LargeMoatMinChars} ký tự, dài nhất đang có {longest}");
+        }
 
         if (d.RiskFactors.Count < LargeRiskFactorMinCount)
             missing.Add($"riskFactors: cần ≥ {LargeRiskFactorMinCount}, đang có {d.RiskFactors.Count}");
 
+        // Nêu luôn độ dài hiện tại của từng cái thiếu — nói "chưa đủ" mà không nói
+        // thiếu bao nhiêu thì người dùng phải đoán.
         var shortSignals = d.RiskFactors
             .Where(r => r.ObservableSignal.Length < LargeSignalMinChars)
-            .Select(r => r.Rank)
+            .Select(r => $"hạng {r.Rank} ({r.ObservableSignal.Length} ký tự)")
             .ToList();
 
         if (shortSignals.Count > 0)
-            missing.Add($"observableSignal: cần ≥ {LargeSignalMinChars} ký tự ở yếu tố hạng {string.Join(", ", shortSignals)}");
+            missing.Add($"observableSignal: cần ≥ {LargeSignalMinChars} ký tự ở yếu tố {string.Join(", ", shortSignals)}");
 
         return missing;
     }
