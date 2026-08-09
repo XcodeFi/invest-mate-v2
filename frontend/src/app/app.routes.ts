@@ -43,6 +43,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'corporate-actions',
+    loadComponent: () => import('./features/corporate-actions/corporate-actions.component').then(m => m.CorporateActionsComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'snapshots',
     loadComponent: () => import('./features/snapshots/snapshots.component').then(m => m.SnapshotsComponent),
     canActivate: [AuthGuard]

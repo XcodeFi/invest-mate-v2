@@ -25,6 +25,11 @@ export interface ActivePosition {
   unrealizedPnL: number;
   unrealizedPnLPercent: number;
   realizedPnL: number;
+  settledQuantity: number;
+  pendingQuantity: number;
+  dividendNet: number;
+  pendingDividend: number;
+  totalPnLWithDividend: number;
   linkedPlan?: TradePlan;
   recentTrades: TradeSummary[];
   nextAction?: string;
