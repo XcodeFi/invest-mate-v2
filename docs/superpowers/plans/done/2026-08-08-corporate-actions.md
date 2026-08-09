@@ -2506,3 +2506,16 @@ Chạy skill `/pr`. Không tự gõ `gh pr create`.
 - **Files changed thêm:** `PnLService`, `PnLModels`, `GetActivePositionsQuery`, `PriceSnapshotJobService`, `RiskCalculationService`, `positions.service.ts`, `positions.component.ts`, `corporate-action.service.ts`, `corporate-actions.component.ts`, `app.routes.ts`, `help.component.ts`, docs + CHANGELOG + `su-kien-quyen.md`.
 - **Tests:** backend 1.595 pass, frontend 152 pass, build 0 lỗi.
 - **Chưa làm:** Phase 4 manual verify trên trình duyệt — `appsettings.Development` trỏ MongoDB prod. Cần DB dev hoặc chạy `/qa-verify` với tài khoản test trước khi merge.
+
+## Checkpoint — Đợt 2, đấu nối hạn mức rủi ro + kịch bản (done, 2026-08-09)
+
+Hai đường ra quyết định tự động mà PR #145 bỏ sót, phát hiện ở review vòng 4.
+
+- **`RiskCalculationService`** — `CheckRiskBudgetAsync` và `CalculateStressTestAsync` giờ đi qua `PositionBuilder`. Lãi/lỗ trong ngày = `RealizedPnL(asOf hôm nay) − RealizedPnL(asOf hôm qua)`, thay cho việc tự khớp lệnh mua với lệnh bán bằng trung bình không trọng số.
+- **`ScenarioEvaluationService` / `ScenarioAdvisoryService`** — thêm `TradePlanPriceAdjuster` (`Application/Common`), mốc `TradePlan.PricesSetAt`.
+- **Quyết định kiến trúc phát sinh:** mẫu "điều chỉnh khi đọc, không sửa dữ liệu" không áp được cho `TrailingStopConfig.HighestPrice`/`CurrentTrailingStop` vì hai giá trị này bị ghi đè trở lại. Chọn rebase lười một lần + mốc `PriceBasisAt`. Ghi vào ADR-0010 phần bổ sung 2026-08-09.
+- **Ba lỗi sửa kèm** (2 do review agent, 1 tự soát): mốc giá dùng chung khiến sửa nhánh kịch bản vô hiệu hoá điều chỉnh giá nhập → tách `ScenarioPricesSetAt`; `CorporateActionAdjuster` thiếu chặn trên nên áp sự kiện công bố trước ngày GDKHQ; `PositionBuilder` xếp lệnh khớp trước sự kiện quyền cùng ngày, ngược với luật chốt quyền.
+- **Tests:** 1.640 backend pass (+38). Không đụng frontend.
+- **Còn lại:** nhóm thống kê thuần (`BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`) — không ra quyết định, hoãn được.
+
+**Plan đóng.** Phần chưa làm đã chuyển vào mục "Chưa làm — thống kê" của `docs/features.md`.

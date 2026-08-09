@@ -45,14 +45,16 @@ public static class PositionBuilder
         var states = new Dictionary<string, State>(StringComparer.OrdinalIgnoreCase);
 
         // Trộn hai nguồn thành một chuỗi sự kiện theo thời gian.
-        // Trade trước sự kiện quyền cùng ngày; trong sự kiện quyền, tiền mặt trước cổ phiếu.
+        // Cùng ngày GDKHQ thì sự kiện quyền chạy TRƯỚC lệnh khớp trong ngày: quyền được chốt
+        // theo danh sách cổ đông cuối ngày liền trước, nên người bán hôm đó vẫn hưởng, người
+        // mua hôm đó thì không. Trong sự kiện quyền, tiền mặt trước cổ phiếu.
         var timeline = trades
             .Where(t => t.TradeDate.Date <= asOfDate)
-            .Select(t => (Date: t.TradeDate.Date, Order: 0, Trade: (Trade?)t, Action: (CorporateAction?)null))
+            .Select(t => (Date: t.TradeDate.Date, Order: 2, Trade: (Trade?)t, Action: (CorporateAction?)null))
             .Concat(actions
                 // .Date cả hai vế: bản ghi cũ trong Mongo có thể không còn là nửa đêm
                 .Where(a => a.ExDate.Date <= asOfDate)
-                .Select(a => (Date: a.ExDate.Date, Order: a.Type == CorporateActionType.CashDividend ? 1 : 2,
+                .Select(a => (Date: a.ExDate.Date, Order: a.Type == CorporateActionType.CashDividend ? 0 : 1,
                               Trade: (Trade?)null, Action: (CorporateAction?)a)))
             .OrderBy(e => e.Date).ThenBy(e => e.Order)
             .ToList();

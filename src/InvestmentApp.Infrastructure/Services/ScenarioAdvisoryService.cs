@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
@@ -8,13 +9,18 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly IMarketDataProvider _marketDataProvider;
+    private readonly ICorporateActionRepository _corporateActionRepository;
+
+    private static readonly IReadOnlyList<CorporateAction> NoActions = Array.Empty<CorporateAction>();
 
     public ScenarioAdvisoryService(
         ITradePlanRepository tradePlanRepository,
-        IMarketDataProvider marketDataProvider)
+        IMarketDataProvider marketDataProvider,
+        ICorporateActionRepository corporateActionRepository)
     {
         _tradePlanRepository = tradePlanRepository;
         _marketDataProvider = marketDataProvider;
+        _corporateActionRepository = corporateActionRepository;
     }
 
     public async Task<List<ScenarioAdvisory>> GetAdvisoriesAsync(string userId, CancellationToken ct = default)
@@ -43,9 +49,25 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
             .Where(r => r.Price.HasValue)
             .ToDictionary(r => r.Symbol, r => r.Price!.Value);
 
+        // Cùng lý do như bên đánh giá kịch bản: giá thị trường đã điều chỉnh sau ngày GDKHQ,
+        // giá trên kế hoạch thì chưa.
+        var portfolioIds = activePlans
+            .Where(p => !string.IsNullOrEmpty(p.PortfolioId))
+            .Select(p => p.PortfolioId!)
+            .Distinct()
+            .ToList();
+        var allActions = portfolioIds.Count == 0
+            ? NoActions
+            : (await _corporateActionRepository.GetByPortfolioIdsAsync(portfolioIds, ct)).ToList();
+        var actionLookup = allActions.ToLookup(a => (a.PortfolioId, a.Symbol.ToUpper()));
+
         foreach (var plan in activePlans)
         {
             if (!priceMap.TryGetValue(plan.Symbol, out var currentPrice)) continue;
+
+            var actions = string.IsNullOrEmpty(plan.PortfolioId)
+                ? NoActions
+                : actionLookup[(plan.PortfolioId!, plan.Symbol.ToUpper())].ToList();
 
             foreach (var node in plan.ScenarioNodes!)
             {
@@ -55,10 +77,11 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
                 // Skip SendNotification — no advisory needed
                 if (node.ActionType == ScenarioActionType.SendNotification) continue;
 
-                if (!IsConditionMet(node, plan, currentPrice)) continue;
+                if (!IsConditionMet(node, plan, currentPrice, actions)) continue;
 
-                var conditionDesc = FormatConditionDescription(node);
-                var conditionZone = FormatConditionZone(node);
+                var threshold = TradePlanPriceAdjuster.AdjustedConditionValue(node, plan, actions);
+                var conditionDesc = FormatConditionDescription(node, threshold);
+                var conditionZone = FormatConditionZone(node, threshold);
                 var actionDesc = FormatActionDescription(node);
                 if (actionDesc == null) continue; // skip unsupported actions
 
@@ -81,28 +104,36 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
         return advisories;
     }
 
-    private static bool IsConditionMet(ScenarioNode node, TradePlan plan, decimal currentPrice)
+    private static bool IsConditionMet(ScenarioNode node, TradePlan plan, decimal currentPrice,
+        IReadOnlyList<CorporateAction> actions)
     {
+        var threshold = TradePlanPriceAdjuster.AdjustedConditionValue(node, plan, actions);
+
         return node.ConditionType switch
         {
             ScenarioConditionType.PriceAbove =>
-                node.ConditionValue.HasValue && currentPrice >= node.ConditionValue.Value,
+                threshold.HasValue && currentPrice >= threshold.Value,
 
             ScenarioConditionType.PriceBelow =>
-                node.ConditionValue.HasValue && currentPrice <= node.ConditionValue.Value,
+                threshold.HasValue && currentPrice <= threshold.Value,
 
             ScenarioConditionType.PricePercentChange =>
-                EvaluatePricePercentChange(node, plan, currentPrice),
+                EvaluatePricePercentChange(node, plan, currentPrice, actions),
 
             // TrailingStopHit and TimeElapsed are not advisory-relevant zones
             _ => false
         };
     }
 
-    private static bool EvaluatePricePercentChange(ScenarioNode node, TradePlan plan, decimal currentPrice)
+    private static bool EvaluatePricePercentChange(ScenarioNode node, TradePlan plan, decimal currentPrice,
+        IReadOnlyList<CorporateAction> actions)
     {
-        if (!node.ConditionValue.HasValue || plan.EntryPrice == 0) return false;
-        var percentChange = (currentPrice - plan.EntryPrice) / plan.EntryPrice * 100m;
+        if (!node.ConditionValue.HasValue) return false;
+
+        var entryPrice = TradePlanPriceAdjuster.AdjustedEntryPrice(plan, actions);
+        if (entryPrice <= 0) return false;
+
+        var percentChange = (currentPrice - entryPrice) / entryPrice * 100m;
         return node.ConditionValue.Value >= 0
             ? percentChange >= node.ConditionValue.Value
             : percentChange <= node.ConditionValue.Value;
@@ -111,14 +142,14 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
     /// <summary>
     /// Full description shown in ConditionDescription field: "Giá ≥ 80,000"
     /// </summary>
-    private static string FormatConditionDescription(ScenarioNode node)
+    private static string FormatConditionDescription(ScenarioNode node, decimal? threshold)
     {
         return node.ConditionType switch
         {
             ScenarioConditionType.PriceAbove =>
-                $"Giá ≥ {node.ConditionValue:N0}",
+                $"Giá ≥ {threshold:N0}",
             ScenarioConditionType.PriceBelow =>
-                $"Giá ≤ {node.ConditionValue:N0}",
+                $"Giá ≤ {threshold:N0}",
             ScenarioConditionType.PricePercentChange =>
                 node.ConditionValue >= 0
                     ? $"Tăng ≥ {node.ConditionValue}%"
@@ -130,14 +161,14 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
     /// <summary>
     /// Short zone description used inside the message: "≥ 80,000"
     /// </summary>
-    private static string FormatConditionZone(ScenarioNode node)
+    private static string FormatConditionZone(ScenarioNode node, decimal? threshold)
     {
         return node.ConditionType switch
         {
             ScenarioConditionType.PriceAbove =>
-                $"≥ {node.ConditionValue:N0}",
+                $"≥ {threshold:N0}",
             ScenarioConditionType.PriceBelow =>
-                $"≤ {node.ConditionValue:N0}",
+                $"≤ {threshold:N0}",
             ScenarioConditionType.PricePercentChange =>
                 node.ConditionValue >= 0
                     ? $"tăng ≥ {node.ConditionValue}%"

@@ -122,17 +122,34 @@ Bản ghi **bất biến** — sửa = xoá và tạo lại. `Trade` không bao 
 | **Hệ số cổ phiếu** | `Multiplier = RatioNew / RatioOld`, trong đó `RatioNew` là **tổng** sau sự kiện (30% → `100:130` → 1,3). Giá điều chỉnh `P / Multiplier` → giảm 23,08%, không phải 30%. |
 | **Giá vốn** | Cổ tức cổ phiếu và chia tách **giảm** giá vốn (`TotalCost` không đổi, số lượng tăng). Cổ tức tiền mặt **không** đổi giá vốn — là thu nhập. |
 | **Cùng ngày GDKHQ** | Áp tiền mặt trước (tính trên số lượng cũ), rồi mới nhân hệ số: `P_adj = (P − CashPerShare) / Multiplier`. |
+| **Thứ tự trong ngày GDKHQ** | Sự kiện quyền chạy **trước** lệnh khớp cùng ngày. Quyền chốt theo danh sách cổ đông cuối ngày liền trước, nên người **bán** trong ngày GDKHQ vẫn hưởng, người **mua** hôm đó thì không. |
+| **Chưa tới ngày GDKHQ thì chưa điều chỉnh** | Sự kiện thường được công bố trước vài tuần. Mọi phép điều chỉnh giá đều chặn trên bằng `ExDate ≤ hôm nay` — áp sớm là so giá kế hoạch đã hạ với giá thị trường chưa hạ. |
+| **`SettlementDate` ≠ `SettledAt`** | `SettlementDate` là ngày dự kiến khi nhập; `SettledAt` chỉ có khi người dùng bấm xác nhận. `IsSettled` xét `SettledAt`. |
 | **Cổ phiếu lẻ** | `floor()` — phần lẻ bị huỷ (137 × 1,3 = 178). |
 | **Chờ về** | Tại `ExDate` áp ngay vào giá vốn và tổng số lượng; phần tăng thêm nằm ở `PendingQuantity` cho tới khi người dùng bấm xác nhận (`SettledAt`). `TotalQuantity = Settled + Pending` dùng cho **mọi** phép tính. |
-| **Ngưỡng giá** | `StopLossTarget` lưu giá tuyệt đối → điều chỉnh **tại thời điểm đọc** qua `CorporateActionAdjuster`, không sửa dữ liệu. `TradePlan` không tự sửa. |
+| **Ngưỡng giá** | Giá tuyệt đối do người dùng đặt (`StopLossTarget`, `TradePlan.EntryPrice`, ngưỡng node kịch bản, giá kích hoạt trượt) → điều chỉnh **tại thời điểm đọc**, không sửa dữ liệu, nên xoá sự kiện thì ngưỡng tự quay về cũ. Mốc so sánh: `StopLossTarget.UpdatedAt`, `TradePlan.PricesSetAt`. |
+| **Giá vs. khoảng cách giá** | Mức giá điều chỉnh bằng `AdjustPrice` (trừ cổ tức tiền mặt, rồi chia hệ số). Khoảng cách giá — biên trượt `FixedAmount`, `StepSize` — dùng `AdjustDelta`: **chỉ chia hệ số**, vì cổ tức tiền mặt dịch cả mặt bằng chứ không làm khoảng cách hẹp lại. |
+| **Không phải số nào cũng là giá** | `ScenarioNode.ConditionValue` là giá với `PriceAbove`/`PriceBelow`, là **phần trăm** với `PricePercentChange`, là **số ngày** với `TimeElapsed`. `TrailValue` chỉ là tiền khi `Method = FixedAmount`. `ActionValue` chỉ là giá với `MoveStopLoss`. |
+| **Quan sát thị trường thì rebase, không điều chỉnh khi đọc** | `TrailingStopConfig.HighestPrice` / `CurrentTrailingStop` là giá ghi nhận từ thị trường rồi **ghi đè trở lại** entity. Điều chỉnh khi đọc sẽ hạ chồng lần: lần ghi kế tiếp lưu giá ở mặt bằng mới, lần đọc sau lại chia tiếp. Vì vậy quy đổi **đúng một lần** rồi đánh dấu bằng `PriceBasisAt`. |
 
 **Nguồn duy nhất dựng vị thế:** `PositionBuilder.Build(trades, actions, asOf)` (`Application/Common`). Mọi service cần giá vốn / số lượng phải gọi vào đây, không tự `GroupBy` trên `Trade` thô. Xem [ADR-0010](adr/0010-corporate-actions-position-projection.md).
+
+**Lãi/lỗ trong ngày** (hạn mức rủi ro, có thể khoá giao dịch): `RealizedPnL` tính đến hôm nay trừ đi `RealizedPnL` tính đến hết hôm qua — cả hai từ `PositionBuilder`. Không tự tính từ trade thô: trung bình không trọng số của các lệnh mua lệch tới mức **đổi dấu** lãi/lỗ.
 
 ### 3.2. Kế hoạch Giao dịch (TradePlan)
 Trạng thái: `Draft → Ready → InProgress → Executed → Reviewed | Cancelled → Restore → Draft`
 Chuyển tuần tự, không nhảy cóc. Backend auto-chain khi cần (VD: client gọi `executed` từ Ready → tự chain qua InProgress). Chi tiết: [`docs/trade-plans.md` §2.2](trade-plans.md)
 
 **TimeHorizon (P0.7):** `ShortTerm` (< 3 tháng) / `MediumTerm` (3-12 tháng) / `LongTerm` (> 1 năm)
+
+**Hai mốc giá (2026-08-09):** mốc để điều chỉnh giá theo sự kiện quyền. Cố ý **không** dùng `UpdatedAt` — nó nhảy mỗi lần một nhánh kịch bản kích hoạt, làm các nhánh còn lại thôi được điều chỉnh.
+
+| Field | Bao trùm | Dời khi |
+|---|---|---|
+| `PricesSetAt` | `EntryPrice`, `StopLoss`, `Target` | ctor, `Update()` có `entryPrice`/`stopLoss`/`target`, `UpdateStopLossWithHistory()` |
+| `ScenarioPricesSetAt` | ngưỡng node, `ActivationPrice`, `TrailValue`, `StepSize`, `ActionValue` của `MoveStopLoss` | `SetScenarioNodes()` |
+
+Tách hai mốc vì sửa nhánh kịch bản không đặt lại giá nhập — dùng chung một mốc thì thao tác đó sẽ vô hiệu hoá việc điều chỉnh giá nhập. Null → `ScenarioPricesSetAt` lùi về `PricesSetAt`, `PricesSetAt` lùi về `CreatedAt`.
 
 **CampaignReviewData (P0.7):** Value object embedded trong TradePlan khi chuyển sang Reviewed — chứa auto-calculated metrics: P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons learned
 

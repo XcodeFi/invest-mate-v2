@@ -218,4 +218,56 @@ public class PositionBuilderTests
 
         pos.TotalQuantity.Should().Be(1000);
     }
+
+    [Fact]
+    public void BanDungNgayGDKHQ_VanHuongQuyen()
+    {
+        // Quyền chốt theo danh sách cổ đông cuối ngày liền TRƯỚC ngày GDKHQ, nên người bán
+        // trong ngày GDKHQ vẫn hưởng. Nếu áp lệnh bán trước sự kiện thì 500 CP bán ra bị
+        // tính giá vốn 25.000 (chưa điều chỉnh) — lỗ giả gấp mấy chục lần.
+        var trades = new[]
+        {
+            Buy("HPG", 1000, 25_000, new DateTime(2026, 1, 5)),
+            Sell("HPG", 500, 19_230, Ex)
+        };
+        var actions = new[] { CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, Ex) };
+
+        var pos = PositionBuilder.Build(trades, actions, asOf: Ex).Single();
+
+        // 1.000 → 1.300 trước, giá vốn 25.000.000 / 1.300 = 19.230,77
+        pos.TotalQuantity.Should().Be(800);
+        pos.RealizedPnL.Should().BeApproximately(-384.6m, 1m);
+    }
+
+    [Fact]
+    public void MuaDungNgayGDKHQ_ThiKhongHuongQuyen()
+    {
+        var trades = new[]
+        {
+            Buy("HPG", 1000, 25_000, new DateTime(2026, 1, 5)),
+            Buy("HPG", 500, 19_230, Ex)
+        };
+        var actions = new[] { CorporateAction.StockDividend("p1", "u1", "HPG", 100, 130, Ex, Ex) };
+
+        var pos = PositionBuilder.Build(trades, actions, asOf: Ex).Single();
+
+        pos.TotalQuantity.Should().Be(1800); // 1.300 + 500, không phải floor(1.500 x 1,3) = 1.950
+    }
+
+    [Fact]
+    public void CoTucTienMat_BanDungNgayGDKHQ_VanNhanDuTien()
+    {
+        var trades = new[]
+        {
+            Buy("SAB", 1000, 55_000, new DateTime(2026, 1, 5)),
+            Sell("SAB", 1000, 54_500, Ex)
+        };
+        var action = CorporateAction.CashDividend("p1", "u1", "SAB", 5m, Ex, Ex, 5m);
+        action.MarkSettled(Ex); // SettlementDate là ngày dự kiến; SettledAt mới là đã về thật
+
+        var pos = PositionBuilder.Build(trades, new[] { action }, asOf: Ex).Single();
+
+        pos.TotalQuantity.Should().Be(0);
+        pos.DividendNet.Should().Be(475_000m); // 1.000 x 500 x 0,95
+    }
 }

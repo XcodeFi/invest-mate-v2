@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.70.1] — 2026-08-09 · Hạn mức rủi ro và kịch bản thoát lệnh cũng hiểu sự kiện quyền
+
+Bản v2.70.0 dạy app biết về cổ tức và chia tách, nhưng còn hai chỗ ra quyết định **tự động** vẫn tính theo giá cũ. Bản này nối nốt.
+
+### Sửa lỗi
+
+**🔒 Khoá giao dịch oan sau ngày GDKHQ.** Nếu bạn đặt hạn mức lỗ theo ngày, app sẽ tự khoá khi chạm ngưỡng. Phép tính lãi/lỗ trong ngày trước đây lấy **trung bình các lệnh mua mà không tính khối lượng** — mua 100 CP giá 20.000 rồi 900 CP giá 30.000 thì nó coi giá vốn là 25.000 thay vì 29.000. Nó cũng bỏ qua phí, thuế và cổ phiếu thưởng: bán 130 CP HPG sau khi nhận cổ tức cổ phiếu 30% bị tính thành lỗ 910.000đ trong khi thực tế gần như hoà vốn — đủ để khoá giao dịch cả ngày. Nay lãi/lỗ trong ngày tính từ đúng giá vốn bình quân gia quyền, có phí/thuế.
+
+**📉 Kịch bản thoát lệnh tự bắn sai.** Kế hoạch giao dịch nâng cao chạy nền mỗi 15 phút và tự kích hoạt hành động khi giá chạm điều kiện. Sau ngày GDKHQ, giá thị trường đã điều chỉnh còn giá trong kế hoạch thì chưa — một cây kịch bản đặt "giảm 10% thì cắt" sẽ bắn ngay hôm điều chỉnh, dù giá thực tế không đổi. Nay giá nhập, ngưỡng giá và trailing stop trong kế hoạch đều được quy về cùng mặt bằng với thị trường. Mức trượt đang chạy cũng được hạ theo, nên không còn chuyện trailing stop cũ cắt lỗ oan ngay hôm giá bị điều chỉnh.
+
+**⚠️ Kiểm thử sức chịu đựng thiếu cổ phiếu thưởng.** Kịch bản "thị trường giảm 10%" trước đây bỏ sót phần cổ phiếu nhận từ sự kiện quyền, nên báo mức thiệt hại thấp hơn thực tế.
+
+**📅 Sự kiện nhập sớm bị áp trước hạn.** Bạn thường nhập sự kiện ngay khi doanh nghiệp công bố, tức trước ngày GDKHQ vài tuần. App trước đây điều chỉnh giá kế hoạch ngay lúc nhập, trong khi giá thị trường phải tới ngày GDKHQ mới đổi — lệch mặt bằng suốt khoảng chờ đó. Nay chỉ áp từ đúng ngày GDKHQ.
+
+**🔁 Bán đúng ngày GDKHQ bị mất quyền.** Quyền được chốt theo danh sách cổ đông cuối ngày liền trước, nên bán trong ngày GDKHQ vẫn được hưởng cổ tức. App tính ngược lại: bán 500 CP hôm đó thì phần bán ra dùng giá vốn chưa điều chỉnh, ra lỗ giả gấp mấy chục lần. Ngược lại, mua trong ngày GDKHQ thì **không** được hưởng — chỗ này cũng đã sửa.
+
+### Kỹ thuật
+
+1.640 test backend pass. Chi tiết quyết định: [ADR-0010](../../docs/adr/0010-corporate-actions-position-projection.md) — phần bổ sung 2026-08-09.
+
+---
+
 ## [v2.70.0] — 2026-08-09 · Cổ tức và chia tách không còn làm danh mục trông như lỗ
 
 ### Tính năng

@@ -1556,18 +1556,35 @@ Ghi nhận cổ tức tiền mặt, cổ tức cổ phiếu và chia tách cổ 
 |---|---|
 | `CorporateAction` (Domain) | Bản ghi bất biến. Ba loại: `CashDividend`, `StockDividend`, `StockSplit` |
 | `PositionBuilder` (Application/Common) | Hàm thuần dựng vị thế đã điều chỉnh — **nguồn duy nhất** cho giá vốn/số lượng |
-| `CorporateActionAdjuster` (Application/Common) | Điều chỉnh giá ngưỡng (vào/cắt lỗ/mục tiêu) tại thời điểm đọc |
+| `CorporateActionAdjuster` (Application/Common) | Điều chỉnh giá ngưỡng (vào/cắt lỗ/mục tiêu) tại thời điểm đọc. `AdjustPrice` cho mức giá, `AdjustDelta` cho khoảng cách giá |
+| `TradePlanPriceAdjuster` (Application/Common) | Quy giá trên `TradePlan` (giá nhập, ngưỡng node, giá kích hoạt, biên trượt) về mặt bằng hiện tại |
 | `/corporate-actions` (Frontend) | Nhập, xem trước tác động, xác nhận đã về, xoá |
 
-**Đã đấu nối:** `PnLService`, `GetActivePositionsQuery`, `PriceSnapshotJobService` (job cảnh báo), `GetStopLossTargetsQuery`, và **hai method** của `RiskCalculationService` là `GetPortfolioRiskSummaryAsync` + `GetTrailingStopAlertsAsync`. `SnapshotService` tự đúng vì đã đi qua `IPnLService`.
-
-**Chưa làm — ưu tiên cao, là đường ra quyết định tự động:**
-- `RiskCalculationService.CheckRiskBudgetAsync` — dựng `avgBuyPrice` từ trade thô rồi có thể **khoá giao dịch** nhầm sau ngày GDKHQ. Cùng file: `CalculateStressTestAsync`.
-- `ScenarioEvaluationService` / `ScenarioAdvisoryService` — so `TradePlan.EntryPrice` với giá đã điều chỉnh, chạy qua job nền → **kịch bản tự kích hoạt sai**.
-
-Cả hai **không phải regression** của tính năng này (giá thị trường vẫn tụt dù app có biết hay không), nhưng giờ đã có `CorporateActionAdjuster` để sửa.
+**Đã đấu nối — mọi đường ra quyết định:** `PnLService`, `GetActivePositionsQuery`, `PriceSnapshotJobService` (job cảnh báo), `GetStopLossTargetsQuery`, cả **bốn method** của `RiskCalculationService` (`GetPortfolioRiskSummaryAsync`, `GetTrailingStopAlertsAsync`, `CheckRiskBudgetAsync`, `CalculateStressTestAsync`), `ScenarioEvaluationService` và `ScenarioAdvisoryService`. `SnapshotService` tự đúng vì đã đi qua `IPnLService`.
 
 **Chưa làm — thống kê, không ra quyết định:** `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`; tự động lấy sự kiện từ 24hmoney; quyền mua ưu đãi và sáp nhập.
+
+### Đợt 2 — hạn mức rủi ro & kịch bản thoát lệnh (2026-08-09)
+
+| Đường | Sai ở đâu trước đây | Sửa |
+|---|---|---|
+| `CheckRiskBudgetAsync` | `buys.Average(b => b.Price)` — trung bình **không trọng số** trên trade thô, bỏ qua phí/thuế và cổ phiếu thưởng. Lệch tới mức đổi dấu lãi/lỗ → **khoá giao dịch** oan | Lãi/lỗ trong ngày = `RealizedPnL` tính đến hôm nay trừ đi tính đến hết hôm qua, cả hai qua `PositionBuilder` |
+| `CalculateStressTestAsync` | Số lượng ròng từ trade thô → thiếu cổ phiếu từ sự kiện quyền | `PositionBuilder.Build(...).TotalQuantity` (gồm cả phần chưa về, vì giá đã điều chỉnh rồi) |
+| `ScenarioEvaluationService` (job nền) | So giá kế hoạch chưa điều chỉnh với giá thị trường đã điều chỉnh → **tự kích hoạt bán/cắt lỗ sai** | `TradePlanPriceAdjuster` cho giá nhập, ngưỡng `PriceAbove`/`PriceBelow`, giá kích hoạt trượt, biên trượt `FixedAmount`, bước nhảy |
+| `ScenarioAdvisoryService` | Như trên, thêm việc hiển thị ngưỡng gốc trong lời khuyên | Như trên; mô tả vùng giá cũng in ngưỡng đã quy đổi |
+
+Ba mốc thời gian mới. Hai cái đầu chia đôi phạm vi điều chỉnh khi đọc, cái thứ ba thuộc loại khác hẳn:
+
+- `TradePlan.PricesSetAt` — giá nhập / cắt lỗ / mục tiêu của kế hoạch.
+- `TradePlan.ScenarioPricesSetAt` — ngưỡng trong cây kịch bản. Tách riêng vì sửa nhánh kịch bản không đặt lại giá nhập; dùng chung một mốc thì thao tác đó sẽ vô hiệu hoá việc điều chỉnh giá nhập.
+- `TrailingStopConfig.PriceBasisAt` — mặt bằng giá của `HighestPrice`/`CurrentTrailingStop`. Hai giá trị này là quan sát thị trường **được ghi đè trở lại**, nên không điều chỉnh tại thời điểm đọc được (lần ghi kế tiếp lưu giá ở mặt bằng mới, lần đọc sau lại hạ thêm lần nữa). Chúng được quy đổi **đúng một lần** rồi đánh dấu bằng mốc này.
+
+Không phải field số nào cũng là giá: `ConditionValue` là giá với `PriceAbove`/`PriceBelow` nhưng là phần trăm với `PricePercentChange` và số ngày với `TimeElapsed`; `TrailValue` chỉ là tiền khi `Method = FixedAmount`. Khoảng cách giá (biên trượt, bước nhảy) chỉ chia theo hệ số, **không** trừ cổ tức tiền mặt — cổ tức dịch cả mặt bằng chứ không làm khoảng cách hẹp lại.
+
+Hai lỗi nữa tìm ra trong lúc review, cùng lớp vấn đề nên sửa luôn:
+
+- **Sự kiện công bố trước chưa được áp.** `CorporateActionAdjuster` chỉ chặn dưới theo mốc giá, không chặn trên. Sự kiện nhập lúc công bố (thường trước ngày GDKHQ vài tuần) làm mọi ngưỡng bị chia 1,3 ngay lập tức trong khi giá thị trường chưa đổi. Nay chặn trên bằng `ExDate ≤ hôm nay`, giống `PositionBuilder` vốn đã làm.
+- **Thứ tự trong ngày GDKHQ.** `PositionBuilder` xếp lệnh khớp trước sự kiện quyền cùng ngày. Sai: quyền chốt theo danh sách cổ đông cuối ngày liền trước, nên người bán trong ngày GDKHQ vẫn hưởng và người mua hôm đó thì không. Bán 500 CP đúng ngày GDKHQ bị tính giá vốn chưa điều chỉnh → lỗ giả gấp mấy chục lần.
 
 ## Backlog (chưa implement)
 

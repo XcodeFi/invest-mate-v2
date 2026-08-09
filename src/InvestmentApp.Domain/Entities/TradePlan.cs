@@ -63,6 +63,20 @@ public class TradePlan : AggregateRoot
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
+    /// <summary>
+    /// Lần cuối người dùng đặt lại các mức giá của kế hoạch. Là mốc để điều chỉnh
+    /// giá theo sự kiện quyền — <c>UpdatedAt</c> không dùng được vì còn nhảy mỗi lần
+    /// một nhánh kịch bản kích hoạt. Null với kế hoạch cũ → lùi về <c>CreatedAt</c>.
+    /// </summary>
+    public DateTime? PricesSetAt { get; private set; }
+
+    /// <summary>
+    /// Mốc riêng cho ngưỡng giá nằm trong cây kịch bản. Tách khỏi <see cref="PricesSetAt"/>
+    /// vì sửa nhánh kịch bản không đụng gì tới giá nhập — dùng chung một mốc thì thao tác đó
+    /// sẽ vô hiệu hoá việc điều chỉnh giá nhập. Null → lùi về <see cref="PricesSetAt"/>.
+    /// </summary>
+    public DateTime? ScenarioPricesSetAt { get; private set; }
+
     [BsonConstructor]
     public TradePlan() { } // MongoDB
 
@@ -104,6 +118,7 @@ public class TradePlan : AggregateRoot
         IsDeleted = false;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        PricesSetAt = CreatedAt;
     }
 
     public void Update(string? symbol = null, string? direction = null,
@@ -139,6 +154,8 @@ public class TradePlan : AggregateRoot
         if (timeHorizon.HasValue) TimeHorizon = timeHorizon.Value;
         if (invalidationCriteria != null) InvalidationCriteria = invalidationCriteria;
         if (expectedReviewDate.HasValue) ExpectedReviewDate = expectedReviewDate.Value;
+        if (entryPrice.HasValue || stopLoss.HasValue || target.HasValue)
+            PricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -437,6 +454,7 @@ public class TradePlan : AggregateRoot
             ChangedAt = DateTime.UtcNow
         });
         StopLoss = newStopLoss;
+        PricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -462,6 +480,9 @@ public class TradePlan : AggregateRoot
         if (nodes.Any(n => n.ParentId != null && !nodeIds.Contains(n.ParentId)))
             throw new ArgumentException("ScenarioNode references a non-existent parent");
         ScenarioNodes = nodes;
+        // Ngưỡng của node là giá tuyệt đối vừa nhập theo mặt bằng hiện tại — nhưng chỉ dời
+        // mốc của riêng cây kịch bản, giá nhập của kế hoạch không hề được đặt lại.
+        ScenarioPricesSetAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -644,6 +665,14 @@ public class TrailingStopConfig
     public decimal? StepSize { get; set; }
     public decimal? CurrentTrailingStop { get; set; }
     public decimal? HighestPrice { get; set; }
+
+    /// <summary>
+    /// Mặt bằng giá của <see cref="HighestPrice"/> / <see cref="CurrentTrailingStop"/>.
+    /// Hai giá trị này được ghi nhận từ thị trường rồi ghi đè trở lại, nên phải quy về
+    /// mặt bằng mới đúng một lần sau sự kiện quyền — khác các ngưỡng do người dùng đặt,
+    /// vốn điều chỉnh tại thời điểm đọc. Null → lùi về mốc giá của kế hoạch.
+    /// </summary>
+    public DateTime? PriceBasisAt { get; set; }
 }
 
 public class ScenarioNode

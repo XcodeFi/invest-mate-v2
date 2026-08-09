@@ -546,14 +546,11 @@ public class RiskCalculationService : IRiskCalculationService
             MarketChangePercent = marketChangePercent
         };
 
-        // Get positions from trades
+        // Số lượng phải gồm cả cổ phiếu từ sự kiện quyền — kể cả phần chưa về tài khoản,
+        // vì giá thị trường đã điều chỉnh ngay tại ngày GDKHQ.
         var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
-        var positionMap = new Dictionary<string, decimal>(); // symbol → net qty
-        foreach (var trade in trades)
-        {
-            if (!positionMap.ContainsKey(trade.Symbol)) positionMap[trade.Symbol] = 0;
-            positionMap[trade.Symbol] += trade.TradeType == Domain.Entities.TradeType.BUY ? trade.Quantity : -trade.Quantity;
-        }
+        var corporateActions = await _corporateActionRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var positions = PositionBuilder.Build(trades, corporateActions, DateTime.UtcNow);
 
         // Pre-fetch VN-INDEX prices once for beta fallback calculation
         List<decimal>? cachedIndexReturns = null;
@@ -573,8 +570,10 @@ public class RiskCalculationService : IRiskCalculationService
         decimal totalValueBefore = 0;
         decimal totalImpact = 0;
 
-        foreach (var (symbol, qty) in positionMap.Where(p => p.Value > 0))
+        foreach (var position in positions.Where(p => p.TotalQuantity > 0))
         {
+            var symbol = position.Symbol;
+            var qty = position.TotalQuantity;
             try
             {
                 var currentPriceMoney = await _stockPriceService.GetCurrentPriceAsync(
@@ -642,23 +641,19 @@ public class RiskCalculationService : IRiskCalculationService
         var sellTrades = tradesToday.Where(t => t.TradeType == Domain.Entities.TradeType.SELL).ToList();
         if (sellTrades.Any())
         {
-            // Simple P&L: sum of (sell price - avg buy price) * quantity for today's sells
-            var allTrades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
-            decimal dailyPnl = 0;
+            // Lãi/lỗ trong ngày = lãi đã thực hiện tính đến hôm nay trừ đi phần tính đến hết hôm qua.
+            // Đi qua PositionBuilder để có giá vốn bình quân gia quyền, trừ phí/thuế, và đã tính
+            // cổ phiếu từ sự kiện quyền — trung bình không trọng số trên trade thô lệch cả dấu.
+            var allTrades = (await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken)).ToList();
+            var corporateActions = (await _corporateActionRepository
+                .GetByPortfolioIdAsync(portfolioId, cancellationToken)).ToList();
 
-            foreach (var sell in sellTrades)
-            {
-                var buys = allTrades
-                    .Where(t => t.Symbol == sell.Symbol && t.TradeType == Domain.Entities.TradeType.BUY && t.TradeDate < sell.TradeDate)
-                    .OrderBy(t => t.TradeDate)
-                    .ToList();
+            var realizedThroughToday = PositionBuilder.Build(allTrades, corporateActions, today)
+                .Sum(p => p.RealizedPnL);
+            var realizedThroughYesterday = PositionBuilder.Build(allTrades, corporateActions, today.AddDays(-1))
+                .Sum(p => p.RealizedPnL);
 
-                if (buys.Any())
-                {
-                    var avgBuyPrice = buys.Average(b => b.Price);
-                    dailyPnl += (sell.Price - avgBuyPrice) * sell.Quantity;
-                }
-            }
+            var dailyPnl = realizedThroughToday - realizedThroughYesterday;
             status.DailyPnl = dailyPnl;
 
             // Check loss limit

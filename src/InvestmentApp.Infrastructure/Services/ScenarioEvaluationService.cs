@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
@@ -11,19 +12,24 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
     private readonly IStockPriceRepository _stockPriceRepository;
     private readonly IAlertHistoryRepository _alertHistoryRepository;
     private readonly ITechnicalIndicatorService _technicalIndicatorService;
+    private readonly ICorporateActionRepository _corporateActionRepository;
     private readonly ILogger<ScenarioEvaluationService> _logger;
+
+    private static readonly IReadOnlyList<CorporateAction> NoActions = Array.Empty<CorporateAction>();
 
     public ScenarioEvaluationService(
         ITradePlanRepository tradePlanRepository,
         IStockPriceRepository stockPriceRepository,
         IAlertHistoryRepository alertHistoryRepository,
         ITechnicalIndicatorService technicalIndicatorService,
+        ICorporateActionRepository corporateActionRepository,
         ILogger<ScenarioEvaluationService> logger)
     {
         _tradePlanRepository = tradePlanRepository;
         _stockPriceRepository = stockPriceRepository;
         _alertHistoryRepository = alertHistoryRepository;
         _technicalIndicatorService = technicalIndicatorService;
+        _corporateActionRepository = corporateActionRepository;
         _logger = logger;
     }
 
@@ -43,6 +49,10 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         var latestPrices = await _stockPriceRepository.GetLatestPricesAsync(symbols, cancellationToken);
         var priceMap = latestPrices.ToDictionary(p => p.Symbol.ToUpper(), p => p.Close);
 
+        // Giá thị trường đã điều chỉnh tại ngày GDKHQ còn giá trên kế hoạch thì chưa —
+        // so thẳng hai mặt bằng khác nhau sẽ kích hoạt kịch bản sai.
+        var actionsByPlanKey = await LoadCorporateActionsAsync(advancedPlans, cancellationToken);
+
         foreach (var plan in advancedPlans)
         {
             if (!priceMap.TryGetValue(plan.Symbol.ToUpper(), out var currentPrice))
@@ -52,22 +62,46 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                 continue;
             }
 
-            var triggered = await EvaluatePlan(plan, currentPrice, cancellationToken);
+            var actions = ActionsFor(actionsByPlanKey, plan);
+            var triggered = await EvaluatePlan(plan, currentPrice, actions, cancellationToken);
             results.AddRange(triggered);
         }
 
         return results;
     }
 
+    private async Task<ILookup<(string PortfolioId, string Symbol), CorporateAction>> LoadCorporateActionsAsync(
+        IReadOnlyCollection<TradePlan> plans, CancellationToken cancellationToken)
+    {
+        var portfolioIds = plans
+            .Where(p => !string.IsNullOrEmpty(p.PortfolioId))
+            .Select(p => p.PortfolioId!)
+            .Distinct()
+            .ToList();
+
+        var actions = portfolioIds.Count == 0
+            ? NoActions
+            : (await _corporateActionRepository.GetByPortfolioIdsAsync(portfolioIds, cancellationToken)).ToList();
+
+        return actions.ToLookup(a => (a.PortfolioId, a.Symbol.ToUpper()));
+    }
+
+    private static IReadOnlyList<CorporateAction> ActionsFor(
+        ILookup<(string PortfolioId, string Symbol), CorporateAction> lookup, TradePlan plan)
+        => string.IsNullOrEmpty(plan.PortfolioId)
+            ? NoActions
+            : lookup[(plan.PortfolioId!, plan.Symbol.ToUpper())].ToList();
+
     private async Task<List<ScenarioEvaluationResult>> EvaluatePlan(
-        TradePlan plan, decimal currentPrice, CancellationToken cancellationToken)
+        TradePlan plan, decimal currentPrice, IReadOnlyList<CorporateAction> actions,
+        CancellationToken cancellationToken)
     {
         var results = new List<ScenarioEvaluationResult>();
         var nodes = plan.ScenarioNodes!;
         var modified = false;
 
         // Update trailing stop data for already-triggered trailing nodes
-        await UpdateTrailingStopsAsync(plan, currentPrice, cancellationToken);
+        modified |= await UpdateTrailingStopsAsync(plan, currentPrice, actions, cancellationToken);
 
         // Iterate in rounds: evaluate, trigger, then re-evaluate newly-evaluable children
         bool anyTriggered;
@@ -83,7 +117,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
 
             foreach (var node in evaluableNodes)
             {
-                if (EvaluateCondition(node, plan, currentPrice))
+                if (EvaluateCondition(node, plan, currentPrice, actions))
                 {
                     try
                     {
@@ -100,12 +134,12 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                             ActionType = node.ActionType.ToString(),
                             Label = node.Label,
                             CurrentPrice = currentPrice,
-                            ConditionValue = node.ConditionValue
+                            ConditionValue = TradePlanPriceAdjuster.AdjustedConditionValue(node, plan, actions)
                         };
                         results.Add(result);
 
                         // Create alert history for notification
-                        await CreateAlertHistory(plan, node, currentPrice, cancellationToken);
+                        await CreateAlertHistory(plan, node, currentPrice, actions, cancellationToken);
 
                         _logger.LogInformation(
                             "Scenario triggered: Plan {PlanId} ({Symbol}), Node '{Label}', Price {Price}",
@@ -113,7 +147,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
 
                         // After triggering, update trailing stops for the newly triggered node
                         if (node.ActionType == ScenarioActionType.ActivateTrailingStop)
-                            await UpdateTrailingStopsAsync(plan, currentPrice, cancellationToken);
+                            await UpdateTrailingStopsAsync(plan, currentPrice, actions, cancellationToken);
                     }
                     catch (Exception ex)
                     {
@@ -132,18 +166,21 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         return results;
     }
 
-    private bool EvaluateCondition(ScenarioNode node, TradePlan plan, decimal currentPrice)
+    private bool EvaluateCondition(ScenarioNode node, TradePlan plan, decimal currentPrice,
+        IReadOnlyList<CorporateAction> actions)
     {
+        var threshold = TradePlanPriceAdjuster.AdjustedConditionValue(node, plan, actions);
+
         return node.ConditionType switch
         {
             ScenarioConditionType.PriceAbove =>
-                node.ConditionValue.HasValue && currentPrice >= node.ConditionValue.Value,
+                threshold.HasValue && currentPrice >= threshold.Value,
 
             ScenarioConditionType.PriceBelow =>
-                node.ConditionValue.HasValue && currentPrice <= node.ConditionValue.Value,
+                threshold.HasValue && currentPrice <= threshold.Value,
 
             ScenarioConditionType.PricePercentChange =>
-                EvaluatePricePercentChange(node, plan, currentPrice),
+                EvaluatePricePercentChange(node, plan, currentPrice, actions),
 
             ScenarioConditionType.TrailingStopHit =>
                 EvaluateTrailingStopHit(node, plan, currentPrice),
@@ -155,10 +192,15 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         };
     }
 
-    private bool EvaluatePricePercentChange(ScenarioNode node, TradePlan plan, decimal currentPrice)
+    private bool EvaluatePricePercentChange(ScenarioNode node, TradePlan plan, decimal currentPrice,
+        IReadOnlyList<CorporateAction> actions)
     {
-        if (!node.ConditionValue.HasValue || plan.EntryPrice == 0) return false;
-        var percentChange = (currentPrice - plan.EntryPrice) / plan.EntryPrice * 100m;
+        if (!node.ConditionValue.HasValue) return false;
+
+        var entryPrice = TradePlanPriceAdjuster.AdjustedEntryPrice(plan, actions);
+        if (entryPrice <= 0) return false;
+
+        var percentChange = (currentPrice - entryPrice) / entryPrice * 100m;
         return node.ConditionValue.Value >= 0
             ? percentChange >= node.ConditionValue.Value
             : percentChange <= node.ConditionValue.Value;
@@ -186,10 +228,12 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         return daysPassed >= (double)node.ConditionValue.Value;
     }
 
-    private async Task UpdateTrailingStopsAsync(TradePlan plan, decimal currentPrice,
-        CancellationToken cancellationToken)
+    /// <returns><c>true</c> nếu trạng thái trượt vừa được quy về mặt bằng giá mới và cần lưu lại.</returns>
+    private async Task<bool> UpdateTrailingStopsAsync(TradePlan plan, decimal currentPrice,
+        IReadOnlyList<CorporateAction> actions, CancellationToken cancellationToken)
     {
         var nodes = plan.ScenarioNodes!;
+        var rebased = false;
 
         // Find triggered nodes with ActivateTrailingStop action
         var trailingNodes = nodes.Where(n =>
@@ -205,8 +249,13 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         {
             var config = trailingNode.TrailingStopConfig!;
 
+            // Đỉnh giá và mức trượt đang lưu là giá ghi nhận TRƯỚC ngày GDKHQ —
+            // quy về mặt bằng mới một lần, nếu không mức trượt cũ sẽ cắt lỗ oan ngay hôm điều chỉnh.
+            rebased |= TradePlanPriceAdjuster.RebaseTrailingState(config, plan, actions);
+
             // Check activation price
-            if (config.ActivationPrice.HasValue && currentPrice < config.ActivationPrice.Value)
+            var activationPrice = TradePlanPriceAdjuster.AdjustedActivationPrice(config, plan, actions);
+            if (activationPrice.HasValue && currentPrice < activationPrice.Value)
                 continue;
 
             // Update highest price
@@ -215,7 +264,8 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                 // Check step size before updating
                 if (config.StepSize.HasValue && config.HighestPrice.HasValue)
                 {
-                    if (currentPrice - config.HighestPrice.Value < config.StepSize.Value)
+                    var stepSize = TradePlanPriceAdjuster.AdjustedDelta(config.StepSize.Value, plan, actions);
+                    if (currentPrice - config.HighestPrice.Value < stepSize)
                         continue;
                 }
                 config.HighestPrice = currentPrice;
@@ -236,14 +286,16 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                 }
 
                 // Compute trailing stop
+                var trailValue = TradePlanPriceAdjuster.AdjustedTrailValue(config, plan, actions);
+                var entryPrice = TradePlanPriceAdjuster.AdjustedEntryPrice(plan, actions);
                 config.CurrentTrailingStop = config.Method switch
                 {
                     TrailingStopMethod.Percentage =>
-                        config.HighestPrice.Value * (1 - config.TrailValue / 100m),
+                        config.HighestPrice.Value * (1 - trailValue / 100m),
                     TrailingStopMethod.FixedAmount =>
-                        config.HighestPrice.Value - config.TrailValue,
-                    TrailingStopMethod.ATR => ComputeAtrTrailingStop(config, plan.EntryPrice, atr14),
-                    _ => config.HighestPrice.Value * (1 - config.TrailValue / 100m)
+                        config.HighestPrice.Value - trailValue,
+                    TrailingStopMethod.ATR => ComputeAtrTrailingStop(config, entryPrice, atr14),
+                    _ => config.HighestPrice.Value * (1 - trailValue / 100m)
                 };
             }
 
@@ -264,6 +316,8 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
                 }
             }
         }
+
+        return rebased;
     }
 
     private decimal ComputeAtrTrailingStop(TrailingStopConfig config, decimal entryPrice, decimal? atr14)
@@ -280,13 +334,14 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
     }
 
     private async Task CreateAlertHistory(TradePlan plan, ScenarioNode node, decimal currentPrice,
-        CancellationToken cancellationToken)
+        IReadOnlyList<CorporateAction> actions, CancellationToken cancellationToken)
     {
+        var actionValue = TradePlanPriceAdjuster.AdjustedActionValue(node, plan, actions);
         var actionText = node.ActionType switch
         {
             ScenarioActionType.SellPercent => $"Bán {node.ActionValue}% vị thế",
             ScenarioActionType.SellAll => "Bán toàn bộ vị thế",
-            ScenarioActionType.MoveStopLoss => $"Dời SL đến {node.ActionValue:N0}đ",
+            ScenarioActionType.MoveStopLoss => $"Dời SL đến {actionValue:N0}đ",
             ScenarioActionType.MoveStopToBreakeven => "Dời SL về giá hòa vốn",
             ScenarioActionType.ActivateTrailingStop => $"Kích hoạt trailing stop {node.TrailingStopConfig?.TrailValue}%",
             ScenarioActionType.AddPosition => $"Thêm {node.ActionValue}% vị thế",
@@ -302,7 +357,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
             $"{actionText}. Giá hiện tại: {currentPrice:N0}đ",
             symbol: plan.Symbol,
             currentValue: currentPrice,
-            thresholdValue: node.ConditionValue
+            thresholdValue: TradePlanPriceAdjuster.AdjustedConditionValue(node, plan, actions)
         );
 
         await _alertHistoryRepository.AddAsync(alert, cancellationToken);

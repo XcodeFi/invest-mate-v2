@@ -4,8 +4,8 @@
 
 Brainstorm → spec → plan cho tính năng cổ tức tiền mặt, cổ tức cổ phiếu, chia tách cổ phiếu và tính lại giá vốn / lãi lỗ.
 
-- Spec: `docs/superpowers/specs/2026-08-08-corporate-actions-design.md`
-- Plan: `docs/superpowers/plans/2026-08-08-corporate-actions.md` — 17 task, TDD từng bước
+- Spec: `docs/superpowers/specs/done/2026-08-08-corporate-actions-design.md`
+- Plan: `docs/superpowers/plans/done/2026-08-08-corporate-actions.md` — 17 task, TDD từng bước
 - **Chưa viết dòng code sản phẩm nào.**
 
 ## Quyết định đã chốt
@@ -27,7 +27,7 @@ Brainstorm → spec → plan cho tính năng cổ tức tiền mặt, cổ tức
    git stash → git fetch → git checkout -b feature/corporate-actions origin/master --no-track
    → commit 2 file doc → git stash pop
    ```
-2. **Thực hiện:** `/ship docs/superpowers/plans/2026-08-08-corporate-actions.md`
+2. **Thực hiện:** `/ship docs/superpowers/plans/done/2026-08-08-corporate-actions.md`
 
 ## Phát hiện phụ cần xử lý trong Task 9
 

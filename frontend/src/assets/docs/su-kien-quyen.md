@@ -65,12 +65,23 @@ Khi cổ phiếu hoặc tiền thực sự về tài khoản, bấm **Xác nhậ
 
 ## Nhập sai thì sao
 
-Xoá sự kiện là được — mọi con số tự tính lại như chưa từng có. Dữ liệu giao dịch gốc của bạn không bao giờ bị sửa.
+Xoá sự kiện là được — mọi con số tự tính lại như chưa từng có. Dữ liệu giao dịch gốc của bạn không bao giờ bị sửa. Nếu sự kiện cổ tức tiền mặt đã xác nhận và đã sinh dòng tiền, dòng tiền đó được xoá theo luôn.
 
-Ngoại lệ: nếu sự kiện cổ tức tiền mặt đã được xác nhận và đã sinh dòng tiền, hãy xoá dòng tiền đó trước, rồi mới xoá sự kiện.
+Một ngoại lệ nhỏ: nếu kế hoạch giao dịch của bạn đang chạy trailing stop, **đỉnh giá** mà trailing stop ghi nhận đã được hạ theo sự kiện và không quay lại được khi xoá. Con số này tự phục hồi ngay khi giá lập đỉnh mới.
+
+## Ảnh hưởng tới kế hoạch và cảnh báo
+
+Bạn không phải sửa gì bằng tay. Sau khi nhập sự kiện, app tự quy các mức giá sau về cùng mặt bằng với giá thị trường mới:
+
+- Giá vào, cắt lỗ, mục tiêu trong kế hoạch giao dịch.
+- Ngưỡng của từng nhánh kịch bản thoát lệnh, giá kích hoạt và biên trượt của trailing stop.
+- Ngưỡng cảnh báo cắt lỗ.
+- Hạn mức lỗ theo ngày — không còn bị khoá giao dịch chỉ vì giá vừa được điều chỉnh.
+
+Điều kiện dạng phần trăm ("giảm 10% thì cắt") và dạng số ngày giữ nguyên, vì chúng vốn không phụ thuộc mặt bằng giá.
 
 ## Chưa hỗ trợ
 
 - Tự động lấy sự kiện từ nguồn dữ liệu bên ngoài — hiện phải nhập tay.
 - Quyền mua ưu đãi, sáp nhập, hoán đổi cổ phiếu.
-- Kế hoạch giao dịch không tự điều chỉnh giá vào / cắt lỗ — bạn tự sửa nếu cần.
+- Thống kê dài hạn (backtest, hiệu quả chiến lược, điểm kỷ luật) chưa tính sự kiện quyền.

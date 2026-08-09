@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-08
-- **Related plan:** `docs/superpowers/plans/2026-08-08-corporate-actions.md`
+- **Related plan:** `docs/superpowers/plans/done/2026-08-08-corporate-actions.md`
 - **Affected layers:** Domain / Application / Infrastructure / Api / Frontend
 
 ## Context
@@ -77,15 +77,38 @@ Hai quyết định phụ đi kèm:
 - Migration: không có. Dữ liệu cũ giữ nguyên; sự kiện lịch sử nhập tay.
 - Tests: `PositionBuilderTests`, `CorporateActionAdjusterTests`, và test đấu nối cho từng service trong 5 điểm phase 1.
 - Docs: `docs/business-domain.md` (entity + quy tắc nghiệp vụ), `docs/architecture.md` (ghi rõ mọi service cần giá vốn phải gọi `PositionBuilder`), `docs/features.md`, `docs/project-context.md`, hướng dẫn người dùng `frontend/src/assets/docs/su-kien-quyen.md`.
-- Đấu nối nốt phase 2. Hai mục đầu là **đường ra quyết định tự động**, ưu tiên cao hơn hẳn phần còn lại:
-  1. **`RiskCalculationService.CheckRiskBudgetAsync`** — tự dựng `avgBuyPrice = buys.Average(b => b.Price)` từ trade thô (trung bình *không trọng số*) rồi có thể đặt `IsLocked = true`. Sau ngày GDKHQ giá bán đã điều chỉnh còn giá mua thì chưa → lãi/lỗ ngày âm giả → **khoá giao dịch nhầm**. Cùng file cũng có `CalculateStressTestAsync` tự dựng `positionMap` từ trade thô.
-  2. **`ScenarioEvaluationService` / `ScenarioAdvisoryService`** — so `TradePlan.EntryPrice` với giá thị trường đã điều chỉnh, chạy qua job nền `InternalJobsController` → **điều kiện kịch bản tự kích hoạt sai**. ADR này xếp `TradePlan` vào diện "chỉ cảnh báo", nhưng đó là đánh giá thiếu: giá kế hoạch không chỉ để hiển thị, nó còn nuôi máy đánh giá kịch bản.
-  3. Còn lại (thống kê, không ra quyết định): `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`, nhánh dự phòng dựng vị thế từ trade thô trong `AiAssistantService`.
+- Còn lại (thống kê, không ra quyết định): `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`, nhánh dự phòng dựng vị thế từ trade thô trong `AiAssistantService`.
 
-  Lưu ý: cả (1) và (2) **không phải regression do ADR này gây ra** — giá thị trường vẫn bị điều chỉnh dù app có biết đến sự kiện quyền hay không. Nhưng phần "Positive" ở trên từng nói `RiskCalculationService` đã được phủ; đúng ra chỉ `GetPortfolioRiskSummaryAsync` và `GetTrailingStopAlertsAsync` trong file đó được phủ.
+## Amendment 2026-08-09 — đấu nối nốt hai đường ra quyết định tự động (PR #146)
+
+Phần "Positive" ở trên từng nói `RiskCalculationService` đã được phủ; đúng ra ở PR #145 chỉ `GetPortfolioRiskSummaryAsync` và `GetTrailingStopAlertsAsync` được phủ. ADR cũng xếp `TradePlan` vào diện "chỉ cảnh báo" — đánh giá thiếu, vì giá kế hoạch còn nuôi máy đánh giá kịch bản chạy nền. Hai chỗ đó nay đã đấu nối:
+
+1. **`CheckRiskBudgetAsync` / `CalculateStressTestAsync`** — trước đây tự dựng vị thế từ trade thô; `avgBuyPrice = buys.Average(b => b.Price)` là trung bình *không trọng số* nên lệch được cả dấu lãi/lỗ, và `IsLocked = true` **khoá giao dịch**. Nay lãi/lỗ trong ngày = `RealizedPnL` đến hôm nay trừ đi đến hết hôm qua, cả hai qua `PositionBuilder`; số lượng stress test lấy `TotalQuantity`.
+2. **`ScenarioEvaluationService` / `ScenarioAdvisoryService`** — quy giá kế hoạch về mặt bằng hiện tại qua `TradePlanPriceAdjuster` trước khi so với giá thị trường.
+
+Cả hai **không phải regression do ADR này gây ra** — giá thị trường vẫn bị điều chỉnh dù app có biết đến sự kiện quyền hay không.
+
+### Quyết định phụ: giá người dùng đặt thì điều chỉnh khi đọc, giá thị trường ghi nhận thì rebase một lần
+
+Nguyên tắc "điều chỉnh tại thời điểm đọc, không sửa dữ liệu" ở trên **không áp được** cho `TrailingStopConfig.HighestPrice` / `CurrentTrailingStop`: hai giá trị này là quan sát thị trường và được **ghi đè trở lại** entity. Điều chỉnh khi đọc sẽ hạ chồng lần — lần ghi kế tiếp lưu giá ở mặt bằng mới, lần đọc sau lại chia tiếp.
+
+Đã cân nhắc ba hướng: (a) rebase ngay khi tạo `CorporateAction` — đi ngược nguyên tắc bất biến và phải dò ngược mọi kế hoạch liên quan; (b) bỏ qua — để nguyên mức trượt cũ thì đúng hôm điều chỉnh giá sẽ **cắt lỗ oan**, đây là rủi ro tiền thật; (c) rebase **lười, đúng một lần tại thời điểm đọc**, đánh dấu bằng `TrailingStopConfig.PriceBasisAt`.
+
+**Chọn (c).** Ranh giới là bản chất của con số, không phải layer: *ngưỡng do người dùng đặt* mang ý định cần giữ nguyên bản → điều chỉnh khi đọc, xoá sự kiện thì tự quay về; *giá thị trường đã ghi nhận* không mang ý định gì → quy đổi một lần rồi lưu. Đánh đổi: xoá sự kiện quyền **không** khôi phục được `HighestPrice` cũ. Chấp nhận, vì con số đó tự phục hồi ngay khi có đỉnh mới.
+
+Mốc thời gian đi kèm: `TradePlan.PricesSetAt` thay cho `UpdatedAt` — `UpdatedAt` nhảy mỗi lần một nhánh kịch bản kích hoạt, làm các nhánh còn lại thôi được điều chỉnh. Ban đầu định dùng **một** mốc chung cho cả giá kế hoạch lẫn ngưỡng node; review chỉ ra đó là lỗi thật chứ không phải đánh đổi chấp nhận được: `SetScenarioNodes` là endpoint riêng, sửa nhánh kịch bản không hề hiện hay đặt lại giá nhập, nhưng lại dời mốc chung và làm giá nhập thôi được điều chỉnh. Nên tách `ScenarioPricesSetAt` (null → lùi về `PricesSetAt`).
+
+### Sửa kèm: hai lỗi cùng lớp phát hiện khi review
+
+- **Chặn trên theo ngày GDKHQ.** `CorporateActionAdjuster` chỉ lọc `ExDate > setAt`, không có chặn trên — trong khi `PositionBuilder` vốn đã có `ExDate <= asOf`. Sự kiện nhập lúc công bố (trước ngày GDKHQ vài tuần) làm ngưỡng bị chia hệ số ngay, còn giá thị trường thì chưa. Nguy hiểm nhất là `RebaseTrailingState` sẽ ghi đè vĩnh viễn một con số sai. Nay cả `AdjustPrice`, `AdjustDelta` và `RebaseTrailingState` đều chặn trên bằng hôm nay.
+- **Thứ tự trong ngày GDKHQ.** `PositionBuilder` xếp `Trade` trước `CorporateAction` cùng ngày. Ngược với luật: quyền chốt theo danh sách cổ đông cuối ngày liền trước, nên người bán trong ngày GDKHQ vẫn hưởng còn người mua hôm đó thì không. Đổi thành sự kiện quyền chạy trước lệnh khớp cùng ngày.
+
+Cả hai đã tồn tại từ PR #145; PR này làm chúng nặng thêm vì đưa `PositionBuilder` vào đường khoá giao dịch.
+
+Hai DTO tạo/lưu kịch bản dựng `TrailingStopConfig` mới và không mang `PriceBasisAt`, nhưng `SetScenarioNodes` luôn đặt lại `PricesSetAt` nên mốc dự phòng thành "bây giờ" — không có sự kiện nào sau đó, không rebase nhầm.
 
 ## References
 
-- Spec: `docs/superpowers/specs/2026-08-08-corporate-actions-design.md`
-- Plan: `docs/superpowers/plans/2026-08-08-corporate-actions.md`
-- PR: #XX (điền sau khi merge)
+- Spec: `docs/superpowers/specs/done/2026-08-08-corporate-actions-design.md`
+- Plan: `docs/superpowers/plans/done/2026-08-08-corporate-actions.md`
+- PR: #145 (lõi tính năng), #146 (đấu nối hạn mức rủi ro + kịch bản thoát lệnh)
