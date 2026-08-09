@@ -196,8 +196,8 @@ describe('DecisionQueueComponent', () => {
   });
 
   it('routes ThesisReviewDue to /symbol-timeline with symbol param even when tradePlanId missing', () => {
-    // Regression: bug từ PR-3 — fallback `return {}` khi tradePlanId null làm URL về /symbol-timeline
-    // không kèm ?symbol=... → page render rỗng "Chưa có dữ liệu timeline cho ".
+    // Phòng thủ, không phải regression: backend luôn set TradePlanId = plan.Id cho ThesisReviewDue.
+    // Chốt luật "không nhánh nào được làm mất symbol" — mất symbol thì /symbol-timeline render rỗng.
     const item = mockItem({ type: 'ThesisReviewDue', symbol: 'FPT', tradePlanId: null });
     setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
     fixture.detectChanges();
@@ -362,6 +362,16 @@ describe('DecisionQueueComponent', () => {
 
     expect(component.typeLabel(unknown)).toBe('Khác');
     expect(component.getActionRoute(mockItem({ type: unknown }))).toEqual(['/symbol-timeline']);
+    expect(component.getActionParams(mockItem({ type: unknown, symbol: 'SSI' }))).toEqual({ symbol: 'SSI' });
+  });
+
+  it('không nhánh nào của getActionParams được làm mất symbol', () => {
+    setup({ items: [], totalCount: 0 }, { daysWithoutViolation: 0, hasData: false });
+
+    // ScenarioTrigger thiếu plan: trước đây rơi vào `return {}` → /trade-plan trống trơn.
+    expect(component.getActionParams(
+      mockItem({ type: 'ScenarioTrigger', symbol: 'HPG', tradePlanId: null })
+    )).toEqual({ symbol: 'HPG' });
   });
 
   it('ẩn nút BÁN cho cả hai loại mới (không có tradePlanId)', () => {

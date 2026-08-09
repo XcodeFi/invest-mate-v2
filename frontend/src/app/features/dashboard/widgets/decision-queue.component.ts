@@ -252,19 +252,12 @@ export class DecisionQueueComponent implements OnInit {
     if (item.type === 'ScenarioTrigger' && item.tradePlanId) {
       return { loadPlan: item.tradePlanId };
     }
-    if (item.type === 'ThesisReviewDue') {
-      // Symbol luôn có; planId optional (data có thể thiếu trong edge case backend).
-      // Trước fix: gating cả param trên tradePlanId làm URL về /symbol-timeline trống → page rỗng.
-      const params: Record<string, string> = { symbol: item.symbol };
-      if (item.tradePlanId) params['planId'] = item.tradePlanId;
-      return params;
+    if (item.type === 'ThesisReviewDue' && item.tradePlanId) {
+      return { symbol: item.symbol, planId: item.tradePlanId };
     }
-    if (item.type === 'StopLossHit'
-      || item.type === 'BuyOpportunity'
-      || item.type === 'MissingStopLoss') {
-      return { symbol: item.symbol };
-    }
-    return {};
+    // Mặc định symbol thay vì {}: mọi item đều có symbol, nên type mới thêm sau này
+    // tự có param đúng thay vì âm thầm điều hướng tới trang trống.
+    return { symbol: item.symbol };
   }
 
   expandNote(item: DecisionItemDto): void {
