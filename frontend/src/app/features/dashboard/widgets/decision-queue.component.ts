@@ -290,6 +290,7 @@ export class DecisionQueueComponent implements OnInit {
       action: 'HoldWithJournal' as DecisionAction,
       tradePlanId: item.tradePlanId,
       symbol: item.symbol,
+      portfolioId: item.portfolioId,
       note: this.noteDraft.trim(),
     });
   }
@@ -298,6 +299,7 @@ export class DecisionQueueComponent implements OnInit {
     action: DecisionAction;
     tradePlanId?: string | null;
     symbol?: string | null;
+    portfolioId?: string | null;
     note?: string | null;
   }): void {
     this.resolving = true;

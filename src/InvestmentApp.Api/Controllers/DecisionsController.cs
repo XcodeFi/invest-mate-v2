@@ -58,6 +58,7 @@ public class DecisionsController : ControllerBase
             Action = request.Action,
             TradePlanId = request.TradePlanId,
             Symbol = request.Symbol,
+            PortfolioId = request.PortfolioId,
             Note = request.Note,
             UserId = GetUserId()
         };
@@ -71,5 +72,6 @@ public class ResolveDecisionRequest
     public DecisionAction Action { get; set; }
     public string? TradePlanId { get; set; }
     public string? Symbol { get; set; }
+    public string? PortfolioId { get; set; }
     public string? Note { get; set; }
 }

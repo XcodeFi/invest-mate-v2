@@ -50,6 +50,8 @@ export interface ResolveDecisionRequest {
   action: DecisionAction;
   tradePlanId?: string | null;
   symbol?: string | null;
+  /** Bắt buộc gửi cho item có gắn danh mục, nếu không suppression mất phạm vi danh mục. */
+  portfolioId?: string | null;
   note?: string | null;
 }
 

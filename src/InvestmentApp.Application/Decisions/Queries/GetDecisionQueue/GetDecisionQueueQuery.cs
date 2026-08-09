@@ -106,7 +106,11 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
         var unsuppressed = deduped.Where(i =>
             !(i.TradePlanId != null && suppressedPlanIds.Contains(i.TradePlanId))
             && !suppressedSymbolPortfolio.Contains((i.Symbol, i.PortfolioId))
-            && !suppressedSymbolType.Contains((i.Symbol, i.Type.ToString()))
+            // symType chỉ áp cho item KHÔNG thuộc danh mục nào (BuyOpportunity). Item có PortfolioId
+            // phải suppress qua symPort để giữ phạm vi danh mục — nếu không, resolve một mã ở danh mục
+            // A sẽ giấu cảnh báo cùng mã ở danh mục B suốt ngày.
+            && !(string.IsNullOrEmpty(i.PortfolioId)
+                 && suppressedSymbolType.Contains((i.Symbol, i.Type.ToString())))
         ).ToList();
 
         var sorted = unsuppressed
@@ -384,7 +388,21 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
     }
 
     /// <summary>
-    /// Dedupe theo (Symbol, PortfolioId). Giữ item severity cao nhất; tie-break ưu tiên StopLossHit.
+    /// Thứ tự ưu tiên khi hai item cùng (Symbol, PortfolioId) và cùng severity. Càng cao càng thắng.
+    /// MissingStopLoss xếp thấp nhất: "chưa đặt SL" là tình trạng nền, còn SL đã thủng hay kịch bản
+    /// đã trigger là sự kiện cụ thể và cần xử lý trước. Không có bảng này thì thứ tự concat quyết
+    /// định kẻ thắng và một advisory có thể bị nuốt im lặng.
+    /// </summary>
+    private static int DedupeRank(DecisionType type) => type switch
+    {
+        DecisionType.StopLossHit => 3,
+        DecisionType.ScenarioTrigger => 2,
+        DecisionType.ThesisReviewDue => 1,
+        _ => 0
+    };
+
+    /// <summary>
+    /// Dedupe theo (Symbol, PortfolioId). Giữ item severity cao nhất; tie-break theo <see cref="DedupeRank"/>.
     /// </summary>
     private static List<DecisionItemDto> Dedupe(List<DecisionItemDto> items)
     {
@@ -403,7 +421,7 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
             var winner = group
                 .OrderByDescending(i => i.Severity == DecisionSeverity.Critical ? 2
                                       : i.Severity == DecisionSeverity.Warning ? 1 : 0)
-                .ThenByDescending(i => i.Type == DecisionType.StopLossHit ? 1 : 0)
+                .ThenByDescending(i => DedupeRank(i.Type))
                 .First();
             result.Add(winner);
         }

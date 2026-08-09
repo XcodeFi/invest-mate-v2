@@ -54,9 +54,28 @@ Sửa tận gốc: FE gửi kèm `portfolioId`, handler ghi vào journal, `symPo
 
 ## Decision
 
-**Chọn Option B.**
+**Chọn B + C kết hợp.** (Sửa lại sau review lần hai — xem §Sửa lại bên dưới.)
 
-Option A đánh đổi một ngữ nghĩa đang đúng để lấy sự gọn gàng — không xứng. Option C sửa gốc nhưng không phủ được `BuyOpportunity`, mà đó lại chính là lý do ta đụng tới suppression ngay từ đầu. Option B vá đúng tập entry đang hỏng, không chạm gì tới phần đang chạy tốt, và mọi test suppression hiện có phải vẫn xanh mà không sửa — đó là tiêu chí nghiệm thu chứ không phải kỳ vọng.
+Option A đánh đổi một ngữ nghĩa đang đúng để lấy sự gọn gàng — không xứng.
+
+Bản đầu chọn **B đơn thuần**, lập luận rằng Option C "không phủ được `BuyOpportunity`". Lập luận đó sai ở chỗ đặt vấn đề: C **không cần** phủ `BuyOpportunity` — loại đó vốn không thuộc danh mục nào, nên tập `symType` của B là đường đúng cho nó. Hai option giải hai nửa khác nhau của bài toán và bổ sung cho nhau chứ không loại trừ nhau.
+
+Nên quyết định cuối là:
+
+- **C** — `ResolveDecisionCommand` nhận thêm `PortfolioId`, FE gửi `item.portfolioId`, handler ghi vào journal. Nhờ đó `symPort` bắt được `StopLossHit` và `MissingStopLoss` **có phạm vi danh mục**.
+- **B** — tập `symType` giữ lại, nhưng **chỉ áp cho item có `PortfolioId` rỗng**. Đây là loại duy nhất `symPort` không thể phục vụ.
+
+### Sửa lại sau review lần hai
+
+Bản B đơn thuần có một lỗi hồi quy nghiêm trọng mà review lần một không bắt được:
+
+`StopLossHit` luôn có `TradePlanId = null`, FE lại chỉ gửi `tradePlanId` + `symbol`, nên `HandleHoldWithJournalAsync` luôn đi nhánh symbol-only và ghi journal **không có** `PortfolioId`. Journal đó rơi thẳng vào `symType`, khiến resolve `StopLossHit` của FPT ở danh mục A **giấu luôn** cảnh báo `StopLossHit` của FPT ở danh mục B suốt ngày hôm đó.
+
+Trước thay đổi, journal ấy không khớp tập nào (chính là bug §1.3) nên thẻ chỉ hiện lại — phiền nhưng an toàn. Sau thay đổi, nó **giấu một cảnh báo stop-loss** — đúng loại tác hại mà ADR này sinh ra để xoá bỏ. Đổi một bug gây phiền lấy một bug gây nguy hiểm là đi lùi.
+
+Test `Handle_StopLossHitWithDecisionJournalForDifferentPortfolio_NotSuppressed` vẫn xanh suốt vì nó dựng journal có `portfolioId` — hình dạng mà production **không thể** tạo ra cho `StopLossHit`. Bản ADR đầu có ghi nhận test này "kiểm thử một trạng thái không đạt tới được", nhưng không truy tiếp hệ quả: nếu production không tạo được hình dạng đó, thì đường production thật đang đi qua `symType` và tràn danh mục.
+
+Bài học: khi phát hiện một test kiểm trạng thái không đạt tới được, phải hỏi tiếp **đường thật đi đâu**, chứ không dừng ở việc ghi chú rằng test đó rỗng nghĩa.
 
 Kèm theo, thêm hai `DecisionType`:
 
@@ -76,9 +95,10 @@ Kèm theo, thêm hai `DecisionType`:
 
 **Negative / Trade-offs:**
 
-- Ba tập suppression song song — nợ nhận thức. Nếu sau này Option C được làm, nên gộp lại còn hai.
+- Ba tập suppression song song — nợ nhận thức. `symType` giờ có phạm vi hẹp (chỉ item không danh mục) nên ranh giới rõ hơn, nhưng vẫn phải đọc cả ba mới nắm hết luật.
 - `DecisionSeverity.Info` từng mang chú thích *"reserved cho V2"* nay được kích hoạt; chú thích đó đã sửa.
-- `MissingStopLoss` cùng mã ở hai danh mục: resolve một cái sẽ suppress cả hai trong ngày (vì đi qua `symType`). Chấp nhận — nhắc "đi đặt SL" là hành động trên **mã**, và nó quay lại ngày hôm sau nếu vẫn chưa đặt.
+- `ResolveDecisionCommand` có thêm trường `PortfolioId` — thay đổi contract API, nhưng **thuần cộng thêm** và nullable nên client cũ không vỡ (chỉ mất phạm vi danh mục khi suppress, đúng bằng hành vi trước đây).
+- Dedupe nay có bảng `DedupeRank` tường minh. `MissingStopLoss` xếp thấp nhất, nên vị thế vừa thiếu SL vừa có kịch bản đã trigger sẽ hiện thẻ kịch bản. Trước khi có bảng này, kẻ thắng do thứ tự `Concat` quyết định và advisory bị nuốt im lặng — không ai chọn hành vi đó cả.
 - `BuyOpportunity` thêm một lượt gọi giá cho watchlist. Đã giới hạn: chỉ fetch mã **có** mục tiêu mua, batch một lần, có timeout — hỏng thì phần cơ hội vắng mặt, queue vẫn trả.
 
 **Follow-ups:**

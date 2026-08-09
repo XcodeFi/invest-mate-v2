@@ -309,6 +309,25 @@ describe('DecisionQueueComponent', () => {
     expect(component.getActionParams(mockItem({ type: 'MissingStopLoss', symbol: 'MWG' }))).toEqual({ symbol: 'MWG' });
   });
 
+  it('gửi kèm portfolioId khi GIỮ + ghi lý do', () => {
+    // Thiếu portfolioId thì backend ghi journal không gắn danh mục, suppression mất phạm vi
+    // và resolve một mã ở danh mục này sẽ giấu cảnh báo cùng mã ở danh mục khác.
+    const item = mockItem({ id: 'i1', type: 'StopLossHit', portfolioId: 'p1', symbol: 'FPT', tradePlanId: null });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    decisionSpy.resolve.and.returnValue(of({ resultId: 'j1', message: 'OK', resultType: 'JournalEntry' }));
+    fixture.detectChanges();
+
+    component.expandNote(component.items[0]);
+    component.noteDraft = 'Giữ vì thị trường chung đang hồi phục';
+    component.submitHold(component.items[0]);
+
+    expect(decisionSpy.resolve).toHaveBeenCalledWith('i1', jasmine.objectContaining({
+      action: 'HoldWithJournal',
+      symbol: 'FPT',
+      portfolioId: 'p1',
+    }));
+  });
+
   it('không để trống nhãn/route khi gặp type lạ (FE cache cũ vs API mới)', () => {
     setup({ items: [], totalCount: 0 }, { daysWithoutViolation: 0, hasData: false });
     const unknown = 'SomeFutureType' as DecisionType;

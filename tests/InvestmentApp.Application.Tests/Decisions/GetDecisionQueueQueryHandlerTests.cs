@@ -546,20 +546,93 @@ public class GetDecisionQueueQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_StopLossHitResolvedSymbolOnly_IsSuppressed()
+    public async Task Handle_StopLossHitResolvedWithPortfolio_IsSuppressed()
     {
-        // Đường thật của ResolveDecision cho StopLossHit: HandleHoldWithJournalAsync đi nhánh
-        // symbol-only nên journal không có portfolioId lẫn tradePlanId — chỉ còn tag trigger:{Type}.
-        // Trước fix, entry này rơi khỏi cả hai tập suppression nên card hiện lại sau refresh.
+        // ResolveDecision nay luôn ghi PortfolioId (FE gửi item.portfolioId), nên StopLossHit
+        // được suppress qua tập symPort — có phạm vi danh mục, không tràn sang danh mục khác.
         var portfolio = MakePortfolio("p1", "Main");
         SetupPortfolios(portfolio);
         SetupRiskSummary(portfolio.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        SetupDecisionJournal(MakeDecisionJournal(
+            "FPT", portfolioId: "p1", triggerType: "StopLossHit", timestamp: VnTodayStartUtc().AddHours(2)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_SymbolOnlyJournal_DoesNotSuppressItemThatHasPortfolio()
+    {
+        // Chặn rò rỉ: journal symbol-only (không portfolio) KHÔNG được làm im một item có
+        // gắn danh mục. Nếu không chặn, resolve FPT ở danh mục A sẽ giấu cảnh báo SL của FPT
+        // ở danh mục B suốt ngày hôm đó — đúng loại tác hại mà PR này sinh ra để xoá bỏ.
+        var p1 = MakePortfolio("p1", "Main");
+        var p2 = MakePortfolio("p2", "VCB Trading");
+        SetupPortfolios(p1, p2);
+        SetupRiskSummary(p1.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
+        SetupRiskSummary(p2.Id, MakePosition("FPT", 89.5m, 89.4m, -0.1m));
         SetupDecisionJournal(MakeDecisionJournal(
             "FPT", triggerType: "StopLossHit", timestamp: VnTodayStartUtc().AddHours(2)));
 
         var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
 
+        result.Items.Should().HaveCount(2);
+        result.Items.Select(i => i.PortfolioId).Should().BeEquivalentTo(new[] { "p1", "p2" });
+    }
+
+    [Fact]
+    public async Task Handle_MissingStopLossResolvedInOnePortfolio_OtherPortfolioSurvives()
+    {
+        var p1 = MakePortfolio("p1", "Main");
+        var p2 = MakePortfolio("p2", "VCB Trading");
+        SetupPortfolios(p1, p2);
+        SetupRiskSummary(p1.Id, MakePosition("MWG", stopLossPrice: null, currentPrice: 50m, distanceToSlPercent: 0m));
+        SetupRiskSummary(p2.Id, MakePosition("MWG", stopLossPrice: null, currentPrice: 50m, distanceToSlPercent: 0m));
+        SetupDecisionJournal(MakeDecisionJournal(
+            "MWG", portfolioId: "p1", triggerType: "MissingStopLoss", timestamp: VnTodayStartUtc().AddHours(2)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PortfolioId.Should().Be("p2");
+    }
+
+    [Fact]
+    public async Task Handle_BuyOpportunityResolvedSymbolOnly_IsSuppressed()
+    {
+        // BuyOpportunity không thuộc danh mục nào nên symType vẫn là đường suppress đúng cho nó.
+        SetupWatchlist(MakeWatchItem("VNM", targetBuy: 60_000m));
+        SetupPrices(("VNM", 59_000m));
+        SetupDecisionJournal(MakeDecisionJournal(
+            "VNM", triggerType: "BuyOpportunity", timestamp: VnTodayStartUtc().AddHours(2)));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
         result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_MissingStopLossAndScenarioTriggerSameSymbolPortfolio_ScenarioWins()
+    {
+        // Cùng (symbol, portfolio) và cùng Warning → dedupe giữ 1. Kịch bản đã trigger là tín hiệu
+        // cụ thể hơn "chưa đặt SL", nên nó phải thắng. Không có tie-break tường minh thì thứ tự
+        // concat quyết định và advisory bị nuốt im lặng.
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("HPG", stopLossPrice: null, currentPrice: 25m, distanceToSlPercent: 0m));
+        SetupPlans(MakePlanForPortfolio("plan-hpg", "HPG", "p1"));
+        _advisoryService.Setup(s => s.GetAdvisoriesAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ScenarioAdvisory>
+            {
+                new() { TradePlanId = "plan-hpg", Symbol = "HPG", NodeId = "n1", Message = "HPG chạm vùng chốt lời",
+                        ConditionDescription = "c", ActionDescription = "a", NodeLabel = "lbl", CurrentPrice = 25m }
+            });
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Type.Should().Be(DecisionType.ScenarioTrigger);
     }
 
     [Fact]
