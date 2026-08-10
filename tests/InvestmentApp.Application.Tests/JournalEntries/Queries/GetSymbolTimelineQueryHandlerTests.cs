@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.JournalEntries.Queries.GetSymbolTimeline;
 using InvestmentApp.Domain.Entities;
@@ -13,6 +14,7 @@ public class GetSymbolTimelineQueryHandlerTests
     private readonly Mock<IPortfolioRepository> _portfolioRepo;
     private readonly Mock<IMarketEventRepository> _marketEventRepo;
     private readonly Mock<IAlertHistoryRepository> _alertHistoryRepo;
+    private readonly Mock<ICompanyDossierRepository> _companyDossierRepo;
     private readonly GetSymbolTimelineQueryHandler _handler;
 
     public GetSymbolTimelineQueryHandlerTests()
@@ -22,12 +24,14 @@ public class GetSymbolTimelineQueryHandlerTests
         _portfolioRepo = new Mock<IPortfolioRepository>();
         _marketEventRepo = new Mock<IMarketEventRepository>();
         _alertHistoryRepo = new Mock<IAlertHistoryRepository>();
+        _companyDossierRepo = new Mock<ICompanyDossierRepository>();
         _handler = new GetSymbolTimelineQueryHandler(
             _journalEntryRepo.Object,
             _tradeRepo.Object,
             _portfolioRepo.Object,
             _marketEventRepo.Object,
-            _alertHistoryRepo.Object);
+            _alertHistoryRepo.Object,
+            _companyDossierRepo.Object);
     }
 
     private void SetupEmptyDefaults()
