@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -51,10 +52,12 @@ public class UpdateTradePlanCommand : IRequest<Unit>
 public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanCommand, Unit>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
+    private readonly ICompanyDossierGate _dossierGate;
 
-    public UpdateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository)
+    public UpdateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ICompanyDossierGate dossierGate)
     {
         _tradePlanRepository = tradePlanRepository;
+        _dossierGate = dossierGate;
     }
 
     public async Task<Unit> Handle(UpdateTradePlanCommand request, CancellationToken cancellationToken)
@@ -64,6 +67,47 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
 
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
+
+        // UpdateTradePlanCommand.Quantity/EntryPrice/AccountBalance/Symbol đều nullable —
+        // update là PARTIAL (TradePlan.Update chỉ gán khi HasValue), và SetLots (nếu có lots)
+        // ghi đè Quantity sau đó. Cả 4 vế phải fallback về giá trị plan SẼ có sau khi lưu,
+        // không phải giá trị thô trên request — gộp vào ResolveEffectiveGateInputs (dùng
+        // chung với đường tạo) thay vì 3-4 vế "?? " tách rời như trước, đó là lý do bug
+        // đọc-sai-thời-điểm lặp lại nhiều lần.
+        // willApplyLots phải khớp ĐÚNG điều kiện gọi SetLots bên dưới. Điều kiện của đường sửa
+        // rộng hơn đường tạo (không kiểm Count > 0) nên không dùng chung một hằng biểu thức được
+        // — mỗi handler tự tính rồi truyền vào, và dùng lại chính biến đó ở chỗ ghi.
+        var willApplyLots = request.EntryMode != null && request.Lots != null;
+        var oldSize = plan.Quantity * plan.EntryPrice;
+        var gateInputs = CreateTradePlanCommandHandler.ResolveEffectiveGateInputs(
+            existingPlan: plan,
+            request.Quantity, request.Lots, willApplyLots,
+            request.EntryPrice, request.AccountBalance, request.Symbol);
+        var newSize = gateInputs.PlanSize;
+        var newBalance = gateInputs.AccountBalance;
+
+        var oldThreshold = (plan.AccountBalance ?? 0m) * TradePlan.LargeTierThreshold;
+        var newThreshold = (newBalance ?? 0m) * TradePlan.LargeTierThreshold;
+
+        // So TỶ LỆ ở hai thời điểm, mỗi vế dùng số dư của chính thời điểm đó. Nếu ngưỡng
+        // mới vẫn tính theo số dư cũ thì một request vừa nâng size vừa hạ số dư sẽ lọt.
+        var wasBelow = !plan.AccountBalance.HasValue
+            || plan.AccountBalance.Value <= 0m
+            || oldSize < oldThreshold;
+        var isNowAtOrAbove = newBalance.HasValue
+            && newBalance.Value > 0m
+            && newSize >= newThreshold;
+
+        // Đổi mã là mở một vị thế mới ở một công ty khác, nên áp đúng cổng mà đường TẠO
+        // sẽ áp — chấm theo mã MỚI, với mọi lần đổi mã (không chỉ khi vượt ngưỡng): đường
+        // tạo chặn cả lệnh nhỏ (bậc nhỏ đòi BusinessModel), nên đường sửa cũng phải vậy.
+        var newSymbol = gateInputs.Symbol.ToUpper().Trim();
+        var symbolChanged = newSymbol != plan.Symbol;
+
+        if (symbolChanged || (wasBelow && isNowAtOrAbove))
+        {
+            await _dossierGate.EnsureAsync(plan.UserId, newSymbol, newSize, newBalance, cancellationToken);
+        }
 
         var checklist = request.Checklist?.Select(c => new ChecklistItem
         {
@@ -98,8 +142,8 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
             request.ExpectedReviewDate
         );
 
-        // Multi-lot support
-        if (request.EntryMode != null && request.Lots != null)
+        // Multi-lot support — willApplyLots là biến cổng đã chấm theo, không viết lại điều kiện.
+        if (willApplyLots)
         {
             var entryMode = Enum.Parse<EntryMode>(request.EntryMode, ignoreCase: true);
             var lots = request.Lots.Select(l => new PlanLot

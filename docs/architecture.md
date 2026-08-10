@@ -50,7 +50,8 @@ project/
 │       │   ├── risk-dashboard/         # Risk score, drawdown, VaR
 │       │   ├── personal-finance/       # Net worth + Gold/Savings tracking + health score (Tier 3)
 │       │   ├── api-keys/               # Personal Access Tokens management (route /api-keys)
-│       │   └── ...                     # (20 more feature pages)
+│       │   ├── company-dossier/        # Hồ sơ công ty — gate chặn tạo trade plan (routes /company-dossier, /company-dossier/:symbol)
+│       │   └── ...                     # (19 more feature pages)
 │       └── shared/
 │           ├── components/             # AiChatPanel, Header, PwaInstallBanner, etc.
 │           ├── directives/             # UppercaseDirective, NumMaskDirective
@@ -111,6 +112,7 @@ are now **in-process** in the API:
 | MarketEvent | Sự kiện thị trường (7 loại: Earnings/Dividend/News/Macro...) |
 | FinancialProfile | Per-user 1:1. 5 loại account (Securities/Savings/Emergency/IdleCash/Gold) + **Debts[]** (6 loại: CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other) + FinancialRules (emergency months, max investment %, min savings %). Health score 0-100 với **4 rules** (rule 4: `-20` cứng khi có consumer debt lãi > 20%/năm). **Net Worth = Assets − Debt**. Gold account: brand + type + quantity → auto-calc Balance qua provider. Savings account có thêm `DepositDate` + `MaturityDate` optional cho sổ có kỳ hạn (2026-04-24); cả 2 set → enforce `Maturity >= Deposit`. `FinancialAccount.CreatedAt` immutable sau Create. Debts không xóa được khi Principal > 0 |
 | ApiKey | Per-user Personal Access Token. Lưu `KeyHash` (SHA-256 of plaintext token — plaintext chỉ trả về 1 lần lúc tạo), `UserId`, `Name`, `CreatedAt`, `LastUsedAt`, `IsRevoked`. Ownership-checked trên revoke. |
+| CompanyDossier | **Hồ sơ công ty — gate chặn tạo trade plan (2026-08-10, ADR-0011).** Khóa `(UserId, Symbol)`, sống độc lập với `TradePlan` — viết một lần cho một mã, mọi plan sau cho mã đó dùng lại. 4 khối: `BusinessModel` (string), `Moats` (`List<MoatItem>`), `RiskFactors` (`List<RiskFactor>`, rank dense 1..N, mỗi cái bắt buộc `ObservableSignal`, tối đa 1 `IsDealBreaker`), `Notes` (tự do, không gate). Hai phương thức sửa riêng biệt `UpdateByOwner`/`UpdateByAgent` (không dùng cờ `isAgent`) — chỉ `UpdateByAgent` xóa `ConfirmedAt`. `Confirm()` là **phương thức duy nhất** đẩy đồng hồ hạn tươi (`ReviewedAt`) — sửa nội dung, kể cả qua UI, không chạm nó. `GetFreshness()` trả enum `Unconfirmed`/`Fresh` (<90 ngày)/`NeedsReview` (90-179)/`Expired` (≥180), tính theo ngày lịch VN offset cố định `+07:00` (không dùng `TimeZoneInfo` — xem ADR-0011 D7). |
 
 ## Key Services (Infrastructure Layer)
 
@@ -175,6 +177,7 @@ are now **in-process** in the API:
 | AiAgent | `/api/v1/ai/agent` | **ApiKey-scheme write-surface (ADR-0004, 2026-07-21)** — `[Authorize(Scheme=ApiKey)]`. Re-dispatches existing MediatR commands để NPU/Claude có thể lập/sửa/chuyển-trạng-thái/thực-hiện trade plans + ghi trade programmatically. Endpoints: `GET trade-plans`, `GET trade-plans/{id}`, `POST trade-plans` (forces Draft), `PUT trade-plans/{id}`, `PATCH trade-plans/{id}/status` (blocks `restore` → 400), `POST trades`, `GET doc` (embedded API reference, ETag=docVersion). Audit marker `Source=AI_AGENT` trong `Metadata`. Controller riêng (`AiAgentController`) — same pattern as `AiDigestController`. IDOR fix: `CreateTradeCommand` + `BulkCreateTradesCommand` handlers now assert `portfolio.UserId == sub` (ownership check, not just existence). Docs: `src/InvestmentApp.Api/Docs/AI-Agent-TradePlan-API.md`. |
 | AiAgent (expose) | `/api/v1/ai/agent/{positions,watchlists,journal-entries,journals,symbols}` | **ApiKey-scheme read/write expansion (extends ADR-0004, 2026-07-23)** — 5 sibling controllers (`AiAgentPositionsController`, `AiAgentWatchlistsController`, `AiAgentJournalEntriesController`, `AiAgentJournalsController`, `AiAgentSymbolsController`) sharing `AiAgentControllerBase` (`IMediator` + `GetUserId()`). 21 routes mirroring the JWT `PositionsController`/`WatchlistsController`/`JournalEntriesController`/`JournalsController`/`SymbolTimelineController` — re-dispatch existing MediatR, `UserId` from `sub`, zero new business logic. Response codes mirror source; POST `Created` Location → agent surface. Watchlist/journal writes are low-stakes (no "chốt" gate). Doc: same embedded `AI-Agent-TradePlan-API.md` (+5 sections). |
 | MCP | `/mcp` | **Model Context Protocol server (2026-07-24)** — co-hosted in `InvestmentApp.Api` via `ModelContextProtocol.AspNetCore` (`AddMcpServer().WithHttpTransport(Stateless).WithToolsFromAssembly()` + `app.MapMcp("/mcp").RequireAuthorization(ApiKey)`). Streamable HTTP, **stateless** (survives Cloud Run multi-instance). Exposes **46 schema-typed tools** (11 `[McpServerToolType]` classes in `Mcp/`: TradePlan, Trade, Portfolio, Symbol, Watchlist, Journal, JournalEntry, Decision, Risk, Digest, Analytics) — each `[McpServerTool]` re-dispatches the same MediatR command/query; `UserId` from `sub` via `IHttpContextAccessor`. 29 tools mirror the `AiAgent*Controller` surface; **8 P0 read-only decision/risk tools (2026-07-25)** expose queries with no REST agent equivalent: `get_decision_queue`, `get_discipline_score`, `get_discipline_streak`, `get_pending_thesis_reviews` (`DecisionTools`) + `get_portfolio_risk`, `get_stop_loss_targets`, `get_trailing_stop_alerts`, `get_scenario_advisories` (`RiskTools`); **`get_daily_digest` (`DigestTools`, 2026-07-26)** — thin wrapper trên `IAiAssistantService.BuildDailyDigestAsync` (cùng payload REST `POST /ai/daily-digest`), `ErrorMessage` → `McpException`; bước Phase B để NPU `/stock` agent bỏ curl; **8 P1 read-only analytics tools (2026-07-26, `AnalyticsTools`)**: `get_performance`, `get_equity_curve`, `get_monthly_returns`, `get_savings_comparison`, `get_campaign_analytics`, `get_net_worth_summary`, `get_flow_history`, `get_adjusted_return` (TWR/MWR) — 6/8 per-portfolio (required `portfolioId`, ownership in handlers). Read tools carry `ReadOnly`, writes carry `Destructive` (host prompts confirm). **Tool params phải FLAT (2026-07-28, ADR-0008)** — không nhận trực tiếp MediatR command làm tham số, vì SDK sẽ sinh schema bọc `{"command":{…}}` và caller gửi args phẳng bị `ArgumentException: missing … required parameter 'command'`. Optional params đặt sau `ct` với default `= null` để không lọt vào `required`. Guard: `McpToolDiscoveryTests.No_Tool_Wraps_Its_Args_In_A_Command_Object` + `McpToolArgumentBindingTests` (invoke qua SDK binder, không gọi trực tiếp static method). Additive — REST `/ai/agent/*` unchanged; MCP replaces the markdown `/doc` with `tools/list` discovery. |
+| CompanyDossiers | `/api/v1/company-dossiers` | **Hồ sơ công ty (2026-08-10, ADR-0011)** — JWT. `GET` list, `GET /{symbol}`, `PUT /{symbol}` upsert (luôn `ByAgent=false`), `POST /{symbol}/confirm` (chỉ đường duy nhất đặt `ConfirmedAt`), `GET /{symbol}/gate-status` (pre-flight check trước khi tạo plan; `quantity`/`entryPrice`/`accountBalance` **bắt buộc**, thiếu → 400 — thiếu 1 trong 3 mà đoán bằng 0 sẽ chấm nhầm bậc so với `POST /trade-plans` thật). |
 | InternalJobs | `/internal/jobs` | **Cloud Scheduler triggers (ADR-0001, 2026-04-26)**: POST `/snapshot` (TakeAllSnapshotsAsync) + POST `/prices` (PriceSnapshotJobService — fetch prices, refresh indices, check stop-loss/target) + POST `/exchange-rate` (RefreshRatesAsync) + POST `/scenario-eval` (EvaluateAllAsync). Auth: `[Authorize(Scheme=GcpOidc, Policy=GcpScheduler)]` — Google-issued OIDC ID token, email_verified=true, email ∈ `Jobs:AllowedSchedulerSAs` allowlist. Idempotent. |
 
 ## Health Endpoints (Minimal API, unauthenticated)
@@ -228,8 +231,8 @@ are now **in-process** in the API:
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (1019 tests: Domain 661, Application 118, Infrastructure 235+, Api 5)
-- **Frontend:** Karma + Jasmine (configured, tests pending)
+- **Backend:** xUnit + FluentAssertions + Moq (~1596 tests: Domain, Application, Infrastructure, Api)
+- **Frontend:** Karma + Jasmine (152 tests)
 - Run `dotnet test` before commit
 
 ### MintStableJwt — AI verify-before-merge tool
@@ -444,6 +447,50 @@ Plan: [`docs/plans/done/dashboard-decision-engine.md`](plans/done/dashboard-deci
 - `frontend/src/app/shared/components/ai-chat-panel/ai-chat-panel.component.ts` — thêm route case `'portfolio-critique'`.
 
 **Tests:** 6 xUnit (AiAssistantServicePortfolioCritiqueTests — lock prompt content adversarial, không drift sang supportive) + 9 Karma (NetWorthSummaryComponent — render/hide/gap label/boundary cases incl. negative CAGR). 295/295 Infrastructure + 14/14 Karma pass.
+
+## Hồ sơ công ty — gate chặn tạo trade plan (chặng 1, 2026-08-10)
+
+Không cho tạo trade plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký và còn hiệu lực. Quyết định thiết kế đầy đủ: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md). Plan 3 chặng: [`docs/superpowers/plans/2026-08-09-company-dossier-guard.md`](superpowers/plans/2026-08-09-company-dossier-guard.md) — **chặng 1** (entity + gate + trang hồ sơ) done; chặng 2 (phơi fundamentals + MCP) và chặng 3 (đề xuất InvalidationRule + pending-reviews) chưa làm.
+
+**Gate — vị trí bắn (Application layer, đọc `ICompanyDossierRepository` nên không đặt trong entity `TradePlan`):**
+
+| Điểm bắn | Điều kiện |
+|---|---|
+| `CreateTradePlanCommandHandler` — đầu `Handle`, trước mọi lookup khác | Luôn chạy, kể cả `Status="Executed"` (auto-transition nằm sau điểm bắn) |
+| `UpdateTradePlanCommandHandler` — trước khi áp field mới lên plan | Chỉ khi **tỷ lệ cũ < 5% và tỷ lệ mới ≥ 5%**, hoặc khi `Symbol` đổi (bất kể size) |
+
+Ngưỡng phản chiếu đúng `TradePlan.LargeTierThreshold` (`= 0.05m`, một nguồn duy nhất cho cả 2 gate) và guard `AccountBalance > 0` của `EnsureDisciplineGate`. `AccountBalance` null hoặc ≤ 0 ở **cả hai** thời điểm so sánh ⇒ tầng nhỏ (không có ngưỡng nào để vượt).
+
+| | Tầng nhỏ (`size < 5%` hoặc không biết số dư) | Tầng lớn (`size ≥ 5%`) |
+|---|---|---|
+| `BusinessModel` | không rỗng | ≥ 30 ký tự |
+| `Moats` | ≥ 1 | ≥ 1, có ít nhất 1 `Description` ≥ 30 ký tự |
+| `RiskFactors` | ≥ 1, có `ObservableSignal` | ≥ 3, mỗi `ObservableSignal` ≥ 20 ký tự |
+| Trạng thái hồ sơ | đã ký (`ConfirmedAt` set), chưa `Expired` | như trên |
+
+**Key files:**
+
+- `src/InvestmentApp.Domain/Entities/CompanyDossier.cs` — aggregate + `MoatItem`, `RiskFactor` (value object), enum `DossierFreshness`.
+- `src/InvestmentApp.Application/Common/Interfaces/ICompanyDossierRepository.cs` — file rời (không thừa kế `IRepository<T>`, khóa `(UserId, Symbol)` chứ không phải `Id`).
+- `src/InvestmentApp.Infrastructure/Repositories/CompanyDossierRepository.cs` — collection `company_dossiers`, index unique `ux_user_symbol` trên `(UserId, Symbol)`.
+- `src/InvestmentApp.Application/CompanyDossiers/Gate/{ICompanyDossierGate,CompanyDossierGate}.cs` — `EvaluateAsync`/`EnsureAsync`, trả/throw `DossierGateResult`/`DossierGateException`.
+- `src/InvestmentApp.Application/CompanyDossiers/{Commands,Queries,DTOs}/*` — `UpsertCompanyDossierCommand` (cờ `ByAgent` chọn `UpdateByAgent` vs `UpdateByOwner`), `ConfirmCompanyDossierCommand`, `GetCompanyDossierQuery`, `ListCompanyDossiersQuery`, `GetDossierGateStatusQuery`, `CompanyDossierDto`/`DossierGateStatusDto`.
+- `src/InvestmentApp.Api/Controllers/CompanyDossiersController.cs` — JWT-only, 5 route (xem bảng API Endpoints).
+- `src/InvestmentApp.Api/Middleware/ExceptionMiddleware.cs` — nhánh `DossierGateException → 400` (`{code, symbol, reason, missing[]}`) đặt **trước** switch chung, vì switch map `InvalidOperationException → 409` (mà `DossierGateException` kế thừa, để nhánh bị xóa vẫn thoái về 409 chứ không 500).
+- `frontend/src/app/core/services/company-dossier.service.ts` — `list/get/upsert/confirm/gateStatus`; hằng số Việt hóa một chỗ duy nhất: `GATE_REASON_TEXT` (câu cho `missing`/`unconfirmed`/`expired` — `insufficient` hiển thị theo `missing[]` backend trả), `INVALIDATION_TRIGGER_LABELS`, `dossierFreshnessLabel`/`dossierFreshnessBadgeClass`.
+- `frontend/src/app/features/company-dossier/{company-dossier-list,company-dossier-detail}.component.ts` — route `/company-dossier` (danh sách + trạng thái tươi) và `/company-dossier/:symbol` (chi tiết: ô business model với đếm ký tự + chỉ báo tầng, danh sách moat, danh sách risk factor với nút ▲▼ + dropdown `SuggestedTrigger` + checkbox deal-breaker duy nhất, nút ký ở cuối trang).
+- Modified: `TradePlan.cs` (`LargeTierThreshold` hợp nhất), `CreateTradePlanCommand.cs`, `UpdateTradePlanCommand.cs`, `trade-plan.component.ts` (banner chặn 400 + cảnh báo kiểm-trước gọi `gate-status` debounce 500ms, không disable nút), `market-data.component.ts` (điều hướng sang trang hồ sơ khi chưa có hồ sơ đã ký, giữ entry/SL/TP qua `sessionStorage` với `returnTo=trade-plan`), `app.routes.ts`, `Program.cs` (DI `ICompanyDossierRepository` + `ICompanyDossierGate`).
+
+**Hợp đồng `gate-status` (pre-flight, không phải chỗ để đoán):** `DossierGateStatusDto { Symbol, Passed, Reason, Missing[], Freshness }`. `quantity`/`entryPrice`/`accountBalance` là query param **bắt buộc** — thiếu bất kỳ cái nào trả 400, vì thay thiếu bằng 0 sẽ chấm ở bậc nhỏ trong khi `POST /trade-plans` (nhận `AccountBalance` trong body) chấm ở bậc lớn, khiến bước kiểm-trước nói đỗ rồi lệnh tạo thật vẫn 400. `Freshness` bắt buộc có vì `NeedsReview` (90-179 ngày) **đỗ** gate — không có field này thì hồ sơ 4 tháng trả `passed=true` mà UI không có gì để nhắc soát lại (nhắc là việc của UI, không phải của gate).
+
+**Bất biến khi sửa hai handler (ADR-0011 D9) — năm cửa hậu đã phải vá đều vi phạm đúng chỗ này:** giá trị gate chấm phải bằng giá trị plan **thực sự lưu xuống**. Cụ thể: `willApplyLots` là **một biến duy nhất** tính một lần trong handler, dùng cho cả điểm bắn gate lẫn lệnh `plan.SetLots` (không viết lại điều kiện ở chỗ thứ hai — điều kiện hai đường khác nhau: đường tạo có `Count > 0`, đường sửa không); `ResolveEffectiveGateInputs` trả thẳng `PlanSize` để không caller nào nhân lại theo cách riêng; và khi có lots thì size lấy **mức lớn hơn** giữa `tổng(lô × giá lô)` và `tổng lô × giá header`. Thêm bất kỳ mutator nào chạy sau điểm bắn mà chạm `Quantity`/`EntryPrice`/`Symbol` là phải soi lại danh sách này — kể cả mutator nằm trong file entity không đổi, ngoài diff (đó là lý do cửa hậu thứ tư và thứ năm sống sót qua nhiều vòng review).
+
+**Đã biết, không phải bug:**
+
+- Lệnh trade plan **đầu tiên sau khi deploy** bị chặn với mọi mã, kể cả mã đang giữ — không có grandfathering (ADR-0011 D5).
+- Đường ghi trade plan của agent (ApiKey `AiAgentController` + MCP) **tắt hoàn toàn** cho tới khi chặng 2 phơi `upsert_company_dossier` — `DossierGateException` trong MCP tool không đi qua `ExceptionMiddleware` nên agent hiện chỉ nhận thông báo lỗi, mất `missing[]` (ADR-0011 D6).
+
+**Tests:** verify thật trên DB prod (tài khoản test, mã HPG) 2 lượt — API 8/8 (chưa có hồ sơ → 400 `missing` → viết → 400 `unconfirmed` → ký → `Fresh` → tạo plan 201 → xóa plan) và browser 22 mục. Báo cáo browser ở `scratch/qa-reports/` (gitignored).
 
 ## Per-User API Keys (Personal Access Tokens)
 

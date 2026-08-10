@@ -5,6 +5,11 @@ namespace InvestmentApp.Domain.Entities;
 
 public class TradePlan : AggregateRoot
 {
+    /// <summary>Ngưỡng size/tài khoản để vào tầng kỷ luật lớn (§D3 plan Vin-discipline).
+    /// Domain gate và Application dossier gate BUỘC PHẢI đồng ý với nhau — tham chiếu
+    /// hằng số này thay vì tự sao công thức 0.05m.</summary>
+    public const decimal LargeTierThreshold = 0.05m;
+
     public string UserId { get; private set; }
     public string? PortfolioId { get; private set; }
 
@@ -201,7 +206,7 @@ public class TradePlan : AggregateRoot
         bool requireFullDiscipline =
             AccountBalance.HasValue
             && AccountBalance.Value > 0m
-            && planSize >= AccountBalance.Value * 0.05m;
+            && planSize >= AccountBalance.Value * LargeTierThreshold;
 
         if (requireFullDiscipline)
         {

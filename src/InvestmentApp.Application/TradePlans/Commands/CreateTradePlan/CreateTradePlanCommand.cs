@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Domain.Entities;
@@ -70,15 +71,31 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly ICompanyDossierGate _dossierGate;
 
-    public CreateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository)
+    public CreateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository,
+        ICompanyDossierGate dossierGate)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _dossierGate = dossierGate;
     }
 
     public async Task<string> Handle(CreateTradePlanCommand request, CancellationToken cancellationToken)
     {
+        // Chấm theo giá trị plan SẼ có sau khi lưu (quantity sau SetLots nếu có lots), không
+        // phải giá trị thô trên request — nếu không, header nhỏ + lots to là qua cổng bậc nhỏ
+        // rồi Quantity thật lại phình lên sau khi lưu. existingPlan=null: đường tạo không có
+        // fallback, mọi field trên request đã bắt buộc.
+        // willApplyLots tính MỘT lần ở đây và dùng lại nguyên biến đó ở chỗ gọi SetLots bên dưới:
+        // cổng và chỗ ghi buộc phải cùng một điều kiện, không phải hai biểu thức viết giống nhau.
+        var willApplyLots = request.EntryMode != null && request.Lots is { Count: > 0 };
+        var gateInputs = ResolveEffectiveGateInputs(
+            existingPlan: null,
+            request.Quantity, request.Lots, willApplyLots,
+            request.EntryPrice, request.AccountBalance, request.Symbol);
+        await _dossierGate.EnsureAsync(request.UserId, gateInputs.Symbol, gateInputs.PlanSize, gateInputs.AccountBalance, cancellationToken);
+
         var checklist = request.Checklist?.Select(c => new ChecklistItem
         {
             Label = c.Label,
@@ -108,8 +125,8 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
             expectedReviewDate: request.ExpectedReviewDate
         );
 
-        // Multi-lot support
-        if (request.EntryMode != null && request.Lots != null && request.Lots.Count > 0)
+        // Multi-lot support — willApplyLots là biến cổng đã chấm theo, không viết lại điều kiện.
+        if (willApplyLots)
         {
             var entryMode = Enum.Parse<EntryMode>(request.EntryMode, ignoreCase: true);
             var lots = request.Lots.Select(l => new PlanLot
@@ -179,6 +196,54 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 
         return plan.Id;
     }
+
+    /// <summary>
+    /// 4 giá trị mà plan SẼ có sau khi lưu — quantity sau SetLots (nếu có lots),
+    /// entryPrice/accountBalance/symbol sau merge partial của <see cref="TradePlan.Update"/>
+    /// (nếu là đường sửa). Dùng chung cho cả đường tạo (existingPlan=null, request đã đủ
+    /// mọi field bắt buộc, fallback không bao giờ kích hoạt) và đường sửa (existingPlan có,
+    /// request là partial). Gộp lại vì đây từng là 3 vế "?? " tách rời trên đường sửa — lý
+    /// do bug đọc-sai-thời-điểm lặp lại nhiều lần, một chỗ tính + test còn dễ tin hơn.
+    /// </summary>
+    /// <param name="willApplyLots">
+    /// Phải là CHÍNH biến mà handler dùng để quyết định có gọi SetLots hay không, không phải
+    /// một điều kiện suy ra lần thứ hai từ <paramref name="lots"/>. Suy ra lần hai là cách cửa
+    /// hậu quay lại: lots có phần tử mà thiếu EntryMode thì SetLots không chạy, Quantity giữ
+    /// giá trị header, nhưng cổng lại chấm theo tổng lots — hạ bậc đúng bằng tỷ lệ hai số đó.
+    /// </param>
+    internal static GateInputs ResolveEffectiveGateInputs(
+        TradePlan? existingPlan,
+        int? requestedQuantity, List<PlanLotDto>? lots, bool willApplyLots,
+        decimal? requestedEntryPrice, decimal? requestedAccountBalance, string? requestedSymbol)
+    {
+        var quantity = requestedQuantity ?? existingPlan?.Quantity
+            ?? throw new InvalidOperationException("Quantity là bắt buộc để chấm cổng dossier");
+
+        var entryPrice = requestedEntryPrice ?? existingPlan?.EntryPrice
+            ?? throw new InvalidOperationException("EntryPrice là bắt buộc để chấm cổng dossier");
+
+        var planSize = quantity * entryPrice;
+        if (willApplyLots && lots is { Count: > 0 })
+        {
+            // SetLots ghi Quantity = tổng số lượng lô nhưng KHÔNG chạm EntryPrice, nên plan lưu
+            // xuống có size = tổng lô × giá header; còn vốn thật cam kết ở các lô là tổng(lô × giá lô).
+            // Lấy mức LỚN HƠN vì mỗi vế đều bỏ trống được: giá lô để 0 thì vế lô bằng 0, giá header
+            // để 1đ thì vế header gần 0. Chấm theo mức nhỏ hơn là mở lại đường hạ bậc.
+            var lotsQuantity = lots.Sum(l => l.PlannedQuantity);
+            planSize = Math.Max(lots.Sum(l => l.PlannedQuantity * l.PlannedPrice), lotsQuantity * entryPrice);
+        }
+
+        var accountBalance = requestedAccountBalance ?? existingPlan?.AccountBalance;
+
+        var symbol = requestedSymbol ?? existingPlan?.Symbol
+            ?? throw new InvalidOperationException("Symbol là bắt buộc để chấm cổng dossier");
+
+        return new GateInputs(planSize, accountBalance, symbol);
+    }
+
+    // Trả thẳng PlanSize thay vì (Quantity, EntryPrice) để không caller nào nhân lại theo cách
+    // riêng — công thức size chỉ tồn tại ở một chỗ.
+    internal readonly record struct GateInputs(decimal PlanSize, decimal? AccountBalance, string Symbol);
 
     internal static ScenarioNode MapToScenarioNode(ScenarioNodeDto dto) => new()
     {

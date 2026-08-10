@@ -10,6 +10,7 @@ import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/ser
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { CompanyDossierService, DossierGateStatusDto, GATE_REASON_TEXT } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
@@ -92,6 +93,14 @@ interface InvalidationRuleForm {
   checkDate: string;
   isTriggered: boolean;
   triggeredAt: string | null;
+}
+
+// Body của lỗi 400 DOSSIER_GATE_FAILED — phân biệt bằng `code`, không bằng status 400.
+interface DossierGateError {
+  code: string;
+  symbol: string;
+  reason: 'missing' | 'unconfirmed' | 'expired' | 'insufficient';
+  missing: string[];
 }
 
 @Component({
@@ -1619,6 +1628,32 @@ interface InvalidationRuleForm {
               {{ getMissingCritical() }}
             </div>
 
+            <!-- Dossier gate notice — pre-check không chặn, chỉ nhắc trước khi bấm Lưu (F2) -->
+            <div *ngIf="dossierGateNotice" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+              <div class="text-sm font-semibold text-amber-800 mb-1">Hồ sơ công ty chưa đủ cho quy mô lệnh này</div>
+              <ul class="text-sm text-amber-700 list-disc list-inside">
+                <li *ngIf="dossierGateNotice.reason !== 'insufficient'">{{ dossierGateReasonText(dossierGateNotice.reason) }}</li>
+                <li *ngFor="let m of dossierGateNotice.missing">{{ m }}</li>
+              </ul>
+              <a [routerLink]="['/company-dossier', dossierGateNotice.symbol]" [queryParams]="dossierGateQueryParams()"
+                class="inline-block mt-2 text-sm font-medium text-amber-800 hover:underline">
+                → Xem/cập nhật hồ sơ {{ dossierGateNotice.symbol }}
+              </a>
+            </div>
+
+            <!-- Dossier gate banner — chặn tạo/sửa plan vì hồ sơ công ty chưa đủ (Step 6) -->
+            <div *ngIf="dossierGateError" class="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
+              <div class="text-sm font-semibold text-red-700 mb-1">Không thể lưu — cổng hồ sơ công ty chặn</div>
+              <ul class="text-sm text-red-600 list-disc list-inside">
+                <li *ngIf="dossierGateError.reason !== 'insufficient'">{{ dossierGateReasonText(dossierGateError.reason) }}</li>
+                <li *ngFor="let m of dossierGateError.missing">{{ m }}</li>
+              </ul>
+              <a [routerLink]="['/company-dossier', dossierGateError.symbol]" [queryParams]="dossierGateQueryParams()"
+                class="inline-block mt-2 text-sm font-medium text-red-700 hover:underline">
+                → Viết hồ sơ {{ dossierGateError.symbol }}
+              </a>
+            </div>
+
             <!-- Save buttons (state-aware) -->
             <div class="mt-4 space-y-2">
               <!-- Draft/new/no-status: full save options -->
@@ -1934,6 +1969,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private symbolSubject = new Subject<string>();
   private sizingSubject = new Subject<void>();
+  private dossierGateCheckSubject = new Subject<void>();
 
   showAiPanel = false;
   aiTradePlanId = '';
@@ -1972,6 +2008,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   selectedPlanStatus = '';
   pendingLoadPlanId: string | null = null;
   saving = false;
+  dossierGateError: DossierGateError | null = null;
+  dossierGateNotice: DossierGateStatusDto | null = null;
   planFilterTab = 'all';
   planFilterTabs = [
     { key: 'all', label: 'Tất cả' },
@@ -2261,6 +2299,39 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     return err?.error?.detail || err?.error?.title || fallback;
   }
 
+  dossierGateReasonText(reason: string | null): string {
+    if (!reason) return '';
+    return (GATE_REASON_TEXT as Record<string, string>)[reason] || '';
+  }
+
+  /**
+   * Forward giá trị hiện tại của form sang trang hồ sơ để ô đếm ký tự tính được % size —
+   * chính người dùng vừa bị chặn ở size này nên cả ba giá trị đều có sẵn. Bỏ qua giá trị
+   * rỗng/0 để trang hồ sơ rơi về chế độ không kèm size thay vì tính % từ số liệu giả.
+   */
+  dossierGateQueryParams(): Record<string, number> {
+    const params: Record<string, number> = {};
+    const quantity = this.plan.quantity || this.optimalShares;
+    if (quantity) params['quantity'] = quantity;
+    if (this.plan.entryPrice) params['entryPrice'] = this.plan.entryPrice;
+    if (this.accountBalance) params['accountBalance'] = this.accountBalance;
+    return params;
+  }
+
+  /**
+   * DOSSIER_GATE_FAILED phân biệt bằng `code`, không bằng status 400 — FluentValidation cũng trả 400
+   * nhưng body khác hoàn toàn ({ errors: {...} }). Nhận sai thì người dùng thấy "chưa có hồ sơ" trong
+   * khi thật ra họ điền thiếu field. Trả true nếu đã xử lý xong lỗi này (caller không cần báo thêm).
+   */
+  private handleDossierGateError(err: any): boolean {
+    if (err?.error?.code === 'DOSSIER_GATE_FAILED') {
+      this.dossierGateError = err.error as DossierGateError;
+      return true;
+    }
+    this.dossierGateError = null;
+    return false;
+  }
+
   invalidationPlaceholder(trigger: string): string {
     switch (trigger) {
       case 'EarningsMiss':
@@ -2355,6 +2426,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     private marketDataService: MarketDataService,
     private templateService: TradePlanTemplateService,
     private tradePlanService: TradePlanService,
+    private dossierService: CompanyDossierService,
     private notification: NotificationService,
     private route: ActivatedRoute
   ) {
@@ -2436,6 +2508,27 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       debounceTime(500),
       takeUntil(this.destroy$)
     ).subscribe(() => this.fetchSizingModels());
+
+    // F2 — pre-check cổng hồ sơ ngay trên form khi đủ cả 3 số (symbol/quantity/entryPrice/accountBalance),
+    // không đoán bằng 0/rỗng. Kết quả chỉ hiển thị nhắc không chặn — cổng thật vẫn chấm lại khi Lưu (banner Step 6).
+    this.dossierGateCheckSubject.pipe(
+      debounceTime(500),
+      switchMap(() => {
+        const symbol = this.plan.symbol?.trim().toUpperCase();
+        const quantity = this.plan.quantity || this.optimalShares;
+        const entryPrice = this.plan.entryPrice;
+        const accountBalance = this.accountBalance;
+        if (!symbol || !quantity || !entryPrice || !accountBalance) {
+          return of(null);
+        }
+        return this.dossierService.gateStatus(symbol, quantity, entryPrice, accountBalance).pipe(
+          catchError(() => of(null))
+        );
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe((status) => {
+      this.dossierGateNotice = status && !status.passed ? status : null;
+    });
   }
 
   applyTemplate(): void {
@@ -2503,6 +2596,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   onSymbolInput(): void {
     this.symbolSubject.next(this.plan.symbol);
+    this.dossierGateCheckSubject.next();
     this.riskOverrideConfirmed = false;
   }
 
@@ -2697,6 +2791,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     // Position sizing calculation
     this.calculatePositionSizing();
     this.sizingSubject.next();
+    this.dossierGateCheckSubject.next();
 
     // Use optimal shares when quantity is not manually set
     const effectiveQuantity = this.manualQuantity && this.plan.quantity > 0
@@ -3149,6 +3244,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       return;
     }
     this.saving = true;
+    this.dossierGateError = null;
     const checklist = this.plan.checklist.map(c => ({
       label: c.label, category: c.category, checked: c.checked, critical: c.critical, hint: c.hint
     }));
@@ -3215,6 +3311,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.saving = false;
+          if (this.handleDossierGateError(err)) return;
           this.notification.error('Lỗi', this.formatBackendError(err, 'Không thể cập nhật kế hoạch'));
         }
       });
@@ -3266,6 +3363,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.saving = false;
+          if (this.handleDossierGateError(err)) return;
           this.notification.error('Lỗi', this.formatBackendError(err, 'Không thể lưu kế hoạch'));
         }
       });

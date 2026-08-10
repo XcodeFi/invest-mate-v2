@@ -93,6 +93,16 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'company-dossier',
+    loadComponent: () => import('./features/company-dossier/company-dossier-list.component').then(m => m.CompanyDossierListComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'company-dossier/:symbol',
+    loadComponent: () => import('./features/company-dossier/company-dossier-detail.component').then(m => m.CompanyDossierDetailComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'campaign-analytics',
     loadComponent: () => import('./features/campaign-analytics/campaign-analytics.component').then(m => m.CampaignAnalyticsComponent),
     canActivate: [AuthGuard]

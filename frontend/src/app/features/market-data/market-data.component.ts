@@ -1,12 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
   TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis
 } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { CompanyDossierService } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -14,7 +15,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -531,11 +532,10 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
             </div>
           </div>
           <div class="flex gap-2">
-            <a [routerLink]="'/trade-plan'"
-              [queryParams]="{ symbol: analysis.symbol, entry: analysis.suggestedEntry, sl: analysis.suggestedStopLoss, tp: analysis.suggestedTarget }"
+            <button (click)="onCreatePlanFromSignal()"
               class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
               📋 Tạo Trade Plan từ gợi ý
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -743,9 +743,13 @@ export class MarketDataComponent implements OnInit {
   batchPrices: { symbol: string; close: number; volume: number }[] = [];
   loadingBatch = false;
 
+  private readonly PENDING_PLAN_KEY = 'pendingTradePlanDraft';
+
   constructor(
     private marketDataService: MarketDataService,
     private notificationService: NotificationService,
+    private dossierService: CompanyDossierService,
+    private router: Router,
     private route: ActivatedRoute
   ) {}
 
@@ -791,6 +795,42 @@ export class MarketDataComponent implements OnInit {
     this.aiPanelUseCase = 'comprehensive-analysis';
     this.aiPanelTitle = 'AI Đánh giá: ' + this.searchSymbol;
     this.isAiOpen = true;
+  }
+
+  // --- Trade Plan từ gợi ý (Step 7 — luồng quay lại nếu chưa có hồ sơ) ---
+  // Ở đây chưa biết quantity/accountBalance (chỉ có entry/SL/TP gợi ý) nên KHÔNG gọi gateStatus
+  // (3 tham số bắt buộc, không được đoán bằng 0). Thay vào đó kiểm tra sự tồn tại + độ tươi của hồ
+  // sơ qua get(symbol); Fresh/NeedsReview cho qua, còn lại (404/Unconfirmed/Expired) thì bắt viết
+  // hồ sơ trước — cổng thật (theo size) vẫn được backend chấm lại khi lưu plan (banner ở Step 6).
+  onCreatePlanFromSignal(): void {
+    if (!this.analysis || this.analysis.suggestedEntry == null) return;
+    const suggestion = {
+      symbol: this.analysis.symbol,
+      entryPrice: this.analysis.suggestedEntry,
+      stopLoss: this.analysis.suggestedStopLoss,
+      target: this.analysis.suggestedTarget,
+    };
+    this.dossierService.get(suggestion.symbol).subscribe({
+      next: (dossier) => {
+        if (dossier.freshness === 'Fresh' || dossier.freshness === 'NeedsReview') {
+          this.goToTradePlan(suggestion);
+        } else {
+          this.stashAndGoToDossier(suggestion);
+        }
+      },
+      error: () => this.stashAndGoToDossier(suggestion),
+    });
+  }
+
+  private goToTradePlan(suggestion: { symbol: string; entryPrice: number; stopLoss?: number; target?: number }): void {
+    this.router.navigate(['/trade-plan'], {
+      queryParams: { symbol: suggestion.symbol, entry: suggestion.entryPrice, sl: suggestion.stopLoss, tp: suggestion.target },
+    });
+  }
+
+  private stashAndGoToDossier(suggestion: { symbol: string; entryPrice: number; stopLoss?: number; target?: number }): void {
+    sessionStorage.setItem(this.PENDING_PLAN_KEY, JSON.stringify(suggestion));
+    this.router.navigate(['/company-dossier', suggestion.symbol], { queryParams: { returnTo: 'trade-plan' } });
   }
 
   // --- Stock Lookup ---

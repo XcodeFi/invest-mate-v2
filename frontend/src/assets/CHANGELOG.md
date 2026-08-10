@@ -2,6 +2,32 @@
 
 ---
 
+## [v2.71.0] — 2026-08-10 · Hồ sơ công ty — chặn lập kế hoạch khi chưa hiểu doanh nghiệp
+
+### Tính năng
+
+**📋 Không lập được kế hoạch mua cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký.** Trước đây "Lý do đầu tư" (Thesis) chỉ ép đủ **độ dài** câu chữ, không ép được **hiểu biết** — "HPG đầu ngành thép, triển vọng tốt" đủ 30 ký tự và không kiểm chứng được gì. Hồ sơ công ty mới ép trả lời trước khi xuống tiền: doanh nghiệp kiếm tiền bằng gì, lợi thế bền ở đâu, rủi ro nào đáng ngại và **biết nó đang xảy ra bằng dấu hiệu gì** — viết một lần cho một mã, dùng lại cho mọi lần mua mã đó.
+
+- Trang **`/company-dossier`** (danh sách theo mã, kèm trạng thái tươi) và **`/company-dossier/:symbol`** (chi tiết: mô hình kinh doanh, danh sách moat, danh sách rủi ro xếp hạng 1..N với dấu hiệu quan sát được bắt buộc + tối đa 1 đánh dấu "hủy diệt", nút ký ở cuối trang).
+- Ngưỡng đủ nội dung theo **size lệnh** — cùng công thức 5% tài khoản với gate "Lý do đầu tư": lệnh nhỏ chỉ cần business model không rỗng + 1 rủi ro có dấu hiệu; lệnh ≥ 5% tài khoản cần đủ cả 4 khối với độ dài tối thiểu.
+- Hồ sơ có **hạn tươi**: còn mới (< 90 ngày kể từ lần ký) → cần soát lại (90-179 ngày, vẫn qua được) → hết hạn (≥ 180 ngày, **chặn**). Chỉ nút ký mới đẩy được đồng hồ này — sửa nội dung, kể cả tự sửa, không tính.
+- Form Trade Plan có **cảnh báo kiểm-trước không chặn**: khi đã điền đủ mã + số lượng + giá vào + số dư, form tự kiểm tra và hiện trạng thái ngay trước khi bấm lưu.
+- Nút "Tạo Trade Plan từ gợi ý" ở trang thị trường: với mã chưa có hồ sơ đã ký, điều hướng sang trang hồ sơ và giữ nguyên entry/SL/TP đã auto-fill, quay lại không mất gì.
+
+### ⚠️ Lưu ý khi triển khai
+
+- **Lệnh đầu tiên sau khi deploy sẽ bị chặn ở mọi mã**, kể cả mã đang giữ nhiều tháng — không có ngoại lệ chuyển tiếp cho tính năng này. Viết hồ sơ (một câu là đủ cho lệnh nhỏ) rồi ký trước khi lập lệnh đầu tiên.
+- **Trợ lý AI (NPU/Claude) tạm thời không lập được trade plan mới cho bất kỳ mã nào** cho tới khi bản cập nhật kế tiếp bổ sung công cụ soạn hồ sơ qua MCP. Đây là hệ quả tạm thời của gate mới, không phải lỗi.
+
+### Files chính
+
+- `src/InvestmentApp.Domain/Entities/CompanyDossier.cs`, `src/InvestmentApp.Application/CompanyDossiers/`, `src/InvestmentApp.Infrastructure/Repositories/CompanyDossierRepository.cs`, `src/InvestmentApp.Api/Controllers/CompanyDossiersController.cs`.
+- `frontend/src/app/features/company-dossier/`, `frontend/src/app/core/services/company-dossier.service.ts`.
+- `docs/adr/0011-company-dossier-gate-at-plan-creation.md` (mới).
+- Tests: verify thật DB prod (tài khoản test, mã HPG) 8/8 qua API + 22 mục qua browser. 1.742 test backend + 171 test frontend pass, không regression (số đo tại thời điểm mở PR).
+
+---
+
 ## [v2.70.1] — 2026-08-09 · Hạn mức rủi ro và kịch bản thoát lệnh cũng hiểu sự kiện quyền
 
 Bản v2.70.0 dạy app biết về cổ tức và chia tách, nhưng còn hai chỗ ra quyết định **tự động** vẫn tính theo giá cũ. Bản này nối nốt.
@@ -60,7 +86,6 @@ Lưu ý về đơn vị: "cổ tức 5%" nghĩa là 5% của **mệnh giá 10.00
 **🕳️ Vị thế chưa đặt stop-loss bị bỏ qua hoàn toàn.** Hàng đợi trước đây lặng lẽ bỏ qua mọi vị thế chưa có stop-loss, nên hàng đợi rỗng đọc như "danh mục an toàn" trong khi thực tế là "rủi ro chưa đo được" — chính những vị thế nguy hiểm nhất lại vô hình.
 
 **🔁 Bấm "Giữ + ghi lý do" xong thẻ hiện lại ngay.** Với thẻ không gắn kế hoạch giao dịch (điển hình là cảnh báo stop-loss), việc ghi nhận quyết định không được lưu đúng chỗ nên lần làm mới kế tiếp thẻ cũ quay lại y nguyên. Nay đã im đúng đến hết ngày.
-
 ---
 
 ## [v2.68.1] — 2026-07-28 · Sửa lỗi trợ lý AI không ghi được nhật ký
