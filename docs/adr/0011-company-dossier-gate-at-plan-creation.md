@@ -1,4 +1,4 @@
-# ADR-0009 — Chặn tạo trade plan bằng hồ sơ công ty đã ký, chặn ngay lúc tạo
+# ADR-0011 — Chặn tạo trade plan bằng hồ sơ công ty đã ký, chặn ngay lúc tạo
 
 - **Status:** Accepted
 - **Date:** 2026-08-10

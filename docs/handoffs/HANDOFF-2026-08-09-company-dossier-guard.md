@@ -22,7 +22,7 @@ tạo plan 201 → xoá plan. Cách chạy: API local cổng 5199 với `ASPNETC
    `quantity`/`entryPrice`/`accountBalance`; ba lý do `missing`/`unconfirmed`/`expired` trả `missing[]` rỗng
    nên câu chữ tiếng Việt phải cố định một chỗ; và `NeedsReview` **đỗ** cổng nên nhắc "nên xem lại" là việc của UI.
 2. **Task 8** — đồng bộ `docs/architecture.md`, `docs/business-domain.md`, `docs/features.md`,
-   `frontend/src/assets/CHANGELOG.md`, tài liệu người dùng, và viết **ADR-0010**. ADR phải ghi: chặn lúc tạo
+   `frontend/src/assets/CHANGELOG.md`, tài liệu người dùng, và viết **ADR-0011**. ADR phải ghi: chặn lúc tạo
    chứ không lúc arm (Q3); agent viết được nhưng không ký được (Q8); chỉ `Confirm()` đẩy đồng hồ hạn tươi (Q10);
    đổi mã thì luôn chạy lại cổng (Q13); **không grandfathering** (Q14); chặng 1 làm tắt đường ghi trade plan của
    agent (Q15); lệch `+07:00` cố định so với convention `TimeZoneInfo` của `GetPendingThesisReviewsQuery`;

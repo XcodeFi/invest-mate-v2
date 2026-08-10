@@ -1928,14 +1928,14 @@ git commit -m "feat(dossier): trang hồ sơ công ty, banner chặn và luồng
 ## Task 8: Tài liệu + ADR cho chặng 1
 
 **Files:**
-- Create: `docs/adr/0010-company-dossier-gate-at-plan-creation.md`
+- Create: `docs/adr/0011-company-dossier-gate-at-plan-creation.md`
 - Modify: `docs/architecture.md`, `docs/business-domain.md`, `docs/features.md`, `docs/project-context.md`
 - Modify: `frontend/src/assets/CHANGELOG.md`
 - Create: `frontend/src/assets/docs/ho-so-cong-ty.md` + đăng ký Help topic
 
 **Interfaces:** không có code mới.
 
-- [ ] **Step 1: Viết ADR-0010**
+- [ ] **Step 1: Viết ADR-0011**
 
 Theo [template](../../adr/template.md). Hai quyết định phải ghi, vì cả hai đi ngược tiền lệ hoặc phản trực giác:
 
@@ -1961,7 +1961,7 @@ Thêm entry ở **đầu** `frontend/src/assets/CHANGELOG.md` với version th�
 
 ```bash
 git add docs frontend/src/assets
-git commit -m "docs: tài liệu và ADR-0010 cho hồ sơ công ty"
+git commit -m "docs: tài liệu và ADR-0011 cho hồ sơ công ty"
 ```
 
 ---

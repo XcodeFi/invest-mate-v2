@@ -65,7 +65,7 @@ User (1)
  ├── Role                     ← UserRole enum: User (default) / Admin (debug tooling)
  ├── LastLoginAt (nullable)   ← Timestamp của lần login Google OAuth gần nhất (không cập nhật khi refresh/impersonate)
  ├── ApiKey (N)               ← Personal access token (non-interactive API access, xem ADR-0003)
- └── CompanyDossier (N)       ← Hồ sơ hiểu doanh nghiệp, khóa (UserId, Symbol) — gate chặn tạo TradePlan (ADR-0009)
+ └── CompanyDossier (N)       ← Hồ sơ hiểu doanh nghiệp, khóa (UserId, Symbol) — gate chặn tạo TradePlan (ADR-0011)
       ├── MoatItem (N)         ← Value object, embedded
       └── RiskFactor (N)       ← Value object, embedded, rank dense 1..N, tối đa 1 IsDealBreaker
 
@@ -403,7 +403,7 @@ Token dạng `imk_` + base64url(32 random bytes) — cho phép truy cập API th
 - `IsActive` = `RevokedAt == null && DateTime.UtcNow < ExpiresAt`.
 - ApiKey auth scheme **chỉ được chấp nhận trên các endpoint opt-in** — không tự động áp dụng toàn API.
 
-### 3.15. Hồ sơ công ty & điều kiện chặn lập kế hoạch (2026-08-10, ADR-0009)
+### 3.15. Hồ sơ công ty & điều kiện chặn lập kế hoạch (2026-08-10, ADR-0011)
 
 Không cho tạo `TradePlan` mới cho một mã khi chưa có `CompanyDossier` cho mã đó đã được người dùng **ký** và còn hiệu lực. Mục đích: gate `Thesis` hiện có chỉ đếm được độ dài câu chữ, không đếm được hiểu doanh nghiệp — hồ sơ ép trả lời "kiếm tiền bằng gì / moat ở đâu / rủi ro nào và biết nó đang xảy ra bằng dấu hiệu gì" **trước khi** xuống tiền, sống theo mã (viết một lần, dùng cho mọi lần mua mã đó) chứ không theo từng lệnh như `Thesis`.
 
@@ -442,7 +442,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 | Người dùng, qua UI (`PUT`) | Giữ nguyên | Đang đọc chính cái mình viết, không cần ký lại |
 | Agent, qua MCP (`upsert_company_dossier`, chặng 2, chưa làm) | Về `null` (`AgentDraftedAt` set) | Người dùng chưa đọc bản mới — nếu giữ nguyên thì đây là cửa hậu của quy tắc "agent không ký được" |
 
-**Agent viết được, không ký được** — điểm tựa của toàn bộ thiết kế: không có MCP tool nào đặt được `ConfirmedAt`. Nếu agent vừa viết vừa xác nhận thì gate đo "agent đã điền gì đó", không đo hiểu biết của người bỏ tiền. Chi tiết + 7 quyết định đi cùng: [ADR-0009](adr/0009-company-dossier-gate-at-plan-creation.md).
+**Agent viết được, không ký được** — điểm tựa của toàn bộ thiết kế: không có MCP tool nào đặt được `ConfirmedAt`. Nếu agent vừa viết vừa xác nhận thì gate đo "agent đã điền gì đó", không đo hiểu biết của người bỏ tiền. Chi tiết + 7 quyết định đi cùng: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md).
 
 **Điểm bắn gate:**
 
@@ -489,7 +489,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 | AI Agent portfolio+fee (ApiKey scheme) | `/api/v1/ai/agent/{portfolios,fees/calculate}` | **Đủ thông tin khi mở/đóng vị thế (ADR-0005, 2026-07-23)** — `GET portfolios` (mirror `GetAllPortfoliosQuery`) để lấy `portfolioId`; `POST fees/calculate` (mirror `FeesController`, inject `IFeeCalculationService`) để tính phí/thuế. Cùng với `POST trades` nới lỏng: `portfolioId` bỏ trống → auto-pick khi user có đúng 1 danh mục (0/>1 → `400`); `fee`/`tax` bỏ trống → tự tính (fee = phí giao dịch + VAT + TNCN; TNCN 0.1% chỉ SELL). Resolve nằm ở agent controller, JWT `CreateTradeCommand` không đổi. |
 | MCP (ApiKey scheme) | `/mcp` | **Model Context Protocol server (2026-07-24)** — cùng toàn bộ bề mặt agent trên nhưng dạng **tool có schema** cho MCP client (Claude Desktop/IDE/NPU). Streamable HTTP, stateless, sau ApiKey scheme (`UserId` = `sub`). **46 tool** (11 lớp `[McpServerToolType]` trong `Mcp/`) re-dispatch đúng MediatR command/query — không thêm business logic. 29 tool mirror bề mặt `AiAgent*Controller`; **8 tool P0 Decision & Risk (chỉ đọc, 2026-07-25)** mở query chưa có ở REST agent: decision queue (gộp alert SL + scenario + thesis review), discipline score/streak, portfolio risk (VaR/Sharpe/drawdown), stop-loss targets, trailing-stop alerts, pending thesis reviews, scenario advisories. **+1 tool `get_daily_digest` (2026-07-26)** — bản tin hằng ngày (danh mục + số dư + sizing) dạng MCP tool, thay cho REST `POST /ai/daily-digest` phía agent. **8 tool P1 Analytics (chỉ đọc, 2026-07-26)** — "tôi đang làm ăn thế nào": performance (total/MTD/YTD), equity curve, monthly returns, savings comparison (alpha vs gửi tiết kiệm, param `annualRate`/`asOf`), campaign analytics (win rate, lọc `timeHorizon`), net worth summary, flow history (nạp/rút/cổ tức, lọc `from`/`to`), adjusted return (TWR/MWR) — 6/8 per-portfolio, ownership check ở handler. Read → `ReadOnly`, write → `Destructive` (host tự hỏi xác nhận). Additive: REST `/ai/agent/*` giữ nguyên; MCP thay `/doc` markdown bằng `tools/list`. |
 | PersonalFinance | `/api/v1/personal-finance` | **Tài chính cá nhân (Tier 3)**: profile, net worth summary với health score 0-100, live gold prices từ 24hmoney, CRUD accounts với Gold auto-calc, **CRUD debts + Net Worth + rule 4 cảnh báo nợ tiêu dùng lãi cao** |
-| CompanyDossiers | `/api/v1/company-dossiers` | **Hồ sơ công ty — gate chặn tạo trade plan (2026-08-10, ADR-0009)**: `GET` list, `GET /{symbol}`, `PUT /{symbol}` upsert (JWT luôn `ByAgent=false`), `POST /{symbol}/confirm` (đường duy nhất đặt `ConfirmedAt`), `GET /{symbol}/gate-status` pre-flight (`quantity`/`entryPrice`/`accountBalance` bắt buộc, thiếu → 400) |
+| CompanyDossiers | `/api/v1/company-dossiers` | **Hồ sơ công ty — gate chặn tạo trade plan (2026-08-10, ADR-0011)**: `GET` list, `GET /{symbol}`, `PUT /{symbol}` upsert (JWT luôn `ByAgent=false`), `POST /{symbol}/confirm` (đường duy nhất đặt `ConfirmedAt`), `GET /{symbol}/gate-status` pre-flight (`quantity`/`entryPrice`/`accountBalance` bắt buộc, thiếu → 400) |
 
 ---
 
@@ -544,4 +544,4 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 15. **High-interest consumer debt rule**: Health score rule 4 trừ **−20 điểm cứng (binary)** khi có debt type `CreditCard` hoặc `PersonalLoan` với `InterestRate > 20%/năm` (strict). Ngưỡng cutoff theo thực tế VN (CC ~24-36%, vay tín chấp ~15-25%). `Mortgage/Auto/Installment` không áp rule này. Null interest = 0 (không trigger).
 16. **Trade creation ownership check (AI Agent IDOR fix, 2026-07-21)**: `CreateTradeCommand` và `BulkCreateTradesCommand` handlers phải assert `portfolio.UserId == sub` sau khi load portfolio — không chỉ kiểm tra portfolio tồn tại. Áp dụng cho mọi caller (JWT lẫn ApiKey). Audit marker `Source=AI_AGENT` được ghi vào `Metadata` khi request đến từ `AiAgentController`.
 17. **Size-based thesis discipline gate (Vin-discipline, 2026-04-23)**: TradePlan muốn chuyển `Draft → Ready` hoặc `Draft → InProgress` phải pass gate theo **size**: nếu `Quantity × EntryPrice ≥ 5% AccountBalance` → **bắt buộc** `Thesis.Length ≥ 30` + `InvalidationCriteria.Count ≥ 1` (mỗi rule `Detail.Length ≥ 20`); nếu plan size nhỏ hơn hoặc `AccountBalance` null → chỉ cần `Thesis.Length ≥ 15`, rule optional. Gate fold vào `MarkReady()` và `MarkInProgress()`, throw `InvalidOperationException` → controller map HTTP 400 code `DISCIPLINE_GATE_FAILED`. Plan có `LegacyExempt=true` được miễn gate khi edit Draft (nhưng vẫn bị gate khi transition).
-18. **Company dossier gate chặn ngay lúc tạo plan (2026-08-10, ADR-0009)**: `TradePlan` không tạo được cho một mã chưa có `CompanyDossier` đã ký và còn hiệu lực (`Fresh`/`NeedsReview`) — chặn ở lúc **tạo**, không phải lúc `Draft → Ready` như gate #17. Sửa plan cũng chạy gate khi tỷ lệ vượt ngưỡng 5% hoặc khi `Symbol` đổi. Không có `LegacyExempt` tương đương — mọi plan mới đều cần hồ sơ, không có ngoại lệ chuyển tiếp. Throw `DossierGateException` (kế thừa `InvalidOperationException`) → HTTP 400 code `DOSSIER_GATE_FAILED` kèm `missing[]`. Chi tiết §3.15.
+18. **Company dossier gate chặn ngay lúc tạo plan (2026-08-10, ADR-0011)**: `TradePlan` không tạo được cho một mã chưa có `CompanyDossier` đã ký và còn hiệu lực (`Fresh`/`NeedsReview`) — chặn ở lúc **tạo**, không phải lúc `Draft → Ready` như gate #17. Sửa plan cũng chạy gate khi tỷ lệ vượt ngưỡng 5% hoặc khi `Symbol` đổi. Không có `LegacyExempt` tương đương — mọi plan mới đều cần hồ sơ, không có ngoại lệ chuyển tiếp. Throw `DossierGateException` (kế thừa `InvalidOperationException`) → HTTP 400 code `DOSSIER_GATE_FAILED` kèm `missing[]`. Chi tiết §3.15.
