@@ -24,7 +24,7 @@
 - `src/InvestmentApp.Domain/Entities/CompanyDossier.cs`, `src/InvestmentApp.Application/CompanyDossiers/`, `src/InvestmentApp.Infrastructure/Repositories/CompanyDossierRepository.cs`, `src/InvestmentApp.Api/Controllers/CompanyDossiersController.cs`.
 - `frontend/src/app/features/company-dossier/`, `frontend/src/app/core/services/company-dossier.service.ts`.
 - `docs/adr/0011-company-dossier-gate-at-plan-creation.md` (mới).
-- Tests: verify thật DB prod (tài khoản test, mã HPG) 8/8 qua API + 22 mục qua browser. 1596 backend + 152 frontend pass, không regression.
+- Tests: verify thật DB prod (tài khoản test, mã HPG) 8/8 qua API + 22 mục qua browser. 1.717 test backend + 171 test frontend pass, không regression (số đo sau khi rebase lên master).
 
 ---
 
