@@ -227,6 +227,43 @@ public class TradePlanDossierGateWiringTests
     }
 
     [Fact]
+    public async Task Update_WithEmptyLotsArray_ShouldNotZeroOutQuantity()
+    {
+        // Đường sửa trước đây chỉ kiểm `Lots != null`, thiếu `Count > 0` mà đường tạo có.
+        // `lots: []` làm SetLots(mode, []) chạy và gán Quantity = lots.Sum(...) = 0 SAU khi
+        // cổng đã chấm theo quantity cũ — fail an toàn, nhưng để lại plan Quantity = 0 là
+        // dữ liệu vô nghĩa. Phương án A: bỏ qua lots rỗng, giữ nguyên quantity.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m,
+            out var repo);
+        var command = TestFactory.UpdateCommandWithLots(new List<PlanLotDto>());
+
+        await handler.Handle(command, default);
+
+        repo.Verify(r => r.UpdateAsync(It.Is<TradePlan>(p => p.Quantity == 20),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_WithNonEmptyLots_ShouldStillApplyThem()
+    {
+        // Mutation guard: bỏ hẳn nhánh SetLots cũng làm test trên xanh. Ca này giữ cho
+        // `Count > 0` là điều kiện thu hẹp, không phải cái công tắc tắt luôn multi-lot.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m,
+            out var repo);
+        var command = TestFactory.UpdateCommandWithLots(new List<PlanLotDto>
+        {
+            new() { LotNumber = 1, PlannedPrice = 100_000m, PlannedQuantity = 7 }
+        });
+
+        await handler.Handle(command, default);
+
+        repo.Verify(r => r.UpdateAsync(It.Is<TradePlan>(p => p.Quantity == 7),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Update_WhenAccountBalanceNull_ShouldNotRunGateRegardlessOfSize()
     {
         var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,

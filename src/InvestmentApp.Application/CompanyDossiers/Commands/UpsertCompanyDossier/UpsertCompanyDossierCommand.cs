@@ -35,8 +35,20 @@ public class UpsertCompanyDossierCommandHandler : IRequestHandler<UpsertCompanyD
             if (request.ByAgent)
                 created.UpdateByAgent(request.BusinessModel, request.Moats, request.RiskFactors, request.Notes);
 
-            await _repo.CreateAsync(created);
-            return created.Id;
+            try
+            {
+                await _repo.CreateAsync(created);
+                return created.Id;
+            }
+            catch (DuplicateDossierException)
+            {
+                // Một request khác đã tạo xong hồ sơ này giữa lúc ta thấy null và lúc ta
+                // insert. Tìm lại ĐÚNG MỘT LẦN rồi rơi xuống đường cập nhật bên dưới —
+                // insert lại chỉ va vào đúng index unique đó, và vòng lặp thì đổi 500
+                // thành treo request.
+                existing = await _repo.GetAsync(request.UserId, request.Symbol);
+                if (existing is null) throw;
+            }
         }
 
         if (request.ByAgent)

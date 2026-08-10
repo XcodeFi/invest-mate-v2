@@ -35,8 +35,22 @@ public class CompanyDossierRepository : ICompanyDossierRepository
             .SortBy(d => d.Symbol)
             .ToListAsync();
 
+    // Phân biệt bằng TÊN index, không bằng "có phải DuplicateKey không" — collection
+    // này sau có thêm index unique thứ hai thì lỗi của nó không được đội lốt trùng
+    // (UserId, Symbol), vì caller sẽ thử lại bằng find và tìm không ra.
     public async Task CreateAsync(CompanyDossier dossier)
-        => await _collection.InsertOneAsync(dossier);
+    {
+        try
+        {
+            await _collection.InsertOneAsync(dossier);
+        }
+        catch (MongoWriteException ex) when (
+            ex.WriteError?.Category == ServerErrorCategory.DuplicateKey
+            && ex.WriteError.Message.Contains("ux_user_symbol"))
+        {
+            throw new DuplicateDossierException(dossier.UserId, dossier.Symbol, ex);
+        }
+    }
 
     public async Task UpdateAsync(CompanyDossier dossier)
         => await _collection.ReplaceOneAsync(d => d.Id == dossier.Id, dossier);

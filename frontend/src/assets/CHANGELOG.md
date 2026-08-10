@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.76.2] — 2026-08-10 · Bấm Lưu hai lần không còn ra lỗi, và lô rỗng không xoá mất số lượng
+
+### Sửa
+
+**🔁 Bấm "Lưu" hồ sơ công ty hai lần thật nhanh không còn báo lỗi.** Lưu hồ sơ là *tìm trước, chưa có thì tạo*. Hai lần bấm sát nhau cùng thấy "chưa có", cùng tạo, và cái thứ hai đâm vào ràng buộc "một hồ sơ cho mỗi mã" của cơ sở dữ liệu — bạn nhận về lỗi hệ thống dù chẳng làm gì sai.
+
+Giờ lần thứ hai tự nhận ra mình thua cuộc, tìm lại bản vừa được tạo và cập nhật lên đó. Đúng **một lần** thử lại — nếu vẫn không thấy thì báo lỗi thật, vì thử lại mãi chỉ đổi một lỗi hiện ra ngay thành một request treo không biết bao giờ xong.
+
+Bản thử lại đi qua đúng đường cập nhật thường ngày: **trợ lý AI sửa thì hồ sơ vẫn mất chữ ký** và bạn vẫn phải ký lại. Không có cửa sau nào mở ra ở đây.
+
+**🧮 Sửa kế hoạch với danh sách lô rỗng không còn làm số lượng về 0.** Đường sửa thiếu một điều kiện mà đường tạo có: gửi lên danh sách lô rỗng thì nó vẫn chạy phần ghi lô và gán số lượng = tổng của rỗng = 0. Cổng kỷ luật đã chấm theo số lượng cũ trước đó nên **không có lệnh lớn nào lọt** — nhưng kế hoạch còn lại là số 0 vô nghĩa.
+
+Đánh đổi đã chọn có ý thức: **vẫn chưa có cách xoá sạch toàn bộ lô qua API**. Màn hình kế hoạch không gửi danh sách rỗng bao giờ nên không ai mất đường nào; thêm một cờ "xoá hết lô" là thêm một đường ghi phải canh, để khi nào có nhu cầu thật.
+
+### Nội bộ
+
+- Test: **1.804 pass** (Domain 787, Application 409, Infrastructure 389, Api 219).
+- Lỗi trùng khoá được đổi thành kiểu riêng và phân biệt bằng **tên index**, không bằng chuỗi lỗi chung — collection này sau có thêm ràng buộc unique khác thì lỗi của nó không bị đội lốt.
+
+---
+
 ## [v2.76.1] — 2026-08-10 · Câu báo thiếu của cổng hồ sơ đọc thành một khối
 
 ### Sửa
