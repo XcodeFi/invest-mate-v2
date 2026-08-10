@@ -416,7 +416,7 @@ Không cho tạo `TradePlan` mới cho một mã khi chưa có `CompanyDossier` 
 | `RiskFactors` (rủi ro xếp hạng 1..N, rank 1 = nguy hiểm nhất) | ✅ | Mỗi rủi ro **bắt buộc** `ObservableSignal` — "biết nó đang xảy ra bằng gì". Tối đa 1 được đánh dấu `IsDealBreaker`. Tầng lớn cần ≥ 3, mỗi `ObservableSignal` ≥ 20 ký tự |
 | `Notes` (ghi chú tự do) | ❌ | Không ảnh hưởng điều kiện chặn |
 
-**Ngưỡng đủ theo size** — cùng công thức 5% tài khoản (`TradePlan.LargeTierThreshold`) với gate kỷ luật thesis hiện có:
+**Ngưỡng đủ theo size** — cùng công thức 5% tài khoản (`TradePlan.LargeTierThreshold`) với gate kỷ luật thesis hiện có. Riêng khi request có áp lots (`EntryMode` + `Lots` đủ để `SetLots` chạy), size chấm theo **mức lớn hơn** giữa `tổng(lô × giá lô)` và `tổng lô × giá header`, vì `SetLots` ghi `Quantity` theo tổng lô nhưng không chạm `EntryPrice` — chấm theo một vế là mở đường hạ bậc bằng cách bỏ trống vế còn lại (xem ADR-0011 D9):
 
 | | Tầng nhỏ (`Quantity × EntryPrice < 5% AccountBalance` hoặc không biết số dư) | Tầng lớn (`≥ 5%`) |
 |---|---|---|

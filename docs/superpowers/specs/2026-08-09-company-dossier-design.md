@@ -149,13 +149,16 @@ newRatio  dùng (request.Quantity ?? plan.Quantity)
           × (request.EntryPrice ?? plan.EntryPrice)   / (request.AccountBalance ?? plan.AccountBalance)
 ```
 
-Hai chỗ dễ sai, cả hai đều mở lại đúng cửa hậu mà luồng này sinh ra để bịt:
+Năm chỗ dễ sai, mỗi chỗ đều mở lại đúng cửa hậu mà luồng này sinh ra để bịt. Cả năm đều đã xảy ra thật trên nhánh này — đây là danh sách hậu nghiệm, không phải danh sách phòng xa:
 
 - **Update là partial.** `Quantity` là `int?`, `EntryPrice` là `decimal?`, và `TradePlan.Update` chỉ gán khi `HasValue`. Không fallback về giá trị cũ thì sửa mỗi `Quantity` sẽ cho size bằng 0 và gate không bao giờ bắn.
 - **`AccountBalance` cũng nằm trong cùng payload sửa.** Tính ngưỡng theo số dư cũ thì một request vừa nâng size vừa hạ số dư sẽ lọt: plan 2M trên 100M, sửa lên 4M kèm hạ số dư còn 50M → ngưỡng cũ 5M nên 4M < 5M, gate không bắn, còn tỷ lệ thật là 8%. Form FE gửi lại toàn bộ field mỗi lần lưu nên đây không phải trường hợp hiếm.
 - **`Symbol` cũng sửa được, và nó là đầu vào thứ ba của phép so.** Gate phải chấm theo **mã mới**, chuẩn hoá `ToUpper().Trim()` như entity. Đọc `plan.Symbol` là đọc mã cũ, vì `plan.Update(request.Symbol, …)` chạy sau điểm bắn: plan 2% mã A đã có hồ sơ ký, sửa sang mã B kèm nâng lên 12% thì gate chạy nhưng chấm A và A đỗ — thành vị thế 12% ở B không có hồ sơ nào. Biến thể không đổi size còn không chạy gate lần nào.
 
-Ba cửa hậu trên cùng một họ: **một đầu vào của phép so đọc ở thời điểm sai.** Khi thêm field nào vào `TradePlan.Update` mà gate có dùng, kiểm lại danh sách này.
+- **`SetLots` ghi `Quantity` sau điểm bắn, và điều kiện chạy của nó không giống điều kiện gate dùng để chấm.** `plan.SetLots(mode, lots)` gán `Quantity = lots.Sum(PlannedQuantity)`, nên `quantity: 1` kèm `lots` cực lớn là đỗ bậc nhỏ rồi persist một plan vượt xa 5%. Nhưng vá nửa vời còn tệ hơn: nếu gate suy ra "có lots" bằng `lots.Count > 0` trong khi `SetLots` chỉ chạy khi `EntryMode != null && Lots != null`, thì payload `Lots` có phần tử + `EntryMode` bỏ trống làm gate chấm theo tổng lots (nhỏ) còn entity giữ `Quantity` header (lớn) — hạ bậc đúng bằng tỷ lệ hai số đó, và validator không có rule nào cho `EntryMode`/`Lots` nên payload này đi thẳng vào handler. **Quy tắc: điều kiện "có lots hay không" phải là một biến duy nhất, tính một lần, dùng cho cả gate lẫn lệnh `SetLots`** — không phải hai biểu thức viết giống nhau ở hai chỗ, vì hai đường tạo/sửa hiện có điều kiện rộng hẹp khác nhau (`Count > 0` chỉ có ở đường tạo).
+- **Giá cũng có hai nguồn, không chỉ số lượng.** `SetLots` không chạm `EntryPrice`, nên plan lưu xuống có size `tổng lô × giá header`, còn vốn thật cam kết ở các lô là `tổng(lô × giá lô)`. Chấm theo một vế là mở đường hạ bậc theo vế còn lại: để `EntryPrice: 1` với lô giá thật 5tr, hoặc để giá lô `0` với header có giá. Phải chấm **mức lớn hơn** giữa hai cách tính.
+
+Năm cửa hậu trên cùng một họ: **một đầu vào của phép so đọc ở thời điểm sai, hoặc đọc từ nguồn sai.** Hai dấu hiệu để soi lại danh sách này: (a) thêm field nào vào `TradePlan.Update` mà gate có dùng; (b) thêm bất kỳ mutator nào chạy **sau** điểm bắn mà chạm `Quantity`/`EntryPrice`/`Symbol` — kể cả mutator nằm trong file entity không đổi, ngoài diff. Cửa hậu thứ tư và thứ năm đều sống sót qua review vì review nào cũng soi diff, mà `SetLots` thì không nằm trong diff.
 
 `AccountBalance` null hoặc ≤ 0 ở **cả hai** thời điểm ⇒ không có ngưỡng nào để vượt ⇒ không chạy gate. Đây là hệ quả có ý thức của Q4 (không biết số dư thì coi như lệnh nhỏ), không phải bỏ sót.
 

@@ -483,6 +483,8 @@ Ngưỡng phản chiếu đúng `TradePlan.LargeTierThreshold` (`= 0.05m`, một
 
 **Hợp đồng `gate-status` (pre-flight, không phải chỗ để đoán):** `DossierGateStatusDto { Symbol, Passed, Reason, Missing[], Freshness }`. `quantity`/`entryPrice`/`accountBalance` là query param **bắt buộc** — thiếu bất kỳ cái nào trả 400, vì thay thiếu bằng 0 sẽ chấm ở bậc nhỏ trong khi `POST /trade-plans` (nhận `AccountBalance` trong body) chấm ở bậc lớn, khiến bước kiểm-trước nói đỗ rồi lệnh tạo thật vẫn 400. `Freshness` bắt buộc có vì `NeedsReview` (90-179 ngày) **đỗ** gate — không có field này thì hồ sơ 4 tháng trả `passed=true` mà UI không có gì để nhắc soát lại (nhắc là việc của UI, không phải của gate).
 
+**Bất biến khi sửa hai handler (ADR-0011 D9) — năm cửa hậu đã phải vá đều vi phạm đúng chỗ này:** giá trị gate chấm phải bằng giá trị plan **thực sự lưu xuống**. Cụ thể: `willApplyLots` là **một biến duy nhất** tính một lần trong handler, dùng cho cả điểm bắn gate lẫn lệnh `plan.SetLots` (không viết lại điều kiện ở chỗ thứ hai — điều kiện hai đường khác nhau: đường tạo có `Count > 0`, đường sửa không); `ResolveEffectiveGateInputs` trả thẳng `PlanSize` để không caller nào nhân lại theo cách riêng; và khi có lots thì size lấy **mức lớn hơn** giữa `tổng(lô × giá lô)` và `tổng lô × giá header`. Thêm bất kỳ mutator nào chạy sau điểm bắn mà chạm `Quantity`/`EntryPrice`/`Symbol` là phải soi lại danh sách này — kể cả mutator nằm trong file entity không đổi, ngoài diff (đó là lý do cửa hậu thứ tư và thứ năm sống sót qua nhiều vòng review).
+
 **Đã biết, không phải bug:**
 
 - Lệnh trade plan **đầu tiên sau khi deploy** bị chặn với mọi mã, kể cả mã đang giữ — không có grandfathering (ADR-0011 D5).

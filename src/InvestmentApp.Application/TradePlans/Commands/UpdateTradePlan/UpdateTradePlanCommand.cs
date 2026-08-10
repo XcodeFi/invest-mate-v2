@@ -74,12 +74,16 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         // không phải giá trị thô trên request — gộp vào ResolveEffectiveGateInputs (dùng
         // chung với đường tạo) thay vì 3-4 vế "?? " tách rời như trước, đó là lý do bug
         // đọc-sai-thời-điểm lặp lại nhiều lần.
+        // willApplyLots phải khớp ĐÚNG điều kiện gọi SetLots bên dưới. Điều kiện của đường sửa
+        // rộng hơn đường tạo (không kiểm Count > 0) nên không dùng chung một hằng biểu thức được
+        // — mỗi handler tự tính rồi truyền vào, và dùng lại chính biến đó ở chỗ ghi.
+        var willApplyLots = request.EntryMode != null && request.Lots != null;
         var oldSize = plan.Quantity * plan.EntryPrice;
         var gateInputs = CreateTradePlanCommandHandler.ResolveEffectiveGateInputs(
             existingPlan: plan,
-            request.Quantity, request.Lots,
+            request.Quantity, request.Lots, willApplyLots,
             request.EntryPrice, request.AccountBalance, request.Symbol);
-        var newSize = gateInputs.Quantity * gateInputs.EntryPrice;
+        var newSize = gateInputs.PlanSize;
         var newBalance = gateInputs.AccountBalance;
 
         var oldThreshold = (plan.AccountBalance ?? 0m) * TradePlan.LargeTierThreshold;
@@ -138,8 +142,8 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
             request.ExpectedReviewDate
         );
 
-        // Multi-lot support
-        if (request.EntryMode != null && request.Lots != null)
+        // Multi-lot support — willApplyLots là biến cổng đã chấm theo, không viết lại điều kiện.
+        if (willApplyLots)
         {
             var entryMode = Enum.Parse<EntryMode>(request.EntryMode, ignoreCase: true);
             var lots = request.Lots.Select(l => new PlanLot

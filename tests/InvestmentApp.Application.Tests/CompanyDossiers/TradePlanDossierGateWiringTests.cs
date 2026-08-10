@@ -98,6 +98,98 @@ public class TradePlanDossierGateWiringTests
     }
 
     [Fact]
+    public async Task Create_LotsPresentButEntryModeMissing_ShouldGateOnHeaderQuantity()
+    {
+        // SetLots chỉ chạy khi có ĐỦ cả EntryMode và Lots. Thiếu EntryMode thì Quantity giữ
+        // nguyên giá trị header, nên cổng phải chấm theo header. Chấm theo tổng lots là hạ
+        // bậc: header 1.000.000 × 100 = 100tr (100% số dư) lại đi qua cổng bậc nhỏ.
+        var handler = TestFactory.CreateTradePlanHandler(_gate.Object, out _);
+        var command = TestFactory.CreateCommand(userId: "user-1", symbol: "HPG");
+        command.Quantity = 1_000_000;
+        command.EntryPrice = 100m;
+        command.AccountBalance = 100_000_000m;
+        command.EntryMode = null;
+        command.Lots = new List<PlanLotDto>
+        {
+            new() { LotNumber = 1, PlannedPrice = 100m, PlannedQuantity = 1 }
+        };
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG",
+            100_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_LotsPresentButEntryModeMissing_ShouldGateOnHeaderQuantity()
+    {
+        // Cùng lỗ hổng trên đường sửa: chấm theo tổng lots (=1) thì newSize chỉ 100.000đ,
+        // dưới ngưỡng nên cổng KHÔNG chạy lần nào, trong khi plan lưu xuống là 100 tỷ.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+        var command = new UpdateTradePlanCommand
+        {
+            Id = "plan-1",
+            UserId = "user-1",
+            Quantity = 1_000_000,
+            EntryPrice = 100_000m,
+            Lots = new List<PlanLotDto>
+            {
+                new() { LotNumber = 1, PlannedPrice = 100_000m, PlannedQuantity = 1 }
+            }
+        };
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG",
+            100_000_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Create_LotPriceAboveHeaderPrice_ShouldGateOnLotsDerivedCapital()
+    {
+        // Quantity đã đọc từ lots nhưng GIÁ vẫn đọc từ header — cùng một hình dạng lỗi.
+        // Header 1đ + lô giá thật 5tr là chấm 100.000đ cho một cam kết 500 tỷ.
+        var handler = TestFactory.CreateTradePlanHandler(_gate.Object, out _);
+        var command = TestFactory.CreateCommand(userId: "user-1", symbol: "HPG");
+        command.Quantity = 1;
+        command.EntryPrice = 1m;
+        command.AccountBalance = 100_000_000m;
+        command.EntryMode = "ScalingIn";
+        command.Lots = new List<PlanLotDto>
+        {
+            new() { LotNumber = 1, PlannedPrice = 5_000_000m, PlannedQuantity = 100_000 }
+        };
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG",
+            500_000_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Create_LotsWithoutPlannedPrice_ShouldGateOnHeaderPriceNotZero()
+    {
+        // Chặn bản sửa ngây thơ "planSize = tổng(lô × giá lô)": để trống giá lô là hạ bậc
+        // theo chiều còn lại. Phải chấm mức LỚN HƠN giữa hai cách tính.
+        var handler = TestFactory.CreateTradePlanHandler(_gate.Object, out _);
+        var command = TestFactory.CreateCommand(userId: "user-1", symbol: "HPG");
+        command.Quantity = 1;
+        command.EntryPrice = 100m;
+        command.AccountBalance = 100_000_000m;
+        command.EntryMode = "ScalingIn";
+        command.Lots = new List<PlanLotDto>
+        {
+            new() { LotNumber = 1, PlannedPrice = 0m, PlannedQuantity = 100_000 }
+        };
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG",
+            10_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Update_WhenSizeCrossesThresholdUpward_ShouldRunGateWithNewSize()
     {
         var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
