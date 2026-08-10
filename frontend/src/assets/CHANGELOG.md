@@ -23,7 +23,7 @@
 - `src/InvestmentApp.Api/Mcp/CompanyDossierTools.cs` (mới) — 4 công cụ MCP, **cố ý không có công cụ ký**.
 - `src/InvestmentApp.Api/Mcp/McpDossierGate.cs` (mới) — dịch lỗi cổng sang thông báo trợ lý đọc được.
 - `frontend/src/app/shared/components/header/header.component.ts`, `frontend/src/app/features/company-dossier/company-dossier-detail.component.ts`.
-- Tests: 1748 test backend + 174 test frontend pass. Có test chặn việc thêm công cụ ký qua MCP về sau, và test chặn việc bọc rộng làm che các lỗi khác.
+- Tests: 1754 test backend + 174 test frontend pass. Có test chặn việc thêm công cụ ký qua MCP về sau, test chặn việc bọc rộng làm che các lỗi khác, và test ghim mọi công cụ hồ sơ đều lấy danh tính từ khoá API chứ không từ tham số người gọi truyền vào.
 
 ---
 

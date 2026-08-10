@@ -450,7 +450,7 @@ Plan: [`docs/plans/done/dashboard-decision-engine.md`](plans/done/dashboard-deci
 
 ## Hồ sơ công ty — gate chặn tạo trade plan (chặng 1, 2026-08-10)
 
-Không cho tạo trade plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký và còn hiệu lực. Quyết định thiết kế đầy đủ: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md). Plan 3 chặng: [`docs/superpowers/plans/2026-08-09-company-dossier-guard.md`](superpowers/plans/2026-08-09-company-dossier-guard.md) — **chặng 1** (entity + gate + trang hồ sơ) done; chặng 2 (phơi fundamentals + MCP) và chặng 3 (đề xuất InvalidationRule + pending-reviews) chưa làm.
+Không cho tạo trade plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký và còn hiệu lực. Quyết định thiết kế đầy đủ: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md). Plan 3 chặng: [`docs/superpowers/plans/2026-08-09-company-dossier-guard.md`](superpowers/plans/2026-08-09-company-dossier-guard.md) — **chặng 1** (entity + gate + trang hồ sơ) done; **chặng 2 phần MCP** (4 tool hồ sơ + dịch lỗi cổng) done; phần còn lại của chặng 2 (`get_company_fundamentals` + panel dữ liệu doanh nghiệp) và chặng 3 (đề xuất InvalidationRule + pending-reviews) chưa làm.
 
 **Gate — vị trí bắn (Application layer, đọc `ICompanyDossierRepository` nên không đặt trong entity `TradePlan`):**
 
@@ -492,7 +492,7 @@ Ngưỡng phản chiếu đúng `TradePlan.LargeTierThreshold` (`= 0.05m`, một
 **Đã biết, không phải bug:**
 
 - Lệnh trade plan **đầu tiên sau khi deploy** bị chặn với mọi mã, kể cả mã đang giữ — không có grandfathering (ADR-0011 D5).
-- Đường ghi trade plan của agent (ApiKey `AiAgentController` + MCP) **tắt hoàn toàn** cho tới khi chặng 2 phơi `upsert_company_dossier` — `DossierGateException` trong MCP tool không đi qua `ExceptionMiddleware` nên agent hiện chỉ nhận thông báo lỗi, mất `missing[]` (ADR-0011 D6).
+- Đường ghi trade plan của agent (ApiKey `AiAgentController` + MCP) **đã mở lại**: `upsert_company_dossier` cho agent soạn nội dung, `get_dossier_gate_status` cho nó biết còn thiếu gì trước khi thử tạo plan, và `McpDossierGate` giữ nguyên `reason` + `missing[]` trong thông báo lỗi (`ExceptionMiddleware` chỉ phục vụ đường REST). Agent vẫn **không ký được** — hệ quả D6 của ADR-0011 chỉ còn đúng ở phần đó. Trong khoảng thời gian chặng 1 đã live mà chặng 2 chưa có, đường này bị khoá cứng trên prod; xem mục "Đã biết" bên dưới.
 
 **Tests:** verify thật trên DB prod (tài khoản test, mã HPG) 2 lượt — API 8/8 (chưa có hồ sơ → 400 `missing` → viết → 400 `unconfirmed` → ký → `Fresh` → tạo plan 201 → xóa plan) và browser 22 mục. Báo cáo browser ở `scratch/qa-reports/` (gitignored).
 
