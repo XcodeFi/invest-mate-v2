@@ -9,6 +9,7 @@ using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
 using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Application.Risk.Queries.GetStressTest;
 using InvestmentApp.Application.Risk.Queries.GetRiskBudget;
+using InvestmentApp.Application.Risk.Queries.GetSectorExposureForPlan;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -155,6 +156,38 @@ public class RiskController : ControllerBase
             UserId = GetUserId()
         };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tỷ trọng ngành hiện tại và sau một lệnh dự kiến, cho bước kiểm-trước ở form lập kế hoạch.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="symbol"/> và <paramref name="addValue"/> bắt buộc: thay giá trị thiếu bằng 0
+    /// sẽ trả về một con số trông như thật (tỷ trọng "sau lệnh" bằng tỷ trọng hiện tại).
+    /// </remarks>
+    [HttpGet("portfolio/{portfolioId}/sector-exposure")]
+    [ProducesResponseType(typeof(SectorExposureForPlan), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSectorExposureForPlan(
+        string portfolioId, [FromQuery] string symbol, [FromQuery] decimal? addValue,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return BadRequest(new { code = "SYMBOL_REQUIRED", message = "Thiếu tham số symbol" });
+        // decimal? chứ không phải decimal: kiểu không-nullable sẽ bind giá trị thiếu thành 0 trong
+        // im lặng, và 0 làm "tỷ trọng sau lệnh" bằng đúng tỷ trọng hiện tại — một con số trông như
+        // thật. Đây là chỗ tài liệu đã ghi tham số này bắt buộc, nên code phải bắt buộc thật.
+        if (addValue is null)
+            return BadRequest(new { code = "ADD_VALUE_REQUIRED", message = "Thiếu tham số addValue" });
+
+        var query = new GetSectorExposureForPlanQuery
+        {
+            PortfolioId = portfolioId,
+            UserId = GetUserId(),
+            Symbol = symbol,
+            AddValue = addValue.Value
+        };
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 

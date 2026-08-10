@@ -2,10 +2,10 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute } from '@angular/router';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil, catchError } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil, catchError, forkJoin } from 'rxjs';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult } from '../../core/services/risk.service';
+import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult, SectorExposureForPlan } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger } from '../../core/services/trade-plan.service';
@@ -1641,6 +1641,27 @@ interface DossierGateError {
               </a>
             </div>
 
+            <!-- Tỷ trọng ngành — CHỈ hiện số, không chặn gì. Khung màu trung tính có chủ đích: khung
+                 vàng/đỏ ở trên là cảnh báo chặn, khối này không phải. null hiện "n/a", không hiện 0%. -->
+            <div *ngIf="sectorNotice?.sector" data-testid="sector-notice"
+              class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="text-sm text-slate-700">
+                Ngành: <span class="font-semibold">{{ sectorNotice!.sector }}</span>
+              </div>
+              <div class="text-sm text-slate-600 mt-1">
+                Đang giữ <span data-testid="sector-current">{{ sectorPercentText(sectorNotice!.currentPercent) }}</span>
+                · Sau lệnh này
+                <span data-testid="sector-projected"
+                  [class.font-semibold]="sectorOverLimit()" [class.text-amber-700]="sectorOverLimit()">
+                  {{ sectorPercentText(sectorNotice!.projectedPercent) }}
+                </span>
+                · Hạn mức {{ sectorNotice!.limitPercent }}%
+              </div>
+              <div *ngIf="sectorNotice!.sameSectorSymbols.length" class="text-sm text-slate-500 mt-1">
+                Đang giữ cùng ngành: {{ sectorNotice!.sameSectorSymbols.join(', ') }}
+              </div>
+            </div>
+
             <!-- Dossier gate banner — chặn tạo/sửa plan vì hồ sơ công ty chưa đủ (Step 6) -->
             <div *ngIf="dossierGateError" class="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
               <div class="text-sm font-semibold text-red-700 mb-1">Không thể lưu — cổng hồ sơ công ty chặn</div>
@@ -2010,6 +2031,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   saving = false;
   dossierGateError: DossierGateError | null = null;
   dossierGateNotice: DossierGateStatusDto | null = null;
+  sectorNotice: SectorExposureForPlan | null = null;
   planFilterTab = 'all';
   planFilterTabs = [
     { key: 'all', label: 'Tất cả' },
@@ -2304,6 +2326,18 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     return (GATE_REASON_TEXT as Record<string, string>)[reason] || '';
   }
 
+  // null nghĩa là "chưa tính được", khác hẳn 0% nghĩa là "chưa giữ gì ngành này" — hiện 0 cho cả
+  // hai là gộp hai câu khác nhau thành một.
+  sectorPercentText(percent: number | null | undefined): string {
+    return percent === null || percent === undefined ? 'n/a' : `${percent}%`;
+  }
+
+  sectorOverLimit(): boolean {
+    const projected = this.sectorNotice?.projectedPercent;
+    if (projected === null || projected === undefined) return false;
+    return projected > (this.sectorNotice?.limitPercent ?? 0);
+  }
+
   /**
    * Forward giá trị hiện tại của form sang trang hồ sơ để ô đếm ký tự tính được % size —
    * chính người dùng vừa bị chặn ở size này nên cả ba giá trị đều có sẵn. Bỏ qua giá trị
@@ -2518,16 +2552,30 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         const quantity = this.plan.quantity || this.optimalShares;
         const entryPrice = this.plan.entryPrice;
         const accountBalance = this.accountBalance;
+        const empty = { gate: null as DossierGateStatusDto | null, sector: null as SectorExposureForPlan | null };
         if (!symbol || !quantity || !entryPrice || !accountBalance) {
-          return of(null);
+          return of(empty);
         }
-        return this.dossierService.gateStatus(symbol, quantity, entryPrice, accountBalance).pipe(
-          catchError(() => of(null))
-        );
+        const portfolioId = this.plan.portfolioId;
+        return forkJoin({
+          gate: this.dossierService.gateStatus(symbol, quantity, entryPrice, accountBalance).pipe(
+            catchError(() => of(null as DossierGateStatusDto | null))
+          ),
+          // Chưa chọn danh mục thì không có mẫu số để chia tỷ trọng — không gọi, và không đoán bằng 0.
+          // Chỉ lệnh MUA: phép chiếu cộng quy mô lệnh vào giá trị ngành, nên với lệnh BÁN nó báo
+          // tỷ trọng TĂNG đúng lúc lệnh đó làm GIẢM. Phạm vi tính năng là "sau lệnh mua dự kiến"
+          // (ADR-0012), nên đường bán không gọi thay vì hiện một con số sai dấu.
+          sector: portfolioId && isBuyTrade(this.plan.direction)
+            ? this.riskService.getSectorExposureForPlan(portfolioId, symbol, quantity * entryPrice).pipe(
+                catchError(() => of(null as SectorExposureForPlan | null))
+              )
+            : of(null as SectorExposureForPlan | null)
+        });
       }),
       takeUntil(this.destroy$)
-    ).subscribe((status) => {
-      this.dossierGateNotice = status && !status.passed ? status : null;
+    ).subscribe(({ gate, sector }) => {
+      this.dossierGateNotice = gate && !gate.passed ? gate : null;
+      this.sectorNotice = sector;
     });
   }
 

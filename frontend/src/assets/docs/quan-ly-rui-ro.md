@@ -39,6 +39,27 @@ Dashboard hiển thị cảnh báo khi:
 - **Stop-loss gần ngưỡng**: ≤ 5% → warning (vàng), ≤ 2% → danger (đỏ)
 - **Drawdown vượt mức**: > 10% → warning, > 20% → danger
 - **Tập trung danh mục**: Một vị thế chiếm quá nhiều % → cảnh báo
+- **Tập trung ngành**: Một ngành vượt hạn mức trong Risk Profile (mặc định 40%) → cảnh báo
+
+### Tập trung ngành
+
+Hạn mức ngành trả lời một câu mà hạn mức từng vị thế không trả lời được: *ba mã khác nhau nhưng cùng chết vì một lý do thì có phải là ba vị thế, hay là một?*
+
+**Đọc kỹ nếu bạn đã dùng ứng dụng trước 10/08/2026:** mục tỷ trọng ngành trên trang Rủi ro **chưa từng cảnh báo lần nào** cho tới bản v2.72.0 — nguồn tra ngành bị nối vào một dịch vụ trả về rỗng, nên mọi mã rơi vào rổ "Không xác định" và rổ đó được lập trình để không bao giờ báo vượt. Nếu trước đây bạn nhìn trang Rủi ro và thấy không có cảnh báo ngành nào, **đừng coi đó là bằng chứng danh mục đã phân bổ tốt**. Mở lại trang Rủi ro sau bản này.
+
+Vài điều nên biết khi đọc con số:
+
+- **Rổ "Không xác định" cũng bị so hạn mức.** Không biết mình đang dồn vào đâu là điều đáng cảnh báo, không phải điều đáng bỏ qua. Rổ này lớn nghĩa là nguồn dữ liệu chưa trả về ngành cho phần lớn danh mục.
+- **Ngành là thước đo gần đúng, không phải thước đo đúng.** Thép và xây dựng là hai ngành khác nhau nhưng chung một cú; chứng khoán và bất động sản cũng vậy. Hạn mức ngành bắt được trường hợp dễ, không bắt được trường hợp khó — phần khó vẫn là việc của bạn khi viết rủi ro trong hồ sơ công ty.
+- **Tiền mặt nằm trong mẫu số.** Tỷ trọng tính trên tổng giá trị danh mục gồm cả tiền chưa dùng, nên giữ nhiều tiền mặt sẽ làm mọi tỷ trọng ngành nhỏ đi.
+
+### Tỷ trọng ngành ngay trên form lập kế hoạch
+
+Khi bạn đã chọn danh mục và điền đủ mã + số lượng + giá vào + số dư, khối kiểm-trước trên form lập kế hoạch hiện thêm một dòng: ngành của mã, tỷ trọng **đang giữ**, tỷ trọng **sau lệnh này**, hạn mức, và các mã cùng ngành bạn đang giữ.
+
+Đây là **thông tin, không phải điều kiện chặn** — không nút nào bị khoá, kể cả khi lệnh đẩy ngành vượt xa hạn mức. Khung màu xám trung tính là để phân biệt với khung cảnh báo chặn màu vàng/đỏ của cổng hồ sơ công ty ngay phía trên. Lý do không chặn: nhãn ngành đến từ nguồn dữ liệu bên ngoài, và một cửa chặn dựa trên dữ liệu có thể sai sẽ chặn oan — rồi bạn học được cách bỏ qua các cửa chặn, kể cả cửa đang hoạt động đúng.
+
+Mã mà nguồn dữ liệu không trả về ngành sẽ hiện **"n/a"** chứ không hiện "0%". Hai câu này khác nhau: "n/a" là *chưa tính được*, "0%" là *chưa giữ gì ngành đó*.
 
 ### Hàng đợi quyết định trên Trang chủ
 

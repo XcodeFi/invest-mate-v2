@@ -52,6 +52,29 @@ public interface IRiskCalculationService
     /// Checks daily risk budget: trade count and daily P&L against limits.
     /// </summary>
     Task<RiskBudgetStatus> CheckRiskBudgetAsync(string portfolioId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tỷ trọng ngành hiện tại và tỷ trọng sau khi thêm <paramref name="addValue"/> cho một mã dự
+    /// kiến mua. Đặt ở service (không tính trong handler) để công thức totalValue chỉ tồn tại một
+    /// chỗ — tính lại ở nơi khác là tạo bản sao thứ hai của công thức và hai bên sẽ lệch.
+    /// </summary>
+    Task<SectorExposureForPlan> GetSectorExposureForPlanAsync(
+        string portfolioId, string symbol, decimal addValue, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Tỷ trọng ngành quanh một lệnh dự kiến. Ba field phần trăm/ngành đều nullable: không tra được
+/// ngành, hoặc tổng giá trị danh mục ≤ 0, thì trả null — không trả 0, vì 0% nghĩa là "chưa giữ gì
+/// ngành này" còn null nghĩa là "chưa tính được".
+/// </summary>
+public class SectorExposureForPlan
+{
+    public string Symbol { get; set; } = null!;
+    public string? Sector { get; set; }
+    public decimal? CurrentPercent { get; set; }
+    public decimal? ProjectedPercent { get; set; }
+    public decimal LimitPercent { get; set; }
+    public List<string> SameSectorSymbols { get; set; } = new();
 }
 
 public class PortfolioRiskSummary

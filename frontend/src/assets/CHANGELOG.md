@@ -2,9 +2,34 @@
 
 ---
 
-## [v2.73.0] — 2026-08-10 · Trợ lý AI soạn được hồ sơ công ty, và có menu để vào
+## [v2.74.0] — 2026-08-10 · Tỷ trọng ngành — hạn mức 40% bắt đầu hoạt động
 
-> Đánh số v2.73.0 vì v2.72.0 (tỷ trọng ngành) đang chờ ở PR #148. Nếu bản này lên trước thì đổi lại số.
+### Sửa lỗi
+
+**⚠️ Hạn mức tập trung ngành 40% trước đây chưa từng cảnh báo lần nào.** Trang Rủi ro vẫn hiện mục "Tỷ trọng ngành" kèm hạn mức bên cạnh, nên trông như đã được canh — nhưng nguồn tra ngành bị nối vào một dịch vụ trả về rỗng, khiến mọi mã rơi vào rổ "Không xác định", và rổ đó được lập trình để **không bao giờ** báo vượt. Nay đã nối đúng nguồn (24hmoney) và rổ "Không xác định" cũng bị so hạn mức — vì không biết mình đang dồn vào đâu là điều đáng cảnh báo, không phải đáng bỏ qua.
+
+**Nếu bạn từng nhìn trang Rủi ro và thấy không có cảnh báo ngành nào, đừng coi đó là bằng chứng danh mục đã phân bổ tốt.** Hãy mở lại trang Rủi ro sau bản này.
+
+### Tính năng
+
+**📊 Form lập kế hoạch hiện tỷ trọng ngành ngay lúc bạn đang quyết định quy mô lệnh.** Trong khối kiểm-trước (chỗ đang nhắc về hồ sơ công ty), thêm một dòng: ngành của mã, tỷ trọng **đang giữ**, tỷ trọng **sau lệnh này**, hạn mức, và các mã cùng ngành đang giữ.
+
+- **Chỉ là thông tin, không chặn gì** — không nút nào bị khoá. Khung màu xám trung tính có chủ đích để phân biệt với khung cảnh báo chặn màu vàng/đỏ ngay phía trên.
+- Chỉ hiện khi đã chọn danh mục và đã đủ mã + số lượng + giá vào + số dư. Chưa đủ thì không đoán bằng 0.
+- Mã mà nguồn dữ liệu không trả về ngành thì **ẩn hẳn dòng ngành**, không hiện "0%" — "0%" nghĩa là chưa giữ gì ngành đó, khác hẳn "chưa biết ngành". Trường hợp biết ngành mà chưa chia được tỷ trọng thì hiện **"n/a"**.
+- **Chỉ hiện với lệnh MUA.** Lệnh bán làm tỷ trọng giảm, trong khi phép chiếu cộng quy mô lệnh nên sẽ báo tăng — thà không hiện còn hơn hiện một con số sai dấu ngay trong khối cảnh báo rủi ro.
+- Nhãn ngành được nhớ 6 giờ nên gõ form không còn bắn hàng loạt request ra nguồn dữ liệu ngoài mỗi lần ngừng gõ.
+
+### Files chính
+
+- `src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs`, `src/InvestmentApp.Application/Risk/Queries/GetSectorExposureForPlan/`, `src/InvestmentApp.Api/Controllers/RiskController.cs`.
+- `frontend/src/app/core/services/risk.service.ts`, `frontend/src/app/features/trade-plan/trade-plan.component.ts`.
+- `docs/adr/0012-sector-concentration-display-only.md` (mới).
+- Tests: 1767 test backend + 182 test frontend pass, không regression (baseline v2.73.0: 1754 + 174).
+
+---
+
+## [v2.73.0] — 2026-08-10 · Trợ lý AI soạn được hồ sơ công ty, và có menu để vào
 
 ### Sửa lỗi
 

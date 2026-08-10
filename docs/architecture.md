@@ -150,7 +150,7 @@ are now **in-process** in the API:
 | Discipline | `/api/v1/me/discipline-score` | **Vin-discipline widget (2026-04-23)** — `GET ?days=7|30|90|365` (default 90). Query `GetDisciplineScoreQuery` → `IDisciplineScoreCalculator`. Cache 5 min. |
 | MarketData | `/api/v1/market` | Price, batch prices, search, overview, top fluctuation |
 | PnL | `/api/v1/pnl` | Portfolio/position P&L |
-| Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets, **stress-test (P2)**, **budget (P4)** |
+| Risk | `/api/v1/risk` | Summary, drawdown, VaR, correlation, stop-loss targets, **stress-test (P2)**, **budget (P4)**, **sector-exposure (ADR-0012)** |
 | Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns, **vs-savings comparison (2026-04-24)** — `GET /portfolio/{id}/vs-savings?savingsRate=&asOf=` + `GET /bank-rates` (top 12T từ 24hmoney), **household CAGR (2026-05-03)** — `GET /household/performance` returns aggregated TWR + CAGR across all of caller's portfolios with `isStable` flag (true ⇔ snapshot window ≥ 365 ngày) |
 | Ai | `/api/v1/ai` | Build context, stream responses, daily briefing, comprehensive analysis |
 | AiSettings | `/api/v1/ai-settings` | Provider/key management |
@@ -358,6 +358,14 @@ Feature shipped 2026-04-23 (2 commits trên `fix/post-trade-review-tradeid-wirin
 - `scripts/migrations/2026-04-23-tradeplan-thesis-rename.mongo.js` — **migration-first deploy gate**. Step 1: `$rename reason → thesis` + init `invalidationCriteria: []` + `expectedReviewDate: null` + `legacyExempt: true` cho mọi doc chưa migrated (filter `legacyExempt: { $exists: false }`). Step 2 idempotent: fill placeholder text cho `thesis: ""` rỗng. **Không dùng BsonElement alias** (MongoDB driver 3.6.0 chỉ hỗ trợ 1 key per property) — code mới deploy sau migration, nếu deploy trước sẽ silent data loss.
 
 **Size-based discipline gate:** `Quantity × EntryPrice ≥ 5% AccountBalance` → bắt buộc `Thesis ≥ 30 chars` + ≥ 1 invalidation rule với `Detail ≥ 20 chars`; else `Thesis ≥ 15 chars`, rule optional. Object fact (không cheatable self-attestation như AllocationBucket).
+
+**Tập trung ngành — chỉ hiển thị, không chặn (ADR-0012, 2026-08-10):** `RiskProfile.MaxSectorExposurePercent` (mặc định 40%) trước đây là **luật chết**: `RiskCalculationService` tra ngành qua `IFundamentalDataProvider`, mà interface đó được đăng ký là `NoOpFundamentalDataProvider` (`Program.cs` — dòng TCBS thật bị comment) nên luôn trả `null`; mọi vị thế rơi vào rổ "Không xác định" và rổ đó hardcode `IsOverweight = false`. Nay ngành đọc qua `IComprehensiveStockDataProvider` (`.Company.Industry`, 24hmoney `GroupName`, cache 5 phút) — provider này **đã** được đăng ký và **đã** được inject sẵn vào service, nên không cần chạm DI. Rổ "Không xác định" cũng được so hạn mức.
+
+- `GET /api/v1/risk/portfolio/{portfolioId}/sector-exposure?symbol=&addValue=` → `SectorExposureForPlan { Symbol, Sector?, CurrentPercent?, ProjectedPercent?, LimitPercent, SameSectorSymbols[] }`. `symbol` và `addValue` **bắt buộc**. Query handler kiểm quyền sở hữu portfolio rồi gọi `IRiskCalculationService.GetSectorExposureForPlanAsync` — phép tính đặt ở service, **không** ở handler, để công thức `totalValue` chỉ tồn tại một chỗ.
+- **Hai bất biến dễ phá:** (1) `ProjectedPercent = (sectorValue + addValue) / totalValue` — mẫu số **không** cộng `addValue`, vì `totalValue = Math.Max(giá trị vị thế + tiền mặt, giá trị vị thế)` đã gồm tiền mặt nên mua bằng tiền trong danh mục không làm tổng đổi. (2) Không tra được ngành hoặc `totalValue ≤ 0` ⇒ trả **`null`**, UI hiện "n/a" — không trả `0`, vì `0%` nghĩa là "chưa giữ gì ngành này".
+- Dùng chung một chỗ: `ComputeTotalValue(...)` và `ResolveIndustryAsync(...)` trong `RiskCalculationService`, cả đường optimization lẫn đường sector-for-plan đều gọi.
+- FE: `RiskService.getSectorExposureForPlan`, hiện một dòng trong **đúng** khối cảnh báo kiểm-trước của `trade-plan.component.ts` (cùng `forkJoin` với `gate-status`, cùng debounce 500ms). Khung màu trung tính có chủ đích — khối vàng/đỏ ở trên là cảnh báo chặn, khối này không phải và **không disable nút nào**.
+- `IFundamentalDataProvider` sau thay đổi này không còn được `RiskCalculationService` dùng tới nhưng vẫn nằm trong constructor (bỏ ra là sửa chữ ký + 5 harness test, cố ý để lại).
 
 **Discipline Score formula (hybrid):** SL-Integrity 50% (stop-honor rate − sl-widened-rate) + Plan Quality 30% (% plan pass gate) + Review Timeliness 20% (% plan review đúng hạn). Null sub-metric → re-normalize weights. Primitive: Stop-Honor Rate = trades lỗ đã đóng với `exitPrice ≥ plannedSL / tổng trades lỗ`. Rolling 90 ngày default.
 

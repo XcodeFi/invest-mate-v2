@@ -20,8 +20,8 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
   beforeEach(async () => {
     const strategySpy = jasmine.createSpyObj('StrategyService', ['getAll']);
     const portfolioSpy = jasmine.createSpyObj('PortfolioService', ['getAll']);
-    const riskSpy = jasmine.createSpyObj('RiskService', ['getRiskProfile', 'getPortfolioRiskSummary', 'calculatePositionSize', 'getSizingModels']);
-    const marketSpy = jasmine.createSpyObj('MarketDataService', ['getPrice', 'getTechnicalAnalysis']);
+    const riskSpy = jasmine.createSpyObj('RiskService', ['getRiskProfile', 'getPortfolioRiskSummary', 'calculatePositionSize', 'getSizingModels', 'getSectorExposureForPlan']);
+    const marketSpy = jasmine.createSpyObj('MarketDataService', ['getPrice', 'getTechnicalAnalysis', 'getCurrentPrice']);
     const templateSpy = jasmine.createSpyObj('TradePlanTemplateService', ['getAll', 'create', 'delete']);
     const planSpy = jasmine.createSpyObj('TradePlanService', [
       'getAll', 'create', 'update', 'updateStatus', 'delete', 'cancel', 'restore',
@@ -36,6 +36,9 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     planSpy.getAll.and.returnValue(of([]));
     planSpy.getScenarioPresets.and.returnValue(of([]));
     riskSpy.getPortfolioRiskSummary.and.returnValue(EMPTY);
+    riskSpy.getSectorExposureForPlan.and.returnValue(EMPTY);
+    marketSpy.getCurrentPrice.and.returnValue(EMPTY);
+    marketSpy.getTechnicalAnalysis.and.returnValue(EMPTY);
     dossierSpy.gateStatus.and.returnValue(EMPTY);
 
     await TestBed.configureTestingModule({
@@ -550,6 +553,152 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       const text = (fixture.nativeElement as HTMLElement).textContent || '';
       expect(text).toContain('Cần ≥ 3 yếu tố rủi ro, đang có 1');
       expect(text).toContain('Cần ≥ 1 moat, đang có 0');
+    });
+  });
+
+  // ============================================
+  // Tỷ trọng ngành trên form kiểm-trước — chỉ hiện số, không chặn
+  // ============================================
+  describe('sectorNotice', () => {
+    function setSector(over: Record<string, unknown> = {}): void {
+      component.sectorNotice = {
+        symbol: 'HPG',
+        sector: 'Tài nguyên cơ bản',
+        currentPercent: 32,
+        projectedPercent: 41,
+        limitPercent: 40,
+        sameSectorSymbols: ['HSG', 'NKG'],
+        ...over
+      } as never;
+      fixture.detectChanges();
+    }
+
+    // Phải đọc text của ĐÚNG khối ngành, không đọc cả trang: trang có "0%" ở nhiều chỗ khác
+    // (rủi ro, phân bổ...) nên assert "cả trang không chứa 0%" là không bao giờ đúng được.
+    function sectorBlockText(): string {
+      const block = (fixture.nativeElement as HTMLElement)
+        .querySelector('[data-testid="sector-notice"]');
+      return block?.textContent || '';
+    }
+
+    // Đọc đúng ô chứa từng con số. Assert "khối không chứa '0%'" là không bao giờ đúng được, vì
+    // '0%' là substring của '40%' trong "Hạn mức 40%".
+    function testidText(id: string): string {
+      const el = (fixture.nativeElement as HTMLElement).querySelector(`[data-testid="${id}"]`);
+      return (el?.textContent || '').trim();
+    }
+
+    it('hiện ngành, tỷ trọng hiện tại, sau lệnh, hạn mức và mã cùng ngành', () => {
+      setSector();
+
+      expect(testidText('sector-current')).toBe('32%');
+      expect(testidText('sector-projected')).toBe('41%');
+      const text = sectorBlockText();
+      expect(text).toContain('Tài nguyên cơ bản');
+      expect(text).toContain('Hạn mức 40%');
+      expect(text).toContain('HSG');
+    });
+
+    it('phần trăm null thì hiện n/a, không hiện 0%', () => {
+      setSector({ currentPercent: null, projectedPercent: null });
+
+      // 0% và n/a là hai câu khác nhau: 0% nói "chưa giữ gì ngành này", n/a nói "chưa tính được".
+      expect(testidText('sector-current')).toBe('n/a');
+      expect(testidText('sector-projected')).toBe('n/a');
+    });
+
+    it('chưa tra được ngành thì không hiện khối tỷ trọng', () => {
+      setSector({ sector: null });
+
+      expect((fixture.nativeElement as HTMLElement)
+        .querySelector('[data-testid="sector-notice"]')).toBeNull();
+    });
+
+    it('vượt hạn mức không đổi khả năng lưu nháp', () => {
+      component.sectorNotice = null;
+      fixture.detectChanges();
+      const before = component.canSaveDraft();
+
+      setSector({ projectedPercent: 95 });
+
+      expect(component.sectorOverLimit()).toBeTrue();
+      // So với chính giá trị trước đó thay vì kỳ vọng true/false cứng: bất biến cần canh là
+      // "cảnh báo ngành không tham gia quyết định lưu", không phụ thuộc trạng thái nền của form.
+      expect(component.canSaveDraft()).toBe(before);
+    });
+
+    // Dùng done + setTimeout thật vì project không nạp zone.js/testing nên fakeAsync/tick không
+    // dùng được. Debounce là 500ms, chờ 700ms cho chắc.
+    function fillFormForPreflight(portfolioId: string): void {
+      // detectChanges để ngOnInit chạy và subscription debounce tồn tại. Không có dòng này thì
+      // "spy chưa được gọi" đúng vì không gì có thể gọi được — một pass rỗng ruột.
+      fixture.detectChanges();
+      component.plan.symbol = 'HPG';
+      component.plan.quantity = 1000;
+      component.plan.entryPrice = 60000;
+      component.accountBalance = 100_000_000;
+      component.plan.portfolioId = portfolioId;
+    }
+
+    it('không gọi endpoint tỷ trọng ngành khi chưa chọn danh mục', (done) => {
+      const riskSpy = TestBed.inject(RiskService) as jasmine.SpyObj<RiskService>;
+      fillFormForPreflight('');
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        expect(riskSpy.getSectorExposureForPlan).not.toHaveBeenCalled();
+        done();
+      }, 700);
+    });
+
+    it('gọi endpoint với addValue = số lượng × giá vào khi đã chọn danh mục', (done) => {
+      const riskSpy = TestBed.inject(RiskService) as jasmine.SpyObj<RiskService>;
+      fillFormForPreflight('port-1');
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        expect(riskSpy.getSectorExposureForPlan).toHaveBeenCalledWith('port-1', 'HPG', 60_000_000);
+        done();
+      }, 700);
+    });
+
+    // addValue luôn dương, và backend cộng thẳng vào giá trị ngành. Với lệnh BÁN thì phép chiếu
+    // nói tỷ trọng TĂNG trong khi lệnh đó làm nó GIẢM — sai dấu trên đúng khối cảnh báo rủi ro.
+    // Phạm vi tính năng là "sau lệnh MUA dự kiến" (ADR-0012), nên đường bán không gọi.
+    it('không gọi endpoint tỷ trọng ngành khi lệnh là BÁN', (done) => {
+      const riskSpy = TestBed.inject(RiskService) as jasmine.SpyObj<RiskService>;
+      fillFormForPreflight('port-1');
+      component.plan.direction = 'Sell';
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        expect(riskSpy.getSectorExposureForPlan).not.toHaveBeenCalled();
+        done();
+      }, 700);
+    });
+
+    it('đổi sang BÁN thì xoá luôn dòng ngành đang hiện, không để số cũ nằm lại', (done) => {
+      // gateStatus mặc định trả EMPTY, mà forkJoin đòi MỌI nguồn phát ít nhất một lần — để EMPTY
+      // thì subscribe không bao giờ chạy và test này pass/fail vì lý do khác hẳn điều đang kiểm.
+      const dossierSpy = TestBed.inject(CompanyDossierService) as jasmine.SpyObj<CompanyDossierService>;
+      dossierSpy.gateStatus.and.returnValue(of({ symbol: 'HPG', passed: true, missing: [] }) as never);
+      setSector();
+      expect(sectorBlockText()).toContain('Tài nguyên cơ bản');
+      fillFormForPreflight('port-1');
+      component.plan.direction = 'Sell';
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        fixture.detectChanges();
+        expect(component.sectorNotice).toBeNull();
+        expect((fixture.nativeElement as HTMLElement)
+          .querySelector('[data-testid="sector-notice"]')).toBeNull();
+        done();
+      }, 700);
     });
   });
 });

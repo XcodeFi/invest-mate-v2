@@ -5,6 +5,7 @@ using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
 using InvestmentApp.Infrastructure.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -62,6 +63,7 @@ public class RiskCalculationServiceStressTestTests
             _comprehensiveProvider.Object,
             _marketDataProvider.Object,
             _corporateActionRepository.Object,
+            new MemoryCache(new MemoryCacheOptions()),
             _logger.Object);
     }
 
