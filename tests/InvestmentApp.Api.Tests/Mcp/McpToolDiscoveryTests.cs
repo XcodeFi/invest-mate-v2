@@ -30,7 +30,9 @@ public class McpToolDiscoveryTests
         // P1 — Performance & Wealth Analytics
         "get_performance", "get_equity_curve", "get_monthly_returns",
         "get_savings_comparison", "get_campaign_analytics", "get_net_worth_summary",
-        "get_flow_history", "get_adjusted_return"
+        "get_flow_history", "get_adjusted_return",
+        // Hồ sơ công ty — agent đọc được và soạn được, KHÔNG ký được (ADR-0011 D2)
+        "list_company_dossiers", "get_company_dossier", "get_dossier_gate_status"
     };
 
     private static readonly string[] WriteTools =
@@ -39,7 +41,8 @@ public class McpToolDiscoveryTests
         "create_watchlist", "update_watchlist", "delete_watchlist", "add_watchlist_item",
         "update_watchlist_item", "remove_watchlist_item", "import_vn30",
         "create_journal", "update_journal", "delete_journal",
-        "create_journal_entry", "update_journal_entry", "delete_journal_entry"
+        "create_journal_entry", "update_journal_entry", "delete_journal_entry",
+        "upsert_company_dossier"
     };
 
     private static IReadOnlyList<McpServerTool> Tools()
@@ -58,12 +61,36 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_46_Tools()
+    public void Registers_All_50_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(46);
+        (ReadTools.Length + WriteTools.Length).Should().Be(50);
+    }
+
+    [Fact]
+    public void No_Mcp_Tool_Can_Sign_A_Company_Dossier()
+    {
+        // Điểm tựa của toàn bộ tính năng hồ sơ công ty: agent soạn được nội dung, chỉ CON NGƯỜI ký.
+        // `ConfirmedAt` chỉ đặt được qua endpoint JWT. Một cổng mà agent tự thoả mãn được thì không
+        // đo hiểu biết của người bỏ tiền, nó chỉ đo "agent đã điền gì đó" (ADR-0011 D2).
+        // Test này tồn tại để lần sau có người thêm tool `confirm_company_dossier` cho tiện thì đỏ
+        // ngay, thay vì âm thầm phá bỏ lý do tính năng ra đời.
+        var tools = Tools();
+
+        var signingNames = tools.Select(t => t.ProtocolTool.Name)
+            .Where(n => n.Contains("confirm", StringComparison.OrdinalIgnoreCase)
+                     || n.Contains("sign", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        signingNames.Should().BeEmpty("không tool MCP nào được ký/xác nhận hồ sơ công ty");
+
+        var schemasExposingConfirmedAt = tools
+            .Where(t => t.ProtocolTool.InputSchema.ToString()
+                .Contains("confirmedAt", StringComparison.OrdinalIgnoreCase))
+            .Select(t => t.ProtocolTool.Name)
+            .ToList();
+        schemasExposingConfirmedAt.Should().BeEmpty("không tool nào được nhận ConfirmedAt làm tham số");
     }
 
     [Fact]

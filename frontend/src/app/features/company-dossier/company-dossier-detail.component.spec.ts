@@ -1,7 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { CompanyDossierDetailComponent } from './company-dossier-detail.component';
+import { CompanyDossierDetailComponent, serverMessage } from './company-dossier-detail.component';
+
+describe('serverMessage', () => {
+  it('lấy nguyên văn detail của ProblemDetails từ exception middleware', () => {
+    const err = { error: { status: 400, detail: 'Mỗi yếu tố rủi ro phải có dấu hiệu quan sát được' } };
+
+    expect(serverMessage(err)).toBe('Mỗi yếu tố rủi ro phải có dấu hiệu quan sát được');
+  });
+
+  it('lấy field error của các BadRequest tự tay trong controller', () => {
+    const err = { error: { error: 'Body request không hợp lệ — kiểm tra BusinessModel/Moats/RiskFactors.' } };
+
+    expect(serverMessage(err)).toBe('Body request không hợp lệ — kiểm tra BusinessModel/Moats/RiskFactors.');
+  });
+
+  it('chỉ dùng câu chung khi server không nói gì dùng được', () => {
+    // Mất mạng, hoặc 500 không body: không có gì để truyền lại thì mới nói câu chung.
+    expect(serverMessage({ error: null })).toBe('Không thể lưu hồ sơ — thử lại sau.');
+    expect(serverMessage(null)).toBe('Không thể lưu hồ sơ — thử lại sau.');
+  });
+});
 
 describe('CompanyDossierDetailComponent', () => {
   let fixture: ComponentFixture<CompanyDossierDetailComponent>;

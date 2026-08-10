@@ -274,6 +274,7 @@ export class HeaderComponent implements OnInit {
         { path: '/risk-dashboard', label: 'Risk Dashboard', icon: '📋' },
         { path: '/risk', label: 'Rủi ro chi tiết', icon: '🛡️' },
         { path: '/strategies', label: 'Chiến lược', icon: '🎯' },
+        { path: '/company-dossier', label: 'Hồ sơ công ty', icon: '🏢' },
         { path: '/trade-plan', label: 'Kế hoạch GD', icon: '📑' },
         { path: '/journals', label: 'Nhật ký', icon: '📝' },
         { path: '/alerts', label: 'Cảnh báo', icon: '🔔' },

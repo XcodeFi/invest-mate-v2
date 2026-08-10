@@ -440,7 +440,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 | Ai sửa | `ConfirmedAt` | Vì sao |
 |---|---|---|
 | Người dùng, qua UI (`PUT`) | Giữ nguyên | Đang đọc chính cái mình viết, không cần ký lại |
-| Agent, qua MCP (`upsert_company_dossier`, chặng 2, chưa làm) | Về `null` (`AgentDraftedAt` set) | Người dùng chưa đọc bản mới — nếu giữ nguyên thì đây là cửa hậu của quy tắc "agent không ký được" |
+| Agent, qua MCP (`upsert_company_dossier`) | Về `null` (`AgentDraftedAt` set) | Người dùng chưa đọc bản mới — nếu giữ nguyên thì đây là cửa hậu của quy tắc "agent không ký được" |
 
 **Agent viết được, không ký được** — điểm tựa của toàn bộ thiết kế: không có MCP tool nào đặt được `ConfirmedAt`. Nếu agent vừa viết vừa xác nhận thì gate đo "agent đã điền gì đó", không đo hiểu biết của người bỏ tiền. Chi tiết + 7 quyết định đi cùng: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md).
 
