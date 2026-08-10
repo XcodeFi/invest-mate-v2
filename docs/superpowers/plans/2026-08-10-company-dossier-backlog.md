@@ -55,6 +55,15 @@ public async Task AddAsync_WhenUserSymbolAlreadyExists_ShouldThrowDuplicateDossi
 
 Đọc các test Infrastructure hiện có trước để biết suite này dựng `IMongoCollection` bằng cách nào — **không đoán**. Nếu suite không mock được `IMongoCollection`, dừng và báo lại thay vì tự thêm dependency mới.
 
+> **Đã dò (2026-08-10) — mẫu test ở trên không dùng được, đổi chỗ đặt seam.**
+> Mock `IMongoCollection`/`IMongoDatabase` thì **được** (tiền lệ: `tests/InvestmentApp.Infrastructure.Tests/Repositories/DailyRoutineRepositoryTests.cs`). Cái không được là dựng `MongoWriteException`: trong MongoDB.Driver 3.6.0, `MongoWriteException` có ctor public nhận `WriteError`, nhưng **`WriteError` chỉ có đúng một ctor non-public, không tham số** — muốn có một instance mang `Category = DuplicateKey` phải reflect vào backing field private của DTO trong driver. Test kiểu đó vỡ ở lần nâng driver kế tiếp, không đáng.
+>
+> **Chia lại hai phần, đặt test vào phần có hành vi thật:**
+> 1. **Repository = glue mỏng, không test ở tầng driver.** `CreateAsync` bắt `MongoWriteException` khi `Category == DuplicateKey` **và** message chứa `ux_user_symbol`, ném `DuplicateDossierException`. Ba dòng, không nhánh nào ngoài điều kiện `when`.
+> 2. **Handler = nơi có hành vi, TDD đầy đủ ở đây.** `UpsertCompanyDossierCommandHandler` mock `ICompanyDossierRepository` (đã là interface, không dính driver): `GetAsync` → `null`, `CreateAsync` ném `DuplicateDossierException`, `GetAsync` lần hai trả document → `UpdateAsync` gọi **đúng một lần**, không exception nào thoát. Thêm ca `GetAsync` lần hai vẫn `null` → exception **được phép** thoát (retry đúng một lần, không vòng lặp).
+>
+> `DuplicateDossierException` kế thừa `InvalidOperationException` — `ExceptionMiddleware` map `InvalidOperationException → 409 Conflict`, nên ca hiếm thoát ra cũng là 409 chứ không phải 500. Đặt cạnh interface trong `Common/Interfaces/ICompanyDossierRepository.cs`, theo đúng tiền lệ `DossierGateException` nằm cạnh `ICompanyDossierGate`.
+
 - [ ] **Step 2: Chạy test, xác nhận đỏ vì kiểu exception sai**
 
 - [ ] **Step 3: Đổi kiểu exception trong repository**
