@@ -71,8 +71,14 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         // UpdateTradePlanCommand.Quantity là int?, EntryPrice là decimal?, AccountBalance là
         // decimal? — update là PARTIAL (TradePlan.Update chỉ gán khi HasValue). Mọi vế của
         // phép so sánh phải fallback về giá trị cũ, nếu không gate sẽ im lặng bỏ qua.
+        // plan.Quantity đã là giá trị SAU SetLots của lần lưu trước (nếu có), nên oldSize
+        // không cần chấm lại theo lots. newSize thì phải: nếu request có lots, SetLots sẽ
+        // ghi đè Quantity thành tổng lots trước khi lưu — chấm theo số đó, không phải
+        // request.Quantity, nếu không thì cửa hậu giống hệt đường tạo lại mở ra ở đây.
         var oldSize = plan.Quantity * plan.EntryPrice;
-        var newSize = (request.Quantity ?? plan.Quantity) * (request.EntryPrice ?? plan.EntryPrice);
+        var requestedQuantity = request.Quantity ?? plan.Quantity;
+        var effectiveQuantity = CreateTradePlanCommandHandler.ResolveEffectiveQuantity(requestedQuantity, request.Lots);
+        var newSize = effectiveQuantity * (request.EntryPrice ?? plan.EntryPrice);
         var newBalance = request.AccountBalance ?? plan.AccountBalance;
 
         var oldThreshold = (plan.AccountBalance ?? 0m) * TradePlan.LargeTierThreshold;

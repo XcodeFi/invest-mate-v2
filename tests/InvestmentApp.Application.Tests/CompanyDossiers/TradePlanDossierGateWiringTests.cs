@@ -3,6 +3,7 @@ using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
+using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Domain.Entities;
 using Moq;
 
@@ -64,6 +65,36 @@ public class TradePlanDossierGateWiringTests
 
         _gate.Verify(g => g.EnsureAsync("user-1", "HPG",
             8_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Create_LotsSumExceedsThreshold_ShouldGateOnLotsDerivedSizeNotHeaderSize()
+    {
+        // Cửa hậu lots: header quantity=1 → planSize theo header chỉ 100đ (bậc nhỏ),
+        // nhưng SetLots sẽ ghi đè Quantity thành tổng lots (100.000) trước khi lưu.
+        // Cổng phải chấm theo số đó (100.000 × 100 = 10tr = 10% > 5%), không phải header.
+        _gate.Setup(g => g.EnsureAsync("user-1", "HPG", 10_000_000m,
+                100_000_000m, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DossierGateException("HPG", DossierGateResult.Fail("insufficient")));
+
+        var handler = TestFactory.CreateTradePlanHandler(_gate.Object, out var repo);
+        var command = TestFactory.CreateCommand(userId: "user-1", symbol: "HPG");
+        command.Quantity = 1;
+        command.EntryPrice = 100m;
+        command.AccountBalance = 100_000_000m;
+        command.EntryMode = "Single";
+        command.Lots = new List<PlanLotDto>
+        {
+            new() { LotNumber = 1, PlannedPrice = 100m, PlannedQuantity = 60_000 },
+            new() { LotNumber = 2, PlannedPrice = 100m, PlannedQuantity = 40_000 }
+        };
+
+        var act = () => handler.Handle(command, default);
+
+        await act.Should().ThrowAsync<DossierGateException>();
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG", 10_000_000m,
+            100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.AddAsync(It.IsAny<TradePlan>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -213,6 +244,33 @@ public class TradePlanDossierGateWiringTests
         _gate.VerifyNoOtherCalls();
     }
 
+    [Fact]
+    public async Task Update_LotsSumExceedsThresholdWithQuantityUnset_ShouldGateOnLotsDerivedSize()
+    {
+        // Cửa hậu lots trên đường sửa: quantity không gửi lên (fallback về plan.Quantity=20,
+        // dưới ngưỡng), nhưng lots cộng lại 60 × entryPrice cũ 100.000 = 6tr = 6% > 5%.
+        // SetLots sẽ ghi đè Quantity thành 60 trước khi lưu, cổng phải chấm theo số đó.
+        _gate.Setup(g => g.EnsureAsync("user-1", "HPG", 6_000_000m,
+                100_000_000m, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DossierGateException("HPG", DossierGateResult.Fail("insufficient")));
+
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 20, existingEntryPrice: 100_000m, accountBalance: 100_000_000m,
+            out var repo);
+        var command = TestFactory.UpdateCommandWithLots(new List<PlanLotDto>
+        {
+            new() { LotNumber = 1, PlannedPrice = 100_000m, PlannedQuantity = 40 },
+            new() { LotNumber = 2, PlannedPrice = 100_000m, PlannedQuantity = 20 }
+        });
+
+        var act = () => handler.Handle(command, default);
+
+        await act.Should().ThrowAsync<DossierGateException>();
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG", 6_000_000m,
+            100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.UpdateAsync(It.IsAny<TradePlan>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static class TestFactory
     {
         public static CreateTradePlanCommandHandler CreateTradePlanHandler(
@@ -260,6 +318,14 @@ public class TradePlanDossierGateWiringTests
             Symbol = symbol,
             Quantity = quantity,
             EntryPrice = entryPrice
+        };
+
+        public static UpdateTradePlanCommand UpdateCommandWithLots(List<PlanLotDto> lots) => new()
+        {
+            Id = "plan-1",
+            UserId = "user-1",
+            EntryMode = "Single",
+            Lots = lots
         };
     }
 }

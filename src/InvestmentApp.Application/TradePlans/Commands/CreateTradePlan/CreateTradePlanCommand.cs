@@ -83,7 +83,11 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 
     public async Task<string> Handle(CreateTradePlanCommand request, CancellationToken cancellationToken)
     {
-        var planSize = request.Quantity * request.EntryPrice;
+        // Chấm theo quantity mà plan sẽ có SAU khi SetLots ghi đè (nếu có lots), không
+        // phải quantity trên header — nếu không, header nhỏ + lots to là qua cổng bậc nhỏ
+        // rồi Quantity thật lại phình lên sau khi lưu.
+        var effectiveQuantity = ResolveEffectiveQuantity(request.Quantity, request.Lots);
+        var planSize = effectiveQuantity * request.EntryPrice;
         await _dossierGate.EnsureAsync(request.UserId, request.Symbol, planSize, request.AccountBalance, cancellationToken);
 
         var checklist = request.Checklist?.Select(c => new ChecklistItem
@@ -186,6 +190,13 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 
         return plan.Id;
     }
+
+    /// <summary>
+    /// Quantity mà plan thực sự sẽ có sau khi SetLots (nếu có lots) ghi đè — dùng để
+    /// chấm cổng dossier, thay cho quantity thô trên request.
+    /// </summary>
+    internal static int ResolveEffectiveQuantity(int requestedQuantity, List<PlanLotDto>? lots)
+        => lots is { Count: > 0 } ? lots.Sum(l => l.PlannedQuantity) : requestedQuantity;
 
     internal static ScenarioNode MapToScenarioNode(ScenarioNodeDto dto) => new()
     {
