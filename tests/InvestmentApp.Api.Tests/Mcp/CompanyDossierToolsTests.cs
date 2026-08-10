@@ -5,6 +5,7 @@ using InvestmentApp.Application.CompanyDossiers.DTOs;
 using InvestmentApp.Application.CompanyDossiers.Queries.GetCompanyDossier;
 using InvestmentApp.Application.CompanyDossiers.Queries.GetDossierGateStatus;
 using InvestmentApp.Application.CompanyDossiers.Queries.ListCompanyDossiers;
+using InvestmentApp.Application.MarketData.Queries.GetCompanyFundamentals;
 using InvestmentApp.Domain.Entities;
 using MediatR;
 using Moq;
@@ -62,6 +63,20 @@ public class CompanyDossierToolsTests
         sent()!.Quantity.Should().Be(10_000);
         sent()!.EntryPrice.Should().Be(20_000m);
         sent()!.AccountBalance.Should().Be(1_000_000_000m);
+    }
+
+    [Fact]
+    public async Task GetCompanyFundamentals_ForwardsSymbolVerbatim_AndTakesNoUserScope()
+    {
+        McpTestContext.Capture<CompanyFundamentalsDto, GetCompanyFundamentalsQuery>(
+            _mediator, out var sent, new CompanyFundamentalsDto { Symbol = "HAH" });
+
+        await CompanyDossierTools.GetCompanyFundamentals(
+            " hah ", _mediator.Object, CancellationToken.None);
+
+        // Số liệu doanh nghiệp là dữ liệu thị trường chung, không thuộc về ai — tool này CỐ Ý không
+        // nhận UserId. Nếu sau này ai thêm scope theo người dùng vào đây thì phải đổi cả query.
+        sent()!.Symbol.Should().Be(" hah ");
     }
 
     [Fact]

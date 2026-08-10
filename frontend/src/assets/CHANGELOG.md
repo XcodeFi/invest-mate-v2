@@ -2,6 +2,35 @@
 
 ---
 
+## [v2.75.0] — 2026-08-10 · Số liệu doanh nghiệp nằm ngay cạnh ô viết hồ sơ
+
+### Tính năng
+
+**📄 Trang hồ sơ công ty giờ có số liệu doanh nghiệp ở cột bên phải.** P/E, P/B, ROE, ROA, EPS, vốn hóa, Beta, đỉnh/đáy 52 tuần, đơn vị kiểm toán (kèm cờ Big4), ngành, số cổ phiếu lưu hành, free float, cổ đông lớn, ban lãnh đạo, doanh thu và lợi nhuận từng quý, cổ phiếu cùng ngành, cổ tức, kế hoạch kinh doanh. Không phải mở tab khác để tra khi đang trả lời "doanh nghiệp này kiếm tiền bằng gì".
+
+- **Số liệu là nguyên liệu, không phải điều kiện.** Số liệu đẹp không làm hồ sơ đủ điều kiện — cổng vẫn chỉ đọc những gì bạn tự viết. Panel ghi rõ điều đó.
+- **Phần nào chưa tra được thì ghi "không lấy được dữ liệu", không hiện số 0.** Nguồn (24hmoney) đôi lúc thiếu một vài phần; một bảng doanh thu trống render thành 0 sẽ đọc thành doanh nghiệp không có doanh thu.
+- Trên điện thoại, khối số liệu xếp xuống dưới ô viết.
+
+**🤖 Trợ lý AI dùng cùng số liệu đó** qua công cụ `get_company_fundamentals` — để soạn nháp hồ sơ từ số thật chứ không từ suy đoán. Trợ lý vẫn **không ký được**: chữ ký là của con người, nguyên tắc không đổi.
+
+### Chi tiết đáng nhắc
+
+Với HPG, nguồn trả về 10 sự kiện cổ tức mà **mọi trường đều rỗng**. Nếu chỉ đếm số dòng thì hệ thống coi như "có dữ liệu" và hiện 10 dòng gạch ngang — trông như dữ liệu nhưng không mang thông tin nào. Nay các dòng rỗng bị bỏ trước khi chấm phần nào lấy được, nên khối đó hiện đúng "không lấy được dữ liệu". **Gõ sai mã cũng từng trả về "thành công" với hồ sơ trống.** Nguồn không báo lỗi cho mã không tồn tại — nó trả về đủ cấu trúc với mọi ô rỗng. Nay mã sai trả về đúng "không tìm thấy", nên trợ lý AI không thể soạn hồ sơ từ một mã gõ nhầm.
+
+Cả hai lỗi chỉ lộ ra khi gọi nguồn thật, không lộ trong test.
+
+Số liệu của một mã được **nhớ 15 phút** nên mở lại trang hoặc trợ lý gọi nhiều lần không bắn thêm hàng loạt request ra nguồn ngoài. Ca lấy không được thì **không** nhớ — một lỗi mạng nhất thời không bị đóng băng thành "mã này không có dữ liệu".
+
+### Files chính
+
+- `src/InvestmentApp.Application/MarketData/Queries/GetCompanyFundamentals/`, `src/InvestmentApp.Api/Controllers/MarketDataController.cs` (endpoint `GET /market/stock/{symbol}/fundamentals`), `src/InvestmentApp.Api/Mcp/CompanyDossierTools.cs` (tool thứ 5).
+- `frontend/src/app/features/company-dossier/fundamentals-panel.component.ts` (mới), `company-dossier-detail.component.ts` (chia 2 cột), `frontend/src/app/core/services/market-data.service.ts`.
+- `docs/adr/0011-company-dossier-gate-at-plan-creation.md` (đóng follow-up chặng 2), `frontend/src/assets/docs/ho-so-cong-ty.md`.
+- Tests: 1784 test backend + 189 test frontend pass, không regression (baseline v2.74.0: 1767 + 182).
+
+---
+
 ## [v2.74.0] — 2026-08-10 · Tỷ trọng ngành — hạn mức 40% bắt đầu hoạt động
 
 ### Sửa lỗi

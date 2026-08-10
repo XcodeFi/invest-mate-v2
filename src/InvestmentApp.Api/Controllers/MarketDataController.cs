@@ -1,3 +1,4 @@
+using InvestmentApp.Application.MarketData.Queries.GetCompanyFundamentals;
 using InvestmentApp.Application.MarketData.Queries.GetStockPrice;
 using InvestmentApp.Application.MarketData.Queries.GetStockPriceHistory;
 using InvestmentApp.Application.MarketData.Queries.GetBatchPrices;
@@ -127,6 +128,17 @@ public class MarketDataController : ControllerBase
             return NotFound(new { message = $"Không tìm thấy thông tin cho mã {symbol}" });
         }
     }
+
+    /// <summary>
+    /// Get company fundamentals (indicators, income statements, peers, dividends, plan, shareholders)
+    /// — nguyên liệu để viết hồ sơ công ty. Phần nào provider không lấy được thì có tên trong
+    /// unavailableSections, KHÔNG trả 0.
+    /// </summary>
+    [HttpGet("stock/{symbol}/fundamentals")]
+    [ProducesResponseType(typeof(CompanyFundamentalsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetFundamentals(string symbol, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetCompanyFundamentalsQuery { Symbol = symbol }, ct));
 
     /// <summary>
     /// Get market overview - all major indices (VN-INDEX, HNX-INDEX, UPCOM-INDEX)

@@ -11,6 +11,7 @@ import {
   dossierFreshnessBadgeClass,
 } from '../../core/services/company-dossier.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { FundamentalsPanelComponent } from './fundamentals-panel.component';
 
 /**
  * Lấy nguyên văn lý do server trả về. Backend đã nói rõ và nói đúng tiếng Việt — ví dụ
@@ -29,9 +30,9 @@ const MIN_BUSINESS_MODEL_LEN = 30;
 @Component({
   selector: 'app-company-dossier-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, FundamentalsPanelComponent],
   template: `
-    <div class="container mx-auto px-4 py-6 max-w-4xl">
+    <div class="container mx-auto px-4 py-6 max-w-6xl">
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-2xl font-bold text-gray-800">Hồ sơ công ty: {{ symbol }}</h1>
@@ -57,6 +58,10 @@ const MIN_BUSINESS_MODEL_LEN = 30;
         <div *ngIf="freshness === 'NeedsReview'" class="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
           Hồ sơ đã 90–179 ngày, chưa bị chặn nhưng nên cập nhật tin mới rồi ký lại.
         </div>
+
+        <!-- Ô viết bên trái, số liệu doanh nghiệp bên phải; xếp dọc trên mobile -->
+        <div class="grid lg:grid-cols-2 gap-6 items-start">
+        <div>
 
         <!-- Business Model -->
         <div class="bg-white rounded-lg shadow p-5 mb-6">
@@ -135,6 +140,11 @@ const MIN_BUSINESS_MODEL_LEN = 30;
             {{ saving ? 'Đang lưu...' : 'Lưu' }}
           </button>
         </div>
+
+        </div><!-- /cột trái -->
+
+          <app-fundamentals-panel [symbol]="symbol"></app-fundamentals-panel>
+        </div><!-- /grid -->
 
         <!-- Sign — cuối trang, sau nội dung, không cạnh nút Lưu -->
         <div class="border-t pt-6 pb-10 text-center">

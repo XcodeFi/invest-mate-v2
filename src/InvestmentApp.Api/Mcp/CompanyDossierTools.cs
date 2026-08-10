@@ -4,6 +4,7 @@ using InvestmentApp.Application.CompanyDossiers.DTOs;
 using InvestmentApp.Application.CompanyDossiers.Queries.GetCompanyDossier;
 using InvestmentApp.Application.CompanyDossiers.Queries.GetDossierGateStatus;
 using InvestmentApp.Application.CompanyDossiers.Queries.ListCompanyDossiers;
+using InvestmentApp.Application.MarketData.Queries.GetCompanyFundamentals;
 using InvestmentApp.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -32,6 +33,19 @@ public static class CompanyDossierTools
         [Description("Mã chứng khoán.")] string symbol,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
         => await mediator.Send(new GetCompanyDossierQuery { UserId = http.GetUserId(), Symbol = symbol }, ct);
+
+    [McpServerTool(Name = "get_company_fundamentals", ReadOnly = true)]
+    [Description("Số liệu doanh nghiệp từ 24hmoney làm NGUYÊN LIỆU trước khi soạn hồ sơ: P/E, P/B, ROE, ROA, "
+        + "EPS, vốn hóa, Beta, đỉnh/đáy 52 tuần, đơn vị kiểm toán; doanh thu và lợi nhuận theo quý; cổ phiếu "
+        + "cùng ngành; cổ tức; kế hoạch kinh doanh; cổ đông lớn; ban lãnh đạo. BẮT BUỘC đọc unavailableSections: "
+        + "phần có tên trong đó là KHÔNG LẤY ĐƯỢC dữ liệu, không phải bằng 0 — viết hồ sơ dựa trên khoảng trống "
+        + "đó là bịa. Số liệu này không tự làm hồ sơ đủ điều kiện: cổng vẫn đòi mô hình kinh doanh, moat, "
+        + "yếu tố rủi ro và chữ ký của người dùng.")]
+    public static async Task<CompanyFundamentalsDto> GetCompanyFundamentals(
+        [Description("Mã chứng khoán.")] string symbol,
+        IMediator mediator, CancellationToken ct)
+        // Dữ liệu thị trường chung, không thuộc về người dùng nào — cố tình không nhận UserId.
+        => await mediator.Send(new GetCompanyFundamentalsQuery { Symbol = symbol }, ct);
 
     [McpServerTool(Name = "get_dossier_gate_status", ReadOnly = true)]
     [Description("Kiểm hồ sơ công ty có đủ cho một lệnh dự kiến hay chưa, TRƯỚC khi gọi create_trade_plan. "

@@ -32,7 +32,8 @@ public class McpToolDiscoveryTests
         "get_savings_comparison", "get_campaign_analytics", "get_net_worth_summary",
         "get_flow_history", "get_adjusted_return",
         // Hồ sơ công ty — agent đọc được và soạn được, KHÔNG ký được (ADR-0011 D2)
-        "list_company_dossiers", "get_company_dossier", "get_dossier_gate_status"
+        "list_company_dossiers", "get_company_dossier", "get_dossier_gate_status",
+        "get_company_fundamentals"
     };
 
     private static readonly string[] WriteTools =
@@ -61,12 +62,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_50_Tools()
+    public void Registers_All_51_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(50);
+        (ReadTools.Length + WriteTools.Length).Should().Be(51);
     }
 
     [Fact]

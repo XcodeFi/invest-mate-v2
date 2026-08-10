@@ -442,7 +442,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 | Người dùng, qua UI (`PUT`) | Giữ nguyên | Đang đọc chính cái mình viết, không cần ký lại |
 | Agent, qua MCP (`upsert_company_dossier`) | Về `null` (`AgentDraftedAt` set) | Người dùng chưa đọc bản mới — nếu giữ nguyên thì đây là cửa hậu của quy tắc "agent không ký được" |
 
-**Agent viết được, không ký được** — điểm tựa của toàn bộ thiết kế: không có MCP tool nào đặt được `ConfirmedAt`. Nếu agent vừa viết vừa xác nhận thì gate đo "agent đã điền gì đó", không đo hiểu biết của người bỏ tiền. Chi tiết + 7 quyết định đi cùng: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md).
+**Agent viết được, không ký được** — điểm tựa của toàn bộ thiết kế: không có MCP tool nào đặt được `ConfirmedAt`. Agent có `get_company_fundamentals` để lấy số liệu doanh nghiệp làm nguyên liệu trước khi soạn, nhưng số liệu đó **không** nằm trong điều kiện của cổng: cổng vẫn đòi mô hình kinh doanh, moat, yếu tố rủi ro và chữ ký của người dùng. Nếu agent vừa viết vừa xác nhận thì gate đo "agent đã điền gì đó", không đo hiểu biết của người bỏ tiền. Chi tiết + 7 quyết định đi cùng: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md).
 
 **Điểm bắn gate:**
 
@@ -474,7 +474,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 | Analytics | `/api/v1/analytics` | Performance, equity curve, monthly returns |
 | Capital Flows | `/api/v1/capital-flows` | Record, history, TWR/MWR |
 | Snapshots | `/api/v1/snapshots` | Take, range, compare |
-| Market Data | `/api/v1/market` | Price, history, batch, index, overview, stock detail, search, top fluctuation, trading summary, **technical analysis** |
+| Market Data | `/api/v1/market` | Price, history, batch, index, overview, stock detail, search, top fluctuation, trading summary, **technical analysis**, **`GET /stock/{symbol}/fundamentals`** (số liệu doanh nghiệp 24hmoney làm nguyên liệu viết hồ sơ công ty — kèm `unavailableSections[]`, phần có tên trong đó là KHÔNG lấy được chứ không phải bằng 0; cả `company` và `indicators` đều rỗng nội dung → 404, kể cả khi provider trả về object có đủ field null) |
 | Backtests | `/api/v1/backtests` | Queue, list, detail |
 | Positions | `/api/v1/positions` | Active positions |
 | P&L | `/api/v1/pnl` | Lãi/lỗ calculations |
