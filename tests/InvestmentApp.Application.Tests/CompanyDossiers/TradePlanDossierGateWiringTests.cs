@@ -164,6 +164,62 @@ public class TradePlanDossierGateWiringTests
     }
 
     [Fact]
+    public async Task Update_QuantityAndEntryPriceOmittedNoLots_ShouldFallBackToPlanValues()
+    {
+        // Bổ sung cho Update_OnlyQuantitySent_ShouldFallBackToExistingEntryPrice (chỉ ghim
+        // entryPrice fallback): ở đây CẢ quantity và entryPrice đều bỏ trống, không có lots —
+        // ResolveEffectiveGateInputs phải lấy cả hai từ plan (40 × 100.000), không phải 0.
+        // Kích hoạt cổng bằng hạ balance qua ngưỡng, độc lập với quantity/entryPrice.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 40, existingEntryPrice: 100_000m, accountBalance: 100_000_000m);
+
+        var command = new UpdateTradePlanCommand
+        {
+            Id = "plan-1",
+            UserId = "user-1",
+            AccountBalance = 50_000_000m
+        };
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG",
+            4_000_000m, 50_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_AccountBalanceOmitted_ShouldFallBackToPlanAccountBalance()
+    {
+        // AccountBalance không gửi lên — effective balance dùng để chấm ngưỡng và truyền
+        // cho gate phải lấy từ plan hiện tại (80tr), không phải null. Kích hoạt cổng bằng
+        // đổi mã (luôn chấm bất kể ngưỡng), số còn lại giữ nguyên so với plan.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 10, existingEntryPrice: 50_000m, accountBalance: 80_000_000m);
+
+        var command = TestFactory.UpdateCommandWithSymbolOnly("VNM");
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "VNM",
+            500_000m, 80_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Update_SymbolOmitted_ShouldFallBackToPlanSymbol()
+    {
+        // Symbol không gửi lên — effective symbol dùng để chấm cổng phải lấy từ mã hiện
+        // tại của plan (đã chuẩn hoá hoa), không phải null/rỗng. Kích hoạt cổng bằng nâng
+        // quantity qua ngưỡng, dùng bộ số riêng để không trùng test khác.
+        var handler = TestFactory.UpdateTradePlanHandler(_gate.Object,
+            existingQuantity: 8, existingEntryPrice: 70_000m, accountBalance: 100_000_000m);
+        var command = TestFactory.UpdateCommand(quantity: 100, entryPrice: 70_000m);
+
+        await handler.Handle(command, default);
+
+        _gate.Verify(g => g.EnsureAsync("user-1", "HPG",
+            7_000_000m, 100_000_000m, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Update_LoweringAccountBalanceAcrossThreshold_ShouldRunGate()
     {
         // Cửa hậu đường số dư: size mới 4tr vẫn dưới ngưỡng CŨ (5tr), nhưng cùng
@@ -318,6 +374,13 @@ public class TradePlanDossierGateWiringTests
             Symbol = symbol,
             Quantity = quantity,
             EntryPrice = entryPrice
+        };
+
+        public static UpdateTradePlanCommand UpdateCommandWithSymbolOnly(string symbol) => new()
+        {
+            Id = "plan-1",
+            UserId = "user-1",
+            Symbol = symbol
         };
 
         public static UpdateTradePlanCommand UpdateCommandWithLots(List<PlanLotDto> lots) => new()

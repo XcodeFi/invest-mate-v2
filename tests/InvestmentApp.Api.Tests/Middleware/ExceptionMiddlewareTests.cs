@@ -113,4 +113,43 @@ public class ExceptionMiddlewareTests
         var (status, _) = await InvokeAsync(new ApplicationException("?"));
         status.Should().Be((int)HttpStatusCode.InternalServerError);
     }
+
+    /// <summary>
+    /// Bảng tổng: mọi loại exception middleware map, kèm status kỳ vọng, trong MỘT chỗ.
+    /// Commit 886fd00 phải chèn nhánh riêng cho ValidationException TRƯỚC switch chung vì nó
+    /// không kế thừa ArgumentException — phát hiện bằng curl tay, không phải test. File giờ có
+    /// 2 nhánh riêng thứ tự được bảo vệ chỉ bằng comment. Bảng này enumerate đủ để một exception
+    /// type mới rơi lọt qua nhánh riêng và bị switch chung "nuốt" sai case sẽ lộ ngay, không cần
+    /// nhớ viết thêm 1 test riêng.
+    /// </summary>
+    public static IEnumerable<object[]> ExceptionToStatusCodeMap()
+    {
+        yield return new object[] { new UnauthorizedAccessException("nope"), (int)HttpStatusCode.Unauthorized };
+        yield return new object[] { new ArgumentException("bad arg"), (int)HttpStatusCode.BadRequest };
+        yield return new object[] { new KeyNotFoundException("not found"), (int)HttpStatusCode.NotFound };
+        // Cặp InvalidOperationException / DossierGateException chứng minh nhánh riêng của
+        // DossierGateException (đứng trước switch) không nuốt luôn case InvalidOperationException
+        // thường — DossierGateException kế thừa InvalidOperationException có chủ đích.
+        yield return new object[] { new InvalidOperationException("conflict"), (int)HttpStatusCode.Conflict };
+        yield return new object[]
+        {
+            new DossierGateException("HPG", DossierGateResult.Fail("insufficient")),
+            (int)HttpStatusCode.BadRequest
+        };
+        // ValidationException: case đã regress một lần (886fd00) vì không kế thừa ArgumentException.
+        yield return new object[]
+        {
+            new ValidationException(new[] { new ValidationFailure("Note", "quá ngắn") }),
+            (int)HttpStatusCode.BadRequest
+        };
+        yield return new object[] { new ApplicationException("?"), (int)HttpStatusCode.InternalServerError };
+    }
+
+    [Theory]
+    [MemberData(nameof(ExceptionToStatusCodeMap))]
+    public async Task Exception_MapsToExpectedStatusCode(Exception toThrow, int expectedStatus)
+    {
+        var (status, _) = await InvokeAsync(toThrow);
+        status.Should().Be(expectedStatus);
+    }
 }

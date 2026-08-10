@@ -68,18 +68,19 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
 
-        // UpdateTradePlanCommand.Quantity là int?, EntryPrice là decimal?, AccountBalance là
-        // decimal? — update là PARTIAL (TradePlan.Update chỉ gán khi HasValue). Mọi vế của
-        // phép so sánh phải fallback về giá trị cũ, nếu không gate sẽ im lặng bỏ qua.
-        // plan.Quantity đã là giá trị SAU SetLots của lần lưu trước (nếu có), nên oldSize
-        // không cần chấm lại theo lots. newSize thì phải: nếu request có lots, SetLots sẽ
-        // ghi đè Quantity thành tổng lots trước khi lưu — chấm theo số đó, không phải
-        // request.Quantity, nếu không thì cửa hậu giống hệt đường tạo lại mở ra ở đây.
+        // UpdateTradePlanCommand.Quantity/EntryPrice/AccountBalance/Symbol đều nullable —
+        // update là PARTIAL (TradePlan.Update chỉ gán khi HasValue), và SetLots (nếu có lots)
+        // ghi đè Quantity sau đó. Cả 4 vế phải fallback về giá trị plan SẼ có sau khi lưu,
+        // không phải giá trị thô trên request — gộp vào ResolveEffectiveGateInputs (dùng
+        // chung với đường tạo) thay vì 3-4 vế "?? " tách rời như trước, đó là lý do bug
+        // đọc-sai-thời-điểm lặp lại nhiều lần.
         var oldSize = plan.Quantity * plan.EntryPrice;
-        var requestedQuantity = request.Quantity ?? plan.Quantity;
-        var effectiveQuantity = CreateTradePlanCommandHandler.ResolveEffectiveQuantity(requestedQuantity, request.Lots);
-        var newSize = effectiveQuantity * (request.EntryPrice ?? plan.EntryPrice);
-        var newBalance = request.AccountBalance ?? plan.AccountBalance;
+        var gateInputs = CreateTradePlanCommandHandler.ResolveEffectiveGateInputs(
+            existingPlan: plan,
+            request.Quantity, request.Lots,
+            request.EntryPrice, request.AccountBalance, request.Symbol);
+        var newSize = gateInputs.Quantity * gateInputs.EntryPrice;
+        var newBalance = gateInputs.AccountBalance;
 
         var oldThreshold = (plan.AccountBalance ?? 0m) * TradePlan.LargeTierThreshold;
         var newThreshold = (newBalance ?? 0m) * TradePlan.LargeTierThreshold;
@@ -96,7 +97,7 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         // Đổi mã là mở một vị thế mới ở một công ty khác, nên áp đúng cổng mà đường TẠO
         // sẽ áp — chấm theo mã MỚI, với mọi lần đổi mã (không chỉ khi vượt ngưỡng): đường
         // tạo chặn cả lệnh nhỏ (bậc nhỏ đòi BusinessModel), nên đường sửa cũng phải vậy.
-        var newSymbol = (request.Symbol ?? plan.Symbol).ToUpper().Trim();
+        var newSymbol = gateInputs.Symbol.ToUpper().Trim();
         var symbolChanged = newSymbol != plan.Symbol;
 
         if (symbolChanged || (wasBelow && isNowAtOrAbove))

@@ -83,12 +83,16 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 
     public async Task<string> Handle(CreateTradePlanCommand request, CancellationToken cancellationToken)
     {
-        // Chấm theo quantity mà plan sẽ có SAU khi SetLots ghi đè (nếu có lots), không
-        // phải quantity trên header — nếu không, header nhỏ + lots to là qua cổng bậc nhỏ
-        // rồi Quantity thật lại phình lên sau khi lưu.
-        var effectiveQuantity = ResolveEffectiveQuantity(request.Quantity, request.Lots);
-        var planSize = effectiveQuantity * request.EntryPrice;
-        await _dossierGate.EnsureAsync(request.UserId, request.Symbol, planSize, request.AccountBalance, cancellationToken);
+        // Chấm theo giá trị plan SẼ có sau khi lưu (quantity sau SetLots nếu có lots), không
+        // phải giá trị thô trên request — nếu không, header nhỏ + lots to là qua cổng bậc nhỏ
+        // rồi Quantity thật lại phình lên sau khi lưu. existingPlan=null: đường tạo không có
+        // fallback, mọi field trên request đã bắt buộc.
+        var gateInputs = ResolveEffectiveGateInputs(
+            existingPlan: null,
+            request.Quantity, request.Lots,
+            request.EntryPrice, request.AccountBalance, request.Symbol);
+        var planSize = gateInputs.Quantity * gateInputs.EntryPrice;
+        await _dossierGate.EnsureAsync(request.UserId, gateInputs.Symbol, planSize, gateInputs.AccountBalance, cancellationToken);
 
         var checklist = request.Checklist?.Select(c => new ChecklistItem
         {
@@ -192,11 +196,34 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
     }
 
     /// <summary>
-    /// Quantity mà plan thực sự sẽ có sau khi SetLots (nếu có lots) ghi đè — dùng để
-    /// chấm cổng dossier, thay cho quantity thô trên request.
+    /// 4 giá trị mà plan SẼ có sau khi lưu — quantity sau SetLots (nếu có lots),
+    /// entryPrice/accountBalance/symbol sau merge partial của <see cref="TradePlan.Update"/>
+    /// (nếu là đường sửa). Dùng chung cho cả đường tạo (existingPlan=null, request đã đủ
+    /// mọi field bắt buộc, fallback không bao giờ kích hoạt) và đường sửa (existingPlan có,
+    /// request là partial). Gộp lại vì đây từng là 3 vế "?? " tách rời trên đường sửa — lý
+    /// do bug đọc-sai-thời-điểm lặp lại nhiều lần, một chỗ tính + test còn dễ tin hơn.
     /// </summary>
-    internal static int ResolveEffectiveQuantity(int requestedQuantity, List<PlanLotDto>? lots)
-        => lots is { Count: > 0 } ? lots.Sum(l => l.PlannedQuantity) : requestedQuantity;
+    internal static GateInputs ResolveEffectiveGateInputs(
+        TradePlan? existingPlan,
+        int? requestedQuantity, List<PlanLotDto>? lots,
+        decimal? requestedEntryPrice, decimal? requestedAccountBalance, string? requestedSymbol)
+    {
+        var quantity = requestedQuantity ?? existingPlan?.Quantity
+            ?? throw new InvalidOperationException("Quantity là bắt buộc để chấm cổng dossier");
+        var effectiveQuantity = lots is { Count: > 0 } ? lots.Sum(l => l.PlannedQuantity) : quantity;
+
+        var entryPrice = requestedEntryPrice ?? existingPlan?.EntryPrice
+            ?? throw new InvalidOperationException("EntryPrice là bắt buộc để chấm cổng dossier");
+
+        var accountBalance = requestedAccountBalance ?? existingPlan?.AccountBalance;
+
+        var symbol = requestedSymbol ?? existingPlan?.Symbol
+            ?? throw new InvalidOperationException("Symbol là bắt buộc để chấm cổng dossier");
+
+        return new GateInputs(effectiveQuantity, entryPrice, accountBalance, symbol);
+    }
+
+    internal readonly record struct GateInputs(int Quantity, decimal EntryPrice, decimal? AccountBalance, string Symbol);
 
     internal static ScenarioNode MapToScenarioNode(ScenarioNodeDto dto) => new()
     {
