@@ -1595,9 +1595,9 @@ Hai lỗi nữa tìm ra trong lúc review, cùng lớp vấn đề nên sửa lu
 
 ---
 
-## Hồ sơ công ty & điều kiện chặn lập kế hoạch — 2026-08-10 (chặng 1)
+## Hồ sơ công ty & điều kiện chặn lập kế hoạch — 2026-08-10 (chặng 1 + 2)
 
-**Nhánh:** `feature/company-dossier-guard` | **Trạng thái:** ✅ Chặng 1 (entity + gate + trang hồ sơ) done — guard đã hoạt động nhưng còn phải gõ tay; chặng 2 (phơi fundamentals + MCP) và chặng 3 (đề xuất InvalidationRule + pending-reviews) **chưa làm**.
+**Trạng thái:** ✅ Chặng 1 (entity + gate + trang hồ sơ) và ✅ chặng 2 (5 tool MCP + dịch lỗi cổng + số liệu doanh nghiệp cạnh ô viết) done; chặng 3 (đề xuất InvalidationRule + pending-reviews) **chưa làm**.
 
 Không cho tạo Trade Plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp — kiếm tiền bằng gì, moat ở đâu, rủi ro nào và biết nó đang xảy ra bằng dấu hiệu gì — đã được chính người dùng ký và còn hiệu lực. Mục đích: gate "Lý do đầu tư" (Thesis) hiện có đếm được độ dài câu chữ, không đếm được hiểu biết; "HPG đầu ngành thép, triển vọng tốt" đủ 30 ký tự và không kiểm chứng được gì. Quyết định thiết kế + đánh đổi: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec đầy đủ Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md).
 
@@ -1626,7 +1626,7 @@ Viết một lần cho HPG, mọi plan HPG sau dùng lại — khác với "Lý 
 
 ### Agent viết được, không ký được
 
-Điểm tựa của toàn bộ thiết kế. Không có cách nào ngoài `POST /company-dossiers/{symbol}/confirm` (JWT) đặt được `ConfirmedAt` — chặng 2 sẽ thêm MCP tool `upsert_company_dossier` để agent soạn hộ nội dung, nhưng tool đó vẫn không xác nhận được. Nếu agent sửa một hồ sơ đã ký, `ConfirmedAt` về `null` (`AgentDraftedAt` được ghi) — người dùng phải mở trang, đọc, ký lại; người dùng tự sửa qua UI thì không cần ký lại (đang đọc chính cái mình viết).
+Điểm tựa của toàn bộ thiết kế. Không có cách nào ngoài `POST /company-dossiers/{symbol}/confirm` (JWT) đặt được `ConfirmedAt`. Chặng 2 đã cho agent `upsert_company_dossier` để soạn hộ nội dung và `get_company_fundamentals` để lấy số liệu làm nguyên liệu — không tool nào trong số đó xác nhận được. Nếu agent sửa một hồ sơ đã ký, `ConfirmedAt` về `null` (`AgentDraftedAt` được ghi) — người dùng phải mở trang, đọc, ký lại; người dùng tự sửa qua UI thì không cần ký lại (đang đọc chính cái mình viết).
 
 ### Cảnh báo kiểm-trước trên form Trade Plan (không chặn)
 
@@ -1639,7 +1639,17 @@ Nút này ở trang thị trường tạo plan trực tiếp cho mã gợi ý. V
 ### Đã biết, không phải bug
 
 - **Lệnh đầu tiên sau khi deploy bị chặn với mọi mã**, kể cả mã đang giữ nhiều tháng — không có ngoại lệ chuyển tiếp (không giống `LegacyExempt` của gate "Lý do đầu tư").
-- **Đường ghi trade plan của agent (ApiKey + MCP) tắt hoàn toàn** cho tới khi chặng 2 landed — gate sống trên `CreateTradePlanCommand` mà cả hai cửa agent đều dispatch vào đó.
+- **Đường ghi trade plan của agent (ApiKey + MCP) đã mở lại từ chặng 2** — agent soạn được hồ sơ và đọc được lý do bị chặn, nhưng vẫn không ký được nên vẫn phải chờ người dùng. Trong khoảng chặng 1 đã live mà chặng 2 chưa có, đường này bị khoá cứng trên prod: gate sống trên `CreateTradePlanCommand` mà cả hai cửa agent đều dispatch vào đó.
+
+### Số liệu doanh nghiệp cạnh ô viết (chặng 2)
+
+Trang hồ sơ chia hai cột: ô viết bên trái, số liệu 24hmoney bên phải (xếp dọc trên mobile). Chỉ số cơ bản (P/E, P/B, ROE, ROA, EPS, vốn hóa, Beta, đỉnh/đáy 52 tuần, đơn vị kiểm toán + cờ Big4), thông tin công ty (sàn, ngành, cổ phiếu lưu hành, free float), cổ đông lớn, ban lãnh đạo, doanh thu/lợi nhuận theo quý, cổ phiếu cùng ngành, cổ tức, kế hoạch kinh doanh.
+
+Số liệu là **nguyên liệu, không phải điều kiện** — panel ghi rõ điều đó. Cổng vẫn chỉ đọc những gì người dùng tự viết.
+
+**Phần nào không lấy được thì nói là không lấy được, không hiện số 0.** Provider gộp ~9 lệnh gọi HTTP và phần nào hỏng thì trả rỗng chứ không báo lỗi, nên rỗng không phân biệt được với "bằng không" — một bảng doanh thu rỗng render thành 0 sẽ đọc thành doanh nghiệp không có doanh thu.
+
+Agent dùng cùng dữ liệu qua MCP tool `get_company_fundamentals`.
 
 ### API + Frontend
 
@@ -1647,6 +1657,7 @@ Nút này ở trang thị trường tạo plan trực tiếp cho mã gợi ý. V
 |--------|----------|---------|
 | `GET` | `/api/v1/company-dossiers` | Danh sách hồ sơ của user |
 | `GET` | `/api/v1/company-dossiers/{symbol}` | Chi tiết 1 hồ sơ |
+| `GET` | `/api/v1/market/stock/{symbol}/fundamentals` | Số liệu doanh nghiệp làm nguyên liệu — kèm `unavailableSections[]`; cả `company` và `indicators` đều rỗng nội dung → 404 |
 | `PUT` | `/api/v1/company-dossiers/{symbol}` | Upsert nội dung (JWT → luôn `ByAgent=false`) |
 | `POST` | `/api/v1/company-dossiers/{symbol}/confirm` | Ký — đường duy nhất đặt `ConfirmedAt` |
 | `GET` | `/api/v1/company-dossiers/{symbol}/gate-status` | Pre-flight; `quantity`/`entryPrice`/`accountBalance` bắt buộc (thiếu → 400) |

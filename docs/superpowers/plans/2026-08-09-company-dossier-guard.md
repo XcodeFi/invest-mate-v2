@@ -2566,6 +2566,41 @@ Mở PR bằng skill `/pr` — **không** tự gõ `gh pr create`, vì làm tay 
 
 ---
 
+## Checkpoint — chặng 2 (done 2026-08-10)
+
+**Quyết định lệch so với plan, cố ý:**
+
+- `GetCompanyFundamentalsQuery` nằm ở `src/InvestmentApp.Application/MarketData/Queries/` (không phải `Market/Queries/` như plan viết) — thư mục `MarketData` đã tồn tại với 10 query cùng loại, tạo thư mục thứ hai là chia đôi một khái niệm. Test ở `tests/InvestmentApp.Application.Tests/MarketData/` theo cùng lý do.
+- Task 10 chỉ còn thêm **một** tool: 4 tool hồ sơ còn lại đã landed ở PR #149 (chặng 2 phần MCP). `McpToolDiscoveryTests` đi từ 50 → 51 tool.
+- `get_company_fundamentals` **không nhận `UserId`** — số liệu doanh nghiệp là dữ liệu thị trường chung, không thuộc về ai. Có test ghim điều đó để lần sau không ai thêm scope nửa vời.
+
+**Ba lỗi chỉ lộ khi gọi nguồn thật, không lộ trong test:**
+
+1. 24hmoney trả cho HPG **10 sự kiện cổ tức mà mọi field đều null**. Đếm theo `Count` thì section coi như có dữ liệu và UI hiện 10 dòng gạch ngang. Đã bỏ phần tử rỗng hẳn TRƯỚC khi chấm `UnavailableSections` (2 test mới ghim cả ca rỗng hẳn lẫn ca có một field).
+2. `company.companyName` **null** trong khi cùng object vẫn có `industry` và số cổ phiếu. Panel render thành một dấu gạch trơ trọi; đã bỏ hẳn dòng tên khi thiếu.
+3. **Mã sai (ZZZZ) trả 200, không phải 404.** Provider không trả null cho mã không tồn tại — nó trả đủ `CompanyOverview` + `FinanceIndicators` với mọi field null, nên guard `== null` không bao giờ bắn và cửa 404 là code chết. Đã đổi sang chấm theo nội dung (`HasAnyValue`, reflection để không mục ruỗng khi thêm chỉ số), vỏ rỗng bị bỏ khỏi DTO và đánh dấu unavailable. 4 test mới.
+
+**Bài học kiến trúc:** điều kiện render mỗi khối là `hasSection()` — vừa không bị đánh dấu thiếu **vừa thật sự có payload**. Chỉ tin `unavailableSections` là để một lần lệch giữa danh sách và body deref null, và một deref null làm sập cả vòng change detection nên các khối khác biến mất im lặng.
+
+**Verify thật đã chạy:** `GET /market/stock/HPG/fundamentals` → 200 và `ZZZZ` → 404, 5 phần trong `unavailableSections` của HPG, chỉ số đầy đủ (P/E 13,78 · ROE 17,38% · kiểm toán KPMG Big4). Browser trên session thật (không stub): panel đứng cạnh ô viết ở 1440px, xếp dọc ở 390px, 4 khối hiện "không lấy được dữ liệu".
+
+**Files:** `MarketData/Queries/GetCompanyFundamentals/`, `MarketDataController.cs`, `Mcp/CompanyDossierTools.cs`, `fundamentals-panel.component.ts` (mới), `company-dossier-detail.component.ts`, `market-data.service.ts`, docs + CHANGELOG v2.75.0.
+
+**Tests:** 1784 backend + 189 frontend pass (baseline 1767 + 182).
+
+**Review 2 sub-agent — 4 finding, 3 nhận 1 bỏ:**
+
+- `BusinessPlan` đi thẳng vào DTO, bỏ qua đúng cái check nội dung mà `Company`/`Indicators` đã có. **Nhận** — sửa 2 trong 3 vỏ rỗng rồi bỏ sót cái thứ ba, đúng loại lỗi "gom giá trị mà bỏ sót vị từ".
+- `HasAnyValue` trả true ngay phần tử đầu của list mà không soi nội dung phần tử. **Nhận** — nay đệ quy, và mọi filter collection dùng CHUNG một vị từ thay vì mỗi loại một điều kiện viết tay.
+- Không cache trong khi PR trước vừa thêm cache 6 giờ cho đúng provider này. **Nhận** — cache 15 phút (ngắn hơn nhiều vì P/E đổi trong ngày), chỉ cache ca thành công.
+- Thiếu `OnChanges` nên panel giữ số liệu cũ khi đổi mã. **Bỏ** — component cha cũng đọc `route.snapshot` một lần, nên nếu chỉ sửa panel thì trang sẽ hiện số liệu VNM cạnh hồ sơ HPG: tệ hơn cả hai cùng cũ. Trong UI hiện tại không có đường đi từ trang chi tiết mã này sang mã khác. Nếu sau này cần sửa thì phải sửa cả cha và panel cùng lúc.
+
+Giới hạn đã biết của `HasAnyValue`: với property KHÔNG nullable (`Shareholder.Percentage`, `ForeignTradingDay.BuyVolume`), 0 và "không có" là cùng một bit. Đã chọn coi giá trị mặc định là "không có thông tin" — một số 0 thật bị báo "không lấy được" chỉ mất một dòng, còn một vỏ rỗng được coi là dữ liệu thì bịa ra cả một khối cổ đông.
+
+**Next:** chặng 3 (Task 12–14) — đề xuất `InvalidationRule` từ Top-3 rủi ro, mục "Hồ sơ cần soát lại" + badge dashboard. Đọc `CompanyDossier.RiskFactors.SuggestedTrigger` (đã có sẵn từ chặng 1) và `INVALIDATION_TRIGGER_LABELS` ở `company-dossier.service.ts`.
+
+---
+
 ## Ghi chú thi hành
 
 - Sau mỗi task chạy đúng lệnh test ghi trong task đó. Task nào có bước verify thật (curl, MCP, browser) thì **phải dán output** — đánh dấu `[x]` mà không chạy là hoàn thành trên giấy.

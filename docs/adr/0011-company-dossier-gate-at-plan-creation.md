@@ -65,11 +65,11 @@ Aggregate mới `CompanyDossier` (khóa `UserId + Symbol`, sống độc lập v
 - Nút "Tạo Trade Plan từ gợi ý" ở market-data không tạo được plan trực tiếp cho mã chưa có hồ sơ đã ký — phải điều hướng sang `/company-dossier/{symbol}?returnTo=trade-plan`, giữ entry/SL/TP qua `sessionStorage`.
 - Khi giá đang chạm điểm mua mà hồ sơ chưa có, người dùng chịu áp lực viết vội. Bước ký (D2) không giảm được áp lực này — chỉ chặng 2 (agent soạn hộ nội dung) mới giảm được.
 - **Lệnh đầu tiên sau khi deploy chắc chắn bị chặn với mọi mã**, kể cả mã đang giữ nhiều tháng (hệ quả của D5). Đây không phải lỗi, nhưng phải thông báo trước khi deploy.
-- Đường ghi trade plan của agent (ApiKey + MCP) **tắt hoàn toàn** cho tới khi chặng 2 landed (D6) — mọi request tạo plan qua agent nhận `DossierGateException` với `missing[]` bị mất do middleware không áp cho MCP.
+- ~~Đường ghi trade plan của agent (ApiKey + MCP) **tắt hoàn toàn** cho tới khi chặng 2 landed (D6)~~ — **đã xử lý 2026-08-10**: chặng 2 cho agent `upsert_company_dossier` để soạn nội dung, `get_dossier_gate_status` để biết còn thiếu gì, và `McpDossierGate` giữ nguyên `reason` + `missing[]` qua đường MCP. Agent vẫn không ký được — đó là phần cố ý. Bài học ở lại: một gate đóng đường đang dùng thì bản mở lại phải đi cùng release, cảnh báo trong ADR không thay được biện pháp bảo vệ.
 
 **Follow-ups:**
 
-- Chặng 2 (Task 9–11 của plan): phơi `IComprehensiveStockDataProvider` qua REST + MCP, thêm tool `upsert_company_dossier`/`get_company_fundamentals`/`get_dossier_gate_status`, và xử lý riêng `DossierGateException` trong pipeline MCP để agent không mất `missing[]`. Không được cắt (D6).
+- ~~Chặng 2 (Task 9–11 của plan)~~ **done 2026-08-10**: `GetCompanyFundamentalsQuery` + `GET /market/stock/{symbol}/fundamentals`, 5 tool MCP hồ sơ, `McpDossierGate` dịch `DossierGateException` sang `McpException`, và panel số liệu cạnh ô viết. Số liệu doanh nghiệp **không** vào điều kiện cổng — chỉ là nguyên liệu.
 - Chặng 3 (Task 12–14): đề xuất `InvalidationRule` từ Top-3 `RiskFactor`, mục "Hồ sơ cần soát lại" ở `/pending-reviews`, badge dashboard. Có thể cắt nếu cần rút gọn.
 - 3 hồ sơ test (VNM/MWG/HPG) còn trên DB prod từ vòng verify thủ công — không có endpoint DELETE, cần xóa tay qua Mongo nếu muốn dọn.
 

@@ -18,6 +18,13 @@ Gate cũ (`Thesis ≥ 30 ký tự`) chỉ đếm được độ dài, không đ�
 
 Vào **`/company-dossier`** → chọn mã (hoặc bấm "Tạo Trade Plan từ gợi ý" ở trang thị trường cho mã chưa có hồ sơ — hệ thống sẽ đưa bạn sang đây, giữ nguyên entry/SL/TP đã điền).
 
+**Số liệu doanh nghiệp nằm ngay bên phải ô viết** — P/E, P/B, ROE, ROA, EPS, vốn hóa, đỉnh/đáy 52 tuần, đơn vị kiểm toán, doanh thu và lợi nhuận từng quý, cổ phiếu cùng ngành, cổ tức, kế hoạch kinh doanh, cổ đông lớn, ban lãnh đạo. Bạn không cần mở tab khác để tra.
+
+Hai điều cần biết về khối số liệu này:
+
+- **Nó là nguyên liệu, không phải điều kiện.** Số liệu đẹp không làm hồ sơ đủ điều kiện — hệ thống chỉ đọc những gì bạn tự viết.
+- **Phần nào ghi "không lấy được dữ liệu" nghĩa là chưa tra được, không phải bằng 0.** Nguồn số liệu (24hmoney) đôi lúc thiếu một vài phần. Đừng kết luận doanh nghiệp không có doanh thu chỉ vì bảng doanh thu trống.
+
 ### 1. Doanh nghiệp này kiếm tiền bằng gì?
 
 Nêu **sản phẩm/dịch vụ** và **ai trả tiền**. "Tiềm năng", "đầu ngành", "triển vọng tốt" **không phải câu trả lời** — đó là cảm giác, không phải sự thật kiểm chứng được.

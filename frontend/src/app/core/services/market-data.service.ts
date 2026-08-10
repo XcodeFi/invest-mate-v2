@@ -195,6 +195,80 @@ export interface TechnicalAnalysis {
   riskRewardRatio?: number;
 }
 
+// --- Số liệu doanh nghiệp (nguyên liệu viết hồ sơ công ty) ---
+
+export interface CompanyOverviewInfo {
+  companyName: string | null;
+  shortName: string | null;
+  exchange: string | null;
+  industry: string | null;
+  majorShareholders: { name: string | null; position: string | null; quantity: number; percentage: number }[];
+  leaders: { name: string | null; position: string | null }[];
+  listedShares: number | null;
+  outstandingShares: number | null;
+  freeFloatRate: number | null;
+}
+
+export interface FinanceIndicatorsInfo {
+  pe: number | null;
+  pb: number | null;
+  eps: number | null;
+  roe: number | null;
+  roa: number | null;
+  marketCap: number | null;
+  bookValue: number | null;
+  beta: number | null;
+  min52W: number | null;
+  max52W: number | null;
+  industryGroup: string | null;
+  auditFirmName: string | null;
+  auditIsBig4: boolean | null;
+}
+
+export interface IncomeStatementRow {
+  period: string | null;
+  revenue: number | null;
+  netProfit: number | null;
+  grossProfit: number | null;
+}
+
+export interface PeerRow {
+  symbol: string | null;
+  companyName: string | null;
+  price: number | null;
+  pe: number | null;
+  pb: number | null;
+  marketCap: number | null;
+  changePercent: number | null;
+}
+
+export interface DividendEventRow {
+  eventType: string | null;
+  description: string | null;
+  exDate: string | null;
+  payDate: string | null;
+  value: number | null;
+}
+
+export interface BusinessPlanInfo {
+  year: number | null;
+  revenuePlan: number | null;
+  profitPlan: number | null;
+  dividendPlan: number | null;
+}
+
+export interface CompanyFundamentals {
+  symbol: string;
+  company: CompanyOverviewInfo | null;
+  indicators: FinanceIndicatorsInfo | null;
+  incomeStatements: IncomeStatementRow[];
+  peers: PeerRow[];
+  dividendEvents: DividendEventRow[];
+  businessPlan: BusinessPlanInfo | null;
+  /** Phần nào có tên trong đây là KHÔNG lấy được dữ liệu — không được render thành 0. */
+  unavailableSections: string[];
+}
+
 export interface TradingHistorySummary {
   symbol: string;
   changeDay: number;
@@ -265,6 +339,11 @@ export class MarketDataService {
 
   getStockDetail(symbol: string): Observable<StockDetail> {
     return this.http.get<StockDetail>(`${this.API_URL}/stock/${symbol}/detail`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getFundamentals(symbol: string): Observable<CompanyFundamentals> {
+    return this.http.get<CompanyFundamentals>(`${this.API_URL}/stock/${symbol}/fundamentals`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
