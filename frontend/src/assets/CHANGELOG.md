@@ -16,14 +16,16 @@
 
 - **Chỉ là thông tin, không chặn gì** — không nút nào bị khoá. Khung màu xám trung tính có chủ đích để phân biệt với khung cảnh báo chặn màu vàng/đỏ ngay phía trên.
 - Chỉ hiện khi đã chọn danh mục và đã đủ mã + số lượng + giá vào + số dư. Chưa đủ thì không đoán bằng 0.
-- Mã mà nguồn dữ liệu không trả về ngành sẽ hiện **"n/a"**, không hiện "0%" — hai câu khác nhau: "n/a" là chưa tính được, "0%" là chưa giữ gì ngành đó.
+- Mã mà nguồn dữ liệu không trả về ngành thì **ẩn hẳn dòng ngành**, không hiện "0%" — "0%" nghĩa là chưa giữ gì ngành đó, khác hẳn "chưa biết ngành". Trường hợp biết ngành mà chưa chia được tỷ trọng thì hiện **"n/a"**.
+- **Chỉ hiện với lệnh MUA.** Lệnh bán làm tỷ trọng giảm, trong khi phép chiếu cộng quy mô lệnh nên sẽ báo tăng — thà không hiện còn hơn hiện một con số sai dấu ngay trong khối cảnh báo rủi ro.
+- Nhãn ngành được nhớ 6 giờ nên gõ form không còn bắn hàng loạt request ra nguồn dữ liệu ngoài mỗi lần ngừng gõ.
 
 ### Files chính
 
 - `src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs`, `src/InvestmentApp.Application/Risk/Queries/GetSectorExposureForPlan/`, `src/InvestmentApp.Api/Controllers/RiskController.cs`.
 - `frontend/src/app/core/services/risk.service.ts`, `frontend/src/app/features/trade-plan/trade-plan.component.ts`.
 - `docs/adr/0012-sector-concentration-display-only.md` (mới).
-- Tests: 1752 test backend + 177 test frontend pass, không regression (baseline trước bản này: 1742 + 171).
+- Tests: 1755 test backend + 179 test frontend pass, không regression (baseline trước bản này: 1742 + 171).
 
 ---
 

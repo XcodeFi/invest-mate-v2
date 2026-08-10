@@ -663,5 +663,42 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
         done();
       }, 700);
     });
+
+    // addValue luôn dương, và backend cộng thẳng vào giá trị ngành. Với lệnh BÁN thì phép chiếu
+    // nói tỷ trọng TĂNG trong khi lệnh đó làm nó GIẢM — sai dấu trên đúng khối cảnh báo rủi ro.
+    // Phạm vi tính năng là "sau lệnh MUA dự kiến" (ADR-0012), nên đường bán không gọi.
+    it('không gọi endpoint tỷ trọng ngành khi lệnh là BÁN', (done) => {
+      const riskSpy = TestBed.inject(RiskService) as jasmine.SpyObj<RiskService>;
+      fillFormForPreflight('port-1');
+      component.plan.direction = 'Sell';
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        expect(riskSpy.getSectorExposureForPlan).not.toHaveBeenCalled();
+        done();
+      }, 700);
+    });
+
+    it('đổi sang BÁN thì xoá luôn dòng ngành đang hiện, không để số cũ nằm lại', (done) => {
+      // gateStatus mặc định trả EMPTY, mà forkJoin đòi MỌI nguồn phát ít nhất một lần — để EMPTY
+      // thì subscribe không bao giờ chạy và test này pass/fail vì lý do khác hẳn điều đang kiểm.
+      const dossierSpy = TestBed.inject(CompanyDossierService) as jasmine.SpyObj<CompanyDossierService>;
+      dossierSpy.gateStatus.and.returnValue(of({ symbol: 'HPG', passed: true, missing: [] }) as never);
+      setSector();
+      expect(sectorBlockText()).toContain('Tài nguyên cơ bản');
+      fillFormForPreflight('port-1');
+      component.plan.direction = 'Sell';
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        fixture.detectChanges();
+        expect(component.sectorNotice).toBeNull();
+        expect((fixture.nativeElement as HTMLElement)
+          .querySelector('[data-testid="sector-notice"]')).toBeNull();
+        done();
+      }, 700);
+    });
   });
 });

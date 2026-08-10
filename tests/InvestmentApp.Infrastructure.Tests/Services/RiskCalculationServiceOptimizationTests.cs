@@ -4,6 +4,7 @@ using InvestmentApp.Application.Portfolios.Queries;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
 using InvestmentApp.Infrastructure.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -64,6 +65,7 @@ public class RiskCalculationServiceOptimizationTests
             _comprehensiveProvider.Object,
             _marketDataProvider.Object,
             _corporateActionRepository.Object,
+            new MemoryCache(new MemoryCacheOptions()),
             _logger.Object);
     }
 
@@ -329,6 +331,57 @@ public class RiskCalculationServiceOptimizationTests
         result.CurrentPercent.Should().Be(45.83m);
         result.ProjectedPercent.Should().Be(53.33m);
         result.LimitPercent.Should().Be(40m);
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_PlannedSymbolAlreadyHeld_ShouldResolveIndustryOnce()
+    {
+        // Mỗi lời gọi GetComprehensiveDataAsync là 9 request HTTP song song sang 24hmoney chỉ để
+        // đọc một chuỗi Industry. Mã đang gõ nằm luôn trong danh sách đang giữ, nên tra hai lần
+        // là hai lượt fetch y hệt nhau — trên endpoint bị gọi lại mỗi nhịp debounce 500ms.
+        SetupSectorForPlanScenario();
+
+        await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        _comprehensiveProvider.Verify(
+            p => p.GetComprehensiveDataAsync("VIC", It.IsAny<CancellationToken>()),
+            Times.Once());
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_CalledTwice_ShouldServeIndustryFromCache()
+    {
+        // Nhãn ngành gần như không đổi, mà form gọi lại endpoint mỗi nhịp debounce. Không cache
+        // thì mỗi lần ngừng gõ là (N+1) × 9 request ra provider ngoài.
+        SetupSectorForPlanScenario();
+
+        await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+        await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        foreach (var symbol in new[] { "VIC", "VHM", "FPT" })
+        {
+            _comprehensiveProvider.Verify(
+                p => p.GetComprehensiveDataAsync(symbol, It.IsAny<CancellationToken>()),
+                Times.AtMostOnce(), $"ngành của {symbol} phải lấy từ cache ở lượt thứ hai");
+        }
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_WhenIndustryLookupFails_ShouldNotCacheTheFailure()
+    {
+        // Cache một lần tra lỗi (provider timeout) sẽ đóng băng mã đó thành "không rõ ngành"
+        // suốt TTL, tức một lỗi mạng nhất thời làm hỏng cảnh báo tập trung trong nhiều giờ.
+        SetupSectorForPlanScenario();
+        _comprehensiveProvider
+            .SetupSequence(p => p.GetComprehensiveDataAsync("VIC", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("provider timeout"))
+            .ReturnsAsync(new ComprehensiveStockData { Company = new CompanyOverview { Industry = "Bất động sản" } });
+
+        var first = await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+        var second = await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        first.Sector.Should().BeNull("lượt đầu provider lỗi");
+        second.Sector.Should().Be("Bất động sản", "lỗi không được cache — lượt sau phải tra lại");
     }
 
     [Fact]

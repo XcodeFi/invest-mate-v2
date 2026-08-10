@@ -4,6 +4,7 @@ using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
 using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace InvestmentApp.Infrastructure.Services;
@@ -26,6 +27,11 @@ public class RiskCalculationService : IRiskCalculationService
     private readonly IComprehensiveStockDataProvider _comprehensiveProvider;
     private readonly IMarketDataProvider _marketDataProvider;
     private readonly ICorporateActionRepository _corporateActionRepository;
+    /// <summary>Nhãn ngành đổi theo năm, không theo phiên — TTL dài là an toàn và cắt hẳn N+1 qua các nhịp debounce.</summary>
+    private const string IndustryCacheKeyPrefix = "risk:industry:";
+    private static readonly TimeSpan IndustryCacheTtl = TimeSpan.FromHours(6);
+
+    private readonly IMemoryCache _cache;
     private readonly ILogger<RiskCalculationService> _logger;
 
     public RiskCalculationService(
@@ -42,6 +48,7 @@ public class RiskCalculationService : IRiskCalculationService
         IComprehensiveStockDataProvider comprehensiveProvider,
         IMarketDataProvider marketDataProvider,
         ICorporateActionRepository corporateActionRepository,
+        IMemoryCache cache,
         ILogger<RiskCalculationService> logger)
     {
         _portfolioRepository = portfolioRepository;
@@ -57,6 +64,7 @@ public class RiskCalculationService : IRiskCalculationService
         _comprehensiveProvider = comprehensiveProvider;
         _marketDataProvider = marketDataProvider;
         _corporateActionRepository = corporateActionRepository;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -340,12 +348,28 @@ public class RiskCalculationService : IRiskCalculationService
     // Ngành đọc qua IComprehensiveStockDataProvider vì đó là provider được đăng ký thật.
     // IFundamentalDataProvider đang là NoOpFundamentalDataProvider (luôn trả null), nên trước đây
     // mọi vị thế rơi vào rổ "Không xác định" và hạn mức ngành chưa từng bắn.
+    /// <summary>
+    /// Mỗi lời gọi <c>GetComprehensiveDataAsync</c> là 9 request HTTP song song sang provider ngoài
+    /// chỉ để đọc một chuỗi ngành, mà endpoint tỷ trọng bị gọi lại mỗi nhịp debounce 500ms trên form.
+    /// Nhãn ngành gần như không đổi nên cache dài hạn được — cùng cách các provider Hmoney khác làm.
+    /// </summary>
     private async Task<string?> ResolveIndustryAsync(string symbol, CancellationToken cancellationToken)
     {
+        var cacheKey = $"{IndustryCacheKeyPrefix}{symbol}";
+        if (_cache.TryGetValue<string>(cacheKey, out var cached))
+            return cached;
+
         try
         {
             var comprehensive = await _comprehensiveProvider.GetComprehensiveDataAsync(symbol, cancellationToken);
-            return comprehensive?.Company?.Industry;
+            var industry = comprehensive?.Company?.Industry;
+
+            // Chỉ cache khi tra RA ngành. Cache cả ca rỗng/lỗi là đóng băng mã đó thành "không rõ
+            // ngành" suốt TTL — một lỗi mạng nhất thời sẽ làm im cảnh báo tập trung trong nhiều giờ.
+            if (!string.IsNullOrWhiteSpace(industry))
+                _cache.Set(cacheKey, industry, IndustryCacheTtl);
+
+            return industry;
         }
         catch (Exception ex)
         {
@@ -384,7 +408,12 @@ public class RiskCalculationService : IRiskCalculationService
             // Tra ngành TRƯỚC rồi mới tính P&L: phần lớn mã thuộc ngành khác nên bỏ sớm giúp
             // tránh hẳn lời gọi P&L đắt (mỗi lời gọi đọc lại trade + sự kiện quyền của mã đó).
             // Endpoint này bị gọi lại mỗi nhịp debounce 500ms trên form nên thứ tự có giá trị thật.
-            if (await ResolveIndustryAsync(held, cancellationToken) != result.Sector)
+            // Mã đang gõ luôn nằm trong danh sách đang giữ nếu đã có vị thế — ngành của nó vừa tra
+            // xong ở trên, tra lại là thêm 9 request HTTP cho đúng một dữ liệu đã nằm trong tay.
+            var heldSector = held == normalized
+                ? result.Sector
+                : await ResolveIndustryAsync(held, cancellationToken);
+            if (heldSector != result.Sector)
                 continue;
 
             try

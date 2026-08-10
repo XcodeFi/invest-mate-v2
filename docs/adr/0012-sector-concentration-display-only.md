@@ -52,6 +52,8 @@ Song song, cổng hồ sơ công ty (ADR-0011) chặn theo size **từng lệnh*
 
 Kèm theo, rổ "Không xác định" **cũng** được so hạn mức: không biết mình đang dồn vào đâu là một thông tin, không phải sự vắng mặt của thông tin.
 
+**Phạm vi: chỉ lệnh MUA.** Phép chiếu cộng quy mô lệnh vào giá trị ngành, nên với lệnh BÁN nó báo tỷ trọng tăng đúng lúc lệnh đó làm giảm — một con số sai dấu nằm trong khối cảnh báo rủi ro còn tệ hơn không có số. Đường bán không gọi endpoint. Muốn hỗ trợ bán thì phải truyền hướng lệnh xuống query/endpoint/service và xử lý riêng ca bán quá số đang giữ; chưa làm.
+
 ## Consequences
 
 **Positive:**
@@ -65,7 +67,8 @@ Kèm theo, rổ "Không xác định" **cũng** được so hạn mức: không 
 - Vẫn tạo được lệnh dồn ngành. Cảnh báo chỉ là chữ.
 - `IFundamentalDataProvider` sau thay đổi này **không còn được `RiskCalculationService` dùng tới**, nhưng vẫn nằm trong constructor. Cố ý để lại: bỏ nó ra là sửa chữ ký constructor và 5 harness test, ngoài phạm vi.
 - Mẫu số phép chiếu **không** cộng `addValue` (vì `totalValue` đã gồm tiền mặt, mua bằng tiền trong danh mục chỉ chuyển tiền mặt thành giá trị vị thế). Đúng nhưng phản trực giác, nên có test ghim đúng ca phân biệt 53,33% với 49,61%.
-- Số liệu ngành phụ thuộc 24hmoney: mã provider không trả ngành thì hiện "n/a" chứ không hiện 0% — nhưng người dùng vẫn không có ngành cho mã đó.
+- Số liệu ngành phụ thuộc 24hmoney: provider không trả ngành thì **ẩn hẳn khối**, không hiện 0%. "n/a" dành cho ca khác — biết ngành nhưng `totalValue ≤ 0` nên không chia được tỷ trọng. Dù ẩn hay "n/a", người dùng vẫn không có ngành cho mã đó.
+- Mỗi lần tra ngành là 9 request HTTP song song sang 24hmoney (`GetComprehensiveDataAsync` lấy cả báo cáo tài chính, peers, cổ tức, khối ngoại) chỉ để đọc một chuỗi. Endpoint bị gọi lại mỗi nhịp debounce 500ms nên phải cache: `ResolveIndustryAsync` cache nhãn ngành 6 giờ trong `IMemoryCache`, và **không cache ca lỗi/rỗng** — cache một lần provider timeout là đóng băng mã đó thành "không rõ ngành" suốt TTL, tức một lỗi mạng nhất thời làm im cảnh báo tập trung nhiều giờ. Mã đang gõ không tra lại trong vòng lặp vì ngành của nó đã có sẵn.
 
 **Follow-ups (if any):**
 

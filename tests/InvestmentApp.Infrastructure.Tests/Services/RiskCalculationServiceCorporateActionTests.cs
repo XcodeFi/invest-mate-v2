@@ -6,6 +6,7 @@ using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
 using InvestmentApp.Infrastructure.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -47,7 +48,8 @@ public class RiskCalculationServiceCorporateActionTests
             _stopLossRepo.Object, _snapshotRepo.Object, _stockPriceRepo.Object,
             _pnlService.Object, _capitalFlowRepo.Object, _riskProfileRepo.Object,
             _fundamentalDataProvider.Object, _comprehensiveProvider.Object,
-            _marketDataProvider.Object, _corporateActionRepo.Object, _logger.Object);
+            _marketDataProvider.Object, _corporateActionRepo.Object,
+            new MemoryCache(new MemoryCacheOptions()), _logger.Object);
     }
 
     private void SetupActions(params CorporateAction[] actions) =>

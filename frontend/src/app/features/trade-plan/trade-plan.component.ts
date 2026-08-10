@@ -2562,7 +2562,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
             catchError(() => of(null as DossierGateStatusDto | null))
           ),
           // Chưa chọn danh mục thì không có mẫu số để chia tỷ trọng — không gọi, và không đoán bằng 0.
-          sector: portfolioId
+          // Chỉ lệnh MUA: phép chiếu cộng quy mô lệnh vào giá trị ngành, nên với lệnh BÁN nó báo
+          // tỷ trọng TĂNG đúng lúc lệnh đó làm GIẢM. Phạm vi tính năng là "sau lệnh mua dự kiến"
+          // (ADR-0012), nên đường bán không gọi thay vì hiện một con số sai dấu.
+          sector: portfolioId && isBuyTrade(this.plan.direction)
             ? this.riskService.getSectorExposureForPlan(portfolioId, symbol, quantity * entryPrice).pipe(
                 catchError(() => of(null as SectorExposureForPlan | null))
               )
