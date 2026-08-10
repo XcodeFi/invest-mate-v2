@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 9 (xUnit + FluentAssertions + Moq), Angular 19 (Karma + Jasmine), MongoDB Driver 3.6.0.
 
-**Spec:** [`2026-08-10-sector-concentration-design.md`](../specs/2026-08-10-sector-concentration-design.md) — Q1–Q6 là nguồn quyết định, task nào lệch spec thì spec thắng.
+**Spec:** [`2026-08-10-sector-concentration-design.md`](../../specs/2026-08-10-sector-concentration-design.md) — Q1–Q6 là nguồn quyết định, task nào lệch spec thì spec thắng.
 
 ## Global Constraints
 
@@ -29,7 +29,7 @@
 - Test: `tests/InvestmentApp.Infrastructure.Tests/Services/RiskCalculationServiceOptimizationTests.cs` — **file này đã có và đã test `GetPortfolioOptimization`**, nên harness dựng 13 dependency của constructor có sẵn ở đó. Thêm test vào file này, đừng tạo file mới và đừng dựng harness mới.
 
 **Interfaces:**
-- Consumes: `IComprehensiveStockDataProvider.GetComprehensiveDataAsync(string symbol, CancellationToken ct = default)` → `ComprehensiveStockData?`, ngành ở `.Company.Industry`. **Đã được inject sẵn** vào constructor (`comprehensiveProvider`, [dòng 42](../../../src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs#L42)) — không sửa DI, không sửa `Program.cs`.
+- Consumes: `IComprehensiveStockDataProvider.GetComprehensiveDataAsync(string symbol, CancellationToken ct = default)` → `ComprehensiveStockData?`, ngành ở `.Company.Industry`. **Đã được inject sẵn** vào constructor (`comprehensiveProvider`, [dòng 42](../../../../src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs#L42)) — không sửa DI, không sửa `Program.cs`.
 - Produces: `SectorExposure.IsOverweight` lần đầu có thể bằng `true`.
 
 - [ ] **Step 1: Test đỏ — 3 mã cùng ngành chiếm 60% phải cho `IsOverweight = true`**
@@ -79,7 +79,7 @@ Spec Q2. Dựng 2 mã provider trả `Industry = null` chiếm 60% → rổ "Kh�
 
 - [ ] **Step 6: Bỏ `IsOverweight = false` hardcode**
 
-Tại [dòng 445](../../../src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs#L445), đổi thành cùng phép so như các rổ khác:
+Tại [dòng 445](../../../../src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs#L445), đổi thành cùng phép so như các rổ khác:
 
 ```csharp
 IsOverweight = exposurePercent > maxSectorExposure
@@ -244,4 +244,4 @@ Việc này đảo lại **spec Q6** (đang ghi: chưa thêm field ngành vào h
 
 Task 1 → 2 → 3 → 4. Task 1 giao được giá trị một mình (risk-dashboard có số thật) nên nếu phải dừng giữa đường thì dừng sau Task 1, không dừng giữa Task 2.
 
-**Ưu tiên so với việc khác:** thấp hơn chặng 2 của hồ sơ công ty (đường ghi trade plan của agent đang tắt) và thấp hơn Task 1 của [plan dọn nợ](2026-08-10-company-dossier-backlog.md) (race trên `ux_user_symbol` gây 500).
+**Ưu tiên so với việc khác:** thấp hơn chặng 2 của hồ sơ công ty (đường ghi trade plan của agent đang tắt) và thấp hơn Task 1 của [plan dọn nợ](../2026-08-10-company-dossier-backlog.md) (race trên `ux_user_symbol` gây 500).

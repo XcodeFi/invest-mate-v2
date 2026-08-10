@@ -5,7 +5,7 @@
 
 ## Đã xong
 
-Chặng 1 backend, Task 1–6 của [plan](../superpowers/plans/2026-08-09-company-dossier-guard.md):
+Chặng 1 backend, Task 1–6 của [plan](../superpowers/plans/done/2026-08-09-company-dossier-guard.md):
 entity `CompanyDossier`, repository + index unique `(UserId, Symbol)`, gate phân bậc theo 5% tài khoản,
 nối vào luồng tạo và luồng sửa plan, và bộ REST `api/v1/company-dossiers` kèm nhánh `DossierGateException → 400`.
 

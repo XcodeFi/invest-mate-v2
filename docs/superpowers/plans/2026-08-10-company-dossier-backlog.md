@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Trạng thái (soát 2026-08-10):** Task 3 **xong** (đi kèm PR #149/#150 — `gateStatus` đã có caller ở `trade-plan.component.ts`, trang danh sách có `loadError`, bộ đếm dùng `trim()`, hai component gọi `dossierFreshnessLabel` dùng chung). **Còn lại: Task 1** (race `ux_user_symbol` — `CompanyDossierRepository.AddAsync` vẫn `InsertOneAsync` trơ, chưa bắt `DuplicateKey`), **Task 2** (chờ chốt A/B), **Task 4** (cả 4a lẫn 4b chưa làm — `.claude/commands/qa-verify.md` còn `phdfieldkidpro@gmail.com` ở 2 chỗ, câu `riskFactors` ở `CompanyDossierGate.cs:102` vẫn lệch mẫu).
+
 **Goal:** Đóng các mục đã biết nhưng cố ý để ngoài PR #147, để chặng 2 khởi động trên nền sạch.
 
 **Architecture:** Không thêm thành phần mới. Sửa tại chỗ trong `CompanyDossierRepository`, `UpdateTradePlanCommand`, hai component FE hồ sơ và `trade-plan.component.ts`.
@@ -11,7 +13,7 @@
 **Xuất xứ:** PR #147 (chặng 1) + báo cáo `scratch/qa-reports/qa-verify-company-dossier-20260810-0030z.md`. Không mục nào trong đây là bypass của cổng — cổng đã đóng cả năm cửa hậu ở PR #147. Đây là độ bền và chất lượng hiển thị.
 
 **Không thuộc plan này:**
-- Chặng 2 (fundamentals REST + 5 MCP tool + panel) và chặng 3 (đề xuất `InvalidationRule` + danh sách chờ soát) — đã có trong [`2026-08-09-company-dossier-guard.md`](2026-08-09-company-dossier-guard.md), Task 9–14. **Chặng 2 vẫn là ưu tiên cao hơn mọi task ở đây**, vì đường ghi trade plan của agent đang tắt (ADR-0011 D6).
+- Chặng 2 (fundamentals REST + 5 MCP tool + panel) và chặng 3 (đề xuất `InvalidationRule` + danh sách chờ soát) — ở [`done/2026-08-09-company-dossier-guard.md`](done/2026-08-09-company-dossier-guard.md), Task 9–14, **đã xong cả hai** (PR #150, #151). Ưu tiên "chặng 2 trước Task 1" trong plan này đã hết hiệu lực.
 - Ngành nghề doanh nghiệp + đo tập trung ngành — tính năng mới, phải qua brainstorming trước, không đưa vào plan sửa nợ.
 
 ## Global Constraints
@@ -118,7 +120,7 @@ git commit -m "fix(dossier): đổi lỗi trùng khoá ux_user_symbol thành exc
 
 ---
 
-### Task 3: Bốn mục chất lượng FE từ báo cáo QA
+### Task 3: Bốn mục chất lượng FE từ báo cáo QA — XONG (đi kèm PR #149/#150)
 
 **Files:**
 - Modify: `frontend/src/app/features/company-dossier/company-dossier-list.component.ts`
@@ -160,6 +162,4 @@ git commit -m "fix(dossier): đổi lỗi trùng khoá ux_user_symbol thành exc
 
 ## Thứ tự đề nghị
 
-Task 1 trước (độ bền dữ liệu, người dùng gặp được ngay bằng cách bấm Lưu hai lần). Task 3 sau (chất lượng hiển thị, khối lượng lớn nhất). Task 4 rẻ, ghép vào bất kỳ đâu. Task 2 chờ chốt A/B.
-
-Nhưng **chặng 2 xếp trước cả Task 1**: agent đang không lập được trade plan cho bất kỳ mã nào.
+Task 1 trước (độ bền dữ liệu, người dùng gặp được ngay bằng cách bấm Lưu hai lần). Task 4 rẻ, ghép vào bất kỳ đâu. Task 2 chờ chốt A/B. Task 3 đã xong.

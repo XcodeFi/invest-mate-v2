@@ -10,7 +10,9 @@
 
 ## Trạng thái đi vào plan này
 
-Cổng hồ sơ công ty **đã xong cả ba chặng** (PR #147 chặng 1, #149 + #150 chặng 2, #151 chặng 3). Plan gốc: [`2026-08-09-company-dossier-guard.md`](2026-08-09-company-dossier-guard.md) — đọc checkpoint chặng 2 và chặng 3 ở cuối file đó trước khi bắt đầu.
+**Plan này chưa khởi động** (soát 2026-08-10) — Task 1–5 đều còn nguyên.
+
+Cổng hồ sơ công ty **đã xong cả ba chặng** (PR #147 chặng 1, #149 + #150 chặng 2, #151 chặng 3). Plan gốc: [`2026-08-09-company-dossier-guard.md`](done/2026-08-09-company-dossier-guard.md) — đọc checkpoint chặng 2 và chặng 3 ở cuối file đó trước khi bắt đầu.
 
 Plan này là việc **mới**, phát sinh từ hai ý trong phiên 2026-08-10:
 

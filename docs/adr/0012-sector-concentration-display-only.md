@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-10
-- **Related plan:** `docs/superpowers/plans/2026-08-10-sector-concentration.md`
+- **Related plan:** `docs/superpowers/plans/done/2026-08-10-sector-concentration.md`
 - **Affected layers:** Application / Infrastructure / Api / Frontend
 
 ## Context
@@ -79,7 +79,7 @@ Kèm theo, rổ "Không xác định" **cũng** được so hạn mức: không 
 
 ## References
 
-- Plan: `docs/superpowers/plans/2026-08-10-sector-concentration.md`
+- Plan: `docs/superpowers/plans/done/2026-08-10-sector-concentration.md`
 - Spec: `docs/superpowers/specs/2026-08-10-sector-concentration-design.md` (Q1–Q6)
 - ADR liên quan: [ADR-0011](0011-company-dossier-gate-at-plan-creation.md) — cổng hồ sơ công ty, đường chặn duy nhất mà ADR này cố ý không nhân bản
 - PR: #148

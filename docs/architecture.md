@@ -458,7 +458,7 @@ Plan: [`docs/plans/done/dashboard-decision-engine.md`](plans/done/dashboard-deci
 
 ## Hồ sơ công ty — gate chặn tạo trade plan (chặng 1, 2026-08-10)
 
-Không cho tạo trade plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký và còn hiệu lực. Quyết định thiết kế đầy đủ: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md). Plan 3 chặng: [`docs/superpowers/plans/2026-08-09-company-dossier-guard.md`](superpowers/plans/2026-08-09-company-dossier-guard.md) — **cả ba chặng done**: chặng 1 (entity + gate + trang hồ sơ), chặng 2 (5 tool MCP + dịch lỗi cổng + endpoint fundamentals + panel số liệu), chặng 3 (đề xuất InvalidationRule từ Top-3 rủi ro + mục "Hồ sơ cần soát lại" + badge dashboard).
+Không cho tạo trade plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký và còn hiệu lực. Quyết định thiết kế đầy đủ: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md). Plan 3 chặng: [`docs/superpowers/plans/done/2026-08-09-company-dossier-guard.md`](superpowers/plans/done/2026-08-09-company-dossier-guard.md) — **cả ba chặng done**: chặng 1 (entity + gate + trang hồ sơ), chặng 2 (5 tool MCP + dịch lỗi cổng + endpoint fundamentals + panel số liệu), chặng 3 (đề xuất InvalidationRule từ Top-3 rủi ro + mục "Hồ sơ cần soát lại" + badge dashboard).
 
 **Gate — vị trí bắn (Application layer, đọc `ICompanyDossierRepository` nên không đặt trong entity `TradePlan`):**
 
