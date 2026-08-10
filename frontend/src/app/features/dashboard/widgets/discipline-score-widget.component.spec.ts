@@ -17,6 +17,7 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { DisciplineScoreWidgetComponent } from './discipline-score-widget.component';
 import { DisciplineService, DisciplineScoreDto } from '../../../core/services/discipline.service';
+import { CompanyDossierService } from '../../../core/services/company-dossier.service';
 
 const SCORE_NULL: DisciplineScoreDto = {
   overall: null,
@@ -35,15 +36,21 @@ const SCORE_FILLED: DisciplineScoreDto = {
 
 describe('DisciplineScoreWidgetComponent', () => {
   let serviceSpy: jasmine.SpyObj<DisciplineService>;
+  let dossierSpy: jasmine.SpyObj<CompanyDossierService>;
 
   beforeEach(() => {
     serviceSpy = jasmine.createSpyObj('DisciplineService', ['getScore', 'getPendingReviews']);
     serviceSpy.getPendingReviews.and.returnValue(of([]));
+    // Widget đọc thêm số hồ sơ cần soát lại. Không cung cấp provider là DI lỗi và CẢ file spec đỏ,
+    // không chỉ test nào chạm tới nó.
+    dossierSpy = jasmine.createSpyObj('CompanyDossierService', ['needingReview']);
+    dossierSpy.needingReview.and.returnValue(of([]));
 
     TestBed.configureTestingModule({
       imports: [DisciplineScoreWidgetComponent],
       providers: [
         { provide: DisciplineService, useValue: serviceSpy },
+        { provide: CompanyDossierService, useValue: dossierSpy },
         provideRouter([]),
       ],
     });

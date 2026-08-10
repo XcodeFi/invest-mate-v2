@@ -85,6 +85,22 @@ export interface DossierGateStatusDto {
   freshness: DossierFreshness | null;
 }
 
+export interface SuggestedInvalidationRuleDto {
+  trigger: string;
+  detail: string;
+  /** Detail đã đủ 20 ký tự của gate kỷ luật hay chưa. False vẫn hiện — để người dùng bổ sung. */
+  meetsMinLength: boolean;
+  sourceRank: number;
+}
+
+export interface DossierReviewItemDto {
+  symbol: string;
+  freshness: DossierFreshness;
+  reviewedAt: string;
+  /** Số ngày quá mốc 90 ngày. Hồ sơ chưa ký = 0 (đồng hồ hạn tươi chưa chạy). */
+  daysOverdue: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CompanyDossierService {
   private readonly base = `${environment.apiUrl}/company-dossiers`;
@@ -114,6 +130,18 @@ export class CompanyDossierService {
 
   confirm(symbol: string): Observable<void> {
     return this.http.post<void>(`${this.base}/${symbol}/confirm`, {}, { headers: this.getHeaders() });
+  }
+
+  /** Ba rủi ro cao nhất của hồ sơ, đã ghép thành câu dùng được cho điều kiện "lý do sai". */
+  suggestedRules(symbol: string): Observable<SuggestedInvalidationRuleDto[]> {
+    return this.http.get<SuggestedInvalidationRuleDto[]>(
+      `${this.base}/${symbol}/suggested-rules`, { headers: this.getHeaders() });
+  }
+
+  /** Hồ sơ hết hạn / chưa ký / sắp phải soát lại, đã xếp cái chặn mình trước lên đầu. */
+  needingReview(): Observable<DossierReviewItemDto[]> {
+    return this.http.get<DossierReviewItemDto[]>(
+      `${this.base}/needing-review`, { headers: this.getHeaders() });
   }
 
   // Ba tham số bắt buộc, không optional — thiếu cái nào backend trả 400 (supplement §1).

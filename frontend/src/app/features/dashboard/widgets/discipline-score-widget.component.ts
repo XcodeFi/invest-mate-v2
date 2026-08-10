@@ -7,6 +7,7 @@ import {
   DisciplineScoreDto,
   DisciplineService,
 } from '../../../core/services/discipline.service';
+import { CompanyDossierService } from '../../../core/services/company-dossier.service';
 
 /**
  * Widget "Kỷ luật Thesis" — §D6 plan Vin-discipline (Hybrid formula).
@@ -108,6 +109,16 @@ import {
             Plan cần review lý do đầu tư →
           </a>
         </div>
+
+        <!-- Hồ sơ công ty cần soát lại. Ẩn hoàn toàn khi bằng 0: một dòng "0 hồ sơ" mỗi ngày dạy
+             người ta bỏ qua chỗ này, rồi hôm có số thật cũng bỏ qua luôn. -->
+        <div *ngIf="dossierReviewCount > 0" class="mt-2 text-xs">
+          <a routerLink="/pending-reviews" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
+            📄
+            <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">{{ dossierReviewCount }}</span>
+            Hồ sơ công ty cần soát lại →
+          </a>
+        </div>
       </ng-container>
 
       <div *ngIf="loading" class="text-center py-4 text-sm text-gray-400">Đang tải...</div>
@@ -117,9 +128,11 @@ import {
 })
 export class DisciplineScoreWidgetComponent implements OnInit {
   private disciplineService = inject(DisciplineService);
+  private dossierService = inject(CompanyDossierService);
 
   score: DisciplineScoreDto | null = null;
   pendingCount = 0;
+  dossierReviewCount = 0;
   days: DisciplinePeriod = 90;
   loading = false;
   error: string | null = null;
@@ -132,6 +145,10 @@ export class DisciplineScoreWidgetComponent implements OnInit {
   ngOnInit(): void {
     this.load();
     this.loadPendingCount();
+    this.dossierService.needingReview().subscribe({
+      next: (list) => (this.dossierReviewCount = list.length),
+      error: () => (this.dossierReviewCount = 0),
+    });
   }
 
   private loadPendingCount(): void {

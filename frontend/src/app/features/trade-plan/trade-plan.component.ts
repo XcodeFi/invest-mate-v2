@@ -10,7 +10,7 @@ import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/ser
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { CompanyDossierService, DossierGateStatusDto, GATE_REASON_TEXT } from '../../core/services/company-dossier.service';
+import { CompanyDossierService, SuggestedInvalidationRuleDto, INVALIDATION_TRIGGER_LABELS, DossierGateStatusDto, GATE_REASON_TEXT } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
@@ -1184,6 +1184,32 @@ interface DossierGateError {
                   </button>
                 </div>
 
+                <!-- Từ hồ sơ công ty: rủi ro đã viết một lần, không phải gõ lại lần thứ hai.
+                     Mặc định KHÔNG thêm sẵn — người dùng bấm mới vào plan. -->
+                <div *ngIf="suggestedRules.length > 0"
+                  class="mb-2 rounded-lg border border-indigo-200 bg-indigo-50 p-2">
+                  <div class="text-[11px] font-medium text-indigo-800 mb-1.5">
+                    Từ hồ sơ công ty {{ plan.symbol }} — {{ suggestedRules.length }} rủi ro cao nhất
+                  </div>
+                  <div *ngFor="let sg of suggestedRules" class="flex items-start gap-2 mb-1.5 last:mb-0">
+                    <button type="button" (click)="addSuggestedRule(sg)"
+                      [disabled]="!canEditNotes || isSuggestionAdded(sg)"
+                      class="shrink-0 text-[11px] px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
+                      {{ isSuggestionAdded(sg) ? 'Đã thêm' : '+ Thêm' }}
+                    </button>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-[11px] text-gray-700">{{ sg.detail }}</div>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-[10px] text-gray-500">Hạng {{ sg.sourceRank }} · {{ invalidationTriggerLabel(sg.trigger) }}</span>
+                        <span *ngIf="!sg.meetsMinLength"
+                          class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                          cần bổ sung cho đủ 20 ký tự
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div *ngIf="(plan.invalidationCriteria?.length || 0) === 0"
                   class="text-[12px] italic text-gray-500 bg-white border border-dashed border-gray-300 rounded p-2">
                   Chưa có điều kiện nào. {{ thesisStrictMode() ? 'BẮT BUỘC thêm ít nhất 1 điều kiện khi quy mô plan ≥ 5% tài khoản.' : 'Khuyến nghị thêm 1 điều kiện dù quy mô nhỏ.' }}
@@ -1991,6 +2017,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   private symbolSubject = new Subject<string>();
   private sizingSubject = new Subject<void>();
   private dossierGateCheckSubject = new Subject<void>();
+  private suggestedRulesSubject = new Subject<string>();
+
+  /** Đề xuất điều kiện "lý do sai" lấy từ 3 rủi ro cao nhất của hồ sơ công ty. */
+  suggestedRules: SuggestedInvalidationRuleDto[] = [];
 
   showAiPanel = false;
   aiTradePlanId = '';
@@ -2272,6 +2302,38 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Thêm một đề xuất vào danh sách điều kiện. KHÔNG tự tick sẵn và không tự thêm khi tải: hồ sơ là
+   * của người dùng nhưng điều kiện đóng lệnh thì họ phải chủ động chọn, nếu không plan đầy điều kiện
+   * mà chưa ai đọc lại chúng.
+   */
+  /** Nhãn tiếng Việt của kịch bản — dùng chung bảng nhãn với trang hồ sơ để hai chỗ không lệch chữ. */
+  invalidationTriggerLabel(trigger: string): string {
+    return INVALIDATION_TRIGGER_LABELS[trigger] ?? trigger;
+  }
+
+  addSuggestedRule(rule: SuggestedInvalidationRuleDto): void {
+    if (!this.canEditNotes || this.isSuggestionAdded(rule)) return;
+    if (!this.plan.invalidationCriteria) this.plan.invalidationCriteria = [];
+    this.plan.invalidationCriteria.push({
+      trigger: rule.trigger as InvalidationTriggerForm,
+      detail: rule.detail,
+      checkDate: '',
+      isTriggered: false,
+      triggeredAt: null,
+    });
+  }
+
+  /**
+   * Đọc TRỰC TIẾP từ danh sách điều kiện thay vì giữ một Set song song. Một Set mirror sẽ lệch ở ba
+   * đường: xoá tay một điều kiện (nút vẫn "Đã thêm"), reset form (Set còn dấu của mã cũ), và mở một
+   * plan đã lưu sẵn điều kiện y hệt (nút mời thêm lần hai thành bản trùng).
+   */
+  isSuggestionAdded(rule: SuggestedInvalidationRuleDto): boolean {
+    const target = (rule.detail ?? '').trim();
+    return (this.plan.invalidationCriteria ?? []).some(r => (r.detail ?? '').trim() === target);
+  }
+
   removeInvalidationRule(index: number): void {
     this.plan.invalidationCriteria?.splice(index, 1);
   }
@@ -2537,6 +2599,18 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       }
     });
 
+    // Đề xuất điều kiện "lý do sai" từ 3 rủi ro cao nhất của hồ sơ. Chỉ cần symbol nên là stream
+    // riêng, không đi cùng pipeline cổng (pipeline đó đòi đủ cả 4 số mới gọi).
+    this.suggestedRulesSubject.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(symbol => symbol
+        ? this.dossierService.suggestedRules(symbol).pipe(
+            catchError(() => of([] as SuggestedInvalidationRuleDto[])))
+        : of([] as SuggestedInvalidationRuleDto[])),
+      takeUntil(this.destroy$)
+    ).subscribe(rules => (this.suggestedRules = rules));
+
     // Debounced refresh of advanced sizing models on price/SL changes
     this.sizingSubject.pipe(
       debounceTime(500),
@@ -2645,6 +2719,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   onSymbolInput(): void {
     this.symbolSubject.next(this.plan.symbol);
     this.dossierGateCheckSubject.next();
+    this.suggestedRulesSubject.next((this.plan.symbol || '').trim().toUpperCase());
     this.riskOverrideConfirmed = false;
   }
 
@@ -3252,6 +3327,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       marketCondition: 'Trending', timeHorizon: DEFAULT_TIME_HORIZON, confidenceLevel: 5, checklist: [], notes: '',
       entryMode: 'Single', lots: [], exitTargets: []
     };
+    // Đề xuất của mã cũ không được ở lại: resetForm đặt symbol='' trực tiếp nên stream không bắn.
+    this.suggestedRules = [];
     this.showOrderSheet = false;
     this.showReviewPanel = false;
     this.reviewPlanTarget = null;

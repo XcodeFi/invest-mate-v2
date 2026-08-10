@@ -458,7 +458,7 @@ Plan: [`docs/plans/done/dashboard-decision-engine.md`](plans/done/dashboard-deci
 
 ## Hồ sơ công ty — gate chặn tạo trade plan (chặng 1, 2026-08-10)
 
-Không cho tạo trade plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký và còn hiệu lực. Quyết định thiết kế đầy đủ: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md). Plan 3 chặng: [`docs/superpowers/plans/2026-08-09-company-dossier-guard.md`](superpowers/plans/2026-08-09-company-dossier-guard.md) — **chặng 1** (entity + gate + trang hồ sơ) done; **chặng 2** (5 tool MCP hồ sơ + dịch lỗi cổng + endpoint fundamentals + panel số liệu) done; chặng 3 (đề xuất InvalidationRule + pending-reviews) chưa làm.
+Không cho tạo trade plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp đã ký và còn hiệu lực. Quyết định thiết kế đầy đủ: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md). Plan 3 chặng: [`docs/superpowers/plans/2026-08-09-company-dossier-guard.md`](superpowers/plans/2026-08-09-company-dossier-guard.md) — **cả ba chặng done**: chặng 1 (entity + gate + trang hồ sơ), chặng 2 (5 tool MCP + dịch lỗi cổng + endpoint fundamentals + panel số liệu), chặng 3 (đề xuất InvalidationRule từ Top-3 rủi ro + mục "Hồ sơ cần soát lại" + badge dashboard).
 
 **Gate — vị trí bắn (Application layer, đọc `ICompanyDossierRepository` nên không đặt trong entity `TradePlan`):**
 
@@ -506,6 +506,14 @@ Ngưỡng phản chiếu đúng `TradePlan.LargeTierThreshold` (`= 0.05m`, một
 - Cache `IMemoryCache` **15 phút** theo mã (`fundamentals:{symbol}`), chỉ cache ca lấy được. Ngắn hơn nhiều so với 6 giờ của nhãn ngành ở `RiskCalculationService` vì P/E và vốn hóa đổi trong ngày, còn nhãn ngành gần như không đổi. Một lần gọi provider là ~9 request HTTP, và cả panel lẫn tool MCP đều vào cùng endpoint này.
 - Giới hạn đã biết của `HasAnyValue`: với property KHÔNG nullable (`Shareholder.Percentage`, `ForeignTradingDay.BuyVolume`) thì 0 và "không có" là cùng một bit, nên giá trị **mặc định** được coi là "không có thông tin". Chọn phía này vì một số 0 thật bị báo "không lấy được" chỉ mất một dòng, còn một vỏ rỗng được coi là dữ liệu thì bịa ra cả một khối cổ đông.
 - Số liệu **không** tính vào điều kiện chặn của cổng; panel nói rõ điều đó bằng một dòng chữ nhỏ.
+
+**Chặng 3 — trả lại thời gian và nhắc trước (2026-08-10):**
+
+- `GetSuggestedInvalidationRulesQuery` → `GET /company-dossiers/{symbol}/suggested-rules`. Lấy 3 `RiskFactor` hạng cao nhất, ghép `Description — dấu hiệu: ObservableSignal`, `Trigger = SuggestedTrigger ?? Manual`. `MeetsMinLength` chấm theo ngưỡng 20 ký tự của gate kỷ luật; đề xuất **không đạt vẫn trả về** kèm cờ, vì lặng lẽ bỏ đi thì người dùng không biết là có gợi ý.
+- `GetDossiersNeedingReviewQuery` → `GET /company-dossiers/needing-review`. Lọc bỏ `Fresh`, xếp `Expired` → `Unconfirmed` → `NeedsReview` rồi `DaysOverdue` giảm dần. Route literal khai báo **trước** `{symbol}` — literal thắng tham số nên "needing-review" không bị hiểu thành một mã (đã kiểm bằng curl: trả `[]` 200 thay vì 404 của đường `Get`).
+- `DaysOverdue` đếm từ mốc **90 ngày** theo ngày lịch VN, không đếm từ ngày soát. Hồ sơ `Unconfirmed` = **0** — đồng hồ hạn tươi chưa chạy, hiện một con số quá hạn ở đó là bịa.
+- FE: khối "Từ hồ sơ công ty" trong section "Điều kiện lý do sai" của `trade-plan.component.ts` (stream riêng, chỉ cần symbol nên không đi cùng pipeline cổng vốn đòi đủ 4 số); section "Hồ sơ công ty cần soát lại" ở `/pending-reviews`; badge ở `discipline-score-widget`, **ẩn hoàn toàn khi bằng 0**.
+- **Đề xuất, không tự áp.** Không tick sẵn, không tự thêm khi tải — người dùng bấm mới vào plan. Một plan tự đầy điều kiện mà chưa ai đọc lại chúng thì gate kỷ luật đo được chữ, không đo được ý.
 
 **Đã biết, không phải bug:**
 
