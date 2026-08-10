@@ -74,10 +74,12 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         // không phải giá trị thô trên request — gộp vào ResolveEffectiveGateInputs (dùng
         // chung với đường tạo) thay vì 3-4 vế "?? " tách rời như trước, đó là lý do bug
         // đọc-sai-thời-điểm lặp lại nhiều lần.
-        // willApplyLots phải khớp ĐÚNG điều kiện gọi SetLots bên dưới. Điều kiện của đường sửa
-        // rộng hơn đường tạo (không kiểm Count > 0) nên không dùng chung một hằng biểu thức được
-        // — mỗi handler tự tính rồi truyền vào, và dùng lại chính biến đó ở chỗ ghi.
-        var willApplyLots = request.EntryMode != null && request.Lots != null;
+        // willApplyLots phải khớp ĐÚNG điều kiện gọi SetLots bên dưới — mỗi handler tự tính
+        // rồi truyền vào, và dùng lại chính biến đó ở chỗ ghi.
+        // `Count > 0` để `lots: []` không chạy SetLots(mode, []) rồi gán Quantity = 0 sau khi
+        // cổng đã chấm theo quantity cũ. Đổi lại: không có cách xoá hết lots qua API — FE hiện
+        // gửi `undefined` khi rỗng nên không ai mất đường nào.
+        var willApplyLots = request.EntryMode != null && request.Lots is { Count: > 0 };
         var oldSize = plan.Quantity * plan.EntryPrice;
         var gateInputs = CreateTradePlanCommandHandler.ResolveEffectiveGateInputs(
             existingPlan: plan,
