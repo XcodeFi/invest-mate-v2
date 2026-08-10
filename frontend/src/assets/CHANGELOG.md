@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.73.0] — 2026-08-10 · Trợ lý AI soạn được hồ sơ công ty, và có menu để vào
+
+> Đánh số v2.73.0 vì v2.72.0 (tỷ trọng ngành) đang chờ ở PR #148. Nếu bản này lên trước thì đổi lại số.
+
+### Sửa lỗi
+
+**🔓 Trợ lý AI lập lại được kế hoạch giao dịch.** Từ bản v2.71.0, mọi kế hoạch mới đều cần hồ sơ công ty đã ký — nhưng trợ lý **không có công cụ nào để soạn hồ sơ**, nên nó bị chặn ở mọi mã và không có cách tự sửa. Nay đã có 4 công cụ MCP cho hồ sơ công ty, trong đó `upsert_company_dossier` để soạn nội dung và `get_dossier_gate_status` để biết chính xác còn thiếu gì trước khi thử tạo kế hoạch.
+
+**Trợ lý soạn được nhưng vẫn KHÔNG ký được** — nguyên tắc không đổi: chữ ký là của con người. Sau khi trợ lý soạn, hồ sơ về trạng thái chờ bạn đọc và ký, và cổng vẫn chặn cho tới lúc đó.
+
+**🧭 Đã có menu vào trang hồ sơ công ty** (Quản lý → Hồ sơ công ty), ngay trước "Kế hoạch GD". Trước đây trang danh sách hồ sơ không có đường vào nào từ giao diện — chỉ tới được trang chi tiết của một mã qua banner cảnh báo.
+
+**💬 Lỗi khi lưu hồ sơ nay nói rõ lý do.** Trước đây mọi thất bại đều hiện "Không thể lưu hồ sơ", trong khi máy chủ đã trả về câu cụ thể như *"Mỗi yếu tố rủi ro phải có dấu hiệu quan sát được"*. Nay hiện đúng câu đó, nên bạn biết ô nào đang chặn mình.
+
+### Files chính
+
+- `src/InvestmentApp.Api/Mcp/CompanyDossierTools.cs` (mới) — 4 công cụ MCP, **cố ý không có công cụ ký**.
+- `frontend/src/app/shared/components/header/header.component.ts`, `frontend/src/app/features/company-dossier/company-dossier-detail.component.ts`.
+- Tests: 1743 test backend + 174 test frontend pass. Có test chặn việc thêm công cụ ký qua MCP về sau.
+
+---
+
 ## [v2.71.0] — 2026-08-10 · Hồ sơ công ty — chặn lập kế hoạch khi chưa hiểu doanh nghiệp
 
 ### Tính năng

@@ -12,6 +12,17 @@ import {
 } from '../../core/services/company-dossier.service';
 import { NotificationService } from '../../core/services/notification.service';
 
+/**
+ * Lấy nguyên văn lý do server trả về. Backend đã nói rõ và nói đúng tiếng Việt — ví dụ
+ * "Mỗi yếu tố rủi ro phải có dấu hiệu quan sát được" — nhưng trước đây FE ném đi và chỉ hiện
+ * "Không thể lưu hồ sơ", nên người dùng không có cách nào biết ô nào đang chặn mình.
+ * `detail` là của ProblemDetails (exception middleware); `error` là của các BadRequest tự tay.
+ */
+export function serverMessage(err: unknown): string {
+  const body = (err as { error?: { detail?: string; error?: string } } | null)?.error;
+  return body?.detail || body?.error || 'Không thể lưu hồ sơ — thử lại sau.';
+}
+
 const PENDING_PLAN_KEY = 'pendingTradePlanDraft';
 const MIN_BUSINESS_MODEL_LEN = 30;
 
@@ -320,9 +331,9 @@ export class CompanyDossierDetailComponent implements OnInit {
           this.exists = true;
           this.notification.success('Hồ sơ công ty', 'Đã lưu');
         },
-        error: () => {
+        error: (err) => {
           this.saving = false;
-          this.notification.error('Lỗi', 'Không thể lưu hồ sơ');
+          this.notification.error('Không lưu được hồ sơ', serverMessage(err));
         },
       });
   }

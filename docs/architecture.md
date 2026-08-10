@@ -485,6 +485,8 @@ Ngưỡng phản chiếu đúng `TradePlan.LargeTierThreshold` (`= 0.05m`, một
 
 **Bất biến khi sửa hai handler (ADR-0011 D9) — năm cửa hậu đã phải vá đều vi phạm đúng chỗ này:** giá trị gate chấm phải bằng giá trị plan **thực sự lưu xuống**. Cụ thể: `willApplyLots` là **một biến duy nhất** tính một lần trong handler, dùng cho cả điểm bắn gate lẫn lệnh `plan.SetLots` (không viết lại điều kiện ở chỗ thứ hai — điều kiện hai đường khác nhau: đường tạo có `Count > 0`, đường sửa không); `ResolveEffectiveGateInputs` trả thẳng `PlanSize` để không caller nào nhân lại theo cách riêng; và khi có lots thì size lấy **mức lớn hơn** giữa `tổng(lô × giá lô)` và `tổng lô × giá header`. Thêm bất kỳ mutator nào chạy sau điểm bắn mà chạm `Quantity`/`EntryPrice`/`Symbol` là phải soi lại danh sách này — kể cả mutator nằm trong file entity không đổi, ngoài diff (đó là lý do cửa hậu thứ tư và thứ năm sống sót qua nhiều vòng review).
 
+**MCP — hồ sơ công ty (4 tool, `src/InvestmentApp.Api/Mcp/CompanyDossierTools.cs`):** `list_company_dossiers`, `get_company_dossier`, `get_dossier_gate_status` (3 tham số bắt buộc, cùng hợp đồng với endpoint REST) và `upsert_company_dossier` (`ByAgent = true` → kéo theo phải ký lại theo Q10). **Cố ý KHÔNG có tool ký/xác nhận** — `ConfirmedAt` chỉ đặt được qua endpoint JWT, tức chỉ con người (ADR-0011 D2). Guard `No_Mcp_Tool_Can_Sign_A_Company_Dossier` trong `McpToolDiscoveryTests` đỏ nếu ai đó thêm tool tên chứa `confirm`/`sign` hoặc phơi `ConfirmedAt` ra schema. Đây là bản vá cho hệ quả D6: trước đó agent bị cổng chặn ở mọi mã mà không có tool nào để tự soạn hồ sơ.
+
 **Đã biết, không phải bug:**
 
 - Lệnh trade plan **đầu tiên sau khi deploy** bị chặn với mọi mã, kể cả mã đang giữ — không có grandfathering (ADR-0011 D5).
