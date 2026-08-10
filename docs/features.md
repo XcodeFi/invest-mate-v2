@@ -800,6 +800,9 @@ Ownership khóa theo `sub` = chủ khóa ở tầng handler. Tài liệu 5 nhóm
 | **AI Agent (ApiKey)** | `GET/POST/PUT/PATCH /api/v1/ai/agent/trade-plans` | 🔑 ApiKey |
 | **AI Agent (ApiKey)** | `POST /api/v1/ai/agent/trades` | 🔑 ApiKey |
 | **AI Agent (ApiKey)** | `GET /api/v1/ai/agent/doc` | 🔑 ApiKey |
+| **Company Dossiers** | `GET/PUT /api/v1/company-dossiers[/{symbol}]` | ✅ |
+| **Company Dossiers** | `POST /api/v1/company-dossiers/{symbol}/confirm` | ✅ |
+| **Company Dossiers** | `GET /api/v1/company-dossiers/{symbol}/gate-status` | ✅ |
 
 ---
 
@@ -830,6 +833,8 @@ Ownership khóa theo `sub` = chủ khóa ở tầng handler. Tài liệu 5 nhóm
 | `/campaign-analytics` | `CampaignAnalyticsComponent` | Phân tích chiến dịch cross-plan: summary, so sánh, best/worst, lessons (P0.7) |
 | `/help` | `HelpComponent` | Hướng dẫn sử dụng: 8 chủ đề, full-text search tiếng Việt (không dấu), markdown rendering |
 | `/api-keys` | `ApiKeysComponent` | Quản lý khóa API cá nhân: danh sách, tạo mới (modal hiện token 1 lần), thu hồi |
+| `/company-dossier` | `CompanyDossierListComponent` | Danh sách hồ sơ công ty theo mã + badge trạng thái tươi |
+| `/company-dossier/:symbol` | `CompanyDossierDetailComponent` | Chi tiết hồ sơ: business model, moats, risk factors (▲▼, dấu hiệu quan sát được), nút ký |
 
 ---
 
@@ -1587,6 +1592,74 @@ Hai lỗi nữa tìm ra trong lúc review, cùng lớp vấn đề nên sửa lu
 
 - **Sự kiện công bố trước chưa được áp.** `CorporateActionAdjuster` chỉ chặn dưới theo mốc giá, không chặn trên. Sự kiện nhập lúc công bố (thường trước ngày GDKHQ vài tuần) làm mọi ngưỡng bị chia 1,3 ngay lập tức trong khi giá thị trường chưa đổi. Nay chặn trên bằng `ExDate ≤ hôm nay`, giống `PositionBuilder` vốn đã làm.
 - **Thứ tự trong ngày GDKHQ.** `PositionBuilder` xếp lệnh khớp trước sự kiện quyền cùng ngày. Sai: quyền chốt theo danh sách cổ đông cuối ngày liền trước, nên người bán trong ngày GDKHQ vẫn hưởng và người mua hôm đó thì không. Bán 500 CP đúng ngày GDKHQ bị tính giá vốn chưa điều chỉnh → lỗ giả gấp mấy chục lần.
+
+---
+
+## Hồ sơ công ty & điều kiện chặn lập kế hoạch — 2026-08-10 (chặng 1)
+
+**Nhánh:** `feature/company-dossier-guard` | **Trạng thái:** ✅ Chặng 1 (entity + gate + trang hồ sơ) done — guard đã hoạt động nhưng còn phải gõ tay; chặng 2 (phơi fundamentals + MCP) và chặng 3 (đề xuất InvalidationRule + pending-reviews) **chưa làm**.
+
+Không cho tạo Trade Plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp — kiếm tiền bằng gì, moat ở đâu, rủi ro nào và biết nó đang xảy ra bằng dấu hiệu gì — đã được chính người dùng ký và còn hiệu lực. Mục đích: gate "Lý do đầu tư" (Thesis) hiện có đếm được độ dài câu chữ, không đếm được hiểu biết; "HPG đầu ngành thép, triển vọng tốt" đủ 30 ký tự và không kiểm chứng được gì. Quyết định thiết kế + đánh đổi: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec đầy đủ Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md).
+
+### Nội dung hồ sơ — sống theo mã, không theo lệnh
+
+Viết một lần cho HPG, mọi plan HPG sau dùng lại — khác với "Lý do đầu tư" phải gõ lại mỗi lệnh.
+
+| Khối | Gate? |
+|---|:---:|
+| Doanh nghiệp này kiếm tiền bằng gì (`BusinessModel`) | ✅ |
+| Lợi thế bền (`Moats`, danh sách) | ✅ |
+| Rủi ro xếp hạng 1..N + **dấu hiệu quan sát được bắt buộc** cho mỗi rủi ro + tối đa 1 đánh dấu "hủy diệt" (`RiskFactors`) | ✅ |
+| Ghi chú tự do (`Notes`) | ❌ |
+
+### Ngưỡng đủ theo size — cùng công thức 5% với gate "Lý do đầu tư"
+
+| | Tầng nhỏ | Tầng lớn (`≥ 5% tài khoản`) |
+|---|---|---|
+| Doanh nghiệp kiếm tiền bằng gì | không rỗng | ≥ 30 ký tự |
+| Moats | ≥ 1 | ≥ 1, có 1 cái ≥ 30 ký tự |
+| Rủi ro | ≥ 1, có dấu hiệu | ≥ 3, mỗi dấu hiệu ≥ 20 ký tự |
+
+### Hạn tươi — chỉ nút ký đẩy đồng hồ
+
+`Unconfirmed` (chưa ký, gate coi như chưa có hồ sơ) → `Fresh` (< 90 ngày, đỗ) → `NeedsReview` (90-179 ngày, **vẫn đỗ**, chỉ nhắc soát lại) → `Expired` (≥ 180 ngày, **chặn**). Sửa nội dung — kể cả người dùng tự sửa — không đẩy đồng hồ; chỉ bấm nút ký mới đẩy. Vì vậy một hồ sơ `Expired` sửa xong vẫn `Expired` cho tới khi ký lại.
+
+### Agent viết được, không ký được
+
+Điểm tựa của toàn bộ thiết kế. Không có cách nào ngoài `POST /company-dossiers/{symbol}/confirm` (JWT) đặt được `ConfirmedAt` — chặng 2 sẽ thêm MCP tool `upsert_company_dossier` để agent soạn hộ nội dung, nhưng tool đó vẫn không xác nhận được. Nếu agent sửa một hồ sơ đã ký, `ConfirmedAt` về `null` (`AgentDraftedAt` được ghi) — người dùng phải mở trang, đọc, ký lại; người dùng tự sửa qua UI thì không cần ký lại (đang đọc chính cái mình viết).
+
+### Cảnh báo kiểm-trước trên form Trade Plan (không chặn)
+
+Khi form đã có đủ mã + số lượng + giá vào + số dư, gọi `gate-status` (debounce 500ms) và hiện tình trạng gate ngay trên form, trước khi bấm lưu — không disable nút nào. Đây là phần làm guard bớt đau nhất ở chặng 1: người dùng biết trước sẽ bị chặn hay không, không phải bấm lưu rồi mới thấy 400.
+
+### Luồng bị gãy: "Tạo Trade Plan từ gợi ý"
+
+Nút này ở trang thị trường tạo plan trực tiếp cho mã gợi ý. Với mã chưa có hồ sơ đã ký, nút điều hướng sang `/company-dossier/{symbol}?returnTo=trade-plan` — entry/SL/TP đã auto-fill giữ qua `sessionStorage`, quay lại không mất gì.
+
+### Đã biết, không phải bug
+
+- **Lệnh đầu tiên sau khi deploy bị chặn với mọi mã**, kể cả mã đang giữ nhiều tháng — không có ngoại lệ chuyển tiếp (không giống `LegacyExempt` của gate "Lý do đầu tư").
+- **Đường ghi trade plan của agent (ApiKey + MCP) tắt hoàn toàn** cho tới khi chặng 2 landed — gate sống trên `CreateTradePlanCommand` mà cả hai cửa agent đều dispatch vào đó.
+
+### API + Frontend
+
+| Method | Endpoint | Ghi chú |
+|--------|----------|---------|
+| `GET` | `/api/v1/company-dossiers` | Danh sách hồ sơ của user |
+| `GET` | `/api/v1/company-dossiers/{symbol}` | Chi tiết 1 hồ sơ |
+| `PUT` | `/api/v1/company-dossiers/{symbol}` | Upsert nội dung (JWT → luôn `ByAgent=false`) |
+| `POST` | `/api/v1/company-dossiers/{symbol}/confirm` | Ký — đường duy nhất đặt `ConfirmedAt` |
+| `GET` | `/api/v1/company-dossiers/{symbol}/gate-status` | Pre-flight; `quantity`/`entryPrice`/`accountBalance` bắt buộc (thiếu → 400) |
+
+- `frontend/src/app/features/company-dossier/company-dossier-list.component.ts` — route `/company-dossier`.
+- `frontend/src/app/features/company-dossier/company-dossier-detail.component.ts` — route `/company-dossier/:symbol`.
+- `frontend/src/app/core/services/company-dossier.service.ts`.
+
+### Tests
+
+Verify thật trên DB prod (tài khoản test, mã HPG): API 8/8 (chưa có hồ sơ → 400 `missing` → viết → 400 `unconfirmed` → ký → `Fresh` → tạo plan 201 → xóa plan) + browser 22 mục. 1596 backend test + 152 frontend test pass, không regression.
+
+---
 
 ## Backlog (chưa implement)
 
