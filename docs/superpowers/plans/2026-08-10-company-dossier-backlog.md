@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Trạng thái (soát 2026-08-10):** Task 3 **xong** (đi kèm PR #149/#150 — `gateStatus` đã có caller ở `trade-plan.component.ts`, trang danh sách có `loadError`, bộ đếm dùng `trim()`, hai component gọi `dossierFreshnessLabel` dùng chung). **Còn lại: Task 1** (race `ux_user_symbol` — `CompanyDossierRepository.AddAsync` vẫn `InsertOneAsync` trơ, chưa bắt `DuplicateKey`), **Task 2** (chờ chốt A/B), **Task 4** (cả 4a lẫn 4b chưa làm — `.claude/commands/qa-verify.md` còn `phdfieldkidpro@gmail.com` ở 2 chỗ, câu `riskFactors` ở `CompanyDossierGate.cs:102` vẫn lệch mẫu).
+**Trạng thái (soát 2026-08-10):** Task 3 **xong** (đi kèm PR #149/#150 — `gateStatus` đã có caller ở `trade-plan.component.ts`, trang danh sách có `loadError`, bộ đếm dùng `trim()`, hai component gọi `dossierFreshnessLabel` dùng chung). Task 4 **xong** (4a + 4b, v2.76.1). **Còn lại: Task 1** (race `ux_user_symbol` — repository vẫn `InsertOneAsync` trơ, chưa bắt `DuplicateKey`; lưu ý method tên **`CreateAsync`**, không phải `AddAsync` như plan ghi bên dưới), **Task 2** (chờ chốt A/B).
 
 **Goal:** Đóng các mục đã biết nhưng cố ý để ngoài PR #147, để chặng 2 khởi động trên nền sạch.
 
@@ -111,9 +111,9 @@ git commit -m "fix(dossier): đổi lỗi trùng khoá ux_user_symbol thành exc
 - Phương án A: thêm `Count > 0` → hết `Quantity = 0`, và xoá lots vẫn không làm được (giữ nguyên hiện trạng, không tệ thêm).
 - Phương án B: thêm `Count > 0` **và** một cờ rõ nghĩa (`ClearLots = true`) để xoá lots có chủ đích, kèm gán lại `Quantity` từ header.
 
-**Chưa chốt A hay B thì chưa code.** Ghi câu hỏi này ra và hỏi, đừng chọn hộ.
+**Đã chốt (2026-08-10): phương án A** — chỉ thêm `Count > 0`. Hết `Quantity = 0`; chấp nhận việc xoá hết lots qua API vẫn không làm được (giữ nguyên hiện trạng, không tệ thêm). Không thêm cờ `ClearLots` — chưa có nhu cầu thật, thêm cờ là thêm một đường ghi phải bảo vệ.
 
-- [ ] **Step 1: Hỏi chủ sở hữu A hay B**
+- [x] **Step 1: Hỏi chủ sở hữu A hay B** → **A**
 - [ ] **Step 2: Test đỏ cho phương án đã chốt**
 - [ ] **Step 3: Implement, giữ `willApplyLots` là một biến duy nhất (ADR-0011 D9)**
 - [ ] **Step 4: Chạy `dotnet test tests/InvestmentApp.Application.Tests`, commit**
@@ -144,7 +144,7 @@ git commit -m "fix(dossier): đổi lỗi trùng khoá ux_user_symbol thành exc
 
 ---
 
-### Task 4: Hai mục tài liệu / tooling
+### Task 4: Hai mục tài liệu / tooling — XONG (v2.76.1)
 
 **Files:**
 - Modify: skill `qa-verify` (phần Prerequisites + câu lệnh mint ở Step 2)
@@ -152,14 +152,16 @@ git commit -m "fix(dossier): đổi lỗi trùng khoá ux_user_symbol thành exc
 
 **4a. Drift trong skill `qa-verify`** — skill ghi `phdfieldkidpro@gmail.com` nhưng `StableJwtMint.ALLOWED_EMAILS` chỉ có `investmate.support@gmail.com`. Chạy theo skill nguyên văn sẽ fail ở `EnsureEmailAllowed`. Sửa skill cho khớp source (không sửa source cho khớp skill).
 
-**4b. Câu thông báo `riskFactors` lệch mẫu** — `"riskFactors: mô tả không được để trống ở hạng {ranks}"` là một mệnh đề, trong khi các câu cùng bộ theo mẫu "cần X, đang có Y". Đồng bộ để FE render `missing[]` đọc thành một khối nhất quán. Có test đang assert nguyên văn câu này — sửa test cùng lúc.
+**4b. Câu thông báo `riskFactors` lệch mẫu** — `"riskFactors: mô tả không được để trống ở hạng {ranks}"` là một mệnh đề, trong khi các câu cùng bộ theo mẫu "cần X, đang có Y". Đồng bộ để FE render `missing[]` đọc thành một khối nhất quán. ~~Có test đang assert nguyên văn câu này~~ — thực tế test `LargeTier_RiskFactorWithBlankDescription_ShouldBlock` chỉ assert **lỏng** bằng ba `Contains`, nên đổi câu vẫn xanh; phải siết thành assertion nguyên văn thì mới có bước đỏ.
 
-- [ ] **Step 1: Sửa skill, đọc lại `StableJwtMint.ALLOWED_EMAILS` để lấy đúng email**
-- [ ] **Step 2: Test đỏ cho câu thông báo mới, sửa gate, chạy `dotnet test tests/InvestmentApp.Application.Tests`**
-- [ ] **Step 3: Commit**
+- [x] **Step 1: Sửa skill, đọc lại `StableJwtMint.ALLOWED_EMAILS` để lấy đúng email**
+- [x] **Step 2: Test đỏ cho câu thông báo mới, sửa gate, chạy `dotnet test tests/InvestmentApp.Application.Tests`**
+- [x] **Step 3: Commit**
+
+**Kết quả:** câu mới là `"riskFactors: cần mô tả ở mọi yếu tố, đang để trống ở hạng {ranks}"`. Email đúng là `investmate.support@gmail.com`, đã sửa ở dòng 26 (Prerequisites) và dòng 59 (`MINT_EMAIL`) của `.claude/commands/qa-verify.md`. Thêm test `LargeTier_MultipleBlankDescriptions_ShouldListEveryRank` ghim cách nối nhiều hạng. 403 pass.
 
 ---
 
 ## Thứ tự đề nghị
 
-Task 1 trước (độ bền dữ liệu, người dùng gặp được ngay bằng cách bấm Lưu hai lần). Task 4 rẻ, ghép vào bất kỳ đâu. Task 2 chờ chốt A/B. Task 3 đã xong.
+Task 3 và Task 4 đã xong. Còn Task 1 (độ bền dữ liệu, người dùng gặp được ngay bằng cách bấm Lưu hai lần) — làm trước. Task 2 chờ chốt A/B.

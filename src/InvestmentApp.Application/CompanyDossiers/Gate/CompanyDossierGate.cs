@@ -99,7 +99,7 @@ public class CompanyDossierGate : ICompanyDossierGate
             .ToList();
 
         if (emptyDescriptionRanks.Count > 0)
-            missing.Add($"riskFactors: mô tả không được để trống ở hạng {string.Join(", ", emptyDescriptionRanks)}");
+            missing.Add($"riskFactors: cần mô tả ở mọi yếu tố, đang để trống ở hạng {string.Join(", ", emptyDescriptionRanks)}");
 
         return missing;
     }

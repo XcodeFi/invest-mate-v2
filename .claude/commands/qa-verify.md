@@ -23,7 +23,7 @@ Drives a logged-in browser session against dev or prod using a JWT minted from `
 
 ## Prerequisites
 
-The test user (`phdfieldkidpro@gmail.com`) must already exist in the target DB. If absent, prompt the user to log in once via Google with that email on the target environment to seed the user record.
+The test user (`investmate.support@gmail.com`) must already exist in the target DB. If absent, prompt the user to log in once via Google with that email on the target environment to seed the user record.
 
 Currently allowlisted in [tests/InvestmentApp.Infrastructure.Tests/Tools/MintStableJwtTests.cs](tests/InvestmentApp.Infrastructure.Tests/Tools/MintStableJwtTests.cs) `StableJwtMint.ALLOWED_EMAILS`:
 - `investmate.support@gmail.com` — needs to be seeded by logging in via Google once on dev + prod before mint will succeed. Until seeded, Step 2 will fail with "User not found in database".
@@ -56,7 +56,7 @@ Mint a 30-day JWT against the target environment.
 Read [src/InvestmentApp.Api/appsettings.Development.json](src/InvestmentApp.Api/appsettings.Development.json) for `ConnectionStrings.MongoDb`, `MongoDb.DatabaseName`, `Jwt.Key`, `Jwt.Issuer`, `Jwt.Audience`, then:
 
 ```bash
-MINT_EMAIL="phdfieldkidpro@gmail.com" \
+MINT_EMAIL="investmate.support@gmail.com" \
 MINT_MONGO_CONN="<from appsettings.Development.json>" \
 MINT_MONGO_DB="<from appsettings.Development.json>" \
 MINT_JWT_KEY="<from appsettings.Development.json>" \

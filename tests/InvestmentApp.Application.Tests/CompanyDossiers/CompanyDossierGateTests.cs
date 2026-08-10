@@ -265,7 +265,29 @@ public class CompanyDossierGateTests
         var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, Account, default);
 
         result.Passed.Should().BeFalse();
-        result.Missing.Should().Contain(m => m.Contains("riskFactors") && m.Contains("mô tả") && m.Contains("1"));
+        result.Missing.Should().Contain("riskFactors: cần mô tả ở mọi yếu tố, đang để trống ở hạng 1");
+    }
+
+    [Fact]
+    public async Task LargeTier_MultipleBlankDescriptions_ShouldListEveryRank()
+    {
+        // Ghim luôn cách nối nhiều hạng — assertion một hạng không phân biệt được
+        // "ở hạng 1" với "ở hạng 1, 3".
+        var risks = new List<RiskFactor>
+        {
+            new() { Rank = 1, Description = "  ", ObservableSignal = new string('x', 30) },
+            new() { Rank = 2, Description = "Rủi ro số 2", ObservableSignal = new string('x', 30) },
+            new() { Rank = 3, Description = "", ObservableSignal = new string('x', 30) }
+        };
+        var d = new CompanyDossier("user-1", "HPG", "Bán thép xây dựng cho nhà thầu nội địa toàn quốc",
+            new List<MoatItem> { new() { Description = new string('m', 40) } },
+            risks);
+        d.Confirm();
+        Setup(d);
+
+        var result = await Sut().EvaluateAsync("user-1", "HPG", LargeSize, Account, default);
+
+        result.Missing.Should().Contain("riskFactors: cần mô tả ở mọi yếu tố, đang để trống ở hạng 1, 3");
     }
 
     [Fact]

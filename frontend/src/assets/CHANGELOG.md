@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.76.1] — 2026-08-10 · Câu báo thiếu của cổng hồ sơ đọc thành một khối
+
+### Sửa
+
+**Câu nhắc `riskFactors` thiếu mô tả giờ cùng khuôn với các câu còn lại.** Danh sách "còn thiếu" của cổng hồ sơ theo mẫu *"cần X, đang có Y"* — riêng câu về mô tả rủi ro trước đây chỉ có một mệnh đề (*"mô tả không được để trống ở hạng 1"*), đọc lệch hẳn khỏi khối. Giờ là *"riskFactors: cần mô tả ở mọi yếu tố, đang để trống ở hạng 1, 3"*.
+
+Không đổi điều kiện chặn — chỉ đổi cách nói. Bạn bị chặn ở đúng những trường hợp như trước.
+
+### Nội bộ
+
+- Skill `qa-verify` ghi sai email tài khoản kiểm thử ở 2 chỗ, chạy nguyên văn sẽ fail ở bước mint JWT. Đã sửa cho khớp `StableJwtMint.ALLOWED_EMAILS`.
+- Test: 403 pass ở `InvestmentApp.Application.Tests` (+1 test mới ghim cách nối nhiều hạng).
+
+---
+
 ## [v2.76.0] — 2026-08-10 · Hồ sơ công ty trả lại thời gian, và nhắc trước khi nó hết hạn
 
 ### Tính năng
