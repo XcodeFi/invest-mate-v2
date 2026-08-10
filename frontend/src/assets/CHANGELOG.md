@@ -25,7 +25,7 @@
 - `src/InvestmentApp.Infrastructure/Services/RiskCalculationService.cs`, `src/InvestmentApp.Application/Risk/Queries/GetSectorExposureForPlan/`, `src/InvestmentApp.Api/Controllers/RiskController.cs`.
 - `frontend/src/app/core/services/risk.service.ts`, `frontend/src/app/features/trade-plan/trade-plan.component.ts`.
 - `docs/adr/0012-sector-concentration-display-only.md` (mới).
-- Tests: 1755 test backend + 179 test frontend pass, không regression (baseline trước bản này: 1742 + 171).
+- Tests: 1767 test backend + 182 test frontend pass, không regression (baseline v2.73.0: 1754 + 174).
 
 ---
 
