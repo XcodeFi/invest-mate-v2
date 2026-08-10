@@ -24,6 +24,25 @@ export const GATE_REASON_TEXT: Record<'missing' | 'unconfirmed' | 'expired', str
   expired: 'Hồ sơ đã quá 180 ngày. Cập nhật tin mới rồi ký lại.',
 };
 
+// Một chỗ duy nhất cho nhãn/màu badge độ tươi — dùng ở cả trang danh sách và chi tiết.
+export function dossierFreshnessLabel(freshness: string): string {
+  switch (freshness) {
+    case 'Fresh': return 'Còn mới';
+    case 'NeedsReview': return 'Cần soát lại';
+    case 'Expired': return 'Đã hết hạn';
+    default: return 'Chưa xác nhận';
+  }
+}
+
+export function dossierFreshnessBadgeClass(freshness: string): Record<string, boolean> {
+  return {
+    'bg-emerald-100 text-emerald-700': freshness === 'Fresh',
+    'bg-yellow-100 text-yellow-700': freshness === 'NeedsReview',
+    'bg-red-100 text-red-700': freshness === 'Expired',
+    'bg-gray-100 text-gray-600': freshness === 'Unconfirmed',
+  };
+}
+
 export interface RiskFactorDto {
   rank: number;
   description: string;

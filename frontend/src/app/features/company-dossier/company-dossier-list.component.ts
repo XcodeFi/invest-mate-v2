@@ -1,7 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { CompanyDossierService, CompanyDossierDto } from '../../core/services/company-dossier.service';
+import {
+  CompanyDossierService,
+  CompanyDossierDto,
+  dossierFreshnessLabel,
+  dossierFreshnessBadgeClass,
+} from '../../core/services/company-dossier.service';
 
 @Component({
   selector: 'app-company-dossier-list',
@@ -40,7 +45,8 @@ import { CompanyDossierService, CompanyDossierDto } from '../../core/services/co
             </tr>
           </tbody>
         </table>
-        <div *ngIf="dossiers.length === 0" class="px-4 py-8 text-center text-gray-400 text-sm">Chưa có hồ sơ công ty nào</div>
+        <div *ngIf="!loadError && dossiers.length === 0" class="px-4 py-8 text-center text-gray-400 text-sm">Chưa có hồ sơ công ty nào</div>
+        <div *ngIf="loadError" class="px-4 py-8 text-center text-red-500 text-sm">Không tải được danh sách hồ sơ. Vui lòng thử lại.</div>
       </div>
     </div>
   `,
@@ -48,11 +54,16 @@ import { CompanyDossierService, CompanyDossierDto } from '../../core/services/co
 export class CompanyDossierListComponent implements OnInit {
   dossiers: CompanyDossierDto[] = [];
   loading = false;
+  loadError = false;
+
+  readonly freshnessLabel = dossierFreshnessLabel;
+  readonly freshnessClass = dossierFreshnessBadgeClass;
 
   constructor(private dossierService: CompanyDossierService) {}
 
   ngOnInit(): void {
     this.loading = true;
+    this.loadError = false;
     this.dossierService.list().subscribe({
       next: (data) => {
         this.dossiers = data;
@@ -60,25 +71,8 @@ export class CompanyDossierListComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
+        this.loadError = true;
       },
     });
-  }
-
-  freshnessLabel(freshness: string): string {
-    switch (freshness) {
-      case 'Fresh': return 'Còn mới';
-      case 'NeedsReview': return 'Cần soát lại';
-      case 'Expired': return 'Đã hết hạn';
-      default: return 'Chưa xác nhận';
-    }
-  }
-
-  freshnessClass(freshness: string): Record<string, boolean> {
-    return {
-      'bg-emerald-100 text-emerald-700': freshness === 'Fresh',
-      'bg-yellow-100 text-yellow-700': freshness === 'NeedsReview',
-      'bg-red-100 text-red-700': freshness === 'Expired',
-      'bg-gray-100 text-gray-600': freshness === 'Unconfirmed',
-    };
   }
 }

@@ -11,6 +11,7 @@ import { MarketDataService } from '../../core/services/market-data.service';
 import { TradePlanTemplateService } from '../../core/services/trade-plan-template.service';
 import { TradePlanService } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { CompanyDossierService } from '../../core/services/company-dossier.service';
 
 describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
   let component: TradePlanComponent;
@@ -27,6 +28,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       'previewReview', 'review', 'getScenarioPresets', 'getScenarioHistory', 'fetchScenarioSuggestion', 'getAdvisory'
     ]);
     const notifSpy = jasmine.createSpyObj('NotificationService', ['success', 'error', 'warning', 'info']);
+    const dossierSpy = jasmine.createSpyObj('CompanyDossierService', ['gateStatus']);
 
     strategySpy.getAll.and.returnValue(of([]));
     portfolioSpy.getAll.and.returnValue(of([]));
@@ -34,6 +36,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     planSpy.getAll.and.returnValue(of([]));
     planSpy.getScenarioPresets.and.returnValue(of([]));
     riskSpy.getPortfolioRiskSummary.and.returnValue(EMPTY);
+    dossierSpy.gateStatus.and.returnValue(EMPTY);
 
     await TestBed.configureTestingModule({
       imports: [TradePlanComponent, RouterTestingModule],
@@ -46,6 +49,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
         { provide: MarketDataService, useValue: marketSpy },
         { provide: TradePlanTemplateService, useValue: templateSpy },
         { provide: TradePlanService, useValue: planSpy },
+        { provide: CompanyDossierService, useValue: dossierSpy },
         { provide: NotificationService, useValue: notifSpy }
       ]
     }).compileComponents();
@@ -495,6 +499,57 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       component.accountBalance = 0;
 
       expect(component.dossierGateQueryParams()).toEqual({});
+    });
+  });
+
+  // ============================================
+  // F3 — DOSSIER_GATE_FAILED banner phải render trong DOM, không chỉ đúng field component
+  // ============================================
+  describe('DOSSIER_GATE_FAILED banner (rendered DOM)', () => {
+    function setupPlan(): void {
+      component.plan.symbol = 'HPG';
+      component.plan.entryPrice = 100_000;
+      component.plan.stopLoss = 95_000;
+      component.plan.target = 120_000;
+      component.selectedPlanId = null;
+    }
+
+    it('hiển thị câu chữ cố định cho reason=missing kèm link sang /company-dossier/HPG', () => {
+      const planSpy = TestBed.inject(TradePlanService) as jasmine.SpyObj<TradePlanService>;
+      planSpy.create.and.returnValue(throwError(() => ({
+        status: 400,
+        error: { code: 'DOSSIER_GATE_FAILED', symbol: 'HPG', reason: 'missing', missing: [] }
+      })));
+
+      setupPlan();
+      component.saveDraft();
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).toContain('Chưa có hồ sơ công ty cho mã này. Viết hồ sơ trước khi lập kế hoạch mua.');
+
+      // Link có thể kèm query params (size context) nên chỉ so khớp phần path, không so đúng toàn bộ href.
+      const link = (fixture.nativeElement as HTMLElement).querySelector('a[href^="/company-dossier/HPG"]');
+      expect(link).toBeTruthy();
+    });
+
+    it('hiển thị từng dòng missing[] cho reason=insufficient', () => {
+      const planSpy = TestBed.inject(TradePlanService) as jasmine.SpyObj<TradePlanService>;
+      planSpy.create.and.returnValue(throwError(() => ({
+        status: 400,
+        error: {
+          code: 'DOSSIER_GATE_FAILED', symbol: 'HPG', reason: 'insufficient',
+          missing: ['Cần ≥ 3 yếu tố rủi ro, đang có 1', 'Cần ≥ 1 moat, đang có 0']
+        }
+      })));
+
+      setupPlan();
+      component.saveDraft();
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).toContain('Cần ≥ 3 yếu tố rủi ro, đang có 1');
+      expect(text).toContain('Cần ≥ 1 moat, đang có 0');
     });
   });
 });

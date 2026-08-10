@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { CompanyDossierDetailComponent } from './company-dossier-detail.component';
 
@@ -63,5 +63,36 @@ describe('CompanyDossierDetailComponent', () => {
   it('không vỡ khi không có draft nào được stash', () => {
     sessionStorage.removeItem('pendingTradePlanDraft');
     expect(component.consumePendingPlanDraft()).toBeNull();
+  });
+
+  // F1 — ký không được vượt trước lưu: confirm() backend trả 404 nếu chưa có hồ sơ trên server.
+  describe('canSign — bắt buộc đã lưu (F1)', () => {
+    it('disabled khi hồ sơ chưa tồn tại trên server, dù đủ ký tự', () => {
+      component.exists = false;
+      component.businessModel = 'x'.repeat(40);
+      expect(component.canSign()).toBe(false);
+    });
+
+    it('enable ngay sau khi lưu thành công, không cần tải lại trang', () => {
+      const httpMock = TestBed.inject(HttpTestingController);
+      component.symbol = 'TCB';
+      component.exists = false;
+      component.businessModel = 'x'.repeat(40);
+      expect(component.canSign()).toBe(false);
+
+      component.save();
+      const req = httpMock.expectOne((r) => r.method === 'PUT' && r.url.endsWith('/company-dossiers/TCB'));
+      req.flush({ id: '1' });
+
+      expect(component.exists).toBe(true);
+      expect(component.canSign()).toBe(true);
+      httpMock.verify();
+    });
+
+    it('đếm ký tự theo giá trị đã trim — chuỗi toàn khoảng trắng không tính là đủ 30', () => {
+      component.businessModel = ' '.repeat(30);
+      expect(component.businessModelLength()).toBe(0);
+      expect(component.canSign()).toBe(false);
+    });
   });
 });

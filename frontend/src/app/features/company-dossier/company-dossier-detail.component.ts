@@ -7,6 +7,8 @@ import {
   RiskFactorDto,
   DossierFreshness,
   INVALIDATION_TRIGGER_LABELS,
+  dossierFreshnessLabel,
+  dossierFreshnessBadgeClass,
 } from '../../core/services/company-dossier.service';
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -52,7 +54,7 @@ const MIN_BUSINESS_MODEL_LEN = 30;
           <textarea [(ngModel)]="businessModel" rows="3"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             placeholder="VD: Bán thép xây dựng cho các nhà thầu và đại lý vật liệu, thu tiền ngay khi giao hàng."></textarea>
-          <p class="text-xs mt-1" [class.text-red-500]="businessModel.length < MIN_BUSINESS_MODEL_LEN" [class.text-gray-400]="businessModel.length >= MIN_BUSINESS_MODEL_LEN">
+          <p class="text-xs mt-1" [class.text-red-500]="businessModelLength() < MIN_BUSINESS_MODEL_LEN" [class.text-gray-400]="businessModelLength() >= MIN_BUSINESS_MODEL_LEN">
             {{ businessModelCounterText() }}
           </p>
         </div>
@@ -129,6 +131,7 @@ const MIN_BUSINESS_MODEL_LEN = 30;
             class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg font-semibold">
             {{ signing ? 'Đang ký...' : signLabel() }}
           </button>
+          <p *ngIf="!exists && !signing" class="text-xs text-red-500 mt-2">Cần lưu hồ sơ trước khi ký.</p>
           <p class="text-xs text-gray-400 mt-2">Ký xác nhận rằng bạn — con người — đã đọc và chịu trách nhiệm với nội dung hồ sơ này.</p>
         </div>
       </div>
@@ -203,8 +206,12 @@ export class CompanyDossierDetailComponent implements OnInit {
 
   // --- Business model counter ---
 
+  businessModelLength(): number {
+    return this.businessModel.trim().length;
+  }
+
   businessModelCounterText(): string {
-    const count = this.businessModel.length;
+    const count = this.businessModelLength();
     const sizeHint = this.sizePercentHint();
     if (sizeHint != null) {
       return `${count}/${MIN_BUSINESS_MODEL_LEN} (Size ${sizeHint} tài khoản — bắt buộc ≥ ${MIN_BUSINESS_MODEL_LEN})`;
@@ -265,21 +272,11 @@ export class CompanyDossierDetailComponent implements OnInit {
   // --- Freshness / sign ---
 
   freshnessLabel(): string {
-    switch (this.freshness) {
-      case 'Fresh': return 'Còn mới';
-      case 'NeedsReview': return 'Cần soát lại';
-      case 'Expired': return 'Đã hết hạn';
-      default: return 'Chưa xác nhận';
-    }
+    return dossierFreshnessLabel(this.freshness);
   }
 
   freshnessClass(): Record<string, boolean> {
-    return {
-      'bg-emerald-100 text-emerald-700': this.freshness === 'Fresh',
-      'bg-yellow-100 text-yellow-700': this.freshness === 'NeedsReview',
-      'bg-red-100 text-red-700': this.freshness === 'Expired',
-      'bg-gray-100 text-gray-600': this.freshness === 'Unconfirmed',
-    };
+    return dossierFreshnessBadgeClass(this.freshness);
   }
 
   signLabel(): string {
@@ -294,8 +291,9 @@ export class CompanyDossierDetailComponent implements OnInit {
     return new Date(this.agentDraftedAt) > new Date(this.confirmedAt);
   }
 
+  // Phải tồn tại trên server mới cho ký — backend confirm() trả 404 nếu chưa Lưu lần nào.
   canSign(): boolean {
-    return this.businessModel.trim().length >= MIN_BUSINESS_MODEL_LEN;
+    return this.exists && this.businessModel.trim().length >= MIN_BUSINESS_MODEL_LEN;
   }
 
   // --- Save / Sign actions ---
