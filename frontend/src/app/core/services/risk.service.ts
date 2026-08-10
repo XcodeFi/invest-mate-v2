@@ -186,6 +186,18 @@ export interface PortfolioOptimizationResult {
   recommendations: string[];
 }
 
+// Tỷ trọng ngành quanh một lệnh dự kiến. sector/currentPercent/projectedPercent đều nullable:
+// null nghĩa là "chưa tính được" (không tra được ngành, hoặc tổng giá trị danh mục ≤ 0) — khác hẳn
+// 0 nghĩa là "chưa giữ gì ngành này". UI phải hiện "n/a" cho null, không hiện 0%.
+export interface SectorExposureForPlan {
+  symbol: string;
+  sector: string | null;
+  currentPercent: number | null;
+  projectedPercent: number | null;
+  limitPercent: number;
+  sameSectorSymbols: string[];
+}
+
 // Trailing Stop Alerts
 export interface TrailingStopAlert {
   symbol: string;
@@ -294,6 +306,15 @@ export class RiskService {
 
   getPortfolioOptimization(portfolioId: string): Observable<PortfolioOptimizationResult> {
     return this.http.get<PortfolioOptimizationResult>(`${this.API_URL}/portfolio/${portfolioId}/optimization`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  // symbol và addValue là tham số bắt buộc phía server: thay giá trị thiếu bằng 0 sẽ trả về một
+  // con số trông như thật (tỷ trọng "sau lệnh" bằng tỷ trọng hiện tại).
+  getSectorExposureForPlan(portfolioId: string, symbol: string, addValue: number): Observable<SectorExposureForPlan> {
+    const params = `?symbol=${encodeURIComponent(symbol)}&addValue=${addValue}`;
+    return this.http.get<SectorExposureForPlan>(
+      `${this.API_URL}/portfolio/${portfolioId}/sector-exposure${params}`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

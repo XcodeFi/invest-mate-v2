@@ -69,9 +69,9 @@ public class RiskCalculationServiceOptimizationTests
 
     // ─── Helpers ──────────────────────────────────────────────────────
 
-    private void SetupPortfolio()
+    private void SetupPortfolio(decimal initialCapital = 100_000_000m)
     {
-        var portfolio = new Portfolio(UserId, "Test Portfolio", 100_000_000m);
+        var portfolio = new Portfolio(UserId, "Test Portfolio", initialCapital);
         _portfolioRepo.Setup(r => r.GetByIdAsync(PortfolioId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(portfolio);
     }
@@ -115,14 +115,17 @@ public class RiskCalculationServiceOptimizationTests
             });
     }
 
-    private void SetupFundamentals(string symbol, string? industry, decimal? beta = null)
+    // Dựng ngành qua IComprehensiveStockDataProvider — provider mà Program.cs đăng ký thật.
+    // Trước đây helper này dựng IFundamentalDataProvider, nhưng interface đó được đăng ký là
+    // NoOpFundamentalDataProvider (luôn trả null) nên các test ngành xanh mà production thì
+    // mọi vị thế rơi vào rổ "Không xác định" và hạn mức ngành chưa từng bắn.
+    private void SetupIndustry(string symbol, string? industry)
     {
-        _fundamentalProvider.Setup(f => f.GetFundamentalsAsync(symbol, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new StockFundamentalData
+        _comprehensiveProvider
+            .Setup(p => p.GetComprehensiveDataAsync(symbol, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ComprehensiveStockData
             {
-                Symbol = symbol,
-                Industry = industry,
-                MarketCap = 10000m
+                Company = new CompanyOverview { Industry = industry }
             });
     }
 
@@ -162,8 +165,8 @@ public class RiskCalculationServiceOptimizationTests
         SetupPortfolioPnL(100_000_000m, 80_000_000m);
         SetupPositionPnL("VIC", 500, 70_000m, 35_000_000m); // 35%
         SetupPositionPnL("FPT", 1000, 65_000m, 65_000_000m); // 65%
-        SetupFundamentals("VIC", "Bất động sản");
-        SetupFundamentals("FPT", "Công nghệ");
+        SetupIndustry("VIC", "Bất động sản");
+        SetupIndustry("FPT", "Công nghệ");
         SetupEmptyStopLossTargets();
         SetupEmptySnapshots();
         SetupCapitalFlows();
@@ -190,8 +193,8 @@ public class RiskCalculationServiceOptimizationTests
         SetupPortfolioPnL(100_000_000m, 80_000_000m);
         SetupPositionPnL("VIC", 500, 84_000m, 42_000_000m);
         SetupPositionPnL("FPT", 1000, 58_000m, 58_000_000m);
-        SetupFundamentals("VIC", "Bất động sản");
-        SetupFundamentals("FPT", "Công nghệ");
+        SetupIndustry("VIC", "Bất động sản");
+        SetupIndustry("FPT", "Công nghệ");
         SetupEmptyStopLossTargets();
         SetupEmptySnapshots();
         SetupCapitalFlows();
@@ -217,9 +220,9 @@ public class RiskCalculationServiceOptimizationTests
         SetupPositionPnL("VIC", 300, 100_000m, 30_000_000m); // 30%
         SetupPositionPnL("VHM", 250, 100_000m, 25_000_000m); // 25%
         SetupPositionPnL("FPT", 600, 75_000m, 45_000_000m);  // 45%
-        SetupFundamentals("VIC", "Bất động sản");
-        SetupFundamentals("VHM", "Bất động sản");
-        SetupFundamentals("FPT", "Công nghệ");
+        SetupIndustry("VIC", "Bất động sản");
+        SetupIndustry("VHM", "Bất động sản");
+        SetupIndustry("FPT", "Công nghệ");
         SetupEmptyStopLossTargets();
         SetupEmptySnapshots();
         SetupCapitalFlows();
@@ -237,6 +240,161 @@ public class RiskCalculationServiceOptimizationTests
     }
 
     [Fact]
+    public async Task GetPortfolioOptimizationAsync_IndustryFromRegisteredProvider_ReturnsSectorAlert()
+    {
+        // Y nguyên tình huống của test SectorOverweight ở trên, khác ĐÚNG một điều: ngành đến từ
+        // IComprehensiveStockDataProvider. Test kia dựng IFundamentalDataProvider và xanh, nhưng
+        // interface đó được đăng ký là NoOpFundamentalDataProvider (Program.cs) nên trên production
+        // luôn trả null — hạn mức ngành vì thế chưa từng bắn dù test vẫn xanh.
+        SetupPortfolio();
+        SetupRiskProfile(maxSectorExposure: 40m);
+        SetupTrades("VIC", "VHM", "FPT");
+        SetupPortfolioPnL(100_000_000m, 80_000_000m);
+        SetupPositionPnL("VIC", 300, 100_000m, 30_000_000m); // 30%
+        SetupPositionPnL("VHM", 250, 100_000m, 25_000_000m); // 25%
+        SetupPositionPnL("FPT", 600, 75_000m, 45_000_000m);  // 45%
+        SetupIndustry("VIC", "Bất động sản");
+        SetupIndustry("VHM", "Bất động sản");
+        SetupIndustry("FPT", "Công nghệ");
+        SetupEmptyStopLossTargets();
+        SetupEmptySnapshots();
+        SetupCapitalFlows();
+        SetupEmptyPriceHistory();
+
+        var result = await _sut.GetPortfolioOptimizationAsync(PortfolioId);
+
+        // Mẫu số là 120tr, không phải 100tr: totalValue = giá trị vị thế 100tr + tiền mặt 20tr
+        // (InitialCapital 100tr − TotalInvested 80tr). 55tr/120tr = 45,83% và vẫn vượt hạn mức 40%.
+        var realEstate = result.SectorExposures.FirstOrDefault(s => s.Sector == "Bất động sản");
+        realEstate.Should().NotBeNull();
+        realEstate!.ExposurePercent.Should().Be(45.83m);
+        realEstate.IsOverweight.Should().BeTrue();
+        realEstate.Symbols.Should().Contain("VIC").And.Contain("VHM");
+    }
+
+    [Fact]
+    public async Task GetPortfolioOptimizationAsync_UnknownIndustryOverLimit_ShouldFlagOverweight()
+    {
+        // Không biết mình đang dồn vào đâu là một thông tin, không phải sự vắng mặt của thông tin:
+        // 55% danh mục ở rổ "Không xác định" phải hiện vượt hạn mức (spec Q2).
+        SetupPortfolio();
+        SetupRiskProfile(maxSectorExposure: 40m);
+        SetupTrades("VIC", "VHM");
+        SetupPortfolioPnL(100_000_000m, 80_000_000m);
+        SetupPositionPnL("VIC", 300, 100_000m, 30_000_000m); // 30%
+        SetupPositionPnL("VHM", 250, 100_000m, 25_000_000m); // 25%
+        // Không dựng ngành cho mã nào — provider trả null, đúng như production hiện tại.
+        SetupEmptyStopLossTargets();
+        SetupEmptySnapshots();
+        SetupCapitalFlows();
+        SetupEmptyPriceHistory();
+
+        var result = await _sut.GetPortfolioOptimizationAsync(PortfolioId);
+
+        // 55tr trên tổng 120tr (100tr vị thế + 20tr tiền mặt) = 45,83%, vượt hạn mức 40%.
+        var unknown = result.SectorExposures.FirstOrDefault(s => s.Sector == "Không xác định");
+        unknown.Should().NotBeNull();
+        unknown!.ExposurePercent.Should().Be(45.83m);
+        unknown.IsOverweight.Should().BeTrue();
+    }
+
+    // ─── Sector exposure cho một lệnh dự kiến ─────────────────────────
+
+    private void SetupSectorForPlanScenario()
+    {
+        SetupPortfolio();
+        SetupRiskProfile(maxSectorExposure: 40m);
+        SetupTrades("VIC", "VHM", "FPT");
+        SetupPortfolioPnL(100_000_000m, 80_000_000m); // totalValue = 100tr vị thế + 20tr tiền mặt = 120tr
+        SetupPositionPnL("VIC", 300, 100_000m, 30_000_000m);
+        SetupPositionPnL("VHM", 250, 100_000m, 25_000_000m);
+        SetupPositionPnL("FPT", 600, 75_000m, 45_000_000m);
+        SetupIndustry("VIC", "Bất động sản");
+        SetupIndustry("VHM", "Bất động sản");
+        SetupIndustry("FPT", "Công nghệ");
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_AddingToHeldSector_ShouldNotAddPlanSizeToDenominator()
+    {
+        // Ca phân biệt spec Q3. totalValue đã gồm tiền mặt, nên mua bằng tiền trong danh mục
+        // không làm tổng đổi: TotalInvested tăng và tiền mặt giảm cùng một lượng.
+        // Đúng:  (55tr + 9tr) / 120tr = 53,33%
+        // Sai:   (55tr + 9tr) / (120tr + 9tr) = 49,61%  ← nếu cộng addValue vào mẫu số
+        SetupSectorForPlanScenario();
+
+        var result = await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        result.Sector.Should().Be("Bất động sản");
+        result.CurrentPercent.Should().Be(45.83m);
+        result.ProjectedPercent.Should().Be(53.33m);
+        result.LimitPercent.Should().Be(40m);
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_WhenOneHoldingHasNoPrice_ShouldSkipItNotThrow()
+    {
+        // PnLService ném ArgumentException khi không tra được giá (mã huỷ niêm yết, feed hụt).
+        // Một mã như vậy không được làm sập cả endpoint — nhất là endpoint bị gọi lại mỗi nhịp
+        // debounce 500ms trên form. Đường optimization đã bọc try/catch, đường này phải tương tự.
+        SetupSectorForPlanScenario();
+        _pnlService.Setup(s => s.CalculatePositionPnLAsync(
+                PortfolioId, It.Is<StockSymbol>(ss => ss.Value == "VHM"), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ArgumentException("Price not available for symbol VHM"));
+
+        var result = await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        // VHM bị bỏ qua nên ngành chỉ còn VIC 30tr trên tổng 120tr = 25%.
+        result.CurrentPercent.Should().Be(25m);
+        result.SameSectorSymbols.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_ShouldExcludePlannedSymbolFromSameSectorSymbols()
+    {
+        SetupSectorForPlanScenario();
+
+        var result = await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        result.SameSectorSymbols.Should().BeEquivalentTo(new[] { "VHM" });
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_WhenTotalValueIsZero_ShouldReturnNullPercentsNotZero()
+    {
+        // spec Q4: 0% nói "chưa giữ gì ngành này", null nói "chưa tính được" — không gộp hai câu.
+        SetupPortfolio(initialCapital: 0m);
+        SetupRiskProfile(maxSectorExposure: 40m);
+        SetupTrades("VIC");
+        SetupPortfolioPnL(0m, 0m);
+        SetupPositionPnL("VIC", 300, 100_000m, 30_000_000m);
+        SetupIndustry("VIC", "Bất động sản");
+
+        var result = await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        result.CurrentPercent.Should().BeNull();
+        result.ProjectedPercent.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetSectorExposureForPlanAsync_WhenProviderHasNoIndustry_ShouldReturnNullSectorAndNullPercents()
+    {
+        SetupPortfolio();
+        SetupRiskProfile(maxSectorExposure: 40m);
+        SetupTrades("VIC");
+        SetupPortfolioPnL(100_000_000m, 80_000_000m);
+        SetupPositionPnL("VIC", 300, 100_000m, 30_000_000m);
+        // Không dựng ngành — provider trả null.
+
+        var result = await _sut.GetSectorExposureForPlanAsync(PortfolioId, "VIC", 9_000_000m);
+
+        result.Sector.Should().BeNull();
+        result.CurrentPercent.Should().BeNull();
+        result.ProjectedPercent.Should().BeNull();
+        result.LimitPercent.Should().Be(40m);
+    }
+
+    [Fact]
     public async Task GetPortfolioOptimizationAsync_HighCorrelation_ReturnsCorrelationWarning()
     {
         // Arrange: 2 stocks with high correlation (setup price history to produce >0.7)
@@ -246,8 +404,8 @@ public class RiskCalculationServiceOptimizationTests
         SetupPortfolioPnL(100_000_000m, 80_000_000m);
         SetupPositionPnL("VIC", 500, 100_000m, 50_000_000m);
         SetupPositionPnL("VHM", 500, 100_000m, 50_000_000m);
-        SetupFundamentals("VIC", "Bất động sản");
-        SetupFundamentals("VHM", "Bất động sản");
+        SetupIndustry("VIC", "Bất động sản");
+        SetupIndustry("VHM", "Bất động sản");
         SetupEmptyStopLossTargets();
         SetupEmptySnapshots();
         SetupCapitalFlows();
@@ -288,10 +446,10 @@ public class RiskCalculationServiceOptimizationTests
         SetupPositionPnL("VNM", 300, 90_000m, 27_000_000m);  // 27%
         SetupPositionPnL("ACB", 800, 30_000m, 24_000_000m);  // 24%
         SetupPositionPnL("GAS", 250, 100_000m, 25_000_000m); // 25%
-        SetupFundamentals("FPT", "Công nghệ");
-        SetupFundamentals("VNM", "Hàng tiêu dùng");
-        SetupFundamentals("ACB", "Ngân hàng");
-        SetupFundamentals("GAS", "Dầu khí");
+        SetupIndustry("FPT", "Công nghệ");
+        SetupIndustry("VNM", "Hàng tiêu dùng");
+        SetupIndustry("ACB", "Ngân hàng");
+        SetupIndustry("GAS", "Dầu khí");
         SetupEmptyStopLossTargets();
         SetupEmptySnapshots();
         SetupCapitalFlows();
@@ -340,7 +498,7 @@ public class RiskCalculationServiceOptimizationTests
         SetupTrades("VIC");
         SetupPortfolioPnL(100_000_000m, 80_000_000m);
         SetupPositionPnL("VIC", 500, 70_000m, 35_000_000m); // 35%
-        SetupFundamentals("VIC", "Bất động sản");
+        SetupIndustry("VIC", "Bất động sản");
         SetupEmptyStopLossTargets();
         SetupEmptySnapshots();
         SetupCapitalFlows();
@@ -362,7 +520,7 @@ public class RiskCalculationServiceOptimizationTests
         SetupTrades("VIC");
         SetupPortfolioPnL(100_000_000m, 80_000_000m);
         SetupPositionPnL("VIC", 500, 70_000m, 35_000_000m);
-        SetupFundamentals("VIC", "Bất động sản");
+        SetupIndustry("VIC", "Bất động sản");
         SetupEmptyStopLossTargets();
         SetupEmptySnapshots();
         SetupCapitalFlows();

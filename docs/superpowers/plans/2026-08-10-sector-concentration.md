@@ -221,6 +221,25 @@ Tra chỗ registry topic hiện có rồi thêm entry. Không tìm ra registry t
 
 ---
 
+## Checkpoint — Task 1 + Task 2 (xong, 2026-08-10)
+
+- **Quyết định lệch khỏi plan, có lý do:** plan viết handler tự tính tỷ trọng. Thực tế đặt phép tính vào `RiskCalculationService.GetSectorExposureForPlanAsync` vì công thức `totalValue` sống ở đó — tính lại trong handler là tạo bản sao thứ hai của công thức. Handler chỉ kiểm quyền rồi gọi, giống `GetPortfolioOptimizationQueryHandler`. Kéo theo: test công thức nằm ở `Infrastructure.Tests`, không phải `Application.Tests` như plan viết.
+- **Hai helper gom về một chỗ:** `ComputeTotalValue(...)` (dùng bởi cả đường optimization lẫn đường mới) và `ResolveIndustryAsync(...)` (thay khối try/catch trùng lặp).
+- **Phát hiện trong lúc làm:** test `GetPortfolioOptimizationAsync_SectorOverweight_ReturnsSectorAlert` **đang xanh** trước khi sửa, dù production không thể đạt `IsOverweight = true` — vì helper `SetupFundamentals` mock `IFundamentalDataProvider`, đúng cái interface được đăng ký là NoOp. Đã gộp helper đó vào `SetupIndustry` (mock provider thật) nên 19 test trong file giờ canh đúng đường production đi.
+- **Files changed:** `IRiskCalculationService.cs` (+method, +`SectorExposureForPlan`), `RiskCalculationService.cs`, `RiskController.cs`, `Risk/Queries/GetSectorExposureForPlan/GetSectorExposureForPlanQuery.cs` (mới), `RiskCalculationServiceOptimizationTests.cs`, `GetSectorExposureForPlanQueryHandlerTests.cs` (mới).
+- **Tests:** 1751/1751 (baseline master 1742, +9). Mutation check đạt cho cả hai thay đổi Task 1.
+- **Next:** Task 3 (FE). Đọc `trade-plan.component.ts` tìm handler debounce 500ms đang gọi `gate-status`, gọi thêm `GET /api/v1/risk/portfolio/{portfolioId}/sector-exposure?symbol=&addValue=` trong **cùng** handler, cùng điều kiện "đã đủ số". Thêm method vào `risk.service.ts` và **tự đính header auth** — project không có global auth interceptor. Rồi Task 4 (ADR-0012 + 4 docs + CHANGELOG + Help topic).
+
+## Chặng sau — chốt 2026-08-10, làm SAU Task 1-4
+
+Không thuộc phạm vi PR này, ghi lại để không rơi:
+
+**A. Hiện sàn giao dịch trong thông tin công ty.** Provider đã trả `ComprehensiveStockData.Company.Exchange` (từ `company.Floor`). Chỉ cần hiện lên trang hồ sơ công ty — **không** dựng taxonomy sàn mới: mã sàn đã hardcode 3 chỗ trong repo (`market-data.component.ts:728` dạng mảng FE, `GetTopFluctuationQuery.cs:9` dạng comment, `HmoneyMarketDataProvider.cs:176` dạng switch). Nếu sau này cần dùng chung thì hợp nhất 3 chỗ đó, đừng thêm bản thứ tư.
+
+**B. Hardcode danh sách nhóm ngành thành dropdown.** Nhóm ngành gần như không đổi nên hardcode được, nhưng **repo hiện không có taxonomy nào** và nguồn duy nhất là `indicators.GroupName` trả về theo từng mã. Trình tự bắt buộc: dò 24hmoney qua provider cho một rọ mã đại diện (VN30 + vài mã HNX/UPCOM) → thu `GroupName` thật → trình danh sách cho chủ sở hữu xem → mới hardcode. **Không bịa taxonomy.** Rủi ro phải canh: danh sách hardcode lệch với nhãn provider trả về sẽ sinh hai taxonomy song song, nên nhãn hardcode phải là **chính chuỗi** provider trả, không phải bản dịch lại.
+
+Việc này đảo lại **spec Q6** (đang ghi: chưa thêm field ngành vào hồ sơ, chờ cửa sổ dùng thử). Khi thi hành phải sửa Q6 tại chỗ trong spec kèm lý do đổi ý, không để hai câu trái nhau trong cùng tài liệu.
+
 ## Thứ tự
 
 Task 1 → 2 → 3 → 4. Task 1 giao được giá trị một mình (risk-dashboard có số thật) nên nếu phải dừng giữa đường thì dừng sau Task 1, không dừng giữa Task 2.

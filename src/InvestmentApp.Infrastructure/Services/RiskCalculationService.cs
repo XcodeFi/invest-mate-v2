@@ -328,6 +328,91 @@ public class RiskCalculationService : IRiskCalculationService
         return result;
     }
 
+    // Tổng giá trị danh mục = giá trị vị thế + tiền mặt còn lại. Đặt ở một chỗ vì mọi phép chia tỷ
+    // trọng đều dùng đúng mẫu số này; tính lại ở nơi khác là hai bên sẽ lệch.
+    private static decimal ComputeTotalValue(
+        decimal totalPortfolioValue, decimal initialCapital, decimal totalFlows, decimal totalInvested)
+    {
+        var cashBalance = initialCapital + totalFlows - totalInvested;
+        return Math.Max(totalPortfolioValue + cashBalance, totalPortfolioValue);
+    }
+
+    // Ngành đọc qua IComprehensiveStockDataProvider vì đó là provider được đăng ký thật.
+    // IFundamentalDataProvider đang là NoOpFundamentalDataProvider (luôn trả null), nên trước đây
+    // mọi vị thế rơi vào rổ "Không xác định" và hạn mức ngành chưa từng bắn.
+    private async Task<string?> ResolveIndustryAsync(string symbol, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var comprehensive = await _comprehensiveProvider.GetComprehensiveDataAsync(symbol, cancellationToken);
+            return comprehensive?.Company?.Industry;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Không tra được ngành cho {Symbol}", symbol);
+            return null;
+        }
+    }
+
+    public async Task<SectorExposureForPlan> GetSectorExposureForPlanAsync(
+        string portfolioId, string symbol, decimal addValue, CancellationToken cancellationToken = default)
+    {
+        var normalized = symbol.Trim().ToUpperInvariant();
+        var riskProfile = await _riskProfileRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var result = new SectorExposureForPlan
+        {
+            Symbol = normalized,
+            LimitPercent = riskProfile?.MaxSectorExposurePercent ?? 40m
+        };
+
+        result.Sector = await ResolveIndustryAsync(normalized, cancellationToken);
+        if (string.IsNullOrEmpty(result.Sector))
+            return result;
+
+        var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
+        var totalFlows = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolioId, cancellationToken);
+        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
+        var totalValue = ComputeTotalValue(
+            pnlSummary.TotalPortfolioValue, portfolio?.InitialCapital ?? 0m, totalFlows, pnlSummary.TotalInvested);
+        if (totalValue <= 0)
+            return result;
+
+        var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
+        var sectorValue = 0m;
+        foreach (var held in trades.Select(t => t.Symbol).Distinct())
+        {
+            // Tra ngành TRƯỚC rồi mới tính P&L: phần lớn mã thuộc ngành khác nên bỏ sớm giúp
+            // tránh hẳn lời gọi P&L đắt (mỗi lời gọi đọc lại trade + sự kiện quyền của mã đó).
+            // Endpoint này bị gọi lại mỗi nhịp debounce 500ms trên form nên thứ tự có giá trị thật.
+            if (await ResolveIndustryAsync(held, cancellationToken) != result.Sector)
+                continue;
+
+            try
+            {
+                var positionPnl = await _pnlService.CalculatePositionPnLAsync(
+                    portfolioId, new StockSymbol(held), cancellationToken);
+                if (positionPnl.Quantity <= 0)
+                    continue;
+
+                sectorValue += positionPnl.MarketValue;
+                if (held != normalized)
+                    result.SameSectorSymbols.Add(held);
+            }
+            catch (Exception ex)
+            {
+                // Mã không tra được giá (huỷ niêm yết, feed hụt) làm PnLService ném lỗi. Bỏ qua mã
+                // đó chứ không để sập cả phép tính — cùng cách xử lý với đường optimization.
+                _logger.LogWarning(ex, "Bỏ qua {Symbol} khi tính tỷ trọng ngành", held);
+            }
+        }
+
+        result.CurrentPercent = Math.Round((sectorValue / totalValue) * 100, 2);
+        // Mẫu số KHÔNG cộng addValue: totalValue đã gồm tiền mặt, nên mua bằng tiền trong danh mục
+        // chỉ chuyển tiền mặt thành giá trị vị thế — tổng không đổi.
+        result.ProjectedPercent = Math.Round(((sectorValue + addValue) / totalValue) * 100, 2);
+        return result;
+    }
+
     public async Task<PortfolioOptimizationResult> GetPortfolioOptimizationAsync(string portfolioId, CancellationToken cancellationToken = default)
     {
         var result = new PortfolioOptimizationResult { PortfolioId = portfolioId };
@@ -351,8 +436,8 @@ public class RiskCalculationService : IRiskCalculationService
         var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
         var totalFlows = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolioId, cancellationToken);
         var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId, cancellationToken);
-        var cashBalance = (portfolio?.InitialCapital ?? 0) + totalFlows - pnlSummary.TotalInvested;
-        var totalValue = Math.Max(pnlSummary.TotalPortfolioValue + cashBalance, pnlSummary.TotalPortfolioValue);
+        var totalValue = ComputeTotalValue(
+            pnlSummary.TotalPortfolioValue, portfolio?.InitialCapital ?? 0m, totalFlows, pnlSummary.TotalInvested);
         result.TotalValue = totalValue;
 
         if (totalValue <= 0)
@@ -373,17 +458,7 @@ public class RiskCalculationService : IRiskCalculationService
 
                 var positionPercent = (positionPnl.MarketValue / totalValue) * 100;
 
-                // Fetch sector data
-                string? sector = null;
-                try
-                {
-                    var fundamentals = await _fundamentalDataProvider.GetFundamentalsAsync(symbol, cancellationToken);
-                    sector = fundamentals?.Industry;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to fetch fundamentals for {Symbol}", symbol);
-                }
+                var sector = await ResolveIndustryAsync(symbol, cancellationToken);
 
                 positionData.Add((symbol, positionPnl.MarketValue, positionPercent, sector));
             }
@@ -435,14 +510,18 @@ public class RiskCalculationService : IRiskCalculationService
         if (unknownSector.Any())
         {
             var sectorValue = unknownSector.Sum(p => p.MarketValue);
+            var unknownPercent = (sectorValue / totalValue) * 100;
             result.SectorExposures.Add(new SectorExposure
             {
                 Sector = "Không xác định",
                 Symbols = unknownSector.Select(p => p.Symbol).ToList(),
                 TotalValue = sectorValue,
-                ExposurePercent = Math.Round((sectorValue / totalValue) * 100, 2),
+                ExposurePercent = Math.Round(unknownPercent, 2),
                 Limit = maxSectorExposure,
-                IsOverweight = false
+                // So hạn mức như mọi rổ khác: không biết mình đang dồn vào đâu là một thông tin,
+                // không phải sự vắng mặt của thông tin. Hardcode false ở đây từng làm rổ này
+                // không bao giờ cảnh báo, kể cả khi nó chiếm phần lớn danh mục.
+                IsOverweight = unknownPercent > maxSectorExposure
             });
         }
 
