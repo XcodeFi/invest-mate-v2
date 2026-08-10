@@ -35,8 +35,11 @@ public static class CompanyDossierTools
 
     [McpServerTool(Name = "get_dossier_gate_status", ReadOnly = true)]
     [Description("Kiểm hồ sơ công ty có đủ cho một lệnh dự kiến hay chưa, TRƯỚC khi gọi create_trade_plan. "
-        + "Trả reason (missing/unconfirmed/expired/insufficient) và missing[] — danh sách chính xác những gì còn thiếu. "
-        + "Cả ba tham số đều bắt buộc: ngưỡng đủ nội dung phụ thuộc quy mô lệnh, nên thiếu một số là chấm sai bậc.")]
+        + "reason = missing (chưa có hồ sơ) | unconfirmed (có nội dung, chưa ai ký) | expired (chữ ký quá hạn) "
+        + "| insufficient (đã ký nhưng nội dung chưa đủ cho quy mô lệnh này). missing[] CHỈ có phần tử khi "
+        + "reason = insufficient; ba trạng thái còn lại thì reason đã là chỉ dẫn, và chữ ký luôn phải do người dùng "
+        + "thực hiện trên trang /company-dossier/{mã}. Cả ba tham số đều bắt buộc: ngưỡng đủ nội dung phụ thuộc "
+        + "quy mô lệnh, nên thiếu một số là chấm sai bậc.")]
     public static async Task<DossierGateStatusDto> GetDossierGateStatus(
         [Description("Mã chứng khoán.")] string symbol,
         [Description("Khối lượng dự kiến mua.")] int quantity,

@@ -16,11 +16,14 @@
 
 **💬 Lỗi khi lưu hồ sơ nay nói rõ lý do.** Trước đây mọi thất bại đều hiện "Không thể lưu hồ sơ", trong khi máy chủ đã trả về câu cụ thể như *"Mỗi yếu tố rủi ro phải có dấu hiệu quan sát được"*. Nay hiện đúng câu đó, nên bạn biết ô nào đang chặn mình.
 
+**🗣 Trợ lý AI bị cổng chặn nay biết vì sao.** Tìm ra khi gọi thử công cụ thật: khi cổng hồ sơ chặn, trợ lý chỉ nhận được *"An error occurred invoking 'create_trade_plan'"* — không mã, không lý do, không danh sách còn thiếu, nên nó không có đường tự sửa. Nay thông báo nói rõ mã nào, lý do gì, còn thiếu những gì, và nhắc rằng **chữ ký phải do bạn thực hiện** trên trang hồ sơ.
+
 ### Files chính
 
 - `src/InvestmentApp.Api/Mcp/CompanyDossierTools.cs` (mới) — 4 công cụ MCP, **cố ý không có công cụ ký**.
+- `src/InvestmentApp.Api/Mcp/McpDossierGate.cs` (mới) — dịch lỗi cổng sang thông báo trợ lý đọc được.
 - `frontend/src/app/shared/components/header/header.component.ts`, `frontend/src/app/features/company-dossier/company-dossier-detail.component.ts`.
-- Tests: 1743 test backend + 174 test frontend pass. Có test chặn việc thêm công cụ ký qua MCP về sau.
+- Tests: 1748 test backend + 174 test frontend pass. Có test chặn việc thêm công cụ ký qua MCP về sau, và test chặn việc bọc rộng làm che các lỗi khác.
 
 ---
 

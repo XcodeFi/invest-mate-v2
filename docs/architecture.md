@@ -487,6 +487,8 @@ Ngưỡng phản chiếu đúng `TradePlan.LargeTierThreshold` (`= 0.05m`, một
 
 **MCP — hồ sơ công ty (4 tool, `src/InvestmentApp.Api/Mcp/CompanyDossierTools.cs`):** `list_company_dossiers`, `get_company_dossier`, `get_dossier_gate_status` (3 tham số bắt buộc, cùng hợp đồng với endpoint REST) và `upsert_company_dossier` (`ByAgent = true` → kéo theo phải ký lại theo Q10). **Cố ý KHÔNG có tool ký/xác nhận** — `ConfirmedAt` chỉ đặt được qua endpoint JWT, tức chỉ con người (ADR-0011 D2). Guard `No_Mcp_Tool_Can_Sign_A_Company_Dossier` trong `McpToolDiscoveryTests` đỏ nếu ai đó thêm tool tên chứa `confirm`/`sign` hoặc phơi `ConfirmedAt` ra schema. Đây là bản vá cho hệ quả D6: trước đó agent bị cổng chặn ở mọi mã mà không có tool nào để tự soạn hồ sơ.
 
+**`McpDossierGate` (`src/InvestmentApp.Api/Mcp/McpDossierGate.cs`) — mọi tool MCP ghi trade plan phải đi qua nó.** Qua MCP, exception thường bị che thành `"An error occurred invoking '<tên tool>'."`, nên `DossierGateException` tới agent là một câu trần: mất cả `reason` lẫn `missing[]`, và agent không biết đường tự chữa dù chính nó vừa gây ra việc bị chặn (`ExceptionMiddleware` chỉ phục vụ đường REST). `McpDossierGate.GuardAsync` dịch riêng `DossierGateException` sang `McpException` — loại duy nhất giữ được nguyên văn — kèm câu chỉ dẫn theo từng `reason` và nhắc rõ **agent không ký được**. Chỉ bọc đúng exception của cổng: bọc rộng hơn là che mọi lỗi khác dưới một câu đẹp đẽ. Thêm tool MCP nào gọi `CreateTradePlanCommand`/`UpdateTradePlanCommand` thì phải bọc bằng `GuardAsync`.
+
 **Đã biết, không phải bug:**
 
 - Lệnh trade plan **đầu tiên sau khi deploy** bị chặn với mọi mã, kể cả mã đang giữ — không có grandfathering (ADR-0011 D5).

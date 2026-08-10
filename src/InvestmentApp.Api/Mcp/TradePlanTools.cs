@@ -55,7 +55,7 @@ public static class TradePlanTools
         [Description("Kiểu chiến lược thoát: Simple/Advanced (bỏ trống = Simple).")] string? exitStrategyMode = null,
         [Description("Cây kịch bản, chỉ dùng khi exitStrategyMode = Advanced (bỏ trống = không có).")] List<ScenarioNodeDto>? scenarioNodes = null)
         // Status/TradeId cố tình không mở ra MCP — kế hoạch luôn tạo ở Draft (ADR-0004).
-        => await mediator.Send(new CreateTradePlanCommand
+        => await McpDossierGate.GuardAsync(() => mediator.Send(new CreateTradePlanCommand
         {
             UserId = http.GetUserId(),
             Symbol = symbol,
@@ -84,7 +84,7 @@ public static class TradePlanTools
             ScenarioNodes = scenarioNodes,
             Status = null,
             TradeId = null
-        }, ct);
+        }, ct));
 
     [McpServerTool(Name = "update_trade_plan", Destructive = true)]
     [Description("Cập nhật một kế hoạch giao dịch theo id. Chỉ trường được truyền mới bị thay đổi.")]
@@ -116,7 +116,7 @@ public static class TradePlanTools
         [Description("Cây kịch bản, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ScenarioNodeDto>? scenarioNodes = null,
         [Description("Tầm nhìn: ShortTerm/MediumTerm/LongTerm (bỏ trống = giữ nguyên).")] string? timeHorizon = null)
     {
-        await mediator.Send(new UpdateTradePlanCommand
+        await McpDossierGate.GuardAsync(() => mediator.Send(new UpdateTradePlanCommand
         {
             Id = id,
             UserId = http.GetUserId(),
@@ -144,7 +144,7 @@ public static class TradePlanTools
             ExitStrategyMode = exitStrategyMode,
             ScenarioNodes = scenarioNodes,
             TimeHorizon = timeHorizon
-        }, ct);
+        }, ct));
         return "ok";
     }
 
