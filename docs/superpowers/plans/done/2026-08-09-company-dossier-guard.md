@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 9 · MongoDB Driver 3.6.0 · MediatR · xUnit + FluentAssertions + Moq · Angular 19 standalone + Tailwind + ngModel · ModelContextProtocol.Server
 
-**Spec:** [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](../specs/2026-08-09-company-dossier-design.md)
+**Spec:** [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](../../specs/2026-08-09-company-dossier-design.md)
 
 ## Global Constraints
 
@@ -81,7 +81,7 @@ Hết chặng này guard đã hoạt động, nhưng còn phải gõ tay.
 - Test: `tests/InvestmentApp.Domain.Tests/Entities/CompanyDossierFreshnessTests.cs`
 
 **Interfaces:**
-- Consumes: `AggregateRoot` ([AggregateRoot.cs](../../../src/InvestmentApp.Domain/Entities/AggregateRoot.cs)), `InvalidationTrigger` ([InvalidationRule.cs:34](../../../src/InvestmentApp.Domain/Entities/InvalidationRule.cs#L34))
+- Consumes: `AggregateRoot` ([AggregateRoot.cs](../../../../src/InvestmentApp.Domain/Entities/AggregateRoot.cs)), `InvalidationTrigger` ([InvalidationRule.cs:34](../../../../src/InvestmentApp.Domain/Entities/InvalidationRule.cs#L34))
 - Produces:
   - `CompanyDossier(string userId, string symbol, string businessModel, List<MoatItem> moats, List<RiskFactor> riskFactors, string? notes = null)`
   - `void UpdateByOwner(string businessModel, List<MoatItem> moats, List<RiskFactor> riskFactors, string? notes)`
@@ -586,7 +586,7 @@ git commit -m "feat(dossier): repository company_dossiers với unique index (Us
   - `Task<DossierGateResult> EvaluateAsync(string userId, string symbol, decimal planSize, decimal? accountBalance, CancellationToken ct)`
   - `Task EnsureAsync(...)` — cùng tham số, throw `DossierGateException` nếu không pass
 
-Ngưỡng, sao chép đúng công thức `EnsureDisciplineGate` ([TradePlan.cs:171](../../../src/InvestmentApp.Domain/Entities/TradePlan.cs#L171)):
+Ngưỡng, sao chép đúng công thức `EnsureDisciplineGate` ([TradePlan.cs:171](../../../../src/InvestmentApp.Domain/Entities/TradePlan.cs#L171)):
 
 | | Nhỏ (`planSize < 5%` hoặc `accountBalance` null) | Lớn |
 |---|---|---|
@@ -1937,7 +1937,7 @@ git commit -m "feat(dossier): trang hồ sơ công ty, banner chặn và luồng
 
 - [ ] **Step 1: Viết ADR-0011**
 
-Theo [template](../../adr/template.md). Hai quyết định phải ghi, vì cả hai đi ngược tiền lệ hoặc phản trực giác:
+Theo [template](../../../adr/template.md). Hai quyết định phải ghi, vì cả hai đi ngược tiền lệ hoặc phản trực giác:
 
 1. **Chặn ở lúc tạo plan, không ở `Draft → Ready`** — gate kỷ luật thesis hiện có chặn ở transition. Ghi rõ đánh đổi: nút "Tạo Trade Plan từ gợi ý" phải điều hướng, và người dùng chịu áp lực viết vội khi giá đang chạm điểm mua.
 2. **Agent viết được, không ký được** — không có MCP tool nào đặt `ConfirmedAt`. Ghi rõ đây là cố ý, kèm test 35 canh.

@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-10
-- **Related plan:** `docs/superpowers/plans/2026-08-09-company-dossier-guard.md` (chặng 1 — entity + gate + trang hồ sơ)
+- **Related plan:** `docs/superpowers/plans/done/2026-08-09-company-dossier-guard.md` (chặng 1 — entity + gate + trang hồ sơ)
 - **Affected layers:** Domain / Application / Api / Frontend
 
 ## Context
@@ -75,6 +75,6 @@ Aggregate mới `CompanyDossier` (khóa `UserId + Symbol`, sống độc lập v
 
 ## References
 
-- Plan: [`docs/superpowers/plans/2026-08-09-company-dossier-guard.md`](../superpowers/plans/2026-08-09-company-dossier-guard.md)
+- Plan: [`docs/superpowers/plans/done/2026-08-09-company-dossier-guard.md`](../superpowers/plans/done/2026-08-09-company-dossier-guard.md)
 - Spec (Q1–Q15 đầy đủ): [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](../superpowers/specs/2026-08-09-company-dossier-design.md)
 - Handoff: [`docs/handoffs/HANDOFF-2026-08-09-company-dossier-guard.md`](../handoffs/HANDOFF-2026-08-09-company-dossier-guard.md)

@@ -1,7 +1,7 @@
 # MCP Tools Expansion — Prioritized Roadmap
 
 **Ngày:** 2026-07-25
-**Trạng thái:** P0 done (2026-07-25, PR #131) + P1 done (2026-07-26) — P2–P4 đang chạy theo [`docs/plans/mcp-p1-p4-tools-expansion.md`](../../plans/mcp-p1-p4-tools-expansion.md), P5 chờ
+**Trạng thái (soát 2026-08-10):** P0 done (2026-07-25, PR #131) + P1 done (2026-07-26, CHANGELOG v2.67.0). **P2, P3, P4 chưa khởi động** — [`docs/plans/mcp-p1-p4-tools-expansion.md`](../../plans/mcp-p1-p4-tools-expansion.md) chỉ có checkpoint của P1, và CHANGELOG không có bản nào cho P2–P4. P5 chờ.
 **Tiền đề:** PR #129 đã ship 29 tool (parity với `AiAgent*` REST surface). Đây là bước "thêm API mới" — expose các MediatR handler **chưa** có ở agent surface, **ưu tiên theo giá trị**.
 **Liên quan:** [`2026-07-24-mcp-server-implementation.md`](done/2026-07-24-mcp-server-implementation.md) (đã done), ADR-0003/0004/0005.
 

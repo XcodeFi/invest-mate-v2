@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-21
-- **Related plan:** `docs/superpowers/plans/2026-07-21-ai-agent-tradeplan-api.md`; spec `docs/superpowers/specs/2026-07-21-ai-agent-plans-routines-api-design.md`
+- **Related plan:** `docs/superpowers/plans/done/2026-07-21-ai-agent-tradeplan-api.md`; spec `docs/superpowers/specs/2026-07-21-ai-agent-plans-routines-api-design.md`
 - **Extends:** ADR-0003 (per-user API keys)
 - **Affected layers:** Application / Api
 
