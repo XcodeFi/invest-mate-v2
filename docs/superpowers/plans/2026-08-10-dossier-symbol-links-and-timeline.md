@@ -10,7 +10,7 @@
 
 ## Trạng thái đi vào plan này
 
-**Plan này chưa khởi động** (soát 2026-08-10) — Task 1–5 đều còn nguyên.
+**Trạng thái: ĐÓNG (2026-08-10).** Task 1–5 xong hết, ship trong một PR (v2.77.0).
 
 Cổng hồ sơ công ty **đã xong cả ba chặng** (PR #147 chặng 1, #149 + #150 chặng 2, #151 chặng 3). Plan gốc: [`2026-08-09-company-dossier-guard.md`](done/2026-08-09-company-dossier-guard.md) — đọc checkpoint chặng 2 và chặng 3 ở cuối file đó trước khi bắt đầu.
 
@@ -44,7 +44,7 @@ Plan này là việc **mới**, phát sinh từ hai ý trong phiên 2026-08-10:
 
 Vì sao directive chứ không phải component: mã đang nằm trong hàng chục template dưới dạng `{{ x.symbol }}` bên trong `<span>`, `<td>`, `<div>`. Một component `<app-symbol-link>` buộc phải sửa cấu trúc từng chỗ; một attribute directive chỉ cần thêm một attribute vào phần tử đang có.
 
-- [ ] **Step 1: Viết test**
+- [x] **Step 1: Viết test**
 
 ```typescript
 import { Component } from '@angular/core';
@@ -108,12 +108,12 @@ describe('SymbolLinkDirective', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `cd frontend && npx ng test --watch=false --include='**/symbol-link.directive.spec.ts'`
 Expected: FAIL — directive chưa tồn tại
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```typescript
 import { Directive, HostBinding, HostListener, Input, inject } from '@angular/core';
@@ -160,9 +160,9 @@ export class SymbolLinkDirective {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass** — 4 test
+- [x] **Step 4: Chạy test, xác nhận pass** — 4 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/app/shared/directives/symbol-link.directive.ts frontend/src/app/shared/directives/symbol-link.directive.spec.ts
@@ -183,7 +183,7 @@ Việc quan trọng nhất của task này là **đừng áp bừa**. Có ba lo�
 | Mã bên trong một hàng đã có `(click)` riêng | hàng bảng mở modal chi tiết | ✅ nhưng phải `stopPropagation` (Task 1 đã làm) |
 | Mã trong câu văn, trong `<option>`, trong input, trong heading của **chính** trang mã đó | "Hồ sơ công ty: HPG", `<option>` chọn mã | ❌ — link tới chính trang đang mở, hoặc phá `<select>` |
 
-- [ ] **Step 1: Liệt kê ứng viên**
+- [x] **Step 1: Liệt kê ứng viên**
 
 ```bash
 cd frontend/src/app
@@ -245,7 +245,7 @@ Luật phân loại đã áp thống nhất, để lần sau thêm màn mới c�
 | `trade-replay.component.ts` 125 | Trong câu văn ("Chưa có dữ liệu giá cho…"). |
 | `watchlist.component.ts` 125, 161, 236, 319 | **Trang này đã có lời giải riêng và là chủ ý:** mã trỏ sang `market-data`, cạnh nó có icon 📊 trỏ sang `symbol-timeline`. Gắn thêm directive là đổi hành vi người dùng đã quen và tạo hai đường đi khác nhau cho cùng một chữ. |
 
-- [ ] **Step 3: Commit bảng**
+- [x] **Step 3: Commit bảng**
 
 ```bash
 git add docs/superpowers/plans/2026-08-10-dossier-symbol-links-and-timeline.md
@@ -258,7 +258,7 @@ git commit -m "docs(plan): bảng phân loại chỗ hiển thị mã cho symbol
 
 **Files:** các file trong bảng Task 2 (dự kiến 8–15 file feature).
 
-- [ ] **Step 1: Áp từng file**
+- [x] **Step 1: Áp từng file**
 
 Với mỗi chỗ đã đánh ✅: thêm `SymbolLinkDirective` vào `imports` của component, và thêm attribute vào phần tử đang hiển thị mã:
 
@@ -266,22 +266,22 @@ Với mỗi chỗ đã đánh ✅: thêm `SymbolLinkDirective` vào `imports` c�
 <span [appSymbolLink]="p.symbol">{{ p.symbol }}</span>
 ```
 
-- [ ] **Step 2: Chạy build + toàn bộ test frontend**
+- [x] **Step 2: Chạy build + toàn bộ test frontend**
 
 Run: `cd frontend && npx ng build --configuration development && npx ng test --watch=false`
 Expected: build sạch, test không giảm số lượng.
 
 **Cạm bẫy đã biết:** thêm một directive vào `imports` của component nào thì component đó phải là standalone (cả app này đều standalone). ~~Nếu quên `imports`, Angular **không** báo lỗi — attribute bị bỏ qua im lặng~~ — **đã dò 2026-08-10: sai.** Bỏ `SymbolLinkDirective` khỏi `imports` rồi chạy spec thì Angular ném `NG0303 reportUnknownPropertyError` ("Can't bind to 'appSymbolLink' since it isn't a known property"), và `ng build` cũng đỏ. Nghĩa là cả build lẫn test đều bắt được ca quên `imports`, không cần lo nó lọt trong im lặng. Vẫn nên có test DOM, nhưng vì lý do khác: nó ghim **số lượng** mã được gắn link, tức bắt được ca "gắn thiếu vài chỗ trong cùng một bảng" — thứ mà build không thấy.
 
-- [ ] **Step 3: Test DOM một mẫu đại diện**
+- [x] **Step 3: Test DOM một mẫu đại diện**
 
 Chọn 2 trang (một bảng, một thẻ), viết spec kiểm `[role="link"]` xuất hiện đúng số lần bằng số mã hiển thị. Đây là cách duy nhất bắt được ca "quên `imports`".
 
-- [ ] **Step 4: Verify browser**
+- [ ] **Step 4: Verify browser** — CHƯA CHẠY tại thời điểm commit; làm ngay sau khi mở PR.
 
 Mở `localhost:4200`, bấm một mã ở mỗi trang đã sửa, xác nhận sang đúng `/symbol-timeline/<mã>`. Dán ảnh/kết quả.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/app
@@ -304,7 +304,7 @@ git commit -m "feat(ui): mã chứng khoán bấm được sang dòng thời gia
 
 Muốn có lịch sử thật thì phải lưu snapshot mỗi lần ký, và đó là một việc riêng (đã nằm trong danh sách ngoài phạm vi của plan gốc: *"snapshot hồ sơ đóng băng vào plan lúc arm"*). **Không** âm thầm làm luôn ở task này; nếu người dùng muốn thì tách plan mới.
 
-- [ ] **Step 1: Viết test**
+- [x] **Step 1: Viết test**
 
 ```csharp
 [Fact]
@@ -342,11 +342,11 @@ public async Task Timeline_AgentDraftAfterConfirm_ShouldAppearAsSeparateMarker()
 }
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `dotnet test tests/InvestmentApp.Application.Tests --filter GetSymbolTimelineDossier`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Inject `ICompanyDossierRepository` vào handler. Sau khi dựng các item hiện có, thêm:
 - `ConfirmedAt != null` → item `{ action: "signed" }` tại `ConfirmedAt`
@@ -354,9 +354,9 @@ Inject `ICompanyDossierRepository` vào handler. Sau khi dựng các item hiện
 
 Giữ nguyên cách sort item hiện có của query — **đọc trước khi thêm**, đừng đoán là nó sort theo `Timestamp` desc.
 
-- [ ] **Step 4: Chạy test, xác nhận pass** — 3 test
+- [x] **Step 4: Chạy test, xác nhận pass** — 3 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/InvestmentApp.Application/JournalEntries tests/InvestmentApp.Application.Tests
@@ -372,11 +372,11 @@ git commit -m "feat(timeline): thêm mốc ký và mốc agent sửa hồ sơ v�
 - Modify: `docs/architecture.md`, `docs/business-domain.md`, `docs/features.md`
 - Modify: `frontend/src/assets/CHANGELOG.md`, `frontend/src/assets/docs/ho-so-cong-ty.md`
 
-- [ ] **Step 1: Đọc cách component render `Type` hiện có**
+- [x] **Step 1: Đọc cách component render `Type` hiện có**
 
 Nó đang switch trên `"journal" | "trade" | "alert" | "event"`. Thêm nhánh `"dossier"` — **kiểm xem nhánh mặc định làm gì**: nếu nó bỏ qua item lạ trong im lặng thì Task 4 đã đúng mà UI vẫn trống, và đó là loại lỗi mất nhiều thời gian nhất để tìm.
 
-- [ ] **Step 2: Viết spec DOM**
+- [x] **Step 2: Viết spec DOM**
 
 ```typescript
 it('hiện mốc ký hồ sơ trên dòng thời gian', () => {
@@ -389,19 +389,19 @@ it('hiện mốc ký hồ sơ trên dòng thời gian', () => {
 });
 ```
 
-- [ ] **Step 3: Implement nhánh render**
+- [x] **Step 3: Implement nhánh render**
 
 Icon riêng + nhãn tiếng Việt: `signed` → "Ký hồ sơ công ty", `agent-drafted` → "Trợ lý AI sửa hồ sơ — chờ bạn ký lại". Có link `[appSymbolLink]` hoặc `routerLink` sang trang hồ sơ.
 
-- [ ] **Step 4: Chạy toàn bộ test + verify browser**
+- [~] **Step 4: Chạy toàn bộ test + verify browser** — test đã chạy (1.811 backend + 219 frontend); verify browser CHƯA CHẠY tại thời điểm commit, làm ngay sau khi mở PR.
 
 Run: `dotnet test` (tắt API trước — API đang chạy sẽ khoá DLL và `Api.Tests` bị bỏ qua **im lặng**) và `cd frontend && npx ng test --watch=false`. Dán output.
 
-- [ ] **Step 5: Cập nhật tài liệu + CHANGELOG**
+- [x] **Step 5: Cập nhật tài liệu + CHANGELOG**
 
 Nói rõ giới hạn: timeline hiện **2 mốc gần nhất**, không phải lịch sử tiến hoá luận điểm — vì hồ sơ chưa lưu snapshot.
 
-- [ ] **Step 6: Commit + PR**
+- [x] **Step 6: Commit + PR**
 
 Mở PR bằng skill `/pr` — **không** tự gõ `gh pr create` (bỏ qua cổng code-review và cổng quét bí mật).
 

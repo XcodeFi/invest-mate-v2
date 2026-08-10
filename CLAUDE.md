@@ -21,6 +21,17 @@
 - Không dùng CSS class `uppercase` hay inline `toUpperCase()` cho symbol inputs.
 - Backend entity (Trade, TradePlan) đã tự normalize `ToUpper().Trim()` — đây là lớp bảo vệ cuối.
 
+## Symbol Display
+
+- Mã chứng khoán **hiển thị** (không phải input) dùng `appSymbolLink` (`SymbolLinkDirective` trong `shared/directives/symbol-link.directive.ts`) để bấm được sang `/symbol-timeline/:symbol`:
+  ```html
+  <span [appSymbolLink]="p.symbol">{{ p.symbol }}</span>
+  ```
+- **Chỉ gắn khi mã định danh một dòng/thẻ trong danh sách** — người dùng đang chọn một trong nhiều.
+- **Không gắn** khi mã nằm trong câu văn, trong `<option>`, trong tiêu đề nói về thứ đang mở sẵn, khi nó không phải mã cổ phiếu (chỉ số như VNINDEX), hoặc khi chỗ đó đã là link/nút có hành động riêng.
+- Directive tự lo trợ năng (`role`, `tabindex`, Enter/Space) và tự tắt hoàn toàn khi mã rỗng. Mã rỗng thì click vẫn nổi lên cha; mã có giá trị thì chặn nổi bọt để không vừa điều hướng vừa kích hoạt hàng.
+- Bảng phân loại đầy đủ 77 chỗ hiển thị mã: [`docs/superpowers/plans/done/2026-08-10-dossier-symbol-links-and-timeline.md`](docs/superpowers/plans/done/2026-08-10-dossier-symbol-links-and-timeline.md).
+
 ## Tech Stack
 
 - **Frontend:** Angular 19, standalone components, inline templates, Tailwind CSS, ngModel (template-driven forms)

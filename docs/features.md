@@ -1118,7 +1118,12 @@ Mỗi node gồm:
 - Context: journals + trades + emotion distribution + holding periods
 - AI phân tích pattern cảm xúc → giao dịch → kết quả
 
-**Entry points:** Watchlist 📊, Positions 📊, Trades 📊 → navigate đến Symbol Timeline
+**Entry points:** Watchlist 📊, Trades 📊 (icon riêng), và **mọi mã hiển thị trong danh sách trên toàn app** — 48 chỗ trên 20 file dùng `appSymbolLink` (`SymbolLinkDirective`), xem quy tắc gắn/không gắn ở [`CLAUDE.md`](../CLAUDE.md) mục *Symbol Display*.
+
+**Mốc hồ sơ công ty trên timeline** (`TimelineItemDto.Type = "dossier"`):
+- `signed` — mốc `ConfirmedAt`, "Ký hồ sơ công ty".
+- `agent-drafted` — mốc `AgentDraftedAt`, "Trợ lý AI sửa hồ sơ — chờ bạn ký lại".
+- **Giới hạn:** `CompanyDossier` không lưu snapshot theo từng lần ký, nên đây là **tối đa 2 mốc gần nhất**, không phải lịch sử tiến hoá của luận điểm. Và vì `UpdateByAgent` đặt `ConfirmedAt = null`, sau khi agent sửa thì mốc ký **không còn dữ liệu để dựng** — chỉ ca "agent soạn rồi người dùng ký lại" mới thấy đủ cả hai.
 
 ### P7 Improvements (feat/p7-improvements)
 

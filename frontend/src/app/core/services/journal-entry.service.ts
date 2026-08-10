@@ -74,7 +74,7 @@ export interface BehavioralPattern {
 }
 
 export interface TimelineItem {
-  type: 'journal' | 'trade' | 'alert' | 'event';
+  type: 'journal' | 'trade' | 'alert' | 'event' | 'dossier';
   timestamp: string;
   data: any;
 }

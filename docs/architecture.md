@@ -54,7 +54,7 @@ project/
 │       │   └── ...                     # (19 more feature pages)
 │       └── shared/
 │           ├── components/             # AiChatPanel, Header, PwaInstallBanner, etc.
-│           ├── directives/             # UppercaseDirective, NumMaskDirective
+│           ├── directives/             # UppercaseDirective, NumMaskDirective, SymbolLinkDirective
 │           └── pipes/                  # VndCurrencyPipe
 │
 ├── tests/
