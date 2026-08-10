@@ -190,9 +190,59 @@ cd frontend/src/app
 grep -rn "{{ *[a-zA-Z_.]*symbol *}}\|{{ *[a-zA-Z_.]*Symbol *}}" --include=*.ts features/ shared/ | grep -v spec.ts
 ```
 
-- [ ] **Step 2: Ghi bảng phân loại vào chính file plan này**
+- [x] **Step 2: Ghi bảng phân loại vào chính file plan này**
 
 Mỗi dòng: `file:line` · loại (1/2/3) · gắn hay không · lý do nếu không. Bảng này là đầu vào của Task 3, và là bằng chứng "đã xem hết" chứ không phải sửa vài chỗ rồi tuyên bố xong.
+
+**Khảo sát 2026-08-10 — 77 chỗ khớp `{{ …symbol }}` trong `features/`, đã xem hết.**
+
+Luật phân loại đã áp thống nhất, để lần sau thêm màn mới còn theo được:
+
+- ✅ khi mã **định danh một dòng/thẻ trong danh sách** — người dùng đang chọn một trong nhiều.
+- ❌ khi mã nằm trong **câu văn**, trong `<option>`, trong **tiêu đề nói về thứ đang mở sẵn**, khi nó **không phải mã cổ phiếu**, hoặc khi chỗ đó **đã là link**.
+
+**Gắn — 51 chỗ / 21 file**
+
+| File | Dòng |
+|---|---|
+| `alerts.component.ts` | 152 |
+| `analytics.component.ts` | 225, 253 |
+| `backtesting.component.ts` | 250 |
+| `campaign-analytics.component.ts` | 31, 73, 82, 108, 135 |
+| `company-dossier-list.component.ts` | 34 |
+| `corporate-actions.component.ts` | 121 |
+| `dashboard.component.ts` | 115, 592 |
+| `widgets/decision-queue.component.ts` | 84 |
+| `market-data.component.ts` | 71, 578, 602, 635 |
+| `pending-reviews.component.ts` | 57, 102 |
+| `portfolio-analytics.component.ts` | 98, 132, 156 |
+| `portfolio-detail.component.ts` | 106, 126, 167, 186 |
+| `portfolio-trades.component.ts` | 91, 116 |
+| `positions.component.ts` | 121 |
+| `risk.component.ts` | 98, 126, 219, 242 |
+| `risk-dashboard.component.ts` | 147, 238, 302, 444 |
+| `snapshots.component.ts` | 211, 228, 401, 418 |
+| `trade-plan.component.ts` | 156, 244, 1356 |
+| `trade-create.component.ts` | 113, 129 |
+| `trade-import.component.ts` | 98 |
+| `trades.component.ts` | 135, 188, 230 |
+
+**Không gắn — 26 chỗ**
+
+| Chỗ | Lý do |
+|---|---|
+| `symbol-timeline.component.ts` 57, 119, 135, 207, 562 | Chính là trang đích. Link trỏ về trang đang mở. |
+| `company-dossier-detail.component.ts` 38 | Tiêu đề trang của chính mã đó. |
+| `journals.component.ts` 61 | Nằm trong `<option>` — gắn vào là phá `<select>`. |
+| `market-data.component.ts` 31 | `idx.symbol` là **chỉ số thị trường** (VNINDEX…), không phải mã cổ phiếu; timeline của nó vô nghĩa. |
+| `market-data.component.ts` 88, 193 | Tiêu đề panel nói về mã vừa được chọn ngay trên trang đó. |
+| `trade-plan.component.ts` 339, 830, 1192, 1782 | Câu trạng thái / tiêu đề modal về đúng thứ đang sửa. |
+| `trade-plan.component.ts` 1666, 1700 | Đã là link sẵn (sang trang hồ sơ) — lồng link vào link. |
+| `corporate-actions.component.ts` 235, 253 | Trong câu văn ("Xem trước tác động lên…", "Không tìm thấy vị thế…"). |
+| `trade-create.component.ts` 140, 180 | Trong câu văn / tiêu đề khối. |
+| `trades.component.ts` 192 | Trong câu văn ("Không có KH cho…"). |
+| `trade-replay.component.ts` 125 | Trong câu văn ("Chưa có dữ liệu giá cho…"). |
+| `watchlist.component.ts` 125, 161, 236, 319 | **Trang này đã có lời giải riêng và là chủ ý:** mã trỏ sang `market-data`, cạnh nó có icon 📊 trỏ sang `symbol-timeline`. Gắn thêm directive là đổi hành vi người dùng đã quen và tạo hai đường đi khác nhau cho cùng một chữ. |
 
 - [ ] **Step 3: Commit bảng**
 
