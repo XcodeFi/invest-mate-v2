@@ -28,7 +28,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       'previewReview', 'review', 'getScenarioPresets', 'getScenarioHistory', 'fetchScenarioSuggestion', 'getAdvisory'
     ]);
     const notifSpy = jasmine.createSpyObj('NotificationService', ['success', 'error', 'warning', 'info']);
-    const dossierSpy = jasmine.createSpyObj('CompanyDossierService', ['gateStatus']);
+    const dossierSpy = jasmine.createSpyObj('CompanyDossierService', ['gateStatus', 'suggestedRules']);
 
     strategySpy.getAll.and.returnValue(of([]));
     portfolioSpy.getAll.and.returnValue(of([]));
@@ -40,6 +40,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     marketSpy.getCurrentPrice.and.returnValue(EMPTY);
     marketSpy.getTechnicalAnalysis.and.returnValue(EMPTY);
     dossierSpy.gateStatus.and.returnValue(EMPTY);
+    dossierSpy.suggestedRules.and.returnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [TradePlanComponent, RouterTestingModule],

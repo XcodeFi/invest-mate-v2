@@ -1595,9 +1595,9 @@ Hai lỗi nữa tìm ra trong lúc review, cùng lớp vấn đề nên sửa lu
 
 ---
 
-## Hồ sơ công ty & điều kiện chặn lập kế hoạch — 2026-08-10 (chặng 1 + 2)
+## Hồ sơ công ty & điều kiện chặn lập kế hoạch — 2026-08-10 (hoàn tất 3 chặng)
 
-**Trạng thái:** ✅ Chặng 1 (entity + gate + trang hồ sơ) và ✅ chặng 2 (5 tool MCP + dịch lỗi cổng + số liệu doanh nghiệp cạnh ô viết) done; chặng 3 (đề xuất InvalidationRule + pending-reviews) **chưa làm**.
+**Trạng thái:** ✅ Chặng 1 (entity + gate + trang hồ sơ), ✅ chặng 2 (5 tool MCP + dịch lỗi cổng + số liệu doanh nghiệp cạnh ô viết), ✅ chặng 3 (đề xuất điều kiện từ hồ sơ + nhắc soát lại).
 
 Không cho tạo Trade Plan mới cho một mã khi chưa có hồ sơ hiểu doanh nghiệp — kiếm tiền bằng gì, moat ở đâu, rủi ro nào và biết nó đang xảy ra bằng dấu hiệu gì — đã được chính người dùng ký và còn hiệu lực. Mục đích: gate "Lý do đầu tư" (Thesis) hiện có đếm được độ dài câu chữ, không đếm được hiểu biết; "HPG đầu ngành thép, triển vọng tốt" đủ 30 ký tự và không kiểm chứng được gì. Quyết định thiết kế + đánh đổi: [ADR-0011](adr/0011-company-dossier-gate-at-plan-creation.md). Spec đầy đủ Q1-Q15: [`docs/superpowers/specs/2026-08-09-company-dossier-design.md`](superpowers/specs/2026-08-09-company-dossier-design.md).
 
@@ -1651,6 +1651,24 @@ Số liệu là **nguyên liệu, không phải điều kiện** — panel ghi r
 
 Agent dùng cùng dữ liệu qua MCP tool `get_company_fundamentals`.
 
+### Đề xuất điều kiện "lý do sai" từ hồ sơ (chặng 3)
+
+Hồ sơ đã buộc trả lời "rủi ro nào + biết nó đang xảy ra bằng dấu hiệu gì". Đó đúng là nguyên liệu của điều kiện "lý do sai" trên Trade Plan, nên bắt gõ lại lần thứ hai là chỗ tính năng lấy thời gian mà không trả lại gì.
+
+Khi form có mã, khối **"Từ hồ sơ công ty {mã} — N rủi ro cao nhất"** hiện trong section "Điều kiện lý do sai": mỗi dòng là một rủi ro hạng cao nhất, đã ghép thành `<mô tả> — dấu hiệu: <dấu hiệu quan sát được>`, kèm kịch bản gợi ý (hoặc "Tự nhận định" nếu hồ sơ không chọn).
+
+- **Đề xuất, không tự áp** — không tick sẵn, không tự thêm. Bấm "+ Thêm" mới vào plan, và bấm rồi thì nút đổi thành "Đã thêm".
+- Đề xuất chưa đủ 20 ký tự vẫn thêm được, có badge vàng **"cần bổ sung cho đủ 20 ký tự"** — chặn ở tầng UI thì người dùng mất luôn nội dung gợi ý và phải gõ lại từ đầu.
+- Ngày kiểm chứng để trống: hồ sơ không biết bạn định kiểm khi nào.
+
+### Nhắc soát lại hồ sơ (chặng 3)
+
+Cổng hồ sơ chỉ bắn lúc lập kế hoạch, nên nếu không nhắc trước thì một hồ sơ hết hạn chỉ lộ ra **đúng lúc đang muốn mua** — lúc tệ nhất để phải ngồi đọc lại.
+
+Mục **"Hồ sơ công ty cần soát lại"** ở `/pending-reviews`: hết hạn (đỏ) → chưa ký (xám) → nên soát lại (vàng), trong mỗi nhóm xếp quá hạn nhiều trước. Hai trạng thái đầu ghi rõ **"đang chặn lập kế hoạch"** — thiếu dòng đó thì ba trạng thái trông như nhau và không ai biết cái nào đang khoá mình.
+
+Dashboard có badge số lượng, **ẩn hoàn toàn khi bằng 0**: một dòng "0 hồ sơ" mỗi ngày dạy người ta bỏ qua chỗ đó, rồi hôm có số thật cũng bỏ qua luôn.
+
 ### API + Frontend
 
 | Method | Endpoint | Ghi chú |
@@ -1658,6 +1676,8 @@ Agent dùng cùng dữ liệu qua MCP tool `get_company_fundamentals`.
 | `GET` | `/api/v1/company-dossiers` | Danh sách hồ sơ của user |
 | `GET` | `/api/v1/company-dossiers/{symbol}` | Chi tiết 1 hồ sơ |
 | `GET` | `/api/v1/market/stock/{symbol}/fundamentals` | Số liệu doanh nghiệp làm nguyên liệu — kèm `unavailableSections[]`; cả `company` và `indicators` đều rỗng nội dung → 404 |
+| `GET` | `/api/v1/company-dossiers/{symbol}/suggested-rules` | 3 rủi ro hạng cao nhất, ghép thành câu cho điều kiện "lý do sai" + cờ `meetsMinLength` |
+| `GET` | `/api/v1/company-dossiers/needing-review` | Hồ sơ Expired/Unconfirmed/NeedsReview, xếp cái đang chặn lên trước |
 | `PUT` | `/api/v1/company-dossiers/{symbol}` | Upsert nội dung (JWT → luôn `ByAgent=false`) |
 | `POST` | `/api/v1/company-dossiers/{symbol}/confirm` | Ký — đường duy nhất đặt `ConfirmedAt` |
 | `GET` | `/api/v1/company-dossiers/{symbol}/gate-status` | Pre-flight; `quantity`/`entryPrice`/`accountBalance` bắt buộc (thiếu → 400) |

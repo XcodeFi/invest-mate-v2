@@ -2,7 +2,9 @@ using InvestmentApp.Application.CompanyDossiers.Commands.ConfirmCompanyDossier;
 using InvestmentApp.Application.CompanyDossiers.Commands.UpsertCompanyDossier;
 using InvestmentApp.Application.CompanyDossiers.DTOs;
 using InvestmentApp.Application.CompanyDossiers.Queries.GetCompanyDossier;
+using InvestmentApp.Application.CompanyDossiers.Queries.GetDossiersNeedingReview;
 using InvestmentApp.Application.CompanyDossiers.Queries.GetDossierGateStatus;
+using InvestmentApp.Application.CompanyDossiers.Queries.GetSuggestedInvalidationRules;
 using InvestmentApp.Application.CompanyDossiers.Queries.ListCompanyDossiers;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -29,6 +31,15 @@ public class CompanyDossiersController : ControllerBase
     public async Task<IActionResult> List(CancellationToken ct)
         => Ok(await _mediator.Send(new ListCompanyDossiersQuery { UserId = GetUserId() }, ct));
 
+    /// <summary>
+    /// Hồ sơ hết hạn / chưa ký / sắp phải soát lại. Khai báo TRƯỚC `{symbol}` cho dễ đọc — route
+    /// literal thắng route tham số nên "needing-review" không bị hiểu thành một mã.
+    /// </summary>
+    [HttpGet("needing-review")]
+    [ProducesResponseType(typeof(List<DossierReviewItemDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> NeedingReview(CancellationToken ct)
+        => Ok(await _mediator.Send(new GetDossiersNeedingReviewQuery { UserId = GetUserId() }, ct));
+
     [HttpGet("{symbol}")]
     [ProducesResponseType(typeof(CompanyDossierDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -38,6 +49,13 @@ public class CompanyDossiersController : ControllerBase
             new GetCompanyDossierQuery { UserId = GetUserId(), Symbol = symbol }, ct);
         return dto is null ? NotFound() : Ok(dto);
     }
+
+    /// <summary>Ba rủi ro cao nhất của hồ sơ, đã ghép thành câu dùng được cho `InvalidationRule`.</summary>
+    [HttpGet("{symbol}/suggested-rules")]
+    [ProducesResponseType(typeof(List<SuggestedInvalidationRuleDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SuggestedRules(string symbol, CancellationToken ct)
+        => Ok(await _mediator.Send(
+            new GetSuggestedInvalidationRulesQuery { UserId = GetUserId(), Symbol = symbol }, ct));
 
     [HttpGet("{symbol}/gate-status")]
     [ProducesResponseType(typeof(DossierGateStatusDto), StatusCodes.Status200OK)]

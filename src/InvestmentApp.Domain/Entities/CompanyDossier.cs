@@ -62,6 +62,18 @@ public class CompanyDossier : AggregateRoot
         IncrementVersion();
     }
 
+    /// <summary>
+    /// Số ngày quá mốc "nên soát lại" (90 ngày), theo ngày lịch VN. Chưa ký thì 0 — đồng hồ hạn tươi
+    /// chưa chạy nên một con số quá hạn ở đó là bịa. Sống ở entity để ngưỡng 90 ngày và phép lệch giờ
+    /// VN chỉ có MỘT bản: nhánh này đã một lần phải gộp bản sao thứ tư của ngưỡng 5% (66acadb).
+    /// </summary>
+    public int DaysOverdueForReview(DateTime utcNow)
+    {
+        if (ConfirmedAt is null) return 0;
+        var days = (utcNow.Add(VnOffset).Date - ReviewedAt.Add(VnOffset).Date).TotalDays;
+        return (int)Math.Max(0, days - NeedsReviewAfterDays);
+    }
+
     public DossierFreshness GetFreshness(DateTime utcNow)
     {
         if (ConfirmedAt is null) return DossierFreshness.Unconfirmed;

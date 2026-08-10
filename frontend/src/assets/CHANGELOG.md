@@ -2,6 +2,30 @@
 
 ---
 
+## [v2.76.0] — 2026-08-10 · Hồ sơ công ty trả lại thời gian, và nhắc trước khi nó hết hạn
+
+### Tính năng
+
+**♻️ Rủi ro đã viết trong hồ sơ giờ tự thành điều kiện "lý do sai" của kế hoạch.** Khi form kế hoạch có mã, khối *"Từ hồ sơ công ty {mã}"* hiện 3 rủi ro hạng cao nhất, mỗi cái đã ghép sẵn thành câu dùng được: *mô tả — dấu hiệu: dấu hiệu quan sát được*. Bấm "+ Thêm" là vào kế hoạch.
+
+- **Chỉ đề xuất, không tự áp.** Không tick sẵn, không tự thêm. Một kế hoạch tự đầy điều kiện mà bạn chưa đọc lại chúng thì cổng kỷ luật chỉ đo được chữ, không đo được ý.
+- Đề xuất chưa đủ 20 ký tự vẫn thêm được, có nhãn vàng *"cần bổ sung cho đủ 20 ký tự"* — chặn ở đây thì bạn mất luôn nội dung gợi ý và phải gõ lại từ đầu.
+- Ngày kiểm chứng để trống: hồ sơ không biết bạn định kiểm khi nào.
+
+**🔔 Trang "Lý do đầu tư cần review" có thêm mục "Hồ sơ công ty cần soát lại".** Hết hạn (đỏ) → chưa ký (xám) → nên soát lại (vàng); trong mỗi nhóm, quá hạn nhiều xếp trước. Hai loại đầu ghi rõ **"đang chặn lập kế hoạch"**.
+
+Trước bản này, cổng hồ sơ chỉ lên tiếng **đúng lúc bạn đang muốn mua** — tức lúc tệ nhất để phải ngồi đọc lại hồ sơ. Giờ bạn biết trước.
+
+Dashboard có badge số lượng, **ẩn hoàn toàn khi bằng 0** — một dòng "0 hồ sơ" mỗi ngày sẽ dạy bạn bỏ qua chỗ đó, rồi hôm có số thật cũng bỏ qua luôn.
+
+### Files chính
+
+- `src/InvestmentApp.Application/CompanyDossiers/Queries/GetSuggestedInvalidationRules/`, `.../GetDossiersNeedingReview/`, `src/InvestmentApp.Api/Controllers/CompanyDossiersController.cs` (2 endpoint mới).
+- `frontend/src/app/features/trade-plan/trade-plan.component.ts`, `frontend/src/app/features/pending-reviews/pending-reviews.component.ts`, `frontend/src/app/features/dashboard/widgets/discipline-score-widget.component.ts`, `frontend/src/app/core/services/company-dossier.service.ts`.
+- Tests: 1797 test backend + 204 test frontend pass, không regression (baseline v2.75.0: 1784 + 189).
+
+---
+
 ## [v2.75.0] — 2026-08-10 · Số liệu doanh nghiệp nằm ngay cạnh ô viết hồ sơ
 
 ### Tính năng

@@ -5,6 +5,11 @@ import {
   DisciplineService,
   PendingThesisReviewDto,
 } from '../../core/services/discipline.service';
+import {
+  CompanyDossierService,
+  DossierReviewItemDto,
+  dossierFreshnessLabel,
+} from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 
 /**
@@ -34,6 +39,37 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
             — cắt nếu lý do đầu tư đã không còn đúng.
           </p>
         </header>
+
+        <!-- Hồ sơ công ty cần soát lại. Cổng hồ sơ chỉ bắn lúc lập kế hoạch, nên nếu không có mục
+             này thì một hồ sơ hết hạn chỉ lộ ra đúng lúc đang muốn mua — lúc tệ nhất để ngồi đọc lại. -->
+        <section *ngIf="dossiers.length > 0" class="mb-6">
+          <h2 class="text-sm font-semibold text-gray-800 mb-1">Hồ sơ công ty cần soát lại</h2>
+          <p class="text-xs text-gray-500 mb-3">
+            Hồ sơ <strong>hết hạn</strong> hoặc <strong>chưa ký</strong> sẽ chặn lập kế hoạch mới cho mã đó.
+            Loại <strong>nên soát lại</strong> thì chưa chặn.
+          </p>
+          <div class="space-y-2">
+            <a *ngFor="let d of dossiers" [routerLink]="['/company-dossier', d.symbol]"
+              class="block bg-white rounded-xl shadow-sm border p-3 hover:shadow-md transition-shadow"
+              [ngClass]="dossierBorderClass(d.freshness)">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="font-semibold text-gray-900">{{ d.symbol }}</span>
+                  <span class="text-[11px] px-2 py-0.5 rounded-full" [ngClass]="dossierBadgeClass(d.freshness)">
+                    {{ dossierFreshnessLabel(d.freshness) }}
+                  </span>
+                  <span *ngIf="dossierBlocks(d.freshness)" class="text-[11px] text-red-600">đang chặn lập kế hoạch</span>
+                </div>
+                <div class="text-right shrink-0">
+                  <div *ngIf="d.daysOverdue > 0" class="text-xs font-medium text-gray-700">
+                    quá hạn {{ d.daysOverdue }} ngày
+                  </div>
+                  <div class="text-[11px] text-gray-400">soát gần nhất {{ d.reviewedAt | date:'dd/MM/yyyy' }}</div>
+                </div>
+              </div>
+            </a>
+          </div>
+        </section>
 
         <div *ngIf="loading" class="bg-white rounded-xl shadow-sm border p-6 text-center text-gray-400">
           Đang tải...
@@ -128,14 +164,22 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 })
 export class PendingReviewsComponent implements OnInit {
   private disciplineService = inject(DisciplineService);
+  private dossierService = inject(CompanyDossierService);
   private router = inject(Router);
 
   reviews: PendingThesisReviewDto[] = [];
+  dossiers: DossierReviewItemDto[] = [];
+  readonly dossierFreshnessLabel = dossierFreshnessLabel;
   loading = false;
   error: string | null = null;
 
   ngOnInit(): void {
     this.load();
+    // Lỗi ở đây không được làm trắng cả trang: hai danh sách độc lập nhau.
+    this.dossierService.needingReview().subscribe({
+      next: (data) => (this.dossiers = data),
+      error: (err) => console.error('Dossier needing-review load failed', err),
+    });
   }
 
   private load(): void {
@@ -152,6 +196,23 @@ export class PendingReviewsComponent implements OnInit {
         this.loading = false;
       },
     });
+  }
+
+  /** Expired/Unconfirmed là hai trạng thái cổng coi như KHÔNG có hồ sơ — tô đỏ để phân biệt với nhắc nhở. */
+  dossierBlocks(freshness: string): boolean {
+    return freshness === 'Expired' || freshness === 'Unconfirmed';
+  }
+
+  dossierBorderClass(freshness: string): string {
+    if (freshness === 'Expired') return 'border-red-200';
+    if (freshness === 'Unconfirmed') return 'border-gray-300';
+    return 'border-amber-200';
+  }
+
+  dossierBadgeClass(freshness: string): string {
+    if (freshness === 'Expired') return 'bg-red-100 text-red-700';
+    if (freshness === 'Unconfirmed') return 'bg-gray-100 text-gray-700';
+    return 'bg-amber-100 text-amber-700';
   }
 
   statusBadgeClass(status: string): string {
