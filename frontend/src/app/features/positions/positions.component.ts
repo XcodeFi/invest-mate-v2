@@ -9,6 +9,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 interface PortfolioGroup {
   portfolioId: string;
@@ -22,7 +23,7 @@ interface PortfolioGroup {
 @Component({
   selector: 'app-positions',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, AiChatPanelComponent],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, FormsModule, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -118,7 +119,7 @@ interface PortfolioGroup {
                 [class.border-l-green-500]="pos.unrealizedPnL >= 0"
                 [class.border-l-red-500]="pos.unrealizedPnL < 0">
                 <div class="flex items-center gap-3">
-                  <span class="text-lg font-bold text-gray-800">{{ pos.symbol }}</span>
+                  <span class="text-lg font-bold text-gray-800" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                   <a [routerLink]="['/symbol-timeline', pos.symbol]"
                     class="text-indigo-600 hover:text-indigo-800 text-xs" title="Xem timeline">📊</a>
                   <span *ngIf="pos.linkedPlan" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">

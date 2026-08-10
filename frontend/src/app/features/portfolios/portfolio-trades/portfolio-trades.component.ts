@@ -8,11 +8,12 @@ import { TradeService } from '../../../core/services/trade.service';
 import { getTradeTypeDisplay, getTradeTypeClass, TRADE_TYPE_FILTER_OPTIONS } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../../shared/directives/uppercase.directive';
+import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-portfolio-trades',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -88,7 +89,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
               </thead>
               <tbody class="divide-y divide-gray-200">
                 <tr *ngFor="let trade of trades" class="hover:bg-gray-50">
-                  <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ trade.symbol }}</td>
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900" [appSymbolLink]="trade.symbol">{{ trade.symbol }}</td>
                   <td class="px-6 py-4">
                     <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                       [class]="getTradeTypeClass(trade.tradeType)">
@@ -113,7 +114,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
           <div class="md:hidden divide-y divide-gray-200">
             <div *ngFor="let trade of trades" class="p-4 space-y-2">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-gray-900">{{ trade.symbol }}</span>
+                <span class="font-bold text-gray-900" [appSymbolLink]="trade.symbol">{{ trade.symbol }}</span>
                 <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                   [class]="getTradeTypeClass(trade.tradeType)">
                   {{ getTradeTypeDisplay(trade.tradeType) }}

@@ -6,11 +6,12 @@ import { SnapshotService, Snapshot, SnapshotComparison } from '../../core/servic
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-snapshots',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Lịch sử & Time Travel</h1>
@@ -208,7 +209,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   </thead>
                   <tbody>
                     <tr *ngFor="let pos of lookupSnapshot_result.positions" class="border-b hover:bg-gray-50">
-                      <td class="px-4 py-3 text-sm font-bold">{{ pos.symbol }}</td>
+                      <td class="px-4 py-3 text-sm font-bold" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</td>
                       <td class="px-4 py-3 text-sm text-right">{{ pos.quantity | number }}</td>
                       <td class="px-4 py-3 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
                       <td class="px-4 py-3 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
@@ -225,7 +226,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <div class="md:hidden divide-y divide-gray-200">
                 <div *ngFor="let pos of lookupSnapshot_result.positions" class="p-4 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="font-bold text-gray-800">{{ pos.symbol }}</span>
+                    <span class="font-bold text-gray-800" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                     <span class="font-medium" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">{{ pos.unrealizedPnL | vndCurrency }}</span>
                   </div>
                   <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
@@ -398,7 +399,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
                   </thead>
                   <tbody>
                     <tr *ngFor="let pos of selectedSnapshot.positions" class="border-b">
-                      <td class="px-3 py-2 text-sm font-bold">{{ pos.symbol }}</td>
+                      <td class="px-3 py-2 text-sm font-bold" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</td>
                       <td class="px-3 py-2 text-sm text-right">{{ pos.quantity | number }}</td>
                       <td class="px-3 py-2 text-sm text-right">{{ pos.averageCost | vndCurrency }}</td>
                       <td class="px-3 py-2 text-sm text-right">{{ pos.marketPrice | vndCurrency }}</td>
@@ -415,7 +416,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               <div class="md:hidden divide-y divide-gray-200">
                 <div *ngFor="let pos of selectedSnapshot.positions" class="p-4 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="font-bold text-gray-800">{{ pos.symbol }}</span>
+                    <span class="font-bold text-gray-800" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                     <span class="font-medium" [ngClass]="pos.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'">{{ pos.unrealizedPnL | vndCurrency }}</span>
                   </div>
                   <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">

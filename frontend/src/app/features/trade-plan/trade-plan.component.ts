@@ -17,6 +17,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
 import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
 import { TIME_HORIZON_OPTIONS, DEFAULT_TIME_HORIZON } from '../../shared/constants/time-horizon';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 interface ChecklistItem {
   label: string;
@@ -106,7 +107,7 @@ interface DossierGateError {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -153,7 +154,7 @@ interface DossierGateError {
               <tbody class="divide-y">
                 <tr *ngFor="let sp of filteredSavedPlans" class="hover:bg-gray-50 cursor-pointer"
                   [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
-                  <td class="px-4 py-2 font-bold">{{ sp.symbol }}</td>
+                  <td class="px-4 py-2 font-bold" [appSymbolLink]="sp.symbol">{{ sp.symbol }}</td>
                   <td class="px-4 py-2">
                     <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getTradeTypeClass(sp.direction)">
                       {{ getTradeTypeDisplay(sp.direction) }}
@@ -241,7 +242,7 @@ interface DossierGateError {
               [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <span class="font-bold text-gray-900">{{ sp.symbol }}</span>
+                  <span class="font-bold text-gray-900" [appSymbolLink]="sp.symbol">{{ sp.symbol }}</span>
                   <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getTradeTypeClass(sp.direction)">
                     {{ getTradeTypeDisplay(sp.direction) }}
                   </span>
@@ -1353,7 +1354,7 @@ interface DossierGateError {
             <!-- Mini Stock Info Card -->
             <div *ngIf="stockPrice" class="mt-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-100">
               <div class="flex items-center justify-between mb-2">
-                <span class="font-bold text-indigo-800 text-lg">{{ stockPrice.symbol }}</span>
+                <span class="font-bold text-indigo-800 text-lg" [appSymbolLink]="stockPrice.symbol">{{ stockPrice.symbol }}</span>
                 <button (click)="applyStockPrice()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full transition-colors">
                   Áp dụng giá vào lệnh
                 </button>

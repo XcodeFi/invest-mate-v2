@@ -15,11 +15,12 @@ import { TradeType, isSellTrade } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../../shared/directives/uppercase.directive';
+import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-trade-create',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, FormsModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -110,7 +111,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                   <div *ngFor="let s of filteredSymbols"
                     class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm flex items-center"
                     (mousedown)="selectSymbol(s.symbol)">
-                    <span class="font-semibold text-gray-900 min-w-[60px]">{{ s.symbol }}</span>
+                    <span class="font-semibold text-gray-900 min-w-[60px]" [appSymbolLink]="s.symbol">{{ s.symbol }}</span>
                     <span class="text-gray-500 ml-2 truncate">{{ s.companyName }}</span>
                     <span class="text-xs text-gray-400 ml-auto pl-2 shrink-0">{{ s.exchange }}</span>
                   </div>
@@ -126,7 +127,7 @@ import { UppercaseDirective } from '../../../shared/directives/uppercase.directi
                   [class]="form.symbol === pos.symbol
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200'">
-                  <span class="font-bold">{{ pos.symbol }}</span>
+                  <span class="font-bold" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                   <span class="opacity-75">{{ pos.quantity | number:'1.0-0' }} CP</span>
                 </button>
               </div>

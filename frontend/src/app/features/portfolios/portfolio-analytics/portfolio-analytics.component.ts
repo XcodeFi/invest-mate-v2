@@ -4,11 +4,12 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { PnlService, PortfolioPnL } from '../../../core/services/pnl.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
+import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-portfolio-analytics',
   standalone: true,
-  imports: [CommonModule, RouterModule, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -95,7 +96,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
               <div *ngFor="let pos of pnl.positions; let i = index" class="flex items-center justify-between">
                 <div class="flex items-center">
                   <div class="w-4 h-4 rounded-full mr-3" [style.background-color]="getColor(i)"></div>
-                  <span class="text-sm font-medium text-gray-900">{{ pos.symbol }}</span>
+                  <span class="text-sm font-medium text-gray-900" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                 </div>
                 <div class="text-right">
                   <span class="text-sm font-medium text-gray-900">{{ getPositionPercent(pos.marketValue) }}%</span>
@@ -129,7 +130,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
               </thead>
               <tbody class="divide-y divide-gray-200">
                 <tr *ngFor="let pos of pnl.positions" class="hover:bg-gray-50">
-                  <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ pos.symbol }}</td>
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.quantity }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.averageCost | vndCurrency }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.currentPrice | vndCurrency }}</td>
@@ -153,7 +154,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
           <div class="md:hidden divide-y divide-gray-200">
             <div *ngFor="let pos of pnl.positions" class="p-4 space-y-2">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-gray-900">{{ pos.symbol }}</span>
+                <span class="font-bold text-gray-900" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                 <span class="text-sm font-bold" [class]="pos.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'">
                   {{ pos.totalPnL | vndCurrency }} ({{ (pos.totalPnLPercent ?? 0).toFixed(2) }}%)
                 </span>

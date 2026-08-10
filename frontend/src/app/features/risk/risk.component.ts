@@ -13,11 +13,12 @@ import { TemplateService, RiskProfileTemplate } from '../../core/services/templa
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-risk',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Rủi ro</h1>
@@ -95,7 +96,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
                     <tr *ngFor="let pos of riskSummary?.positions || []">
-                      <td class="px-4 py-3 font-medium text-blue-600">{{ pos.symbol }}</td>
+                      <td class="px-4 py-3 font-medium text-blue-600" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</td>
                       <td class="px-4 py-3 text-right">{{ pos.quantity | number:'1.0-0' }}</td>
                       <td class="px-4 py-3 text-right">{{ pos.currentPrice | vndCurrency }}</td>
                       <td class="px-4 py-3 text-right">{{ pos.marketValue | vndCurrency }}</td>
@@ -123,7 +124,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                 <div *ngFor="let pos of riskSummary?.positions || []"
                   class="bg-gray-50 rounded-lg p-3 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="font-bold text-blue-600">{{ pos.symbol }}</span>
+                    <span class="font-bold text-blue-600" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                     <span class="px-2 py-0.5 rounded text-xs font-medium"
                       [class.bg-red-100]="pos.positionSizePercent > (riskProfile?.maxPositionSizePercent || 20)"
                       [class.text-red-700]="pos.positionSizePercent > (riskProfile?.maxPositionSizePercent || 20)"
@@ -216,7 +217,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
                     <tr *ngFor="let sl of slTargets?.items || []">
-                      <td class="px-4 py-3 font-medium text-blue-600">{{ sl.symbol }}</td>
+                      <td class="px-4 py-3 font-medium text-blue-600" [appSymbolLink]="sl.symbol">{{ sl.symbol }}</td>
                       <td class="px-4 py-3 text-right">{{ sl.entryPrice | vndCurrency }}</td>
                       <td class="px-4 py-3 text-right text-red-500">{{ sl.stopLossPrice | vndCurrency }}</td>
                       <td class="px-4 py-3 text-right text-green-500">{{ sl.targetPrice | vndCurrency }}</td>
@@ -239,7 +240,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                 <div *ngFor="let sl of slTargets?.items || []"
                   class="bg-gray-50 rounded-lg p-3 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="font-bold text-blue-600">{{ sl.symbol }}</span>
+                    <span class="font-bold text-blue-600" [appSymbolLink]="sl.symbol">{{ sl.symbol }}</span>
                     <span *ngIf="sl.isStopLossTriggered" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">SL Triggered</span>
                     <span *ngIf="sl.isTargetTriggered" class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">TP Reached</span>
                     <span *ngIf="!sl.isStopLossTriggered && !sl.isTargetTriggered" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">Active</span>

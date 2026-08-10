@@ -7,11 +7,12 @@ import { NotificationService } from '../../../core/services/notification.service
 import { getTradeTypeDisplay, getTradeTypeClass } from '../../../shared/constants/trade-types';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 import { AiChatPanelComponent } from '../../../shared/components/ai-chat-panel/ai-chat-panel.component';
+import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-portfolio-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, VndCurrencyPipe, AiChatPanelComponent],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -103,7 +104,7 @@ import { AiChatPanelComponent } from '../../../shared/components/ai-chat-panel/a
               </thead>
               <tbody class="divide-y divide-gray-200">
                 <tr *ngFor="let pos of pnl.positions" class="hover:bg-gray-50">
-                  <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ pos.symbol }}</td>
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.quantity }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.averageCost | vndCurrency }}</td>
                   <td class="px-6 py-4 text-sm text-gray-900">{{ pos.currentPrice | vndCurrency }}</td>
@@ -123,7 +124,7 @@ import { AiChatPanelComponent } from '../../../shared/components/ai-chat-panel/a
           <div class="md:hidden divide-y divide-gray-200">
             <div *ngFor="let pos of pnl.positions" class="p-4 space-y-2">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-gray-900">{{ pos.symbol }}</span>
+                <span class="font-bold text-gray-900" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                 <span class="text-sm font-bold" [class]="(pos.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
                   {{ (pos.totalPnLPercent ?? 0).toFixed(2) }}%
                 </span>
@@ -164,7 +165,7 @@ import { AiChatPanelComponent } from '../../../shared/components/ai-chat-panel/a
               </thead>
               <tbody class="divide-y divide-gray-200">
                 <tr *ngFor="let trade of portfolio.trades.slice(0, 5)" class="hover:bg-gray-50">
-                  <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ trade.symbol }}</td>
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900" [appSymbolLink]="trade.symbol">{{ trade.symbol }}</td>
                   <td class="px-6 py-4">
                     <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                       [class]="getTradeTypeClass(trade.tradeType)">
@@ -183,7 +184,7 @@ import { AiChatPanelComponent } from '../../../shared/components/ai-chat-panel/a
           <div class="md:hidden divide-y divide-gray-200">
             <div *ngFor="let trade of portfolio.trades.slice(0, 5)" class="p-4 space-y-2">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-gray-900">{{ trade.symbol }}</span>
+                <span class="font-bold text-gray-900" [appSymbolLink]="trade.symbol">{{ trade.symbol }}</span>
                 <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                   [class]="getTradeTypeClass(trade.tradeType)">
                   {{ getTradeTypeDisplay(trade.tradeType) }}

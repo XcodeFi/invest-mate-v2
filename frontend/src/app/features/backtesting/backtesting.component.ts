@@ -7,11 +7,12 @@ import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/trade-types';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-backtesting',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, VndCurrencyPipe, NumMaskDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -247,7 +248,7 @@ import { getTradeTypeDisplay, getTradeTypeClass } from '../../shared/constants/t
                 </thead>
                 <tbody class="divide-y">
                   <tr *ngFor="let t of selectedDetail.simulatedTrades" class="hover:bg-gray-50">
-                    <td class="px-3 py-2 font-medium">{{ t.symbol }}</td>
+                    <td class="px-3 py-2 font-medium" [appSymbolLink]="t.symbol">{{ t.symbol }}</td>
                     <td class="px-3 py-2">
                       <span class="px-2 py-0.5 rounded text-xs" [ngClass]="getTradeTypeClass(t.type)">
                         {{ getTradeTypeDisplay(t.type) }}

@@ -10,11 +10,12 @@ import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, SymbolLinkDirective],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -149,7 +150,7 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
                   </div>
                   <div class="text-sm text-gray-600 mt-1">
                     {{ getConditionLabel(rule.condition) }} {{ formatThreshold(rule) }}
-                    <span *ngIf="rule.symbol" class="font-medium"> ({{ rule.symbol }})</span>
+                    <span *ngIf="rule.symbol" class="font-medium"> (<span [appSymbolLink]="rule.symbol">{{ rule.symbol }}</span>)</span>
                   </div>
                   <div class="text-xs text-gray-400 mt-1">
                     Kênh: {{ rule.channel === 'InApp' ? 'Trong app' : 'Email' }}

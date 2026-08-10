@@ -201,7 +201,7 @@ Luật phân loại đã áp thống nhất, để lần sau thêm màn mới c�
 - ✅ khi mã **định danh một dòng/thẻ trong danh sách** — người dùng đang chọn một trong nhiều.
 - ❌ khi mã nằm trong **câu văn**, trong `<option>`, trong **tiêu đề nói về thứ đang mở sẵn**, khi nó **không phải mã cổ phiếu**, hoặc khi chỗ đó **đã là link**.
 
-**Gắn — 51 chỗ / 21 file**
+**Gắn — 48 chỗ / 20 file**
 
 | File | Dòng |
 |---|---|
@@ -225,9 +225,8 @@ Luật phân loại đã áp thống nhất, để lần sau thêm màn mới c�
 | `trade-plan.component.ts` | 156, 244, 1356 |
 | `trade-create.component.ts` | 113, 129 |
 | `trade-import.component.ts` | 98 |
-| `trades.component.ts` | 135, 188, 230 |
 
-**Không gắn — 26 chỗ**
+**Không gắn — 29 chỗ**
 
 | Chỗ | Lý do |
 |---|---|
@@ -241,6 +240,8 @@ Luật phân loại đã áp thống nhất, để lần sau thêm màn mới c�
 | `corporate-actions.component.ts` 235, 253 | Trong câu văn ("Xem trước tác động lên…", "Không tìm thấy vị thế…"). |
 | `trade-create.component.ts` 140, 180 | Trong câu văn / tiêu đề khối. |
 | `trades.component.ts` 192 | Trong câu văn ("Không có KH cho…"). |
+| `trades.component.ts` 135, 230 | **Đổi ý khi thi hành:** mã ở đây nằm trong `<button (click)="filterBySymbol(…)">` — nó là **nút lọc**, không phải nhãn. Và ngay cạnh đã có `<a [routerLink]="['/symbol-timeline', …]">`. Gắn directive là vừa lọc vừa điều hướng trong một cú bấm. |
+| `trades.component.ts` 188 | Nằm trong hàng có `(click)="linkTradeToPlan(…)"` — cả hàng tồn tại để một cú bấm nối lệnh với kế hoạch. `stopPropagation` của directive sẽ nuốt mất chính hành động đó. |
 | `trade-replay.component.ts` 125 | Trong câu văn ("Chưa có dữ liệu giá cho…"). |
 | `watchlist.component.ts` 125, 161, 236, 319 | **Trang này đã có lời giải riêng và là chủ ý:** mã trỏ sang `market-data`, cạnh nó có icon 📊 trỏ sang `symbol-timeline`. Gắn thêm directive là đổi hành vi người dùng đã quen và tạo hai đường đi khác nhau cho cùng một chữ. |
 
@@ -270,7 +271,7 @@ Với mỗi chỗ đã đánh ✅: thêm `SymbolLinkDirective` vào `imports` c�
 Run: `cd frontend && npx ng build --configuration development && npx ng test --watch=false`
 Expected: build sạch, test không giảm số lượng.
 
-**Cạm bẫy đã biết:** thêm một directive vào `imports` của component nào thì component đó phải là standalone (cả app này đều standalone). Nếu quên `imports`, Angular **không** báo lỗi — attribute bị bỏ qua im lặng và mã trông như thường, chỉ là không bấm được. Vì vậy Step 3 phải kiểm bằng DOM, không kiểm bằng mắt.
+**Cạm bẫy đã biết:** thêm một directive vào `imports` của component nào thì component đó phải là standalone (cả app này đều standalone). ~~Nếu quên `imports`, Angular **không** báo lỗi — attribute bị bỏ qua im lặng~~ — **đã dò 2026-08-10: sai.** Bỏ `SymbolLinkDirective` khỏi `imports` rồi chạy spec thì Angular ném `NG0303 reportUnknownPropertyError` ("Can't bind to 'appSymbolLink' since it isn't a known property"), và `ng build` cũng đỏ. Nghĩa là cả build lẫn test đều bắt được ca quên `imports`, không cần lo nó lọt trong im lặng. Vẫn nên có test DOM, nhưng vì lý do khác: nó ghim **số lượng** mã được gắn link, tức bắt được ca "gắn thiếu vài chỗ trong cùng một bảng" — thứ mà build không thấy.
 
 - [ ] **Step 3: Test DOM một mẫu đại diện**
 
