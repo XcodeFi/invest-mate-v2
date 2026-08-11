@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompanyFundamentals, MarketDataService } from '../../core/services/market-data.service';
 
@@ -30,9 +30,9 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
         @if (hasSection('indicators')) {
           <div class="grid grid-cols-3 gap-2 mb-4" data-testid="indicators">
             @for (item of indicatorCards(); track item.label) {
-              <div class="border border-gray-100 rounded-lg px-2 py-1.5">
-                <div class="text-[11px] text-gray-400">{{ item.label }}</div>
-                <div class="text-sm font-medium text-gray-700">{{ item.value }}</div>
+              <div class="border border-gray-200 rounded-lg px-2 py-2">
+                <div class="text-[10px] uppercase tracking-wide text-gray-400">{{ item.label }}</div>
+                <div class="text-base font-semibold text-gray-900 tabular-nums">{{ item.value }}</div>
               </div>
             }
           </div>
@@ -84,8 +84,17 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
         }
 
         <!-- Doanh thu / lợi nhuận theo quý -->
-        <h3 class="text-xs font-semibold text-gray-600 mb-1">Doanh thu &amp; lợi nhuận theo quý (tỷ VND)</h3>
-        @if (hasSection('incomeStatements')) {
+        @if (!hasSection('incomeStatements')) {
+          <h3 class="text-xs font-semibold text-gray-600 mb-1">Doanh thu &amp; lợi nhuận theo quý (tỷ VND)</h3>
+          <p class="text-xs text-gray-400 italic mb-4">không lấy được dữ liệu</p>
+        } @else {
+          <button type="button" (click)="toggle('incomeStatements')" [attr.aria-expanded]="isOpen('incomeStatements')"
+            class="w-full flex items-center justify-between text-xs font-semibold text-gray-600 mb-1 hover:text-gray-900">
+            <span>Doanh thu &amp; lợi nhuận theo quý (tỷ VND)</span>
+            <span class="text-gray-400">{{ isOpen('incomeStatements') ? '▾' : '▸' }}</span>
+          </button>
+        }
+        @if (hasSection('incomeStatements') && isOpen('incomeStatements')) {
           <table class="w-full text-xs mb-4" data-testid="income-table">
             <thead class="text-gray-400">
               <tr><th class="text-left font-normal">Kỳ</th><th class="text-right font-normal">Doanh thu</th><th class="text-right font-normal">LN sau thuế</th></tr>
@@ -100,13 +109,20 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
               }
             </tbody>
           </table>
-        } @else {
-          <p class="text-xs text-gray-400 italic mb-4">không lấy được dữ liệu</p>
         }
 
         <!-- Cổ phiếu cùng ngành -->
-        <h3 class="text-xs font-semibold text-gray-600 mb-1">Cổ phiếu cùng ngành</h3>
-        @if (hasSection('peers')) {
+        @if (!hasSection('peers')) {
+          <h3 class="text-xs font-semibold text-gray-600 mb-1">Cổ phiếu cùng ngành</h3>
+          <p class="text-xs text-gray-400 italic mb-4">không lấy được dữ liệu</p>
+        } @else {
+          <button type="button" (click)="toggle('peers')" [attr.aria-expanded]="isOpen('peers')"
+            class="w-full flex items-center justify-between text-xs font-semibold text-gray-600 mb-1 hover:text-gray-900">
+            <span>Cổ phiếu cùng ngành</span>
+            <span class="text-gray-400">{{ isOpen('peers') ? '▾' : '▸' }}</span>
+          </button>
+        }
+        @if (hasSection('peers') && isOpen('peers')) {
           <table class="w-full text-xs mb-4" data-testid="peers-table">
             <thead class="text-gray-400">
               <tr><th class="text-left font-normal">Mã</th><th class="text-right font-normal">P/E</th><th class="text-right font-normal">P/B</th><th class="text-right font-normal">± %</th></tr>
@@ -122,32 +138,44 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
               }
             </tbody>
           </table>
-        } @else {
-          <p class="text-xs text-gray-400 italic mb-4">không lấy được dữ liệu</p>
         }
 
         <!-- Cổ tức -->
-        <h3 class="text-xs font-semibold text-gray-600 mb-1">Cổ tức</h3>
-        @if (hasSection('dividendEvents')) {
+        @if (!hasSection('dividendEvents')) {
+          <h3 class="text-xs font-semibold text-gray-600 mb-1">Cổ tức</h3>
+          <p class="text-xs text-gray-400 italic mb-4">không lấy được dữ liệu</p>
+        } @else {
+          <button type="button" (click)="toggle('dividendEvents')" [attr.aria-expanded]="isOpen('dividendEvents')"
+            class="w-full flex items-center justify-between text-xs font-semibold text-gray-600 mb-1 hover:text-gray-900">
+            <span>Cổ tức</span>
+            <span class="text-gray-400">{{ isOpen('dividendEvents') ? '▾' : '▸' }}</span>
+          </button>
+        }
+        @if (hasSection('dividendEvents') && isOpen('dividendEvents')) {
           <ul class="text-xs text-gray-600 mb-4 space-y-0.5" data-testid="dividends">
             @for (d of data!.dividendEvents; track $index) {
               <li>{{ text(d.exDate) }} — {{ text(d.description) }}</li>
             }
           </ul>
-        } @else {
-          <p class="text-xs text-gray-400 italic mb-4">không lấy được dữ liệu</p>
         }
 
         <!-- Kế hoạch kinh doanh -->
-        <h3 class="text-xs font-semibold text-gray-600 mb-1">Kế hoạch kinh doanh</h3>
-        @if (hasSection('businessPlan')) {
+        @if (!hasSection('businessPlan')) {
+          <h3 class="text-xs font-semibold text-gray-600 mb-1">Kế hoạch kinh doanh</h3>
+          <p class="text-xs text-gray-400 italic">không lấy được dữ liệu</p>
+        } @else {
+          <button type="button" (click)="toggle('businessPlan')" [attr.aria-expanded]="isOpen('businessPlan')"
+            class="w-full flex items-center justify-between text-xs font-semibold text-gray-600 mb-1 hover:text-gray-900">
+            <span>Kế hoạch kinh doanh</span>
+            <span class="text-gray-400">{{ isOpen('businessPlan') ? '▾' : '▸' }}</span>
+          </button>
+        }
+        @if (hasSection('businessPlan') && isOpen('businessPlan')) {
           <div class="text-xs text-gray-600" data-testid="business-plan">
             Năm {{ data!.businessPlan!.year }}: doanh thu {{ num(data!.businessPlan!.revenuePlan) }} tỷ ·
             lợi nhuận {{ num(data!.businessPlan!.profitPlan) }} tỷ ·
             cổ tức {{ pct(data!.businessPlan!.dividendPlan) }}
           </div>
-        } @else {
-          <p class="text-xs text-gray-400 italic">không lấy được dữ liệu</p>
         }
       }
     </div>
@@ -156,9 +184,33 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
 export class FundamentalsPanelComponent implements OnInit {
   @Input() symbol = '';
 
+  /** Panel vẫn tự gọi API như cũ; cha chỉ cần bản sao để ghép vào nội dung sao chép cho AI. */
+  @Output() dataLoaded = new EventEmitter<CompanyFundamentals | null>();
+
   data: CompanyFundamentals | null = null;
   loading = false;
   error: string | null = null;
+
+  /**
+   * Bốn khối dài xếp dọc làm panel cuộn mãi không hết. Mở sẵn doanh thu — đó là thứ hay đọc nhất khi
+   * đang trả lời "doanh nghiệp này kiếm tiền bằng gì"; ba khối kia gập, bung khi cần.
+   * Khối KHÔNG lấy được dữ liệu thì không gập: câu "không lấy được dữ liệu" phải luôn nhìn thấy,
+   * giấu nó sau một cái mũi tên là mời người đọc tưởng phần đó trống.
+   */
+  private readonly open: Record<string, boolean> = {
+    incomeStatements: true,
+    peers: false,
+    dividendEvents: false,
+    businessPlan: false,
+  };
+
+  isOpen(section: string): boolean {
+    return this.open[section] === true;
+  }
+
+  toggle(section: string): void {
+    this.open[section] = !this.open[section];
+  }
 
   constructor(private marketData: MarketDataService) {}
 
@@ -169,10 +221,12 @@ export class FundamentalsPanelComponent implements OnInit {
       next: (dto) => {
         this.data = dto;
         this.loading = false;
+        this.dataLoaded.emit(dto);
       },
       error: () => {
         this.error = 'Không lấy được số liệu doanh nghiệp cho mã này.';
         this.loading = false;
+        this.dataLoaded.emit(null);
       },
     });
   }

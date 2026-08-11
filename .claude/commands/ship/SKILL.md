@@ -160,12 +160,15 @@ Get diff against base branch. Detect affected stacks from changed files (fronten
 
 Filter to >= 80 confidence. Present findings as cards. User chooses per-issue: **Fix** / **Ignore** / **Post**.
 
-### Step 3.3 — Fix and Re-verify
+### Step 3.3 — Fix and Re-review (HARD GATE)
 
 If fixes applied:
-1. Run tests to confirm no regression
-2. Significant fixes (new logic) → loop back to Step 3.1
-3. Minor fixes (typo, naming) → proceed
+
+1. Run tests to confirm no regression.
+2. **Re-review the fix diff** per [`/code-review` references/review-workflow.md § Step 4.3](../code-review/references/review-workflow.md#step-43--re-review-the-fixes-hard-gate-when-code-changed) — fresh sub-agent, scoped to `git diff <pre-fix-sha>..HEAD`, told these lines have never been reviewed.
+3. Only proceed to Phase 4 when the fix diff is either clean, or every applied fix was text-level (comment / string / rename / formatting).
+
+Do NOT decide this by whether the fix "felt significant" — use the trigger table in Step 4.3. A guard clause, a reset, and an extracted helper are all small diffs and all re-reviewable.
 
 ---
 

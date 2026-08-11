@@ -94,6 +94,66 @@ describe('FundamentalsPanelComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('không tính vào điều kiện');
   });
 
+  // Provider hiện không trả 4 khối này cho mã nào, nên browser verify không chạm tới được — phần
+  // gập/bung chỉ có ở đây. Bỏ nhóm test này là để tính năng không có lớp bảo vệ nào.
+  describe('gập / bung khối dài', () => {
+    const full = () => withData({
+      indicators: { pe: 1 } as any,
+      incomeStatements: [{ period: 'Q1/2026', revenue: 100, netProfit: 10, grossProfit: null }],
+      peers: [{ symbol: 'HSG', pe: 8, pb: 1, changePercent: 1.2 } as any],
+      dividendEvents: [{ exDate: '2026-03-01', description: 'Tiền mặt 10%' } as any],
+      businessPlan: { year: 2026, revenuePlan: 1000, profitPlan: 100, dividendPlan: 10 },
+      unavailableSections: [],
+    });
+
+    it('khối doanh thu mở sẵn — thứ hay đọc nhất khi đang viết hồ sơ', () => {
+      load(full());
+      expect(component.isOpen('incomeStatements')).toBe(true);
+      expect(fixture.nativeElement.querySelector('[data-testid="income-table"]')).not.toBeNull();
+    });
+
+    it('ba khối còn lại gập sẵn: có tiêu đề bấm được nhưng chưa render nội dung', () => {
+      load(full());
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('[data-testid="peers-table"]')).toBeNull();
+      expect(el.querySelector('[data-testid="dividends"]')).toBeNull();
+      expect(el.querySelector('[data-testid="business-plan"]')).toBeNull();
+      expect(el.textContent).toContain('Cổ phiếu cùng ngành');
+    });
+
+    it('bung ra thì nội dung hiện, gập lại thì mất', () => {
+      load(full());
+
+      component.toggle('peers');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="peers-table"]')).not.toBeNull();
+
+      component.toggle('peers');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="peers-table"]')).toBeNull();
+    });
+
+    it('khối không lấy được dữ liệu KHÔNG gập — câu báo thiếu phải luôn nhìn thấy', () => {
+      load(withData({ indicators: { pe: 1 } as any, unavailableSections: ['peers', 'incomeStatements', 'dividendEvents', 'businessPlan'] }));
+      const el = fixture.nativeElement as HTMLElement;
+
+      const toggles = Array.from(el.querySelectorAll('button')).filter((b) => b.hasAttribute('aria-expanded'));
+      expect(toggles.length).toBe(0);
+      expect(el.textContent).toContain('không lấy được dữ liệu');
+    });
+
+    it('nút gập khai báo aria-expanded theo đúng trạng thái của chính nó', () => {
+      load(full());
+      const el = fixture.nativeElement as HTMLElement;
+      const byState = Array.from(el.querySelectorAll('button[aria-expanded]')).map((b) => b.getAttribute('aria-expanded'));
+
+      // 1 khối mở (doanh thu) + 3 khối gập.
+      expect(byState.filter((v) => v === 'true').length).toBe(1);
+      expect(byState.filter((v) => v === 'false').length).toBe(3);
+    });
+  });
+
   it('lỗi mạng thì báo không lấy được, không render bảng rỗng', () => {
     component.symbol = 'HPG';
     fixture.detectChanges();

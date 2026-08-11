@@ -2,6 +2,42 @@
 
 ---
 
+## [v2.78.0] — 2026-08-11 · Hồ sơ công ty mở ra là đọc được, sửa thì dễ gõ hơn
+
+### Tính năng
+
+**📖 Trang hồ sơ có chế độ đọc.** Trước bản này, mở `/company-dossier/{mã}` là rơi thẳng vào một bức tường ô nhập — kể cả khi bạn chỉ muốn đọc lại luận điểm trước khi vào lệnh. Giờ mặc định là bản đọc: mô hình kinh doanh là đoạn văn, moat là các thẻ, rủi ro xếp theo hạng với **hạng 1 nổi bật nhất** và dấu hiệu quan sát in ngay dưới mô tả. Bấm **Sửa** mới ra form; **Hủy** hỏi lại nếu bạn đã gõ dở.
+
+Mã chưa có hồ sơ, hoặc bị cổng chặn lệnh đá sang, vẫn vào thẳng form — lúc đó không có gì để đọc.
+
+**🤖 Sao chép cho AI · Dán từ AI.** Hai nút cho trợ lý *không* nối MCP (ChatGPT web, Gemini). Sao chép gói sẵn hồ sơ + số liệu doanh nghiệp + khuôn JSON; dán lại thì đổ vào form để bạn đọc lại. **Không tự lưu, không tự ký.** Dán nhầm nội dung của mã khác vào trang đang mở thì bị chặn thẳng.
+
+### Sửa
+
+**✍️ Form không còn khó gõ.** Bốn thứ đổi cùng lúc:
+
+- Mô tả rủi ro và dấu hiệu quan sát chuyển từ ô một dòng sang **ô nhiều dòng** — trước đây câu dài trôi ngang, gõ xong không đọc lại được cả câu.
+- Cột viết rộng **3/5** thay vì một nửa, nên ô nhập không còn bị bóp.
+- Mọi ô có **nhãn thật** phía trên, không chỉ placeholder biến mất khi gõ.
+- Dòng đỏ "bắt buộc có dấu hiệu quan sát" **chỉ hiện sau khi bạn rời ô hoặc sau lần bấm Lưu đầu tiên** — trước đây nó bật ngay lúc vừa thêm yếu tố, báo sai trước khi kịp làm gì.
+
+Thêm dòng đếm cạnh nút Lưu: "Còn N yếu tố thiếu dấu hiệu quan sát" — biết vì sao chưa ký được mà không phải cuộn cả trang đi tìm.
+
+**🔒 Không ký được khi form còn thay đổi chưa lưu.** Chữ ký đóng dấu vào bản đang nằm trên server, nên ký lúc màn hình hiện nội dung khác là ký một thứ mình không đọc.
+
+**📊 Panel số liệu dễ đọc hơn** — giá trị to đậm, nhãn nhỏ; bốn khối dài gập lại được, mặc định chỉ mở khối doanh thu. Khối *không lấy được dữ liệu* thì không gập, để câu báo thiếu luôn nhìn thấy.
+
+**🔗 Link "← Danh sách hồ sơ"** chuyển từ bên phải (sau nhóm nút hành động) lên góc trái trên tiêu đề, đúng chỗ của một đường lùi.
+
+**🏢 Từ dòng thời gian của mã sang hồ sơ công ty.** Nút cạnh tiêu đề trang `/symbol-timeline/{mã}`, luôn hiện. Trước bản này chỉ có đường đi khi hồ sơ đã từng được ký — mã chưa có hồ sơ thì không có lối nào, đúng lúc cần viết nhất.
+
+### Kỹ thuật
+
+- Tách `DossierViewComponent` và module thuần `dossier-clipboard.ts` (dựng prompt + parse JSON dán vào). Shape dán trùng đúng tham số MCP `upsert_company_dossier` — một hợp đồng duy nhất cho cả hai đường.
+- Frontend tests: **221 → 273** (52 test mới).
+
+---
+
 ## [v2.77.0] — 2026-08-10 · Bấm vào mã ở bất kỳ đâu là ra dòng thời gian của nó
 
 ### Tính năng

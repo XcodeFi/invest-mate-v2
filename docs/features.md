@@ -834,7 +834,7 @@ Ownership khóa theo `sub` = chủ khóa ở tầng handler. Tài liệu 5 nhóm
 | `/help` | `HelpComponent` | Hướng dẫn sử dụng: 8 chủ đề, full-text search tiếng Việt (không dấu), markdown rendering |
 | `/api-keys` | `ApiKeysComponent` | Quản lý khóa API cá nhân: danh sách, tạo mới (modal hiện token 1 lần), thu hồi |
 | `/company-dossier` | `CompanyDossierListComponent` | Danh sách hồ sơ công ty theo mã + badge trạng thái tươi |
-| `/company-dossier/:symbol` | `CompanyDossierDetailComponent` | Chi tiết hồ sơ: business model, moats, risk factors (▲▼, dấu hiệu quan sát được), nút ký |
+| `/company-dossier/:symbol` | `CompanyDossierDetailComponent` | Chi tiết hồ sơ, **hai chế độ**: mở ra là bản đọc (`DossierViewComponent`), bấm Sửa mới ra form. Kèm nút **Sao chép cho AI** / **Dán từ AI** cho trợ lý không nối MCP |
 
 ---
 
@@ -1119,6 +1119,8 @@ Mỗi node gồm:
 - AI phân tích pattern cảm xúc → giao dịch → kết quả
 
 **Entry points:** Watchlist 📊, Trades 📊 (icon riêng), và **mọi mã hiển thị trong danh sách trên toàn app** — 48 chỗ trên 20 file dùng `appSymbolLink` (`SymbolLinkDirective`), xem quy tắc gắn/không gắn ở [`CLAUDE.md`](../CLAUDE.md) mục *Symbol Display*.
+
+**Đường sang hồ sơ công ty** — nút `🏢 Hồ sơ công ty` cạnh tiêu đề trang, luôn hiện. Link trong từng mốc feed chỉ xuất hiện khi hồ sơ đã có mốc ký/agent, nên mã **chưa có hồ sơ** — đúng lúc cần viết nhất — trước đây không có đường nào từ timeline sang.
 
 **Mốc hồ sơ công ty trên timeline** (`TimelineItemDto.Type = "dossier"`):
 - `signed` — mốc `ConfirmedAt`, "Ký hồ sơ công ty".

@@ -53,9 +53,17 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">
-            {{ symbol }} — Dòng thời gian
-          </h1>
+          <div class="flex items-center gap-3 flex-wrap">
+            <h1 class="text-2xl font-bold text-gray-900">
+              {{ symbol }} — Dòng thời gian
+            </h1>
+            <!-- Đường sang hồ sơ ở CẤP TRANG. Link trong feed chỉ hiện khi hồ sơ đã có mốc ký hoặc
+                 mốc agent, nên mã chưa có hồ sơ — đúng lúc cần viết nhất — lại không có đường nào. -->
+            <a [routerLink]="['/company-dossier', symbol]" data-testid="header-dossier-link"
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-medium hover:bg-indigo-100">
+              🏢 Hồ sơ công ty
+            </a>
+          </div>
           <p class="text-sm text-gray-500 mt-1" *ngIf="timeline">
             {{ timeline.items.length }} sự kiện
             <span *ngIf="timeline.holdingPeriods.length"> · {{ timeline.holdingPeriods.length }} đợt nắm giữ</span>
