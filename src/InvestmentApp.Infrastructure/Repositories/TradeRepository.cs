@@ -106,6 +106,23 @@ public class TradeRepository : ITradeRepository
             );
     }
 
+    public async Task<DateTime?> GetLastTradeDateByPortfolioIdsAsync(
+        IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default)
+    {
+        var ids = portfolioIds?.Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList() ?? new List<string>();
+        if (ids.Count == 0) return null;
+
+        var filter = Builders<Trade>.Filter.In(t => t.PortfolioId, ids);
+        var latest = await _collection
+            .Find(filter)
+            .SortByDescending(t => t.TradeDate)
+            .Limit(1)
+            .Project(t => (DateTime?)t.TradeDate)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return latest;
+    }
+
     public async Task AddAsync(Trade entity, CancellationToken cancellationToken = default)
     {
         await _collection.InsertOneAsync(entity, null, cancellationToken);

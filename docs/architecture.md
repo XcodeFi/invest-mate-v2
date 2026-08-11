@@ -13,7 +13,7 @@ project/
 │   ├── InvestmentApp.Application/      # CQRS handlers, interfaces, DTOs (depends on Domain)
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
-│   │   ├── Common/                     # Hàm thuần dùng chung: PortfolioCashCalculator, PositionBuilder (nguồn DUY NHẤT dựng vị thế — mọi service cần giá vốn/số lượng phải gọi vào đây, không tự GroupBy trên Trade thô), CorporateActionAdjuster (điều chỉnh giá ngưỡng tại thời điểm đọc), TradePlanPriceAdjuster (quy giá trên TradePlan về mặt bằng hiện tại). Xem ADR-0010
+│   │   ├── Common/                     # Hàm thuần dùng chung: VietnamDate (quy mốc UTC sang ngày lịch VN, cộng cứng +07:00 vì tên múi giờ khác nhau giữa Windows và Linux — xem ADR-0013), PortfolioCashCalculator, PositionBuilder (nguồn DUY NHẤT dựng vị thế — mọi service cần giá vốn/số lượng phải gọi vào đây, không tự GroupBy trên Trade thô), CorporateActionAdjuster (điều chỉnh giá ngưỡng tại thời điểm đọc), TradePlanPriceAdjuster (quy giá trên TradePlan về mặt bằng hiện tại). Xem ADR-0010
 │   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation, IApiKeyTokenService)
 │   │   ├── Common/Behaviors/           # MediatR pipeline behaviors (ValidationBehavior<,>)
 │   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~23, incl. IApiKeyRepository)
@@ -42,6 +42,7 @@ project/
 │       ├── core/services/              # 26 Angular services (HTTP clients, incl. api-keys.service.ts)
 │       ├── features/                   # 30 page components (standalone, inline templates)
 │       │   ├── dashboard/              # Investor Cockpit (main page + Personal Finance widget)
+│       │   │   └── widgets/            # decision-queue, discipline-score, networth-summary + màn tĩnh tâm (ADR-0013): patience-hero (ghép + gọi API), fishing-scene (SVG/CSS thuần, nhận calm 0..1 và dim, KHÔNG vòng lặp JS), patience-quotes (dữ liệu thuần + pickQuote gieo theo khoá ngày)
 │       │   ├── trade-wizard/           # 5-step disciplined trading flow
 │       │   ├── trade-plan/             # Entry/SL/TP planning with checklist
 │       │   ├── market-data/            # Stock detail + technical analysis
@@ -111,6 +112,7 @@ are now **in-process** in the API:
 | JournalEntry | Standalone journal (không cần Trade), 5 loại entry, cảm xúc, snapshot giá |
 | MarketEvent | Sự kiện thị trường (7 loại: Earnings/Dividend/News/Macro...) |
 | FinancialProfile | Per-user 1:1. 5 loại account (Securities/Savings/Emergency/IdleCash/Gold) + **Debts[]** (6 loại: CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other) + FinancialRules (emergency months, max investment %, min savings %). Health score 0-100 với **4 rules** (rule 4: `-20` cứng khi có consumer debt lãi > 20%/năm). **Net Worth = Assets − Debt**. Gold account: brand + type + quantity → auto-calc Balance qua provider. Savings account có thêm `DepositDate` + `MaturityDate` optional cho sổ có kỳ hạn (2026-04-24); cả 2 set → enforce `Maturity >= Deposit`. `FinancialAccount.CreatedAt` immutable sau Create. Debts không xóa được khi Principal > 0 |
+| MoodCheckIn | **Tâm trạng tự chấm cho màn tĩnh tâm trên trang chủ (2026-08-11, ADR-0013).** Một bản ghi cho mỗi `(UserId, DateKey)` — collection `mood_check_ins`, unique index đặt tên `ux_user_datekey`. `DateKey` là **chuỗi** `"YYYY-MM-DD"` theo lịch VN, **không phải `DateTime`**: lưu nửa đêm giờ VN xuống Mongo thì đọc lên thành 17:00 hôm trước và mọi so sánh mốc ngày lệch một ngày trong khi unit test vẫn xanh vì không đi vòng qua database. `Mood` là enum `Calm`/`Fomo`/`Fear`/`Revenge`. `SetMood` **xoá `OverrodeAt` khi tâm trạng đổi** (giữ lại thì chấm Bình tĩnh rồi chấm lại FOMO là mở khoá vĩnh viễn mà chưa lần nào bấm qua lớp phủ); chấm lại đúng trạng thái cũ không phải là "đổi" nên giữ dấu. `MarkOverridden` chỉ đóng dấu lần đầu. `OverrodeAt` là thước đo duy nhất trả lời được "luật dừng có tác dụng thật không". |
 | ApiKey | Per-user Personal Access Token. Lưu `KeyHash` (SHA-256 of plaintext token — plaintext chỉ trả về 1 lần lúc tạo), `UserId`, `Name`, `CreatedAt`, `LastUsedAt`, `IsRevoked`. Ownership-checked trên revoke. |
 | CompanyDossier | **Hồ sơ công ty — gate chặn tạo trade plan (2026-08-10, ADR-0011).** Khóa `(UserId, Symbol)`, sống độc lập với `TradePlan` — viết một lần cho một mã, mọi plan sau cho mã đó dùng lại. 4 khối: `BusinessModel` (string), `Moats` (`List<MoatItem>`), `RiskFactors` (`List<RiskFactor>`, rank dense 1..N, mỗi cái bắt buộc `ObservableSignal`, tối đa 1 `IsDealBreaker`), `Notes` (tự do, không gate). Hai phương thức sửa riêng biệt `UpdateByOwner`/`UpdateByAgent` (không dùng cờ `isAgent`) — chỉ `UpdateByAgent` xóa `ConfirmedAt`. `Confirm()` là **phương thức duy nhất** đẩy đồng hồ hạn tươi (`ReviewedAt`) — sửa nội dung, kể cả qua UI, không chạm nó. `GetFreshness()` trả enum `Unconfirmed`/`Fresh` (<90 ngày)/`NeedsReview` (90-179)/`Expired` (≥180), tính theo ngày lịch VN offset cố định `+07:00` (không dùng `TimeZoneInfo` — xem ADR-0011 D7). |
 
@@ -145,7 +147,8 @@ are now **in-process** in the API:
 |-----------|-----------|----------------|
 | Auth | `/api/v1/auth` | Google OAuth, JWT token |
 | Portfolios | `/api/v1/portfolios` | CRUD, list by user |
-| Trades | `/api/v1/trades` | CRUD, bulk create, link to plan/strategy |
+| Trades | `/api/v1/trades` | CRUD, bulk create, link to plan/strategy, **`GET /last-activity` (ADR-0013)** — ngày lệnh gần nhất + `daysSince` theo lịch VN; route chữ đứng trước `{id}` nên không đụng nhau |
+| Mood | `/api/v1/mood` | **Tâm trạng tự chấm (2026-08-11, ADR-0013)** — JWT. `GET /today`, `POST /` (upsert bản hôm nay), `POST /override` (404 khi hôm nay chưa chấm). Ngày lịch VN tính ở server qua `VietnamDate`, client không gửi ngày. |
 | TradePlans | `/api/v1/trade-plans` | CRUD, status transitions, lot execution, scenario node trigger, scenario templates, **campaign review (P0.7)**: close with auto-metrics, preview, update lessons, pending-review list, cross-plan analytics, **abort với thesis invalidation (Vin-discipline, 2026-04-23)**: `POST /{id}/abort { trigger, detail }` → `AbortTradePlanCommand` → raise `TradePlanThesisInvalidatedEvent` |
 | Discipline | `/api/v1/me/discipline-score` | **Vin-discipline widget (2026-04-23)** — `GET ?days=7|30|90|365` (default 90). Query `GetDisciplineScoreQuery` → `IDisciplineScoreCalculator`. Cache 5 min. |
 | MarketData | `/api/v1/market` | Price, batch prices, search, overview, top fluctuation |
@@ -231,8 +234,8 @@ are now **in-process** in the API:
 
 ## Testing
 
-- **Backend:** xUnit + FluentAssertions + Moq (~1596 tests: Domain, Application, Infrastructure, Api)
-- **Frontend:** Karma + Jasmine (152 tests)
+- **Backend:** xUnit + FluentAssertions + Moq (1846 tests: Domain 800, Application 438, Infrastructure 389, Api 219)
+- **Frontend:** Karma + Jasmine (316 tests)
 - Run `dotnet test` before commit
 
 ### MintStableJwt — AI verify-before-merge tool

@@ -1699,6 +1699,57 @@ Verify thật trên DB prod (tài khoản test, mã HPG): API 8/8 (chưa có h�
 
 ---
 
+## Màn tĩnh tâm trên trang chủ (2026-08-11, ADR-0013)
+
+Chèn một khoảng lặng vào đầu `/dashboard`, giữa lúc mở app và lúc bấm vào một hành động. Xuất phát từ ba nguyên tắc chủ sở hữu đặt ra: *đầu tư chứ không phải chơi*, *tiền là con số nhưng mất tiền là thật*, *khi cảm xúc vào thì không hành động*.
+
+### Cảnh người đi câu
+
+SVG vẽ tay, hoạt hoạ **thuần CSS, không có vòng lặp JavaScript** (trang này đã chạy Chart.js và hơn mười khối số liệu). Một số duy nhất `calm = min(daysSince, 14) / 14` điều khiển biên độ sóng, tốc độ trôi và độ ấm của bầu trời:
+
+| Số ngày chưa đặt lệnh | Mặt nước | Trời |
+|---|---|---|
+| 0–1 | sóng gấp, biên độ lớn, đục | xám lạnh |
+| 2–6 | dịu dần | hửng |
+| 7–13 | gợn lăn tăn | ngả vàng ấm |
+| ≥ 14 | gần phẳng, còn ~12% biên độ | hoàng hôn ấm |
+
+Trần 14 ngày **chỉ dùng cho hình ảnh** — số ngày hiển thị luôn là số thật. Chưa có lệnh nào bao giờ thì ghi "Chưa có lệnh nào", không bịa số. Tôn trọng `prefers-reduced-motion`: tắt hết chuyển động, giữ ảnh tĩnh đúng mức đó.
+
+Nguồn số ngày là `GET /api/v1/trades/last-activity`, **không** dùng lại dữ liệu vị thế đang mở: bán sạch một mã làm vị thế biến mất và lệnh đó tàng hình, khiến đồng hồ nhảy vọt đúng lúc người dùng vừa làm việc cảm tính nhất.
+
+### Châm ngôn
+
+22 câu chia theo bốn trạng thái. Câu của người thật ghi tên (Buffett, Munger, Graham, Livermore, Lynch); câu ẩn dụ người câu để trống tác giả — không gán tên cho câu không phải của họ. `pickQuote` gieo theo khoá ngày nên cùng một ngày luôn thấy cùng một câu. Chưa chấm tâm trạng thì dùng nhóm Bình tĩnh.
+
+### Luật dừng
+
+Hỏi **một lần mỗi ngày**: Bình tĩnh / FOMO (sợ bỏ lỡ) / Sợ / Cay cú.
+
+Chọn khác Bình tĩnh → châm ngôn đổi nhóm, trời tối một bậc (**không** đụng vào sóng — sóng đang kể sự thật về số ngày, tâm trạng không được viết đè lên), và **Hàng đợi quyết định bị phủ mờ**. Bấm "Vẫn xem bây giờ" là mở tới hết ngày. Không cấm — chỉ bắt trả giá bằng một cú bấm có ý thức, và cú bấm đó đọng lại ở `OverrodeAt`.
+
+Ba chỗ đã bịt để lớp phủ không thành hình thức:
+
+- Chưa biết tâm trạng thì **không dựng** Hàng đợi, thay vì dựng sẵn rồi phủ sau (dựng sẵn là để lộ suốt vòng gọi API).
+- Bấm "đổi" chỉ mở lại bảng chọn; tâm trạng và lớp phủ giữ nguyên.
+- Đổi tâm trạng thật thì `OverrodeAt` bị xoá — đi vòng qua Bình tĩnh rồi quay lại FOMO không miễn được lần nữa.
+
+Tâm trạng lưu ở server theo tài khoản (`mood_check_ins`, unique `(UserId, DateKey)`), không phải localStorage: mở máy khác vẫn thấy, xoá cache không mất. Ngày lịch VN do server tính; `DateKey` là **chuỗi** chứ không phải `DateTime` — xem ADR-0013.
+
+### Gỡ widget Giao dịch nhanh
+
+Ít dùng, và nó là lối đặt lệnh nhanh nhất trên trang chủ. Đường tới `/trade-plan` vẫn còn nguyên ở menu.
+
+### Giới hạn đã biết
+
+- Tự chấm thì tự lừa được. Không có cách phát hiện trực tiếp; chỉ suy gián tiếp qua tỷ lệ bấm "Vẫn xem bây giờ".
+- Lớp phủ chỉ áp cho Hàng đợi quyết định. Vào thẳng `/trade-plan` hoặc `/trade-wizard` từ menu **không bị chặn** — có ý thức chấp nhận ở bản này.
+- Chưa có màn đối chiếu "hôm FOMO tôi đã làm gì". Dữ liệu đủ để làm sau.
+
+Backend 1846 test, frontend 316 test. Verify thật trên browser 15/15 kịch bản, gồm ca hoãn API 3,5 giây để chứng minh Hàng đợi không lộ ra trong lúc chờ.
+
+---
+
 ## Backlog (chưa implement)
 
 | # | Tính năng | Độ ưu tiên | Kế hoạch |

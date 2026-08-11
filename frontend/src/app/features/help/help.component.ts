@@ -155,7 +155,7 @@ export class HelpComponent implements OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
 
   topics: GuideTopic[] = [
-    { id: 'bat-dau-su-dung', title: 'Bắt đầu sử dụng', description: 'Dashboard, tạo danh mục, tổng quan ứng dụng', icon: '🚀', color: 'blue' },
+    { id: 'bat-dau-su-dung', title: 'Bắt đầu sử dụng', description: 'Dashboard, màn tĩnh tâm, tạo danh mục, tổng quan ứng dụng', icon: '🚀', color: 'blue' },
     { id: 'giao-dich', title: 'Giao dịch', description: 'Wizard 5 bước, tạo giao dịch mua/bán, import CSV', icon: '🔄', color: 'green' },
     { id: 'ke-hoach-giao-dich', title: 'Kế hoạch giao dịch', description: 'Entry/SL/TP, checklist, chia lô, scenario', icon: '📑', color: 'purple' },
     { id: 'ho-so-cong-ty', title: 'Hồ sơ công ty', description: 'Chặn mua theo tin: mô hình kinh doanh, moat, rủi ro có dấu hiệu quan sát được', icon: '🏢', color: 'slate' },

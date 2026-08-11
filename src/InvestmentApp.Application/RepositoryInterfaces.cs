@@ -30,6 +30,36 @@ public interface ITradeRepository : IRepository<Trade>
     Task<IEnumerable<Trade>> GetByPortfolioIdAndDateRangeAsync(string portfolioId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByTradePlanIdAsync(string tradePlanId, CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<string, (int Count, DateTime? LastTradeAt)>> GetStatsByPortfolioIdsAsync(IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default);
+    Task<DateTime?> GetLastTradeDateByPortfolioIdsAsync(IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Tâm trạng tự chấm, một bản ghi cho mỗi (user, ngày lịch VN). Xem ADR-0013.
+/// </summary>
+public interface IMoodCheckInRepository
+{
+    Task<MoodCheckIn?> GetByUserAndDateAsync(string userId, string dateKey, CancellationToken cancellationToken = default);
+
+    /// <summary>Ném <see cref="DuplicateMoodCheckInException"/> khi đâm vào unique index (UserId, DateKey).</summary>
+    Task AddAsync(MoodCheckIn entity, CancellationToken cancellationToken = default);
+
+    Task UpdateAsync(MoodCheckIn entity, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Kế thừa <see cref="InvalidOperationException"/> để middleware map thành 409 chứ không phải 500.
+/// </summary>
+public class DuplicateMoodCheckInException : InvalidOperationException
+{
+    public DuplicateMoodCheckInException(string userId, string dateKey, Exception? inner = null)
+        : base($"Mood check-in already exists for user {userId} on {dateKey}.", inner)
+    {
+        UserId = userId;
+        DateKey = dateKey;
+    }
+
+    public string UserId { get; }
+    public string DateKey { get; }
 }
 
 public interface IUserRepository : IRepository<User>

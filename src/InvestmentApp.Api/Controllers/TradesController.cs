@@ -2,6 +2,7 @@ using InvestmentApp.Application.Trades.Commands.CreateTrade;
 using InvestmentApp.Application.Trades.Commands.DeleteTrade;
 using InvestmentApp.Application.Trades.Commands.LinkTradeToPlan;
 using InvestmentApp.Application.Trades.Commands.BulkCreateTrades;
+using InvestmentApp.Application.Trades.Queries.GetLastTradeActivity;
 using InvestmentApp.Application.Trades.Queries.GetTradesByPortfolio;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -48,6 +49,18 @@ public class TradesController : ControllerBase
     {
         // For now return a simple response - can be expanded with a dedicated query
         return Ok(new { id });
+    }
+
+    /// <summary>
+    /// Ngày đặt lệnh gần nhất của người dùng + số ngày lịch VN kể từ đó.
+    /// Cả hai trả null khi chưa có lệnh nào. Route chữ đứng trước <c>{id}</c> nên không đụng nhau.
+    /// </summary>
+    [HttpGet("last-activity")]
+    [ProducesResponseType(typeof(LastTradeActivityDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLastActivity(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetLastTradeActivityQuery { UserId = GetUserId() }, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>

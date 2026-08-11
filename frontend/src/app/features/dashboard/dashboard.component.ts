@@ -5,7 +5,6 @@ import { RouterModule, Router } from '@angular/router';
 import { AuthService, User } from '../../core/services/auth.service';
 import { PnlService, OverallPnLSummary, PortfolioPnL, PositionPnL } from '../../core/services/pnl.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile } from '../../core/services/risk.service';
 import { AdvancedAnalyticsService, EquityCurveData } from '../../core/services/advanced-analytics.service';
 import { MarketDataService, BatchPrice } from '../../core/services/market-data.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
@@ -15,12 +14,13 @@ import { WatchlistService } from '../../core/services/watchlist.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
 import { PersonalFinanceService, NetWorthSummaryDto } from '../../core/services/personal-finance.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
-import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { DisciplineScoreWidgetComponent } from './widgets/discipline-score-widget.component';
 import { NetWorthSummaryComponent } from './widgets/networth-summary.component';
 import { DecisionQueueComponent } from './widgets/decision-queue.component';
-import { isBuyTrade } from '../../shared/constants/trade-types';
+import { PatienceHeroComponent } from './widgets/patience-hero.component';
+import { MoodService, TodayMoodDto } from '../../core/services/mood.service';
+import { MOOD_LABELS } from './widgets/patience-quotes';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Chart, registerables } from 'chart.js';
@@ -31,7 +31,7 @@ Chart.register(...registerables);
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent, NetWorthSummaryComponent, DecisionQueueComponent],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, FormsModule, VndCurrencyPipe, AiChatPanelComponent, DisciplineScoreWidgetComponent, NetWorthSummaryComponent, DecisionQueueComponent, PatienceHeroComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -62,9 +62,25 @@ Chart.register(...registerables);
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        <!-- Decision Queue (P3 v1.1) — vị trí #1 ở top, gộp 3 nguồn alert.
-             Empty state positive: ✅ Hôm nay đang kỷ luật + 🔥 streak khi 0 alert. -->
-        <app-decision-queue></app-decision-queue>
+        <!-- Màn tĩnh tâm (ADR-0013) — khoảng lặng trước mọi hành động. -->
+        <app-patience-hero (moodChange)="onMoodChange($event)"></app-patience-hero>
+
+        <!-- Decision Queue (P3 v1.1) — gộp 3 nguồn alert.
+             Empty state positive: ✅ Hôm nay đang kỷ luật + 🔥 streak khi 0 alert.
+             Bị phủ mờ khi người dùng tự chấm là đang có cảm xúc (ADR-0013). -->
+        <div class="relative" *ngIf="moodResolved">
+          <app-decision-queue [attr.aria-hidden]="decisionQueueVeiled ? 'true' : null"></app-decision-queue>
+
+          <div *ngIf="decisionQueueVeiled" data-test="decision-veil"
+               class="absolute inset-0 z-10 rounded-xl bg-white/85 backdrop-blur-sm flex flex-col items-center justify-center text-center px-6">
+            <p class="text-sm font-medium text-gray-800">Anh đang chấm là {{ moodLabel }}.</p>
+            <p class="mt-1 text-sm text-gray-600">Danh sách này tối nay vẫn ở đây.</p>
+            <button type="button" (click)="revealDecisionQueue()" data-test="decision-veil-reveal"
+                    class="mt-3 px-4 py-2 rounded-lg bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+              Vẫn xem bây giờ
+            </button>
+          </div>
+        </div>
 
         <!-- Kỷ luật Thesis Widget (Vin-discipline §D6) -->
         <div class="mb-6">
@@ -607,102 +623,6 @@ Chart.register(...registerables);
           </div>
         </div>
 
-        <!-- Quick Trade Widget -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-          <button (click)="qtExpanded = !qtExpanded"
-            class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors rounded-xl">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">⚡</span>
-              <h2 class="text-base font-semibold text-gray-900">Giao dịch nhanh</h2>
-              <span class="text-xs text-gray-400">Tính position size tại chỗ → mở Trade Plan</span>
-            </div>
-            <svg class="w-4 h-4 text-gray-400 transition-transform" [class.rotate-180]="qtExpanded"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-
-          <div *ngIf="qtExpanded" class="px-6 pb-6 border-t border-gray-100 pt-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <!-- Symbol -->
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Mã CP</label>
-                <div class="relative">
-                  <input [(ngModel)]="qt.symbol" (blur)="onQtSymbolBlur()" appUppercase
-                    type="text" placeholder="VNM, VIC..."
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                  <span *ngIf="qtLoading" class="absolute right-2 top-2.5 text-xs text-gray-400">...</span>
-                  <span *ngIf="qtFetchedPrice && !qtLoading"
-                    class="absolute right-2 top-2 text-xs font-medium text-emerald-600">
-                    {{ qtFetchedPrice.toLocaleString('vi-VN') }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Direction -->
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Chiều</label>
-                <div class="flex rounded-lg overflow-hidden border border-gray-300">
-                  <button (click)="qt.direction='Buy'"
-                    class="flex-1 py-2 text-sm font-medium transition-colors"
-                    [class.bg-emerald-500]="isBuyTrade(qt.direction)" [class.text-white]="isBuyTrade(qt.direction)"
-                    [class.text-gray-600]="!isBuyTrade(qt.direction)">Mua</button>
-                  <button (click)="qt.direction='Sell'"
-                    class="flex-1 py-2 text-sm font-medium transition-colors"
-                    [class.bg-red-500]="!isBuyTrade(qt.direction)" [class.text-white]="!isBuyTrade(qt.direction)"
-                    [class.text-gray-600]="isBuyTrade(qt.direction)">Bán</button>
-                </div>
-              </div>
-
-              <!-- Entry -->
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Giá vào</label>
-                <input [(ngModel)]="qt.entryPrice" (ngModelChange)="calcQtStats()" type="number"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              </div>
-
-              <!-- Stop-loss -->
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Stop-loss</label>
-                <input [(ngModel)]="qt.stopLoss" (ngModelChange)="calcQtStats()" type="number"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              </div>
-            </div>
-
-            <!-- Stats row -->
-            <div *ngIf="qt.entryPrice && qt.stopLoss" class="flex flex-wrap items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg text-sm">
-              <div>
-                <span class="text-gray-500">Rủi ro/CP: </span>
-                <span class="font-semibold text-red-600">{{ (qt.entryPrice - qt.stopLoss).toLocaleString('vi-VN') }} đ</span>
-              </div>
-              <div *ngIf="qtOptimalShares > 0">
-                <span class="text-gray-500">Số CP đề xuất: </span>
-                <span class="font-bold text-blue-600">{{ qtOptimalShares | number }}</span>
-              </div>
-              <div *ngIf="qtOptimalShares > 0">
-                <span class="text-gray-500">Giá trị vị thế: </span>
-                <span class="font-semibold">{{ (qtOptimalShares * qt.entryPrice) | vndCurrency }}</span>
-              </div>
-              <div *ngIf="!qtRiskProfile" class="text-amber-600 text-xs">
-                Chưa có Risk Profile → không tính được số CP tối ưu
-              </div>
-            </div>
-
-            <!-- Portfolio selector + action -->
-            <div class="flex flex-wrap items-center gap-3">
-              <select [(ngModel)]="qt.portfolioId"
-                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Chọn danh mục --</option>
-                <option *ngFor="let p of portfolios" [value]="p.portfolioId">{{ p.portfolioName }}</option>
-              </select>
-              <button (click)="openInTradePlan()" [disabled]="!qt.symbol"
-                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors">
-                Mở trong Trade Plan →
-              </button>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
 
@@ -782,20 +702,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   periodReturn = 0;
   periodPnL = 0;
 
-  // ─── Shared utilities ────────────────────────────────────────────────────
-  isBuyTrade = isBuyTrade;
-
   // ─── Positions Widget ────────────────────────────────────────────────────
   topPositions: ActivePosition[] = [];
-
-  // ─── Quick Trade Widget ───────────────────────────────────────────────────
-  qtExpanded = false;
-  qtLoading = false;
-  qt = { symbol: '', direction: 'Buy', entryPrice: 0, stopLoss: 0, portfolioId: '' };
-  qtFetchedPrice: number | null = null;
-  qtRR = 0;
-  qtOptimalShares = 0;
-  qtRiskProfile: RiskProfile | null = null;
 
   // ─── Daily Routine Widget ──────────────────────────────────────────────────
   // nextRoutineItems cached so the template *ngFor doesn't rebuild the array
@@ -886,10 +794,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Personal Finance Widget ───────────────────────────────────────────────
   netWorthSummary: NetWorthSummaryDto | null = null;
 
+  // ─── Luật dừng theo tâm trạng (ADR-0013) ──────────────────────────────────
+  private todayMood: TodayMoodDto = { mood: null, overrode: false };
+
+  /**
+   * Chưa biết tâm trạng thì KHÔNG dựng Hàng đợi quyết định. Dựng sẵn rồi phủ sau sẽ để lộ
+   * danh sách suốt vòng gọi API — đúng khoảnh khắc vừa mở app mà luật dừng sinh ra để chặn.
+   * Hero luôn phát sự kiện kể cả khi API lỗi nên cờ này không kẹt mãi.
+   */
+  moodResolved = false;
+
   constructor(
     private authService: AuthService,
     private pnlService: PnlService,
-    private riskService: RiskService,
     private advancedAnalyticsService: AdvancedAnalyticsService,
     private positionsService: PositionsService,
     private notificationService: NotificationService,
@@ -897,6 +814,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private dailyRoutineService: DailyRoutineService,
     private watchlistService: WatchlistService,
     private capitalFlowService: CapitalFlowService,
+    private moodService: MoodService,
     private portfolioService: PortfolioService,
     private router: Router,
     private personalFinanceService: PersonalFinanceService
@@ -1028,6 +946,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   dismissNudge(): void {
     this.capitalFlowNudge = { show: false, message: '' };
+  }
+
+  // ─── Luật dừng theo tâm trạng (ADR-0013) ──────────────────────────────────
+
+  onMoodChange(today: TodayMoodDto): void {
+    this.todayMood = today;
+    this.moodResolved = true;
+  }
+
+  /** Phủ khi đã tự chấm là có cảm xúc VÀ chưa bấm qua lớp phủ hôm nay. */
+  get decisionQueueVeiled(): boolean {
+    return this.todayMood.mood !== null
+        && this.todayMood.mood !== 'Calm'
+        && !this.todayMood.overrode;
+  }
+
+  get moodLabel(): string {
+    return this.todayMood.mood ? MOOD_LABELS[this.todayMood.mood] : '';
+  }
+
+  revealDecisionQueue(): void {
+    this.todayMood = { ...this.todayMood, overrode: true };
+    // Ghi lại cú bấm — đây là thước đo duy nhất cho biết luật dừng có tác dụng thật không.
+    this.moodService.markOverride().pipe(catchError(() => of(void 0))).subscribe();
   }
 
   private loadTopPositions(): void {
@@ -1204,51 +1146,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const last  = filtered[filtered.length - 1].portfolioValue;
     this.periodPnL    = last - first;
     this.periodReturn = first > 0 ? ((last - first) / first) * 100 : 0;
-  }
-
-  // ─── Quick Trade Widget ───────────────────────────────────────────────────
-  onQtSymbolBlur(): void {
-    const sym = this.qt.symbol?.trim().toUpperCase();
-    if (!sym) return;
-    this.qt.symbol = sym;
-    this.qtLoading = true;
-    this.qtFetchedPrice = null;
-    this.marketDataService.getCurrentPrice(sym).subscribe({
-      next: (data) => {
-        this.qtLoading = false;
-        this.qtFetchedPrice = data.close;
-        if (!this.qt.entryPrice) this.qt.entryPrice = data.close;
-        this.calcQtStats();
-      },
-      error: () => { this.qtLoading = false; }
-    });
-    // Load risk profile for first portfolio if not yet loaded
-    if (!this.qtRiskProfile && this.portfolios.length > 0) {
-      this.riskService.getRiskProfile(this.portfolios[0].portfolioId).pipe(catchError(() => of(null)))
-        .subscribe(p => { this.qtRiskProfile = p; this.calcQtStats(); });
-    }
-  }
-
-  calcQtStats(): void {
-    const { entryPrice, stopLoss } = this.qt;
-    if (!entryPrice || !stopLoss || entryPrice <= stopLoss) { this.qtRR = 0; this.qtOptimalShares = 0; return; }
-    const riskPerShare = entryPrice - stopLoss;
-    const totalValue = this.pnlSummary.totalPortfolioValue || this.pnlSummary.totalInvested;
-    if (this.qtRiskProfile && totalValue > 0) {
-      const maxRisk = totalValue * (this.qtRiskProfile.maxPortfolioRiskPercent / 100);
-      this.qtOptimalShares = Math.floor(maxRisk / riskPerShare);
-    }
-    this.qtRR = 0; // R:R requires target — shown as 0 when no target
-  }
-
-  openInTradePlan(): void {
-    this.router.navigate(['/trade-plan'], { queryParams: {
-      symbol:    this.qt.symbol,
-      direction: this.qt.direction,
-      entry:     this.qt.entryPrice,
-      sl:        this.qt.stopLoss,
-      portfolio: this.qt.portfolioId || (this.portfolios[0]?.portfolioId ?? ''),
-    }});
   }
 
 }

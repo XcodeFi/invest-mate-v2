@@ -133,6 +133,7 @@ builder.Services.AddScoped<IScenarioTemplateRepository, ScenarioTemplateReposito
 builder.Services.AddScoped<IImpersonationAuditRepository, ImpersonationAuditRepository>();
 builder.Services.AddScoped<IFinancialProfileRepository, FinancialProfileRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+builder.Services.AddScoped<IMoodCheckInRepository, MoodCheckInRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IApiKeyTokenService, ApiKeyTokenService>();
