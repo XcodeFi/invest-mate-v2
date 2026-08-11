@@ -834,7 +834,7 @@ Ownership khóa theo `sub` = chủ khóa ở tầng handler. Tài liệu 5 nhóm
 | `/help` | `HelpComponent` | Hướng dẫn sử dụng: 8 chủ đề, full-text search tiếng Việt (không dấu), markdown rendering |
 | `/api-keys` | `ApiKeysComponent` | Quản lý khóa API cá nhân: danh sách, tạo mới (modal hiện token 1 lần), thu hồi |
 | `/company-dossier` | `CompanyDossierListComponent` | Danh sách hồ sơ công ty theo mã + badge trạng thái tươi |
-| `/company-dossier/:symbol` | `CompanyDossierDetailComponent` | Chi tiết hồ sơ: business model, moats, risk factors (▲▼, dấu hiệu quan sát được), nút ký |
+| `/company-dossier/:symbol` | `CompanyDossierDetailComponent` | Chi tiết hồ sơ, **hai chế độ**: mở ra là bản đọc (`DossierViewComponent`), bấm Sửa mới ra form. Kèm nút **Sao chép cho AI** / **Dán từ AI** cho trợ lý không nối MCP |
 
 ---
 

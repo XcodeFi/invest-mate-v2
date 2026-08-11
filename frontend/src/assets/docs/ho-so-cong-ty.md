@@ -14,6 +14,19 @@ Gate cũ (`Thesis ≥ 30 ký tự`) chỉ đếm được độ dài, không đ�
 
 ---
 
+## Mở hồ sơ ra là để đọc
+
+Hồ sơ viết xong thì phần lớn thời gian bạn mở nó ra **để đọc lại trước khi vào lệnh**, không phải để sửa. Nên `/company-dossier/{mã}` mặc định hiện **bản đọc**: mô hình kinh doanh là đoạn văn, moat là các thẻ, rủi ro xếp theo hạng với hạng 1 nổi bật nhất và dấu hiệu quan sát in ngay dưới mô tả.
+
+Muốn sửa thì bấm **Sửa** ở góc trên bên phải. Đang sửa mà đổi ý thì bấm **Hủy** — nếu bạn đã gõ gì đó, hệ thống hỏi lại trước khi bỏ. Lưu xong thì trang tự về bản đọc.
+
+Hai trường hợp vào thẳng form, không qua bản đọc:
+
+- **Mã chưa có hồ sơ** — không có gì để đọc.
+- **Bạn bị cổng chặn lệnh đá sang đây** — lúc đó việc cần làm là viết.
+
+---
+
 ## Viết hồ sơ cho một mã
 
 Vào **`/company-dossier`** → chọn mã (hoặc bấm "Tạo Trade Plan từ gợi ý" ở trang thị trường cho mã chưa có hồ sơ — hệ thống sẽ đưa bạn sang đây, giữ nguyên entry/SL/TP đã điền).
@@ -79,9 +92,29 @@ Nhãn nút thay đổi theo tình huống:
 
 **Chỉ bấm nút ký mới tính là đã xác nhận.** Sửa nội dung — kể cả bạn tự sửa — không tự động xác nhận lại. Nếu hồ sơ đã hết hạn, sửa nội dung xong vẫn hết hạn cho tới khi bạn bấm ký.
 
+**Còn thay đổi chưa lưu thì chưa ký được.** Nút ký khoá lại kèm dòng nhắc bấm Lưu trước. Lý do: chữ ký đóng dấu vào **bản đang nằm trên server**, nên nếu màn hình đang hiện nội dung khác thì bạn sẽ ký một thứ mình không đọc.
+
 ### Khi trợ lý AI cập nhật hồ sơ
 
 Trợ lý AI (NPU/Claude) có thể tra dữ liệu và soạn hộ nội dung hồ sơ, nhưng **không có cách nào để trợ lý tự ký**. Nếu trợ lý vừa cập nhật một hồ sơ đã ký trước đó, hồ sơ tụt về trạng thái "chưa xác nhận" và trang sẽ hiện dòng "Agent đã cập nhật lúc … — chưa xác nhận". Bạn phải mở trang, đọc lại nội dung mới, rồi mới ký. Đây là thiết kế có chủ đích: một hồ sơ mà trợ lý tự viết và tự ký thì không đo được việc bạn — người bỏ tiền — có hiểu doanh nghiệp hay không.
+
+---
+
+## Hỏi một trợ lý AI khác
+
+Trợ lý nối được MCP (Claude qua NPU) thì đã sửa hồ sơ trực tiếp được. Với trợ lý **không** nối MCP — ChatGPT trên web, Gemini — trang có hai nút ở góc trên bên phải:
+
+**Sao chép cho AI** — chép vào clipboard toàn bộ hồ sơ hiện tại cộng số liệu doanh nghiệp, kèm sẵn câu hỏi và khuôn JSON để trợ lý trả lời đúng định dạng. Dán thẳng vào ChatGPT là xong, không phải tự gõ lại gì.
+
+**Dán từ AI** — dán nguyên văn câu trả lời vào ô, bấm "Đổ vào form". Hệ thống đọc khối JSON cuối cùng trong đó (phần giải thích dài dòng phía trước cứ để nguyên).
+
+Ba điều hệ thống làm giúp khi dán:
+
+- **Nội dung của mã khác thì bị chặn.** Dán bản soạn cho VNM vào trang HPG sẽ báo lỗi chứ không đổ vào — đây là loại nhầm mà sửa xong ký luôn thì về sau không ai phát hiện được.
+- **Chỉ giữ một yếu tố hủy diệt**, thứ tự rủi ro được đánh lại 1, 2, 3 theo đúng thứ tự trợ lý trả về.
+- **Kịch bản vô hiệu hoá lạ** (không thuộc danh sách có sẵn) được bỏ trống thay vì nhận bừa.
+
+**Dán không lưu và không ký.** Nội dung chỉ nằm trong form để bạn đọc lại — muốn giữ thì tự bấm Lưu, muốn xác nhận thì tự bấm Ký. Rời trang mà chưa lưu là mất bản dán, đúng như mọi form khác.
 
 ---
 

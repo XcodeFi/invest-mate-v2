@@ -521,7 +521,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 | `/campaign-analytics` | Phân tích chiến dịch | Tổng hợp hiệu suất cross-plan: summary cards, so sánh, best/worst, lessons feed (P0.7) |
 | `/personal-finance` | Tài chính cá nhân | Net worth cards + **Net Worth = Assets − Debt** card + health score 0-100 (4 rules incl. high-interest consumer debt) + accounts CRUD (incl. Gold auto-calc) + **debts CRUD** + settings (Tier 3) |
 | `/company-dossier` | Hồ sơ công ty | Danh sách hồ sơ theo mã, kèm badge trạng thái tươi (Fresh/NeedsReview/Expired/Unconfirmed) |
-| `/company-dossier/:symbol` | Chi tiết hồ sơ | Business model + moats + risk factors (▲▼ xếp hạng, dấu hiệu quan sát được bắt buộc, tối đa 1 deal-breaker) + nút ký ở cuối trang |
+| `/company-dossier/:symbol` | Chi tiết hồ sơ | Mặc định là **bản đọc**; bấm Sửa ra form (business model + moats + risk factors ▲▼, dấu hiệu quan sát bắt buộc, tối đa 1 deal-breaker). Nút ký ở cuối trang, hiện ở cả hai chế độ nhưng **khoá khi form còn thay đổi chưa lưu**. Có sao chép/dán nội dung với AI ngoài |
 
 ---
 
