@@ -1,5 +1,11 @@
 # Sửa lệch hợp đồng API 24hmoney (panel số liệu hồ sơ công ty)
 
+> **Đã xong — PR #158, merge 2026-08-11.** Backend 1636 test xanh, frontend 317 xanh; verify thật 14/14 đạt trên HAH (HOSE), HPG (HOSE), SHS (HNX) — `unavailableSections` rỗng ở cả ba.
+>
+> Hai lỗi phát hiện khi tự rà diff, đã sửa kèm test ghim: `NumberStyles.Any` cho phép dấu phân cách nghìn nên `"16,07"` đọc thành **1607**; và `{year, quarter, targets: []}` lọt qua guard backend làm frontend bung ra bảng rỗng.
+>
+> **Còn nợ:** `catch → LogWarning → return null` vẫn khiến lệch hợp đồng không phân biệt được với "nguồn không có dữ liệu". Chưa có PR.
+
 **Ngày:** 2026-08-11
 **Tầng chạm:** Infrastructure → Application → Frontend
 **Nhánh:** `fix/hmoney-contract-drift`
@@ -120,7 +126,7 @@ Sửa `HmoneyComprehensiveDataProvider.cs`:
 ⚠️ `appsettings.Development` trỏ DB **`InvestmentApp_prod`**. Chỉ đọc — không bấm Lưu, không bấm Ký.
 
 ### Bước 7 — Review, docs, PR
-Code review bắt buộc + **review lại chính phần vừa sửa** ([`/code-review` Step 4.3](../../.claude/commands/code-review/references/review-workflow.md)). Cập nhật `docs/architecture.md` (bảng endpoint) và `frontend/src/assets/CHANGELOG.md`.
+Code review bắt buộc + **review lại chính phần vừa sửa** ([`/code-review` Step 4.3](../../../.claude/commands/code-review/references/review-workflow.md)). Cập nhật `docs/architecture.md` (bảng endpoint) và `frontend/src/assets/CHANGELOG.md`.
 
 ## Rủi ro
 
