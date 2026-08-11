@@ -864,6 +864,10 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
           return `<div class="flex items-center gap-1.5"><span class="text-indigo-400 font-bold">J</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
         if (item.type === 'event')
           return `<div class="flex items-center gap-1.5"><span class="text-amber-400 font-bold">E</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
+        // Nhánh riêng cho mốc hồ sơ: data là { action, version }, KHÔNG có `title`, nên
+        // rơi xuống fallback bên dưới sẽ hiện thành "A · Cảnh báo" — sai loại hoàn toàn.
+        if (item.type === 'dossier')
+          return `<div class="flex items-center gap-1.5"><span class="text-indigo-300 font-bold">📋</span> ${this.escapeHtml(this.truncate(this.dossierMarkerLabel(item.data?.action), 40))}</div>`;
         return `<div class="flex items-center gap-1.5"><span class="text-orange-400 font-bold">A</span> ${this.escapeHtml(this.truncate(item.data.title ?? 'Cảnh báo', 40))}</div>`;
       });
 

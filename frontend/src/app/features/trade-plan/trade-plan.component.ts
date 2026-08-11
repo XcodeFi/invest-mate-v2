@@ -154,7 +154,7 @@ interface DossierGateError {
               <tbody class="divide-y">
                 <tr *ngFor="let sp of filteredSavedPlans" class="hover:bg-gray-50 cursor-pointer"
                   [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
-                  <td class="px-4 py-2 font-bold" [appSymbolLink]="sp.symbol">{{ sp.symbol }}</td>
+                  <td class="px-4 py-2 font-bold">{{ sp.symbol }}</td>
                   <td class="px-4 py-2">
                     <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getTradeTypeClass(sp.direction)">
                       {{ getTradeTypeDisplay(sp.direction) }}
@@ -242,7 +242,7 @@ interface DossierGateError {
               [class.bg-blue-50]="sp.id === selectedPlanId" (click)="loadPlan(sp)">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <span class="font-bold text-gray-900" [appSymbolLink]="sp.symbol">{{ sp.symbol }}</span>
+                  <span class="font-bold text-gray-900">{{ sp.symbol }}</span>
                   <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="getTradeTypeClass(sp.direction)">
                     {{ getTradeTypeDisplay(sp.direction) }}
                   </span>

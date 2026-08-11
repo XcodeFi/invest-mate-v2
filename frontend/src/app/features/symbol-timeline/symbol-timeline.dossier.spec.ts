@@ -80,6 +80,17 @@ describe('SymbolTimelineComponent — mốc hồ sơ', () => {
     expect(component.filteredItems.length).toBe(0);
   });
 
+  it('nhãn mốc hồ sơ không rơi vào fallback "Cảnh báo"', () => {
+    // Tooltip biểu đồ kết thúc bằng một fallback vô điều kiện gán nhãn "Cảnh báo"
+    // cho mọi loại lạ, đọc `item.data.title` — mà mốc hồ sơ có data là
+    // { action, version }, không có `title`. Thiếu nhánh riêng thì mốc hồ sơ
+    // hiện thành cảnh báo, sai loại hoàn toàn mà không có lỗi nào.
+    expect(component.dossierMarkerLabel('signed')).toBe('Ký hồ sơ công ty');
+    expect(component.dossierMarkerLabel('agent-drafted')).toContain('Trợ lý AI');
+    expect(component.dossierMarkerLabel(undefined)).not.toContain('Cảnh báo');
+    expect(component.dossierMarkerLabel(undefined)).toBeTruthy();
+  });
+
   it('xuất CSV có dòng cho mốc hồ sơ, không phải dòng rỗng', () => {
     // Nhánh default của exportCsv trả [] — mốc hồ sơ sẽ thành một dòng trống
     // giữa file thay vì bị bỏ qua hẳn, kiểu hỏng khó thấy nhất.

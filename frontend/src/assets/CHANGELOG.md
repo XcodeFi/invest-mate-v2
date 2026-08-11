@@ -6,7 +6,7 @@
 
 ### Tính năng
 
-**🔗 Mã chứng khoán bấm được ở 48 chỗ trên 20 màn hình.** Bảng kế hoạch, thẻ vị thế, hàng lệnh, danh sách cảnh báo, kết quả tìm kiếm, bảng ảnh chụp danh mục — bấm vào mã là sang thẳng dòng thời gian của mã đó. Trước bản này chỉ Watchlist và Trades có icon 📊 riêng, còn lại phải tự tìm đường.
+**🔗 Mã chứng khoán bấm được ở 41 chỗ trên 19 màn hình.** Bảng kế hoạch, thẻ vị thế, hàng lệnh, danh sách cảnh báo, kết quả tìm kiếm, bảng ảnh chụp danh mục — bấm vào mã là sang thẳng dòng thời gian của mã đó. Trước bản này chỉ Watchlist và Trades có icon 📊 riêng, còn lại phải tự tìm đường.
 
 Bấm Enter cũng đi được, không chỉ chuột. Mã rỗng thì không giả vờ là link.
 
@@ -16,6 +16,7 @@ Bấm Enter cũng đi được, không chỉ chuột. Mã rỗng thì không gi�
 - Tiêu đề của chính trang/panel đang mở — link trỏ về nơi bạn đang đứng.
 - `VNINDEX` và các chỉ số ở trang thị trường — chúng không phải mã cổ phiếu, không có dòng thời gian.
 - Watchlist và Trades — hai trang này **đã có** lời giải riêng từ trước: mã trỏ sang trang khác, cạnh nó có icon 📊 trỏ sang dòng thời gian. Gắn thêm là tạo hai đường đi khác nhau cho cùng một chữ.
+- **Mã nằm trong hàng/thẻ mà cú bấm cả hàng là hành động chính** — bảng Kế hoạch (bấm hàng để nạp kế hoạch), kết quả tìm mã và ô giá ở trang Thị trường (bấm để tra cứu), chip vị thế ở màn ghi lệnh (bấm để chọn mã). Gắn vào đó là **cướp mất** chính hành động bạn đang cần.
 
 **📋 Dòng thời gian của mã có thêm mốc hồ sơ công ty.** Nằm chung với nhật ký, lệnh và cảnh báo, sắp theo đúng thứ tự thời gian: *"Ký hồ sơ công ty"* và *"Trợ lý AI sửa hồ sơ — chờ bạn ký lại"*. Có ô lọc riêng ở trên, và xuất CSV cũng có dòng cho nó.
 

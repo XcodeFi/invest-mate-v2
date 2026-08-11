@@ -180,7 +180,7 @@ Việc quan trọng nhất của task này là **đừng áp bừa**. Có ba lo�
 | Loại | Ví dụ | Gắn link? |
 |---|---|---|
 | Mã trong bảng/thẻ danh sách, nằm trong phần tử riêng | ô "MÃ CK" ở bảng trade plan, thẻ vị thế | ✅ |
-| Mã bên trong một hàng đã có `(click)` riêng | hàng bảng mở modal chi tiết | ✅ nhưng phải `stopPropagation` (Task 1 đã làm) |
+| ~~Mã bên trong một hàng đã có `(click)` riêng~~ | hàng bảng nạp kế hoạch, thẻ chọn mã | ❌ — **quy tắc gốc của plan SAI, sửa 2026-08-10 sau code review.** `stopPropagation` không phải giải pháp, nó chính là vấn đề: directive nuốt click của cha nên gắn vào đó là **cướp mất hành động chính của hàng**. |
 | Mã trong câu văn, trong `<option>`, trong input, trong heading của **chính** trang mã đó | "Hồ sơ công ty: HPG", `<option>` chọn mã | ❌ — link tới chính trang đang mở, hoặc phá `<select>` |
 
 - [x] **Step 1: Liệt kê ứng viên**
@@ -201,7 +201,9 @@ Luật phân loại đã áp thống nhất, để lần sau thêm màn mới c�
 - ✅ khi mã **định danh một dòng/thẻ trong danh sách** — người dùng đang chọn một trong nhiều.
 - ❌ khi mã nằm trong **câu văn**, trong `<option>`, trong **tiêu đề nói về thứ đang mở sẵn**, khi nó **không phải mã cổ phiếu**, hoặc khi chỗ đó **đã là link**.
 
-**Gắn — 48 chỗ / 20 file**
+> **Sửa sau code review + verify (2026-08-10):** con số dưới đây là **48 chỗ ban đầu**; đã gỡ lại **8 chỗ** vì hai lý do chỉ lộ ra khi bấm thật, còn **40 chỗ / 18 file**. Chi tiết ở cuối Task 3.
+
+**Gắn — 48 chỗ / 20 file (ban đầu)**
 
 | File | Dòng |
 |---|---|

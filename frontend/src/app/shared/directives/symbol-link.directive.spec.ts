@@ -92,6 +92,20 @@ describe('SymbolLinkDirective', () => {
     expect(bubbled).toBeFalse();
   });
 
+  it('CHẶN click của hàng — lý do không được gắn vào hàng có (click) riêng', () => {
+    // Đây không phải tính năng để ăn mừng, mà là ràng buộc phải nhớ: directive
+    // nuốt click của phần tử cha. Gắn nó vào một hàng mà cú bấm hàng LÀ hành
+    // động chính (nạp kế hoạch, chọn mã, tra cứu) là cướp mất hành động đó —
+    // build và test component đều không thấy, chỉ bấm thật mới thấy.
+    let rowAction = 0;
+    fixture.nativeElement.addEventListener('click', () => rowAction++);
+    spyOn(router, 'navigate');
+
+    span().click();
+
+    expect(rowAction).toBe(0);
+  });
+
   it('gắn nhãn trợ năng khi có mã', () => {
     expect(span().getAttribute('role')).toBe('link');
     expect(span().getAttribute('tabindex')).toBe('0');

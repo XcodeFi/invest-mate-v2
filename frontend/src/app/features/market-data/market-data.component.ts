@@ -11,12 +11,11 @@ import { CompanyDossierService } from '../../core/services/company-dossier.servi
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
-import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -69,7 +68,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
               <div *ngFor="let r of searchResults"
                 (click)="selectSearchResult(r)"
                 class="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center gap-3 border-b last:border-b-0">
-                <span class="font-bold text-blue-600 w-16" [appSymbolLink]="r.symbol">{{ r.symbol }}</span>
+                <span class="font-bold text-blue-600 w-16">{{ r.symbol }}</span>
                 <span class="text-sm text-gray-600 truncate">{{ r.companyName }}</span>
                 <span class="text-xs text-gray-400 ml-auto">{{ r.exchange }}</span>
               </div>
@@ -576,7 +575,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
             <tbody>
               <tr *ngFor="let s of topFluctuations" class="border-b hover:bg-gray-50 cursor-pointer" (click)="searchSymbol = s.symbol; lookupStock()">
                 <td class="px-3 py-2 text-sm">
-                  <span class="font-bold text-gray-800" [appSymbolLink]="s.symbol">{{ s.symbol }}</span>
+                  <span class="font-bold text-gray-800">{{ s.symbol }}</span>
                   <span *ngIf="s.shortName" class="text-xs text-gray-400 ml-1">{{ s.shortName }}</span>
                 </td>
                 <td class="px-3 py-2 text-sm text-right font-semibold" [class.text-green-600]="s.change >= 0" [class.text-red-600]="s.change < 0">
@@ -600,7 +599,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
           <div *ngFor="let s of topFluctuations" class="p-4 space-y-2 cursor-pointer active:bg-gray-50" (click)="searchSymbol = s.symbol; lookupStock()">
             <div class="flex items-center justify-between">
               <div>
-                <span class="font-bold text-gray-800" [appSymbolLink]="s.symbol">{{ s.symbol }}</span>
+                <span class="font-bold text-gray-800">{{ s.symbol }}</span>
                 <span *ngIf="s.shortName" class="text-xs text-gray-400 ml-1">{{ s.shortName }}</span>
               </div>
               <span class="font-semibold" [class.text-green-600]="s.change >= 0" [class.text-red-600]="s.change < 0">
@@ -633,7 +632,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
           <div *ngFor="let bp of batchPrices"
             class="border rounded-lg p-3 text-center hover:shadow-md transition-shadow cursor-pointer"
             (click)="searchSymbol = bp.symbol; lookupStock()">
-            <div class="font-bold text-gray-800" [appSymbolLink]="bp.symbol">{{ bp.symbol }}</div>
+            <div class="font-bold text-gray-800">{{ bp.symbol }}</div>
             <div class="text-lg font-semibold text-blue-600">{{ bp.close | vndCurrency }}</div>
             <div class="text-xs text-gray-500">KL: {{ formatVolume(bp.volume) }}</div>
           </div>

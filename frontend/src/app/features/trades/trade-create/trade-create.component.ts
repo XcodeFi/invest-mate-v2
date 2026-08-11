@@ -127,7 +127,7 @@ import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.dire
                   [class]="form.symbol === pos.symbol
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200'">
-                  <span class="font-bold" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
+                  <span class="font-bold">{{ pos.symbol }}</span>
                   <span class="opacity-75">{{ pos.quantity | number:'1.0-0' }} CP</span>
                 </button>
               </div>
