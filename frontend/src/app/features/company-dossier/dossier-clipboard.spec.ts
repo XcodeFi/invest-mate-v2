@@ -1,4 +1,4 @@
-import { buildAiPrompt, parseAiPayload } from './dossier-clipboard';
+import { buildAiPrompt, buildSharePayload, maskSharerName, parseAiPayload } from './dossier-clipboard';
 import { CompanyFundamentals } from '../../core/services/market-data.service';
 
 const CONTENT = {
@@ -202,5 +202,103 @@ describe('parseAiPayload', () => {
 
   it('mảng thay vì object thì từ chối', () => {
     expect(parseAiPayload('[{"businessModel":"x"}]', 'EVF').ok).toBe(false);
+  });
+});
+
+describe('maskSharerName', () => {
+  it('che phần lớn tên đăng nhập nhưng giữ domain để người quen còn nhận ra', () => {
+    expect(maskSharerName('minh.tran@gmail.com')).toBe('min***@gmail.com');
+  });
+
+  it('tên local ngắn hơn 4 ký tự thì chỉ giữ đúng một ký tự', () => {
+    expect(maskSharerName('an@gmail.com')).toBe('a***@gmail.com');
+    expect(maskSharerName('abc@gmail.com')).toBe('a***@gmail.com');
+  });
+
+  it('không phải email thì để nguyên — đó là tên người, che đi thành vô nghĩa', () => {
+    expect(maskSharerName('Minh Trần')).toBe('Minh Trần');
+  });
+
+  it('rỗng, null, hoặc chỉ có domain thì trả rỗng chứ không trả "***"', () => {
+    expect(maskSharerName('')).toBe('');
+    expect(maskSharerName(null)).toBe('');
+    expect(maskSharerName(undefined)).toBe('');
+    expect(maskSharerName('@gmail.com')).toBe('');
+  });
+
+  it('không để lọt phần nhận dạng của địa chỉ thật', () => {
+    const masked = maskSharerName('investmate.support@gmail.com');
+    expect(masked).not.toContain('support');
+    expect(masked).toBe('inv***@gmail.com');
+  });
+});
+
+describe('buildSharePayload', () => {
+  const payload = () => buildSharePayload(CONTENT, 'min***@gmail.com', '2026-08-11');
+
+  it('mang đủ nội dung hồ sơ', () => {
+    const text = payload();
+    expect(text).toContain('Cho thuê tài chính cho doanh nghiệp vừa và nhỏ.');
+    expect(text).toContain('NPL vượt 3% hai quý');
+  });
+
+  it('KHÔNG kèm schema hay câu yêu cầu soát lại — người nhận là người, không phải AI', () => {
+    const text = payload();
+    expect(text).not.toContain('Ràng buộc bắt buộc');
+    expect(text).not.toContain('trả về BẢN ĐẦY ĐỦ');
+  });
+
+  it('KHÔNG kèm số liệu — số liệu là dữ liệu thị trường, máy bên kia tự lấy được', () => {
+    const text = payload();
+    expect(text).not.toContain('Nguồn: 24hmoney');
+    expect(text).not.toContain('P/E');
+  });
+
+  it('ghi người gửi và ngày gửi vào chính khối JSON', () => {
+    const parsed = parseAiPayload(payload(), 'EVF');
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.sharedBy).toBe('min***@gmail.com');
+    expect(parsed.value.sharedAt).toBe('2026-08-11');
+  });
+
+  it('vòng tròn dựng → đọc giữ nguyên nội dung', () => {
+    const parsed = parseAiPayload(payload(), 'EVF');
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.businessModel).toBe(CONTENT.businessModel);
+    expect(parsed.value.riskFactors.length).toBe(2);
+    expect(parsed.value.riskFactors[0].observableSignal).toBe('NPL vượt 3% hai quý');
+  });
+
+  it('tên người gửi rỗng thì BỎ HẲN khoá, không gửi chuỗi rỗng', () => {
+    const text = buildSharePayload(CONTENT, '', '2026-08-11');
+    expect(text).not.toContain('sharedBy');
+
+    const parsed = parseAiPayload(text, 'EVF');
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.sharedBy).toBeUndefined();
+  });
+});
+
+describe('parseAiPayload — nguồn chia sẻ', () => {
+  const wrap = (extra: Record<string, unknown>) =>
+    '```json\n' + JSON.stringify({ symbol: 'EVF', businessModel: 'x', moats: [], riskFactors: [], notes: null, ...extra }) + '\n```';
+
+  it('không có thì là undefined, KHÔNG phải chuỗi rỗng', () => {
+    const r = parseAiPayload(wrap({}), 'EVF');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.sharedBy).toBeUndefined();
+    expect(r.value.sharedAt).toBeUndefined();
+  });
+
+  it('sai kiểu thì bỏ qua, phần còn lại vẫn dán được', () => {
+    const r = parseAiPayload(wrap({ sharedBy: 42, sharedAt: { a: 1 }, businessModel: 'giữ nguyên' }), 'EVF');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.sharedBy).toBeUndefined();
+    expect(r.value.businessModel).toBe('giữ nguyên');
   });
 });
