@@ -202,7 +202,7 @@ export interface CompanyOverviewInfo {
   shortName: string | null;
   exchange: string | null;
   industry: string | null;
-  majorShareholders: { name: string | null; position: string | null; quantity: number; percentage: number }[];
+  majorShareholders: { name: string | null; quantity: number; percentage: number }[];
   leaders: { name: string | null; position: string | null }[];
   listedShares: number | null;
   outstandingShares: number | null;
@@ -250,11 +250,19 @@ export interface DividendEventRow {
   value: number | null;
 }
 
+export interface BusinessPlanTarget {
+  /** Nhãn do nguồn đặt, VD "Doanh thu" — không phải danh sách cố định. */
+  label: string | null;
+  planned: number | null;
+  actual: number | null;
+  percentComplete: number | null;
+}
+
 export interface BusinessPlanInfo {
   year: number | null;
-  revenuePlan: number | null;
-  profitPlan: number | null;
-  dividendPlan: number | null;
+  /** Kỳ luỹ kế của cột "thực hiện". */
+  quarter: number | null;
+  targets: BusinessPlanTarget[];
 }
 
 export interface CompanyFundamentals {

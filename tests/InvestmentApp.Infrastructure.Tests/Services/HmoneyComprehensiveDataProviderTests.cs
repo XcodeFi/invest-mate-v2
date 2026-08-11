@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
+using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Infrastructure.Services.Hmoney;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -9,11 +10,34 @@ using Moq;
 
 namespace InvestmentApp.Infrastructure.Tests.Services;
 
+/// <summary>
+/// Fixture là response THẬT bắt được từ api-finance-t19.24hmoney.vn ngày 2026-08-11 (mã HAH).
+/// Fixture tự bịa từng ghim lại cấu trúc mà upstream đã bỏ, nên test xanh trong khi production
+/// hỏng 6/8 section. Khi upstream đổi tiếp, bắt lại bằng curl và ghi đè file trong Fixtures/Hmoney/.
+/// </summary>
 public class HmoneyComprehensiveDataProviderTests
 {
     private readonly Mock<ILogger<HmoneyComprehensiveDataProvider>> _loggerMock = new();
     private readonly IOptions<MarketDataProviderOptions> _options =
         Options.Create(new MarketDataProviderOptions { BaseUrl = "https://api-test.example.com" });
+
+    private static string Fixture(string name) => File.ReadAllText(
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "Hmoney", name + ".json"));
+
+    /// <summary>Khoá là đoạn URL phân biệt được endpoint; giá trị là response thật.</summary>
+    private static Dictionary<string, string> RealResponses() => new()
+    {
+        ["companies/index"] = Fixture("finance_indicators"),
+        ["company/detail"] = Fixture("company_detail"),
+        ["company/plan"] = Fixture("company_plan"),
+        ["financial-report"] = Fixture("financial_report"),
+        ["get_stock_related_bussiness"] = Fixture("peers"),
+        ["dividend-events"] = Fixture("dividend_events"),
+        ["report-analytics"] = Fixture("analyst_reports"),
+        ["foreign-trading-series"] = Fixture("foreign_trading"),
+        ["stock/detail"] = Fixture("stock_detail"),
+        ["indices/detail"] = Fixture("index_detail")
+    };
 
     private HmoneyComprehensiveDataProvider CreateProvider(HttpMessageHandler handler)
     {
@@ -21,189 +45,190 @@ public class HmoneyComprehensiveDataProviderTests
         return new HmoneyComprehensiveDataProvider(httpClient, _loggerMock.Object, _options);
     }
 
+    private Task<ComprehensiveStockData?> GetRealAsync(string symbol = "HAH")
+        => CreateProvider(new FakeHttpHandler(RealResponses())).GetComprehensiveDataAsync(symbol);
+
     // =============================================
-    // Happy path: all APIs return valid data
+    // Không section nào được rơi khỏi response thật
     // =============================================
 
     [Fact]
-    public async Task GetComprehensiveDataAsync_WithValidSymbol_ReturnsAllSections()
+    public async Task GetComprehensiveDataAsync_WithRealResponses_FillsEverySection()
     {
-        // Arrange
-        var handler = new FakeHttpHandler(new Dictionary<string, string>
+        var result = await GetRealAsync();
+
+        result.Should().NotBeNull();
+        result!.Symbol.Should().Be("HAH");
+
+        result.Company.Should().NotBeNull();
+        result.Indicators.Should().NotBeNull();
+        result.IncomeStatements.Should().NotBeEmpty();
+        result.Peers.Should().NotBeEmpty();
+        result.DividendEvents.Should().NotBeEmpty();
+        result.BusinessPlan.Should().NotBeNull();
+        result.AnalystReports.Should().NotBeEmpty();
+        result.ForeignTrading.Should().NotBeNull();
+        result.MarketIndex.Should().NotBeNull();
+    }
+
+    // =============================================
+    // Vỏ rỗng: có hàng nhưng field null còn nguy hiểm hơn không có hàng,
+    // vì UI hiện bảng trống và người đọc tưởng công ty không có dữ liệu đó.
+    // Mọi khẳng định dưới đây soi GIÁ TRỊ, không chỉ soi số lượng.
+    // =============================================
+
+    [Fact]
+    public async Task Company_FromRealResponse_HasNameExchangeShareholdersAndLeaders()
+    {
+        var result = (await GetRealAsync())!;
+
+        var company = result.Company!;
+        company.CompanyName.Should().Be("Công ty Cổ phần Vận tải và xếp dỡ Hải An");
+        company.ShortName.Should().Be("Vận tải Hải An");
+        company.Exchange.Should().Be("HOSE");
+        company.Industry.Should().Be("Kho bãi, hậu cần và bảo dưỡng");
+        company.FreeFloatRate.Should().Be(60m);
+
+        company.MajorShareholders.Should().NotBeEmpty();
+        var top = company.MajorShareholders[0];
+        top.Name.Should().Be("Công ty cổ phần Container Việt Nam");
+        top.Percentage.Should().BeApproximately(16.07m, 0.001m);
+        top.Quantity.Should().Be(29863050m);
+
+        company.Leaders.Should().NotBeEmpty();
+        company.Leaders[0].Name.Should().Be("Trần Thị Hải Yến");
+        company.Leaders[0].Position.Should().Be("Thành viên HĐQT");
+    }
+
+    [Fact]
+    public async Task Shareholder_WithCommaDecimal_IsDroppedRatherThanRead100xTooBig()
+    {
+        // Nguồn đang trả "16.07". Nếu đổi sang cách viết Việt Nam thì `NumberStyles.Any` đọc
+        // "16,07" thành 1607 — một cổ đông 16% hiện thành 1607%. Thà mất số còn hơn sai 100 lần.
+        var responses = RealResponses();
+        responses["company/detail"] = JsonSerializer.Serialize(new
         {
-            ["companies/index"] = JsonSerializer.Serialize(new
+            message = "success", status = 200,
+            data = new
             {
-                message = "success", status = 200,
-                data = new
-                {
-                    symbol = "MWG", pe = 15.5, pe4Q = 23.3, pb = 3.3, pb4Q = 4.3,
-                    eps = 4777.0, eps4Q = 3980.0, roe = 23.3, roe4Q = 19.7,
-                    roa = 9.1, roa4Q = 7.6, market_cap = 108957000000000.0,
-                    book_value = 22203.0, the_beta = 1.02, ev_per_ebitda = 14.8,
-                    ev_per_ebit = 18.7, free_float_rate = 0.75, min_52w = 45.59,
-                    max_52w = 93.7, listed_share_vol = 1469693177L, circulation_vol = 1468423529L,
-                    group_name = "Phân phối hàng chuyên dụng",
-                    audit_firm_name = "Ernst & Young", audit_is_big4 = true
-                }
-            }),
-            ["company/detail"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new
-                {
-                    company_name = "Công ty CP Đầu tư Thế Giới Di Động",
-                    short_name = "Thế Giới Di Động", floor = "HOSE",
-                    major_share_holder = new[]
-                    {
-                        new { name = "Nguyễn Đức Tài", position = "Chủ tịch HĐQT", quantity = 50000000m, percentage = 3.4m }
-                    },
-                    company_leaders = new[]
-                    {
-                        new { name = "Đoàn Văn Hiểu Em", position = "CEO" }
-                    }
-                }
-            }),
-            ["financial-report"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new
-                {
-                    header = new[] { "Q4/2025", "Q3/2025", "Q2/2025", "Q1/2025" },
-                    data = new object[]
-                    {
-                        new { name = "Doanh thu thuần", values = new decimal?[] { 35000, 32000, 30000, 28000 } },
-                        new { name = "Lợi nhuận sau thuế", values = new decimal?[] { 2000, 1800, 1500, 1200 } }
-                    }
-                }
-            }),
-            ["get_stock_related_bussiness"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new
-                {
-                    data = new[]
-                    {
-                        new { symbol = "FRT", company_name = "FPT Retail", price = 150.0m, pe = 20.0m, pb = 3.0m, market_cap = 10000m, change_percent = 1.5m },
-                        new { symbol = "DGW", company_name = "Digiworld", price = 50.0m, pe = 15.0m, pb = 2.5m, market_cap = 5000m, change_percent = -0.5m }
-                    }
-                }
-            }),
-            ["dividend-events"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new[]
-                {
-                    new { event_type = "cash", description = "Trả cổ tức tiền mặt 1,500 VND/CP", ex_right_date = "15/03/2026", pay_date = "30/03/2026", value = 1500m, event_name = (string?)null }
-                }
-            }),
-            ["company/plan"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new[]
-                {
-                    new { year = 2026, plan_revenue = 150000m, plan_profit = 10000m, plan_dividend = 15m }
-                }
-            }),
-            ["report-analytics"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new[]
-                {
-                    new { title = "MWG - Khuyến nghị MUA", source = "KBSV", publish_date = "2026-03-17", summary = "Giá mục tiêu 121,600" }
-                }
-            }),
-            ["foreign-trading-series"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new[]
-                {
-                    new { trading_date = "2026-03-20", buy_foreign_qtty = 500000m, sell_foreign_qtty = 300000m },
-                    new { trading_date = "2026-03-21", buy_foreign_qtty = 600000m, sell_foreign_qtty = 700000m }
-                }
-            }),
-            ["indices/detail"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new
-                {
-                    share_detail = new
-                    {
-                        symbol = "VNINDEX", floor_code = "10", market_index = 1280.5m,
-                        prior_market_index = 1275.0m, change = 5.5m, change_percent = 0.43m,
-                        avg_index = 1278m, highest_index = 1285m, lowest_index = 1270m,
-                        advance = 200, decline = 150, no_change = 50,
-                        ceiling = 20, floor = 10,
-                        accumulated_vol = 500000000m, accumulated_val = 15000m,
-                        foreign_today_buy_value = 500m, foreign_today_sell_value = 400m,
-                        foreign_week_buy_value = 2500m, foreign_week_sell_value = 2000m,
-                        foreign_month_buy_value = 10000m, foreign_month_sell_value = 9000m,
-                        updated_at = 0m
-                    },
-                    statistic = (object?)null
-                }
-            })
+                ownership = new[] { new { name = "Container Việt Nam", value = "16,07", stock = "29863050" } },
+                leadership = Array.Empty<object>()
+            }
         });
 
-        var provider = CreateProvider(handler);
+        var result = await CreateProvider(new FakeHttpHandler(responses)).GetComprehensiveDataAsync("HAH");
 
-        // Act
-        var result = await provider.GetComprehensiveDataAsync("MWG");
+        result!.Company!.MajorShareholders[0].Percentage.Should().Be(0m);
+    }
 
-        // Assert
-        result.Should().NotBeNull();
-        result!.Symbol.Should().Be("MWG");
+    [Fact]
+    public async Task DividendEvents_FromRealResponse_HaveTypeDescriptionAndVietnamDates()
+    {
+        var result = (await GetRealAsync())!;
 
-        // Company overview
-        result.Company.Should().NotBeNull();
-        result.Company!.CompanyName.Should().Be("Công ty CP Đầu tư Thế Giới Di Động");
-        result.Company.Industry.Should().Be("Phân phối hàng chuyên dụng");
-        result.Company.MajorShareholders.Should().HaveCount(1);
-        result.Company.Leaders.Should().HaveCount(1);
-        result.Company.FreeFloatRate.Should().Be(75m); // 0.75 * 100
+        var first = result.DividendEvents[0];
+        first.EventType.Should().Be("cash");
+        first.Description.Should().Contain("chia cổ tức bằng tiền");
 
-        // Finance indicators
-        result.Indicators.Should().NotBeNull();
-        result.Indicators!.PE4Q.Should().Be(23.3m);
-        result.Indicators.PB4Q.Should().Be(4.3m);
-        result.Indicators.ROE.Should().Be(23.3m);
-        result.Indicators.ROA.Should().Be(9.1m);
-        result.Indicators.EPS.Should().Be(4777m);
-        result.Indicators.Beta.Should().Be(1.02m);
-        result.Indicators.AuditIsBig4.Should().BeTrue();
+        // epoch 1783962000 = 2026-07-13T17:00Z = đúng nửa đêm 14/07 giờ VN.
+        // Quy đổi theo UTC sẽ ra 13/07 — lùi đúng một ngày.
+        first.ExDate.Should().Be("14/07/2026");
+        first.PayDate.Should().Be("05/08/2026");
 
-        // Income statements
-        result.IncomeStatements.Should().HaveCount(4);
-        result.IncomeStatements[0].Period.Should().Be("Q4/2025");
-        result.IncomeStatements[0].Revenue.Should().Be(35000m);
+        result.DividendEvents.Should().OnlyContain(e => e.Description != null && e.Description != "");
+    }
 
-        // Peers (should exclude MWG itself)
-        result.Peers.Should().HaveCount(2);
-        result.Peers[0].Symbol.Should().Be("FRT");
-        result.Peers[0].Price.Should().Be(150000m); // Scaled ×1000
+    // =============================================
+    // Các section đổi hẳn cấu trúc
+    // =============================================
 
-        // Dividend events
-        result.DividendEvents.Should().HaveCount(1);
-        result.DividendEvents[0].EventType.Should().Be("cash");
+    [Fact]
+    public async Task BusinessPlan_FromRealResponse_HasLabelledTargetsWithProgress()
+    {
+        var result = (await GetRealAsync())!;
 
-        // Business plan
-        result.BusinessPlan.Should().NotBeNull();
-        result.BusinessPlan!.Year.Should().Be(2026);
-        result.BusinessPlan.RevenuePlan.Should().Be(150000m);
+        var plan = result.BusinessPlan!;
+        plan.Year.Should().Be(2026);
+        plan.Quarter.Should().Be(2);
+        plan.Targets.Should().HaveCount(3);
 
-        // Analyst reports
-        result.AnalystReports.Should().HaveCount(1);
+        var revenue = plan.Targets[0];
+        revenue.Label.Should().Be("Doanh thu");
+        revenue.Planned.Should().Be(5140m);
+        revenue.Actual.Should().Be(2798.51m);
+        revenue.PercentComplete.Should().Be(54.45m);
+
+        plan.Targets.Select(t => t.Label)
+            .Should().Contain(new[] { "Lợi nhuận trước thuế", "Lợi nhuận sau thuế" });
+    }
+
+    [Fact]
+    public async Task ForeignTrading_FromRealResponse_SummarisesTodayWeekMonth()
+    {
+        var result = (await GetRealAsync())!;
+
+        var ft = result.ForeignTrading!;
+        ft.TodayBuyValue.Should().Be(1.08m);
+        ft.TodaySellValue.Should().Be(7.01m);
+        ft.WeekBuyValue.Should().Be(14.1m);
+        ft.WeekSellValue.Should().Be(48.11m);
+        ft.MonthBuyValue.Should().Be(48.13m);
+        ft.MonthSellValue.Should().Be(101.98m);
+        ft.TodayNetValue.Should().BeApproximately(-5.93m, 0.001m);
+    }
+
+    [Fact]
+    public async Task IncomeStatements_FromRealResponse_AreQuarterlyWithNetProfit()
+    {
+        var result = (await GetRealAsync())!;
+
+        result.IncomeStatements.Should().HaveCount(8);
+
+        var latest = result.IncomeStatements[0];
+        latest.Period.Should().Be("Q2/2026");
+        latest.Revenue.Should().Be(1533.5525m);
+        latest.GrossProfit.Should().Be(635.6182m);
+
+        // Dòng này upstream đặt tên VIẾT HOA ("LỢI NHUẬN SAU THUẾ TNDN"),
+        // nên so khớp phân biệt hoa thường sẽ trả null mà không báo lỗi.
+        latest.NetProfit.Should().Be(446.2782m);
+    }
+
+    [Fact]
+    public async Task Peers_FromRealResponse_AreReadFromAllBucket()
+    {
+        var result = (await GetRealAsync())!;
+
+        result.Peers.Should().HaveCount(5);
+        result.Peers[0].Symbol.Should().Be("ACV");
+        result.Peers[0].CompanyName.Should().Contain("cảng hàng không");
+        result.Peers[0].Price.Should().Be(41400m); // 41.4 × 1000
+        result.Peers[0].PE.Should().Be(13.57m);
+    }
+
+    [Fact]
+    public async Task Indicators_FromRealResponse_StillParse()
+    {
+        var result = (await GetRealAsync())!;
+
+        var ind = result.Indicators!;
+        ind.PE.Should().BeApproximately(7.73m, 0.01m);
+        ind.PB.Should().BeApproximately(2.29m, 0.01m);
+        ind.ROE.Should().BeApproximately(26.70m, 0.01m);
+        ind.ROA.Should().BeApproximately(13.97m, 0.01m);
+        ind.EPS.Should().BeApproximately(7125.41m, 0.01m);
+        ind.Beta.Should().BeApproximately(1.12m, 0.01m);
+        ind.AuditIsBig4.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AnalystReports_FromRealResponse_StillParse()
+    {
+        var result = (await GetRealAsync())!;
+
         result.AnalystReports[0].Source.Should().Be("KBSV");
-
-        // Foreign trading
-        result.ForeignTrading.Should().HaveCount(2);
-        result.ForeignTrading[0].NetVolume.Should().Be(200000m); // 500k - 300k
-        result.ForeignTrading[1].NetVolume.Should().Be(-100000m); // 600k - 700k
-
-        // Market index
-        result.MarketIndex.Should().NotBeNull();
-        result.MarketIndex!.Value.Should().Be(1280.5m);
-        result.MarketIndex.Advances.Should().Be(200);
-        result.MarketIndex.ForeignBuyValue.Should().Be(500m);
+        result.AnalystReports[0].Title.Should().Contain("Khuyến nghị MUA");
+        result.AnalystReports[0].PublishDate.Should().Be("2026-06-19");
     }
 
     // =============================================
@@ -228,96 +253,67 @@ public class HmoneyComprehensiveDataProviderTests
     [Fact]
     public async Task GetComprehensiveDataAsync_WithPartialFailures_ReturnsAvailableData()
     {
-        // Only indicators succeed, all others fail
+        // Chỉ indicators trả được, tất cả phần còn lại 404
         var handler = new FakeHttpHandler(new Dictionary<string, string>
         {
-            ["companies/index"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new
-                {
-                    symbol = "VNM", pe = 20.0, pe4Q = 18.5, pb = 4.0, pb4Q = 3.8,
-                    eps = 3500.0, eps4Q = 3200.0, roe = 30.0, roe4Q = 28.0,
-                    roa = 15.0, roa4Q = 14.0, market_cap = 200000000000000.0,
-                    book_value = 20000.0, the_beta = 0.8, free_float_rate = 0.6,
-                    group_name = "Sữa", listed_share_vol = 2000000000L,
-                    circulation_vol = 1800000000L
-                }
-            })
+            ["companies/index"] = Fixture("finance_indicators")
         });
 
         var provider = CreateProvider(handler);
-        var result = await provider.GetComprehensiveDataAsync("VNM");
+        var result = await provider.GetComprehensiveDataAsync("HAH");
 
         result.Should().NotBeNull();
-        result!.Symbol.Should().Be("VNM");
+        result!.Symbol.Should().Be("HAH");
         result.Indicators.Should().NotBeNull();
-        result.Indicators!.PE4Q.Should().Be(18.5m);
-        result.Company.Should().NotBeNull(); // Created from indicators data
-        result.Company!.Industry.Should().Be("Sữa");
+        result.Company.Should().NotBeNull(); // dựng từ indicators
+        result.Company!.Industry.Should().Be("Kho bãi, hậu cần và bảo dưỡng");
 
-        // These should be empty but not crash
         result.IncomeStatements.Should().BeEmpty();
         result.Peers.Should().BeEmpty();
         result.DividendEvents.Should().BeEmpty();
         result.AnalystReports.Should().BeEmpty();
-        result.ForeignTrading.Should().BeEmpty();
         result.BusinessPlan.Should().BeNull();
+        result.ForeignTrading.Should().BeNull();
         result.MarketIndex.Should().BeNull();
     }
 
     [Fact]
     public async Task GetComprehensiveDataAsync_NormalizesSymbolToUpperCase()
     {
-        var handler = new FakeHttpHandler(new Dictionary<string, string>
-        {
-            ["companies/index"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new { symbol = "HPG", pe = 10.0, group_name = "Thép" }
-            })
-        });
-
-        var provider = CreateProvider(handler);
-        var result = await provider.GetComprehensiveDataAsync("  hpg  ");
+        var result = await GetRealAsync("  hah  ");
 
         result.Should().NotBeNull();
-        result!.Symbol.Should().Be("HPG");
+        result!.Symbol.Should().Be("HAH");
     }
 
     [Fact]
     public async Task GetComprehensiveDataAsync_PeersExcludeSameSymbol()
     {
-        var handler = new FakeHttpHandler(new Dictionary<string, string>
+        var responses = RealResponses();
+        responses["get_stock_related_bussiness"] = JsonSerializer.Serialize(new
         {
-            ["companies/index"] = JsonSerializer.Serialize(new
+            message = "success", status = 200,
+            data = new
             {
-                message = "success", status = 200,
-                data = new { symbol = "MWG", pe = 15.0, group_name = "Bán lẻ" }
-            }),
-            ["get_stock_related_bussiness"] = JsonSerializer.Serialize(new
-            {
-                message = "success", status = 200,
-                data = new
+                all = new
                 {
                     data = new[]
                     {
-                        new { symbol = "MWG", company_name = "MWG itself", price = 75.0m, pe = 15.0m, pb = 3.0m, market_cap = 100000m, change_percent = 0m },
-                        new { symbol = "FRT", company_name = "FPT Retail", price = 150.0m, pe = 20.0m, pb = 3.0m, market_cap = 10000m, change_percent = 1.5m }
+                        new { symbol = "HAH", company_name = "HAH itself", price = 47.0m, pe = 7.7m, pb = 2.3m, market_cap = 8901m, change_percent = 0m },
+                        new { symbol = "ACV", company_name = "ACV", price = 41.4m, pe = 13.57m, pb = 2.04m, market_cap = 151568m, change_percent = -2.13m }
                     }
                 }
-            })
+            }
         });
 
-        var provider = CreateProvider(handler);
-        var result = await provider.GetComprehensiveDataAsync("MWG");
+        var result = await CreateProvider(new FakeHttpHandler(responses)).GetComprehensiveDataAsync("HAH");
 
         result!.Peers.Should().HaveCount(1);
-        result.Peers[0].Symbol.Should().Be("FRT");
+        result.Peers[0].Symbol.Should().Be("ACV");
     }
 
     // =============================================
-    // Fake HTTP handler for testing
+    // Fake HTTP handler
     // =============================================
 
     private class FakeHttpHandler : HttpMessageHandler
@@ -345,7 +341,6 @@ public class HmoneyComprehensiveDataProviderTests
                 }
             }
 
-            // Return 404 for unmatched URLs
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
             {
                 Content = new StringContent("{\"message\":\"not found\",\"status\":404}", Encoding.UTF8, "application/json")

@@ -1,0 +1,212 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "headers": [
+      {
+        "year": 2026,
+        "quarter": 2,
+        "type": "normal"
+      },
+      {
+        "year": 2026,
+        "quarter": 1,
+        "type": "normal"
+      },
+      {
+        "year": 2025,
+        "quarter": 4,
+        "type": "normal"
+      },
+      {
+        "year": 2025,
+        "quarter": 3,
+        "type": "normal"
+      },
+      {
+        "year": 2025,
+        "quarter": 2,
+        "type": "normal"
+      },
+      {
+        "year": 2025,
+        "quarter": 1,
+        "type": "normal"
+      },
+      {
+        "year": 2024,
+        "quarter": 4,
+        "type": "normal"
+      },
+      {
+        "year": 2024,
+        "quarter": 3,
+        "type": "normal"
+      }
+    ],
+    "rows": [
+      {
+        "key": "isa3",
+        "level": 2,
+        "values": [
+          1533.5525,
+          1264.9617,
+          1299.5858,
+          1347.6928,
+          1274.6652,
+          1169.1335,
+          1210.654,
+          1128.5543
+        ],
+        "data": true,
+        "name": "Doanh thu thuần"
+      },
+      {
+        "key": "isa4",
+        "level": 2,
+        "values": [
+          897.9343,
+          770.3314,
+          782.1632,
+          851.7558,
+          708.1441,
+          784.2928,
+          692.4389,
+          736.1994
+        ],
+        "data": true,
+        "name": "Giá vốn hàng bán"
+      },
+      {
+        "key": "isa5",
+        "level": 2,
+        "values": [
+          635.6182,
+          494.6303,
+          517.4226,
+          495.937,
+          566.5211,
+          384.8407,
+          518.2151,
+          392.3548
+        ],
+        "data": true,
+        "name": "Lợi nhuận gộp"
+      },
+      {
+        "key": "gross_profit_margin",
+        "level": 3,
+        "values": [
+          41.4474,
+          39.1024,
+          39.8144,
+          36.799,
+          44.4447,
+          32.9167,
+          42.8046,
+          34.7661
+        ],
+        "data": true,
+        "name": "Tỷ suất lợi nhuận gộp (%)"
+      },
+      {
+        "key": "financial_revenue",
+        "level": 2,
+        "values": [
+          -27.6666,
+          -29.9207,
+          -26.6233,
+          -19.1574,
+          -25.4227,
+          -24.3167,
+          -22.8571,
+          -26.419
+        ],
+        "data": true,
+        "name": "Lợi nhuận tài chính"
+      },
+      {
+        "key": "isa9",
+        "level": 2,
+        "values": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "data": true,
+        "name": "Chi phí bán hàng"
+      },
+      {
+        "key": "isa14",
+        "level": 2,
+        "values": [
+          8.060099999999998,
+          6.0431,
+          -12.657899999999998,
+          4.261699999999999,
+          3.6458,
+          6.3279000000000005,
+          9.6095,
+          1.1776
+        ],
+        "data": true,
+        "name": "Lợi nhuận khác"
+      },
+      {
+        "key": "isa16",
+        "level": 2,
+        "values": [
+          558.4214,
+          435.8202,
+          442.6463,
+          435.1093,
+          512.7166,
+          333.0641,
+          418.1175,
+          321.3668
+        ],
+        "data": true,
+        "name": "LỢI NHUẬN TRƯỚC THUẾ"
+      },
+      {
+        "key": "isa20",
+        "level": 2,
+        "values": [
+          446.2782,
+          350.9577,
+          359.9828,
+          352.9498,
+          414.356,
+          273.6064,
+          347.8622,
+          276.5522
+        ],
+        "data": true,
+        "name": "LỢI NHUẬN SAU THUẾ TNDN"
+      },
+      {
+        "key": "net_profit_margin",
+        "level": 3,
+        "values": [
+          29.1009,
+          27.7445,
+          27.6998,
+          26.1892,
+          32.507,
+          23.4025,
+          28.7334,
+          24.505
+        ],
+        "data": true,
+        "name": "Tỷ suất lợi nhuận ròng (%)"
+      }
+    ]
+  },
+  "total_page": 6,
+  "execute_time_ms": 5
+}

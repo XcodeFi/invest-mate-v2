@@ -108,9 +108,12 @@ function fundamentalsSection(f: CompanyFundamentals | null): string {
     lines.push('- Doanh thu theo quý: không lấy được');
   }
 
-  if (f.businessPlan) {
+  if (f.businessPlan?.targets?.length) {
     const b = f.businessPlan;
-    lines.push(`- Kế hoạch ${b.year}: doanh thu ${n(b.revenuePlan)} tỷ · lợi nhuận ${n(b.profitPlan)} tỷ · cổ tức ${n(b.dividendPlan)}%`);
+    const through = b.quarter ? ` (thực hiện tới Q${b.quarter})` : '';
+    lines.push(`- Kế hoạch ${b.year}${through} (tỷ VND):`);
+    lines.push(...b.targets.map((t) =>
+      `  - ${t.label ?? '(chỉ tiêu không rõ)'}: kế hoạch ${n(t.planned)} · thực hiện ${n(t.actual)} · đạt ${n(t.percentComplete)}%`));
   } else {
     lines.push('- Kế hoạch kinh doanh: không lấy được');
   }

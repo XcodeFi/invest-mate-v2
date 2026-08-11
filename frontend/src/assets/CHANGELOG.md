@@ -2,6 +2,24 @@
 
 ---
 
+## [v2.79.1] — 2026-08-11 · Panel số liệu trong hồ sơ công ty đã có dữ liệu trở lại
+
+### Sửa lỗi
+
+**📊 Sáu khối số liệu bị trống đã hiện lại.** Trong hồ sơ công ty, các khối **Doanh thu theo quý**, **Doanh nghiệp cùng ngành**, **Cổ tức & sự kiện**, **Kế hoạch kinh doanh**, **Thông tin doanh nghiệp** và **Khối ngoại** đều báo "không lấy được dữ liệu" với mọi mã. Nguồn số liệu đã đổi cấu trúc mà app vẫn đọc theo cấu trúc cũ.
+
+Không có lỗi nào hiện lên vì mỗi khối hỏng đều lặng lẽ trả về rỗng — nhìn giống hệt "công ty này không có số liệu đó". Bản tóm tắt của trợ lý AI cũng ăn cùng nguồn này, nên nó cũng đang phân tích trên dữ liệu thiếu.
+
+**📈 Doanh thu theo quý giờ đúng là theo quý.** Trước đây khối này lấy nhầm số liệu **cả năm** dù tiêu đề ghi theo quý.
+
+**📋 Kế hoạch kinh doanh có thêm tiến độ thực hiện.** Ngoài chỉ tiêu đặt ra, giờ hiện cả **đã thực hiện được bao nhiêu** và **đạt bao nhiêu %** tính tới quý gần nhất. Chỉ tiêu vượt 75% được tô xanh. Đổi lại, kế hoạch cổ tức không còn — nguồn đã bỏ.
+
+**💱 Khối ngoại đổi từ khối lượng sang giá trị.** Nguồn không còn trả số cổ phiếu mua/bán, chỉ còn giá trị (tỷ VND) theo hôm nay – tuần – tháng. Con số trước đây gắn nhãn "cổ phiếu" giờ là "tỷ VND", nên đừng so hai bản với nhau.
+
+**📅 Ngày chốt quyền và ngày trả cổ tức lệch một ngày.** Nguồn trả ngày theo mốc giờ Việt Nam nhưng app quy đổi theo giờ quốc tế, làm mọi ngày lùi lại một hôm.
+
+---
+
 ## [v2.79.0] — 2026-08-11 · Trang chủ có một khoảng lặng trước khi bạn bấm bất cứ thứ gì
 
 ### Tính năng

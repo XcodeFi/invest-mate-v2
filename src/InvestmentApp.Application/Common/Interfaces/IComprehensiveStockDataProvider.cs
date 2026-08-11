@@ -32,7 +32,7 @@ public class ComprehensiveStockData
     public List<AnalystReport> AnalystReports { get; set; } = new();
 
     // Section 6: Foreign Trading
-    public List<ForeignTradingDay> ForeignTrading { get; set; } = new();
+    public ForeignTradingSummary? ForeignTrading { get; set; }
 
     // Section 7: Market Index (VN-Index)
     public MarketIndexSnapshot? MarketIndex { get; set; }
@@ -54,7 +54,6 @@ public class CompanyOverview
 public class Shareholder
 {
     public string? Name { get; set; }
-    public string? Position { get; set; }
     public decimal Quantity { get; set; }
     public decimal Percentage { get; set; }            // %
 }
@@ -121,9 +120,16 @@ public class DividendEvent
 public class CompanyPlan
 {
     public int? Year { get; set; }
-    public decimal? RevenuePlan { get; set; }          // tỷ VND
-    public decimal? ProfitPlan { get; set; }           // tỷ VND
-    public decimal? DividendPlan { get; set; }         // %
+    public int? Quarter { get; set; }                  // kỳ luỹ kế của cột "thực hiện"
+    public List<CompanyPlanTarget> Targets { get; set; } = new();
+}
+
+public class CompanyPlanTarget
+{
+    public string? Label { get; set; }                 // nhãn do nguồn đặt, VD "Doanh thu"
+    public decimal? Planned { get; set; }              // tỷ VND
+    public decimal? Actual { get; set; }               // tỷ VND, luỹ kế tới Quarter
+    public decimal? PercentComplete { get; set; }      // %
 }
 
 public class AnalystReport
@@ -134,12 +140,26 @@ public class AnalystReport
     public string? Summary { get; set; }
 }
 
-public class ForeignTradingDay
+/// <summary>
+/// Tổng hợp giao dịch khối ngoại theo giá trị (tỷ VND).
+/// Nguồn không còn trả chuỗi theo ngày — chỉ còn diễn biến trong phiên và các mức tổng hợp,
+/// nên không dựng lại được lịch sử nhiều ngày từ đây.
+/// </summary>
+public class ForeignTradingSummary
 {
-    public string? Date { get; set; }
-    public decimal BuyVolume { get; set; }
-    public decimal SellVolume { get; set; }
-    public decimal NetVolume { get; set; }
+    public decimal? TodayBuyValue { get; set; }
+    public decimal? TodaySellValue { get; set; }
+    public decimal? WeekBuyValue { get; set; }
+    public decimal? WeekSellValue { get; set; }
+    public decimal? MonthBuyValue { get; set; }
+    public decimal? MonthSellValue { get; set; }
+
+    public decimal? TodayNetValue => Net(TodayBuyValue, TodaySellValue);
+    public decimal? WeekNetValue => Net(WeekBuyValue, WeekSellValue);
+    public decimal? MonthNetValue => Net(MonthBuyValue, MonthSellValue);
+
+    private static decimal? Net(decimal? buy, decimal? sell)
+        => buy is null && sell is null ? null : (buy ?? 0) - (sell ?? 0);
 }
 
 public class MarketIndexSnapshot

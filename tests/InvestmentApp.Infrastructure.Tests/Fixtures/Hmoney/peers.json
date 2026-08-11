@@ -1,0 +1,289 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "all": {
+      "data": [
+        {
+          "change": -0.9,
+          "change_percent": -2.13,
+          "price": 41.4,
+          "symbol": "ACV",
+          "company_name": "Tổng công ty cảng hàng không Việt Nam - CTCP",
+          "market_cap": 151568,
+          "eps": 3.02,
+          "pe": 13.57,
+          "pb": 2.04,
+          "ceiling_price": 48.6,
+          "floor_price": 36.0
+        },
+        {
+          "change": -6.1,
+          "change_percent": -9.15,
+          "price": 60.6,
+          "symbol": "MVN",
+          "company_name": "Tổng Công ty Hàng hải Việt Nam - Công ty Cổ phần",
+          "market_cap": 80076,
+          "eps": 1.62,
+          "pe": 29.05,
+          "pb": 5.13,
+          "ceiling_price": 76.7,
+          "floor_price": 56.7
+        },
+        {
+          "change": -0.4,
+          "change_percent": -1.13,
+          "price": 35.1,
+          "symbol": "VEA",
+          "company_name": "Tổng Công ty Máy động lực và máy nông nghiệp Việt Nam - Công ty Cổ phần",
+          "market_cap": 47116,
+          "eps": 5.38,
+          "pe": 6.1,
+          "pb": 1.98,
+          "ceiling_price": 40.8,
+          "floor_price": 30.2
+        },
+        {
+          "change": 3.9,
+          "change_percent": 5.61,
+          "price": 73.4,
+          "symbol": "GEE",
+          "company_name": "Công ty cổ phần Thiết bị điện GELEX",
+          "market_cap": 44514,
+          "eps": 8.92,
+          "pe": 12.5,
+          "pb": 5.53,
+          "ceiling_price": 74.3,
+          "floor_price": 64.7
+        },
+        {
+          "change": 0.25,
+          "change_percent": 0.96,
+          "price": 26.35,
+          "symbol": "GEX",
+          "company_name": "Công ty Cổ phần Tập đoàn Gelex",
+          "market_cap": 34151,
+          "eps": 1.64,
+          "pe": 24.9,
+          "pb": 1.72,
+          "ceiling_price": 27.9,
+          "floor_price": 24.3
+        }
+      ],
+      "total_data": 249
+    },
+    "hose": {
+      "data": [
+        {
+          "change": 3.9,
+          "change_percent": 5.61,
+          "price": 73.4,
+          "symbol": "GEE",
+          "company_name": "Công ty cổ phần Thiết bị điện GELEX",
+          "market_cap": 44514,
+          "eps": 8.92,
+          "pe": 12.5,
+          "pb": 5.53,
+          "ceiling_price": 74.3,
+          "floor_price": 64.7
+        },
+        {
+          "change": 0.25,
+          "change_percent": 0.96,
+          "price": 26.35,
+          "symbol": "GEX",
+          "company_name": "Công ty Cổ phần Tập đoàn Gelex",
+          "market_cap": 34151,
+          "eps": 1.64,
+          "pe": 24.9,
+          "pb": 1.72,
+          "ceiling_price": 27.9,
+          "floor_price": 24.3
+        },
+        {
+          "change": -0.3,
+          "change_percent": -0.38,
+          "price": 77.9,
+          "symbol": "GMD",
+          "company_name": "Công ty Cổ phần Gemadept ",
+          "market_cap": 33852,
+          "eps": 4.17,
+          "pe": 12.91,
+          "pb": 2.46,
+          "ceiling_price": 83.6,
+          "floor_price": 72.8
+        },
+        {
+          "change": 0.0,
+          "change_percent": 0.0,
+          "price": 53.4,
+          "symbol": "VTP",
+          "company_name": "Tổng công ty Cổ phần Bưu chính Viettel",
+          "market_cap": 10780,
+          "eps": 3.22,
+          "pe": 23.98,
+          "pb": 4.66,
+          "ceiling_price": 57.1,
+          "floor_price": 49.7
+        },
+        {
+          "change": 0.45,
+          "change_percent": 2.32,
+          "price": 19.85,
+          "symbol": "PVT",
+          "company_name": "Tổng Công ty Cổ phần Vận tải dầu khí",
+          "market_cap": 10028,
+          "eps": 2.21,
+          "pe": 7.16,
+          "pb": 1.08,
+          "ceiling_price": 20.75,
+          "floor_price": 18.05
+        }
+      ],
+      "total_data": 41
+    },
+    "hnx": {
+      "data": [
+        {
+          "change": -0.1,
+          "change_percent": -0.64,
+          "price": 15.5,
+          "symbol": "IPA",
+          "company_name": "Công ty Cổ phần Tập đoàn đầu tư I.P.A",
+          "market_cap": 3335,
+          "eps": 2.19,
+          "pe": 5.91,
+          "pb": 0.68,
+          "ceiling_price": 17.1,
+          "floor_price": 14.1
+        },
+        {
+          "change": -0.2,
+          "change_percent": -0.78,
+          "price": 25.4,
+          "symbol": "CDN",
+          "company_name": "Công ty Cổ phần Cảng Đà Nẵng",
+          "market_cap": 2534,
+          "eps": 3.72,
+          "pe": 5.97,
+          "pb": 1.14,
+          "ceiling_price": 28.1,
+          "floor_price": 23.1
+        },
+        {
+          "change": 0.0,
+          "change_percent": 0.0,
+          "price": 36.0,
+          "symbol": "INN",
+          "company_name": "Công ty Cổ phần Bao bì và In nông nghiệp ",
+          "market_cap": 972,
+          "eps": 4.7,
+          "pe": 7.33,
+          "pb": 1.15,
+          "ceiling_price": 39.6,
+          "floor_price": 32.4
+        },
+        {
+          "change": 5.0,
+          "change_percent": 1.69,
+          "price": 301.0,
+          "symbol": "WCS",
+          "company_name": "Công ty Cổ phần Bến xe miền Tây",
+          "market_cap": 887,
+          "eps": 27.9,
+          "pe": 10.74,
+          "pb": 2.89,
+          "ceiling_price": 325.6,
+          "floor_price": 266.4
+        },
+        {
+          "change": -0.1,
+          "change_percent": -0.68,
+          "price": 14.5,
+          "symbol": "DXP",
+          "company_name": "Công ty Cổ phần Cảng Đoạn Xá",
+          "market_cap": 874,
+          "eps": 2.05,
+          "pe": 4.65,
+          "pb": 0.83,
+          "ceiling_price": 16.0,
+          "floor_price": 13.2
+        }
+      ],
+      "total_data": 58
+    },
+    "upcom": {
+      "data": [
+        {
+          "change": -0.9,
+          "change_percent": -2.13,
+          "price": 41.4,
+          "symbol": "ACV",
+          "company_name": "Tổng công ty cảng hàng không Việt Nam - CTCP",
+          "market_cap": 151568,
+          "eps": 3.02,
+          "pe": 13.57,
+          "pb": 2.04,
+          "ceiling_price": 48.6,
+          "floor_price": 36.0
+        },
+        {
+          "change": -6.1,
+          "change_percent": -9.15,
+          "price": 60.6,
+          "symbol": "MVN",
+          "company_name": "Tổng Công ty Hàng hải Việt Nam - Công ty Cổ phần",
+          "market_cap": 80076,
+          "eps": 1.62,
+          "pe": 29.05,
+          "pb": 5.13,
+          "ceiling_price": 76.7,
+          "floor_price": 56.7
+        },
+        {
+          "change": -0.4,
+          "change_percent": -1.13,
+          "price": 35.1,
+          "symbol": "VEA",
+          "company_name": "Tổng Công ty Máy động lực và máy nông nghiệp Việt Nam - Công ty Cổ phần",
+          "market_cap": 47116,
+          "eps": 5.38,
+          "pe": 6.1,
+          "pb": 1.98,
+          "ceiling_price": 40.8,
+          "floor_price": 30.2
+        },
+        {
+          "change": -0.5,
+          "change_percent": -1.17,
+          "price": 42.3,
+          "symbol": "PHP",
+          "company_name": "Công ty Cổ phần Cảng Hải Phòng",
+          "market_cap": 14001,
+          "eps": 2.52,
+          "pe": 11.44,
+          "pb": 2.11,
+          "ceiling_price": 49.2,
+          "floor_price": 36.4
+        },
+        {
+          "change": 0.0,
+          "change_percent": 0.0,
+          "price": 28.0,
+          "symbol": "PAP",
+          "company_name": "Công ty Cổ phần Dầu khí Đầu tư Khai thác Cảng Phước An",
+          "market_cap": 9996,
+          "eps": -2.05,
+          "pe": -15.39,
+          "pb": 2.92,
+          "ceiling_price": 32.2,
+          "floor_price": 23.8
+        }
+      ],
+      "total_data": 150
+    },
+    "group_id": "2700",
+    "group_name": "Hàng & Dịch vụ Công nghiệp"
+  },
+  "execute_time_ms": 23
+}

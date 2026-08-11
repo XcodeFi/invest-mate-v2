@@ -23,7 +23,7 @@ public class CompanyFundamentalsDto
     public List<DividendEvent> DividendEvents { get; set; } = new();
     public CompanyPlan? BusinessPlan { get; set; }
     public List<AnalystReport> AnalystReports { get; set; } = new();
-    public List<ForeignTradingDay> ForeignTrading { get; set; } = new();
+    public ForeignTradingSummary? ForeignTrading { get; set; }
 
     /// <summary>
     /// Tên các phần provider không lấy được. Rỗng KHÔNG có nghĩa là bằng không — người đọc (và
@@ -87,7 +87,7 @@ public class GetCompanyFundamentalsQueryHandler
             DividendEvents = data.DividendEvents.Where(HasAnyValue).ToList(),
             BusinessPlan = HasAnyValue(data.BusinessPlan) ? data.BusinessPlan : null,
             AnalystReports = data.AnalystReports.Where(HasAnyValue).ToList(),
-            ForeignTrading = data.ForeignTrading.Where(HasAnyValue).ToList()
+            ForeignTrading = HasAnyValue(data.ForeignTrading) ? data.ForeignTrading : null
         };
 
         if (dto.Company == null) dto.UnavailableSections.Add("company");
@@ -97,7 +97,7 @@ public class GetCompanyFundamentalsQueryHandler
         if (dto.DividendEvents.Count == 0) dto.UnavailableSections.Add("dividendEvents");
         if (dto.BusinessPlan == null) dto.UnavailableSections.Add("businessPlan");
         if (dto.AnalystReports.Count == 0) dto.UnavailableSections.Add("analystReports");
-        if (dto.ForeignTrading.Count == 0) dto.UnavailableSections.Add("foreignTrading");
+        if (dto.ForeignTrading == null) dto.UnavailableSections.Add("foreignTrading");
 
         // Chỉ cache ca lấy được. Cache cả ca 404/lỗi là đóng băng một lỗi mạng nhất thời thành
         // "mã không có dữ liệu" suốt TTL — cùng lý do đã ghi ở cache nhãn ngành.
@@ -117,7 +117,7 @@ public class GetCompanyFundamentalsQueryHandler
 
         var type = obj.GetType();
         // Số/bool/DateTime: coi giá trị MẶC ĐỊNH là "không có thông tin". Với property không nullable
-        // (`Shareholder.Percentage`, `ForeignTradingDay.BuyVolume`) thì 0 và "không có" là cùng một
+        // (`Shareholder.Percentage`, `Shareholder.Quantity`) thì 0 và "không có" là cùng một
         // bit — không có cách nào phân biệt, nên phải chọn một phía. Chọn phía này vì hậu quả lệch
         // nhẹ hơn: một số 0 thật bị báo "không lấy được" chỉ làm mất một dòng, còn một vỏ rỗng được
         // coi là dữ liệu thì bịa ra cả một khối cổ đông. Phải đặt trước nhánh reflection: `decimal`

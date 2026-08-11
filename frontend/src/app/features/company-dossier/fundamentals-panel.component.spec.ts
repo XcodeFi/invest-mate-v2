@@ -102,7 +102,7 @@ describe('FundamentalsPanelComponent', () => {
       incomeStatements: [{ period: 'Q1/2026', revenue: 100, netProfit: 10, grossProfit: null }],
       peers: [{ symbol: 'HSG', pe: 8, pb: 1, changePercent: 1.2 } as any],
       dividendEvents: [{ exDate: '2026-03-01', description: 'Tiền mặt 10%' } as any],
-      businessPlan: { year: 2026, revenuePlan: 1000, profitPlan: 100, dividendPlan: 10 },
+      businessPlan: { year: 2026, quarter: 2, targets: [{ label: 'Doanh thu', planned: 1000, actual: 600, percentComplete: 60 }] },
       unavailableSections: [],
     });
 
@@ -132,6 +132,20 @@ describe('FundamentalsPanelComponent', () => {
       component.toggle('peers');
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector('[data-testid="peers-table"]')).toBeNull();
+    });
+
+    it('kế hoạch còn năm nhưng không còn chỉ tiêu nào thì coi như không lấy được', () => {
+      // Backend chấm "có dữ liệu" theo bất kỳ field nào khác rỗng, nên {year, quarter, targets: []}
+      // vẫn tới được đây. Bung ra thì chỉ là một cái bảng không có dòng nào.
+      load(withData({
+        indicators: { pe: 1 } as any,
+        businessPlan: { year: 2026, quarter: 2, targets: [] },
+        unavailableSections: [],
+      }));
+
+      expect(component.hasSection('businessPlan')).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="business-plan"]')).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('không lấy được dữ liệu');
     });
 
     it('khối không lấy được dữ liệu KHÔNG gập — câu báo thiếu phải luôn nhìn thấy', () => {

@@ -1,0 +1,380 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "id": 408,
+    "ownership": [
+      {
+        "date": "26/12/2025",
+        "name": "Công ty cổ phần Container Việt Nam",
+        "value": "16.07",
+        "stock": "29863050"
+      },
+      {
+        "date": "07/08/2025",
+        "name": "CTCP Đầu tư và Vận tải Hải Hà",
+        "value": "14.29",
+        "stock": "26555885"
+      },
+      {
+        "date": "07/08/2025",
+        "name": "Công ty TNHH Vận tải và Đại lý vận tải Đa phương thức (Marina Logistic)",
+        "value": "4.85",
+        "stock": "9016635"
+      },
+      {
+        "date": "07/08/2025",
+        "name": "Công ty CP Quản lý Quỹ Leadvisors",
+        "value": "4.2",
+        "stock": "7799999"
+      },
+      {
+        "date": "29/12/2025",
+        "name": "Công ty TNHH MTV Dịch vụ Cảng Xanh",
+        "value": "3.52",
+        "stock": "6538250"
+      },
+      {
+        "date": "07/08/2025",
+        "name": "America LLC",
+        "value": "2.64",
+        "stock": "4908041"
+      },
+      {
+        "date": "07/08/2025",
+        "name": "Công ty TNHH Quỹ TM Holding",
+        "value": "2.49",
+        "stock": "4634498"
+      },
+      {
+        "date": "07/08/2025",
+        "name": "Vũ Ngọc Sơn (Bố của ông Vũ Thanh Hải)",
+        "value": "2.45",
+        "stock": "4545735"
+      },
+      {
+        "date": "07/08/2025",
+        "name": "Samarang Ucits - Samarang Asian Prosperity",
+        "value": "2.3",
+        "stock": "4272087"
+      },
+      {
+        "date": "26/12/2025",
+        "name": "Công ty TNHH MTV Trung tâm Logistics Xanh",
+        "value": "2.21",
+        "stock": "4110160"
+      }
+    ],
+    "leadership": [
+      {
+        "other_info": [],
+        "name": "Trần Thị Hải Yến",
+        "img": "",
+        "positions": [
+          {
+            "position": "Thành viên HĐQT",
+            "time": "30/6/2018",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Thành viên HĐQT",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Lê Anh Minh",
+        "img": "",
+        "positions": [
+          {
+            "position": "Thành Viên HĐQT",
+            "time": "26/4/2024",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Thành Viên HĐQT",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Tạ Công Thông",
+        "img": "",
+        "positions": [
+          {
+            "position": "Thành Viên HĐQT",
+            "time": "26/6/2025",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          },
+          {
+            "position": "Thành viên HĐQT",
+            "time": "26/3/2021",
+            "organization": "Công ty cổ phần Container Việt Nam"
+          },
+          {
+            "position": "Tổng Giám đốc",
+            "time": "28/2/2024",
+            "organization": "Công ty cổ phần Container Việt Nam"
+          }
+        ],
+        "age": null,
+        "main_position": "Thành Viên HĐQT",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Nguyễn Xuân Dũng",
+        "img": "",
+        "positions": [
+          {
+            "position": "Thành Viên HĐQT",
+            "time": "26/6/2025",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          },
+          {
+            "position": "Chủ tịch HĐQT",
+            "time": "25/4/2025",
+            "organization": "Công ty cổ phần Container Việt Nam"
+          }
+        ],
+        "age": null,
+        "main_position": "Thành Viên HĐQT",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Nguyễn Đức Kiên",
+        "img": "",
+        "positions": [
+          {
+            "position": "Thành viên HĐQT độc lập",
+            "time": "20/6/2023",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Thành viên HĐQT độc lập",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Nguyễn Ngọc Tuấn",
+        "img": "",
+        "positions": [
+          {
+            "position": "Thành viên HĐQT",
+            "time": "11/4/2019",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          },
+          {
+            "position": "Tổng Giám đốc",
+            "time": "20/6/2023",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Tổng Giám đốc",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Vũ Thanh Hải",
+        "img": "",
+        "positions": [
+          {
+            "position": "Thành viên HĐQT",
+            "time": null,
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          },
+          {
+            "position": "Phó Tổng GĐ",
+            "time": null,
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          },
+          {
+            "position": "Chủ tịch HĐQT",
+            "time": "20/6/2023",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          },
+          {
+            "position": "Chủ tịch HĐQT",
+            "time": null,
+            "organization": "Công ty Liên doanh “K” Line Logistics (Vietnam) Ltd."
+          },
+          {
+            "position": "Chủ tịch HĐTV",
+            "time": null,
+            "organization": "Công ty TNHH Vận tải và Đại lý vận tải Đa phương thức (Marina Logistic) "
+          },
+          {
+            "position": "Phó Tổng GĐ",
+            "time": null,
+            "organization": "Công ty Liên doanh “K” Line Logistics (Vietnam) Ltd."
+          },
+          {
+            "position": "Thành viên HĐQT",
+            "time": null,
+            "organization": "CTCP Đầu tư và Vận tải Hải Hà"
+          }
+        ],
+        "age": null,
+        "main_position": "Phó Tổng GĐ",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Vũ Doãn Hạnh",
+        "img": "",
+        "positions": [
+          {
+            "position": "Phó Tổng GĐ",
+            "time": null,
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Phó Tổng GĐ",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Phạm Quang Khánh",
+        "img": "",
+        "positions": [
+          {
+            "position": "Phó Tổng Giám đốc",
+            "time": null,
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Phó Tổng Giám đốc",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "age": null,
+        "img": "",
+        "name": "Bà Nguyễn Thị Thanh Tú",
+        "main_position": "Trưởng BKS",
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Trần Thị Thanh Hảo",
+        "img": "",
+        "positions": [
+          {
+            "position": "Kế toán trưởng",
+            "time": "1/6/2021",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Kế toán trưởng",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "age": null,
+        "img": "",
+        "name": "Bà Trần Thị Thơm",
+        "main_position": "Thành viên BKS",
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "age": null,
+        "img": "",
+        "name": "Ông Nguyễn Mạnh Hùng",
+        "main_position": "Thành viên BKS",
+        "owner_value": "0",
+        "owner_stock": "0"
+      },
+      {
+        "other_info": [],
+        "name": "Nguyễn Ngọc Minh",
+        "img": "",
+        "positions": [
+          {
+            "position": "Công bố thông tin",
+            "time": "6/2/2020",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          },
+          {
+            "position": "Phụ trách quản trị",
+            "time": "20/6/2023",
+            "organization": "Công ty Cổ phần Vận tải và Xếp dỡ Hải An"
+          }
+        ],
+        "age": null,
+        "main_position": "Công bố thông tin",
+        "educations": [],
+        "date_of_birth": "",
+        "education_level": "",
+        "works": [],
+        "owner_value": "0",
+        "owner_stock": "0"
+      }
+    ],
+    "intro": "Ngày 08/05/2009: Công ty TNHH Vận tải và Xếp dỡ Hải An (sau đổi thành Công ty cổ phần Vận tải và Xếp dỡ Hải An) được thành lập tại Hà Nội bởi 5 thành viên sáng lập là: Công ty cổ phần Hàng Hải Hà Nội (MHC - HOSE), Công ty cổ phần Cung ứng và Dịch vụ kỹ thuật Hàng Hải (MAC - HNX), Công ty cổ phần Hải Minh (HMH - HNX), Công ty cổ phần Đóng tàu Hải An, Công ty cổ phần Đầu tư và Vận tải Hải Hà với số vốn điều lệ 150 tỷ đồng.",
+    "address": "",
+    "tax_code": "0103818809",
+    "telephone": "",
+    "fax": "",
+    "email": "",
+    "website": "www.haiants.vn",
+    "enterprise_code": "0103818809",
+    "logo_url": "https://cdn.24hmoney.vn/upload/images_cr/2021-12-03/partner/images/uploaded/dulieudownload/logodn/HAH.jpg"
+  },
+  "execute_time_ms": 3
+}

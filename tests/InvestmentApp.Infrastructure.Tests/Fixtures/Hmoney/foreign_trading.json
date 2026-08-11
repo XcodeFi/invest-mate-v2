@@ -1,0 +1,495 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "today_buy_value": 1.08,
+    "today_sell_value": 7.01,
+    "week_buy_value": 14.1,
+    "week_sell_value": 48.11,
+    "month_buy_value": 48.13,
+    "month_sell_value": 101.98,
+    "data_time": [
+      {
+        "buy_value": 0.0,
+        "sell_value": 0.0,
+        "trading_time": 1786414500
+      },
+      {
+        "buy_value": 0.03,
+        "sell_value": 0.03,
+        "trading_time": 1786414620
+      },
+      {
+        "buy_value": 0.03,
+        "sell_value": 0.03,
+        "trading_time": 1786414680
+      },
+      {
+        "buy_value": 0.03,
+        "sell_value": 0.03,
+        "trading_time": 1786414740
+      },
+      {
+        "buy_value": 0.03,
+        "sell_value": 0.1,
+        "trading_time": 1786414800
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 0.16,
+        "trading_time": 1786414860
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 0.37,
+        "trading_time": 1786415040
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 0.61,
+        "trading_time": 1786415100
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 0.61,
+        "trading_time": 1786415220
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 0.71,
+        "trading_time": 1786415280
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 0.71,
+        "trading_time": 1786415340
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.21,
+        "trading_time": 1786415400
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.21,
+        "trading_time": 1786415460
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.21,
+        "trading_time": 1786415520
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.35,
+        "trading_time": 1786415580
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.35,
+        "trading_time": 1786415700
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.35,
+        "trading_time": 1786415760
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.35,
+        "trading_time": 1786415820
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.35,
+        "trading_time": 1786415880
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.37,
+        "trading_time": 1786416000
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.37,
+        "trading_time": 1786416060
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.37,
+        "trading_time": 1786416120
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.37,
+        "trading_time": 1786416180
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.37,
+        "trading_time": 1786416240
+      },
+      {
+        "buy_value": 0.08,
+        "sell_value": 1.6,
+        "trading_time": 1786416360
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416420
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416480
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416540
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416660
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416720
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416780
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416840
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.6,
+        "trading_time": 1786416960
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.68,
+        "trading_time": 1786417020
+      },
+      {
+        "buy_value": 0.17,
+        "sell_value": 1.95,
+        "trading_time": 1786417080
+      },
+      {
+        "buy_value": 0.22,
+        "sell_value": 2.53,
+        "trading_time": 1786417140
+      },
+      {
+        "buy_value": 0.22,
+        "sell_value": 2.67,
+        "trading_time": 1786417200
+      },
+      {
+        "buy_value": 0.22,
+        "sell_value": 2.67,
+        "trading_time": 1786417260
+      },
+      {
+        "buy_value": 0.22,
+        "sell_value": 2.76,
+        "trading_time": 1786417320
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 2.92,
+        "trading_time": 1786417380
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 2.93,
+        "trading_time": 1786417440
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 2.96,
+        "trading_time": 1786417500
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 2.96,
+        "trading_time": 1786417560
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 3.15,
+        "trading_time": 1786417620
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 3.17,
+        "trading_time": 1786417680
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 3.17,
+        "trading_time": 1786417740
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 3.18,
+        "trading_time": 1786417800
+      },
+      {
+        "buy_value": 0.38,
+        "sell_value": 3.19,
+        "trading_time": 1786417860
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418040
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418100
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418160
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418280
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418400
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418460
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418520
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.19,
+        "trading_time": 1786418760
+      },
+      {
+        "buy_value": 0.44,
+        "sell_value": 3.2,
+        "trading_time": 1786418880
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.69,
+        "trading_time": 1786418940
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.69,
+        "trading_time": 1786419060
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.69,
+        "trading_time": 1786419120
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.69,
+        "trading_time": 1786419180
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.69,
+        "trading_time": 1786419240
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.75,
+        "trading_time": 1786419360
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.77,
+        "trading_time": 1786419420
+      },
+      {
+        "buy_value": 0.71,
+        "sell_value": 3.96,
+        "trading_time": 1786419480
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.19,
+        "trading_time": 1786419900
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.19,
+        "trading_time": 1786420080
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.19,
+        "trading_time": 1786420140
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.19,
+        "trading_time": 1786420260
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.33,
+        "trading_time": 1786420440
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.33,
+        "trading_time": 1786420620
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.45,
+        "trading_time": 1786420800
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.47,
+        "trading_time": 1786420920
+      },
+      {
+        "buy_value": 0.86,
+        "sell_value": 4.94,
+        "trading_time": 1786421040
+      },
+      {
+        "buy_value": 0.89,
+        "sell_value": 4.98,
+        "trading_time": 1786421220
+      },
+      {
+        "buy_value": 0.89,
+        "sell_value": 4.98,
+        "trading_time": 1786421280
+      },
+      {
+        "buy_value": 0.89,
+        "sell_value": 5.11,
+        "trading_time": 1786421340
+      },
+      {
+        "buy_value": 0.89,
+        "sell_value": 5.11,
+        "trading_time": 1786421400
+      },
+      {
+        "buy_value": 0.89,
+        "sell_value": 5.16,
+        "trading_time": 1786421580
+      },
+      {
+        "buy_value": 0.89,
+        "sell_value": 5.16,
+        "trading_time": 1786421760
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.38,
+        "trading_time": 1786422060
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.38,
+        "trading_time": 1786422120
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.38,
+        "trading_time": 1786422420
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.38,
+        "trading_time": 1786422540
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.38,
+        "trading_time": 1786429020
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.73,
+        "trading_time": 1786429140
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.73,
+        "trading_time": 1786429380
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.73,
+        "trading_time": 1786429440
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.87,
+        "trading_time": 1786429500
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.87,
+        "trading_time": 1786429680
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.87,
+        "trading_time": 1786429740
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 6.87,
+        "trading_time": 1786429800
+      },
+      {
+        "buy_value": 1.07,
+        "sell_value": 7.01,
+        "trading_time": 1786429860
+      },
+      {
+        "buy_value": 1.08,
+        "sell_value": 7.01,
+        "trading_time": 1786429980
+      },
+      {
+        "buy_value": 1.08,
+        "sell_value": 7.01,
+        "trading_time": 1786430280
+      },
+      {
+        "buy_value": 1.08,
+        "sell_value": 7.01,
+        "trading_time": 1786430340
+      }
+    ]
+  },
+  "execute_time_ms": 2
+}
