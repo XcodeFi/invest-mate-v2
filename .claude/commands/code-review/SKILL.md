@@ -35,6 +35,7 @@ See [references/review-workflow.md](references/review-workflow.md) for detailed 
 6. Verify critical findings (>= 90) in main context
 7. Present issues, triage with user
 8. Execute: fix / ignore / post
+9. **Re-review the fix diff** (see [review-workflow.md § Step 4.3](references/review-workflow.md#step-43--re-review-the-fixes-hard-gate-when-code-changed)) — fresh sub-agent on `git diff <pre-fix-sha>..HEAD`. Skip only if every fix was text-level. The fix lines are the only code in the change that **no reviewer has ever seen**.
 
 ## Agent Roles
 

@@ -227,3 +227,49 @@ Example: "1: Fix, 2: Post, 3: Ignore"
 - **Post**: Batch all into one `gh pr comment` per [output-format.md](output-format.md)
 
 Execute Fix first, then Post batch, then acknowledge Ignore.
+
+Record the SHA before applying any fix (`git rev-parse HEAD`) — Step 4.3 needs it.
+
+---
+
+## Step 4.3 — Re-review the fixes (HARD GATE when code changed)
+
+**The fix lines are the least-reviewed code in the whole change.** They were written last, by the same context that just missed the original bug, and **no reviewer has ever seen them**. The original review looked at the OLD content of those files. Shipping straight after applying fixes means the newest and least-scrutinised lines go out unexamined.
+
+### When it is mandatory
+
+Re-review is **required** if ANY applied fix touched one of these. Match on what the fix *did*, not on how many lines it took:
+
+| The fix touched | Example |
+|---|---|
+| A conditional, guard, or predicate | adding `&& !isDirty()` to an enable check |
+| A new function, or logic extracted into one | introducing a shared `serialize()` helper |
+| A data transform, parse, or serialization | changing which fields a snapshot stores |
+| State lifecycle — where a flag is set, reset, or cleared | a flag set on save but never reset |
+| Anything auth, ownership, permission, or money | an ownership check, a rounding rule |
+| An error path or fallback branch | which message a failure surfaces |
+
+**Skip only when every applied fix is text-level:** a comment, a user-facing string, a rename with no call-site change, formatting, or import order. If even one fix falls in the table above, the whole round gets re-reviewed.
+
+### How to run it
+
+1. `git diff <sha-recorded-in-4.2>..HEAD` — the fix diff only, not the whole PR.
+2. Launch a **fresh** sonnet sub-agent. Do not continue the first reviewer — it is anchored on its own suggestions and will grade its own homework.
+3. State explicitly in the prompt: *"These lines were written in response to a code review and have never themselves been reviewed. The prior findings and their intended fixes are listed below — verify each fix is actually correct and complete rather than accepting it."*
+4. List each original finding and the fix that was applied, so the reviewer can check the fix against the defect instead of re-deriving it.
+5. Re-run the test suite. A fix that changes behaviour needs a test that would **fail without it** — if you cannot state which test that is, the fix is unpinned.
+
+### Loop limit
+
+At most **2** re-review rounds. If a third round still surfaces HIGH or BLOCKER findings, stop and surface to the user — that many rounds means the design is wrong, not the code.
+
+### Red flags — these thoughts mean you are rationalizing
+
+| Thought | Reality |
+|---|---|
+| "The fixes are small" | Size is not the risk. Being unreviewed is the risk. |
+| "I just wrote them, I know they're right" | That is the same context that missed the original bug. |
+| "Tests pass" | Written by the same context, in the same pass, from the same wrong model. |
+| "The reviewer already looked at this file" | It looked at the file's OLD content. Your lines did not exist yet. |
+| "It's a one-line change" | A guard, a reset, and an off-by-one are all one line. |
+| "I'll just verify it manually instead" | Manual verify checks the path you thought of — the same blind spot. |
