@@ -91,6 +91,39 @@ describe('SymbolTimelineComponent — mốc hồ sơ', () => {
     expect(component.dossierMarkerLabel(undefined)).toBeTruthy();
   });
 
+  // Đường sang hồ sơ trong feed chỉ hiện khi hồ sơ ĐÃ có mốc ký/agent — mã chưa có hồ sơ thì
+  // không có đường nào từ trang này sang đó, đúng lúc cần nhất.
+  describe('đường sang hồ sơ ở tiêu đề', () => {
+    /** ngOnInit đọc symbol từ route (rỗng trong stub) nên phải gán SAU lần detectChanges đầu. */
+    const withSymbol = (symbol: string, items: any[]) => {
+      withItems(items);
+      component.symbol = symbol;
+      fixture.detectChanges();
+    };
+
+    it('luôn có, kể cả khi timeline không có mốc hồ sơ nào', () => {
+      withSymbol('HHV', []);
+
+      const link = fixture.nativeElement.querySelector('[data-testid="header-dossier-link"]');
+      expect(link).withContext('tiêu đề phải có đường sang hồ sơ').not.toBeNull();
+      expect(link.getAttribute('href')).toBe('/company-dossier/HHV');
+    });
+
+    it('trỏ đúng mã đang mở, không phải mã cứng', () => {
+      withSymbol('VNM', [signed()]);
+
+      const link = fixture.nativeElement.querySelector('[data-testid="header-dossier-link"]');
+      expect(link.getAttribute('href')).toBe('/company-dossier/VNM');
+    });
+
+    it('có nhãn chữ, không chỉ mỗi icon trần', () => {
+      withSymbol('HHV', []);
+
+      const link = fixture.nativeElement.querySelector('[data-testid="header-dossier-link"]');
+      expect(link.textContent.trim()).toContain('Hồ sơ công ty');
+    });
+  });
+
   it('xuất CSV có dòng cho mốc hồ sơ, không phải dòng rỗng', () => {
     // Nhánh default của exportCsv trả [] — mốc hồ sơ sẽ thành một dòng trống
     // giữa file thay vì bị bỏ qua hẳn, kiểu hỏng khó thấy nhất.

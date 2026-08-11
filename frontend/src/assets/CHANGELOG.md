@@ -29,6 +29,8 @@ Thêm dòng đếm cạnh nút Lưu: "Còn N yếu tố thiếu dấu hiệu qua
 
 **🔗 Link "← Danh sách hồ sơ"** chuyển từ bên phải (sau nhóm nút hành động) lên góc trái trên tiêu đề, đúng chỗ của một đường lùi.
 
+**🏢 Từ dòng thời gian của mã sang hồ sơ công ty.** Nút cạnh tiêu đề trang `/symbol-timeline/{mã}`, luôn hiện. Trước bản này chỉ có đường đi khi hồ sơ đã từng được ký — mã chưa có hồ sơ thì không có lối nào, đúng lúc cần viết nhất.
+
 ### Kỹ thuật
 
 - Tách `DossierViewComponent` và module thuần `dossier-clipboard.ts` (dựng prompt + parse JSON dán vào). Shape dán trùng đúng tham số MCP `upsert_company_dossier` — một hợp đồng duy nhất cho cả hai đường.

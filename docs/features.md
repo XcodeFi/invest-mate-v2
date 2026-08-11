@@ -1120,6 +1120,8 @@ Mỗi node gồm:
 
 **Entry points:** Watchlist 📊, Trades 📊 (icon riêng), và **mọi mã hiển thị trong danh sách trên toàn app** — 48 chỗ trên 20 file dùng `appSymbolLink` (`SymbolLinkDirective`), xem quy tắc gắn/không gắn ở [`CLAUDE.md`](../CLAUDE.md) mục *Symbol Display*.
 
+**Đường sang hồ sơ công ty** — nút `🏢 Hồ sơ công ty` cạnh tiêu đề trang, luôn hiện. Link trong từng mốc feed chỉ xuất hiện khi hồ sơ đã có mốc ký/agent, nên mã **chưa có hồ sơ** — đúng lúc cần viết nhất — trước đây không có đường nào từ timeline sang.
+
 **Mốc hồ sơ công ty trên timeline** (`TimelineItemDto.Type = "dossier"`):
 - `signed` — mốc `ConfirmedAt`, "Ký hồ sơ công ty".
 - `agent-drafted` — mốc `AgentDraftedAt`, "Trợ lý AI sửa hồ sơ — chờ bạn ký lại".
