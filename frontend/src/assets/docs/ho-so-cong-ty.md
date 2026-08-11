@@ -106,7 +106,7 @@ Trợ lý nối được MCP (Claude qua NPU) thì đã sửa hồ sơ trực ti
 
 **Sao chép cho AI** — chép vào clipboard toàn bộ hồ sơ hiện tại cộng số liệu doanh nghiệp, kèm sẵn câu hỏi và khuôn JSON để trợ lý trả lời đúng định dạng. Dán thẳng vào ChatGPT là xong, không phải tự gõ lại gì.
 
-**Dán từ AI** — dán nguyên văn câu trả lời vào ô, bấm "Đổ vào form". Hệ thống đọc khối JSON cuối cùng trong đó (phần giải thích dài dòng phía trước cứ để nguyên).
+**Dán nội dung** — dán nguyên văn câu trả lời vào ô, bấm "Đổ vào form". Hệ thống đọc khối JSON cuối cùng trong đó (phần giải thích dài dòng phía trước cứ để nguyên). Nút này nhận cả câu trả lời của AI lẫn hồ sơ người khác chia sẻ cho bạn.
 
 Ba điều hệ thống làm giúp khi dán:
 
@@ -115,6 +115,20 @@ Ba điều hệ thống làm giúp khi dán:
 - **Kịch bản vô hiệu hoá lạ** (không thuộc danh sách có sẵn) được bỏ trống thay vì nhận bừa.
 
 **Dán không lưu và không ký.** Nội dung chỉ nằm trong form để bạn đọc lại — muốn giữ thì tự bấm Lưu, muốn xác nhận thì tự bấm Ký. Rời trang mà chưa lưu là mất bản dán, đúng như mọi form khác.
+
+## Chia sẻ hồ sơ cho người khác
+
+Nút **Chia sẻ** chép hồ sơ ra clipboard để bạn tự gửi — qua Zalo, email, hay bất cứ đâu. Nó **không gửi đi đâu cả**; không có chuyện người kia tự dưng nhận được. Người nhận mở trang hồ sơ **cùng mã** rồi bấm "Dán nội dung".
+
+Trước khi chép, hộp thoại cho bạn xem trước đúng nội dung sắp rời khỏi máy, và một ô để chọn cách xưng tên.
+
+**Tên bạn được che sẵn.** Mặc định là email của bạn đã che bớt — `minh.tran@gmail.com` thành `min***@gmail.com`. Giữ lại phần sau `@` để người quen còn nhận ra là bạn, nhưng không đủ để ai đó gửi thư tới. Bạn sửa được thành tên gọi thường ngày, hoặc **xoá trắng** để không ghi tên ai cả. Lần chia sẻ sau tự dùng lại giá trị bạn đã chọn.
+
+**Người nhận thấy nội dung tới từ đâu.** Khi dán, dòng `Nhận từ … ngày …` được chèn lên đầu ô Ghi chú. Hồ sơ không lưu riêng trường nguồn nào, nên đây là vệt duy nhất còn lại — nó nằm ngay chỗ bạn phải đọc trước khi ký. Xoá được, vì đó là ghi chú của bạn.
+
+**Chia sẻ không kèm số liệu doanh nghiệp.** Chỉ có phần bạn viết. Máy bên kia tự lấy P/E, doanh thu, cổ đông… được rồi — gửi kèm chỉ làm bản chia sẻ dài ra và mau cũ.
+
+**Người nhận vẫn phải tự ký.** Nội dung dán vào chỉ nằm trong form. Ký là nhận trách nhiệm về những luận điểm đó — kể cả khi không phải mình viết ra.
 
 ---
 

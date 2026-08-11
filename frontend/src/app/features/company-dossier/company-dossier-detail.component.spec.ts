@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
-import { CompanyDossierDetailComponent, serverMessage } from './company-dossier-detail.component';
+import { CompanyDossierDetailComponent, prependSourceLine, serverMessage } from './company-dossier-detail.component';
+import { AuthService } from '../../core/services/auth.service';
 
 describe('serverMessage', () => {
   it('lấy nguyên văn detail của ProblemDetails từ exception middleware', () => {
@@ -434,5 +435,174 @@ describe('CompanyDossierDetailComponent — chế độ view/edit', () => {
 
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(component.mode).toBe('view');
+  });
+});
+
+describe('prependSourceLine', () => {
+  it('ghi ai gửi và gửi ngày nào lên đầu ghi chú, cách nội dung cũ một dòng trống', () => {
+    expect(prependSourceLine('Ghi chú cũ', 'min***@gmail.com', '2026-08-11'))
+      .toBe('Nhận từ min***@gmail.com ngày 11/08/2026.\n\nGhi chú cũ');
+  });
+
+  it('không có người gửi thì không chèn gì — nội dung tự viết không có nguồn', () => {
+    expect(prependSourceLine('Ghi chú cũ', undefined, '2026-08-11')).toBe('Ghi chú cũ');
+    expect(prependSourceLine(null, undefined, undefined)).toBeNull();
+    expect(prependSourceLine('Ghi chú cũ', '   ', '2026-08-11')).toBe('Ghi chú cũ');
+  });
+
+  it('có người gửi mà không có ngày thì bỏ hẳn phần ngày, không để chữ "ngày" cụt', () => {
+    expect(prependSourceLine(null, 'Minh', undefined)).toBe('Nhận từ Minh.');
+    expect(prependSourceLine(null, 'Minh', '11/08/2026')).toBe('Nhận từ Minh.');
+  });
+
+  it('ghi chú rỗng thì chỉ còn đúng dòng nguồn, không có dòng trống thừa', () => {
+    expect(prependSourceLine(null, 'Minh', '2026-08-11')).toBe('Nhận từ Minh ngày 11/08/2026.');
+    expect(prependSourceLine('   ', 'Minh', '2026-08-11')).toBe('Nhận từ Minh ngày 11/08/2026.');
+  });
+
+  it('dán lại đúng nội dung đó lần nữa KHÔNG đẻ thêm dòng nguồn thứ hai', () => {
+    const once = prependSourceLine('Ghi chú cũ', 'Minh', '2026-08-11');
+    const twice = prependSourceLine(once, 'Minh', '2026-08-11');
+
+    expect(twice).toBe(once);
+  });
+});
+
+describe('CompanyDossierDetailComponent — chia sẻ với tài khoản khác', () => {
+  async function createWith() {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [CompanyDossierDetailComponent, HttpClientTestingModule],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'EVF' }, queryParams: {} } } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(CompanyDossierDetailComponent);
+    fixture.detectChanges();
+    const httpMock = TestBed.inject(HttpTestingController);
+    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.endsWith('/company-dossiers/EVF'));
+    return { fixture, component: fixture.componentInstance, req };
+  }
+
+  const dto = () => ({
+    id: '1', symbol: 'EVF', businessModel: 'Cho thuê tài chính cho doanh nghiệp vừa và nhỏ.',
+    moats: [{ description: 'Chi phí vốn thấp' }],
+    riskFactors: [{ rank: 1, description: 'Nợ xấu', observableSignal: 'NPL > 3%', isDealBreaker: false, suggestedTrigger: null }],
+    notes: 'Ghi chú gốc', freshness: 'Fresh', confirmedAt: '2026-08-01T00:00:00Z', reviewedAt: '2026-08-01T00:00:00Z',
+  });
+
+  beforeEach(() => localStorage.removeItem('dossierSharerName'));
+  afterEach(() => localStorage.removeItem('dossierSharerName'));
+
+  it('mở hộp thoại thì tên điền sẵn lấy từ EMAIL đã che, không phải họ tên thật', async () => {
+    // Shape thật của tài khoản đăng nhập Google: `name` là họ tên đầy đủ, `email` là địa chỉ.
+    // Lấy nhầm `name` thì mặc định sẽ là họ tên thật — che một chuỗi không có "@" trả về nguyên văn.
+    const { component, req } = await createWith();
+    req.flush(dto());
+    spyOn(TestBed.inject(AuthService), 'getCurrentUserValue').and.returnValue({
+      name: 'Trương Phạm',
+      email: 'truong.pham@gmail.com',
+    } as any);
+
+    component.openShare();
+
+    expect(component.sharerName).toBe('tru***@gmail.com');
+    expect(component.sharerName).not.toContain('Trương');
+    expect(component.sharerName).not.toContain('pham');
+    expect(component.showShare).toBe(true);
+  });
+
+  it('nhớ tên đã sửa cho lần chia sẻ sau', async () => {
+    const { component, req } = await createWith();
+    req.flush(dto());
+
+    component.sharerName = 'Minh';
+    component.onSharerNameChange();
+    component.closeShare();
+    component.openShare();
+
+    expect(component.sharerName).toBe('Minh');
+  });
+
+  it('bản xem trước mang nội dung hồ sơ và tên người gửi đang gõ', async () => {
+    const { component, req } = await createWith();
+    req.flush(dto());
+
+    component.sharerName = 'Minh';
+    const preview = component.sharePreview();
+
+    expect(preview).toContain('Cho thuê tài chính cho doanh nghiệp vừa và nhỏ.');
+    expect(preview).toContain('Minh');
+    expect(preview).not.toContain('Ràng buộc bắt buộc');
+  });
+
+  it('xoá trắng ô tên thì payload không có khoá sharedBy', async () => {
+    const { component, req } = await createWith();
+    req.flush(dto());
+
+    component.sharerName = '';
+
+    expect(component.sharePreview()).not.toContain('sharedBy');
+  });
+
+  it('dán nội dung được chia sẻ thì ghi chú có dòng nguồn, và KHÔNG tự lưu', async () => {
+    const { component, req } = await createWith();
+    req.flush(dto());
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    component.openPaste();
+    component.pasteText = '```json\n' + JSON.stringify({
+      symbol: 'EVF', businessModel: 'Bản của Minh', moats: [], riskFactors: [],
+      notes: 'Ghi chú của Minh', sharedBy: 'Minh', sharedAt: '2026-08-11',
+    }) + '\n```';
+    component.applyPaste();
+
+    expect(component.notes).toBe('Nhận từ Minh ngày 11/08/2026.\n\nGhi chú của Minh');
+    expect(component.mode).toBe('edit');
+    httpMock.expectNone((r) => r.method !== 'GET');
+  });
+
+  it('dán payload từ AI (không có người gửi) thì ghi chú không mọc thêm dòng nào', async () => {
+    const { component, req } = await createWith();
+    req.flush(dto());
+
+    component.openPaste();
+    component.pasteText = '```json\n' + JSON.stringify({
+      symbol: 'EVF', businessModel: 'Bản AI', moats: [], riskFactors: [], notes: 'Ghi chú AI',
+    }) + '\n```';
+    component.applyPaste();
+
+    expect(component.notes).toBe('Ghi chú AI');
+  });
+
+  it('vòng tròn: chia sẻ ra rồi dán lại vào cùng mã thì nội dung khớp và có dòng nguồn', async () => {
+    const { component, req } = await createWith();
+    req.flush(dto());
+
+    component.sharerName = 'Minh';
+    const shared = component.sharePreview();
+
+    component.openPaste();
+    component.pasteText = shared;
+    component.applyPaste();
+
+    expect(component.businessModel).toBe('Cho thuê tài chính cho doanh nghiệp vừa và nhỏ.');
+    expect(component.riskFactors[0].observableSignal).toBe('NPL > 3%');
+    expect(component.notes).toContain('Nhận từ Minh ngày ');
+  });
+
+  it('nội dung chia sẻ của mã khác vẫn bị chặn cứng', async () => {
+    const { component, req } = await createWith();
+    req.flush(dto());
+
+    component.openPaste();
+    component.pasteText = '```json\n' + JSON.stringify({
+      symbol: 'HPG', businessModel: 'x', moats: [], riskFactors: [], notes: null, sharedBy: 'Minh',
+    }) + '\n```';
+    component.applyPaste();
+
+    expect(component.pasteError).toContain('HPG');
+    expect(component.businessModel).toBe('Cho thuê tài chính cho doanh nghiệp vừa và nhỏ.');
   });
 });

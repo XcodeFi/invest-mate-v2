@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.80.0] — 2026-08-11 · Gửi hồ sơ công ty cho người khác
+
+### Tính năng
+
+**🤝 Chia sẻ hồ sơ công ty.** Nút **Chia sẻ** ở trang hồ sơ chép toàn bộ phần bạn viết ra clipboard để bạn tự gửi qua Zalo, email hay bất cứ đâu. Người nhận mở trang **cùng mã**, bấm "Dán nội dung", đọc lại rồi tự quyết định lưu và ký.
+
+Nó **không gửi đi đâu cả** — không có chuyện người kia tự dưng nhận được thứ gì.
+
+**🙈 Tên bạn được che sẵn, và sửa được.** Mặc định là email đã che bớt: `minh.tran@gmail.com` thành `min***@gmail.com`. Giữ phần sau `@` để người quen nhận ra là bạn, nhưng không đủ để ai gửi thư tới. Muốn để tên gọi thường ngày thì sửa, muốn ẩn hẳn thì xoá trắng. Lần sau tự dùng lại lựa chọn của bạn.
+
+**👀 Xem trước trước khi chép.** Hộp thoại hiện đúng nội dung sắp rời khỏi máy. Đây là thứ đi sang tay người khác, nên thấy trước là mức tối thiểu.
+
+**📌 Người nhận biết nội dung tới từ đâu.** Dòng `Nhận từ … ngày …` được chèn lên đầu ô Ghi chú khi dán. Đây là vệt duy nhất còn lại — nằm ngay chỗ phải đọc trước khi ký. Xoá được, vì đó là ghi chú của bạn. Dán lại lần nữa không mọc thêm dòng thứ hai.
+
+**📉 Bản chia sẻ không kèm số liệu doanh nghiệp.** Chỉ có phần bạn viết. Máy bên kia tự lấy P/E, doanh thu, cổ đông được rồi.
+
+### Thay đổi
+
+**✏️ Nút `Dán từ AI` đổi tên thành `Dán nội dung`.** Giờ nó nhận cả câu trả lời của AI lẫn hồ sơ người khác chia sẻ, nên giữ nhãn cũ là nói sai.
+
+---
+
 ## [v2.79.1] — 2026-08-11 · Panel số liệu trong hồ sơ công ty đã có dữ liệu trở lại
 
 ### Sửa lỗi

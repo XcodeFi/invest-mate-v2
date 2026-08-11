@@ -19,6 +19,10 @@ export interface ParsedDossier {
   moats: { description: string }[];
   riskFactors: RiskFactorDto[];
   notes: string | null;
+  /** Chỉ có khi nội dung tới từ một tài khoản khác qua nút Chia sẻ. */
+  sharedBy?: string;
+  /** YYYY-MM-DD. */
+  sharedAt?: string;
 }
 
 export type ParseResult =
@@ -26,6 +30,61 @@ export type ParseResult =
   | { ok: false; error: string };
 
 const TRIGGER_KEYS = Object.keys(INVALIDATION_TRIGGER_LABELS);
+
+// --- Chia sẻ với tài khoản khác ---
+
+/**
+ * Che bớt tên đăng nhập của email, giữ lại domain. Giữ domain vì giữa người quen thế là đủ nhận ra
+ * ai gửi, mà không đủ để gửi thư tới. Không phải email thì để nguyên — đó là tên người, che đi
+ * thành vô nghĩa.
+ */
+export function maskSharerName(name: string | null | undefined): string {
+  const raw = (name ?? '').trim();
+  if (!raw) return '';
+
+  const at = raw.indexOf('@');
+  if (at === -1) return raw;
+
+  const local = raw.slice(0, at);
+  if (!local) return '';
+
+  const keep = local.length < 4 ? 1 : 3;
+  return `${local.slice(0, keep)}***${raw.slice(at)}`;
+}
+
+/**
+ * Khác `buildAiPrompt` ở chỗ người nhận là NGƯỜI, không phải AI: không schema, không câu yêu cầu
+ * soát lại, và không kèm số liệu thị trường — máy bên kia tự lấy được, gửi kèm chỉ làm payload
+ * phình ra và ôi thiu.
+ */
+export function buildSharePayload(content: DossierContent, sharedBy: string, sharedAt: string): string {
+  const who = sharedBy.trim();
+  const payload: Record<string, unknown> = {
+    symbol: content.symbol,
+    businessModel: content.businessModel,
+    moats: content.moats.map((m) => ({ description: m.description })).filter((m) => m.description?.trim()),
+    riskFactors: content.riskFactors.map((r) => ({
+      rank: r.rank,
+      description: r.description,
+      observableSignal: r.observableSignal,
+      isDealBreaker: r.isDealBreaker,
+      suggestedTrigger: r.suggestedTrigger,
+    })),
+    notes: content.notes,
+    sharedAt,
+  };
+  // Bỏ HẲN khoá khi không có tên: chuỗi rỗng bên nhận phải tự đoán nghĩa, còn khoá vắng thì rõ ràng.
+  if (who) payload['sharedBy'] = who;
+
+  return [
+    `Hồ sơ công ty ${content.symbol}${who ? ` — ${who} chia sẻ` : ''}`,
+    'Dán toàn bộ khối dưới đây vào nút "Dán nội dung" ở trang hồ sơ công ty cùng mã.',
+    '',
+    '```json',
+    JSON.stringify(payload, null, 2),
+    '```',
+  ].join('\n');
+}
 
 // --- Sao chép ---
 
@@ -205,6 +264,9 @@ export function parseAiPayload(text: string, expectedSymbol: string): ParseResul
       moats: normalizeMoats(obj['moats']),
       riskFactors,
       notes: typeof obj['notes'] === 'string' ? obj['notes'] : null,
+      // Sai kiểu thì bỏ qua chứ không làm hỏng cả lần dán — đây là siêu dữ liệu, không phải nội dung.
+      ...(typeof obj['sharedBy'] === 'string' && obj['sharedBy'].trim() ? { sharedBy: obj['sharedBy'].trim() } : {}),
+      ...(typeof obj['sharedAt'] === 'string' && obj['sharedAt'].trim() ? { sharedAt: obj['sharedAt'].trim() } : {}),
     },
   };
 }

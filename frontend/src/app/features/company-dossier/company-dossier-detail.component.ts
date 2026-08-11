@@ -13,7 +13,8 @@ import {
 import { NotificationService } from '../../core/services/notification.service';
 import { FundamentalsPanelComponent } from './fundamentals-panel.component';
 import { DossierViewComponent } from './dossier-view.component';
-import { buildAiPrompt, parseAiPayload } from './dossier-clipboard';
+import { buildAiPrompt, buildSharePayload, maskSharerName, parseAiPayload } from './dossier-clipboard';
+import { AuthService } from '../../core/services/auth.service';
 import { CompanyFundamentals } from '../../core/services/market-data.service';
 
 /**
@@ -29,6 +30,43 @@ export function serverMessage(err: unknown): string {
 
 const PENDING_PLAN_KEY = 'pendingTradePlanDraft';
 const MIN_BUSINESS_MODEL_LEN = 30;
+const SHARER_NAME_KEY = 'dossierSharerName';
+
+/** Ngày hôm nay dạng YYYY-MM-DD theo lịch máy người dùng. */
+export function todayIso(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
+ * Ghi lại nội dung này tới từ đâu, ngay đầu ô Ghi chú. Đây là vệt DUY NHẤT còn lại sau khi dán —
+ * hồ sơ không lưu trường nguồn nào — nên nó phải nằm ở chỗ người ký chắc chắn đọc phải.
+ * Xoá được, vì đây là ghi chú của người dùng chứ không phải siêu dữ liệu của hệ thống.
+ */
+export function prependSourceLine(
+  notes: string | null,
+  sharedBy: string | undefined,
+  sharedAt: string | undefined,
+): string | null {
+  const who = sharedBy?.trim();
+  if (!who) return notes;
+
+  const when = formatShareDate(sharedAt);
+  const line = when ? `Nhận từ ${who} ngày ${when}.` : `Nhận từ ${who}.`;
+
+  const body = notes ?? '';
+  // Dán lại đúng nội dung đó lần nữa không được đẻ thêm dòng thứ hai.
+  if (body.includes(line)) return body;
+
+  return body.trim() ? `${line}\n\n${body}` : line;
+}
+
+/** YYYY-MM-DD → DD/MM/YYYY. Sai định dạng thì bỏ hẳn phần ngày thay vì in ra một chuỗi cụt. */
+function formatShareDate(raw: string | undefined): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((raw ?? '').trim());
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+}
 
 /**
  * `touched` chỉ sống ở client — save() map từng field một nên nó không bao giờ lọt xuống API.
@@ -83,9 +121,13 @@ function serializeEditable(d: DossierEditable): string {
               class="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm whitespace-nowrap">
               {{ copied ? '✓ Đã chép' : 'Sao chép cho AI' }}
             </button>
+            <button (click)="openShare()" data-testid="btn-open-share" title="Sao chép hồ sơ để gửi cho tài khoản khác"
+              class="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm whitespace-nowrap">
+              Chia sẻ
+            </button>
             <button (click)="openPaste()" data-testid="btn-open-paste"
               class="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm whitespace-nowrap">
-              Dán từ AI
+              Dán nội dung
             </button>
           }
           @if (!loading && mode === 'view') {
@@ -256,14 +298,49 @@ function serializeEditable(d: DossierEditable): string {
         </div>
       </div>
 
-      <!-- Dán từ AI. Overlay z-[60] vì header sticky đang ở z-50. -->
+      <!-- Chia sẻ với tài khoản khác. Overlay z-[60] vì header sticky đang ở z-50. -->
+      @if (showShare) {
+        <div class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" data-testid="share-modal">
+          <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-1">Chia sẻ hồ sơ {{ symbol }}</h2>
+            <p class="text-xs text-gray-500 mb-4">
+              Nút này <strong>chỉ sao chép vào clipboard</strong> — không gửi đi đâu cả. Bạn tự dán vào Zalo,
+              email hay bất cứ đâu. Người nhận dán vào nút "Dán nội dung" ở trang cùng mã.
+            </p>
+
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="sharer">Ghi tên bạn là</label>
+            <input id="sharer" [(ngModel)]="sharerName" (ngModelChange)="onSharerNameChange()"
+              data-testid="share-sharer" maxlength="80"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+              placeholder="Để trống nếu không muốn ghi tên" />
+            <p class="text-xs text-gray-400 mt-1 mb-3">
+              Mặc định là email của bạn đã che bớt. Sửa được, hoặc xoá trắng để không ghi tên ai.
+            </p>
+
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nội dung sẽ được chép</label>
+            <textarea readonly rows="9" data-testid="share-preview"
+              class="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-xs font-mono text-gray-600"
+              >{{ sharePreview() }}</textarea>
+
+            <div class="flex justify-end items-center gap-3 mt-4">
+              <button (click)="closeShare()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium">Hủy</button>
+              <button (click)="copyShare()" data-testid="btn-copy-share"
+                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                {{ shareCopied ? '✓ Đã chép' : 'Sao chép' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Dán nội dung. Overlay z-[60] vì header sticky đang ở z-50. -->
       @if (showPaste) {
         <div class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" data-testid="paste-modal">
           <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-1">Dán nội dung từ AI</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-1">Dán nội dung</h2>
             <p class="text-xs text-gray-500 mb-3">
-              Dán nguyên văn câu trả lời. Nội dung sẽ được đổ vào form để bạn đọc lại —
-              <strong>không tự lưu và không tự ký</strong>.
+              Nhận cả câu trả lời của AI lẫn nội dung người khác chia sẻ. Nội dung sẽ được đổ vào form
+              để bạn đọc lại — <strong>không tự lưu và không tự ký</strong>.
             </p>
             <textarea [(ngModel)]="pasteText" rows="10" data-testid="paste-input"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500"
@@ -317,6 +394,9 @@ export class CompanyDossierDetailComponent implements OnInit {
   showPaste = false;
   pasteText = '';
   pasteError: string | null = null;
+  showShare = false;
+  shareCopied = false;
+  sharerName = '';
 
   /** Ảnh chụp nội dung lúc vào 'edit' — để Hủy biết có gì để mất không, và trả lại đúng bản cũ. */
   private snapshot: DossierEditable | null = null;
@@ -335,6 +415,7 @@ export class CompanyDossierDetailComponent implements OnInit {
     private router: Router,
     private dossierService: CompanyDossierService,
     private notification: NotificationService,
+    private auth: AuthService,
   ) {}
 
   ngOnInit(): void {
@@ -535,6 +616,51 @@ export class CompanyDossierDetailComponent implements OnInit {
     );
   }
 
+  // --- Chia sẻ ---
+
+  openShare(): void {
+    // Giá trị đã sửa lần trước thắng giá trị che mặc định: người dùng đã chọn cách xưng tên rồi,
+    // bắt gõ lại mỗi lần chia sẻ là phiền vô cớ.
+    // Lấy `email` chứ KHÔNG lấy `name`: `name` là họ tên thật lấy từ Google, mà che một cái tên
+    // không có `@` thì trả về nguyên văn — mặc định sẽ là họ tên đầy đủ của người dùng.
+    const saved = localStorage.getItem(SHARER_NAME_KEY);
+    this.sharerName = saved ?? maskSharerName(this.auth.getCurrentUserValue()?.email);
+    this.shareCopied = false;
+    this.showShare = true;
+  }
+
+  closeShare(): void {
+    this.showShare = false;
+  }
+
+  onSharerNameChange(): void {
+    localStorage.setItem(SHARER_NAME_KEY, this.sharerName);
+  }
+
+  sharePreview(): string {
+    return buildSharePayload(
+      {
+        symbol: this.symbol,
+        businessModel: this.businessModel,
+        moats: this.moats,
+        riskFactors: this.riskFactors,
+        notes: this.notes,
+      },
+      this.sharerName,
+      todayIso(),
+    );
+  }
+
+  copyShare(): void {
+    navigator.clipboard.writeText(this.sharePreview()).then(
+      () => {
+        this.shareCopied = true;
+        setTimeout(() => (this.shareCopied = false), 2000);
+      },
+      () => this.notification.error('Không sao chép được', 'Trình duyệt từ chối quyền ghi clipboard.'),
+    );
+  }
+
   openPaste(): void {
     this.pasteText = '';
     this.pasteError = null;
@@ -559,7 +685,7 @@ export class CompanyDossierDetailComponent implements OnInit {
     this.businessModel = result.value.businessModel;
     this.moats = result.value.moats;
     this.riskFactors = result.value.riskFactors;
-    this.notes = result.value.notes;
+    this.notes = prependSourceLine(result.value.notes, result.value.sharedBy, result.value.sharedAt);
     this.mode = 'edit';
     this.showPaste = false;
 
