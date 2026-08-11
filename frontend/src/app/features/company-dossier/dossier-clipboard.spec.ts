@@ -187,6 +187,19 @@ describe('parseAiPayload', () => {
     expect(parseAiPayload('{"businessModel":"trần"}', 'EVF').ok).toBe(true);
   });
 
+  // AI trích một đoạn code trong chính nội dung hồ sơ thì dấu ``` lọt vào giữa, cắt hàng rào sai chỗ.
+  it('đọc được khi nội dung JSON có chứa dấu hàng rào bên trong chuỗi', () => {
+    const text = '```json\n' + JSON.stringify({
+      businessModel: 'Bán phần mềm; tài liệu có đoạn ``` ví dụ ``` trong đó.',
+      notes: 'x',
+    }) + '\n```';
+
+    const result = parseAiPayload(text, 'EVF');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.notes).toBe('x');
+  });
+
   it('mảng thay vì object thì từ chối', () => {
     expect(parseAiPayload('[{"businessModel":"x"}]', 'EVF').ok).toBe(false);
   });

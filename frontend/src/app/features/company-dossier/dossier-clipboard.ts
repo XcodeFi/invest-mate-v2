@@ -153,20 +153,36 @@ function instructions(symbol: string): string {
 // --- Dán ---
 
 export function parseAiPayload(text: string, expectedSymbol: string): ParseResult {
-  const raw = extractJson(text);
-  if (raw === null) return { ok: false, error: 'Không tìm thấy JSON trong nội dung đã dán.' };
+  const candidates = jsonCandidates(text);
+  if (!candidates.length) return { ok: false, error: 'Không tìm thấy JSON trong nội dung đã dán.' };
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { ok: false, error: 'Khối JSON không hợp lệ — kiểm tra lại phần AI trả về.' };
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { ok: false, error: 'JSON phải là một object hồ sơ.' };
+  // Thử parse từng ứng viên thay vì tin khối cuối một cách mù quáng: một dấu hàng rào nằm LỌT
+  // TRONG chuỗi JSON (AI trích ví dụ code trong chính mô tả) sẽ cắt hàng rào sai chỗ.
+  let obj: Record<string, unknown> | null = null;
+  let sawNonObject = false;
+  for (const candidate of candidates) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      sawNonObject = true;
+      continue;
+    }
+    obj = parsed as Record<string, unknown>;
+    break;
   }
 
-  const obj = parsed as Record<string, unknown>;
+  if (!obj) {
+    return {
+      ok: false,
+      error: sawNonObject
+        ? 'JSON phải là một object hồ sơ.'
+        : 'Khối JSON không hợp lệ — kiểm tra lại phần AI trả về.',
+    };
+  }
 
   // Chặn cứng, không chỉ cảnh báo: dán nội dung mã khác rồi lưu và ký là lỗi không ai bắt được nữa.
   const symbol = typeof obj['symbol'] === 'string' ? obj['symbol'].trim().toUpperCase() : null;
@@ -190,13 +206,30 @@ export function parseAiPayload(text: string, expectedSymbol: string): ParseResul
   };
 }
 
-/** Lấy khối ```json CUỐI CÙNG — AI hay giải thích trước rồi mới chốt bản cuối. */
-function extractJson(text: string): string | null {
-  const fences = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)];
-  if (fences.length) return fences[fences.length - 1][1].trim();
+/**
+ * Các đoạn có thể là JSON, xếp theo thứ tự ƯU TIÊN THỬ:
+ * 1. Từng khối hàng rào, duyệt NGƯỢC — AI hay nháp trước rồi mới chốt bản cuối.
+ * 2. Cả đoạn text — ca dán JSON trần, và cũng là chỗ phát hiện mảng để báo sai shape.
+ * 3. Từ `{` đầu tới `}` cuối — cứu ca hàng rào bị cắt sai vì dấu ``` nằm trong chuỗi JSON.
+ *    Bỏ qua khi text mở đầu bằng `[`, nếu không một mảng object sẽ bị moi ra thành object.
+ */
+function jsonCandidates(text: string): string[] {
+  const out = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)]
+    .map((m) => m[1].trim())
+    .reverse();
 
+  // Chỉ nhận cả đoạn text khi nó TRÔNG như JSON. Nhận bừa thì một đoạn văn xuôi cũng thành ứng viên,
+  // và người dùng bị báo "JSON hỏng" thay vì "không tìm thấy JSON" — hai việc phải làm khác nhau.
   const trimmed = text.trim();
-  return trimmed.startsWith('{') ? trimmed : null;
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) out.push(trimmed);
+
+  if (!trimmed.startsWith('[')) {
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last > first) out.push(text.slice(first, last + 1));
+  }
+
+  return out.filter((c) => c.length > 0);
 }
 
 function normalizeMoats(value: unknown): { description: string }[] {

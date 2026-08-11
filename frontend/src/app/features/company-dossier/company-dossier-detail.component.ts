@@ -368,9 +368,12 @@ export class CompanyDossierDetailComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        // 404 — mã chưa có hồ sơ: không có gì để đọc, vào thẳng form trống
+        // 404 — mã chưa có hồ sơ: không có gì để đọc, vào thẳng form trống.
+        // Vẫn chụp snapshot (rỗng) để isDirty() nói đúng ở cả nhánh này — thiếu nó thì một bản
+        // đang gõ dở, chưa từng lưu, bị coi là "sạch" và mọi guard hỏi isDirty() đều bị lừa.
         this.exists = false;
         this.mode = 'edit';
+        this.takeSnapshot();
         this.loading = false;
       },
     });
@@ -378,8 +381,14 @@ export class CompanyDossierDetailComponent implements OnInit {
 
   // --- Chế độ xem / sửa ---
 
+  /**
+   * `saveAttempted` là mốc của MỘT phiên sửa, không phải của cả trang. Mang nó sang phiên sau thì
+   * dòng vừa "+ Thêm yếu tố" đã đỏ trước khi người dùng kịp gõ — đúng thứ mà chế độ hoãn báo lỗi
+   * sinh ra để tránh.
+   */
   startEdit(): void {
     this.takeSnapshot();
+    this.saveAttempted = false;
     this.mode = 'edit';
   }
 
@@ -390,6 +399,7 @@ export class CompanyDossierDetailComponent implements OnInit {
   cancelEdit(): void {
     if (this.isDirty() && !confirm('Bỏ các thay đổi chưa lưu?')) return;
     this.restoreSnapshot();
+    this.saveAttempted = false;
     this.mode = 'view';
   }
 

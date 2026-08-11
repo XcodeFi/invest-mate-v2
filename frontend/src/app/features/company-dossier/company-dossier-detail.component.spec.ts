@@ -359,6 +359,71 @@ describe('CompanyDossierDetailComponent — chế độ view/edit', () => {
     expect(component.canSign()).toBe(false);
   });
 
+  // Mốc "đã bấm Lưu" thuộc về MỘT phiên sửa. Không reset thì phiên sửa thứ hai thừa hưởng nó, và
+  // dòng vừa thêm đã đỏ trước khi người dùng kịp gõ — đúng thứ mà chế độ hoãn báo lỗi sinh ra để tránh.
+  it('bấm Sửa lần nữa thì mốc "đã bấm Lưu" của phiên trước không còn hiệu lực', async () => {
+    const { component, req } = await createWith({ edit: '1' });
+    req.flush(dto());
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    component.save();
+    httpMock.expectOne((r) => r.method === 'PUT').flush({ id: '1' });
+    expect(component.mode).toBe('view');
+
+    component.startEdit();
+    component.addRiskFactor();
+    const added = component.riskFactors[component.riskFactors.length - 1];
+
+    expect(component.showSignalError(added)).toBe(false);
+    expect(component.missingSignalCount()).toBe(0);
+  });
+
+  it('Hủy rồi sửa lại cũng không thừa hưởng mốc đó', async () => {
+    const { component, req } = await createWith({ edit: '1' });
+    req.flush(dto());
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    component.save();
+    httpMock.expectOne((r) => r.method === 'PUT').flush({ id: '1' });
+    component.startEdit();
+    component.addRiskFactor();
+    // Thêm yếu tố làm form dirty ⇒ cancelEdit() gọi confirm() thật và treo headless Chrome.
+    spyOn(window, 'confirm').and.returnValue(true);
+    component.cancelEdit();
+
+    component.startEdit();
+    component.addRiskFactor();
+
+    expect(component.showSignalError(component.riskFactors[component.riskFactors.length - 1])).toBe(false);
+  });
+
+  // Lưu THẤT BẠI thì lỗi phải ở lại — người dùng đang cần nhìn thấy cái gì đang chặn mình.
+  it('lưu thất bại thì lỗi vẫn hiện, không bị dọn theo', async () => {
+    const { component, req } = await createWith({ edit: '1' });
+    req.flush(dto());
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    component.addRiskFactor();
+    component.save();
+    httpMock.expectOne((r) => r.method === 'PUT')
+      .flush({ detail: 'lỗi' }, { status: 400, statusText: 'Bad Request' });
+
+    expect(component.mode).toBe('edit');
+    expect(component.showSignalError(component.riskFactors[component.riskFactors.length - 1])).toBe(true);
+  });
+
+  // Mã chưa có hồ sơ: gõ dở rồi rời đi là mất trắng. isDirty() phải nói đúng sự thật ở cả nhánh này.
+  it('hồ sơ mới (404) gõ dở vẫn tính là đã sửa', async () => {
+    const { component, req } = await createWith();
+    req.flush('not found', { status: 404, statusText: 'Not Found' });
+
+    expect(component.isDirty()).toBe(false);
+
+    component.businessModel = 'đang gõ dở';
+
+    expect(component.isDirty()).toBe(true);
+  });
+
   it('Hủy khi không sửa gì thì không hỏi lại', async () => {
     const { component, req } = await createWith();
     req.flush(dto());
