@@ -277,7 +277,11 @@ Expected: build sạch, test không giảm số lượng.
 
 Chọn 2 trang (một bảng, một thẻ), viết spec kiểm `[role="link"]` xuất hiện đúng số lần bằng số mã hiển thị. Đây là cách duy nhất bắt được ca "quên `imports`".
 
-- [ ] **Step 4: Verify browser** — CHƯA CHẠY tại thời điểm commit; làm ngay sau khi mở PR.
+- [x] **Step 4: Verify browser** — ĐÃ CHẠY (localhost:4200 + API 5000, JWT mint cho `investmate.support@gmail.com`, chỉ đọc).
+
+Kết quả: bấm mã `HHV` ở trang Vị thế → sang đúng `/symbol-timeline/HHV`. Trang kế hoạch 4 link, phân tích 2 link; các trang khác 0 link vì **0 dòng dữ liệu** cho user test, không phải thiếu gắn. Console không có lỗi.
+
+**Việc chỉ verify thật mới thấy:** trang Vị thế đã có sẵn `<a [routerLink]="['/symbol-timeline', pos.symbol]">📊</a>` **ngay cạnh mã** — sau khi gắn directive thì thành hai control cạnh nhau đi đúng cùng một chỗ. Icon đó vốn là cách đi vòng vì mã chưa bấm được. Đã bỏ icon, giữ mã. Đây đúng là nguyên tắc đã dùng để loại watchlist/trades, chỉ khác ở chỗ hai trang kia mã trỏ đi **nơi khác** nên icon vẫn còn lý do tồn tại, còn ở đây thì không. Test và build đều không bắt được loại trùng lặp này.
 
 Mở `localhost:4200`, bấm một mã ở mỗi trang đã sửa, xác nhận sang đúng `/symbol-timeline/<mã>`. Dán ảnh/kết quả.
 
@@ -393,7 +397,9 @@ it('hiện mốc ký hồ sơ trên dòng thời gian', () => {
 
 Icon riêng + nhãn tiếng Việt: `signed` → "Ký hồ sơ công ty", `agent-drafted` → "Trợ lý AI sửa hồ sơ — chờ bạn ký lại". Có link `[appSymbolLink]` hoặc `routerLink` sang trang hồ sơ.
 
-- [~] **Step 4: Chạy toàn bộ test + verify browser** — test đã chạy (1.811 backend + 219 frontend); verify browser CHƯA CHẠY tại thời điểm commit, làm ngay sau khi mở PR.
+- [x] **Step 4: Chạy toàn bộ test + verify browser** — test 1.811 backend + 219 frontend. Verify browser đã chạy: `/symbol-timeline/HAH` (mã duy nhất có cả `confirmedAt` lẫn `agentDraftedAt`) hiện **đủ 2 mốc** — "Ký hồ sơ công ty" và "Trợ lý AI sửa hồ sơ — chờ bạn ký lại" — kèm ô lọc `📋 Hồ sơ công ty` và link "Xem hồ sơ". Console sạch. Ảnh: `scratch/qa-verify-timeline-dossier-HAH.png`.
+
+Dữ liệu thật khớp đúng phân tích ở Task 4: HAH có `agentDraftedAt` 07:21 rồi `confirmedAt` 08:47 — tức agent soạn trước, người dùng ký sau. Đó là **cách duy nhất** để cả hai mốc cùng tồn tại.
 
 Run: `dotnet test` (tắt API trước — API đang chạy sẽ khoá DLL và `Api.Tests` bị bỏ qua **im lặng**) và `cd frontend && npx ng test --watch=false`. Dán output.
 
