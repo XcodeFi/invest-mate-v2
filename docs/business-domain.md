@@ -40,6 +40,8 @@ User (1)
  ├── AlertRule (N)          ← Cảnh báo giá/rủi ro
  ├── Backtest (N)           ← Kiểm thử chiến lược
  │
+ ├── MoodCheckIn (N)        ← Tâm trạng tự chấm (1 per user per ngày lịch VN, ADR-0013)
+ │
  ├── DailyRoutine (N)       ← Nhiệm vụ hàng ngày (1 per user per day)
  │    └── RoutineItem (N)   ← Các bước trong routine (embedded)
  │
@@ -460,7 +462,8 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 |--------|-------------|-----------|
 | Auth | `/api/v1/auth` | Đăng nhập, đăng ký, JWT |
 | Portfolios | `/api/v1/portfolios` | CRUD danh mục |
-| Trades | `/api/v1/trades` | CRUD giao dịch, bulk import, link plan |
+| Trades | `/api/v1/trades` | CRUD giao dịch, bulk import, link plan, **`GET /last-activity` (2026-08-11, ADR-0013)** — ngày đặt lệnh gần nhất + số ngày lịch VN kể từ đó, cả hai `null` khi chưa có lệnh nào. `Trade` không mang `UserId` nên quyền sở hữu đi qua `Portfolio`: lấy danh mục chưa xoá của người gọi rồi mới truy lệnh theo danh sách đó. Không dùng lại dữ liệu vị thế đang mở vì bán sạch một mã làm lệnh đó tàng hình, khiến đồng hồ kiên nhẫn nhảy vọt đúng lúc người dùng vừa làm việc cảm tính nhất |
+| Mood | `/api/v1/mood` | **Tâm trạng tự chấm cho màn tĩnh tâm (2026-08-11, ADR-0013)** — `GET /today` trả `{ mood, overrode }` (`mood: null` khi hôm nay chưa chấm); `POST /` upsert bản hôm nay (body PascalCase `{ Mood }`, enum `Calm`/`Fomo`/`Fear`/`Revenge`); `POST /override` đóng dấu đã bấm qua lớp phủ, **404 khi hôm nay chưa chấm** — không đẻ bản ghi ma. Ngày lịch VN do server tính (`UtcNow + 07:00`), client không gửi ngày lên |
 | TradePlans | `/api/v1/trade-plans` | CRUD kế hoạch, execute lot, update SL, scenario node trigger, scenario templates, **campaign review (P0.7)**: close + preview + update lessons + pending-review + analytics, **abort với thesis invalidation (Vin-discipline, 2026-04-23)** `POST {id}/abort` |
 | Discipline | `/api/v1/me/discipline-score` | **Điểm Kỷ luật Thesis (Vin-discipline, 2026-04-23)** — GET với query `days` (7/30/90/365, default 90). Trả composite 0-100 (SL-Integrity 50% / Plan Quality 30% / Review Timeliness 20%) + Stop-Honor Rate primitive + sample size + trend. Cache 5 phút (IMemoryCache). |
 | Discipline | `/api/v1/me/thesis-reviews/pending` | **Pending thesis reviews (V2.1, 2026-04-23)** — GET list plan Ready/InProgress có `InvalidationRule.CheckDate ≤ today+2` (VN UTC+7 local day granularity) HOẶC `ExpectedReviewDate ≤ today`, chưa triggered, không legacy-exempt. Sort DESC theo `DaysOverdue`. Response `PendingThesisReviewDto[]` với reasons list + trigger type + due date. |
@@ -497,7 +500,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 
 | Route | Trang | Mô tả |
 |-------|-------|-------|
-| `/dashboard` | Dashboard | Tổng quan: P&L, CAGR, equity chart, vị thế nổi bật |
+| `/dashboard` | Dashboard | Màn tĩnh tâm ở đầu trang (ADR-0013), rồi tổng quan: P&L, CAGR, equity chart, vị thế nổi bật. **Widget "Giao dịch nhanh" đã gỡ 2026-08-11** — ít dùng, và nó là lối đặt lệnh nhanh nhất trên trang chủ; đường tới `/trade-plan` vẫn còn ở menu |
 | `/portfolios` | Danh mục | Danh sách & chi tiết danh mục |
 | `/trades` | Giao dịch | Lịch sử giao dịch, lọc, import CSV |
 | `/trades/create` | Tạo GD | Form tạo giao dịch mua/bán |

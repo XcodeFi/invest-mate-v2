@@ -33,6 +33,11 @@ export interface CreateTradeRequest {
   tradeDate?: string;
 }
 
+export interface LastTradeActivity {
+  lastTradeDate: string | null;
+  daysSince: number | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -64,6 +69,12 @@ export class TradeService {
 
   linkToPlan(tradeId: string, planId: string): Observable<void> {
     return this.http.patch<void>(`${this.API_URL}/${tradeId}/link-plan`, { planId }, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  /** Lệnh gần nhất + số ngày lịch VN kể từ đó. Cả hai null khi chưa có lệnh nào. */
+  getLastActivity(): Observable<LastTradeActivity> {
+    return this.http.get<LastTradeActivity>(`${this.API_URL}/last-activity`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

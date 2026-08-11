@@ -2,6 +2,35 @@
 
 ---
 
+## [v2.79.0] — 2026-08-11 · Trang chủ có một khoảng lặng trước khi bạn bấm bất cứ thứ gì
+
+### Tính năng
+
+**🎣 Màn tĩnh tâm ở đầu trang chủ.** Mở app ra không còn rơi thẳng vào danh sách việc cần làm. Trên cùng giờ là mặt hồ và một người ngồi câu — và cảnh đó **phản ánh số ngày bạn chưa đặt lệnh**: vừa giao dịch xong thì nước còn động, sóng gấp, trời xám; càng lâu không động tay, sóng càng lặng và trời càng ngả hoàng hôn. Số ngày hiển thị luôn là số thật, chưa có lệnh nào thì nói thẳng "Chưa có lệnh nào" chứ không bịa.
+
+Kèm một câu châm ngôn — Buffett, Munger, Graham, Livermore, Lynch, và vài câu ẩn dụ người câu — đổi theo trạng thái bạn tự chấm, cùng một dòng không bao giờ đổi: *Tiền là con số trên màn hình. Mất tiền là thật.*
+
+**✋ Luật dừng: khi cảm xúc vào thì không hành động.** Mỗi ngày một câu hỏi — *Giờ anh đang thế nào?* Bình tĩnh / FOMO (sợ bỏ lỡ) / Sợ / Cay cú.
+
+Chấm khác Bình tĩnh thì **Việc cần xử lý hôm nay bị phủ mờ**, kèm câu *"Danh sách này tối nay vẫn ở đây."* Bạn vẫn xem được — nhưng phải bấm thêm một lần. Không ai cấm bạn tiêu tiền của mình; chỉ là bắt bạn dừng nửa giây trước khi làm.
+
+Ba đường lách đã bịt sẵn: bấm **đổi** chỉ mở lại bảng chọn chứ không gỡ lớp phủ; chấm Bình tĩnh rồi quay lại FOMO thì phải bấm qua lớp phủ lại từ đầu; và lúc app còn đang hỏi server bạn đang thế nào thì danh sách chưa hiện ra — không có kẽ hở nào để lọt.
+
+Tâm trạng lưu theo tài khoản nên mở máy khác vẫn thấy, xoá cache không mất, sang ngày mới thì hỏi lại.
+
+### Thay đổi
+
+**🗑️ Gỡ widget "Giao dịch nhanh" khỏi trang chủ.** Ít khi dùng, và nó là lối đặt lệnh nhanh nhất trên trang chủ — đúng thứ mà bản này muốn bớt đi. Đường tới Kế hoạch giao dịch vẫn còn nguyên ở menu.
+
+### Kỹ thuật
+
+- Hoạt hoạ chạy **thuần CSS, không có vòng lặp JavaScript**; tôn trọng `prefers-reduced-motion` (tắt chuyển động, giữ ảnh tĩnh đúng mức tĩnh lặng đó).
+- Endpoint mới: `GET /api/v1/trades/last-activity` và `/api/v1/mood` (`today` / ghi / `override`).
+- Ngày lịch Việt Nam tính ở server; khoá ngày lưu dạng chuỗi để không bị lệch một ngày khi đi qua database.
+- 1846 test backend + 316 test frontend, tất cả pass. Chi tiết quyết định: ADR-0013.
+
+---
+
 ## [v2.78.0] — 2026-08-11 · Hồ sơ công ty mở ra là đọc được, sửa thì dễ gõ hơn
 
 ### Tính năng

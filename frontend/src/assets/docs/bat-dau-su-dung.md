@@ -63,7 +63,14 @@ Có 2 cách ghi giao dịch:
 
 Quay lại **Dashboard** (`/dashboard`) để xem:
 
-- **🚨 Decision Queue (vị trí #1)**: Việc cần xử lý hôm nay — gộp Stop-loss / Scenario trigger / Thesis review thành 1 list. Mỗi item có 2 button:
+- **🎣 Màn tĩnh tâm (đầu trang)**: một khoảng lặng trước khi bạn bấm vào bất cứ thứ gì.
+  - **Cảnh người đi câu** phản ánh **số ngày bạn chưa đặt lệnh**. Vừa giao dịch xong thì nước còn động; càng lâu không động tay, mặt hồ càng phẳng và trời càng ngả hoàng hôn. Số ngày hiển thị luôn là số thật.
+  - **Châm ngôn** đổi theo trạng thái bạn tự chấm.
+  - **Mỗi ngày một câu hỏi**: *Giờ anh đang thế nào?* — Bình tĩnh / FOMO (sợ bỏ lỡ) / Sợ / Cay cú.
+  - Chấm khác **Bình tĩnh** → Việc cần xử lý hôm nay bị **phủ mờ**, kèm câu *"Danh sách này tối nay vẫn ở đây."* Bạn vẫn xem được, nhưng phải bấm thêm một lần. Không ai cấm bạn — chỉ là bắt bạn dừng lại nửa giây.
+  - Bấm **đổi** chỉ mở lại bảng chọn, lớp phủ vẫn còn. Và nếu bạn chấm Bình tĩnh rồi quay lại FOMO thì phải bấm qua lớp phủ lại từ đầu.
+  - Tâm trạng lưu theo tài khoản nên mở máy khác vẫn thấy, sang ngày mới thì hỏi lại.
+- **🚨 Decision Queue (vị trí #2)**: Việc cần xử lý hôm nay — gộp Stop-loss / Scenario trigger / Thesis review thành 1 list. Mỗi item có 2 button:
   - **🔪 BÁN THEO KẾ HOẠCH** — bán ngay theo plan với giá hiện tại (chỉ enable khi item có gắn Trade Plan).
   - **✋ GIỮ + GHI LÝ DO** — bắt buộc nhập ≥ 20 ký tự để buộc nghĩ kỹ trước khi bỏ qua tín hiệu.
   - Empty state: khi không có alert → `✅ Hôm nay đang kỷ luật + 🔥 streak X ngày`.
