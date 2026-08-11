@@ -1,0 +1,29 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "year": 2026,
+    "quarter": 2,
+    "plan": [
+      {
+        "expect": 5140.0,
+        "current": 2798.51,
+        "percent": 54.45,
+        "label": "Doanh thu"
+      },
+      {
+        "expect": 1562.5,
+        "current": 994.24,
+        "percent": 63.63,
+        "label": "Lợi nhuận trước thuế"
+      },
+      {
+        "expect": 1250.0,
+        "current": 797.24,
+        "percent": 63.78,
+        "label": "Lợi nhuận sau thuế"
+      }
+    ]
+  },
+  "execute_time_ms": 2
+}

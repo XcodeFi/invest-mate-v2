@@ -1,0 +1,101 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "symbol": "HAH",
+    "pe": 7.73289,
+    "pe4Q": 6.41284,
+    "pe_rank": 17,
+    "eps": 7125.4073932783,
+    "eps_rank": 45,
+    "eps4Q": 7235.4819066213,
+    "eps4Q_rank": 39,
+    "eps_diluted": 6736.9400581363,
+    "eps_4q_diluted": 6852.3192353876,
+    "first_trading_date": "",
+    "min_52w": 43.9,
+    "min_52w_rank": null,
+    "max_52w": 68.2,
+    "max_52w_rank": null,
+    "avg_trading_vol": 498860,
+    "avg_trading_vol_rank": 62,
+    "listed_share_vol": 188340401,
+    "listed_share_vol_rank": 54,
+    "circulation_vol": 191840401,
+    "circulation_vol_rank": 54,
+    "roe": 26.700401306152344,
+    "roe4Q": 26.700401579999998,
+    "roe_rank": 44,
+    "pb": 2.2886690444,
+    "pb4Q": 1.7291367845,
+    "pb_rank": 17,
+    "roa": 13.965274810791016,
+    "roa4Q": 13.96527518,
+    "roa_rank": 44,
+    "year": 2026,
+    "book_value": 24075.1279158793,
+    "book_value4Q": 26834.1986687622,
+    "book_value_rank": 57,
+    "the_beta": 1.12469,
+    "the_beta4Q": 0.859826,
+    "the_beta_rank": 52,
+    "market_cap": 8901390000000.0,
+    "market_cap_rank": 47,
+    "free_float": 115104240,
+    "free_float_rank": 60,
+    "free_float_rate": 0.6,
+    "free_float_rate_rank": 60,
+    "group_id": 2777,
+    "group_name": "Kho bãi, hậu cần và bảo dưỡng",
+    "group_count": 68,
+    "foreign_total_room": 56502120,
+    "foreign_current_room": 38862766.0,
+    "audit_firm_id": 1,
+    "audit_firm_year": 2025,
+    "ev_per_ebitda": 5.16893,
+    "ev_per_ebitda4Q": 4.40168,
+    "ev_per_ebit": 6.84225,
+    "ev_per_ebit4Q": 5.77369,
+    "audit_firm_name": "Công ty TNHH Deloitte Việt Nam",
+    "audit_firm_url": "http://www.deloitte.com.vn/",
+    "audit_is_big4": true,
+    "group_industry": [
+      {
+        "icb_name": "Công nghiệp",
+        "icb_code": "2000"
+      },
+      {
+        "icb_name": "Hàng & Dịch vụ Công nghiệp",
+        "icb_code": "2700"
+      },
+      {
+        "icb_name": "Vận tải",
+        "icb_code": "2770"
+      },
+      {
+        "icb_name": "Kho bãi, hậu cần và bảo dưỡng",
+        "icb_code": "2777"
+      }
+    ],
+    "group_industry_full": [
+      {
+        "icb_name": "Công nghiệp",
+        "icb_code": "2000"
+      },
+      {
+        "icb_name": "Hàng & Dịch vụ Công nghiệp",
+        "icb_code": "2700"
+      },
+      {
+        "icb_name": "Vận tải",
+        "icb_code": "2770"
+      },
+      {
+        "icb_name": "Kho bãi, hậu cần và bảo dưỡng",
+        "icb_code": "2777"
+      }
+    ],
+    "foreign_current_room_percent": 9.37
+  },
+  "execute_time_ms": 2
+}

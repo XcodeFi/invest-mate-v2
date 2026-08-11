@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
 using InvestmentApp.Application.Interfaces;
@@ -30,6 +31,8 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         PropertyNameCaseInsensitive = true
     };
 
+    private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+
     private const string CommonParams =
         "device_id=web&locale=vi&device_name=INVALID&device_model=INVALID" +
         "&network_carrier=INVALID&connection_type=INVALID&os=Chrome&os_version=1" +
@@ -53,6 +56,7 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         // Fire all API calls in parallel — individual failures should not crash the whole request
         var indicatorsTask = GetFinanceIndicatorsAsync(symbol, ct);
         var companyTask = GetCompanyDetailAsync(symbol, ct);
+        var identityTask = GetStockIdentityAsync(symbol, ct);
         var incomeTask = GetIncomeStatementAsync(symbol, ct);
         var peersTask = GetPeersAsync(symbol, ct);
         var dividendTask = GetDividendEventsAsync(symbol, ct);
@@ -64,6 +68,7 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         await Task.WhenAll(
             indicatorsTask.ContinueWith(_ => { }, ct),
             companyTask.ContinueWith(_ => { }, ct),
+            identityTask.ContinueWith(_ => { }, ct),
             incomeTask.ContinueWith(_ => { }, ct),
             peersTask.ContinueWith(_ => { }, ct),
             dividendTask.ContinueWith(_ => { }, ct),
@@ -75,6 +80,7 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
 
         var indicators = indicatorsTask.IsCompletedSuccessfully ? indicatorsTask.Result : null;
         var company = companyTask.IsCompletedSuccessfully ? companyTask.Result : null;
+        var identity = identityTask.IsCompletedSuccessfully ? identityTask.Result : null;
 
         // At minimum we need indicators or company data
         if (indicators == null && company == null)
@@ -90,29 +96,28 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         {
             result.Company = new CompanyOverview
             {
-                CompanyName = company?.CompanyName,
-                ShortName = company?.ShortName,
-                Exchange = company?.Floor,
+                CompanyName = identity?.CompanyName?.Trim(),
+                ShortName = identity?.ShortName?.Trim(),
+                Exchange = identity?.StockExchange,
                 Industry = indicators?.GroupName,
                 ListedShares = indicators?.ListedShareVol,
                 OutstandingShares = indicators?.CirculationVol,
                 FreeFloatRate = indicators?.FreeFloatRate.HasValue == true
                     ? indicators.FreeFloatRate.Value * 100m : null,
-                MajorShareholders = company?.MajorShareHolder?
+                MajorShareholders = company?.Ownership?
                     .Take(10)
                     .Select(s => new Application.Interfaces.Shareholder
                     {
                         Name = s.Name,
-                        Position = s.Position,
-                        Quantity = s.Quantity,
-                        Percentage = s.Percentage
+                        Quantity = ParseDecimal(s.Stock) ?? 0m,
+                        Percentage = ParseDecimal(s.Value) ?? 0m
                     }).ToList() ?? new(),
-                Leaders = company?.CompanyLeaders?
+                Leaders = company?.Leadership?
                     .Take(10)
                     .Select(l => new Application.Interfaces.CompanyLeader
                     {
                         Name = l.Name,
-                        Position = l.Position
+                        Position = l.Positions?.FirstOrDefault()?.Position
                     }).ToList() ?? new()
             };
         }
@@ -214,34 +219,52 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         }
     }
 
+    /// <summary>
+    /// `/company/detail` không còn trả tên công ty và sàn, nên lấy từ `/stock/detail` —
+    /// endpoint đang dùng cho giá nên vẫn chạy.
+    /// </summary>
+    private async Task<HmoneyShareDetail?> GetStockIdentityAsync(
+        string symbol, CancellationToken ct)
+    {
+        try
+        {
+            var url = $"{_baseUrl}/v1/ios/stock/detail?symbol={symbol}&{CommonParams}";
+            var resp = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyStockDetailData>>(url, JsonOptions, ct);
+            return resp?.Status == 200 ? resp.Data?.ShareDetail : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get stock identity for {Symbol}", symbol);
+            return null;
+        }
+    }
+
     private async Task<List<IncomeStatementItem>?> GetIncomeStatementAsync(
         string symbol, CancellationToken ct)
     {
         try
         {
-            // view=2 = income statement, period=1 = quarterly
-            var url = $"{_baseUrl}/v1/ios/company/financial-report?symbol={symbol}&view=2&period=1&expanded=false&{CommonParams}";
+            // view=2 = báo cáo kết quả kinh doanh, period=2 = theo quý (period=1 trả theo năm)
+            var url = $"{_baseUrl}/v1/ios/company/financial-report?symbol={symbol}&view=2&period=2&expanded=false&{CommonParams}";
             var resp = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyFinancialReportData>>(url, JsonOptions, ct);
-            if (resp?.Status != 200 || resp.Data?.Header == null || resp.Data.Data == null)
+            if (resp?.Status != 200 || resp.Data?.Headers == null || resp.Data.Rows == null)
                 return null;
 
-            var headers = resp.Data.Header;
-            var rows = resp.Data.Data;
+            var headers = resp.Data.Headers;
+            var rows = resp.Data.Rows;
 
-            // Find "Doanh thu thuần" (net revenue) and "Lợi nhuận sau thuế" (net profit after tax)
-            var revenueRow = rows.FirstOrDefault(r =>
-                r.Name != null && (r.Name.Contains("Doanh thu thuần") || r.Name.Contains("doanh thu thuần")));
-            var profitRow = rows.FirstOrDefault(r =>
-                r.Name != null && (r.Name.Contains("Lợi nhuận sau thuế") || r.Name.Contains("lợi nhuận sau thuế")));
-            var grossProfitRow = rows.FirstOrDefault(r =>
-                r.Name != null && (r.Name.Contains("Lợi nhuận gộp") || r.Name.Contains("lợi nhuận gộp")));
+            // Nguồn viết hoa không nhất quán ("LỢI NHUẬN SAU THUẾ TNDN"), nên so khớp phân biệt
+            // hoa thường sẽ trả null mà không báo lỗi gì.
+            var revenueRow = FindRow(rows, "Doanh thu thuần");
+            var profitRow = FindRow(rows, "Lợi nhuận sau thuế");
+            var grossProfitRow = FindRow(rows, "Lợi nhuận gộp");
 
             var items = new List<IncomeStatementItem>();
-            for (int i = 0; i < headers.Count && i < 8; i++) // Last 8 quarters
+            for (int i = 0; i < headers.Count && i < 8; i++) // 8 kỳ gần nhất
             {
                 items.Add(new IncomeStatementItem
                 {
-                    Period = headers[i],
+                    Period = FormatPeriod(headers[i]),
                     Revenue = GetValueAtIndex(revenueRow?.Values, i),
                     NetProfit = GetValueAtIndex(profitRow?.Values, i),
                     GrossProfit = GetValueAtIndex(grossProfitRow?.Values, i)
@@ -264,10 +287,10 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         {
             var url = $"{_baseUrl}/v1/ios/stock-recommend/get_stock_related_bussiness?symbol={symbol}&{CommonParams}";
             var resp = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyPeersData>>(url, JsonOptions, ct);
-            if (resp?.Status != 200 || resp.Data?.Data == null)
+            if (resp?.Status != 200 || resp.Data?.All?.Data == null)
                 return null;
 
-            return resp.Data.Data
+            return resp.Data.All.Data
                 .Where(p => !string.Equals(p.Symbol, symbol, StringComparison.OrdinalIgnoreCase))
                 .Take(5)
                 .Select(p => new PeerStock
@@ -300,11 +323,13 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
 
             return resp.Data.Take(10).Select(e => new DividendEvent
             {
-                EventType = e.EventType ?? e.EventName,
-                Description = e.Description,
-                ExDate = e.ExRightDate,
-                PayDate = e.PayDate,
-                Value = e.Value
+                EventType = e.Type,
+                Description = e.Title,
+                ExDate = FormatVietnamDate(e.ExRightDate),
+                PayDate = FormatVietnamDate(e.PayoutDate),
+                // Nguồn không còn trả trường số riêng; giá trị chỉ nằm trong câu tiêu đề.
+                // Bóc số từ câu tiếng Việt mong manh hơn là để trống.
+                Value = null
             }).ToList();
         }
         catch (Exception ex)
@@ -320,18 +345,23 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         try
         {
             var url = $"{_baseUrl}/v1/ios/company/plan?symbol={symbol}&{CommonParams}";
-            var resp = await _httpClient.GetFromJsonAsync<HmoneyResponse<List<HmoneyCompanyPlan>>>(url, JsonOptions, ct);
-            if (resp?.Status != 200 || resp.Data == null || resp.Data.Count == 0)
+            var resp = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyCompanyPlanData>>(url, JsonOptions, ct);
+            if (resp?.Status != 200 || resp.Data?.Plan == null || resp.Data.Plan.Count == 0)
                 return null;
 
-            // Take the latest plan
-            var latest = resp.Data.OrderByDescending(p => p.Year).First();
             return new CompanyPlan
             {
-                Year = latest.Year,
-                RevenuePlan = latest.PlanRevenue,
-                ProfitPlan = latest.PlanProfit,
-                DividendPlan = latest.PlanDividend
+                Year = resp.Data.Year,
+                Quarter = resp.Data.Quarter,
+                // Giữ nguyên nhãn nguồn trả về thay vì so khớp sang tên cố định: so khớp nhãn
+                // tiếng Việt sẽ âm thầm rụng chỉ tiêu ngay khi nguồn đổi cách viết.
+                Targets = resp.Data.Plan.Select(p => new CompanyPlanTarget
+                {
+                    Label = p.Label,
+                    Planned = p.Expect,
+                    Actual = p.Current,
+                    PercentComplete = p.Percent
+                }).ToList()
             };
         }
         catch (Exception ex)
@@ -366,23 +396,25 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         }
     }
 
-    private async Task<List<ForeignTradingDay>?> GetForeignTradingAsync(
+    private async Task<ForeignTradingSummary?> GetForeignTradingAsync(
         string symbol, CancellationToken ct)
     {
         try
         {
             var url = $"{_baseUrl}/v1/ios/stock/foreign-trading-series?symbol={symbol}&{CommonParams}";
-            var resp = await _httpClient.GetFromJsonAsync<HmoneyResponse<List<HmoneyForeignTradingItem>>>(url, JsonOptions, ct);
+            var resp = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyForeignTradingData>>(url, JsonOptions, ct);
             if (resp?.Status != 200 || resp.Data == null)
                 return null;
 
-            return resp.Data.TakeLast(20).Select(f => new ForeignTradingDay
+            return new ForeignTradingSummary
             {
-                Date = f.TradingDate,
-                BuyVolume = f.BuyForeignQtty,
-                SellVolume = f.SellForeignQtty,
-                NetVolume = f.BuyForeignQtty - f.SellForeignQtty
-            }).ToList();
+                TodayBuyValue = resp.Data.TodayBuyValue,
+                TodaySellValue = resp.Data.TodaySellValue,
+                WeekBuyValue = resp.Data.WeekBuyValue,
+                WeekSellValue = resp.Data.WeekSellValue,
+                MonthBuyValue = resp.Data.MonthBuyValue,
+                MonthSellValue = resp.Data.MonthSellValue
+            };
         }
         catch (Exception ex)
         {
@@ -427,4 +459,38 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
         if (values == null || index >= values.Count) return null;
         return values[index];
     }
+
+    private static HmoneyFinancialReportRow? FindRow(List<HmoneyFinancialReportRow> rows, string name)
+        => rows.FirstOrDefault(r => r.Name != null &&
+            r.Name.Contains(name, StringComparison.OrdinalIgnoreCase));
+
+    private static string? FormatPeriod(HmoneyReportPeriod period)
+    {
+        if (period.Year == null) return null;
+        // quarter = 0 nghĩa là số liệu cả năm, không phải quý 0.
+        return period.Quarter is null or 0
+            ? period.Year.Value.ToString()
+            : $"Q{period.Quarter.Value}/{period.Year.Value}";
+    }
+
+    /// <summary>
+    /// Epoch giây từ nguồn neo vào nửa đêm giờ Việt Nam, nên format theo UTC sẽ lùi đúng một ngày.
+    /// </summary>
+    private static string? FormatVietnamDate(long? epochSeconds)
+    {
+        if (epochSeconds is null or 0) return null;
+        return DateTimeOffset.FromUnixTimeSeconds(epochSeconds.Value)
+            .ToOffset(VietnamOffset)
+            .ToString("dd/MM/yyyy");
+    }
+
+    /// <summary>
+    /// Cố ý KHÔNG dùng <c>NumberStyles.Any</c>: nó cho phép dấu phân cách nghìn, nên nếu nguồn đổi
+    /// sang cách viết Việt Nam thì "16,07" đọc thành 1607 — sai gấp 100 lần mà vẫn im lặng.
+    /// <c>Float</c> làm chuỗi đó hỏng parse và rơi về null, dễ thấy hơn nhiều.
+    /// </summary>
+    private static decimal? ParseDecimal(string? raw)
+        => decimal.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
 }

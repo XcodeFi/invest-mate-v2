@@ -144,9 +144,13 @@ public class GetCompanyFundamentalsQueryHandlerTests
             IncomeStatements = { new IncomeStatementItem { Period = "Q1/2026", Revenue = 35_000m } },
             Peers = { new PeerStock { Symbol = "HSG" } },
             DividendEvents = { new DividendEvent { EventType = "cash", Value = 500m } },
-            BusinessPlan = new CompanyPlan { Year = 2026, RevenuePlan = 150_000m },
+            BusinessPlan = new CompanyPlan
+            {
+                Year = 2026,
+                Targets = { new CompanyPlanTarget { Label = "Doanh thu", Planned = 150_000m } }
+            },
             AnalystReports = { new AnalystReport { Title = "Khuyến nghị mua" } },
-            ForeignTrading = { new ForeignTradingDay { Date = "2026-08-10", NetVolume = 1_000m } }
+            ForeignTrading = new ForeignTradingSummary { TodayBuyValue = 1_000m }
         });
 
         var dto = await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "HPG" }, default);

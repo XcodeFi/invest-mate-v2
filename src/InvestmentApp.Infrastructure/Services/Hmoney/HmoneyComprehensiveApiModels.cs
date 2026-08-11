@@ -86,35 +86,30 @@ public class HmoneyFinanceIndicators
 
 public class HmoneyCompanyDetail
 {
-    [JsonPropertyName("company_name")]
-    public string? CompanyName { get; set; }
+    [JsonPropertyName("ownership")]
+    public List<HmoneyShareholder>? Ownership { get; set; }
 
-    [JsonPropertyName("short_name")]
-    public string? ShortName { get; set; }
+    [JsonPropertyName("leadership")]
+    public List<HmoneyLeader>? Leadership { get; set; }
 
-    [JsonPropertyName("floor")]
-    public string? Floor { get; set; }
-
-    [JsonPropertyName("major_share_holder")]
-    public List<HmoneyShareholder>? MajorShareHolder { get; set; }
-
-    [JsonPropertyName("company_leaders")]
-    public List<HmoneyLeader>? CompanyLeaders { get; set; }
+    [JsonPropertyName("intro")]
+    public string? Intro { get; set; }
 }
 
+// Tỷ lệ và số cổ phiếu về dưới dạng CHUỖI ("16.07", "29863050").
 public class HmoneyShareholder
 {
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
-    [JsonPropertyName("position")]
-    public string? Position { get; set; }
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
 
-    [JsonPropertyName("quantity")]
-    public decimal Quantity { get; set; }
+    [JsonPropertyName("stock")]
+    public string? Stock { get; set; }
 
-    [JsonPropertyName("percentage")]
-    public decimal Percentage { get; set; }
+    [JsonPropertyName("date")]
+    public string? Date { get; set; }
 }
 
 public class HmoneyLeader
@@ -122,34 +117,49 @@ public class HmoneyLeader
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
+    [JsonPropertyName("positions")]
+    public List<HmoneyLeaderPosition>? Positions { get; set; }
+}
+
+public class HmoneyLeaderPosition
+{
     [JsonPropertyName("position")]
     public string? Position { get; set; }
+
+    [JsonPropertyName("organization")]
+    public string? Organization { get; set; }
 }
 
 // === Financial Report (/v1/ios/company/financial-report) ===
 
 public class HmoneyFinancialReportData
 {
-    [JsonPropertyName("header")]
-    public List<string>? Header { get; set; }
+    [JsonPropertyName("headers")]
+    public List<HmoneyReportPeriod>? Headers { get; set; }
 
-    [JsonPropertyName("data")]
-    public List<HmoneyFinancialReportRow>? Data { get; set; }
+    [JsonPropertyName("rows")]
+    public List<HmoneyFinancialReportRow>? Rows { get; set; }
+}
 
-    [JsonPropertyName("total_page")]
-    public int? TotalPage { get; set; }
+public class HmoneyReportPeriod
+{
+    [JsonPropertyName("year")]
+    public int? Year { get; set; }
+
+    [JsonPropertyName("quarter")]
+    public int? Quarter { get; set; }
 }
 
 public class HmoneyFinancialReportRow
 {
+    [JsonPropertyName("key")]
+    public string? Key { get; set; }
+
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
     [JsonPropertyName("values")]
     public List<decimal?>? Values { get; set; }
-
-    [JsonPropertyName("expanded")]
-    public bool? Expanded { get; set; }
 
     [JsonPropertyName("level")]
     public int? Level { get; set; }
@@ -157,47 +167,64 @@ public class HmoneyFinancialReportRow
 
 // === Company Plan (/v1/ios/company/plan) ===
 
-public class HmoneyCompanyPlan
+public class HmoneyCompanyPlanData
 {
     [JsonPropertyName("year")]
     public int? Year { get; set; }
 
-    [JsonPropertyName("plan_revenue")]
-    public decimal? PlanRevenue { get; set; }
+    [JsonPropertyName("quarter")]
+    public int? Quarter { get; set; }
 
-    [JsonPropertyName("plan_profit")]
-    public decimal? PlanProfit { get; set; }
+    [JsonPropertyName("plan")]
+    public List<HmoneyCompanyPlanItem>? Plan { get; set; }
+}
 
-    [JsonPropertyName("plan_dividend")]
-    public decimal? PlanDividend { get; set; }
+public class HmoneyCompanyPlanItem
+{
+    [JsonPropertyName("label")]
+    public string? Label { get; set; }
+
+    [JsonPropertyName("expect")]
+    public decimal? Expect { get; set; }
+
+    [JsonPropertyName("current")]
+    public decimal? Current { get; set; }
+
+    [JsonPropertyName("percent")]
+    public decimal? Percent { get; set; }
 }
 
 // === Dividend Events (/v1/ios/announcement/dividend-events) ===
 
+// Các mốc ngày về dưới dạng epoch giây, neo vào nửa đêm giờ Việt Nam.
 public class HmoneyDividendEvent
 {
-    [JsonPropertyName("event_type")]
-    public string? EventType { get; set; }
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
 
-    [JsonPropertyName("description")]
-    public string? Description { get; set; }
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
 
-    [JsonPropertyName("ex_right_date")]
-    public string? ExRightDate { get; set; }
+    [JsonPropertyName("exright_date")]
+    public long? ExRightDate { get; set; }
 
-    [JsonPropertyName("pay_date")]
-    public string? PayDate { get; set; }
+    [JsonPropertyName("payout_date")]
+    public long? PayoutDate { get; set; }
 
-    [JsonPropertyName("value")]
-    public decimal? Value { get; set; }
-
-    [JsonPropertyName("event_name")]
-    public string? EventName { get; set; }
+    [JsonPropertyName("record_date")]
+    public long? RecordDate { get; set; }
 }
 
 // === Peers (/v1/ios/stock-recommend/get_stock_related_bussiness) ===
 
+// Danh sách cùng ngành được chia theo sàn; "all" là rổ gộp.
 public class HmoneyPeersData
+{
+    [JsonPropertyName("all")]
+    public HmoneyPeersBucket? All { get; set; }
+}
+
+public class HmoneyPeersBucket
 {
     [JsonPropertyName("data")]
     public List<HmoneyPeerItem>? Data { get; set; }
@@ -229,16 +256,27 @@ public class HmoneyPeerItem
 
 // === Foreign Trading Series (/v1/ios/stock/foreign-trading-series) ===
 
-public class HmoneyForeignTradingItem
+// `data_time` là diễn biến trong phiên (mỗi 5 phút) nên không dùng cho hồ sơ công ty;
+// chỉ lấy các mức tổng hợp, đơn vị tỷ VND.
+public class HmoneyForeignTradingData
 {
-    [JsonPropertyName("trading_date")]
-    public string? TradingDate { get; set; }
+    [JsonPropertyName("today_buy_value")]
+    public decimal? TodayBuyValue { get; set; }
 
-    [JsonPropertyName("buy_foreign_qtty")]
-    public decimal BuyForeignQtty { get; set; }
+    [JsonPropertyName("today_sell_value")]
+    public decimal? TodaySellValue { get; set; }
 
-    [JsonPropertyName("sell_foreign_qtty")]
-    public decimal SellForeignQtty { get; set; }
+    [JsonPropertyName("week_buy_value")]
+    public decimal? WeekBuyValue { get; set; }
+
+    [JsonPropertyName("week_sell_value")]
+    public decimal? WeekSellValue { get; set; }
+
+    [JsonPropertyName("month_buy_value")]
+    public decimal? MonthBuyValue { get; set; }
+
+    [JsonPropertyName("month_sell_value")]
+    public decimal? MonthSellValue { get; set; }
 }
 
 // === Analyst Reports (/v1/ios/announcement/report-analytics) ===

@@ -1,0 +1,51 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "share_detail": {
+      "market_index": 1775.61,
+      "prior_market_index": 1776.77,
+      "floor_code": "10",
+      "changed": 0,
+      "trading_time": "",
+      "avg_index": 1775.61,
+      "highest_index": 1789.35,
+      "lowest_index": 1772.03,
+      "advance": 156,
+      "decline": 151,
+      "no_change": 67,
+      "ceiling": 7,
+      "floor": 3,
+      "change": -1.16,
+      "symbol": "VN-INDEX",
+      "change_percent": -0.07,
+      "share_id": "10",
+      "updated_at": 1786431285,
+      "accumulated_vol": 490270117,
+      "accumulated_val": 12217.77,
+      "object_type": "indices",
+      "foreign_today_buy_value": 933.26,
+      "foreign_today_sell_value": 1466.27,
+      "foreign_week_buy_value": 11560.55,
+      "foreign_week_sell_value": 10646.91,
+      "foreign_month_buy_value": 50212.18,
+      "foreign_month_sell_value": 55162.59
+    },
+    "statistic": {
+      "floor_code": "10",
+      "stock_increase": 162,
+      "stock_decrease": 147,
+      "stock_unchanged": 63,
+      "stock_ceiling": 9,
+      "stock_floor": 3,
+      "buy_foreign_qtty": 28154800,
+      "sell_foreign_qtty": 41939400,
+      "total_val_increase": 4957.63,
+      "total_val_unchanged": 1268.72,
+      "total_val_decrease": 3861.62,
+      "total_val_ceiling": 196.95,
+      "total_val_floor": 0.2
+    }
+  },
+  "execute_time_ms": 4
+}

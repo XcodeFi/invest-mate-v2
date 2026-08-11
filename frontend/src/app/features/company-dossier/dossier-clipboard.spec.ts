@@ -16,7 +16,7 @@ const FUNDAMENTALS = {
   symbol: 'EVF',
   company: {
     companyName: 'Công ty Tài chính EVN', shortName: null, exchange: 'HOSE', industry: 'Tài chính',
-    majorShareholders: [{ name: 'EVN', position: null, quantity: 1, percentage: 45 }],
+    majorShareholders: [{ name: 'EVN', quantity: 1, percentage: 45 }],
     leaders: [], listedShares: null, outstandingShares: null, freeFloatRate: null,
   },
   indicators: {

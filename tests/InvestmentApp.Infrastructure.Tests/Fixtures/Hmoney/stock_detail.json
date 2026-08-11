@@ -1,0 +1,594 @@
+{
+  "message": "success",
+  "status": 200,
+  "data": {
+    "share_detail": {
+      "code": "HAH",
+      "floor_price": 43.2,
+      "ceiling_price": 49.6,
+      "match_price": 46.35,
+      "basic_price": 46.4,
+      "accumylated_vol": 41100.0,
+      "trading_date": 1786431068000,
+      "match_qtty": 0,
+      "hieghest_price": 46.65,
+      "lowest_price": 46.15,
+      "open_price": 46.65,
+      "close_price": 46.35,
+      "average_price": 46.334,
+      "offer_price03": 46.5,
+      "offer_price02": 46.45,
+      "offer_price01": 46.4,
+      "offer_qtty03": 660.0,
+      "offer_qtty02": 200.0,
+      "offer_qtty01": 670.0,
+      "bid_price03": 46.25,
+      "bid_price02": 46.3,
+      "bid_price01": 46.35,
+      "bid_qtty03": 2450.0,
+      "bid_qtty02": 1980.0,
+      "bid_qtty01": 500.0,
+      "buy_foreign_qtty": 29000.0,
+      "sell_foreign_qtty": 155950.0,
+      "accumulated_val": 19.04,
+      "foreign_current_room": 38857066.0,
+      "floor_code": "10",
+      "time": "13:51:08",
+      "symbol": "HAH",
+      "updated_at": 1786431068,
+      "object_type": "symbol",
+      "change": -0.05,
+      "change_percent": -0.11,
+      "company_name": "Công ty Cổ phần Vận tải và xếp dỡ Hải An ",
+      "short_name": "Vận tải Hải An",
+      "id": 408,
+      "logo": "http://images1.cafef.vn/Images/Uploaded/DuLieuDownload/logodn/HAH.jpg",
+      "stock_exchange": "HOSE",
+      "is_new_report": true,
+      "is_stock_deactivate": false,
+      "price": 46.35,
+      "logo_url": "https://cdn.24hmoney.vn/upload/images_cr/2021-12-03/partner/images/uploaded/dulieudownload/logodn/HAH.jpg",
+      "description": "Ngày 08/05/2009: Công ty TNHH Vận tải và Xếp dỡ Hải An (sau đổi thành Công ty cổ phần Vận tải và Xếp dỡ Hải An) được thành lập tại Hà Nội bởi 5 thành viên sáng lập là: Công ty cổ phần Hàng Hải Hà Nội (MHC - HOSE), Công ty cổ phần Cung ứng và Dịch vụ kỹ thuật Hàng Hải (MAC - HNX), Công ty cổ phần Hải Minh (HMH - HNX), Công ty cổ phần Đóng tàu Hải An, Công ty cổ phần Đầu tư và Vận tải Hải Hà với số vốn điều lệ 150 tỷ đồng.",
+      "company_name_eng": "Hai An Transport And Stevedoring Joint Stock Company",
+      "enterprise_id": 0,
+      "enterprise_name": "",
+      "enterprise_code": "",
+      "enterprise_logo": "",
+      "coming_dividends": []
+    },
+    "foreign_trading_history": [
+      {
+        "sell_foreign_qtty": 155950,
+        "floor_price": 43.2,
+        "symbol": "HAH",
+        "ceiling_price": 49.6,
+        "buy_foreign_qtty": 29000,
+        "match_price": 46.35,
+        "buy_foreign_val": 0,
+        "basic_price": 46.4,
+        "sell_foreign_val": 0,
+        "trading_date": 1786431068
+      },
+      {
+        "sell_foreign_qtty": 239887.0,
+        "floor_price": 43.0,
+        "symbol": "HAH",
+        "ceiling_price": 49.4,
+        "buy_foreign_qtty": 89400.0,
+        "match_price": 46.4,
+        "buy_foreign_val": 0,
+        "basic_price": 46.2,
+        "sell_foreign_val": 0,
+        "trading_date": 1786349402
+      },
+      {
+        "sell_foreign_qtty": 192895.0,
+        "floor_price": 43.25,
+        "symbol": "HAH",
+        "ceiling_price": 49.75,
+        "buy_foreign_qtty": 12105.0,
+        "match_price": 46.2,
+        "buy_foreign_val": 0,
+        "basic_price": 46.5,
+        "sell_foreign_val": 0,
+        "trading_date": 1786090202
+      },
+      {
+        "sell_foreign_qtty": 273400.0,
+        "floor_price": 42.05,
+        "symbol": "HAH",
+        "ceiling_price": 48.35,
+        "buy_foreign_qtty": 73355.0,
+        "match_price": 46.5,
+        "buy_foreign_val": 0,
+        "basic_price": 45.2,
+        "sell_foreign_val": 0,
+        "trading_date": 1786003801
+      },
+      {
+        "sell_foreign_qtty": 261639.0,
+        "floor_price": 42.85,
+        "symbol": "HAH",
+        "ceiling_price": 49.25,
+        "buy_foreign_qtty": 95300.0,
+        "match_price": 45.2,
+        "buy_foreign_val": 0,
+        "basic_price": 46.05,
+        "sell_foreign_val": 0,
+        "trading_date": 1785917401
+      },
+      {
+        "sell_foreign_qtty": 72400.0,
+        "floor_price": 42.85,
+        "symbol": "HAH",
+        "ceiling_price": 49.25,
+        "buy_foreign_qtty": 36200.0,
+        "match_price": 46.05,
+        "buy_foreign_val": 0,
+        "basic_price": 46.05,
+        "sell_foreign_val": 0,
+        "trading_date": 1785831002
+      },
+      {
+        "sell_foreign_qtty": 78000.0,
+        "floor_price": 42.1,
+        "symbol": "HAH",
+        "ceiling_price": 48.4,
+        "buy_foreign_qtty": 54600.0,
+        "match_price": 46.05,
+        "buy_foreign_val": 0,
+        "basic_price": 45.25,
+        "sell_foreign_val": 0,
+        "trading_date": 1785744601
+      },
+      {
+        "sell_foreign_qtty": 79400.0,
+        "floor_price": 42.05,
+        "symbol": "HAH",
+        "ceiling_price": 48.35,
+        "buy_foreign_qtty": 7100.0,
+        "match_price": 45.25,
+        "buy_foreign_val": 0,
+        "basic_price": 45.2,
+        "sell_foreign_val": 0,
+        "trading_date": 1785485401
+      },
+      {
+        "sell_foreign_qtty": 133040.0,
+        "floor_price": 40.9,
+        "symbol": "HAH",
+        "ceiling_price": 47.0,
+        "buy_foreign_qtty": 99800.0,
+        "match_price": 45.2,
+        "buy_foreign_val": 0,
+        "basic_price": 43.95,
+        "sell_foreign_val": 0,
+        "trading_date": 1785399002
+      },
+      {
+        "sell_foreign_qtty": 34400.0,
+        "floor_price": 40.85,
+        "symbol": "HAH",
+        "ceiling_price": 46.95,
+        "buy_foreign_qtty": 44900.0,
+        "match_price": 43.95,
+        "buy_foreign_val": 0,
+        "basic_price": 43.9,
+        "sell_foreign_val": 0,
+        "trading_date": 1785312602
+      },
+      {
+        "sell_foreign_qtty": 97400.0,
+        "floor_price": 40.95,
+        "symbol": "HAH",
+        "ceiling_price": 47.05,
+        "buy_foreign_qtty": 23200.0,
+        "match_price": 43.9,
+        "buy_foreign_val": 0,
+        "basic_price": 44.0,
+        "sell_foreign_val": 0,
+        "trading_date": 1785226202
+      },
+      {
+        "sell_foreign_qtty": 139000.0,
+        "floor_price": 41.85,
+        "symbol": "HAH",
+        "ceiling_price": 48.15,
+        "buy_foreign_qtty": 22300.0,
+        "match_price": 44.0,
+        "buy_foreign_val": 0,
+        "basic_price": 45.0,
+        "sell_foreign_val": 0,
+        "trading_date": 1785139801
+      },
+      {
+        "sell_foreign_qtty": 18200.0,
+        "floor_price": 41.85,
+        "symbol": "HAH",
+        "ceiling_price": 48.15,
+        "buy_foreign_qtty": 30300.0,
+        "match_price": 45.0,
+        "buy_foreign_val": 0,
+        "basic_price": 45.0,
+        "sell_foreign_val": 0,
+        "trading_date": 1784880601
+      },
+      {
+        "sell_foreign_qtty": 8600.0,
+        "floor_price": 41.75,
+        "symbol": "HAH",
+        "ceiling_price": 47.95,
+        "buy_foreign_qtty": 144400.0,
+        "match_price": 45.0,
+        "buy_foreign_val": 0,
+        "basic_price": 44.85,
+        "sell_foreign_val": 0,
+        "trading_date": 1784794202
+      },
+      {
+        "sell_foreign_qtty": 71300.0,
+        "floor_price": 41.8,
+        "symbol": "HAH",
+        "ceiling_price": 48.0,
+        "buy_foreign_qtty": 67400.0,
+        "match_price": 44.85,
+        "buy_foreign_val": 0,
+        "basic_price": 44.9,
+        "sell_foreign_val": 0,
+        "trading_date": 1784707802
+      },
+      {
+        "sell_foreign_qtty": 31500.0,
+        "floor_price": 41.8,
+        "symbol": "HAH",
+        "ceiling_price": 48.0,
+        "buy_foreign_qtty": 93300.0,
+        "match_price": 44.9,
+        "buy_foreign_val": 0,
+        "basic_price": 44.9,
+        "sell_foreign_val": 0,
+        "trading_date": 1784621402
+      },
+      {
+        "sell_foreign_qtty": 20344.0,
+        "floor_price": 43.0,
+        "symbol": "HAH",
+        "ceiling_price": 49.4,
+        "buy_foreign_qtty": 17800.0,
+        "match_price": 44.9,
+        "buy_foreign_val": 0,
+        "basic_price": 46.2,
+        "sell_foreign_val": 0,
+        "trading_date": 1784535003
+      },
+      {
+        "sell_foreign_qtty": 52300.0,
+        "floor_price": 43.75,
+        "symbol": "HAH",
+        "ceiling_price": 50.2,
+        "buy_foreign_qtty": 7300.0,
+        "match_price": 46.2,
+        "buy_foreign_val": 0,
+        "basic_price": 47.0,
+        "sell_foreign_val": 0,
+        "trading_date": 1784275803
+      },
+      {
+        "sell_foreign_qtty": 0.0,
+        "floor_price": 44.3,
+        "symbol": "HAH",
+        "ceiling_price": 50.9,
+        "buy_foreign_qtty": 57600.0,
+        "match_price": 47.0,
+        "buy_foreign_val": 0,
+        "basic_price": 47.6,
+        "sell_foreign_val": 0,
+        "trading_date": 1784189401
+      },
+      {
+        "sell_foreign_qtty": 30500.0,
+        "floor_price": 45.4,
+        "symbol": "HAH",
+        "ceiling_price": 52.2,
+        "buy_foreign_qtty": 2000.0,
+        "match_price": 47.6,
+        "buy_foreign_val": 0,
+        "basic_price": 48.8,
+        "sell_foreign_val": 0,
+        "trading_date": 1784103002
+      },
+      {
+        "sell_foreign_qtty": 91600.0,
+        "floor_price": 45.4,
+        "symbol": "HAH",
+        "ceiling_price": 52.2,
+        "buy_foreign_qtty": 1200.0,
+        "match_price": 48.8,
+        "buy_foreign_val": 0,
+        "basic_price": 48.8,
+        "sell_foreign_val": 0,
+        "trading_date": 1784016602
+      },
+      {
+        "sell_foreign_qtty": 125000.0,
+        "floor_price": 47.9,
+        "symbol": "HAH",
+        "ceiling_price": 55.1,
+        "buy_foreign_qtty": 13500.0,
+        "match_price": 50.8,
+        "buy_foreign_val": 0,
+        "basic_price": 51.5,
+        "sell_foreign_val": 0,
+        "trading_date": 1783930203
+      },
+      {
+        "sell_foreign_qtty": 144000.0,
+        "floor_price": 46.6,
+        "symbol": "HAH",
+        "ceiling_price": 53.6,
+        "buy_foreign_qtty": 64800.0,
+        "match_price": 51.5,
+        "buy_foreign_val": 0,
+        "basic_price": 50.1,
+        "sell_foreign_val": 0,
+        "trading_date": 1783671002
+      },
+      {
+        "sell_foreign_qtty": 149880.0,
+        "floor_price": 48.3,
+        "symbol": "HAH",
+        "ceiling_price": 55.5,
+        "buy_foreign_qtty": 63600.0,
+        "match_price": 50.1,
+        "buy_foreign_val": 0,
+        "basic_price": 51.9,
+        "sell_foreign_val": 0,
+        "trading_date": 1783584602
+      },
+      {
+        "sell_foreign_qtty": 75900.0,
+        "floor_price": 48.2,
+        "symbol": "HAH",
+        "ceiling_price": 55.4,
+        "buy_foreign_qtty": 16400.0,
+        "match_price": 51.9,
+        "buy_foreign_val": 0,
+        "basic_price": 51.8,
+        "sell_foreign_val": 0,
+        "trading_date": 1783498202
+      },
+      {
+        "sell_foreign_qtty": 304030.0,
+        "floor_price": 48.3,
+        "symbol": "HAH",
+        "ceiling_price": 55.5,
+        "buy_foreign_qtty": 58900.0,
+        "match_price": 51.3,
+        "buy_foreign_val": 0,
+        "basic_price": 51.9,
+        "sell_foreign_val": 0,
+        "trading_date": 1783325401
+      },
+      {
+        "sell_foreign_qtty": 63000.0,
+        "floor_price": 47.9,
+        "symbol": "HAH",
+        "ceiling_price": 55.1,
+        "buy_foreign_qtty": 200.0,
+        "match_price": 51.9,
+        "buy_foreign_val": 0,
+        "basic_price": 51.5,
+        "sell_foreign_val": 0,
+        "trading_date": 1783066203
+      },
+      {
+        "sell_foreign_qtty": 280187.0,
+        "floor_price": 47.9,
+        "symbol": "HAH",
+        "ceiling_price": 55.1,
+        "buy_foreign_qtty": 15900.0,
+        "match_price": 51.5,
+        "buy_foreign_val": 0,
+        "basic_price": 51.5,
+        "sell_foreign_val": 0,
+        "trading_date": 1782979803
+      },
+      {
+        "sell_foreign_qtty": 106200.0,
+        "floor_price": 48.55,
+        "symbol": "HAH",
+        "ceiling_price": 55.8,
+        "buy_foreign_qtty": 500.0,
+        "match_price": 51.5,
+        "buy_foreign_val": 0,
+        "basic_price": 52.2,
+        "sell_foreign_val": 0,
+        "trading_date": 1782893402
+      },
+      {
+        "sell_foreign_qtty": 165020.0,
+        "floor_price": 48.4,
+        "symbol": "HAH",
+        "ceiling_price": 55.6,
+        "buy_foreign_qtty": 11100.0,
+        "match_price": 52.2,
+        "buy_foreign_val": 0,
+        "basic_price": 52.0,
+        "sell_foreign_val": 0,
+        "trading_date": 1782807003
+      }
+    ],
+    "graph_marker": {
+      "1": {
+        "first_point": {
+          "x": 1786349402,
+          "y": 46.4,
+          "z": 75910.0
+        }
+      },
+      "2": {
+        "first_point": {
+          "x": 1785399002,
+          "y": 45.2,
+          "z": 61500.0
+        },
+        "highest_price_point": {
+          "x": 1786003801,
+          "y": 46.5,
+          "z": 76210.0
+        },
+        "lowest_price_point": {
+          "x": 1785917401,
+          "y": 45.2,
+          "z": 63270.0
+        },
+        "highest_quantity_point": {
+          "x": 1786003801,
+          "y": 46.5,
+          "z": 76210.0
+        },
+        "lowest_quantity_point": {
+          "x": 1785831002,
+          "y": 46.05,
+          "z": 36040.0
+        }
+      },
+      "3": {
+        "first_point": {
+          "x": 1778659802,
+          "y": 57.9,
+          "z": 86400.0
+        },
+        "highest_price_point": {
+          "x": 1778659802,
+          "y": 57.9,
+          "z": 86400.0
+        },
+        "lowest_price_point": {
+          "x": 1785226202,
+          "y": 43.9,
+          "z": 39120.0
+        },
+        "highest_quantity_point": {
+          "x": 1779178201,
+          "y": 55.5,
+          "z": 180350.0
+        },
+        "lowest_quantity_point": {
+          "x": 1785312602,
+          "y": 43.95,
+          "z": 18190.0
+        }
+      },
+      "4": {
+        "first_point": {
+          "x": 1770883802,
+          "y": 58.0,
+          "z": 121130.0
+        },
+        "highest_price_point": {
+          "x": 1772525402,
+          "y": 71.0,
+          "z": 1025750.0
+        },
+        "lowest_price_point": {
+          "x": 1785226202,
+          "y": 43.9,
+          "z": 39120.0
+        },
+        "highest_quantity_point": {
+          "x": 1772439002,
+          "y": 67.1,
+          "z": 1088160.0
+        },
+        "lowest_quantity_point": {
+          "x": 1785312602,
+          "y": 43.95,
+          "z": 18190.0
+        }
+      },
+      "5": {
+        "first_point": {
+          "x": 1755504602,
+          "y": 64.4,
+          "z": 439810.0
+        },
+        "highest_price_point": {
+          "x": 1772525402,
+          "y": 71.0,
+          "z": 1025750.0
+        },
+        "lowest_price_point": {
+          "x": 1785226202,
+          "y": 43.9,
+          "z": 39120.0
+        },
+        "highest_quantity_point": {
+          "x": 1772439002,
+          "y": 67.1,
+          "z": 1088160.0
+        },
+        "lowest_quantity_point": {
+          "x": 1785312602,
+          "y": 43.95,
+          "z": 18190.0
+        }
+      },
+      "6": {
+        "first_point": {
+          "x": 1590969600,
+          "y": 7.37,
+          "z": 6903
+        },
+        "highest_price_point": {
+          "x": 1650355810,
+          "y": 107.4,
+          "z": 174870.0
+        },
+        "lowest_price_point": {
+          "x": 1590969600,
+          "y": 7.37,
+          "z": 6903
+        },
+        "highest_quantity_point": {
+          "x": 1717747803,
+          "y": 44.25,
+          "z": 1261250.0
+        },
+        "lowest_quantity_point": {
+          "x": 1593677425,
+          "y": 10.1,
+          "z": 1325.0
+        }
+      },
+      "7": {
+        "first_point": {
+          "x": 1783930203,
+          "y": 50.8,
+          "z": 61670.0
+        },
+        "highest_price_point": {
+          "x": 1783930203,
+          "y": 50.8,
+          "z": 61670.0
+        },
+        "lowest_price_point": {
+          "x": 1785226202,
+          "y": 43.9,
+          "z": 39120.0
+        },
+        "highest_quantity_point": {
+          "x": 1784535003,
+          "y": 44.9,
+          "z": 78840.0
+        },
+        "lowest_quantity_point": {
+          "x": 1785312602,
+          "y": 43.95,
+          "z": 18190.0
+        }
+      }
+    }
+  },
+  "execute_time_ms": 4
+}

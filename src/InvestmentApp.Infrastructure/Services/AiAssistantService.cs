@@ -2205,7 +2205,7 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
             {
                 sb.AppendLine("  <major_shareholders>");
                 foreach (var sh in data.Company.MajorShareholders)
-                    sb.AppendLine($"    {sh.Name} — {sh.Position} — {sh.Quantity:N0} CP ({sh.Percentage:F2}%)");
+                    sb.AppendLine($"    {sh.Name} — {sh.Quantity:N0} CP ({sh.Percentage:F2}%)");
                 sb.AppendLine("  </major_shareholders>");
             }
 
@@ -2331,12 +2331,19 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
             sb.AppendLine();
             sb.AppendLine("<business_plan>");
             sb.AppendLine($"  <year>{data.BusinessPlan.Year}</year>");
-            if (data.BusinessPlan.RevenuePlan.HasValue)
-                sb.AppendLine($"  <revenue_target>{data.BusinessPlan.RevenuePlan:N0} tỷ VND</revenue_target>");
-            if (data.BusinessPlan.ProfitPlan.HasValue)
-                sb.AppendLine($"  <profit_target>{data.BusinessPlan.ProfitPlan:N0} tỷ VND</profit_target>");
-            if (data.BusinessPlan.DividendPlan.HasValue)
-                sb.AppendLine($"  <dividend_plan>{data.BusinessPlan.DividendPlan}%</dividend_plan>");
+            if (data.BusinessPlan.Quarter.HasValue)
+                sb.AppendLine($"  <progress_through_quarter>{data.BusinessPlan.Quarter}</progress_through_quarter>");
+            foreach (var t in data.BusinessPlan.Targets)
+            {
+                sb.AppendLine($"  <target name=\"{t.Label}\">");
+                if (t.Planned.HasValue)
+                    sb.AppendLine($"    <planned>{t.Planned:N0} tỷ VND</planned>");
+                if (t.Actual.HasValue)
+                    sb.AppendLine($"    <actual>{t.Actual:N0} tỷ VND</actual>");
+                if (t.PercentComplete.HasValue)
+                    sb.AppendLine($"    <percent_complete>{t.PercentComplete}%</percent_complete>");
+                sb.AppendLine("  </target>");
+            }
             sb.AppendLine("</business_plan>");
         }
 
@@ -2354,17 +2361,24 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
         }
 
         // === Section 7: Foreign Trading ===
-        if (data.ForeignTrading.Count > 0)
+        if (data.ForeignTrading != null)
         {
-            var totalNetBuy = data.ForeignTrading.Sum(f => f.NetVolume);
+            var ft = data.ForeignTrading;
             sb.AppendLine();
-            sb.AppendLine("<foreign_trading>");
-            sb.AppendLine($"  <net_20_sessions>{totalNetBuy:N0} CP ({(totalNetBuy >= 0 ? "MUA RÒNG" : "BÁN RÒNG")})</net_20_sessions>");
-            sb.AppendLine("  <recent_5_days>");
-            foreach (var day in data.ForeignTrading.TakeLast(5))
-                sb.AppendLine($"    {day.Date}: Mua {day.BuyVolume:N0} | Bán {day.SellVolume:N0} | Net {day.NetVolume:+#,0;-#,0}");
-            sb.AppendLine("  </recent_5_days>");
+            // Đơn vị là GIÁ TRỊ (tỷ VND), không phải khối lượng cổ phiếu — nguồn không còn trả
+            // số cổ phiếu. Nhãn sai ở đây là AI đọc "tỷ" thành "cổ phiếu" rồi kết luận sai độ lớn.
+            sb.AppendLine("<foreign_trading unit=\"tỷ VND\">");
+            AppendNet("today", ft.TodayBuyValue, ft.TodaySellValue, ft.TodayNetValue);
+            AppendNet("week", ft.WeekBuyValue, ft.WeekSellValue, ft.WeekNetValue);
+            AppendNet("month", ft.MonthBuyValue, ft.MonthSellValue, ft.MonthNetValue);
             sb.AppendLine("</foreign_trading>");
+
+            void AppendNet(string period, decimal? buy, decimal? sell, decimal? net)
+            {
+                if (net == null) return;
+                sb.AppendLine($"  <{period}>Mua {buy:N2} | Bán {sell:N2} | Ròng {net:+#,0.##;-#,0.##} " +
+                              $"({(net >= 0 ? "MUA RÒNG" : "BÁN RÒNG")})</{period}>");
+            }
         }
 
         // === Section 8: VN-Index Macro ===

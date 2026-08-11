@@ -172,9 +172,24 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
         }
         @if (hasSection('businessPlan') && isOpen('businessPlan')) {
           <div class="text-xs text-gray-600" data-testid="business-plan">
-            Năm {{ data!.businessPlan!.year }}: doanh thu {{ num(data!.businessPlan!.revenuePlan) }} tỷ ·
-            lợi nhuận {{ num(data!.businessPlan!.profitPlan) }} tỷ ·
-            cổ tức {{ pct(data!.businessPlan!.dividendPlan) }}
+            <div class="mb-1">
+              Năm {{ data!.businessPlan!.year }}
+              @if (data!.businessPlan!.quarter) { · thực hiện tới Q{{ data!.businessPlan!.quarter }} }
+              <span class="text-gray-400">(tỷ VND)</span>
+            </div>
+            <table class="w-full">
+              <tbody>
+                @for (t of data!.businessPlan!.targets; track $index) {
+                  <tr class="border-t border-gray-100">
+                    <td class="py-0.5 pr-2">{{ text(t.label) }}</td>
+                    <td class="py-0.5 text-right">{{ num(t.actual) }} / {{ num(t.planned) }}</td>
+                    <td class="py-0.5 pl-2 text-right font-medium"
+                      [class.text-emerald-600]="(t.percentComplete ?? 0) >= 75"
+                      >{{ pct(t.percentComplete) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         }
       }
@@ -250,7 +265,9 @@ export class FundamentalsPanelComponent implements OnInit {
     switch (section) {
       case 'company': return this.data!.company != null;
       case 'indicators': return this.data!.indicators != null;
-      case 'businessPlan': return this.data!.businessPlan != null;
+      // Còn năm mà không còn chỉ tiêu nào thì backend vẫn coi là "có dữ liệu" — ở đây phải
+      // đòi có chỉ tiêu, không thì bung ra một cái bảng rỗng.
+      case 'businessPlan': return (this.data!.businessPlan?.targets?.length ?? 0) > 0;
       case 'incomeStatements': return (this.data!.incomeStatements?.length ?? 0) > 0;
       case 'peers': return (this.data!.peers?.length ?? 0) > 0;
       case 'dividendEvents': return (this.data!.dividendEvents?.length ?? 0) > 0;
