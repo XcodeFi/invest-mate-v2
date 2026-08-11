@@ -11,6 +11,7 @@ import {
   dossierFreshnessLabel,
 } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 /**
  * Trang /pending-reviews (§D5 V2 plan Vin-discipline).
@@ -20,7 +21,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 @Component({
   selector: 'app-pending-reviews',
   standalone: true,
-  imports: [CommonModule, RouterModule, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="max-w-5xl mx-auto p-4 lg:p-6">
@@ -54,7 +55,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
               [ngClass]="dossierBorderClass(d.freshness)">
               <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2 min-w-0">
-                  <span class="font-semibold text-gray-900">{{ d.symbol }}</span>
+                  <span class="font-semibold text-gray-900" [appSymbolLink]="d.symbol">{{ d.symbol }}</span>
                   <span class="text-[11px] px-2 py-0.5 rounded-full" [ngClass]="dossierBadgeClass(d.freshness)">
                     {{ dossierFreshnessLabel(d.freshness) }}
                   </span>
@@ -99,7 +100,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
           >
             <div class="flex items-start justify-between gap-3 mb-2">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-lg font-bold text-gray-900">{{ r.symbol }}</span>
+                <span class="text-lg font-bold text-gray-900" [appSymbolLink]="r.symbol">{{ r.symbol }}</span>
                 <span
                   class="px-2 py-0.5 rounded text-[10px] font-semibold"
                   [ngClass]="statusBadgeClass(r.status)"

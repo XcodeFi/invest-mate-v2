@@ -26,7 +26,7 @@ public class SymbolTimelineDto
 
 public class TimelineItemDto
 {
-    public string Type { get; set; } = null!; // "journal", "trade", "alert", "event"
+    public string Type { get; set; } = null!; // "journal", "trade", "alert", "event", "dossier"
     public DateTime Timestamp { get; set; }
     public object Data { get; set; } = null!;
 }
@@ -100,6 +100,7 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly IMarketEventRepository _marketEventRepository;
     private readonly IAlertHistoryRepository _alertHistoryRepository;
+    private readonly ICompanyDossierRepository _companyDossierRepository;
     private readonly IBehavioralAnalysisService? _behavioralAnalysisService;
 
     public GetSymbolTimelineQueryHandler(
@@ -108,6 +109,9 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
         IPortfolioRepository portfolioRepository,
         IMarketEventRepository marketEventRepository,
         IAlertHistoryRepository alertHistoryRepository,
+        // BẮT BUỘC, không optional: nếu để `= null` thì quên đăng ký DI sẽ làm mốc hồ sơ
+        // âm thầm không bao giờ hiện, còn bắt buộc thì hỏng đăng ký là nổ lúc khởi động.
+        ICompanyDossierRepository companyDossierRepository,
         IBehavioralAnalysisService? behavioralAnalysisService = null)
     {
         _journalEntryRepository = journalEntryRepository;
@@ -115,6 +119,7 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
         _portfolioRepository = portfolioRepository;
         _marketEventRepository = marketEventRepository;
         _alertHistoryRepository = alertHistoryRepository;
+        _companyDossierRepository = companyDossierRepository;
         _behavioralAnalysisService = behavioralAnalysisService;
     }
 
@@ -225,6 +230,20 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
             });
         }
 
+        // 5. Mốc hồ sơ công ty.
+        // CompanyDossier KHÔNG lưu lịch sử — chỉ có ReviewedAt/ConfirmedAt/AgentDraftedAt —
+        // nên đây là tối đa 2 mốc gần nhất, không phải lịch sử tiến hoá của luận điểm.
+        var dossier = await _companyDossierRepository.GetAsync(request.UserId, request.Symbol);
+        if (dossier != null)
+        {
+            // "Đã viết" không phải một sự kiện; "đã chịu trách nhiệm" mới là.
+            if (dossier.ConfirmedAt.HasValue)
+                AddDossierMarker(items, dossier.ConfirmedAt.Value, "signed", dossier.Version, request.From, to);
+
+            if (dossier.AgentDraftedAt.HasValue)
+                AddDossierMarker(items, dossier.AgentDraftedAt.Value, "agent-drafted", dossier.Version, request.From, to);
+        }
+
         // Sort all items by timestamp
         items = items.OrderBy(i => i.Timestamp).ToList();
 
@@ -255,6 +274,24 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
             EmotionSummary = emotionSummary,
             BehavioralPatterns = behavioralPatterns
         };
+    }
+
+    /// <summary>
+    /// Mốc hồ sơ phải tôn trọng khoảng ngày y như mọi nguồn khác — lọc khoảng mà mốc
+    /// vẫn hiện là nó nói dối về khoảng đang xem.
+    /// </summary>
+    private static void AddDossierMarker(
+        List<TimelineItemDto> items, DateTime at, string action, int version, DateTime? from, DateTime? to)
+    {
+        if (from.HasValue && at < from.Value) return;
+        if (to.HasValue && at > to.Value) return;
+
+        items.Add(new TimelineItemDto
+        {
+            Type = "dossier",
+            Timestamp = at,
+            Data = new { action, version }
+        });
     }
 
     private static List<HoldingPeriodDto> CalculateHoldingPeriods(List<Trade> trades)

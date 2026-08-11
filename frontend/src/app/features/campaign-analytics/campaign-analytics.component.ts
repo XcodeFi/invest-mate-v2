@@ -6,11 +6,12 @@ import { TradePlanService, CampaignAnalyticsDto, TradePlan } from '../../core/se
 import { TIME_HORIZON_OPTIONS } from '../../shared/constants/time-horizon';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { forkJoin } from 'rxjs';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-campaign-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterLink, VndCurrencyPipe],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div class="flex items-center justify-between">
@@ -28,7 +29,7 @@ import { forkJoin } from 'rxjs';
           <div class="space-y-1">
             @for (plan of pendingPlans; track plan.id) {
               <div class="flex items-center justify-between text-sm">
-                <span class="font-medium">{{plan.symbol}}</span>
+                <span class="font-medium" [appSymbolLink]="plan.symbol">{{plan.symbol}}</span>
                 <span class="text-gray-500">{{plan.executedAt | date:'dd/MM/yyyy'}}</span>
                 <a [routerLink]="['/trade-plan']" [queryParams]="{id: plan.id}" class="text-blue-600 hover:underline">Đánh giá</a>
               </div>
@@ -70,7 +71,7 @@ import { forkJoin } from 'rxjs';
           @if (analytics.bestCampaign) {
             <div class="bg-green-50 border border-green-200 rounded-lg p-4">
               <div class="text-sm text-green-700 font-semibold mb-1">Chiến dịch tốt nhất (VND/ngày)</div>
-              <div class="text-lg font-bold text-green-800">{{analytics.bestCampaign.symbol}}</div>
+              <div class="text-lg font-bold text-green-800" [appSymbolLink]="analytics.bestCampaign.symbol">{{analytics.bestCampaign.symbol}}</div>
               <div class="text-sm text-green-700">
                 +{{analytics.bestCampaign.pnLPercent | number:'1.2-2'}}% · {{analytics.bestCampaign.pnLPerDay | vndCurrency}}/ngày · {{analytics.bestCampaign.holdingDays}} ngày
               </div>
@@ -79,7 +80,7 @@ import { forkJoin } from 'rxjs';
           @if (analytics.worstCampaign) {
             <div class="bg-red-50 border border-red-200 rounded-lg p-4">
               <div class="text-sm text-red-700 font-semibold mb-1">Chiến dịch tệ nhất (VND/ngày)</div>
-              <div class="text-lg font-bold text-red-800">{{analytics.worstCampaign.symbol}}</div>
+              <div class="text-lg font-bold text-red-800" [appSymbolLink]="analytics.worstCampaign.symbol">{{analytics.worstCampaign.symbol}}</div>
               <div class="text-sm text-red-700">
                 {{analytics.worstCampaign.pnLPercent | number:'1.2-2'}}% · {{analytics.worstCampaign.pnLPerDay | vndCurrency}}/ngày · {{analytics.worstCampaign.holdingDays}} ngày
               </div>
@@ -105,7 +106,7 @@ import { forkJoin } from 'rxjs';
             <tbody>
               @for (item of analytics.trend; track item.planId) {
                 <tr class="border-t hover:bg-gray-50">
-                  <td class="px-4 py-3 font-medium">{{item.symbol}}</td>
+                  <td class="px-4 py-3 font-medium" [appSymbolLink]="item.symbol">{{item.symbol}}</td>
                   <td class="px-4 py-3 text-gray-500">{{getHorizonLabel(item)}}</td>
                   <td class="px-4 py-3 text-right" [class.text-green-600]="item.cumulativePnL > 0" [class.text-red-600]="item.cumulativePnL < 0">
                     {{getCampaignPnLAmount(item.planId) | vndCurrency}}
@@ -132,7 +133,7 @@ import { forkJoin } from 'rxjs';
             <div class="space-y-3">
               @for (lesson of lessonsData; track lesson.planId) {
                 <div class="border-l-4 border-blue-400 pl-3 py-1">
-                  <div class="text-sm font-medium text-gray-700">{{lesson.symbol}} · {{lesson.reviewedAt | date:'dd/MM/yyyy'}}</div>
+                  <div class="text-sm font-medium text-gray-700"><span [appSymbolLink]="lesson.symbol">{{lesson.symbol}}</span> · {{lesson.reviewedAt | date:'dd/MM/yyyy'}}</div>
                   <div class="text-sm text-gray-600 mt-1">{{lesson.lessons}}</div>
                 </div>
               }

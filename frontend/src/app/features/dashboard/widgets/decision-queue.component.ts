@@ -11,6 +11,7 @@ import {
   DecisionType,
 } from '../../../core/services/decision.service';
 import { DisciplineService } from '../../../core/services/discipline.service';
+import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.directive';
 
 /**
  * Decision Queue — vị trí #1 trên Home (P3 + P4 Decision Engine v1.1).
@@ -29,7 +30,7 @@ const MIN_HOLD_NOTE_LENGTH = 20;
 @Component({
   selector: 'app-decision-queue',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule],
   template: `
     <!-- Loading skeleton -->
     <div *ngIf="loading" data-test="decision-queue-loading"
@@ -81,7 +82,7 @@ const MIN_HOLD_NOTE_LENGTH = 20;
           <div class="flex items-start justify-between gap-3 mb-1">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1 flex-wrap">
-                <span class="font-bold text-gray-900">{{ item.symbol }}</span>
+                <span class="font-bold text-gray-900" [appSymbolLink]="item.symbol">{{ item.symbol }}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full font-medium"
                       [ngClass]="severityBadgeClass(item.severity)">
                   {{ severityLabel(item.severity) }}

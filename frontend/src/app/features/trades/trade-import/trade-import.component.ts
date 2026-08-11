@@ -6,6 +6,7 @@ import { TradeService, BulkTradeItem, BulkCreateResult } from '../../../core/ser
 import { PortfolioService, PortfolioSummary } from '../../../core/services/portfolio.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
+import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.directive';
 
 interface PreviewRow extends BulkTradeItem {
   rowNum: number;
@@ -16,7 +17,7 @@ interface PreviewRow extends BulkTradeItem {
 @Component({
   selector: 'app-trade-import',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <div class="bg-white shadow-sm border-b border-gray-200">
@@ -95,7 +96,7 @@ interface PreviewRow extends BulkTradeItem {
               <tbody class="divide-y divide-gray-200">
                 <tr *ngFor="let row of previewRows" [class.bg-red-50]="row.error">
                   <td class="px-3 py-2 text-gray-500">{{ row.rowNum }}</td>
-                  <td class="px-3 py-2 font-medium">{{ row.symbol }}</td>
+                  <td class="px-3 py-2 font-medium" [appSymbolLink]="row.symbol">{{ row.symbol }}</td>
                   <td class="px-3 py-2">
                     <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
                       [class.bg-green-100]="row.tradeType === 'BUY'" [class.text-green-700]="row.tradeType === 'BUY'"

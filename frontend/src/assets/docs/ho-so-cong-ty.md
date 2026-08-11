@@ -110,6 +110,24 @@ Khi form lập kế hoạch đã có đủ mã + số lượng + giá vào + s�
 
 ---
 
+## Hồ sơ hiện trên dòng thời gian của mã
+
+Mở dòng thời gian của một mã (bấm thẳng vào mã ở bất kỳ danh sách nào trong app) sẽ thấy mốc hồ sơ nằm chung với nhật ký, lệnh và cảnh báo:
+
+| Mốc | Nghĩa |
+|---|---|
+| 📋 **Ký hồ sơ công ty** | Lần bạn xác nhận đã đọc và chịu trách nhiệm về nội dung hồ sơ |
+| 📋 **Trợ lý AI sửa hồ sơ — chờ bạn ký lại** | Lần trợ lý soạn lại nội dung. Từ lúc này hồ sơ mất chữ ký và **đang chặn lập kế hoạch** cho tới khi bạn đọc và ký lại |
+
+Bỏ tick ô **📋 Hồ sơ công ty** ở bộ lọc phía trên để ẩn các mốc này.
+
+**Hai điều cần biết về giới hạn hiển thị:**
+
+- Đây là **tối đa 2 mốc gần nhất**, không phải toàn bộ lịch sử. Hồ sơ chỉ lưu trạng thái hiện tại chứ không lưu bản chụp mỗi lần ký, nên không xem lại được luận điểm của bạn đã thay đổi thế nào qua thời gian.
+- Sau khi trợ lý AI sửa hồ sơ, **mốc ký cũ biến mất** khỏi dòng thời gian. Không phải lỗi hiển thị: việc trợ lý sửa đã xoá chữ ký cũ đi, và hệ thống không giữ lại thời điểm ký trước đó. Bạn chỉ thấy đủ cả hai mốc trong trường hợp trợ lý soạn trước rồi bạn ký sau.
+
+---
+
 ## Điều cần biết
 
 - Kế hoạch **đang chạy** không bị soi lại dù hồ sơ liên quan hết hạn — chỉ kế hoạch **mới** hoặc kế hoạch sửa vượt ngưỡng 5% mới bị kiểm tra.

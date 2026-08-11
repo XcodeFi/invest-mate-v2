@@ -21,6 +21,20 @@
 - Không dùng CSS class `uppercase` hay inline `toUpperCase()` cho symbol inputs.
 - Backend entity (Trade, TradePlan) đã tự normalize `ToUpper().Trim()` — đây là lớp bảo vệ cuối.
 
+## Symbol Display
+
+- Mã chứng khoán **hiển thị** (không phải input) dùng `appSymbolLink` (`SymbolLinkDirective` trong `shared/directives/symbol-link.directive.ts`) để bấm được sang `/symbol-timeline/:symbol`:
+  ```html
+  <span [appSymbolLink]="p.symbol">{{ p.symbol }}</span>
+  ```
+- **Chỉ gắn khi mã định danh một dòng/thẻ trong danh sách** — người dùng đang chọn một trong nhiều.
+- ⛔ **Tuyệt đối không gắn khi phần tử bao ngoài có `(click)` là hành động chính** (hàng nạp kế hoạch, thẻ chọn mã, kết quả tìm kiếm, ô tra cứu giá). Directive **nuốt** click của cha, nên gắn vào đó là **cướp mất** hành động người dùng thực sự cần. Build xanh, unit test xanh, chỉ bấm thật mới thấy.
+  Cách rà trước khi gắn: từ dòng có mã, đọc ngược ~12 dòng xem thẻ cha có `(click)=` không.
+- **Không gắn** khi mã nằm trong câu văn, trong `<option>`, trong tiêu đề nói về thứ đang mở sẵn, khi nó không phải mã cổ phiếu (chỉ số như VNINDEX), hoặc khi chỗ đó đã là link.
+- **Trang đã có đường đi riêng tới timeline** (icon 📊 cạnh mã): hoặc gắn directive rồi **bỏ icon** (nếu icon đi cùng chỗ — như trang Vị thế), hoặc không gắn (nếu mã trỏ đi nơi khác — như Watchlist). Không để hai control cạnh nhau đi cùng một chỗ.
+- Directive tự lo trợ năng (`role`, `tabindex`, Enter/Space) và tự tắt hoàn toàn khi mã rỗng. Mã rỗng thì click vẫn nổi lên cha.
+- Bảng phân loại đầy đủ 77 chỗ hiển thị mã: [`docs/superpowers/plans/done/2026-08-10-dossier-symbol-links-and-timeline.md`](docs/superpowers/plans/done/2026-08-10-dossier-symbol-links-and-timeline.md).
+
 ## Tech Stack
 
 - **Frontend:** Angular 19, standalone components, inline templates, Tailwind CSS, ngModel (template-driven forms)

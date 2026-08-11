@@ -7,11 +7,12 @@ import {
   dossierFreshnessLabel,
   dossierFreshnessBadgeClass,
 } from '../../core/services/company-dossier.service';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-company-dossier-list',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Hồ sơ công ty</h1>
@@ -31,7 +32,7 @@ import {
           </thead>
           <tbody class="divide-y">
             <tr *ngFor="let d of dossiers" class="hover:bg-gray-50">
-              <td class="px-4 py-2 font-bold">{{ d.symbol }}</td>
+              <td class="px-4 py-2 font-bold" [appSymbolLink]="d.symbol">{{ d.symbol }}</td>
               <td class="px-4 py-2 text-center">
                 <span class="px-2 py-0.5 rounded-full text-xs font-medium" [ngClass]="freshnessClass(d.freshness)">
                   {{ freshnessLabel(d.freshness) }}

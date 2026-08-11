@@ -24,13 +24,14 @@ import { isBuyTrade } from '../../shared/constants/trade-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Chart, registerables } from 'chart.js';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent, NetWorthSummaryComponent, DecisionQueueComponent],
+  imports: [SymbolLinkDirective, CommonModule, RouterModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, DisciplineScoreWidgetComponent, NetWorthSummaryComponent, DecisionQueueComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -112,7 +113,7 @@ Chart.register(...registerables);
             <a *ngFor="let item of watchlistTopMovers.slice(0, 6)"
               [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
               class="p-2 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors text-center">
-              <div class="font-semibold text-sm text-gray-900">{{ item.symbol }}</div>
+              <div class="font-semibold text-sm text-gray-900" [appSymbolLink]="item.symbol">{{ item.symbol }}</div>
               <div class="text-sm font-mono mt-0.5">{{ item.close | vndCurrency }}</div>
             </a>
           </div>
@@ -589,7 +590,7 @@ Chart.register(...registerables);
                 [class.border-green-200]="pos.unrealizedPnL >= 0"
                 [class.border-red-200]="pos.unrealizedPnL < 0">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-bold text-sm text-gray-800">{{ pos.symbol }}</span>
+                  <span class="font-bold text-sm text-gray-800" [appSymbolLink]="pos.symbol">{{ pos.symbol }}</span>
                   <span class="text-xs px-2 py-0.5 rounded-full font-medium"
                     [class.bg-green-100]="pos.unrealizedPnL >= 0" [class.text-green-700]="pos.unrealizedPnL >= 0"
                     [class.bg-red-100]="pos.unrealizedPnL < 0" [class.text-red-700]="pos.unrealizedPnL < 0">

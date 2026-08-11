@@ -553,6 +553,19 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
               <p class="font-medium text-gray-900 mt-1">{{ item.data.message }}</p>
             </div>
           </div>
+
+          <div *ngIf="item.type === 'dossier'" class="flex gap-3">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg flex-shrink-0">📋</div>
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">Hồ sơ công ty</span>
+                <span class="text-xs text-gray-500">{{ formatDate(item.timestamp) }}</span>
+              </div>
+              <p class="font-medium text-gray-900 mt-1">{{ dossierMarkerLabel(item.data?.action) }}</p>
+              <a [routerLink]="['/company-dossier', symbol]"
+                class="text-xs text-indigo-600 hover:underline">→ Xem hồ sơ</a>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -627,7 +640,8 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
     { type: 'journal', label: '📓 Nhật ký', checked: true },
     { type: 'trade', label: '💹 Giao dịch', checked: true },
     { type: 'event', label: '📰 Sự kiện', checked: true },
-    { type: 'alert', label: '⚠️ Cảnh báo', checked: true }
+    { type: 'alert', label: '⚠️ Cảnh báo', checked: true },
+    { type: 'dossier', label: '📋 Hồ sơ công ty', checked: true }
   ];
   filteredItems: TimelineItem[] = [];
 
@@ -850,6 +864,10 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
           return `<div class="flex items-center gap-1.5"><span class="text-indigo-400 font-bold">J</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
         if (item.type === 'event')
           return `<div class="flex items-center gap-1.5"><span class="text-amber-400 font-bold">E</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
+        // Nhánh riêng cho mốc hồ sơ: data là { action, version }, KHÔNG có `title`, nên
+        // rơi xuống fallback bên dưới sẽ hiện thành "A · Cảnh báo" — sai loại hoàn toàn.
+        if (item.type === 'dossier')
+          return `<div class="flex items-center gap-1.5"><span class="text-indigo-300 font-bold">📋</span> ${this.escapeHtml(this.truncate(this.dossierMarkerLabel(item.data?.action), 40))}</div>`;
         return `<div class="flex items-center gap-1.5"><span class="text-orange-400 font-bold">A</span> ${this.escapeHtml(this.truncate(item.data.title ?? 'Cảnh báo', 40))}</div>`;
       });
 
@@ -1368,26 +1386,41 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
 
   // ===== Export (P7.7) =====
 
+  /** Nhãn tiếng Việt cho mốc hồ sơ. Action lạ thì vẫn nói được điều gì đó, không trả rỗng. */
+  dossierMarkerLabel(action: string | undefined): string {
+    switch (action) {
+      case 'signed': return 'Ký hồ sơ công ty';
+      case 'agent-drafted': return 'Trợ lý AI sửa hồ sơ — chờ bạn ký lại';
+      default: return 'Cập nhật hồ sơ công ty';
+    }
+  }
+
+  /** Tách khỏi exportCsv để test được từng loại — nhánh default trả [] là một dòng trống giữa file. */
+  private csvRow(item: TimelineItem): any[] {
+    const d: any = item.data;
+    switch (item.type) {
+      case 'journal':
+        return [this.formatDate(item.timestamp), this.getEntryTypeLabel(d.entryType), d.title,
+          d.emotionalState || '', d.confidenceLevel || '', d.priceAtTime || '', d.content?.substring(0, 100) || ''];
+      case 'trade':
+        return [this.formatDate(item.timestamp), d.tradeType === 'BUY' ? 'MUA' : 'BÁN',
+          `${d.quantity} cp @ ${d.price}`, '', '', d.price, ''];
+      case 'event':
+        return [this.formatDate(item.timestamp), d.eventType, d.title, '', '', '', d.description || ''];
+      case 'alert':
+        return [this.formatDate(item.timestamp), 'Cảnh báo', d.message, '', '', '', ''];
+      case 'dossier':
+        return [this.formatDate(item.timestamp), 'Hồ sơ công ty', this.dossierMarkerLabel(d?.action),
+          '', '', '', `phiên bản ${d?.version ?? ''}`];
+      default:
+        return [];
+    }
+  }
+
   exportCsv() {
     if (!this.timeline) return;
     const headers = ['Ngày', 'Loại', 'Tiêu đề', 'Cảm xúc', 'Confidence', 'Giá', 'Ghi chú'];
-    const rows = this.filteredItems.map(item => {
-      const d = item.data;
-      switch (item.type) {
-        case 'journal':
-          return [this.formatDate(item.timestamp), this.getEntryTypeLabel(d.entryType), d.title,
-            d.emotionalState || '', d.confidenceLevel || '', d.priceAtTime || '', d.content?.substring(0, 100) || ''];
-        case 'trade':
-          return [this.formatDate(item.timestamp), d.tradeType === 'BUY' ? 'MUA' : 'BÁN',
-            `${d.quantity} cp @ ${d.price}`, '', '', d.price, ''];
-        case 'event':
-          return [this.formatDate(item.timestamp), d.eventType, d.title, '', '', '', d.description || ''];
-        case 'alert':
-          return [this.formatDate(item.timestamp), 'Cảnh báo', d.message, '', '', '', ''];
-        default:
-          return [];
-      }
-    });
+    const rows = this.filteredItems.map(item => this.csvRow(item));
 
     const csv = [headers, ...rows].map(r => r.map((c: any) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });

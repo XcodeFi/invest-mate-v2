@@ -18,11 +18,12 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { catchError, of } from 'rxjs';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, VndCurrencyPipe],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -222,7 +223,7 @@ import { catchError, of } from 'rxjs';
                     <tbody class="bg-white divide-y divide-gray-200">
                       <tr *ngFor="let holding of topHoldings" class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap">
-                          <div class="text-sm font-medium text-gray-900">{{ holding.symbol }}</div>
+                          <div class="text-sm font-medium text-gray-900" [appSymbolLink]="holding.symbol">{{ holding.symbol }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {{ holding.quantity }}
@@ -250,7 +251,7 @@ import { catchError, of } from 'rxjs';
                 <div class="md:hidden divide-y divide-gray-200">
                   <div *ngFor="let holding of topHoldings" class="p-4 space-y-2">
                     <div class="flex items-center justify-between">
-                      <span class="font-bold text-gray-900">{{ holding.symbol }}</span>
+                      <span class="font-bold text-gray-900" [appSymbolLink]="holding.symbol">{{ holding.symbol }}</span>
                       <span class="text-sm font-semibold"
                         [class]="(holding.totalPnLPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'">
                         {{ (holding.totalPnLPercent ?? 0).toFixed(2) }}%

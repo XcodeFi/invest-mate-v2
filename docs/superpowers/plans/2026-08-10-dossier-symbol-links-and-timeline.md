@@ -10,7 +10,7 @@
 
 ## Trạng thái đi vào plan này
 
-**Plan này chưa khởi động** (soát 2026-08-10) — Task 1–5 đều còn nguyên.
+**Trạng thái: ĐÓNG (2026-08-10).** Task 1–5 xong hết, ship trong một PR (v2.77.0).
 
 Cổng hồ sơ công ty **đã xong cả ba chặng** (PR #147 chặng 1, #149 + #150 chặng 2, #151 chặng 3). Plan gốc: [`2026-08-09-company-dossier-guard.md`](done/2026-08-09-company-dossier-guard.md) — đọc checkpoint chặng 2 và chặng 3 ở cuối file đó trước khi bắt đầu.
 
@@ -44,7 +44,7 @@ Plan này là việc **mới**, phát sinh từ hai ý trong phiên 2026-08-10:
 
 Vì sao directive chứ không phải component: mã đang nằm trong hàng chục template dưới dạng `{{ x.symbol }}` bên trong `<span>`, `<td>`, `<div>`. Một component `<app-symbol-link>` buộc phải sửa cấu trúc từng chỗ; một attribute directive chỉ cần thêm một attribute vào phần tử đang có.
 
-- [ ] **Step 1: Viết test**
+- [x] **Step 1: Viết test**
 
 ```typescript
 import { Component } from '@angular/core';
@@ -108,12 +108,12 @@ describe('SymbolLinkDirective', () => {
 });
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `cd frontend && npx ng test --watch=false --include='**/symbol-link.directive.spec.ts'`
 Expected: FAIL — directive chưa tồn tại
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```typescript
 import { Directive, HostBinding, HostListener, Input, inject } from '@angular/core';
@@ -160,9 +160,9 @@ export class SymbolLinkDirective {
 }
 ```
 
-- [ ] **Step 4: Chạy test, xác nhận pass** — 4 test
+- [x] **Step 4: Chạy test, xác nhận pass** — 4 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/app/shared/directives/symbol-link.directive.ts frontend/src/app/shared/directives/symbol-link.directive.spec.ts
@@ -180,21 +180,74 @@ Việc quan trọng nhất của task này là **đừng áp bừa**. Có ba lo�
 | Loại | Ví dụ | Gắn link? |
 |---|---|---|
 | Mã trong bảng/thẻ danh sách, nằm trong phần tử riêng | ô "MÃ CK" ở bảng trade plan, thẻ vị thế | ✅ |
-| Mã bên trong một hàng đã có `(click)` riêng | hàng bảng mở modal chi tiết | ✅ nhưng phải `stopPropagation` (Task 1 đã làm) |
+| ~~Mã bên trong một hàng đã có `(click)` riêng~~ | hàng bảng nạp kế hoạch, thẻ chọn mã | ❌ — **quy tắc gốc của plan SAI, sửa 2026-08-10 sau code review.** `stopPropagation` không phải giải pháp, nó chính là vấn đề: directive nuốt click của cha nên gắn vào đó là **cướp mất hành động chính của hàng**. |
 | Mã trong câu văn, trong `<option>`, trong input, trong heading của **chính** trang mã đó | "Hồ sơ công ty: HPG", `<option>` chọn mã | ❌ — link tới chính trang đang mở, hoặc phá `<select>` |
 
-- [ ] **Step 1: Liệt kê ứng viên**
+- [x] **Step 1: Liệt kê ứng viên**
 
 ```bash
 cd frontend/src/app
 grep -rn "{{ *[a-zA-Z_.]*symbol *}}\|{{ *[a-zA-Z_.]*Symbol *}}" --include=*.ts features/ shared/ | grep -v spec.ts
 ```
 
-- [ ] **Step 2: Ghi bảng phân loại vào chính file plan này**
+- [x] **Step 2: Ghi bảng phân loại vào chính file plan này**
 
 Mỗi dòng: `file:line` · loại (1/2/3) · gắn hay không · lý do nếu không. Bảng này là đầu vào của Task 3, và là bằng chứng "đã xem hết" chứ không phải sửa vài chỗ rồi tuyên bố xong.
 
-- [ ] **Step 3: Commit bảng**
+**Khảo sát 2026-08-10 — 77 chỗ khớp `{{ …symbol }}` trong `features/`, đã xem hết.**
+
+Luật phân loại đã áp thống nhất, để lần sau thêm màn mới còn theo được:
+
+- ✅ khi mã **định danh một dòng/thẻ trong danh sách** — người dùng đang chọn một trong nhiều.
+- ❌ khi mã nằm trong **câu văn**, trong `<option>`, trong **tiêu đề nói về thứ đang mở sẵn**, khi nó **không phải mã cổ phiếu**, hoặc khi chỗ đó **đã là link**.
+
+> **Sửa sau code review + verify (2026-08-10):** con số dưới đây là **48 chỗ ban đầu**; đã gỡ lại **8 chỗ** vì hai lý do chỉ lộ ra khi bấm thật, còn **40 chỗ / 18 file**. Chi tiết ở cuối Task 3.
+
+**Gắn — 48 chỗ / 20 file (ban đầu)**
+
+| File | Dòng |
+|---|---|
+| `alerts.component.ts` | 152 |
+| `analytics.component.ts` | 225, 253 |
+| `backtesting.component.ts` | 250 |
+| `campaign-analytics.component.ts` | 31, 73, 82, 108, 135 |
+| `company-dossier-list.component.ts` | 34 |
+| `corporate-actions.component.ts` | 121 |
+| `dashboard.component.ts` | 115, 592 |
+| `widgets/decision-queue.component.ts` | 84 |
+| `market-data.component.ts` | 71, 578, 602, 635 |
+| `pending-reviews.component.ts` | 57, 102 |
+| `portfolio-analytics.component.ts` | 98, 132, 156 |
+| `portfolio-detail.component.ts` | 106, 126, 167, 186 |
+| `portfolio-trades.component.ts` | 91, 116 |
+| `positions.component.ts` | 121 |
+| `risk.component.ts` | 98, 126, 219, 242 |
+| `risk-dashboard.component.ts` | 147, 238, 302, 444 |
+| `snapshots.component.ts` | 211, 228, 401, 418 |
+| `trade-plan.component.ts` | 156, 244, 1356 |
+| `trade-create.component.ts` | 113, 129 |
+| `trade-import.component.ts` | 98 |
+
+**Không gắn — 29 chỗ**
+
+| Chỗ | Lý do |
+|---|---|
+| `symbol-timeline.component.ts` 57, 119, 135, 207, 562 | Chính là trang đích. Link trỏ về trang đang mở. |
+| `company-dossier-detail.component.ts` 38 | Tiêu đề trang của chính mã đó. |
+| `journals.component.ts` 61 | Nằm trong `<option>` — gắn vào là phá `<select>`. |
+| `market-data.component.ts` 31 | `idx.symbol` là **chỉ số thị trường** (VNINDEX…), không phải mã cổ phiếu; timeline của nó vô nghĩa. |
+| `market-data.component.ts` 88, 193 | Tiêu đề panel nói về mã vừa được chọn ngay trên trang đó. |
+| `trade-plan.component.ts` 339, 830, 1192, 1782 | Câu trạng thái / tiêu đề modal về đúng thứ đang sửa. |
+| `trade-plan.component.ts` 1666, 1700 | Đã là link sẵn (sang trang hồ sơ) — lồng link vào link. |
+| `corporate-actions.component.ts` 235, 253 | Trong câu văn ("Xem trước tác động lên…", "Không tìm thấy vị thế…"). |
+| `trade-create.component.ts` 140, 180 | Trong câu văn / tiêu đề khối. |
+| `trades.component.ts` 192 | Trong câu văn ("Không có KH cho…"). |
+| `trades.component.ts` 135, 230 | **Đổi ý khi thi hành:** mã ở đây nằm trong `<button (click)="filterBySymbol(…)">` — nó là **nút lọc**, không phải nhãn. Và ngay cạnh đã có `<a [routerLink]="['/symbol-timeline', …]">`. Gắn directive là vừa lọc vừa điều hướng trong một cú bấm. |
+| `trades.component.ts` 188 | Nằm trong hàng có `(click)="linkTradeToPlan(…)"` — cả hàng tồn tại để một cú bấm nối lệnh với kế hoạch. `stopPropagation` của directive sẽ nuốt mất chính hành động đó. |
+| `trade-replay.component.ts` 125 | Trong câu văn ("Chưa có dữ liệu giá cho…"). |
+| `watchlist.component.ts` 125, 161, 236, 319 | **Trang này đã có lời giải riêng và là chủ ý:** mã trỏ sang `market-data`, cạnh nó có icon 📊 trỏ sang `symbol-timeline`. Gắn thêm directive là đổi hành vi người dùng đã quen và tạo hai đường đi khác nhau cho cùng một chữ. |
+
+- [x] **Step 3: Commit bảng**
 
 ```bash
 git add docs/superpowers/plans/2026-08-10-dossier-symbol-links-and-timeline.md
@@ -207,7 +260,7 @@ git commit -m "docs(plan): bảng phân loại chỗ hiển thị mã cho symbol
 
 **Files:** các file trong bảng Task 2 (dự kiến 8–15 file feature).
 
-- [ ] **Step 1: Áp từng file**
+- [x] **Step 1: Áp từng file**
 
 Với mỗi chỗ đã đánh ✅: thêm `SymbolLinkDirective` vào `imports` của component, và thêm attribute vào phần tử đang hiển thị mã:
 
@@ -215,22 +268,26 @@ Với mỗi chỗ đã đánh ✅: thêm `SymbolLinkDirective` vào `imports` c�
 <span [appSymbolLink]="p.symbol">{{ p.symbol }}</span>
 ```
 
-- [ ] **Step 2: Chạy build + toàn bộ test frontend**
+- [x] **Step 2: Chạy build + toàn bộ test frontend**
 
 Run: `cd frontend && npx ng build --configuration development && npx ng test --watch=false`
 Expected: build sạch, test không giảm số lượng.
 
-**Cạm bẫy đã biết:** thêm một directive vào `imports` của component nào thì component đó phải là standalone (cả app này đều standalone). Nếu quên `imports`, Angular **không** báo lỗi — attribute bị bỏ qua im lặng và mã trông như thường, chỉ là không bấm được. Vì vậy Step 3 phải kiểm bằng DOM, không kiểm bằng mắt.
+**Cạm bẫy đã biết:** thêm một directive vào `imports` của component nào thì component đó phải là standalone (cả app này đều standalone). ~~Nếu quên `imports`, Angular **không** báo lỗi — attribute bị bỏ qua im lặng~~ — **đã dò 2026-08-10: sai.** Bỏ `SymbolLinkDirective` khỏi `imports` rồi chạy spec thì Angular ném `NG0303 reportUnknownPropertyError` ("Can't bind to 'appSymbolLink' since it isn't a known property"), và `ng build` cũng đỏ. Nghĩa là cả build lẫn test đều bắt được ca quên `imports`, không cần lo nó lọt trong im lặng. Vẫn nên có test DOM, nhưng vì lý do khác: nó ghim **số lượng** mã được gắn link, tức bắt được ca "gắn thiếu vài chỗ trong cùng một bảng" — thứ mà build không thấy.
 
-- [ ] **Step 3: Test DOM một mẫu đại diện**
+- [x] **Step 3: Test DOM một mẫu đại diện**
 
 Chọn 2 trang (một bảng, một thẻ), viết spec kiểm `[role="link"]` xuất hiện đúng số lần bằng số mã hiển thị. Đây là cách duy nhất bắt được ca "quên `imports`".
 
-- [ ] **Step 4: Verify browser**
+- [x] **Step 4: Verify browser** — ĐÃ CHẠY (localhost:4200 + API 5000, JWT mint cho `investmate.support@gmail.com`, chỉ đọc).
+
+Kết quả: bấm mã `HHV` ở trang Vị thế → sang đúng `/symbol-timeline/HHV`. Trang kế hoạch 4 link, phân tích 2 link; các trang khác 0 link vì **0 dòng dữ liệu** cho user test, không phải thiếu gắn. Console không có lỗi.
+
+**Việc chỉ verify thật mới thấy:** trang Vị thế đã có sẵn `<a [routerLink]="['/symbol-timeline', pos.symbol]">📊</a>` **ngay cạnh mã** — sau khi gắn directive thì thành hai control cạnh nhau đi đúng cùng một chỗ. Icon đó vốn là cách đi vòng vì mã chưa bấm được. Đã bỏ icon, giữ mã. Đây đúng là nguyên tắc đã dùng để loại watchlist/trades, chỉ khác ở chỗ hai trang kia mã trỏ đi **nơi khác** nên icon vẫn còn lý do tồn tại, còn ở đây thì không. Test và build đều không bắt được loại trùng lặp này.
 
 Mở `localhost:4200`, bấm một mã ở mỗi trang đã sửa, xác nhận sang đúng `/symbol-timeline/<mã>`. Dán ảnh/kết quả.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/app
@@ -253,7 +310,7 @@ git commit -m "feat(ui): mã chứng khoán bấm được sang dòng thời gia
 
 Muốn có lịch sử thật thì phải lưu snapshot mỗi lần ký, và đó là một việc riêng (đã nằm trong danh sách ngoài phạm vi của plan gốc: *"snapshot hồ sơ đóng băng vào plan lúc arm"*). **Không** âm thầm làm luôn ở task này; nếu người dùng muốn thì tách plan mới.
 
-- [ ] **Step 1: Viết test**
+- [x] **Step 1: Viết test**
 
 ```csharp
 [Fact]
@@ -291,11 +348,11 @@ public async Task Timeline_AgentDraftAfterConfirm_ShouldAppearAsSeparateMarker()
 }
 ```
 
-- [ ] **Step 2: Chạy test, xác nhận fail**
+- [x] **Step 2: Chạy test, xác nhận fail**
 
 Run: `dotnet test tests/InvestmentApp.Application.Tests --filter GetSymbolTimelineDossier`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Inject `ICompanyDossierRepository` vào handler. Sau khi dựng các item hiện có, thêm:
 - `ConfirmedAt != null` → item `{ action: "signed" }` tại `ConfirmedAt`
@@ -303,9 +360,9 @@ Inject `ICompanyDossierRepository` vào handler. Sau khi dựng các item hiện
 
 Giữ nguyên cách sort item hiện có của query — **đọc trước khi thêm**, đừng đoán là nó sort theo `Timestamp` desc.
 
-- [ ] **Step 4: Chạy test, xác nhận pass** — 3 test
+- [x] **Step 4: Chạy test, xác nhận pass** — 3 test
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/InvestmentApp.Application/JournalEntries tests/InvestmentApp.Application.Tests
@@ -321,11 +378,11 @@ git commit -m "feat(timeline): thêm mốc ký và mốc agent sửa hồ sơ v�
 - Modify: `docs/architecture.md`, `docs/business-domain.md`, `docs/features.md`
 - Modify: `frontend/src/assets/CHANGELOG.md`, `frontend/src/assets/docs/ho-so-cong-ty.md`
 
-- [ ] **Step 1: Đọc cách component render `Type` hiện có**
+- [x] **Step 1: Đọc cách component render `Type` hiện có**
 
 Nó đang switch trên `"journal" | "trade" | "alert" | "event"`. Thêm nhánh `"dossier"` — **kiểm xem nhánh mặc định làm gì**: nếu nó bỏ qua item lạ trong im lặng thì Task 4 đã đúng mà UI vẫn trống, và đó là loại lỗi mất nhiều thời gian nhất để tìm.
 
-- [ ] **Step 2: Viết spec DOM**
+- [x] **Step 2: Viết spec DOM**
 
 ```typescript
 it('hiện mốc ký hồ sơ trên dòng thời gian', () => {
@@ -338,19 +395,21 @@ it('hiện mốc ký hồ sơ trên dòng thời gian', () => {
 });
 ```
 
-- [ ] **Step 3: Implement nhánh render**
+- [x] **Step 3: Implement nhánh render**
 
 Icon riêng + nhãn tiếng Việt: `signed` → "Ký hồ sơ công ty", `agent-drafted` → "Trợ lý AI sửa hồ sơ — chờ bạn ký lại". Có link `[appSymbolLink]` hoặc `routerLink` sang trang hồ sơ.
 
-- [ ] **Step 4: Chạy toàn bộ test + verify browser**
+- [x] **Step 4: Chạy toàn bộ test + verify browser** — test 1.811 backend + 219 frontend. Verify browser đã chạy: `/symbol-timeline/HAH` (mã duy nhất có cả `confirmedAt` lẫn `agentDraftedAt`) hiện **đủ 2 mốc** — "Ký hồ sơ công ty" và "Trợ lý AI sửa hồ sơ — chờ bạn ký lại" — kèm ô lọc `📋 Hồ sơ công ty` và link "Xem hồ sơ". Console sạch. Ảnh: `scratch/qa-verify-timeline-dossier-HAH.png`.
+
+Dữ liệu thật khớp đúng phân tích ở Task 4: HAH có `agentDraftedAt` 07:21 rồi `confirmedAt` 08:47 — tức agent soạn trước, người dùng ký sau. Đó là **cách duy nhất** để cả hai mốc cùng tồn tại.
 
 Run: `dotnet test` (tắt API trước — API đang chạy sẽ khoá DLL và `Api.Tests` bị bỏ qua **im lặng**) và `cd frontend && npx ng test --watch=false`. Dán output.
 
-- [ ] **Step 5: Cập nhật tài liệu + CHANGELOG**
+- [x] **Step 5: Cập nhật tài liệu + CHANGELOG**
 
 Nói rõ giới hạn: timeline hiện **2 mốc gần nhất**, không phải lịch sử tiến hoá luận điểm — vì hồ sơ chưa lưu snapshot.
 
-- [ ] **Step 6: Commit + PR**
+- [x] **Step 6: Commit + PR**
 
 Mở PR bằng skill `/pr` — **không** tự gõ `gh pr create` (bỏ qua cổng code-review và cổng quét bí mật).
 

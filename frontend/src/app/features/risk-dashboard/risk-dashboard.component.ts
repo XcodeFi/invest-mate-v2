@@ -8,6 +8,7 @@ import { RiskService, RiskProfile, PortfolioRiskSummary, DrawdownResult, Correla
 import { StrategyService, Strategy, StrategyPerformance } from '../../core/services/strategy.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 interface RiskOverview {
   totalValue: number;
@@ -34,7 +35,7 @@ interface StrategyScore {
 @Component({
   selector: 'app-risk-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, AiChatPanelComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, AiChatPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -144,7 +145,7 @@ interface StrategyScore {
                 [class.bg-red-50]="alert.severity === 'danger'"
                 [class.bg-yellow-50]="alert.severity === 'warning'">
                 <div class="flex items-center gap-2">
-                  <span class="font-bold text-sm">{{ alert.symbol }}</span>
+                  <span class="font-bold text-sm" [appSymbolLink]="alert.symbol">{{ alert.symbol }}</span>
                   <span class="text-sm text-gray-600">chiếm {{ alert.positionPercent | number:'1.1-1' }}%</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -235,7 +236,7 @@ interface StrategyScore {
               [class.bg-yellow-50]="alert.severity === 'warning'"
               [class.bg-green-50]="alert.severity === 'safe'">
               <div class="flex items-center gap-3">
-                <span class="font-bold">{{ alert.symbol }}</span>
+                <span class="font-bold" [appSymbolLink]="alert.symbol">{{ alert.symbol }}</span>
                 <span class="text-sm text-gray-600">Giá: {{ alert.currentPrice | number:'1.0-0' }}</span>
                 <span class="text-sm text-gray-600">TS: {{ alert.trailingStopPrice | number:'1.0-0' }}</span>
               </div>
@@ -299,7 +300,7 @@ interface StrategyScore {
             <div *ngIf="nearestSLItems.length > 0" class="space-y-2">
               <div class="text-xs font-medium text-gray-500 uppercase">Vị thế gần mức cắt lỗ nhất</div>
               <div *ngFor="let item of nearestSLItems" class="flex justify-between items-center text-sm bg-gray-50 rounded p-2">
-                <span class="font-medium">{{ item.symbol }}</span>
+                <span class="font-medium" [appSymbolLink]="item.symbol">{{ item.symbol }}</span>
                 <span class="text-red-600">{{ item.distancePercent | number:'1.1-1' }}% tới mức cắt lỗ</span>
               </div>
             </div>
@@ -441,7 +442,7 @@ interface StrategyScore {
               </thead>
               <tbody class="divide-y">
                 <tr *ngFor="let r of stressResults" class="hover:bg-gray-50">
-                  <td class="px-4 py-2 font-medium">{{ r.symbol }}</td>
+                  <td class="px-4 py-2 font-medium" [appSymbolLink]="r.symbol">{{ r.symbol }}</td>
                   <td class="px-4 py-2 text-right">{{ r.currentValue | number:'1.0-0' }}</td>
                   <td class="px-4 py-2 text-right">{{ r.beta | number:'1.2-2' }}</td>
                   <td class="px-4 py-2 text-right font-medium" [class.text-red-600]="r.impact < 0" [class.text-green-600]="r.impact >= 0">

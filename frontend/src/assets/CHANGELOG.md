@@ -2,6 +2,33 @@
 
 ---
 
+## [v2.77.0] — 2026-08-10 · Bấm vào mã ở bất kỳ đâu là ra dòng thời gian của nó
+
+### Tính năng
+
+**🔗 Mã chứng khoán bấm được ở 41 chỗ trên 19 màn hình.** Bảng kế hoạch, thẻ vị thế, hàng lệnh, danh sách cảnh báo, kết quả tìm kiếm, bảng ảnh chụp danh mục — bấm vào mã là sang thẳng dòng thời gian của mã đó. Trước bản này chỉ Watchlist và Trades có icon 📊 riêng, còn lại phải tự tìm đường.
+
+Bấm Enter cũng đi được, không chỉ chuột. Mã rỗng thì không giả vờ là link.
+
+**Chỗ nào cố ý không gắn** — để bạn biết đó không phải bỏ sót:
+
+- Mã nằm trong câu văn ("Không tìm thấy vị thế HPG trong danh mục") — bấm vào giữa câu là hành vi lạ.
+- Tiêu đề của chính trang/panel đang mở — link trỏ về nơi bạn đang đứng.
+- `VNINDEX` và các chỉ số ở trang thị trường — chúng không phải mã cổ phiếu, không có dòng thời gian.
+- Watchlist và Trades — hai trang này **đã có** lời giải riêng từ trước: mã trỏ sang trang khác, cạnh nó có icon 📊 trỏ sang dòng thời gian. Gắn thêm là tạo hai đường đi khác nhau cho cùng một chữ.
+- **Mã nằm trong hàng/thẻ mà cú bấm cả hàng là hành động chính** — bảng Kế hoạch (bấm hàng để nạp kế hoạch), kết quả tìm mã và ô giá ở trang Thị trường (bấm để tra cứu), chip vị thế ở màn ghi lệnh (bấm để chọn mã). Gắn vào đó là **cướp mất** chính hành động bạn đang cần.
+
+**📋 Dòng thời gian của mã có thêm mốc hồ sơ công ty.** Nằm chung với nhật ký, lệnh và cảnh báo, sắp theo đúng thứ tự thời gian: *"Ký hồ sơ công ty"* và *"Trợ lý AI sửa hồ sơ — chờ bạn ký lại"*. Có ô lọc riêng ở trên, và xuất CSV cũng có dòng cho nó.
+
+**Nói thẳng về giới hạn:** đây là **tối đa 2 mốc gần nhất**, không phải lịch sử tiến hoá luận điểm — hồ sơ chưa lưu bản chụp theo từng lần ký. Và sau khi trợ lý AI sửa hồ sơ thì **mốc ký cũ biến mất**, vì chính việc sửa đó đã xoá chữ ký và hệ thống không giữ lại thời điểm ký trước. Bạn chỉ thấy đủ cả hai mốc khi trợ lý soạn trước rồi bạn ký sau.
+
+### Nội bộ
+
+- Test: **1.811 backend** (Domain 787, Application 416, Infrastructure 389, Api 219) + **219 frontend**.
+- `ICompanyDossierRepository` vào timeline handler để **bắt buộc**, không optional — tham số optional mà hỏng đăng ký DI sẽ làm mốc âm thầm không bao giờ hiện.
+
+---
+
 ## [v2.76.2] — 2026-08-10 · Bấm Lưu hai lần không còn ra lỗi, và lô rỗng không xoá mất số lượng
 
 ### Sửa

@@ -380,4 +380,23 @@ describe('DecisionQueueComponent', () => {
     expect(component.canExecuteSell(mockItem({ type: 'BuyOpportunity', tradePlanId: null }))).toBeFalse();
     expect(component.canExecuteSell(mockItem({ type: 'MissingStopLoss', tradePlanId: null }))).toBeFalse();
   });
+
+  // -----------------------------------------------------------------
+  // appSymbolLink — mẫu đại diện cho thẻ (card)
+  // -----------------------------------------------------------------
+  it('mã trong mỗi thẻ bấm được sang dòng thời gian', () => {
+    // Quên đưa SymbolLinkDirective vào `imports` thì Angular BỎ QUA attribute
+    // trong im lặng — mã trông y hệt, chỉ là không bấm được. Kiểm bằng DOM là
+    // cách duy nhất bắt được ca đó; nhìn bằng mắt thì không.
+    setup(
+      { items: [mockItem({ symbol: 'HPG' }), mockItem({ id: 'x2', symbol: 'FPT' })], totalCount: 2 },
+      { daysWithoutViolation: 0, hasData: true }
+    );
+    fixture.detectChanges();
+
+    const links = fixture.debugElement.queryAll(By.css('[role="link"][title^="Xem dòng thời gian"]'));
+    expect(links.length).toBe(2);
+    expect(links.map(l => l.nativeElement.getAttribute('title')))
+      .toEqual(['Xem dòng thời gian HPG', 'Xem dòng thời gian FPT']);
+  });
 });

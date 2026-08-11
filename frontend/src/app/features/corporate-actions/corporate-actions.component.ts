@@ -10,6 +10,7 @@ import {
 } from '../../core/services/corporate-action.service';
 import { PortfolioService } from '../../core/services/portfolio.service';
 import { PositionsService, ActivePosition } from '../../core/services/positions.service';
+import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 export const PAR_VALUE = 10_000;
 export const DEFAULT_TAX_PERCENT = 5;
@@ -68,7 +69,7 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
 @Component({
   selector: 'app-corporate-actions',
   standalone: true,
-  imports: [CommonModule, FormsModule, UppercaseDirective, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, UppercaseDirective, VndCurrencyPipe],
   template: `
     <div class="p-4 max-w-6xl mx-auto">
       <div class="flex items-center justify-between mb-4">
@@ -118,7 +119,7 @@ const TYPE_LABELS: Record<CorporateActionType, string> = {
             <tbody>
               @for (a of actions(); track a.id) {
                 <tr class="border-b">
-                  <td class="px-3 py-2 font-medium">{{ a.symbol }}</td>
+                  <td class="px-3 py-2 font-medium" [appSymbolLink]="a.symbol">{{ a.symbol }}</td>
                   <td class="px-3 py-2">{{ typeLabel(a.type) }}</td>
                   <td class="px-3 py-2">{{ a.exDate | date: 'dd/MM/yyyy' }}</td>
                   <td class="px-3 py-2">
