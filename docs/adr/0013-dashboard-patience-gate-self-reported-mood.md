@@ -96,5 +96,5 @@ Option A không làm được việc được giao. Option C nghe khách quan h�
 
 - Plan: `docs/plans/done/p1-dashboard-patience-hero.md`
 - Spec: `docs/superpowers/specs/2026-08-11-dashboard-patience-hero-design.md`
-- PR: #XX (điền sau khi merge)
+- PR: #157
 - Liên quan: ADR-0011 (gate hồ sơ công ty chặn lúc tạo plan) — cùng họ "chặn trước khi hành động", khác ở chỗ ADR-0011 chặn theo dữ liệu khách quan còn ADR-0013 chặn theo tự khai
