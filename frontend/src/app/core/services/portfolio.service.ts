@@ -14,6 +14,10 @@ export interface PortfolioSummary {
   uniqueSymbols: number;
   totalInvested: number;
   totalSold: number;
+  /** Tiền bán chưa về ví theo chu kỳ T+2. Đã nằm TRONG totalSold. */
+  pendingSettlementCash: number;
+  /** Ngày về xa nhất trong các lệnh còn chờ, dạng "YYYY-MM-DD". null khi không còn gì chờ. */
+  pendingSettlementArrivalDate: string | null;
 }
 
 export interface PortfolioDetail {
