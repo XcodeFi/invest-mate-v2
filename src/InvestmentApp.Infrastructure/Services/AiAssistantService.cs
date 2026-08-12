@@ -2020,7 +2020,10 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
                     .Sum(t => t.Quantity * t.Price + t.Fee + t.Tax);
 
             // Chỉ tính được khi có trades — cùng điều kiện với cash, nên null đi cùng nhau.
-            decimal? pendingCash = trades != null
+            // Điều kiện phải TRÙNG KHÍT với `cash` ở trên: mỗi fetch được bọc riêng nên
+            // trades lấy được mà netFlow chết là chuyện có thật. Lệch điều kiện thì bản tin
+            // in một con số chờ về nằm bên trong một tổng tiền đang là n/a.
+            decimal? pendingCash = trades != null && netFlow.HasValue
                 ? SettlementCalculator.PendingSellProceeds(trades, todayVn, closedDates).Amount
                 : null;
 

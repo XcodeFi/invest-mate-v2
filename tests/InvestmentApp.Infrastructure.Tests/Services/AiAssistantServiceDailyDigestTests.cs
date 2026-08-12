@@ -208,6 +208,24 @@ public class AiAssistantServiceDailyDigestTests
     }
 
     [Fact]
+    public void Khong_bao_gio_in_pending_ben_trong_mot_portfolio_cash_dang_la_na()
+    {
+        // Mỗi fetch trong bản tin được bọc riêng nên trades lấy được mà netFlow chết là
+        // chuyện có thật. Nếu điều kiện null của pending lệch với cash, bản tin in một con số
+        // chờ về nằm bên trong một tổng tiền không biết là bao nhiêu.
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 0m, portfolioCash: null, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,
+            missingCashPortfolios: 1,
+            pendingSettlementCash: null,
+            closuresKnownThrough: new DateTime(2026, 9, 2));
+
+        section.Should().Contain("<portfolio_cash>n/a</portfolio_cash>");
+        section.Should().Contain("<portfolio_cash_pending>n/a</portfolio_cash_pending>");
+        section.Should().NotMatchRegex(@"<portfolio_cash_pending>[\d,]+ VND</portfolio_cash_pending>");
+    }
+
+    [Fact]
     public void Call_site_cu_khong_truyen_2_tham_so_moi_van_bien_dich_va_khong_in_pending()
     {
         // Hai tham số mới có default → mọi lời gọi cũ giữ nguyên hành vi.

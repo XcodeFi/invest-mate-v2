@@ -749,14 +749,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Nhãn ngày về xa nhất. Cắt chuỗi "YYYY-MM-DD" thay vì new Date(...): parse ra UTC rồi
-   * đọc bằng getMonth() local là lệch tháng. Không có ngày thì rỗng, không hiện "undefined".
+   * Nhãn ngày về xa nhất. Cắt chuỗi thay vì new Date(...): parse ra UTC rồi đọc bằng
+   * getMonth() local là lệch tháng. Không có ngày thì rỗng, không hiện "undefined".
+   *
+   * API trả `DateTime?` nên JSON là ISO đầy đủ ("2026-06-17T00:00:00Z"), không phải
+   * date-only — phải cắt 10 ký tự đầu, nếu không day thành "17T00:00:00Z".
    */
   get pendingSettlementLabel(): string {
     if (this.pendingSettlementCash <= 0) return '';
     const latest = this.portfolioSummaries
       .map(p => p.pendingSettlementArrivalDate)
       .filter((d): d is string => !!d)
+      .map(d => d.slice(0, 10))
       .sort()
       .pop();
     if (!latest) return '';
