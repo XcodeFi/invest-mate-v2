@@ -208,11 +208,11 @@ public class AiAssistantServiceDailyDigestTests
     }
 
     [Fact]
-    public void Khong_bao_gio_in_pending_ben_trong_mot_portfolio_cash_dang_la_na()
+    public void Formatter_nhan_pending_null_thi_in_na_du_co_caveat_thieu_danh_muc()
     {
-        // Mỗi fetch trong bản tin được bọc riêng nên trades lấy được mà netFlow chết là
-        // chuyện có thật. Nếu điều kiện null của pending lệch với cash, bản tin in một con số
-        // chờ về nằm bên trong một tổng tiền không biết là bao nhiêu.
+        // CHỈ kiểm tầng formatter: cho null vào thì in n/a. KHÔNG kiểm được điều kiện null
+        // của pending trong vòng lặp dựng bản tin — ca đó nằm ở
+        // AiAssistantServiceDigestWiringTests.Digest_TradesLayDuoc_NetFlowChet_...
         var section = AiAssistantService.FormatCashNetWorthSection(
             investableCapital: 0m, portfolioCash: null, idleCash: null,
             netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,

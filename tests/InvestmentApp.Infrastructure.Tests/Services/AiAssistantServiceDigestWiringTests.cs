@@ -39,7 +39,7 @@ public class AiAssistantServiceDigestWiringTests
     private static readonly DateTime BuyDate = DateTime.UtcNow.Date.AddDays(-60);
 
     private static AiAssistantService BuildService(out Portfolio portfolio, bool riskAvailable = true,
-        bool duplicateCasedRiskSymbol = false)
+        bool duplicateCasedRiskSymbol = false, bool flowAvailable = true)
     {
         portfolio = new Portfolio(UserId, "24hmoney", InitialCapital);
 
@@ -119,8 +119,14 @@ public class AiAssistantServiceDigestWiringTests
             .ReturnsAsync(trades);
 
         var flowRepo = new Mock<ICapitalFlowRepository>();
-        flowRepo.Setup(r => r.GetTotalFlowByPortfolioIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0m);
+        if (flowAvailable)
+            flowRepo.Setup(r => r.GetTotalFlowByPortfolioIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(0m);
+        else
+            // Mỗi fetch được bọc riêng nên netFlow chết một mình là chuyện có thật —
+            // trades vẫn lấy được. Đây là ca mà điều kiện null của pending phải trùng với cash.
+            flowRepo.Setup(r => r.GetTotalFlowByPortfolioIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new TimeoutException("capital flow repo down"));
 
         var pnlService = new Mock<IPnLService>();
         pnlService.Setup(s => s.CalculatePortfolioPnLAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -184,9 +190,9 @@ public class AiAssistantServiceDigestWiringTests
     }
 
     private static async Task<string> BuildPayload(bool riskAvailable = true,
-        bool duplicateCasedRiskSymbol = false)
+        bool duplicateCasedRiskSymbol = false, bool flowAvailable = true)
     {
-        var svc = BuildService(out _, riskAvailable, duplicateCasedRiskSymbol);
+        var svc = BuildService(out _, riskAvailable, duplicateCasedRiskSymbol, flowAvailable);
         var result = await svc.BuildDailyDigestAsync(UserId);
         result.ErrorMessage.Should().BeNull();
         return result.UserMessage!;
@@ -316,5 +322,35 @@ public class AiAssistantServiceDigestWiringTests
         payload.Should().Contain($"<portfolio_cash>{ExpectedCash:N0} VND</portfolio_cash>");
         payload.Should().Contain("<positions>");
         payload.Should().NotContain("tập trung quá mức");   // không có dữ liệu risk → không bịa cảnh báo
+    }
+
+    [Fact]
+    public async Task Digest_TradesLayDuoc_NetFlowChet_thi_pending_phai_la_na_khong_phai_con_so()
+    {
+        // Mỗi fetch bọc riêng nên trades thành công mà netFlow chết là chuyện có thật.
+        // `cash` null khi thiếu MỘT TRONG HAI; nếu điều kiện null của `pending` chỉ xét trades
+        // thì bản tin in một con số chờ về nằm bên trong một tổng tiền đang là n/a — advisor
+        // đọc thành "biết chắc có 143tr đang chờ về" trong khi không biết tổng là bao nhiêu.
+        var payload = await BuildPayload(flowAvailable: false);
+
+        payload.Should().Contain("<portfolio_cash>n/a</portfolio_cash>");
+        payload.Should().Contain("<portfolio_cash_pending>n/a</portfolio_cash_pending>");
+        payload.Should().NotMatchRegex(@"<portfolio_cash_pending>[\d,]+ VND</portfolio_cash_pending>");
+    }
+
+    [Fact]
+    public async Task Digest_Binh_thuong_thi_pending_khong_bao_gio_vuot_portfolio_cash()
+    {
+        // Bất biến: tiền chờ về là một phần CỦA tổng tiền, không phải cộng thêm vào.
+        var payload = await BuildPayload();
+
+        var pending = System.Text.RegularExpressions.Regex.Match(
+            payload, @"<portfolio_cash_pending>([\d,]+) VND</portfolio_cash_pending>");
+        if (pending.Success)
+        {
+            var pendingValue = decimal.Parse(pending.Groups[1].Value.Replace(",", ""));
+            pendingValue.Should().BeLessThanOrEqualTo(ExpectedCash);
+        }
+        payload.Should().Contain($"<portfolio_cash>{ExpectedCash:N0} VND</portfolio_cash>");
     }
 }
