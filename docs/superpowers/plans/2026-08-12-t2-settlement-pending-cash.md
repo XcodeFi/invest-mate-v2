@@ -1331,7 +1331,7 @@ Thêm vào `tests/InvestmentApp.Application.Tests/Portfolios/Queries/GetAllPortf
     }
 ```
 
-> **Lưu ý cho người thi hành:** mở file test hiện có xem tên field mock thật (`_portfolioRepository`, `_tradeRepository`, `_capitalFlowRepository`) và constructor `Portfolio` / `Trade` thật, rồi sửa cho khớp. Thêm field `_marketClosureRepository` và truyền vào chỗ dựng `_handler`.
+> **Đã đối chiếu file test thật (2026-08-12):** mock tên là `_portfolioRepo`, `_tradeRepo`, `_flowRepo` — **không** phải `_portfolioRepository`. Constructor là `new Portfolio(userId, name, initialCapital)` — **userId đứng TRƯỚC**. Đổi hai đoạn test ở trên cho khớp, thêm field `_closureRepo` và truyền vào `_handler` làm tham số thứ tư. File này **không** cần `using Xunit;` (project Application.Tests có global using), khác với Domain.Tests.
 
 - [ ] **Step 2: Chạy test cho thấy đỏ**
 
