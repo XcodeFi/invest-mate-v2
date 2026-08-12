@@ -82,5 +82,5 @@ Trade-off chấp nhận: nhiều bộ phận hơn Option C, và **quên nhập l
 
 - Spec: `docs/superpowers/specs/2026-08-12-t2-settlement-pending-cash-design.md`
 - Plan: `docs/superpowers/plans/2026-08-12-t2-settlement-pending-cash.md`
-- PR: #XX (fill in after merge)
+- PR: [#165](https://github.com/XcodeFi/invest-mate-v2/pull/165)
 - External: thông báo lịch nghỉ giao dịch năm 2026 của HOSE — 12 phiên (01/01; 16–20/02; 27/04; 30/04–01/05; 31/08–02/09).
