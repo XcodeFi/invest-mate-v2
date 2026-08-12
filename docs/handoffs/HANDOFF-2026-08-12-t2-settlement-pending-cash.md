@@ -7,13 +7,21 @@
 
 | Commit | Nội dung |
 |---|---|
-| `aa21cfe` | Spec [`2026-08-12-t2-settlement-pending-cash-design.md`](../superpowers/specs/2026-08-12-t2-settlement-pending-cash-design.md) |
-| `1c6252e` | Plan [`2026-08-12-t2-settlement-pending-cash.md`](../superpowers/plans/2026-08-12-t2-settlement-pending-cash.md) — 11 task |
+| `aa21cfe` | Spec [thiết kế](../superpowers/specs/2026-08-12-t2-settlement-pending-cash-design.md) |
+| `1c6252e` | Plan [11 task](../superpowers/plans/2026-08-12-t2-settlement-pending-cash.md) |
 | `ea1c440` | Task 1 — entity `MarketClosure` (4 test) |
 | `5be95fb` | Task 2 — `IMarketClosureRepository` + Mongo impl + DI |
 | `7a900af` | Task 3 — add/remove command + get query (7 test) |
-
-Cả bộ backend: **2015 pass / 0 fail**, đủ 4 project.
+| `2a97902` | Task 4 — 3 tool MCP + controller JWT + sibling ApiKey (13 test) |
+| `85b9b64` | Task 5 — seed 12 ngày nghỉ 2026 + test ghim hai chiều |
+| `a1c98dd` | Vá review vòng 1 — validator nói rõ phải gửi gì |
+| `1a97538` | Task 6 — `SettlementCalculator` + `VietnamDate.Today` (12 test, golden HOSE) |
+| `f309206` | Task 7 — `PendingSettlementCash` vào DTO + interface FE |
+| `79e2925` | Task 8 — dòng chờ về trên hero card (dashboard + capital-flows) |
+| `347016f` | Task 9 — cảnh báo mềm ở cửa sổ ghi lệnh MUA |
+| `1e16c69` | Task 10 — bản tin AI `<portfolio_cash_pending>` + `known_through` |
+| `d0ac016` | Task 11 — ADR-0016 + đồng bộ tài liệu + CHANGELOG + user guide |
+| `1c161fa` | Vá review vòng cuối — nhãn ISO + pending null cùng điều kiện cash |
 
 ## Vào lại từ đâu — 3 việc treo trước khi merge #165
 
