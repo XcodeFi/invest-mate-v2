@@ -112,7 +112,12 @@ static bool IsConfigured(string? value) =>
     !string.IsNullOrWhiteSpace(value) && !value.StartsWith('{');
 
 // Add services to the container
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Bù đúng một lỗ mà SuppressModelStateInvalidFilter để lại: body không đọc được thì
+        // tham số [FromBody] về null, action deref nó và trả 500 "Object reference not set".
+        options.Filters.Add<InvestmentApp.Api.Filters.UnreadableBodyFilter>();
+    })
     .AddJsonOptions(opts => ApiJsonConfig.Configure(opts.JsonSerializerOptions))
     .ConfigureApiBehaviorOptions(options =>
     {
