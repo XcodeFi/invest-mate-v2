@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Risk.Queries.GetVolatilitySizingForPlan;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlanStatus;
@@ -27,7 +29,9 @@ public static class TradePlanTools
         => await mediator.Send(new GetTradePlanByIdQuery { Id = id, UserId = http.GetUserId() }, ct);
 
     [McpServerTool(Name = "create_trade_plan", Destructive = true)]
-    [Description("Tạo kế hoạch giao dịch mới. Luôn tạo ở trạng thái Nháp (Draft) — agent không tự khớp lệnh.")]
+    [Description("Tạo kế hoạch giao dịch mới. Luôn tạo ở trạng thái Nháp (Draft) — agent không tự khớp lệnh. "
+               + "Với lệnh MUA có gắn danh mục, kết quả trả về có thể kèm cảnh báo trần khối lượng theo ngân sách "
+               + "biến động; kế hoạch vẫn được tạo, hãy chuyển tiếp cảnh báo đó cho người dùng.")]
     public static async Task<string> CreateTradePlan(
         [Description("Mã chứng khoán.")] string symbol,
         [Description("Giá vào dự kiến, VND.")] decimal entryPrice,
@@ -54,8 +58,9 @@ public static class TradePlanTools
         [Description("Các mốc chốt lời (bỏ trống = không đặt).")] List<ExitTargetDto>? exitTargets = null,
         [Description("Kiểu chiến lược thoát: Simple/Advanced (bỏ trống = Simple).")] string? exitStrategyMode = null,
         [Description("Cây kịch bản, chỉ dùng khi exitStrategyMode = Advanced (bỏ trống = không có).")] List<ScenarioNodeDto>? scenarioNodes = null)
+    {
         // Status/TradeId cố tình không mở ra MCP — kế hoạch luôn tạo ở Draft (ADR-0004).
-        => await McpDossierGate.GuardAsync(() => mediator.Send(new CreateTradePlanCommand
+        var id = await McpDossierGate.GuardAsync(() => mediator.Send(new CreateTradePlanCommand
         {
             UserId = http.GetUserId(),
             Symbol = symbol,
@@ -85,6 +90,33 @@ public static class TradePlanTools
             Status = null,
             TradeId = null
         }, ct));
+
+        // Trần biến động chỉ có nghĩa cho lệnh MUA gắn danh mục. Không gắn danh mục thì không có gì
+        // để chiếu lên — im lặng, không phải "chưa kiểm được".
+        if (string.IsNullOrWhiteSpace(portfolioId) || (direction ?? "Buy") != "Buy")
+            return id;
+
+        VolatilitySizingResult? sizing = null;
+        try
+        {
+            sizing = await mediator.Send(new GetVolatilitySizingForPlanQuery
+            {
+                UserId = http.GetUserId(),
+                PortfolioId = portfolioId,
+                Symbol = symbol,
+                EntryPrice = entryPrice,
+                Quantity = quantity
+            }, ct);
+        }
+        catch (Exception)
+        {
+            // Kế hoạch ĐÃ tạo xong. Truy vấn tham khảo hỏng không được phép làm lời gọi thất bại và
+            // khiến agent tưởng chưa tạo được rồi tạo lại. Describe(null) sẽ nói "chưa kiểm được".
+        }
+
+        var notice = McpVolatilityNotice.Describe(sizing, quantity);
+        return notice is null ? id : $"{id}\n\n{notice}";
+    }
 
     [McpServerTool(Name = "update_trade_plan", Destructive = true)]
     [Description("Cập nhật một kế hoạch giao dịch theo id. Chỉ trường được truyền mới bị thay đổi.")]

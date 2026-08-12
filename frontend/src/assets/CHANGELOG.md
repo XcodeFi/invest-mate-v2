@@ -18,6 +18,8 @@
 
 **🤖 Agent AI đọc được trần này.** Thêm công cụ `get_volatility_sizing` — trước đây agent lập được kế hoạch nhưng không có đường nào biết trần, tức lan can chỉ tồn tại trên đường bạn tự bấm.
 
+**🔔 Nhờ agent lập kế hoạch cũng nhận được cảnh báo.** Trước đó công cụ trên chỉ là tuỳ chọn, và lời dặn "gọi nó trước" lại nằm trong chính cái tuỳ chọn ấy — agent đi thẳng vào tạo kế hoạch thì không có gì bắn ra. Giờ lệnh mua có gắn danh mục sẽ tự kiểm, và kết quả trả về kèm dòng *"khối lượng 500 vượt trần 198 cổ"*. Kế hoạch vẫn được tạo bình thường.
+
 ### Sửa lỗi
 
 **🔌 "Chưa lấy được dữ liệu" không còn bị nói nhầm thành "chưa đủ dữ liệu".** Khi nguồn giá lỗi, panel trước đây báo *"Chưa đủ lịch sử giá cho FPT"* — một câu sai, vì FPT có thừa lịch sử. Giờ hai tình huống có hai câu khác nhau.
