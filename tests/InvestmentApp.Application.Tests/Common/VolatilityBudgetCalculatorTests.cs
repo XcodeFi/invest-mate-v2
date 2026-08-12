@@ -232,6 +232,55 @@ public class VolatilityBudgetCalculatorTests
         act.Should().NotThrow<OverflowException>();
     }
 
+    // Bộ tham số dùng chung cho cặp test dưới: V = 1.000 tỷ, σ_p = 300, σ_b = 100.
+    // C = V²·(σ_p²−σ_b²) = 10²⁴ × 80.000 = 8×10²⁸ — vượt decimal.MaxValue (7,9×10²⁸).
+    // static readonly, KHÔNG phải const: với const, C# tính biểu thức lúc biên dịch và phát
+    // CS0463 — không build được. Bản thân điều đó đã xác nhận phép tính này tràn thật.
+    private static readonly decimal OverflowV = 1_000_000_000_000m;
+    private static readonly decimal OverflowSigmaP = 300m;
+    private static readonly decimal OverflowSigmaB = 100m;
+
+    [Fact]
+    public void TheDecimalFormulation_ForTheseInputs_ReallyDoesOverflow()
+    {
+        // Ca đối chứng chứng minh test dưới KHÔNG rỗng ruột. Không có nó thì "NotThrow" vẫn xanh
+        // ngay cả khi bộ tham số chẳng bao giờ chạm tới ngưỡng tràn — đúng kiểu test tự khen.
+        var act = () => _ = OverflowV * OverflowV
+            * (OverflowSigmaP * OverflowSigmaP - OverflowSigmaB * OverflowSigmaB);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
+    public void SolveMaxAllocation_CoefficientsThemselvesWouldOverflowDecimal_DoesNotThrow()
+    {
+        // Chính việc DỰNG hệ số C đã ném, trước khi tới biệt thức. Bản sửa trước chỉ chuyển biệt
+        // thức sang double nên vẫn thủng ở đây; nay cả phép giải chạy bằng double.
+        var act = () => VolatilityBudgetCalculator.SolveMaxAllocation(
+            portfolioValue: OverflowV,
+            portfolioVolPercent: OverflowSigmaP,
+            symbolVolPercent: 350m,
+            correlation: 1m,
+            budgetVolPercent: OverflowSigmaB);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void SolveMaxAllocation_SymbolVolBarelyAboveBudget_DoesNotThrowOnTheFinalCast()
+    {
+        // A dương nhưng cực nhỏ (σ_mã sát σ_ngân sách) cho nghiệm hữu hạn trong double mà vượt
+        // decimal.MaxValue. Không chặn thì đúng lớp ngoại lệ vừa loại bỏ quay về ở dòng ép kiểu.
+        var act = () => VolatilityBudgetCalculator.SolveMaxAllocation(
+            portfolioValue: 1_000_000_000m,
+            portfolioVolPercent: 20m,
+            symbolVolPercent: 21.0000000001m,
+            correlation: 0.5m,
+            budgetVolPercent: 21m);
+
+        act.Should().NotThrow<OverflowException>();
+    }
+
     [Fact]
     public void SolveMaxAllocation_LargePortfolio_StillGivesTheSameAnswerAsSmallOne()
     {

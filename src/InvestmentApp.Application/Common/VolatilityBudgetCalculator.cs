@@ -191,37 +191,45 @@ public static class VolatilityBudgetCalculator
     {
         if (budgetVolPercent <= 0m) return 0m;
 
+        // TOÀN BỘ phép giải chạy bằng double, kể cả khi dựng A, B, C — không phải chỉ ở biệt thức.
+        // Cả ba hệ số đều tỷ lệ với luỹ thừa của giá trị danh mục (C với V², B với V), nên chính
+        // việc DỰNG chúng đã vượt decimal.MaxValue (7,9×10²⁸) trước khi tới được biệt thức: C =
+        // V²·(σ_p²−σ_b²) tràn từ V ≈ 3×10¹². Ném ở bất kỳ đâu trong đây nghĩa là panel "cảnh báo,
+        // không bao giờ chặn" trả về 500 — hỏng đúng kiểu nó sinh ra để tránh.
+        // double chứa tới 1,8×10³⁰⁸ và giữ ~15 chữ số có nghĩa; nghiệm là số tiền rồi còn bị làm
+        // tròn xuống thành số cổ, nên sai số của double không tới được kết quả.
+        var v = (double)portfolioValue;
+        var sigmaP = (double)portfolioVolPercent;
+        var sigmaX = (double)symbolVolPercent;
+        var rho = (double)correlation;
+        var budgetSq = (double)budgetVolPercent * (double)budgetVolPercent;
+
         // Ràng buộc S(a) ≤ (V + a)·σ_b, bình phương hai vế rồi gom theo a:
         //   A·a² + B·a + C ≤ 0
-        var budgetSq = budgetVolPercent * budgetVolPercent;
-        var a = symbolVolPercent * symbolVolPercent - budgetSq;
-        var b = 2m * correlation * portfolioValue * portfolioVolPercent * symbolVolPercent
-                - 2m * portfolioValue * budgetSq;
-        var c = portfolioValue * portfolioValue
-                * (portfolioVolPercent * portfolioVolPercent - budgetSq);
+        var a = sigmaX * sigmaX - budgetSq;
+        var b = 2d * rho * v * sigmaP * sigmaX - 2d * v * budgetSq;
+        var c = v * v * (sigmaP * sigmaP - budgetSq);
 
         // Danh mục đã vượt ngân sách trước khi thêm gì: C > 0 nên bất phương trình sai ngay tại a = 0.
-        if (c > 0m) return 0m;
+        if (c > 0d) return 0m;
 
         // A ≤ 0 nghĩa là σ_mã ≤ σ_ngân sách. Kèm C ≤ 0 (σ_danh mục ≤ σ_ngân sách) thì bất phương
         // trình đúng với mọi a ≥ 0: trộn hai tài sản với ρ ≤ 1 cho biến động không vượt quá
         // max(σ_danh mục, σ_mã), mà max đó đã ≤ ngân sách. Không có trần hữu hạn.
         // Nhánh bậc nhất (A = 0) cũng rơi vào đây: nghiệm hữu hạn đòi B > 0, tức ρ·σ_danh mục >
         // σ_ngân sách ≥ σ_danh mục, tức ρ > 1 — bất khả.
-        if (a <= 0m) return null;
+        if (a <= 0d) return null;
 
-        // Biệt thức tính bằng double, không phải decimal. b tỷ lệ với giá trị danh mục nên b² tỷ
-        // lệ với BÌNH PHƯƠNG của nó: danh mục 10 tỷ gặp một mã trần/sàn liên tục đã cho b² vượt
-        // decimal.MaxValue (7,9×10²⁸) và ném OverflowException. Ném ở đây nghĩa là panel "cảnh
-        // báo, không bao giờ chặn" trả về 500 — hỏng đúng kiểu nó sinh ra để tránh.
-        // double chứa tới 1,8×10³⁰⁸ và giữ ~15 chữ số có nghĩa; nghiệm là số tiền cỡ ≤ 10¹² rồi
-        // còn bị làm tròn xuống thành số cổ, nên sai số của double không tới được kết quả.
-        var bd = (double)b;
-        var discriminant = bd * bd - 4d * (double)a * (double)c;
+        var discriminant = b * b - 4d * a * c;
         if (discriminant < 0d) return 0m;
 
-        var root = (-bd + Math.Sqrt(discriminant)) / (2d * (double)a);
+        var root = (-b + Math.Sqrt(discriminant)) / (2d * a);
         if (double.IsNaN(root) || double.IsInfinity(root) || root <= 0d) return 0m;
+
+        // double lớn hơn decimal rất nhiều nên phép ép cuối cùng vẫn ném được: A dương nhưng cực
+        // nhỏ (σ_mã sát σ_ngân sách) cho nghiệm hữu hạn mà vượt decimal.MaxValue. Chặn ở đây, nếu
+        // không thì đúng lớp ngoại lệ vừa loại bỏ lại quay về ở dòng cuối.
+        if (root > (double)decimal.MaxValue) return null;
 
         return (decimal)root;
     }

@@ -1704,7 +1704,7 @@ interface DossierGateError {
                   Chưa lấy được lịch sử giá cho {{ vol.fetchFailedSymbols.join(', ') }} — nguồn dữ
                   liệu đang lỗi, chưa tính được trần khối lượng. Thử lại sau.
                 </div>
-                <div *ngIf="!vol.fetchFailedSymbols.length" class="text-sm text-slate-600"
+                <div *ngIf="vol.missingSymbols.length" class="text-sm text-slate-600"
                      data-testid="volatility-insufficient">
                   Chưa đủ lịch sử giá cho {{ vol.missingSymbols.join(', ') }} — chưa tính được trần
                   khối lượng theo biến động.

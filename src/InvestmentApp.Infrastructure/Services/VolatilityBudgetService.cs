@@ -97,7 +97,9 @@ public class VolatilityBudgetService : IVolatilityBudgetService
 
         // Số phiên ghép được thật, không phải min hai độ dài: hai chuỗi cùng số phiên vẫn có thể
         // lệch tập ngày, và báo con số dài hơn là nói quá độ tin cậy của ước lượng đang hiện ra.
-        result.ObservationCount = portfolioSeries.Count > 0
+        // Cùng ngưỡng > 1 với tương quan ở trên: gác ở > 0 thì tại đúng Count == 1 panel hiện số
+        // phiên trong khi tương quan là n/a, tức số phiên đó không đứng sau ước lượng nào.
+        result.ObservationCount = portfolioSeries.Count > 1
             ? VolatilityBudgetCalculator.AlignedObservationCount(candidate.Returns, portfolioSeries)
             : candidate.Returns.Count;
         result.CurrentVolatilityPercent = portfolioVol;
@@ -239,12 +241,28 @@ public class VolatilityBudgetService : IVolatilityBudgetService
             .ToList();
     }
 
-    /// <returns><c>false</c> khi lấy lịch sử hỏng — người gọi phải phân biệt với "mã không có dữ liệu".</returns>
+    /// <returns><c>false</c> khi LẤY lịch sử hỏng — người gọi phải phân biệt với "mã không có dữ liệu".</returns>
     private async Task<bool> BackfillAsync(string symbol, CancellationToken cancellationToken)
     {
+        List<StockPriceData> history;
         try
         {
-            var history = await _marketDataProvider.GetDailyHistoryAsync(symbol, cancellationToken);
+            history = await _marketDataProvider.GetDailyHistoryAsync(symbol, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Không để thành lỗi 500 cho một panel chỉ mang tính tham khảo — nhưng cũng không im.
+            // Trả false để giao diện nói "chưa lấy được lịch sử giá" thay vì "chưa đủ lịch sử giá":
+            // câu sau là sai sự thật khi mã đó thật ra có thừa dữ liệu.
+            _logger.LogWarning(ex, "Failed to fetch daily history for {Symbol}", symbol);
+            return false;
+        }
+
+        // Ghi vào kho là việc RIÊNG, bắt lỗi riêng. Gộp chung một try là một lỗi Mongo sẽ hiện lên
+        // màn hình thành "nguồn dữ liệu đang lỗi" — trỏ sai chỗ, đúng kiểu nhập nhèm mà cả thay đổi
+        // này sinh ra để dẹp. Ghi hỏng thì lần tính này thiếu dữ liệu, nhưng nguồn thì vẫn tốt.
+        try
+        {
             foreach (var bar in history)
             {
                 await _stockPriceRepository.UpsertAsync(
@@ -253,16 +271,12 @@ public class VolatilityBudgetService : IVolatilityBudgetService
                         "VolatilityBudgetBackfill"),
                     cancellationToken);
             }
-
-            return true;
         }
         catch (Exception ex)
         {
-            // Không để thành lỗi 500 cho một panel chỉ mang tính tham khảo — nhưng cũng không im.
-            // Trả false để giao diện nói "chưa lấy được lịch sử giá" thay vì "chưa đủ lịch sử giá":
-            // câu sau là sai sự thật khi mã đó thật ra có thừa dữ liệu.
-            _logger.LogWarning(ex, "Failed to backfill daily history for {Symbol}", symbol);
-            return false;
+            _logger.LogWarning(ex, "Failed to persist backfilled history for {Symbol}", symbol);
         }
+
+        return true;
     }
 }

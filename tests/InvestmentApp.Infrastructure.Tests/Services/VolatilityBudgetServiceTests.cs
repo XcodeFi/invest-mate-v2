@@ -158,6 +158,26 @@ public class VolatilityBudgetServiceTests
     }
 
     [Fact]
+    public async Task RepositoryWriteFails_IsNotReportedAsSourceFailure()
+    {
+        // Lấy từ nguồn THÀNH CÔNG, chỉ ghi vào kho hỏng. Gán nhãn "nguồn dữ liệu đang lỗi" cho ca
+        // này là trỏ sai chỗ — đúng kiểu nhập nhèm mà FetchFailedSymbols sinh ra để dẹp.
+        _marketData.Setup(m => m.GetDailyHistoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Series("FPT", 80).Select(p => new StockPriceData
+            {
+                Symbol = p.Symbol, Date = p.Date,
+                Open = p.Open, High = p.High, Low = p.Low, Close = p.Close, Volume = p.Volume
+            }).ToList());
+        _priceRepo.Setup(r => r.UpsertAsync(It.IsAny<StockPrice>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TimeoutException("mongo timeout"));
+
+        var result = await CreateService().GetSizingForPlanAsync(PortfolioId, "FPT", 100_000m, 100);
+
+        result.FetchFailedSymbols.Should().NotContain("FPT",
+            "kho ghi hỏng không phải nguồn hỏng — nói nhầm là chỉ sai chỗ cần sửa");
+    }
+
+    [Fact]
     public async Task ProviderReturnsEmptyList_IsMissingNotFetchFailure()
     {
         // Ca đối chứng: nguồn trả về ĐÚNG cấu trúc nhưng rỗng. Đây mới thật sự là "mã chưa có lịch
