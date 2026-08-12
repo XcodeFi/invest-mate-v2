@@ -13,7 +13,7 @@ project/
 │   ├── InvestmentApp.Application/      # CQRS handlers, interfaces, DTOs (depends on Domain)
 │   │   ├── {Feature}/Commands/         # Write operations (MediatR IRequestHandler)
 │   │   ├── {Feature}/Queries/          # Read operations
-│   │   ├── Common/                     # Hàm thuần dùng chung: VietnamDate (quy mốc UTC sang ngày lịch VN, cộng cứng +07:00 vì tên múi giờ khác nhau giữa Windows và Linux — xem ADR-0013), PortfolioCashCalculator, PositionBuilder (nguồn DUY NHẤT dựng vị thế — mọi service cần giá vốn/số lượng phải gọi vào đây, không tự GroupBy trên Trade thô), CorporateActionAdjuster (điều chỉnh giá ngưỡng tại thời điểm đọc), TradePlanPriceAdjuster (quy giá trên TradePlan về mặt bằng hiện tại). Xem ADR-0010
+│   │   ├── Common/                     # Hàm thuần dùng chung: VietnamDate (quy mốc UTC sang ngày lịch VN, cộng cứng +07:00 vì tên múi giờ khác nhau giữa Windows và Linux — xem ADR-0013), PortfolioCashCalculator, SettlementCalculator (chu kỳ thanh toán T+2 — ngày về = ngày khớp + 2 phiên giao dịch, tập ngày nghỉ do caller nạp từ IMarketClosureRepository nên hàm vẫn thuần; xem ADR-0016), PositionBuilder (nguồn DUY NHẤT dựng vị thế — mọi service cần giá vốn/số lượng phải gọi vào đây, không tự GroupBy trên Trade thô), CorporateActionAdjuster (điều chỉnh giá ngưỡng tại thời điểm đọc), TradePlanPriceAdjuster (quy giá trên TradePlan về mặt bằng hiện tại). Xem ADR-0010
 │   │   ├── Common/Interfaces/          # Service interfaces (AI, Risk, Performance, Market, ComprehensiveStockData, ScenarioEvaluation, IApiKeyTokenService)
 │   │   ├── Common/Behaviors/           # MediatR pipeline behaviors (ValidationBehavior<,>)
 │   │   ├── RepositoryInterfaces.cs     # All repository interfaces (~23, incl. IApiKeyRepository)
@@ -113,6 +113,7 @@ are now **in-process** in the API:
 | MarketEvent | Sự kiện thị trường (7 loại: Earnings/Dividend/News/Macro...) |
 | FinancialProfile | Per-user 1:1. 5 loại account (Securities/Savings/Emergency/IdleCash/Gold) + **Debts[]** (6 loại: CreditCard/PersonalLoan/Mortgage/Auto/Installment/Other) + FinancialRules (emergency months, max investment %, min savings %). Health score 0-100 với **4 rules** (rule 4: `-20` cứng khi có consumer debt lãi > 20%/năm). **Net Worth = Assets − Debt**. Gold account: brand + type + quantity → auto-calc Balance qua provider. Savings account có thêm `DepositDate` + `MaturityDate` optional cho sổ có kỳ hạn (2026-04-24); cả 2 set → enforce `Maturity >= Deposit`. `FinancialAccount.CreatedAt` immutable sau Create. Debts không xóa được khi Principal > 0 |
 | MoodCheckIn | **Tâm trạng tự chấm cho màn tĩnh tâm trên trang chủ (2026-08-11, ADR-0013).** Một bản ghi cho mỗi `(UserId, DateKey)` — collection `mood_check_ins`, unique index đặt tên `ux_user_datekey`. `DateKey` là **chuỗi** `"YYYY-MM-DD"` theo lịch VN, **không phải `DateTime`**: lưu nửa đêm giờ VN xuống Mongo thì đọc lên thành 17:00 hôm trước và mọi so sánh mốc ngày lệch một ngày trong khi unit test vẫn xanh vì không đi vòng qua database. `Mood` là enum `Calm`/`Fomo`/`Fear`/`Revenge`. `SetMood` **xoá `OverrodeAt` khi tâm trạng đổi** (giữ lại thì chấm Bình tĩnh rồi chấm lại FOMO là mở khoá vĩnh viễn mà chưa lần nào bấm qua lớp phủ); chấm lại đúng trạng thái cũ không phải là "đổi" nên giữ dấu. `MarkOverridden` chỉ đóng dấu lần đầu. `OverrodeAt` là thước đo duy nhất trả lời được "luật dừng có tác dụng thật không". |
+| MarketClosure | **Ngày sàn đóng cửa vì nghỉ lễ — nền tính T+2 (2026-08-12, ADR-0016).** Bất biến, một bản ghi cho mỗi `(UserId, Date)` — collection `market_closures`, unique index đặt tên `ux_user_date`. T7/CN **không lưu**, suy ra từ `DayOfWeek` (104 bản ghi cuối tuần mỗi năm không mang thêm thông tin). `Date` có `[BsonDateTimeOptions(Kind = DateTimeKind.Utc)]` và ctor ném nếu nhận ngày cuối tuần (lớp chặn cuối; handler bỏ qua và đếm `SkippedWeekend` để dán cả năm không vỡ cả lô). |
 | ApiKey | Per-user Personal Access Token. Lưu `KeyHash` (SHA-256 of plaintext token — plaintext chỉ trả về 1 lần lúc tạo), `UserId`, `Name`, `CreatedAt`, `LastUsedAt`, `IsRevoked`. Ownership-checked trên revoke. |
 | CompanyDossier | **Hồ sơ công ty — gate chặn tạo trade plan (2026-08-10, ADR-0011).** Khóa `(UserId, Symbol)`, sống độc lập với `TradePlan` — viết một lần cho một mã, mọi plan sau cho mã đó dùng lại. 4 khối: `BusinessModel` (string), `Moats` (`List<MoatItem>`), `RiskFactors` (`List<RiskFactor>`, rank dense 1..N, mỗi cái bắt buộc `ObservableSignal`, tối đa 1 `IsDealBreaker`), `Notes` (tự do, không gate). Hai phương thức sửa riêng biệt `UpdateByOwner`/`UpdateByAgent` (không dùng cờ `isAgent`) — chỉ `UpdateByAgent` xóa `ConfirmedAt`. `Confirm()` là **phương thức duy nhất** đẩy đồng hồ hạn tươi (`ReviewedAt`) — sửa nội dung, kể cả qua UI, không chạm nó. `GetFreshness()` trả enum `Unconfirmed`/`Fresh` (<90 ngày)/`NeedsReview` (90-179)/`Expired` (≥180), tính theo ngày lịch VN offset cố định `+07:00` (không dùng `TimeZoneInfo` — xem ADR-0011 D7). |
 
@@ -142,13 +143,14 @@ are now **in-process** in the API:
 | DisciplineScoreCalculator | **Vin-discipline widget backend (2026-04-23)** — tính điểm kỷ luật thesis hybrid: SL-Integrity 50% + Plan Quality 30% + Review Timeliness 20%. Stop-Honor Rate primitive (trades lỗ đã đóng với exitPrice ≥ plannedSL / tổng lỗ). Null-safe re-normalize khi sub-metric thiếu denominator. Multi-lot per-lot matching theo `TradeIds`. Cache 5 phút, invalidate on `TradeClosedEvent`/`PlanReviewedEvent`/`TradePlanThesisInvalidatedEvent` | ITradePlanRepository, ITradeRepository, IMemoryCache |
 | ApiKeyTokenService | Implements `IApiKeyTokenService`. Generate cryptographically random plaintext token, hash via SHA-256, return both (plaintext returned to caller once, only hash persisted). Verify incoming token by hash lookup. | IApiKeyRepository |
 
-## API Endpoints (29 Controllers)
+## API Endpoints (31 Controllers)
 
 | Controller | Base Route | Key Operations |
 |-----------|-----------|----------------|
 | Auth | `/api/v1/auth` | Google OAuth, JWT token |
 | Portfolios | `/api/v1/portfolios` | CRUD, list by user |
 | Trades | `/api/v1/trades` | CRUD, bulk create, link to plan/strategy, **`GET /last-activity` (ADR-0013)** — ngày lệnh gần nhất + `daysSince` theo lịch VN; route chữ đứng trước `{id}` nên không đụng nhau |
+| MarketClosures | `/api/v1/market-closures` | **Lịch nghỉ giao dịch (2026-08-12, ADR-0016)** — JWT. `GET ?year=`, trả **nhóm theo tháng** với ghi chú ở cấp NGÀY (tháng 4/2026 có hai đợt lễ khác nhau); `POST` nhận mảng ngày (1 ngày / 1 đợt / cả năm, idempotent); `DELETE /{date}` → 204 hoặc 404. Sibling `AiAgentMarketClosuresController` ở `/api/v1/ai/agent/market-closures` (scheme ApiKey), thân hàm sao y. |
 | Mood | `/api/v1/mood` | **Tâm trạng tự chấm (2026-08-11, ADR-0013)** — JWT. `GET /today`, `POST /` (upsert bản hôm nay), `POST /override` (404 khi hôm nay chưa chấm). Ngày lịch VN tính ở server qua `VietnamDate`, client không gửi ngày. |
 | TradePlans | `/api/v1/trade-plans` | CRUD, status transitions, lot execution, scenario node trigger, scenario templates, **campaign review (P0.7)**: close with auto-metrics, preview, update lessons, pending-review list, cross-plan analytics, **abort với thesis invalidation (Vin-discipline, 2026-04-23)**: `POST /{id}/abort { trigger, detail }` → `AbortTradePlanCommand` → raise `TradePlanThesisInvalidatedEvent` |
 | Discipline | `/api/v1/me/discipline-score` | **Vin-discipline widget (2026-04-23)** — `GET ?days=7|30|90|365` (default 90). Query `GetDisciplineScoreQuery` → `IDisciplineScoreCalculator`. Cache 5 min. |
@@ -230,7 +232,7 @@ are now **in-process** in the API:
 
 - **MongoDB** (Atlas cloud in production)
 - Repositories use generic `IRepository<T>` base with entity-specific extensions
-- **Indexes:** Compound indexes on (portfolioId + symbol), (userId + date), unique constraints on snapshots; `api_keys` collection: unique index on `KeyHash` + index on `UserId`
+- **Indexes:** Compound indexes on (portfolioId + symbol), (userId + date), unique constraints on snapshots; `api_keys` collection: unique index on `KeyHash` + index on `UserId`; `market_closures`: unique index đặt tên `ux_user_date` trên `(UserId, Date)` — tên index là thứ `TryAddAsync` dùng để phân biệt trùng, không chỉ dựa vào category DuplicateKey
 - **Soft delete** pattern: `IsDeleted` flag, filtered in queries
 
 ## Testing
@@ -600,6 +602,33 @@ Feature cho phép non-interactive API access (e.g., local NPU assistant pulling 
 | `AiDigestController` | `/api/v1/ai/daily-digest` | Read-only — daily digest context |
 | `AiAgentController` | `/api/v1/ai/agent` | **Curated write** — lập/sửa/thực-hiện trade plans + ghi trade; IDOR-safe (ownership assert trên mọi command). `POST trades` auto-resolve `portfolioId` (auto-pick khi 1 danh mục) + `fee`/`tax` (tự tính khi bỏ trống) — ADR-0005 |
 | `AiAgentPortfoliosController` / `AiAgentFeesController` | `/api/v1/ai/agent/{portfolios,fees/calculate}` | **Agent self-service (ADR-0005)** — `GET portfolios` (mirror GetAllPortfoliosQuery) + `POST fees/calculate` (mirror FeesController, inject IFeeCalculationService). Giúp agent lấy portfolioId + tính phí/thuế trước khi ghi trade |
+
+## Tiền bán chờ về T+2 (2026-08-12)
+
+Chứng khoán Việt Nam thanh toán **T+2**: bán hôm nay thì tiền về sau 2 phiên giao dịch. App trước đây cộng tiền bán vào tiền mặt ngay tại ngày khớp, nên "Tiền mặt khả dụng" cao hơn thực tế tới 2 phiên — chính con số dùng để quyết định vào lệnh mới. Xem [ADR-0016](adr/0016-t2-settlement-pending-cash.md).
+
+**Cách tính** — `SettlementCalculator` (`Application/Common`, hàm thuần, không I/O):
+
+- `SettlementDateOf(tradeDate, closedDates)` → ngày khớp + 2 phiên. Phiên = không T7/CN và không nằm trong `market_closures`.
+- `PendingSellProceeds(trades, asOfVnDate, closedDates)` → `(Amount, LastArrivalDate)`. Chỉ lệnh SELL; số tiền là `Quantity × Price − Fee − Tax`, trùng khít định nghĩa `TotalSold` nên bất biến **`đã về + chờ về = TotalSold`** luôn giữ.
+- `asOf` **phải** là ngày lịch VN (`VietnamDate.Today`), không phải `UtcNow.Date`: từ 00:00–07:00 giờ VN ngày UTC vẫn là hôm trước, dùng nó là giữ tiền ở trạng thái chờ thêm một ngày.
+- Tập ngày nghỉ do **caller** nạp từ `IMarketClosureRepository` rồi truyền vào — nhờ vậy hàm vẫn thuần và test được không cần DB.
+
+**Không sửa `PortfolioCashCalculator`.** Công thức đó bị [ADR-0007](adr/0007-portfolio-cash-formula-divergence.md) ghim và dùng chung với `CashFlowAdjustedReturnService`; đổi nó là lệch TWR. `PendingSettlementCash` là đại lượng **thêm vào**, số tổng giữ nguyên.
+
+**Ba bề mặt tiêu thụ:**
+
+| Bề mặt | Nguồn | Hiển thị |
+|---|---|---|
+| Hero card `/dashboard` + `/capital-flows` | `PortfolioSummaryDto.PendingSettlementCash` + `PendingSettlementArrivalDate` | Số lớn giữ nguyên là **tổng**; dòng nhỏ `trong đó X chờ về — dự kiến DD/MM` (ngày về **xa nhất**), ẩn khi = 0 |
+| Bản tin AI / MCP digest | `AiAssistantService` + `PortfolioDigestRow.PendingCash` | `<portfolio_cash_pending>` (null → `n/a`, 0 → không in tag) + `<market_closures_known_through>` |
+| Cửa sổ ghi lệnh MUA | `trade-create.component.ts` | Field **riêng** `settlementWarning` — cảnh báo mềm, KHÔNG chặn lưu. Không dùng lại `quantityError` vì chuỗi đó khoá nút submit, mà form này ghi lệnh **đã khớp** (có thể đã ứng trước tiền bán) |
+
+**Không liên quan:** `RiskCalculationService` / `SnapshotService` dùng `− TotalInvested`, vốn dĩ không cộng tiền bán.
+
+**Rủi ro còn lại:** quên nhập lịch nghỉ thì T+2 tính thiếu ngày nghỉ và tiền chờ về nhỏ hơn thực tế — sai theo hướng lạc quan. Không tự phát hiện được vì "chưa nhập" và "không nghỉ" trông giống nhau. Giảm thiểu bằng hai chỗ phơi giả định: ngày về dự kiến trên hero card, và `<market_closures_known_through>` trong bản tin.
+
+**Ngoài phạm vi:** cổ phiếu mua chờ về T+2 (vẫn cho ghi lệnh bán trong ngày mua); dịch vụ ứng trước tiền bán.
 
 ## Bắn lỗi về Telegram (2026-08-12)
 

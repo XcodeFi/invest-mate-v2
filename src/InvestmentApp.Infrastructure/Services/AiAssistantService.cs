@@ -34,6 +34,7 @@ public class AiAssistantService : IAiAssistantService
     private readonly IPositionSizingService _positionSizing;
     private readonly IMarketDataProvider _marketDataProvider;
     private readonly ICapitalFlowRepository _capitalFlowRepo;
+    private readonly IMarketClosureRepository _marketClosureRepo;
     private readonly IMediator _mediator;
 
     private const string BasePrompt = @"Bạn là trợ lý AI tích hợp trong Investment Mate — ứng dụng quản lý danh mục đầu tư chứng khoán Việt Nam.
@@ -93,9 +94,20 @@ Quy tắc bắt buộc:
     /// bị THIẾU, phải nói rõ; nếu in trần con số thiếu thì advisor lại tưởng đó là tổng thật —
     /// đúng hình thái của bug mà thay đổi này đang sửa.
     /// </param>
+    /// <param name="pendingSettlementCash">
+    /// Tiền bán chưa về ví theo chu kỳ T+2 — đã nằm TRONG <paramref name="portfolioCash"/>.
+    /// <c>null</c> = chưa tính được → in "n/a"; <c>0</c> = không có gì chờ → không in tag.
+    /// Gộp hai trạng thái đó là nói "không có tiền chờ" khi thật ra là "chưa biết".
+    /// </param>
+    /// <param name="closuresKnownThrough">
+    /// Ngày nghỉ giao dịch xa nhất đã nhập. In ra để mốc "lịch biết tới đâu" tự lộ khi đã cũ —
+    /// quên nhập lịch nghỉ thì T+2 tính thiếu ngày nghỉ mà không có gì tự phát hiện được.
+    /// </param>
     public static string FormatCashNetWorthSection(decimal investableCapital, decimal? portfolioCash,
         decimal? idleCash, decimal? netWorth, decimal? totalAssets, decimal? totalDebt, int? healthScore,
-        int missingCashPortfolios = 0)
+        int missingCashPortfolios = 0,
+        decimal? pendingSettlementCash = null,
+        DateTime? closuresKnownThrough = null)
     {
         static string Vnd(decimal? v) => v.HasValue ? $"{v.Value:N0} VND" : "n/a";
         var caveat = missingCashPortfolios > 0
@@ -105,6 +117,14 @@ Quy tắc bắt buộc:
         var sb = new StringBuilder();
         sb.AppendLine("<cash_and_net_worth>");
         sb.AppendLine($"  <portfolio_cash>{Vnd(portfolioCash)}{(portfolioCash.HasValue ? caveat : string.Empty)}</portfolio_cash>");
+
+        // null → n/a; 0 → không in (không có gì chờ); > 0 → in số.
+        if (!pendingSettlementCash.HasValue)
+            sb.AppendLine("  <portfolio_cash_pending>n/a</portfolio_cash_pending>");
+        else if (pendingSettlementCash.Value > 0)
+            sb.AppendLine($"  <portfolio_cash_pending>{Vnd(pendingSettlementCash)}</portfolio_cash_pending>");
+
+        sb.AppendLine($"  <market_closures_known_through>{(closuresKnownThrough.HasValue ? closuresKnownThrough.Value.ToString("yyyy-MM-dd") : "n/a")}</market_closures_known_through>");
         if (idleCash.HasValue)
             sb.AppendLine($"  <idle_cash>{Vnd(idleCash)}</idle_cash>");
         sb.AppendLine($"  <investable_capital>{investableCapital:N0} VND{caveat}</investable_capital>");
@@ -403,6 +423,7 @@ Quy tắc bắt buộc:
         IPositionSizingService positionSizing,
         IMarketDataProvider marketDataProvider,
         ICapitalFlowRepository capitalFlowRepo,
+        IMarketClosureRepository marketClosureRepo,
         IMediator mediator)
     {
         _settingsRepo = settingsRepo;
@@ -424,6 +445,7 @@ Quy tắc bắt buộc:
         _positionSizing = positionSizing;
         _marketDataProvider = marketDataProvider;
         _capitalFlowRepo = capitalFlowRepo;
+        _marketClosureRepo = marketClosureRepo;
         _mediator = mediator;
     }
 
@@ -1968,6 +1990,14 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
         var anyTradesMissing = false;
         var tradeCutoff = DateTime.UtcNow.Date.AddDays(-RecentTradeWindowDays);
 
+        // Lịch nghỉ giao dịch nạp MỘT lần cho mọi danh mục — nền tính T+2.
+        // Ngày lịch VN, không phải UtcNow.Date: từ 00:00-07:00 giờ VN ngày UTC vẫn là hôm trước.
+        var todayVn = VietnamDate.Today(DateTime.UtcNow);
+        var closures = await _marketClosureRepo.GetByUserAndRangeAsync(
+            userId, todayVn.AddDays(-30), todayVn.AddDays(30), ct);
+        var closedDates = closures.Select(c => DateOnly.FromDateTime(c.Date)).ToHashSet();
+        var closuresKnownThrough = await _marketClosureRepo.GetLatestDateAsync(userId, ct);
+
         for (var i = 0; i < portfolioList.Count; i++)
         {
             var p = portfolioList[i];
@@ -1989,9 +2019,17 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
                 grossBuysKnown += trades.Where(t => t.TradeType == TradeType.BUY)
                     .Sum(t => t.Quantity * t.Price + t.Fee + t.Tax);
 
+            // Chỉ tính được khi có trades — cùng điều kiện với cash, nên null đi cùng nhau.
+            // Điều kiện phải TRÙNG KHÍT với `cash` ở trên: mỗi fetch được bọc riêng nên
+            // trades lấy được mà netFlow chết là chuyện có thật. Lệch điều kiện thì bản tin
+            // in một con số chờ về nằm bên trong một tổng tiền đang là n/a.
+            decimal? pendingCash = trades != null && netFlow.HasValue
+                ? SettlementCalculator.PendingSellProceeds(trades, todayVn, closedDates).Amount
+                : null;
+
             portfolioRows.Add(new PortfolioDigestRow(
                 p.Name, pnl?.TotalMarketValue ?? 0m, cash,
-                pnl?.TotalUnrealizedPnL ?? 0m, pnl?.TotalRealizedPnL ?? 0m));
+                pnl?.TotalUnrealizedPnL ?? 0m, pnl?.TotalRealizedPnL ?? 0m, pendingCash));
 
             // GroupBy trước ToDictionary: risk service gom nhóm phân biệt hoa/thường, còn Trade
             // deserialize từ Mongo không đi qua ToUpper() của ctor — nên "HHV" và "hhv" có thể
@@ -2035,6 +2073,11 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             ? null
             : portfolioRows.Where(r => r.Cash.HasValue).Sum(r => r.Cash!.Value);
 
+        // Cùng luật với totalCash, cùng hình dạng — không phát minh luật mới cho cùng loại thiếu dữ liệu.
+        decimal? totalPendingCash = portfolioRows.Count > 0 && portfolioRows.All(r => !r.PendingCash.HasValue)
+            ? null
+            : portfolioRows.Where(r => r.PendingCash.HasValue).Sum(r => r.PendingCash!.Value);
+
         var profile = profileTask.IsCompletedSuccessfully ? profileTask.Result : null;
         decimal? idleCash = profile?.Accounts
             .Where(a => a.Type == FinancialAccountType.IdleCash).Sum(a => a.Balance);
@@ -2046,7 +2089,9 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             investableCapital, totalCash, idleCash,
             profile?.GetNetWorth(totalMarketValue), profile?.GetTotalAssets(totalMarketValue),
             profile?.GetTotalDebt(), profile?.CalculateHealthScore(totalMarketValue),
-            portfolioRows.Count(r => !r.Cash.HasValue)));
+            portfolioRows.Count(r => !r.Cash.HasValue),
+            totalPendingCash,
+            closuresKnownThrough));
 
         var positionsSection = FormatPositionsSection(positionRows);
         if (positionsSection.Length > 0) { sb.AppendLine(); sb.AppendLine(positionsSection); }
@@ -2150,7 +2195,7 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
 6. **Checklist hôm nay**: 3-5 việc cụ thể nhà đầu tư nên làm hôm nay
 7. **Luật đọc dữ liệu (bắt buộc)**:
    - `n/a` nghĩa là CHƯA LẤY ĐƯỢC dữ liệu, KHÔNG phải bằng 0. Không được kết luận 'không có' từ `n/a` — hãy nói rõ là chưa có dữ liệu.
-   - Tiền khả dụng = <portfolio_cash> (tiền trong tài khoản chứng khoán) + <idle_cash> (tiền ngoài, từ hồ sơ tài chính). Đừng nói 'hết tiền' khi <portfolio_cash> còn số dư.
+   - Tiền khả dụng = <portfolio_cash> (tiền trong tài khoản chứng khoán) + <idle_cash> (tiền ngoài, từ hồ sơ tài chính). Đừng nói 'hết tiền' khi <portfolio_cash> còn số dư. Nếu có <portfolio_cash_pending>, phần đó là tiền bán CHƯA về ví (chu kỳ T+2) và đã nằm trong <portfolio_cash> — trừ ra khi gợi ý khối lượng, vì chưa mua được bằng nó nếu không dùng dịch vụ ứng trước tiền bán.
    - Luôn nêu TÊN DANH MỤC khi khuyên mua/bán, vì mỗi vị thế thuộc một danh mục cụ thể.
    - Đọc <recent_trades> trước khi nhận định một vị thế — có thể người dùng vừa bán bớt.
    - Cột SL ghi 'chưa đặt' nghĩa là người dùng chưa có stop-loss cho mã đó — đây là rủi ro, không phải thiếu dữ liệu.

@@ -19,6 +19,24 @@ describe('CapitalFlowsComponent — hero card getters', () => {
     uniqueSymbols: 0,
     totalInvested: 0,
     totalSold: 0,
+    pendingSettlementCash: 0,
+    pendingSettlementArrivalDate: null,
+    ...overrides
+  });
+
+  // Ở scope ngoài để cả khối overallView và khối "tiền bán chờ về" dùng chung.
+  const summary = (overrides: Partial<OverallPnLSummary> = {}): OverallPnLSummary => ({
+    totalPortfolios: 2,
+    totalInitialCapital: 150_000_000,
+    totalNetCashFlow: 20_000_000,
+    totalCurrentCapital: 170_000_000,
+    totalInvested: 100_000_000,
+    totalMarketValue: 115_000_000,
+    totalRealizedPnL: 3_000_000,
+    totalUnrealizedPnL: 15_000_000,
+    totalPnL: 18_000_000,
+    totalPnLPercent: 18,
+    portfolios: [],
     ...overrides
   });
 
@@ -162,21 +180,6 @@ describe('CapitalFlowsComponent — hero card getters', () => {
   });
 
   describe('overallView — aggregate across all portfolios', () => {
-    const summary = (overrides: Partial<OverallPnLSummary> = {}): OverallPnLSummary => ({
-      totalPortfolios: 2,
-      totalInitialCapital: 150_000_000,
-      totalNetCashFlow: 20_000_000,
-      totalCurrentCapital: 170_000_000,
-      totalInvested: 100_000_000,
-      totalMarketValue: 115_000_000,
-      totalRealizedPnL: 3_000_000,
-      totalUnrealizedPnL: 15_000_000,
-      totalPnL: 18_000_000,
-      totalPnLPercent: 18,
-      portfolios: [],
-      ...overrides
-    });
-
     it('returns null when summary not yet loaded', () => {
       component.portfolios = [portfolio()];
       component.overallSummary = null;
@@ -255,6 +258,76 @@ describe('CapitalFlowsComponent — hero card getters', () => {
       expect(view.cashBalance).toBe(-100_000_000);
       expect(view.marketBarWidth).toBe(100);
       expect(view.cashBarWidth).toBe(0);
+    });
+  });
+
+  describe('tiền bán chờ về T+2', () => {
+    it('cộng dồn tiền chờ về của mọi danh mục trong overallView', () => {
+      component.portfolios = [
+        portfolio({ id: 'p1', currentCapital: 100_000_000, totalInvested: 80_000_000, totalSold: 30_000_000, pendingSettlementCash: 30_000_000, pendingSettlementArrivalDate: '2026-06-16' }),
+        portfolio({ id: 'p2', currentCapital: 70_000_000, totalInvested: 20_000_000, totalSold: 10_000_000, pendingSettlementCash: 0, pendingSettlementArrivalDate: null })
+      ];
+      component.overallSummary = summary({ totalCurrentCapital: 170_000_000 });
+
+      expect(component.overallView!.pendingSettlementCash).toBe(30_000_000);
+    });
+
+    it('nhãn ghi ngày về xa nhất trong các danh mục', () => {
+      component.portfolios = [
+        portfolio({ id: 'p1', pendingSettlementCash: 10_000_000, pendingSettlementArrivalDate: '2026-06-15' }),
+        portfolio({ id: 'p2', pendingSettlementCash: 5_000_000, pendingSettlementArrivalDate: '2026-06-17' })
+      ];
+      component.overallSummary = summary({ totalCurrentCapital: 170_000_000 });
+
+      expect(component.overallView!.pendingSettlementLabel).toBe('dự kiến 17/06');
+    });
+
+    it('không có gì chờ về thì nhãn rỗng', () => {
+      component.portfolios = [portfolio({ id: 'p1', pendingSettlementCash: 0, pendingSettlementArrivalDate: null })];
+      component.overallSummary = summary({ totalCurrentCapital: 100_000_000 });
+
+      expect(component.overallView!.pendingSettlementCash).toBe(0);
+      expect(component.overallView!.pendingSettlementLabel).toBe('');
+    });
+
+    it('có tiền chờ về nhưng thiếu ngày thì nhãn rỗng, không hiện "undefined"', () => {
+      component.portfolios = [portfolio({ id: 'p1', pendingSettlementCash: 5_000_000, pendingSettlementArrivalDate: null })];
+      component.overallSummary = summary({ totalCurrentCapital: 100_000_000 });
+
+      expect(component.overallView!.pendingSettlementLabel).toBe('');
+    });
+
+    // API trả DateTime? nên JSON là ISO đầy đủ, KHÔNG phải date-only. Fixture date-only
+    // sạch sẽ không bao giờ bắt được lệch này — đây là hợp đồng thật.
+    it('nhãn đúng khi API trả ISO đầy đủ có phần giờ và Z', () => {
+      component.portfolios = [
+        portfolio({ id: 'p1', pendingSettlementCash: 10_000_000, pendingSettlementArrivalDate: '2026-06-15T00:00:00Z' }),
+        portfolio({ id: 'p2', pendingSettlementCash: 5_000_000, pendingSettlementArrivalDate: '2026-06-17T00:00:00Z' })
+      ];
+      component.overallSummary = summary({ totalCurrentCapital: 170_000_000 });
+
+      expect(component.overallView!.pendingSettlementLabel).toBe('dự kiến 17/06');
+    });
+
+    it('getter theo danh mục đang chọn cũng chịu được ISO đầy đủ', () => {
+      component.portfolios = [
+        portfolio({ id: 'p1', pendingSettlementCash: 7_000_000, pendingSettlementArrivalDate: '2026-12-03T00:00:00Z' })
+      ];
+      component.selectedPortfolioId = 'p1';
+
+      expect(component.pendingSettlementLabel).toBe('dự kiến 03/12');
+    });
+
+    it('getter theo danh mục đang chọn đọc đúng danh mục đó', () => {
+      component.portfolios = [
+        portfolio({ id: 'p1', pendingSettlementCash: 7_000_000, pendingSettlementArrivalDate: '2026-12-03' }),
+        portfolio({ id: 'p2', pendingSettlementCash: 1_000_000, pendingSettlementArrivalDate: '2026-01-09' })
+      ];
+      component.selectedPortfolioId = 'p1';
+
+      expect(component.pendingSettlementCash).toBe(7_000_000);
+      // Cắt chuỗi, không new Date(): parse UTC rồi đọc getMonth() local là lệch tháng.
+      expect(component.pendingSettlementLabel).toBe('dự kiến 03/12');
     });
   });
 });

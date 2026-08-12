@@ -137,4 +137,48 @@ public class McpSchemaContractTests
             .GetProperty("description").GetString()
             .Should().Contain("AddPosition");
     }
+
+    // --- Lịch nghỉ giao dịch (T+2) ---
+
+    private static string?[] RequiredOf(string toolName)
+    {
+        var schema = SchemaOf(toolName);
+        return schema.TryGetProperty("required", out var required)
+            ? required.EnumerateArray().Select(v => v.GetString()).ToArray()
+            : Array.Empty<string?>();
+    }
+
+    [Fact]
+    public void AddMarketClosures_Chi_Bat_Buoc_dates_Con_note_La_Tuy_Chon()
+    {
+        // Tham số nullable KHÔNG tự thành optional trong schema: phải nằm sau ct và có `= null`.
+        // Thiếu điều đó thì agent buộc phải gửi note mới gọi được.
+        RequiredOf("add_market_closures").Should().BeEquivalentTo("dates");
+    }
+
+    [Fact]
+    public void AddMarketClosures_Nhan_Mang_Chuoi_Chu_Khong_Phai_Object_Boc_Ngoai()
+    {
+        var dates = SchemaOf("add_market_closures").GetProperty("properties").GetProperty("dates");
+
+        dates.GetProperty("type").GetString().Should().Be("array");
+        dates.GetProperty("items").GetProperty("type").GetString().Should().Be("string");
+    }
+
+    [Fact]
+    public void AddMarketClosures_Description_Noi_Ro_Dinh_Dang_Ngay()
+    {
+        SchemaOf("add_market_closures")
+            .GetProperty("properties").GetProperty("dates")
+            .GetProperty("description").GetString()
+            .Should().Contain("YYYY-MM-DD");
+    }
+
+    [Theory]
+    [InlineData("list_market_closures", "year")]
+    [InlineData("remove_market_closure", "date")]
+    public void Tool_Lich_Nghi_Bat_Buoc_Dung_Mot_Tham_So(string toolName, string param)
+    {
+        RequiredOf(toolName).Should().BeEquivalentTo(param);
+    }
 }

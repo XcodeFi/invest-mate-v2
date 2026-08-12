@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.83.0] — 2026-08-12 · Tiền bán chờ về T+2
+
+### Tính năng
+
+**⏳ Tiền bán chưa về không còn bị tính là tiền đang có.** Chứng khoán Việt Nam thanh toán T+2 — bán hôm nay thì tiền về sau 2 phiên giao dịch. Trước đây app cộng tiền bán vào "Tiền mặt khả dụng" ngay tại ngày khớp lệnh, nên số hiển thị cao hơn thực tế tới 2 phiên, đúng con số bạn dùng để quyết định vào lệnh mới. Giờ thẻ tiền mặt hiện `120.000.000 đ` kèm dòng `trong đó 30.000.000 đ chờ về — dự kiến 24/02`. Số lớn vẫn khớp sổ công ty chứng khoán để đối chiếu.
+
+**📅 Lịch nghỉ giao dịch nhập được qua trợ lý AI.** Lịch nghỉ đổi mỗi năm và HOSE thường công bố lẻ từng đợt, nên nó nằm trong cơ sở dữ liệu chứ không nằm trong code — không phải chờ bản cập nhật app. Nhập một ngày, một đợt lễ, hay cả năm trong cùng một lần; sửa và xoá được từng ngày. Lịch 2026 đã có sẵn 12 ngày. Thứ Bảy và Chủ nhật tự biết, không cần nhập.
+
+**🤖 Bản tin hằng ngày trừ phần tiền chưa về khi gợi ý khối lượng.** Trước đây trợ lý tính khối lượng vị thế trên toàn bộ số dư, kể cả phần chưa về ví. Bản tin nay có thêm `portfolio_cash_pending` và mốc `market_closures_known_through` để bạn biết lịch nghỉ đã nhập tới đâu.
+
+**⚠️ Cửa sổ ghi lệnh MUA nhắc khi vượt phần tiền đã về.** Dòng vàng *"Vượt tiền đã về X — cần ứng trước tiền bán"*. Đây là nhắc, **không chặn**: cửa sổ đó ghi lệnh đã khớp, mà lệnh thật có thể đã dùng dịch vụ ứng trước tiền bán.
+
+### Kỹ thuật
+
+- Entity `MarketClosure` + collection `market_closures` (unique index `ux_user_date`), 3 endpoint JWT + 3 sibling ApiKey + 3 tool MCP (`list_market_closures`, `add_market_closures`, `remove_market_closure`).
+- `SettlementCalculator` là hàm thuần — tập ngày nghỉ do caller nạp và truyền vào. Không sửa `PortfolioCashCalculator` (bị ADR-0007 ghim, dùng chung với TWR).
+- "Hôm nay" tính theo ngày lịch VN qua `VietnamDate.Today`, không phải `UtcNow.Date`.
+- Golden test lấy thẳng từ thông báo HOSE: lệnh 12/02/2026 thanh toán 23/02, lệnh 13/02 thanh toán 24/02.
+- Script seed `scripts/migrations/2026-08-12-market-closures-2026.mongo.js` — **chưa chạy trên môi trường nào**, cần `USER_ID`.
+- Quyết định kiến trúc: [ADR-0016](../../../docs/adr/0016-t2-settlement-pending-cash.md).
+
 ## [v2.82.0] — 2026-08-11 · Trợ lý AI ghi được cây kịch bản
 
 ### Kỹ thuật

@@ -13,6 +13,9 @@ using InvestmentApp.Application.Journals.Queries.GetJournalByTrade;
 using InvestmentApp.Application.Journals.Queries.GetJournals;
 using InvestmentApp.Application.Journals.Queries.GetTradesPendingReview;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.MarketClosures.Commands.AddMarketClosures;
+using InvestmentApp.Application.MarketClosures.Commands.RemoveMarketClosure;
+using InvestmentApp.Application.MarketClosures.Queries.GetMarketClosures;
 using InvestmentApp.Application.Portfolios.Queries.GetAllPortfolios;
 using InvestmentApp.Application.TradePlans.Queries.GetActivePositions;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
@@ -480,5 +483,65 @@ public class AiAgentExposeControllersTests
         { Symbol = "VNM", TradeType = "Buy", Quantity = 0, Price = 1000000 });
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    // --- Lịch nghỉ giao dịch: bản ApiKey phải ngang giá bản JWT ---
+
+    [Fact]
+    public async Task MarketClosures_Get_DispatchesQueryWithClaimUserId()
+    {
+        GetMarketClosuresQuery? sent = null;
+        _mediator.Setup(m => m.Send(It.IsAny<GetMarketClosuresQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<MarketClosureYearDto>, CancellationToken>((q, _) => sent = (GetMarketClosuresQuery)q)
+            .ReturnsAsync(new MarketClosureYearDto(2026, new List<MarketClosureMonthDto>()));
+        var sut = WithApiKeyClaim(new AiAgentMarketClosuresController(_mediator.Object), "user-1");
+
+        var result = await sut.Get(2026);
+
+        result.Should().BeOfType<OkObjectResult>();
+        sent!.UserId.Should().Be("user-1");
+        sent.Year.Should().Be(2026);
+    }
+
+    [Fact]
+    public async Task MarketClosures_Add_DispatchesCommandWithDatesAndNote()
+    {
+        AddMarketClosuresCommand? sent = null;
+        _mediator.Setup(m => m.Send(It.IsAny<AddMarketClosuresCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<AddMarketClosuresResult>, CancellationToken>((c, _) => sent = (AddMarketClosuresCommand)c)
+            .ReturnsAsync(new AddMarketClosuresResult(2, 0, 0));
+        var sut = WithApiKeyClaim(new AiAgentMarketClosuresController(_mediator.Object), "user-1");
+
+        var result = await sut.Add(new AiAgentMarketClosuresController.AddRequest(
+            new List<DateTime> { new(2026, 4, 30), new(2026, 5, 1) }, "Lễ 30/4"));
+
+        result.Should().BeOfType<OkObjectResult>();
+        sent!.UserId.Should().Be("user-1");
+        sent.Dates.Should().HaveCount(2);
+        sent.Note.Should().Be("Lễ 30/4");
+    }
+
+    [Fact]
+    public async Task MarketClosures_Remove_KhongCoGiDeXoa_Returns404()
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<RemoveMarketClosureCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var sut = WithApiKeyClaim(new AiAgentMarketClosuresController(_mediator.Object), "user-1");
+
+        var result = await sut.Remove(new DateTime(2026, 7, 7));
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task MarketClosures_Remove_XoaDuoc_Returns204()
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<RemoveMarketClosureCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var sut = WithApiKeyClaim(new AiAgentMarketClosuresController(_mediator.Object), "user-1");
+
+        var result = await sut.Remove(new DateTime(2026, 4, 27));
+
+        result.Should().BeOfType<NoContentResult>();
     }
 }

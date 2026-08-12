@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Portfolios.Queries.GetPortfolio;
 using MediatR;
@@ -14,21 +15,31 @@ public class GetAllPortfoliosQueryHandler : IRequestHandler<GetAllPortfoliosQuer
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly ITradeRepository _tradeRepository;
     private readonly ICapitalFlowRepository _capitalFlowRepository;
+    private readonly IMarketClosureRepository _marketClosureRepository;
 
     public GetAllPortfoliosQueryHandler(
         IPortfolioRepository portfolioRepository,
         ITradeRepository tradeRepository,
-        ICapitalFlowRepository capitalFlowRepository)
+        ICapitalFlowRepository capitalFlowRepository,
+        IMarketClosureRepository marketClosureRepository)
     {
         _portfolioRepository = portfolioRepository;
         _tradeRepository = tradeRepository;
         _capitalFlowRepository = capitalFlowRepository;
+        _marketClosureRepository = marketClosureRepository;
     }
 
     public async Task<List<PortfolioSummaryDto>> Handle(GetAllPortfoliosQuery request, CancellationToken cancellationToken)
     {
         var portfolios = await _portfolioRepository.GetByUserIdAsync(request.UserId, cancellationToken);
         var result = new List<PortfolioSummaryDto>();
+
+        // Nạp MỘT lần cho mọi danh mục — tập ngày nghỉ không phụ thuộc danh mục.
+        // Cửa sổ ±30 ngày quanh hôm nay là quá đủ: T+2 chỉ bước vài ngày kể từ lệnh gần nhất.
+        var todayVn = VietnamDate.Today(DateTime.UtcNow);
+        var closures = await _marketClosureRepository.GetByUserAndRangeAsync(
+            request.UserId, todayVn.AddDays(-30), todayVn.AddDays(30), cancellationToken);
+        var closedDates = closures.Select(c => DateOnly.FromDateTime(c.Date)).ToHashSet();
 
         foreach (var portfolio in portfolios)
         {
@@ -46,6 +57,9 @@ public class GetAllPortfoliosQueryHandler : IRequestHandler<GetAllPortfoliosQuer
 
             var uniqueSymbols = tradeList.Select(t => t.Symbol).Distinct().Count();
 
+            var (pendingCash, pendingArrival) = SettlementCalculator.PendingSellProceeds(
+                tradeList, todayVn, closedDates);
+
             var netCashFlow = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolio.Id, cancellationToken);
 
             result.Add(new PortfolioSummaryDto
@@ -59,7 +73,9 @@ public class GetAllPortfoliosQueryHandler : IRequestHandler<GetAllPortfoliosQuer
                 TradeCount = tradeList.Count,
                 UniqueSymbols = uniqueSymbols,
                 TotalInvested = totalInvested,
-                TotalSold = totalSold
+                TotalSold = totalSold,
+                PendingSettlementCash = pendingCash,
+                PendingSettlementArrivalDate = pendingArrival
             });
         }
 
@@ -79,4 +95,10 @@ public class PortfolioSummaryDto
     public int UniqueSymbols { get; set; }
     public decimal TotalInvested { get; set; }
     public decimal TotalSold { get; set; }
+
+    /// <summary>Tiền bán chưa về ví theo chu kỳ T+2. Đã nằm TRONG <see cref="TotalSold"/>.</summary>
+    public decimal PendingSettlementCash { get; set; }
+
+    /// <summary>Ngày về xa nhất trong các lệnh còn chờ. <c>null</c> khi không còn gì chờ.</summary>
+    public DateTime? PendingSettlementArrivalDate { get; set; }
 }

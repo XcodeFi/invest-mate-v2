@@ -198,6 +198,7 @@ import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.dire
                     placeholder="100" (input)="onFormChange()" #qtyInput="ngModel" />
                   <p *ngIf="qtyInput.invalid && qtyInput.touched" class="mt-1 text-sm text-red-600">Tối thiểu 100, bước nhảy 100</p>
                   <p *ngIf="quantityError" class="mt-1 text-sm text-red-600 font-medium">{{ quantityError }}</p>
+                  <p *ngIf="settlementWarning" class="mt-1 text-sm text-amber-700">{{ settlementWarning }}</p>
                 </div>
                 <div>
                   <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Giá <span class="text-red-500">*</span></label>
@@ -289,6 +290,12 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
   positionInfo: PositionPnL | null = null;
   positionLoading = false;
   quantityError = '';
+
+  /**
+   * Cảnh báo mềm, KHÔNG chặn lưu: form này ghi lệnh ĐÃ KHỚP, có thể đã dùng dịch vụ
+   * ứng trước tiền bán. Tách khỏi quantityError vì chuỗi đó khoá nút submit.
+   */
+  settlementWarning = '';
 
   // Bidirectional auto-suggest
   portfolioSymbolsMap = new Map<string, PositionPnL[]>();
@@ -473,6 +480,7 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
 
   validateQuantity(): void {
     this.quantityError = '';
+    this.settlementWarning = '';
     if (this.form.tradeType === TradeType.BUY && this.form.quantity > 0) {
       if (this.form.quantity % 100 !== 0) {
         this.quantityError = 'Lệnh MUA phải là lô chẵn (bội số của 100)';
@@ -483,6 +491,14 @@ export class TradeCreateComponent implements OnInit, OnDestroy {
           const remainingCash = portfolio.currentCapital - portfolio.totalInvested + portfolio.totalSold;
           if (tradeValue > remainingCash) {
             this.quantityError = `Giá trị lệnh (${tradeValue.toLocaleString('vi-VN')}đ) vượt quá tiền còn lại của danh mục (${remainingCash.toLocaleString('vi-VN')}đ)`;
+          } else {
+            // Trong tổng tiền nhưng vượt phần ĐÃ VỀ (T+2) → chỉ nhắc, vẫn cho lưu.
+            const settledCash = remainingCash - (portfolio.pendingSettlementCash || 0);
+            if (tradeValue > settledCash) {
+              const shortfall = tradeValue - settledCash;
+              this.settlementWarning =
+                `Vượt tiền đã về ${shortfall.toLocaleString('vi-VN')}đ — cần ứng trước tiền bán.`;
+            }
           }
         }
       }
