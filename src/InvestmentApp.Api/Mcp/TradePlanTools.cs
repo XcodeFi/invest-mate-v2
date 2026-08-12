@@ -5,8 +5,10 @@ using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlanStatus;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
+using InvestmentApp.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
 namespace InvestmentApp.Api.Mcp;
@@ -40,9 +42,11 @@ public static class TradePlanTools
         [Description("Khối lượng dự kiến.")] int quantity,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
         [Description("ID danh mục (bỏ trống = không gắn danh mục).")] string? portfolioId = null,
-        [Description("Chiều lệnh: Buy hoặc Sell (bỏ trống = Buy).")] string? direction = null,
+        [Description("Chiều lệnh: Buy hoặc Sell (bỏ trống = Buy).")]
+        [System.ComponentModel.DataAnnotations.AllowedValues("Buy", "Sell")] string? direction = null,
         [Description("ID chiến lược (bỏ trống = không gắn chiến lược).")] string? strategyId = null,
-        [Description("Bối cảnh thị trường: Trending/Ranging/Volatile… (bỏ trống = Trending).")] string? marketCondition = null,
+        [Description("Bối cảnh thị trường: Trending, Ranging, Volatile (bỏ trống = Trending).")]
+        [System.ComponentModel.DataAnnotations.AllowedValues("Trending", "Ranging", "Volatile")] string? marketCondition = null,
         [Description("Luận điểm đầu tư (bỏ trống = không ghi nhận).")] string? thesis = null,
         [Description("Ghi chú thêm (bỏ trống = không ghi nhận).")] string? notes = null,
         [Description("Mức độ tự tin 1–10 (bỏ trống = 5).")] int? confidenceLevel = null,
@@ -50,17 +54,17 @@ public static class TradePlanTools
         [Description("Giá trị tài khoản dùng để tính rủi ro, VND (bỏ trống = không tính).")] decimal? accountBalance = null,
         [Description("Tỷ lệ lời/lỗ kỳ vọng (bỏ trống = không ghi nhận, hệ thống KHÔNG tự tính).")] decimal? riskRewardRatio = null,
         [Description("Ngày dự kiến review ISO-8601 (bỏ trống = không đặt).")] DateTime? expectedReviewDate = null,
-        [Description("Tầm nhìn: ShortTerm/MediumTerm/LongTerm (bỏ trống = không đặt).")] string? timeHorizon = null,
+        [Description("Tầm nhìn nắm giữ (bỏ trống = không đặt).")] TimeHorizon? timeHorizon = null,
         [Description("Điều kiện phủ định luận điểm (bỏ trống = không có).")] List<InvalidationRuleDto>? invalidationCriteria = null,
         [Description("Checklist trước khi vào lệnh (bỏ trống = không có).")] List<ChecklistItemDto>? checklist = null,
-        [Description("Kiểu vào lệnh nhiều lô: Single/Scaled (bỏ trống = vào một lần).")] string? entryMode = null,
+        [Description("Kiểu vào lệnh nhiều lô (bỏ trống = vào một lần).")] EntryMode? entryMode = null,
         [Description("Các lô vào lệnh, chỉ dùng khi entryMode = Scaled (bỏ trống = không chia lô).")] List<PlanLotDto>? lots = null,
         [Description("Các mốc chốt lời (bỏ trống = không đặt).")] List<ExitTargetDto>? exitTargets = null,
-        [Description("Kiểu chiến lược thoát: Simple/Advanced (bỏ trống = Simple).")] string? exitStrategyMode = null,
+        [Description("Kiểu chiến lược thoát. Advanced mới dùng được scenarioNodes (bỏ trống = Simple).")] ExitStrategyMode? exitStrategyMode = null,
         [Description("Cây kịch bản, chỉ dùng khi exitStrategyMode = Advanced (bỏ trống = không có).")] List<ScenarioNodeDto>? scenarioNodes = null)
     {
         // Status/TradeId cố tình không mở ra MCP — kế hoạch luôn tạo ở Draft (ADR-0004).
-        var id = await McpDossierGate.GuardAsync(() => mediator.Send(new CreateTradePlanCommand
+        var id = await McpErrorTranslator.RunAsync(() => mediator.Send(new CreateTradePlanCommand
         {
             UserId = http.GetUserId(),
             Symbol = symbol,
@@ -79,13 +83,13 @@ public static class TradePlanTools
             AccountBalance = accountBalance,
             RiskRewardRatio = riskRewardRatio,
             ExpectedReviewDate = expectedReviewDate,
-            TimeHorizon = timeHorizon,
+            TimeHorizon = timeHorizon?.ToString(),
             InvalidationCriteria = invalidationCriteria,
             Checklist = checklist,
-            EntryMode = entryMode,
+            EntryMode = entryMode?.ToString(),
             Lots = lots,
             ExitTargets = exitTargets,
-            ExitStrategyMode = exitStrategyMode,
+            ExitStrategyMode = exitStrategyMode?.ToString(),
             ScenarioNodes = scenarioNodes,
             Status = null,
             TradeId = null
@@ -131,7 +135,8 @@ public static class TradePlanTools
         [Description("Giá mục tiêu, VND (bỏ trống = giữ nguyên).")] decimal? target = null,
         [Description("Khối lượng dự kiến (bỏ trống = giữ nguyên).")] int? quantity = null,
         [Description("ID chiến lược (bỏ trống = giữ nguyên).")] string? strategyId = null,
-        [Description("Bối cảnh thị trường (bỏ trống = giữ nguyên).")] string? marketCondition = null,
+        [Description("Bối cảnh thị trường: Trending, Ranging, Volatile (bỏ trống = giữ nguyên).")]
+        [System.ComponentModel.DataAnnotations.AllowedValues("Trending", "Ranging", "Volatile")] string? marketCondition = null,
         [Description("Luận điểm đầu tư (bỏ trống = giữ nguyên).")] string? thesis = null,
         [Description("Ghi chú thêm (bỏ trống = giữ nguyên).")] string? notes = null,
         [Description("Mức độ tự tin 1–10 (bỏ trống = giữ nguyên).")] int? confidenceLevel = null,
@@ -141,14 +146,14 @@ public static class TradePlanTools
         [Description("Ngày dự kiến review ISO-8601 (bỏ trống = giữ nguyên).")] DateTime? expectedReviewDate = null,
         [Description("Điều kiện phủ định luận điểm, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<InvalidationRuleDto>? invalidationCriteria = null,
         [Description("Checklist, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ChecklistItemDto>? checklist = null,
-        [Description("Kiểu vào lệnh nhiều lô: Single/Scaled (bỏ trống = giữ nguyên).")] string? entryMode = null,
+        [Description("Kiểu vào lệnh nhiều lô (bỏ trống = giữ nguyên).")] EntryMode? entryMode = null,
         [Description("Các lô vào lệnh, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<PlanLotDto>? lots = null,
         [Description("Các mốc chốt lời, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ExitTargetDto>? exitTargets = null,
-        [Description("Kiểu chiến lược thoát: Simple/Advanced (bỏ trống = giữ nguyên).")] string? exitStrategyMode = null,
+        [Description("Kiểu chiến lược thoát. Advanced mới dùng được scenarioNodes (bỏ trống = giữ nguyên).")] ExitStrategyMode? exitStrategyMode = null,
         [Description("Cây kịch bản, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ScenarioNodeDto>? scenarioNodes = null,
-        [Description("Tầm nhìn: ShortTerm/MediumTerm/LongTerm (bỏ trống = giữ nguyên).")] string? timeHorizon = null)
+        [Description("Tầm nhìn nắm giữ (bỏ trống = giữ nguyên).")] TimeHorizon? timeHorizon = null)
     {
-        await McpDossierGate.GuardAsync(() => mediator.Send(new UpdateTradePlanCommand
+        await McpErrorTranslator.RunAsync(() => mediator.Send(new UpdateTradePlanCommand
         {
             Id = id,
             UserId = http.GetUserId(),
@@ -170,12 +175,12 @@ public static class TradePlanTools
             ExpectedReviewDate = expectedReviewDate,
             InvalidationCriteria = invalidationCriteria,
             Checklist = checklist,
-            EntryMode = entryMode,
+            EntryMode = entryMode?.ToString(),
             Lots = lots,
             ExitTargets = exitTargets,
-            ExitStrategyMode = exitStrategyMode,
+            ExitStrategyMode = exitStrategyMode?.ToString(),
             ScenarioNodes = scenarioNodes,
-            TimeHorizon = timeHorizon
+            TimeHorizon = timeHorizon?.ToString()
         }, ct));
         return "ok";
     }
@@ -184,16 +189,17 @@ public static class TradePlanTools
     [Description("Đổi trạng thái kế hoạch. 'restore' bị chặn qua MCP.")]
     public static async Task<string> SetTradePlanStatus(
         [Description("ID kế hoạch.")] string id,
-        [Description("Trạng thái mới (vd: executed, cancelled).")] string status,
+        [Description("Trạng thái mới: ready, executed, cancelled. 'restore' bị chặn qua MCP.")]
+        [System.ComponentModel.DataAnnotations.AllowedValues("ready", "executed", "cancelled")] string status,
         [Description("ID lệnh liên kết nếu chuyển executed (tùy chọn).")] string? tradeId,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
     {
         if (string.Equals(status, "restore", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("restore không được phép qua MCP surface.");
-        await mediator.Send(new UpdateTradePlanStatusCommand
+            throw new McpException("restore không được phép qua MCP surface.");
+        await McpErrorTranslator.RunAsync(() => mediator.Send(new UpdateTradePlanStatusCommand
         {
             Id = id, UserId = http.GetUserId(), Status = status, TradeId = tradeId
-        }, ct);
+        }, ct));
         return "ok";
     }
 }

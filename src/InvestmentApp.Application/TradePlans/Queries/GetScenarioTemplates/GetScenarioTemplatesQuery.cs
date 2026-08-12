@@ -55,21 +55,21 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                     ParentId = n.ParentId,
                     Order = n.Order,
                     Label = n.Label,
-                    ConditionType = n.ConditionType.ToString(),
+                    ConditionType = n.ConditionType,
                     ConditionValue = n.ConditionValue,
                     ConditionNote = n.ConditionNote,
-                    ActionType = n.ActionType.ToString(),
+                    ActionType = n.ActionType,
                     ActionValue = n.ActionValue,
                     TrailingStopConfig = n.TrailingStopConfig != null
                         ? new TrailingStopConfigDto
                         {
-                            Method = n.TrailingStopConfig.Method.ToString(),
+                            Method = n.TrailingStopConfig.Method,
                             TrailValue = n.TrailingStopConfig.TrailValue,
                             ActivationPrice = n.TrailingStopConfig.ActivationPrice,
                             StepSize = n.TrailingStopConfig.StepSize
                         }
                         : null,
-                    Status = "Pending"
+                    Status = ScenarioNodeStatus.Pending
                 }).ToList()
             });
         }
@@ -93,9 +93,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = null,
                 Order = 0,
                 Label = "Chốt lời 50% tại nửa đường",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = 50,
-                ActionType = "SellPercent",
+                ActionType = ScenarioActionType.SellPercent,
                 ActionValue = 50
             },
             // CHILD: Price hits target -> Sell all
@@ -105,9 +105,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = "c-root-1",
                 Order = 0,
                 Label = "Chốt hết tại mục tiêu",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = 100,
-                ActionType = "SellAll"
+                ActionType = ScenarioActionType.SellAll
             },
             // ROOT-2: Stop loss -> Sell all
             new()
@@ -116,9 +116,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = null,
                 Order = 1,
                 Label = "Cắt lỗ toàn bộ",
-                ConditionType = "PriceBelow",
+                ConditionType = ScenarioConditionType.PriceBelow,
                 ConditionValue = 0,
-                ActionType = "SellAll"
+                ActionType = ScenarioActionType.SellAll
             }
         }
     };
@@ -139,9 +139,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = null,
                 Order = 0,
                 Label = "Chốt lời 30% (nửa đường)",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = 60,
-                ActionType = "SellPercent",
+                ActionType = ScenarioActionType.SellPercent,
                 ActionValue = 30
             },
             // CHILD-1A: Move SL to breakeven
@@ -151,9 +151,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = "b-root-1",
                 Order = 0,
                 Label = "Dời SL về hòa vốn",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = 60,
-                ActionType = "MoveStopToBreakeven"
+                ActionType = ScenarioActionType.MoveStopToBreakeven
             },
             // CHILD-1B: Price hits target -> Sell 50%
             new()
@@ -162,9 +162,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = "b-root-1",
                 Order = 1,
                 Label = "Chốt thêm 50% tại mục tiêu",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = 100,
-                ActionType = "SellPercent",
+                ActionType = ScenarioActionType.SellPercent,
                 ActionValue = 50
             },
             // GRANDCHILD: Activate trailing stop
@@ -174,12 +174,12 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = "b-child-1b",
                 Order = 0,
                 Label = "Bật trailing stop 5%",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = 100,
-                ActionType = "ActivateTrailingStop",
+                ActionType = ScenarioActionType.ActivateTrailingStop,
                 TrailingStopConfig = new TrailingStopConfigDto
                 {
-                    Method = "Percentage",
+                    Method = TrailingStopMethod.Percentage,
                     TrailValue = 5
                 }
             },
@@ -190,8 +190,8 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = "b-grandchild-1",
                 Order = 0,
                 Label = "Chốt hết khi chạm trailing",
-                ConditionType = "TrailingStopHit",
-                ActionType = "SellAll"
+                ConditionType = ScenarioConditionType.TrailingStopHit,
+                ActionType = ScenarioActionType.SellAll
             },
             // ROOT-2: Stop loss -> Sell all
             new()
@@ -200,9 +200,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = null,
                 Order = 1,
                 Label = "Cắt lỗ toàn bộ",
-                ConditionType = "PriceBelow",
+                ConditionType = ScenarioConditionType.PriceBelow,
                 ConditionValue = 0,
-                ActionType = "SellAll"
+                ActionType = ScenarioActionType.SellAll
             }
         }
     };
@@ -223,13 +223,13 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = null,
                 Order = 0,
                 Label = "Chốt 30% + trailing stop 7%",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = 100,
-                ActionType = "SellPercent",
+                ActionType = ScenarioActionType.SellPercent,
                 ActionValue = 30,
                 TrailingStopConfig = new TrailingStopConfigDto
                 {
-                    Method = "Percentage",
+                    Method = TrailingStopMethod.Percentage,
                     TrailValue = 7
                 }
             },
@@ -240,8 +240,8 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = "a-root-1",
                 Order = 0,
                 Label = "Chốt hết khi chạm trailing",
-                ConditionType = "TrailingStopHit",
-                ActionType = "SellAll"
+                ConditionType = ScenarioConditionType.TrailingStopHit,
+                ActionType = ScenarioActionType.SellAll
             },
             // ROOT-2: Early cut 50%
             new()
@@ -250,9 +250,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = null,
                 Order = 1,
                 Label = "Cắt lỗ sớm 50% (-5%)",
-                ConditionType = "PricePercentChange",
+                ConditionType = ScenarioConditionType.PricePercentChange,
                 ConditionValue = -5,
-                ActionType = "SellPercent",
+                ActionType = ScenarioActionType.SellPercent,
                 ActionValue = 50
             },
             // CHILD: Full stop
@@ -262,9 +262,9 @@ public class GetScenarioTemplatesQueryHandler : IRequestHandler<GetScenarioTempl
                 ParentId = "a-root-2",
                 Order = 0,
                 Label = "Cắt lỗ toàn bộ",
-                ConditionType = "PriceBelow",
+                ConditionType = ScenarioConditionType.PriceBelow,
                 ConditionValue = 0,
-                ActionType = "SellAll"
+                ActionType = ScenarioActionType.SellAll
             }
         }
     };

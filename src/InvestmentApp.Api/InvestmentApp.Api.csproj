@@ -27,4 +27,9 @@
     <EmbeddedResource Include="Docs/AI-Agent-TradePlan-API.md" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Helper MCP giữ internal để không nới rộng bề mặt công khai; test vẫn cần chạm tới. -->
+    <InternalsVisibleTo Include="InvestmentApp.Api.Tests" />
+  </ItemGroup>
+
 </Project>

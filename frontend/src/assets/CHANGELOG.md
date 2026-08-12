@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.82.0] — 2026-08-11 · Trợ lý AI ghi được cây kịch bản
+
+### Kỹ thuật
+
+**🧭 Trợ lý AI biết trước giá trị nào hợp lệ.** Trước đây khi trợ lý ghi cây kịch bản cho kế hoạch giao dịch, nó phải **đoán** tên hành động — vì phần mô tả tham số nó nhận được không hề nói `actionType` chấp nhận gì. Đoán sai thì chỉ nhận lại một câu vô nghĩa: *"An error occurred invoking 'update_trade_plan'"*. Giờ mọi tập giá trị hữu hạn nằm ngay trong mô tả tham số, nên nó gọi đúng từ lần đầu.
+
+**💬 Lỗi nói rõ sai ở đâu và gửi gì cho đúng.** Nếu vẫn sai, thông báo nêu tên trường, vị trí, và liệt kê đủ giá trị hợp lệ — thay vì một câu chung chung. Áp cho toàn bộ tool, không riêng kế hoạch giao dịch.
+
+**🔇 Hết cảnh "báo xong nhưng chẳng ghi gì".** Gửi cây kịch bản cho kế hoạch đang ở chế độ Đơn giản trước đây bị bỏ đi im lặng mà vẫn trả về `ok` — trợ lý báo hoàn thành trong khi kế hoạch vẫn trống. Giờ nó báo lỗi kèm cách chữa.
+
+**🚫 Hành động không còn giá trị mặc định ngầm.** Một nhánh kịch bản gửi thiếu `actionType` từng âm thầm thành *"bán 50% vị thế"*. Giờ thiếu là lỗi. Đơn vị đo của trailing stop thì vẫn được phép bỏ trống.
+
 ## [v2.81.0] — 2026-08-12 · Lỗi tự báo về điện thoại
 
 ### Kỹ thuật

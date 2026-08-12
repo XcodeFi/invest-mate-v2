@@ -1,5 +1,6 @@
 using FluentAssertions;
 using FluentValidation.TestHelper;
+using InvestmentApp.Domain.Entities;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 
 namespace InvestmentApp.Application.Tests.TradePlans;
@@ -70,7 +71,7 @@ public class CreateTradePlanCommandValidatorTests
         var cmd = ValidBaseCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = "", CheckDate = null }
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = "", CheckDate = null }
         };
 
         var result = _validator.TestValidate(cmd);
@@ -84,7 +85,7 @@ public class CreateTradePlanCommandValidatorTests
         var cmd = ValidBaseCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = "EPS giảm" }   // 9 chars
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = "EPS giảm" }   // 9 chars
         };
 
         var result = _validator.TestValidate(cmd);
@@ -99,7 +100,7 @@ public class CreateTradePlanCommandValidatorTests
         var cmd = ValidBaseCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = "                    abcde                    " }
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = "                    abcde                    " }
         };
 
         var result = _validator.TestValidate(cmd);
@@ -113,7 +114,7 @@ public class CreateTradePlanCommandValidatorTests
         var cmd = ValidBaseCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = new string('a', 20) }
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = new string('a', 20) }
         };
 
         var result = _validator.TestValidate(cmd);
@@ -122,17 +123,36 @@ public class CreateTradePlanCommandValidatorTests
     }
 
     [Fact]
-    public void InvalidationCriteria_UnknownTrigger_FailsValidation()
+    public void InvalidationCriteria_MissingTrigger_FailsValidation()
     {
+        // Trigger là enum thật nên "BogusTrigger" không còn dựng được trong C#: giá trị lạ bị
+        // chặn ở tầng deserialize (xem test dưới). Phần validator còn giữ là "không gửi gì".
         var cmd = ValidBaseCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "BogusTrigger", Detail = new string('x', 25) }
+            new() { Trigger = null, Detail = new string('x', 25) }
         };
 
         var result = _validator.TestValidate(cmd);
 
         result.ShouldHaveValidationErrorFor("InvalidationCriteria[0].Trigger");
+    }
+
+    [Fact]
+    public void InvalidationCriteria_UnknownTrigger_Is_Rejected_At_Deserialize()
+    {
+        // Bảo đảm cũ của InvalidationCriteria_UnknownTrigger_FailsValidation chuyển xuống đây —
+        // nó không mất đi, chỉ đổi tầng chịu trách nhiệm.
+        var act = () => System.Text.Json.JsonSerializer.Deserialize<InvalidationRuleDto>(
+            """{"trigger":"BogusTrigger","detail":"xxxxxxxxxxxxxxxxxxxxxxxxx"}""",
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            });
+
+        act.Should().Throw<System.Text.Json.JsonException>()
+            .WithMessage("*InvalidationTrigger*");
     }
 
     [Fact]
@@ -165,8 +185,8 @@ public class CreateTradePlanCommandValidatorTests
         var cmd = ValidBaseCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = "BCTC Q1/2026 EPS giảm > 20% YoY" },  // OK
-            new() { Trigger = "TrendBreak", Detail = "" }                                       // BAD
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = "BCTC Q1/2026 EPS giảm > 20% YoY" },  // OK
+            new() { Trigger = InvalidationTrigger.TrendBreak, Detail = "" }                                       // BAD
         };
 
         var result = _validator.TestValidate(cmd);

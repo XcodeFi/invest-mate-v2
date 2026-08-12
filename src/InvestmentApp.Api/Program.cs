@@ -112,7 +112,12 @@ static bool IsConfigured(string? value) =>
     !string.IsNullOrWhiteSpace(value) && !value.StartsWith('{');
 
 // Add services to the container
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Bù đúng một lỗ mà SuppressModelStateInvalidFilter để lại: body không đọc được thì
+        // tham số [FromBody] về null, action deref nó và trả 500 "Object reference not set".
+        options.Filters.Add<InvestmentApp.Api.Filters.UnreadableBodyFilter>();
+    })
     .AddJsonOptions(opts => ApiJsonConfig.Configure(opts.JsonSerializerOptions))
     .ConfigureApiBehaviorOptions(options =>
     {
@@ -416,7 +421,7 @@ builder.Services.AddSingleton(new SchedulerEmailAllowlist(
 // MCP server — expose the agent surface as schema-typed tools over streamable HTTP.
 // Stateless: no cross-instance session state (survives Cloud Run multi-instance scaling).
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddMcpServer()
+builder.Services.AddMcpServer(InvestmentApp.Api.Mcp.McpErrorTranslator.Configure)
     .WithHttpTransport(options => options.Stateless = true)
     .WithToolsFromAssembly();   // scans [McpServerToolType] classes in this assembly
 

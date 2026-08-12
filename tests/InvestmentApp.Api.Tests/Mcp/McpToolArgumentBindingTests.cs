@@ -166,8 +166,8 @@ public class McpToolArgumentBindingTests
             """
             {"symbol":"SSI","entryPrice":30000,"stopLoss":28000,"target":36000,"quantity":500,
              "checklist":[{"label":"Xu hướng tăng","category":"Kỹ thuật","checked":true,"critical":true,"hint":"EMA50"}],
-             "invalidationCriteria":[{"trigger":"PriceBelowStop","detail":"Mất mốc 28"}],
-             "exitTargets":[{"level":1,"actionType":"TakePartial","price":34000,"percentOfPosition":50,"label":"Chốt 1"}],
+             "invalidationCriteria":[{"trigger":"TrendBreak","detail":"Mất mốc 28"}],
+             "exitTargets":[{"level":1,"actionType":"PartialExit","price":34000,"percentOfPosition":50,"label":"Chốt 1"}],
              "timeHorizon":"MediumTerm","expectedReviewDate":"2026-08-15T00:00:00Z"}
             """, "plan-id");
 

@@ -125,7 +125,8 @@ public class TradePlanToolsTests
         ex.Which.Message.Should().Contain("SSI").And.Contain("/company-dossier/SSI");
     }
 
-    // Chỉ dịch riêng cổng hồ sơ. Bọc rộng hơn là che mất mọi lỗi khác dưới một câu đẹp đẽ.
+    // Dịch mọi exception sang McpException nhưng GIỮ message gốc — bọc rộng mà thay message mới
+    // là che mất mọi lỗi khác dưới một câu đẹp đẽ.
     [Fact]
     public async Task CreateTradePlan_OtherExceptions_PassThroughUnchanged()
     {
@@ -136,7 +137,11 @@ public class TradePlanToolsTests
             "VNM", entryPrice: 80000, stopLoss: 75000, target: 95000, quantity: 100,
             _mediator.Object, McpTestContext.WithUser("u-7"), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*Portfolio không thuộc*");
+        // Mọi exception nay được dịch sang McpException để đi xuyên qua lớp che của SDK, nhưng
+        // message gốc phải còn nguyên và không được bị gán nhầm cho cổng hồ sơ.
+        var ex = await act.Should().ThrowAsync<McpException>();
+        ex.And.Message.Should().Contain("Portfolio không thuộc");
+        ex.And.Message.Should().NotContain("Cổng hồ sơ");
     }
 
     [Fact]
@@ -144,7 +149,8 @@ public class TradePlanToolsTests
     {
         var act = async () => await TradePlanTools.SetTradePlanStatus(
             "plan-1", "restore", null, _mediator.Object, McpTestContext.WithUser("u-5"), CancellationToken.None);
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await act.Should().ThrowAsync<McpException>())
+            .And.Message.Should().Contain("restore");
     }
 
     [Fact]

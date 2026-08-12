@@ -1,4 +1,5 @@
 using FluentValidation;
+using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Domain.Entities;
 
 namespace InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
@@ -37,6 +38,44 @@ public class CreateTradePlanCommandValidator : AbstractValidator<CreateTradePlan
         RuleForEach(x => x.InvalidationCriteria!)
             .ChildRules(InvalidationRuleChild)
             .When(x => x.InvalidationCriteria != null && x.InvalidationCriteria.Count > 0);
+
+        RuleForEach(x => x.ScenarioNodes!)
+            .ChildRules(ScenarioNodeChild)
+            .When(x => x.ScenarioNodes != null && x.ScenarioNodes.Count > 0);
+
+        RuleForEach(x => x.ExitTargets!)
+            .ChildRules(ExitTargetChild)
+            .When(x => x.ExitTargets != null && x.ExitTargets.Count > 0);
+    }
+
+    /// <summary>
+    /// Dùng chung với validator của Update. Cùng lý do với <see cref="ScenarioNodeChild"/>: mốc
+    /// thoát thiếu actionType từng âm thầm thành TakeProfit, trong khi người gọi có thể đang định
+    /// khai CutLoss. Tập giá trị ở đây KHÁC tập của scenarioNodes dù trùng tên trường.
+    /// </summary>
+    public static void ExitTargetChild(InlineValidator<ExitTargetDto> rule)
+    {
+        rule.RuleFor(e => e.ActionType)
+            .NotNull()
+            .WithMessage("actionType bắt buộc — một trong: TakeProfit, CutLoss, TrailingStop, PartialExit");
+    }
+
+    /// <summary>
+    /// Dùng chung với validator của Update. Hành động là quyết định nên không được có mặc định
+    /// ngầm: node thiếu actionType từng im lặng trở thành "bán 50% vị thế". Method là đơn vị đo
+    /// nên vẫn được phép bỏ trống.
+    /// </summary>
+    public static void ScenarioNodeChild(InlineValidator<ScenarioNodeDto> rule)
+    {
+        rule.RuleFor(n => n.ActionType)
+            .NotNull()
+            .WithMessage("actionType bắt buộc — một trong: SellPercent, SellAll, MoveStopLoss, " +
+                         "MoveStopToBreakeven, ActivateTrailingStop, AddPosition, SendNotification");
+
+        rule.RuleFor(n => n.ConditionType)
+            .NotNull()
+            .WithMessage("conditionType bắt buộc — một trong: PriceAbove, PriceBelow, " +
+                         "PricePercentChange, TrailingStopHit, TimeElapsed");
     }
 
     /// <summary>
@@ -45,10 +84,11 @@ public class CreateTradePlanCommandValidator : AbstractValidator<CreateTradePlan
     /// </summary>
     public static void InvalidationRuleChild(InlineValidator<InvalidationRuleDto> rule)
     {
+        // Trigger là enum thật nên giá trị lạ đã bị chặn ở tầng deserialize; ở đây chỉ còn
+        // phải chặn "không gửi gì".
         rule.RuleFor(r => r.Trigger)
-            .NotEmpty()
-            .Must(BeValidTrigger)
-            .WithMessage("Trigger không hợp lệ — phải là một trong: " +
+            .NotNull()
+            .WithMessage("trigger bắt buộc — một trong: " +
                          "EarningsMiss, TrendBreak, NewsShock, ThesisTimeout, Manual");
 
         rule.RuleFor(r => r.Detail)
@@ -59,6 +99,4 @@ public class CreateTradePlanCommandValidator : AbstractValidator<CreateTradePlan
                          "để có thể chứng minh sai");
     }
 
-    private static bool BeValidTrigger(string? trigger)
-        => !string.IsNullOrWhiteSpace(trigger) && Enum.TryParse<InvalidationTrigger>(trigger, ignoreCase: true, out _);
 }

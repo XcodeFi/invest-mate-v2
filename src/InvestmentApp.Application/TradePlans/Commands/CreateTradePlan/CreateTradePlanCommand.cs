@@ -60,7 +60,9 @@ public class ChecklistItemDto
 
 public class InvalidationRuleDto
 {
-    public string Trigger { get; set; } = string.Empty;
+    [System.ComponentModel.Description("Sự kiện phủ định luận điểm. Bắt buộc.")]
+    public InvalidationTrigger? Trigger { get; set; }
+
     public string Detail { get; set; } = string.Empty;
     public DateTime? CheckDate { get; set; }
     public bool IsTriggered { get; set; }
@@ -107,7 +109,7 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 
         var invalidationCriteria = request.InvalidationCriteria?.Select(r => new InvalidationRule
         {
-            Trigger = Enum.Parse<InvalidationTrigger>(r.Trigger, ignoreCase: true),
+            Trigger = r.Trigger ?? InvalidationTrigger.Manual,
             Detail = r.Detail,
             CheckDate = r.CheckDate,
             IsTriggered = r.IsTriggered,
@@ -146,7 +148,7 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
             var targets = request.ExitTargets.Select(e => new ExitTarget
             {
                 Level = e.Level,
-                ActionType = Enum.Parse<ExitActionType>(e.ActionType, ignoreCase: true),
+                ActionType = e.ActionType ?? ExitActionType.TakeProfit,
                 Price = e.Price,
                 Quantity = e.Quantity,
                 PercentOfPosition = e.PercentOfPosition,
@@ -159,16 +161,14 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
         if (request.TimeHorizon != null && Enum.TryParse<TimeHorizon>(request.TimeHorizon, ignoreCase: true, out var horizon))
             plan.SetTimeHorizon(horizon);
 
-        // Scenario Playbook
+        // Scenario Playbook. Nodes nằm ngoài nhánh Advanced có chủ đích: lồng vào trong khiến
+        // nodes gửi kèm mà thiếu exitStrategyMode bị bỏ đi im lặng. SetScenarioNodes tự từ chối
+        // khi còn ở Simple, và đó là câu trả lời người gọi cần nghe.
         if (request.ExitStrategyMode?.Equals("Advanced", StringComparison.OrdinalIgnoreCase) == true)
-        {
             plan.SetExitStrategyMode(ExitStrategyMode.Advanced);
-            if (request.ScenarioNodes != null && request.ScenarioNodes.Count > 0)
-            {
-                var nodes = request.ScenarioNodes.Select(MapToScenarioNode).ToList();
-                plan.SetScenarioNodes(nodes);
-            }
-        }
+
+        if (request.ScenarioNodes is { Count: > 0 })
+            plan.SetScenarioNodes(request.ScenarioNodes.Select(MapToScenarioNode).ToList());
 
         // Handle initial status if provided (e.g., "Ready" or "Executed" from wizard)
         // Must follow sequential state machine: Draft → Ready → InProgress → Executed
@@ -251,14 +251,17 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
         ParentId = dto.ParentId,
         Order = dto.Order,
         Label = dto.Label,
-        ConditionType = Enum.Parse<ScenarioConditionType>(dto.ConditionType, ignoreCase: true),
+        // Validator chặn null trước khi tới đây. Giá trị lấp chỗ chọn loại vô hại nhất: nếu
+        // validator có lỗ thủng thì hậu quả là một thông báo thừa, không phải lệnh bán ngoài ý muốn.
+        ConditionType = dto.ConditionType ?? ScenarioConditionType.PriceAbove,
         ConditionValue = dto.ConditionValue,
         ConditionNote = dto.ConditionNote,
-        ActionType = Enum.Parse<ScenarioActionType>(dto.ActionType, ignoreCase: true),
+        ActionType = dto.ActionType ?? ScenarioActionType.SendNotification,
         ActionValue = dto.ActionValue,
         TrailingStopConfig = dto.TrailingStopConfig != null ? new TrailingStopConfig
         {
-            Method = Enum.Parse<TrailingStopMethod>(dto.TrailingStopConfig.Method, ignoreCase: true),
+            // Đơn vị đo được phép có mặc định; hành động thì không.
+            Method = dto.TrailingStopConfig.Method ?? TrailingStopMethod.Percentage,
             TrailValue = dto.TrailingStopConfig.TrailValue,
             ActivationPrice = dto.TrailingStopConfig.ActivationPrice,
             StepSize = dto.TrailingStopConfig.StepSize

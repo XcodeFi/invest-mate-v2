@@ -33,5 +33,13 @@ public class UpdateTradePlanCommandValidator : AbstractValidator<UpdateTradePlan
         RuleForEach(x => x.InvalidationCriteria!)
             .ChildRules(CreateTradePlanCommandValidator.InvalidationRuleChild)
             .When(x => x.InvalidationCriteria != null && x.InvalidationCriteria.Count > 0);
+
+        RuleForEach(x => x.ScenarioNodes!)
+            .ChildRules(CreateTradePlanCommandValidator.ScenarioNodeChild)
+            .When(x => x.ScenarioNodes != null && x.ScenarioNodes.Count > 0);
+
+        RuleForEach(x => x.ExitTargets!)
+            .ChildRules(CreateTradePlanCommandValidator.ExitTargetChild)
+            .When(x => x.ExitTargets != null && x.ExitTargets.Count > 0);
     }
 }

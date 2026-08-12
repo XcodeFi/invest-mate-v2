@@ -4,28 +4,16 @@ using ModelContextProtocol;
 namespace InvestmentApp.Api.Mcp;
 
 /// <summary>
-/// Dịch <see cref="DossierGateException"/> sang <see cref="McpException"/>. Qua MCP, exception
-/// thường bị che thành "An error occurred invoking '<tên tool>'." — agent mất cả reason lẫn
-/// missing[] nên không có đường tự chữa, dù chính nó vừa gây ra việc bị chặn.
+/// Mô tả <see cref="DossierGateException"/> thành câu chỉ đúng cách chữa cho agent — nó mất cả
+/// reason lẫn missing[] nếu chỉ nhận exception trần, dù chính nó vừa gây ra việc bị chặn.
+/// Việc bắt và dịch sang <see cref="McpException"/> do <see cref="McpErrorTranslator"/> lo.
 /// </summary>
 internal static class McpDossierGate
 {
     private const string ReCheck =
         "Gọi get_dossier_gate_status(symbol, quantity, entryPrice, accountBalance) để xem chi tiết trước khi thử lại.";
 
-    internal static async Task<T> GuardAsync<T>(Func<Task<T>> send)
-    {
-        try
-        {
-            return await send();
-        }
-        catch (DossierGateException ex)
-        {
-            throw new McpException(Describe(ex));
-        }
-    }
-
-    private static string Describe(DossierGateException ex)
+    internal static string Describe(DossierGateException ex)
     {
         var symbol = ex.Symbol;
         var page = $"/company-dossier/{symbol}";
