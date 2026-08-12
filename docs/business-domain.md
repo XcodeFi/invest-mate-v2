@@ -160,6 +160,8 @@ Tách hai mốc vì sửa nhánh kịch bản không đặt lại giá nhập �
 
 **Bắt buộc so sánh giá trị, không chỉ kiểm tra "có gửi lên hay không".** Form sửa kế hoạch gửi lại **toàn bộ** trường mỗi lần lưu — cả `entryPrice`/`stopLoss`/`target` lẫn `scenarioNodes` — nên `entryPrice.HasValue` luôn đúng. Dời mốc theo đó thì sửa mỗi ghi chú cũng đặt lại mặt bằng giá và huỷ việc điều chỉnh theo sự kiện quyền đã xảy ra.
 
+**Nhánh kịch bản — hai trường quyết định là bắt buộc (2026-08-11, ADR-0015).** `ScenarioNode.ActionType` và `ConditionType` không có giá trị mặc định: gửi thiếu là lỗi, không phải âm thầm thành `SellPercent`/`PriceAbove`. `TrailingStopConfig.Method` bỏ trống hoặc `null` thì về `Percentage` — đơn vị đo được phép có mặc định, hành động thì không. Gửi `scenarioNodes` khi `ExitStrategyMode` hiệu dụng vẫn là `Simple` cũng là lỗi (`SetScenarioNodes` từ chối), không còn bị handler lọc bỏ im lặng rồi trả `ok`. Lưu ý `ExitTarget.ActionType` (`TakeProfit`/`CutLoss`/`TrailingStop`/`PartialExit`) là **tập giá trị khác** với `ScenarioNode.ActionType` dù trùng tên trường.
+
 **CampaignReviewData (P0.7):** Value object embedded trong TradePlan khi chuyển sang Reviewed — chứa auto-calculated metrics: P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons learned
 
 **Thesis-driven discipline (Vin-discipline, 2026-04-23):** Plan-level fields ép kỷ luật "tại sao mua / sai ở đâu thì bán / giữ bao lâu" theo triết lý Vinpearl Air 2020 (dám dừng khi thesis bị phá vỡ).
