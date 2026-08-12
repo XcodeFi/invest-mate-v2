@@ -125,18 +125,39 @@ public class SettlementCalculatorTests
         (settled + pending).Should().Be(totalSold);
     }
 
-    [Fact]
-    public void Ban_ghi_cu_khong_con_la_nua_dem_van_tinh_dung()
+    // `Trade.TradeDate` KHÔNG có [BsonDateTimeOptions(Kind = DateTimeKind.Utc)], nên driver
+    // coi DateTime Unspecified là giờ local rồi quy về UTC: người dùng ghi lệnh ngày 13/08 thì
+    // Mongo lưu 2026-08-12T17:00:00Z. Đọc `.Date` trần ra 12/08 — lùi một ngày, và tiền bị
+    // đánh dấu đã về sớm một ngày. Quy về NGÀY LỊCH VN thì cả hai dạng lưu đều ra đúng ngày.
+    [Theory]
+    [InlineData("2026-08-12T17:00:00Z")]  // nửa đêm giờ VN của 13/08, dạng thực tế trong DB
+    [InlineData("2026-08-13T00:00:00Z")]  // nửa đêm UTC thật, dạng "đúng" nếu ai đó sửa entity
+    public void Ngay_phien_lay_theo_lich_VN_nen_hai_dang_luu_cho_cung_ket_qua(string stored)
     {
-        // Mongo có thể trả về 17:00 hôm trước cho ngày lưu sai Kind. Phần .Date phải cắt.
         var trade = new Trade("p1", "HHV", TradeType.SELL, 100m, 10_000m, 0m, 0m,
-            new DateTime(2026, 6, 11, 23, 45, 0));
+            DateTime.Parse(stored, null, System.Globalization.DateTimeStyles.AdjustToUniversal));
 
         var (amount, last) = SettlementCalculator.PendingSellProceeds(
-            new[] { trade }, new DateTime(2026, 6, 12), Closures2026);
+            new[] { trade }, new DateTime(2026, 8, 13), NoClosures);
 
         amount.Should().Be(1_000_000m);
-        last.Should().Be(new DateTime(2026, 6, 15));
+        // 13/08/2026 là thứ Năm: T+1 = thứ Sáu 14/08, T+2 = thứ Hai 17/08.
+        last.Should().Be(new DateTime(2026, 8, 17));
+    }
+
+    [Fact]
+    public void Lenh_ghi_hom_qua_van_con_cho_ve_chu_khong_bi_coi_la_da_ve()
+    {
+        // Ca thật gặp khi verify: bán 12/08 (thứ Tư) → T+2 = thứ Sáu 14/08. Hôm nay 13/08
+        // thì vẫn PHẢI đang chờ. Trước khi vá, ngày lưu lùi về 11/08 nên nó bị tính là đã về.
+        var trade = new Trade("p1", "HHV", TradeType.SELL, 1_000m, 21_000m, 30_000m, 21_000m,
+            new DateTime(2026, 8, 11, 17, 0, 0, DateTimeKind.Utc));  // = 12/08 giờ VN
+
+        var (amount, last) = SettlementCalculator.PendingSellProceeds(
+            new[] { trade }, new DateTime(2026, 8, 13), NoClosures);
+
+        amount.Should().Be(1_000m * 21_000m - 30_000m - 21_000m);
+        last.Should().Be(new DateTime(2026, 8, 14));
     }
 
     [Fact]

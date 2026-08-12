@@ -46,8 +46,11 @@ public static class SettlementCalculator
         {
             if (trade.TradeType != TradeType.SELL) continue;
 
-            // .Date cả hai vế: bản ghi cũ trong Mongo có thể không còn là nửa đêm.
-            var arrival = SettlementDateOf(trade.TradeDate.Date, closedDates);
+            // Quy về NGÀY LỊCH VN, không dùng .Date trần: `Trade.TradeDate` không có
+            // [BsonDateTimeOptions(Kind = DateTimeKind.Utc)] nên lệnh ghi ngày 13/08 được Mongo
+            // lưu thành 2026-08-12T17:00:00Z. Đọc .Date ra 12/08 là lùi một ngày, và tiền bị
+            // đánh dấu đã về sớm một ngày. Phép quy này đúng cho cả bản ghi lưu nửa đêm UTC thật.
+            var arrival = SettlementDateOf(VietnamDate.DayOf(trade.TradeDate), closedDates);
             if (arrival <= asOf) continue;
 
             total += trade.Quantity * trade.Price - trade.Fee - trade.Tax;
