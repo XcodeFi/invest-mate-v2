@@ -59,6 +59,35 @@ public class McpErrorSurfaceTests
     }
 
     [Fact]
+    public async Task Cancellation_Is_Not_Reported_As_A_Tool_Failure()
+    {
+        // Client ngắt kết nối là một lần HUỶ, không phải tool thất bại. Báo thành lỗi thì agent
+        // đọc là "gọi không thành công" rồi gọi lại, dù thao tác có thể đã xong.
+        await Throwing(new OperationCanceledException())
+            .Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task Infrastructure_Failure_Does_Not_Leak_Its_Message()
+    {
+        var ex = await Throwing(new TimeoutException("Timed out connecting to cluster-0.abc123.mongodb.net:27017"))
+            .Should().ThrowAsync<McpException>();
+
+        ex.And.Message.Should().NotContain("mongodb.net");
+        ex.And.Message.Should().NotContain("27017");
+    }
+
+    [Fact]
+    public async Task Domain_Message_Still_Reaches_The_Agent()
+    {
+        // Đối chứng cho test trên: bịt lỗi hạ tầng không được bịt luôn thông tin agent cần.
+        var ex = await Throwing(new Exception("Trade plan p1 not found"))
+            .Should().ThrowAsync<McpException>();
+
+        ex.And.Message.Should().Contain("not found");
+    }
+
+    [Fact]
     public async Task Success_Passes_Through_Untouched()
     {
         var result = await McpErrorTranslator.RunAsync(() => Task.FromResult("ok"));

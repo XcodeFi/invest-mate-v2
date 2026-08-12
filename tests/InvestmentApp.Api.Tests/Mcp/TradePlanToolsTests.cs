@@ -125,7 +125,8 @@ public class TradePlanToolsTests
         ex.Which.Message.Should().Contain("SSI").And.Contain("/company-dossier/SSI");
     }
 
-    // Chỉ dịch riêng cổng hồ sơ. Bọc rộng hơn là che mất mọi lỗi khác dưới một câu đẹp đẽ.
+    // Dịch mọi exception sang McpException nhưng GIỮ message gốc — bọc rộng mà thay message mới
+    // là che mất mọi lỗi khác dưới một câu đẹp đẽ.
     [Fact]
     public async Task CreateTradePlan_OtherExceptions_PassThroughUnchanged()
     {

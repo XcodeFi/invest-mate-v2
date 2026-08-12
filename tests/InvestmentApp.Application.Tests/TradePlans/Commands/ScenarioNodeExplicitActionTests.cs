@@ -74,6 +74,40 @@ public class ScenarioNodeExplicitActionTests
     }
 
     [Fact]
+    public void ExitTarget_Without_ActionType_Fails_Validation()
+    {
+        // exitTargets.actionType cũng là enum quyết định như scenarioNodes.actionType — thiếu nó
+        // thì âm thầm thành TakeProfit, trong khi người gọi có thể đang định khai CutLoss.
+        var cmd = Cmd();
+        cmd.ScenarioNodes = null;
+        cmd.ExitStrategyMode = null;
+        cmd.ExitTargets = new List<ExitTargetDto>
+        {
+            new() { Level = 1, Price = 85000m, PercentOfPosition = 50m }
+        };
+
+        var result = new CreateTradePlanCommandValidator().Validate(cmd);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.ErrorMessage.Contains("actionType bắt buộc"))
+            .Which.ErrorMessage.Should().Contain("PartialExit");
+    }
+
+    [Fact]
+    public void ExitTarget_With_ActionType_Passes_Validation()
+    {
+        var cmd = Cmd();
+        cmd.ScenarioNodes = null;
+        cmd.ExitStrategyMode = null;
+        cmd.ExitTargets = new List<ExitTargetDto>
+        {
+            new() { Level = 1, ActionType = ExitActionType.CutLoss, Price = 85000m }
+        };
+
+        new CreateTradePlanCommandValidator().Validate(cmd).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task TrailingStop_With_Only_TrailValue_Defaults_Method_To_Percentage()
     {
         var saved = await HandleAsync(Cmd(new ScenarioNodeDto

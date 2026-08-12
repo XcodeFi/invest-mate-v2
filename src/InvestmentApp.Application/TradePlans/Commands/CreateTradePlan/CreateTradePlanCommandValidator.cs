@@ -42,6 +42,22 @@ public class CreateTradePlanCommandValidator : AbstractValidator<CreateTradePlan
         RuleForEach(x => x.ScenarioNodes!)
             .ChildRules(ScenarioNodeChild)
             .When(x => x.ScenarioNodes != null && x.ScenarioNodes.Count > 0);
+
+        RuleForEach(x => x.ExitTargets!)
+            .ChildRules(ExitTargetChild)
+            .When(x => x.ExitTargets != null && x.ExitTargets.Count > 0);
+    }
+
+    /// <summary>
+    /// Dùng chung với validator của Update. Cùng lý do với <see cref="ScenarioNodeChild"/>: mốc
+    /// thoát thiếu actionType từng âm thầm thành TakeProfit, trong khi người gọi có thể đang định
+    /// khai CutLoss. Tập giá trị ở đây KHÁC tập của scenarioNodes dù trùng tên trường.
+    /// </summary>
+    public static void ExitTargetChild(InlineValidator<ExitTargetDto> rule)
+    {
+        rule.RuleFor(e => e.ActionType)
+            .NotNull()
+            .WithMessage("actionType bắt buộc — một trong: TakeProfit, CutLoss, TrailingStop, PartialExit");
     }
 
     /// <summary>

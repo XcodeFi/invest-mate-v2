@@ -35,7 +35,9 @@ internal static class McpErrorTranslator
             {
                 return await next(context, ct);
             }
-            catch (Exception ex) when (ex is not McpException)
+            // Huỷ không phải lỗi của tool: bọc nó thành McpException khiến agent đọc là "gọi thất
+            // bại" rồi gọi lại, dù thao tác có thể đã xong.
+            catch (Exception ex) when (ex is not McpException and not OperationCanceledException)
             {
                 throw new McpException(Describe(ex));
             }
@@ -47,7 +49,7 @@ internal static class McpErrorTranslator
         {
             return await action();
         }
-        catch (Exception ex) when (ex is not McpException)
+        catch (Exception ex) when (ex is not McpException and not OperationCanceledException)
         {
             throw new McpException(Describe(ex));
         }
@@ -55,6 +57,9 @@ internal static class McpErrorTranslator
 
     internal static async Task RunAsync(Func<Task> action)
         => await RunAsync<object?>(async () => { await action(); return null; });
+
+    private const string InfrastructureFailure =
+        "Lỗi hạ tầng phía máy chủ, không phải do tham số. Thử lại sau; nếu lặp lại thì báo người dùng.";
 
     private static string Describe(Exception ex) => ex switch
     {
@@ -64,8 +69,19 @@ internal static class McpErrorTranslator
         JsonException je => DescribeJson(je),
         ArgumentException ae => "Tham số sai: " + ae.Message,
         InvalidOperationException ioe => ioe.Message,
+        _ when IsInfrastructure(ex) => InfrastructureFailure,
         _ => ex.Message
     };
+
+    /// <summary>
+    /// Lỗi hạ tầng mang chi tiết nội bộ (host, cluster, cổng) và agent không làm gì được với nó.
+    /// Mặc định vẫn là trả nguyên văn message, vì nhiều lỗi nghiệp vụ hữu ích được ném bằng
+    /// <see cref="Exception"/> trần (ví dụ "Trade plan &lt;id&gt; not found") — bịt hết là bịt luôn
+    /// thông tin agent cần. Kiểm theo namespace để không phải tham chiếu driver từ lớp Api.
+    /// </summary>
+    private static bool IsInfrastructure(Exception ex)
+        => ex is TimeoutException
+           || ex.GetType().Namespace?.StartsWith("MongoDB", StringComparison.Ordinal) == true;
 
     /// <summary>
     /// STJ chỉ nói "không chuyển được sang &lt;type&gt;" — đủ để biết sai ở đâu, không đủ để biết
