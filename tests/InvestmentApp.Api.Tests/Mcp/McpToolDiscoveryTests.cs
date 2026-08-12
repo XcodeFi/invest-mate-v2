@@ -34,7 +34,9 @@ public class McpToolDiscoveryTests
         "get_flow_history", "get_adjusted_return",
         // Hồ sơ công ty — agent đọc được và soạn được, KHÔNG ký được (ADR-0011 D2)
         "list_company_dossiers", "get_company_dossier", "get_dossier_gate_status",
-        "get_company_fundamentals"
+        "get_company_fundamentals",
+        // Lịch nghỉ giao dịch — nền tính T+2
+        "list_market_closures"
     };
 
     private static readonly string[] WriteTools =
@@ -44,7 +46,8 @@ public class McpToolDiscoveryTests
         "update_watchlist_item", "remove_watchlist_item", "import_vn30",
         "create_journal", "update_journal", "delete_journal",
         "create_journal_entry", "update_journal_entry", "delete_journal_entry",
-        "upsert_company_dossier"
+        "upsert_company_dossier",
+        "add_market_closures", "remove_market_closure"
     };
 
     private static IReadOnlyList<McpServerTool> Tools()
@@ -63,12 +66,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_52_Tools()
+    public void Registers_All_55_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(52);
+        (ReadTools.Length + WriteTools.Length).Should().Be(55);
     }
 
     [Fact]
