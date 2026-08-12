@@ -198,6 +198,30 @@ export interface SectorExposureForPlan {
   sameSectorSymbols: string[];
 }
 
+// Trần khối lượng theo ngân sách biến động (ADR-0014). Mọi trường phần trăm nullable có chủ ý:
+// null nghĩa là "chưa tính được", KHÔNG phải 0.
+export type VolatilityDataQuality = 'Full' | 'Partial' | 'Insufficient';
+
+export interface VolatilitySizingResult {
+  symbol: string;
+  currentVolatilityPercent: number | null;
+  projectedVolatilityPercent: number | null;
+  budgetVolatilityPercent: number;
+  sourceMaxDrawdownPercent: number;
+  correlationWithPortfolio: number | null;
+  marginalRiskContributionPercent: number | null;
+  capitalWeightPercent: number | null;
+  // null + isUnconstrainedByVolatility=false → không tính được.
+  // null + isUnconstrainedByVolatility=true  → không bị ràng buộc. Hai ca khác hẳn nhau.
+  maxQuantityWithinBudget: number | null;
+  isUnconstrainedByVolatility: boolean;
+  portfolioAlreadyOverBudget: boolean;
+  dataQuality: VolatilityDataQuality;
+  missingSymbols: string[];
+  adjustedSymbols: string[];
+  observationCount: number;
+}
+
 // Trailing Stop Alerts
 export interface TrailingStopAlert {
   symbol: string;
@@ -315,6 +339,17 @@ export class RiskService {
     const params = `?symbol=${encodeURIComponent(symbol)}&addValue=${addValue}`;
     return this.http.get<SectorExposureForPlan>(
       `${this.API_URL}/portfolio/${portfolioId}/sector-exposure${params}`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  // Cả ba tham số bắt buộc phía server. quantity=0 sẽ cho "biến động sau lệnh" bằng đúng biến động
+  // hiện tại — một con số trông như thật.
+  getVolatilitySizingForPlan(
+    portfolioId: string, symbol: string, entryPrice: number, quantity: number
+  ): Observable<VolatilitySizingResult> {
+    const params = `?symbol=${encodeURIComponent(symbol)}&entryPrice=${entryPrice}&quantity=${quantity}`;
+    return this.http.get<VolatilitySizingResult>(
+      `${this.API_URL}/portfolio/${portfolioId}/volatility-sizing${params}`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

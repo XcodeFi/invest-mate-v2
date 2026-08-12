@@ -10,6 +10,7 @@ using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Application.Risk.Queries.GetStressTest;
 using InvestmentApp.Application.Risk.Queries.GetRiskBudget;
 using InvestmentApp.Application.Risk.Queries.GetSectorExposureForPlan;
+using InvestmentApp.Application.Risk.Queries.GetVolatilitySizingForPlan;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -186,6 +187,40 @@ public class RiskController : ControllerBase
             UserId = GetUserId(),
             Symbol = symbol,
             AddValue = addValue.Value
+        };
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Trần khối lượng theo ngân sách biến động cho một lệnh mua dự kiến (ADR-0014).
+    /// </summary>
+    /// <remarks>
+    /// Cả ba tham số bắt buộc, và cả ba đều nullable ở chữ ký vì cùng lý do như
+    /// <c>sector-exposure</c>: kiểu không-nullable bind giá trị thiếu thành 0 trong im lặng, mà
+    /// <c>quantity = 0</c> cho "biến động sau lệnh" bằng đúng biến động hiện tại — một con số
+    /// trông như thật.
+    /// </remarks>
+    [HttpGet("portfolio/{portfolioId}/volatility-sizing")]
+    [ProducesResponseType(typeof(VolatilitySizingResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetVolatilitySizingForPlan(
+        string portfolioId, [FromQuery] string symbol, [FromQuery] decimal? entryPrice,
+        [FromQuery] int? quantity, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return BadRequest(new { code = "SYMBOL_REQUIRED", message = "Thiếu tham số symbol" });
+        if (entryPrice is null or <= 0)
+            return BadRequest(new { code = "ENTRY_PRICE_REQUIRED", message = "Thiếu hoặc sai tham số entryPrice" });
+        if (quantity is null or <= 0)
+            return BadRequest(new { code = "QUANTITY_REQUIRED", message = "Thiếu hoặc sai tham số quantity" });
+
+        var query = new GetVolatilitySizingForPlanQuery
+        {
+            PortfolioId = portfolioId,
+            UserId = GetUserId(),
+            Symbol = symbol,
+            EntryPrice = entryPrice.Value,
+            Quantity = quantity.Value
         };
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);

@@ -31,6 +31,9 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     // 24hmoney returns stock prices in units of 1,000 VND
     private const decimal PriceScale = 1000m;
 
+    /// <summary>Tham số <c>type</c> duy nhất của endpoint graph trả lợi suất theo phiên.</summary>
+    private const int DailyGraphType = 3;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -139,6 +142,60 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to fetch historical prices for {Symbol} from 24hmoney", symbol);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// <c>type=3</c> là lựa chọn duy nhất trả lợi suất theo phiên: đo ngày 2026-08-11 cho 65 điểm
+    /// phủ 90 ngày, giãn cách ~1,4 ngày. <c>type=4</c> (nhãn "3 months") cho thanh 3 ngày, <c>5</c>
+    /// cho thanh tuần, <c>6</c> cho thanh tháng. Không lọc theo from/to — lọc là cắt mất chính
+    /// những quan sát cần cho ước lượng.
+    /// </summary>
+    public async Task<List<StockPriceData>> GetDailyHistoryAsync(
+        string symbol, CancellationToken cancellationToken = default)
+    {
+        symbol = symbol.ToUpper().Trim();
+
+        var cacheKey = $"daily-history:{symbol}";
+        if (_cache.TryGetValue(cacheKey, out List<StockPriceData>? cached))
+            return cached!;
+
+        var results = new List<StockPriceData>();
+        try
+        {
+            var url = $"/v2/ios/stock/graph?symbol={symbol}&type={DailyGraphType}&{CommonParams}";
+            var response = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyGraphData>>(url, JsonOptions, cancellationToken);
+
+            var points = response?.Data?.Points;
+            if (points == null || points.Count == 0)
+            {
+                _logger.LogWarning("No daily history returned for {Symbol}", symbol);
+                return results;
+            }
+
+            foreach (var point in points)
+            {
+                var scaledPrice = ScalePrice(point.Y);
+                results.Add(new StockPriceData
+                {
+                    Symbol = symbol,
+                    Date = DateTimeOffset.FromUnixTimeSeconds(point.X).UtcDateTime.Date,
+                    Open = scaledPrice,
+                    High = scaledPrice,
+                    Low = scaledPrice,
+                    Close = scaledPrice,
+                    Volume = point.Z
+                });
+            }
+
+            results = results.OrderBy(r => r.Date).ToList();
+            _cache.Set(cacheKey, results, TimeSpan.FromHours(6));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch daily history for {Symbol} from 24hmoney", symbol);
         }
 
         return results;

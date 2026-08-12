@@ -1750,6 +1750,31 @@ Backend 1846 test, frontend 316 test. Verify thật trên browser 15/15 kịch b
 
 ---
 
+## Trần khối lượng theo ngân sách biến động (2026-08-12, ADR-0014)
+
+Ràng buộc đầu tiên trong app nhìn vào **quan hệ giữa các mã**, không chỉ quy mô từng mã. Ba ràng buộc trước đó — tỷ trọng vị thế, tỷ trọng ngành, tỷ lệ lãi/lỗ — đều tính trên một mã riêng lẻ, nên mua thêm mã chạy cùng nhịp với vị thế lớn nhất và mua mã chạy độc lập bị coi như nhau miễn tỷ trọng vốn bằng nhau.
+
+**Panel trên form lập kế hoạch** (khóa thứ ba trong `forkJoin` kiểm-trước đã có, cùng debounce 500ms):
+
+| Dòng | Ví dụ |
+|---|---|
+| Biến động danh mục trước → sau | 19,4% → 20,6%/năm |
+| Ngân sách + nguồn suy ra | 21,1%/năm (từ ngưỡng sụt giảm 10% trong 1 tháng) |
+| Gánh rủi ro vs chiếm vốn | Gánh 22% rủi ro · chiếm 14% vốn · tương quan 0,42 |
+| Trần | 5.600 cổ, kèm nút **Dùng 5.600 cổ** khi vượt |
+
+**Bốn trạng thái:** đủ dữ liệu trong trần (xám) · vượt trần (đỏ + nút áp trần) · thiếu một phần (có số, nêu mã thiếu/bị loại + số phiên) · không đủ dữ liệu (**không hiện con số nào**, chỉ nói chưa tính được — panel trống dễ bị đọc thành "không có vấn đề gì").
+
+**Phần MPT được dùng và phần bị loại.** Chỉ dùng hiệp phương sai, không dùng lợi nhuận kỳ vọng, và **không nghịch đảo Σ** — σ_p = √(wᵀΣw) là phép nhân, còn toàn bộ tai tiếng "error maximizer" của Markowitz nằm ở Σ⁻¹. Trần cứng 65 quan sát (giới hạn của nguồn dữ liệu) khiến Σ đủ ổn định để nhân nhưng quá mỏng để nghịch đảo. Đường cong đường biên hiệu quả vì thế **không** có trong V1; hướng V2 dùng chính mục tiêu giá trong kế hoạch làm lợi nhuận kỳ vọng đã ghi trong spec.
+
+**Bộ lọc sự kiện quyền.** Nguồn giá không điều chỉnh theo ngày GDKHQ: một phiên chia tách làm giá rơi một nửa và thổi σ của mã đó lên hơn hai lần. Lợi suất vượt 15% một phiên bị loại, và panel nêu tên mã đã bị loại.
+
+**MCP `get_volatility_sizing`** — agent lập được kế hoạch qua `TradePlanTools` nên phải đọc được cùng lan can, nếu không luật chỉ tồn tại trên đường người bấm.
+
+Chỉ áp cho lệnh MUA. Cảnh báo, không chặn. Backend 1923 test, frontend 354 test.
+
+---
+
 ## Backlog (chưa implement)
 
 | # | Tính năng | Độ ưu tiên | Kế hoạch |

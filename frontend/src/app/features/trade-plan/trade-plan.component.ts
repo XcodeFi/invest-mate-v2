@@ -5,7 +5,7 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil, catchError, forkJoin } from 'rxjs';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult, SectorExposureForPlan } from '../../core/services/risk.service';
+import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult, SectorExposureForPlan, VolatilitySizingResult } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger } from '../../core/services/trade-plan.service';
@@ -1689,6 +1689,74 @@ interface DossierGateError {
               </div>
             </div>
 
+            <!-- Trần khối lượng theo ngân sách biến động (ADR-0014). Cảnh báo, KHÔNG chặn: con số
+                 dựa trên ước lượng hiệp phương sai từ ~65 phiên, yếu hơn cả nhãn ngành, nên không
+                 được cầm quyền phủ quyết. Trạng thái "thiếu dữ liệu" phải nói ra, không được im
+                 lặng biến mất — panel rỗng đọc thành "không có vấn đề gì". -->
+            <div *ngIf="volatilityNotice as vol" data-testid="volatility-notice"
+              class="mt-4 rounded-lg border px-4 py-3"
+              [class.border-slate-200]="!volOverCeiling()" [class.bg-slate-50]="!volOverCeiling()"
+              [class.border-red-300]="volOverCeiling()" [class.bg-red-50]="volOverCeiling()">
+
+              <ng-container *ngIf="vol.dataQuality === 'Insufficient'; else volNumbers">
+                <div class="text-sm text-slate-600" data-testid="volatility-insufficient">
+                  Chưa đủ lịch sử giá cho {{ vol.missingSymbols.join(', ') }} — chưa tính được trần
+                  khối lượng theo biến động.
+                </div>
+              </ng-container>
+
+              <ng-template #volNumbers>
+                <div class="text-sm text-slate-700">
+                  Biến động danh mục
+                  <span class="font-semibold">{{ volPercentText(vol.currentVolatilityPercent) }}</span>
+                  → <span data-testid="volatility-projected" class="font-semibold"
+                    [class.text-red-700]="volOverCeiling()">{{ volPercentText(vol.projectedVolatilityPercent) }}</span>
+                </div>
+                <div class="text-sm text-slate-600 mt-1">
+                  Ngân sách <span data-testid="volatility-budget">{{ volPercentText(vol.budgetVolatilityPercent) }}</span>
+                  <span class="text-slate-400">(suy từ ngưỡng sụt giảm {{ vol.sourceMaxDrawdownPercent }}% trong 1 tháng)</span>
+                </div>
+
+                <div *ngIf="vol.marginalRiskContributionPercent !== null && vol.capitalWeightPercent !== null"
+                  class="text-sm text-slate-600 mt-1" data-testid="volatility-mcr">
+                  Gánh {{ vol.marginalRiskContributionPercent!.toFixed(0) }}% rủi ro
+                  · chiếm {{ vol.capitalWeightPercent!.toFixed(0) }}% vốn
+                  <span *ngIf="vol.correlationWithPortfolio !== null">
+                    · tương quan {{ vol.correlationWithPortfolio!.toFixed(2) }}
+                  </span>
+                </div>
+
+                <div *ngIf="vol.portfolioAlreadyOverBudget" class="text-sm text-red-700 mt-1 font-medium"
+                  data-testid="volatility-over-budget">
+                  Danh mục đã vượt ngân sách biến động — mọi lệnh mua thêm đều làm xấu thêm.
+                </div>
+
+                <div *ngIf="vol.isUnconstrainedByVolatility" class="text-sm text-slate-600 mt-1"
+                  data-testid="volatility-unconstrained">
+                  Mã này ít biến động hơn ngân sách — không bị ràng buộc bởi biến động.
+                </div>
+
+                <div *ngIf="vol.maxQuantityWithinBudget !== null && !vol.portfolioAlreadyOverBudget"
+                  class="text-sm mt-1" data-testid="volatility-ceiling"
+                  [class.text-red-700]="volOverCeiling()" [class.text-slate-600]="!volOverCeiling()">
+                  Trần theo ngân sách: <span class="font-semibold">{{ vol.maxQuantityWithinBudget }}</span> cổ
+                </div>
+
+                <div *ngIf="vol.dataQuality === 'Partial'" class="text-sm text-slate-500 mt-1"
+                  data-testid="volatility-partial">
+                  <span *ngIf="vol.missingSymbols.length">Thiếu lịch sử: {{ vol.missingSymbols.join(', ') }}. </span>
+                  <span *ngIf="vol.adjustedSymbols.length">Đã loại phiên bất thường (nghi sự kiện quyền): {{ vol.adjustedSymbols.join(', ') }}. </span>
+                  Ước lượng trên {{ vol.observationCount }} phiên.
+                </div>
+
+                <button *ngIf="canApplyVolCeiling()" type="button" (click)="applyVolCeiling()"
+                  data-testid="volatility-apply-ceiling"
+                  class="mt-2 text-sm font-medium text-red-700 border border-red-300 rounded px-3 py-1 hover:bg-red-100">
+                  Dùng {{ vol.maxQuantityWithinBudget }} cổ
+                </button>
+              </ng-template>
+            </div>
+
             <!-- Dossier gate banner — chặn tạo/sửa plan vì hồ sơ công ty chưa đủ (Step 6) -->
             <div *ngIf="dossierGateError" class="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
               <div class="text-sm font-semibold text-red-700 mb-1">Không thể lưu — cổng hồ sơ công ty chặn</div>
@@ -2063,6 +2131,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   dossierGateError: DossierGateError | null = null;
   dossierGateNotice: DossierGateStatusDto | null = null;
   sectorNotice: SectorExposureForPlan | null = null;
+  volatilityNotice: VolatilitySizingResult | null = null;
   planFilterTab = 'all';
   planFilterTabs = [
     { key: 'all', label: 'Tất cả' },
@@ -2401,6 +2470,38 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     return projected > (this.sectorNotice?.limitPercent ?? 0);
   }
 
+  // ---- Trần khối lượng theo ngân sách biến động (ADR-0014) ----
+
+  volPercentText(percent: number | null | undefined): string {
+    return percent === null || percent === undefined ? 'n/a' : `${percent.toFixed(1)}%/năm`;
+  }
+
+  /** Khối lượng đang định đặt vượt trần. Chỉ đúng khi trần là con số thật. */
+  volOverCeiling(): boolean {
+    const ceiling = this.volatilityNotice?.maxQuantityWithinBudget;
+    if (ceiling === null || ceiling === undefined) return false;
+    const quantity = this.plan.quantity || this.optimalShares;
+    return !!quantity && quantity > ceiling;
+  }
+
+  /**
+   * Nút áp trần chỉ có nghĩa khi trần > 0. Danh mục đã vượt ngân sách cho trần bằng 0, và "áp
+   * trần 0 cổ" không phải một hành động — ca đó chỉ báo trạng thái.
+   */
+  canApplyVolCeiling(): boolean {
+    const ceiling = this.volatilityNotice?.maxQuantityWithinBudget;
+    return !!ceiling && ceiling > 0 && this.volOverCeiling();
+  }
+
+  applyVolCeiling(): void {
+    const ceiling = this.volatilityNotice?.maxQuantityWithinBudget;
+    if (!ceiling || ceiling <= 0) return;
+    this.plan.quantity = ceiling;
+    // Người dùng đã chọn số này một cách có ý thức — đừng để vòng tính tự động ghi đè lại.
+    this.manualQuantity = true;
+    this.recalculate();
+  }
+
   /**
    * Forward giá trị hiện tại của form sang trang hồ sơ để ô đếm ký tự tính được % size —
    * chính người dùng vừa bị chặn ở size này nên cả ba giá trị đều có sẵn. Bỏ qua giá trị
@@ -2627,7 +2728,11 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         const quantity = this.plan.quantity || this.optimalShares;
         const entryPrice = this.plan.entryPrice;
         const accountBalance = this.accountBalance;
-        const empty = { gate: null as DossierGateStatusDto | null, sector: null as SectorExposureForPlan | null };
+        const empty = {
+          gate: null as DossierGateStatusDto | null,
+          sector: null as SectorExposureForPlan | null,
+          volatility: null as VolatilitySizingResult | null
+        };
         if (!symbol || !quantity || !entryPrice || !accountBalance) {
           return of(empty);
         }
@@ -2636,6 +2741,14 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           gate: this.dossierService.gateStatus(symbol, quantity, entryPrice, accountBalance).pipe(
             catchError(() => of(null as DossierGateStatusDto | null))
           ),
+          // Cùng điều kiện với tỷ trọng ngành: cần danh mục làm nền, và chỉ lệnh MUA — phép chiếu
+          // cộng quy mô lệnh vào giá trị danh mục nên với lệnh BÁN nó báo rủi ro TĂNG đúng lúc lệnh
+          // đó làm GIẢM (ADR-0014, cùng lý do ADR-0012).
+          volatility: portfolioId && isBuyTrade(this.plan.direction)
+            ? this.riskService.getVolatilitySizingForPlan(portfolioId, symbol, entryPrice, quantity).pipe(
+                catchError(() => of(null as VolatilitySizingResult | null))
+              )
+            : of(null as VolatilitySizingResult | null),
           // Chưa chọn danh mục thì không có mẫu số để chia tỷ trọng — không gọi, và không đoán bằng 0.
           // Chỉ lệnh MUA: phép chiếu cộng quy mô lệnh vào giá trị ngành, nên với lệnh BÁN nó báo
           // tỷ trọng TĂNG đúng lúc lệnh đó làm GIẢM. Phạm vi tính năng là "sau lệnh mua dự kiến"
@@ -2648,9 +2761,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         });
       }),
       takeUntil(this.destroy$)
-    ).subscribe(({ gate, sector }) => {
+    ).subscribe(({ gate, sector, volatility }) => {
       this.dossierGateNotice = gate && !gate.passed ? gate : null;
       this.sectorNotice = sector;
+      this.volatilityNotice = volatility;
     });
   }
 
