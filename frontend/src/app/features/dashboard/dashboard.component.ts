@@ -370,6 +370,11 @@ Chart.register(...registerables);
                 <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ cashBarWidth.toFixed(1) }}%</span>
               </div>
               <div class="font-semibold mt-0.5" [ngClass]="cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ cashBalance | vndCurrency }}</div>
+              @if (pendingSettlementCash > 0) {
+                <div class="text-xs text-amber-700 mt-0.5">
+                  trong đó {{ pendingSettlementCash | vndCurrency }} chờ về — {{ pendingSettlementLabel }}
+                </div>
+              }
             </div>
           </div>
 
@@ -737,6 +742,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
   get cashBalance(): number {
     const cap = this.summary?.totalCurrentCapital || 0;
     return cap - this.totalGrossInvested + this.totalGrossSold;
+  }
+
+  get pendingSettlementCash(): number {
+    return this.portfolioSummaries.reduce((s, p) => s + (p.pendingSettlementCash || 0), 0);
+  }
+
+  /**
+   * Nhãn ngày về xa nhất. Cắt chuỗi "YYYY-MM-DD" thay vì new Date(...): parse ra UTC rồi
+   * đọc bằng getMonth() local là lệch tháng. Không có ngày thì rỗng, không hiện "undefined".
+   */
+  get pendingSettlementLabel(): string {
+    if (this.pendingSettlementCash <= 0) return '';
+    const latest = this.portfolioSummaries
+      .map(p => p.pendingSettlementArrivalDate)
+      .filter((d): d is string => !!d)
+      .sort()
+      .pop();
+    if (!latest) return '';
+    const [, month, day] = latest.split('-');
+    return `dự kiến ${day}/${month}`;
   }
 
   get marketValue(): number {

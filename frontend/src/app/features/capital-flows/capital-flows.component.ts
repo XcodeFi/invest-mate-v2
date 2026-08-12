@@ -15,6 +15,8 @@ interface CapitalView {
   currentCapital: number;
   marketValue: number;
   cashBalance: number;
+  pendingSettlementCash: number;
+  pendingSettlementLabel: string;
   totalAssets: number;
   totalReturn: number;
   totalReturnPercent: number;
@@ -73,6 +75,11 @@ interface CapitalView {
               <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ overallView.cashBarWidth.toFixed(1) }}%</span>
             </div>
             <div class="font-semibold mt-0.5" [ngClass]="overallView.cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ overallView.cashBalance | vndCurrency }}</div>
+            @if (overallView.pendingSettlementCash > 0) {
+              <div class="text-xs text-amber-700 mt-0.5">
+                trong đó {{ overallView.pendingSettlementCash | vndCurrency }} chờ về — {{ overallView.pendingSettlementLabel }}
+              </div>
+            }
           </div>
         </div>
 
@@ -220,6 +227,11 @@ interface CapitalView {
               <span class="text-sm font-bold text-cyan-700 tabular-nums shrink-0">{{ cashBarWidth.toFixed(1) }}%</span>
             </div>
             <div class="font-semibold mt-0.5" [ngClass]="cashBalance >= 0 ? 'text-gray-900' : 'text-red-600'">{{ cashBalance | vndCurrency }}</div>
+            @if (pendingSettlementCash > 0) {
+              <div class="text-xs text-amber-700 mt-0.5">
+                trong đó {{ pendingSettlementCash | vndCurrency }} chờ về — {{ pendingSettlementLabel }}
+              </div>
+            }
           </div>
         </div>
 
@@ -409,6 +421,28 @@ export class CapitalFlowsComponent implements OnInit {
     return p.currentCapital - p.totalInvested + p.totalSold;
   }
 
+  get pendingSettlementCash(): number {
+    return this.selectedPortfolio?.pendingSettlementCash || 0;
+  }
+
+  get pendingSettlementLabel(): string {
+    return CapitalFlowsComponent.arrivalLabel(
+      [this.selectedPortfolio?.pendingSettlementArrivalDate ?? null],
+      this.pendingSettlementCash);
+  }
+
+  /**
+   * Nhãn ngày về. Cắt chuỗi "YYYY-MM-DD" thay vì new Date(...): parse ra UTC rồi đọc bằng
+   * getMonth() local là lệch tháng. Không có ngày thì trả rỗng, không hiện "undefined".
+   */
+  static arrivalLabel(dates: (string | null)[], amount: number): string {
+    if (amount <= 0) return '';
+    const latest = dates.filter((d): d is string => !!d).sort().pop();
+    if (!latest) return '';
+    const [, month, day] = latest.split('-');
+    return `dự kiến ${day}/${month}`;
+  }
+
   get totalAssets(): number {
     return this.cashBalance + this.marketValue;
   }
@@ -454,6 +488,9 @@ export class CapitalFlowsComponent implements OnInit {
     const currentCapital = s.totalCurrentCapital;
     const marketValue = s.totalMarketValue;
     const cashBalance = currentCapital - totalInvested + totalSold;
+    const pendingSettlementCash = this.portfolios.reduce((sum, p) => sum + (p.pendingSettlementCash || 0), 0);
+    const pendingSettlementLabel = CapitalFlowsComponent.arrivalLabel(
+      this.portfolios.map(p => p.pendingSettlementArrivalDate ?? null), pendingSettlementCash);
     const totalAssets = cashBalance + marketValue;
     const totalReturn = totalAssets - currentCapital;
     const totalReturnPercent = currentCapital > 0 ? (totalReturn / currentCapital) * 100 : 0;
@@ -465,6 +502,8 @@ export class CapitalFlowsComponent implements OnInit {
       currentCapital,
       marketValue,
       cashBalance,
+      pendingSettlementCash,
+      pendingSettlementLabel,
       totalAssets,
       totalReturn,
       totalReturnPercent,
