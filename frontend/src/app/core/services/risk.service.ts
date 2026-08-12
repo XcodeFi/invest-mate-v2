@@ -219,6 +219,8 @@ export interface VolatilitySizingResult {
   dataQuality: VolatilityDataQuality;
   missingSymbols: string[];
   adjustedSymbols: string[];
+  /** Mã mà việc LẤY lịch sử hỏng — khác hẳn mã thật sự chưa đủ lịch sử. Xem `missingSymbols`. */
+  fetchFailedSymbols: string[];
   observationCount: number;
 }
 

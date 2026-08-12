@@ -1699,7 +1699,13 @@ interface DossierGateError {
               [class.border-red-300]="volOverCeiling()" [class.bg-red-50]="volOverCeiling()">
 
               <ng-container *ngIf="vol.dataQuality === 'Insufficient'; else volNumbers">
-                <div class="text-sm text-slate-600" data-testid="volatility-insufficient">
+                <div *ngIf="vol.fetchFailedSymbols.length" class="text-sm text-amber-700"
+                     data-testid="volatility-fetch-failed">
+                  Chưa lấy được lịch sử giá cho {{ vol.fetchFailedSymbols.join(', ') }} — nguồn dữ
+                  liệu đang lỗi, chưa tính được trần khối lượng. Thử lại sau.
+                </div>
+                <div *ngIf="!vol.fetchFailedSymbols.length" class="text-sm text-slate-600"
+                     data-testid="volatility-insufficient">
                   Chưa đủ lịch sử giá cho {{ vol.missingSymbols.join(', ') }} — chưa tính được trần
                   khối lượng theo biến động.
                 </div>
@@ -1745,6 +1751,7 @@ interface DossierGateError {
                 <div *ngIf="vol.dataQuality === 'Partial'" class="text-sm text-slate-500 mt-1"
                   data-testid="volatility-partial">
                   <span *ngIf="vol.missingSymbols.length">Thiếu lịch sử: {{ vol.missingSymbols.join(', ') }}. </span>
+                  <span *ngIf="vol.fetchFailedSymbols.length">Chưa lấy được lịch sử: {{ vol.fetchFailedSymbols.join(', ') }}. </span>
                   <span *ngIf="vol.adjustedSymbols.length">Đã loại phiên bất thường (nghi sự kiện quyền): {{ vol.adjustedSymbols.join(', ') }}. </span>
                   Ước lượng trên {{ vol.observationCount }} phiên.
                 </div>

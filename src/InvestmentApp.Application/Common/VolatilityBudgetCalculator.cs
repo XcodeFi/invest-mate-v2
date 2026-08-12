@@ -210,11 +210,20 @@ public static class VolatilityBudgetCalculator
         // σ_ngân sách ≥ σ_danh mục, tức ρ > 1 — bất khả.
         if (a <= 0m) return null;
 
-        var discriminant = b * b - 4m * a * c;
-        if (discriminant < 0m) return 0m;
+        // Biệt thức tính bằng double, không phải decimal. b tỷ lệ với giá trị danh mục nên b² tỷ
+        // lệ với BÌNH PHƯƠNG của nó: danh mục 10 tỷ gặp một mã trần/sàn liên tục đã cho b² vượt
+        // decimal.MaxValue (7,9×10²⁸) và ném OverflowException. Ném ở đây nghĩa là panel "cảnh
+        // báo, không bao giờ chặn" trả về 500 — hỏng đúng kiểu nó sinh ra để tránh.
+        // double chứa tới 1,8×10³⁰⁸ và giữ ~15 chữ số có nghĩa; nghiệm là số tiền cỡ ≤ 10¹² rồi
+        // còn bị làm tròn xuống thành số cổ, nên sai số của double không tới được kết quả.
+        var bd = (double)b;
+        var discriminant = bd * bd - 4d * (double)a * (double)c;
+        if (discriminant < 0d) return 0m;
 
-        var root = (-b + Sqrt(discriminant)) / (2m * a);
-        return root > 0m ? root : 0m;
+        var root = (-bd + Math.Sqrt(discriminant)) / (2d * (double)a);
+        if (double.IsNaN(root) || double.IsInfinity(root) || root <= 0d) return 0m;
+
+        return (decimal)root;
     }
 
     /// <summary>

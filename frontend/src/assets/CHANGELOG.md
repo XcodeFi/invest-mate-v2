@@ -20,6 +20,8 @@
 
 ### Sửa lỗi
 
+**🔌 "Chưa lấy được dữ liệu" không còn bị nói nhầm thành "chưa đủ dữ liệu".** Khi nguồn giá lỗi, panel trước đây báo *"Chưa đủ lịch sử giá cho FPT"* — một câu sai, vì FPT có thừa lịch sử. Giờ hai tình huống có hai câu khác nhau.
+
 **🧮 Giá chưa điều chỉnh sự kiện quyền không còn thổi phồng độ biến động.** Một phiên chia tách chưa điều chỉnh làm giá rơi một nửa, và nếu tính thẳng thì mã đó trông như biến động gấp đôi thực tế. Giờ những phiên như vậy bị loại và panel nói rõ mã nào đã bị loại.
 
 ---

@@ -141,6 +141,37 @@ public class VolatilityBudgetServiceTests
     }
 
     [Fact]
+    public async Task ProviderThrows_SeparatesFetchFailureFromMissingHistory()
+    {
+        // Hai ca cùng cho DataQuality = Insufficient nhưng KHÁC nhau về sự thật, nên phải khác nhau
+        // về chỗ ghi: nguồn hỏng thì mã đó vào FetchFailedSymbols, không vào MissingSymbols. Gộp
+        // lại là panel nói "FPT chưa đủ lịch sử giá" trong khi FPT có thừa — người dùng đọc xong
+        // kết luận sai rằng mã này mới hoặc thanh khoản kém.
+        _marketData.Setup(m => m.GetDailyHistoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("24hmoney down"));
+
+        var result = await CreateService().GetSizingForPlanAsync(PortfolioId, "FPT", 100_000m, 100);
+
+        result.FetchFailedSymbols.Should().Contain("FPT");
+        result.MissingSymbols.Should().NotContain("FPT",
+            "lấy hỏng không phải là thiếu lịch sử — nói nhầm là nói sai sự thật về mã đó");
+    }
+
+    [Fact]
+    public async Task ProviderReturnsEmptyList_IsMissingNotFetchFailure()
+    {
+        // Ca đối chứng: nguồn trả về ĐÚNG cấu trúc nhưng rỗng. Đây mới thật sự là "mã chưa có lịch
+        // sử". Không có ca này thì test trên vẫn xanh khi ai đó dồn hết mọi thứ vào FetchFailed.
+        _marketData.Setup(m => m.GetDailyHistoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<StockPriceData>());
+
+        var result = await CreateService().GetSizingForPlanAsync(PortfolioId, "NEWCO", 20_000m, 500);
+
+        result.MissingSymbols.Should().Contain("NEWCO");
+        result.FetchFailedSymbols.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task OneHoldingMissingHistory_IsPartialAndStillComputes()
     {
         GivenLocalPrices("FPT", Series("FPT"));

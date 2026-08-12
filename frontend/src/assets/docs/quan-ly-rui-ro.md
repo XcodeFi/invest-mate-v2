@@ -89,6 +89,7 @@ Cùng khối kiểm-trước đó còn một dòng nữa: **mã này mua tối �
 - **Vượt trần** — khối đỏ, có nút áp trần.
 - **Thiếu dữ liệu một phần** — vẫn có số, kèm dòng nêu mã nào thiếu lịch sử hoặc mã nào bị loại phiên bất thường, và ước lượng trên bao nhiêu phiên.
 - **Không đủ dữ liệu** — mã quá mới, chưa đủ lịch sử giá. Panel nói thẳng là chưa tính được và **không hiện con số nào**. Một panel trống dễ bị đọc thành "không có vấn đề gì", nên nó phải nói ra.
+- **Chưa lấy được dữ liệu** — nguồn giá đang lỗi. Khối màu hổ phách, ghi *"Chưa lấy được lịch sử giá cho …"*. Đây là câu **khác** với "chưa đủ lịch sử": mã đó có thể có thừa dữ liệu, chỉ là lúc này không lấy về được. Thử lại sau.
 
 **Vì sao đôi khi thấy "đã loại phiên bất thường".** Nguồn giá không điều chỉnh theo ngày giao dịch không hưởng quyền, nên một phiên chia tách làm giá rơi một nửa. Tính thẳng thì mã đó trông như biến động gấp đôi thực tế. Những phiên vượt xa biên độ sàn bị loại khỏi ước lượng, và panel nói rõ mã nào đã bị loại.
 

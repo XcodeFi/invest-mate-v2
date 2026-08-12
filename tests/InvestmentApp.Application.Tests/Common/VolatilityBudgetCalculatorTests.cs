@@ -210,6 +210,41 @@ public class VolatilityBudgetCalculatorTests
             .Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(10_000_000_000)]   // 10 tỷ
+    [InlineData(100_000_000_000)]  // 100 tỷ
+    [InlineData(500_000_000_000)]  // 500 tỷ
+    public void SolveMaxAllocation_LargePortfolioAndWildSymbol_DoesNotOverflow(decimal portfolioValue)
+    {
+        // b = 2·ρ·V·(σ_p·σ_x − σ_b²) với σ theo đơn vị PHẦN TRĂM, nên b² lớn theo BÌNH PHƯƠNG giá
+        // trị danh mục. Hai nhánh thoát sớm chặn bớt: c > 0 buộc σ_danh mục ≤ σ_ngân sách, a ≤ 0
+        // buộc σ_mã > σ_ngân sách. Nhưng trong khe còn lại, V đủ lớn vẫn vượt decimal.MaxValue
+        // (7,9×10²⁸). Ném ở đây là panel "không bao giờ chặn" lại trả 500, rồi frontend nuốt mất
+        // và panel biến mất im lặng — hỏng đúng kiểu tính năng này sinh ra để tránh.
+        // σ_mã 300%/năm là biên trên thực tế: mã trần/sàn ±15% mỗi phiên cho 0,15·√252 ≈ 238%.
+        var act = () => VolatilityBudgetCalculator.SolveMaxAllocation(
+            portfolioValue: portfolioValue,
+            portfolioVolPercent: 99m,
+            symbolVolPercent: 300m,
+            correlation: 1m,
+            budgetVolPercent: 100m);
+
+        act.Should().NotThrow<OverflowException>();
+    }
+
+    [Fact]
+    public void SolveMaxAllocation_LargePortfolio_StillGivesTheSameAnswerAsSmallOne()
+    {
+        // Bài toán thuần nhất bậc một theo V: nhân đôi danh mục thì trần cũng nhân đôi. Ghim tính
+        // chất này để việc chuyển sang double không lặng lẽ làm hỏng độ chính xác.
+        var small = VolatilityBudgetCalculator.SolveMaxAllocation(1_000_000_000m, 19.4m, 48.9m, 0.42m, 21.1m);
+        var large = VolatilityBudgetCalculator.SolveMaxAllocation(10_000_000_000m, 19.4m, 48.9m, 0.42m, 21.1m);
+
+        small.Should().NotBeNull();
+        large.Should().NotBeNull();
+        (large!.Value / small!.Value).Should().BeApproximately(10m, 0.0001m);
+    }
+
     // ---------- Chuỗi lợi suất danh mục ----------
 
     [Fact]

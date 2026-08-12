@@ -63,21 +63,23 @@ public class VolatilityBudgetService : IVolatilityBudgetService
 
         // Mã đang xét không đủ lịch sử thì không có con số nào dùng được — dừng ngay, không trả
         // một phần kết quả trông như thật.
-        var candidate = await GetSeriesAsync(symbol, cancellationToken);
+        var (candidate, candidateFetchFailed) = await GetSeriesAsync(symbol, cancellationToken);
         if (candidate is null)
         {
             result.DataQuality = VolatilityDataQuality.Insufficient;
-            result.MissingSymbols.Add(symbol);
+            if (candidateFetchFailed) result.FetchFailedSymbols.Add(symbol);
+            else result.MissingSymbols.Add(symbol);
             return result;
         }
         if (candidate.RemovedCount > 0) result.AdjustedSymbols.Add(symbol);
 
-        var (heldValues, heldSeries, missing, adjusted) =
+        var (heldValues, heldSeries, missing, adjusted, fetchFailed) =
             await LoadHoldingsAsync(portfolioId, symbol, cancellationToken);
 
         result.MissingSymbols.AddRange(missing);
         result.AdjustedSymbols.AddRange(adjusted);
-        if (missing.Count > 0 || result.AdjustedSymbols.Count > 0)
+        result.FetchFailedSymbols.AddRange(fetchFailed);
+        if (missing.Count > 0 || fetchFailed.Count > 0 || result.AdjustedSymbols.Count > 0)
             result.DataQuality = VolatilityDataQuality.Partial;
 
         var portfolioValue = heldValues.Sum();
@@ -142,13 +144,14 @@ public class VolatilityBudgetService : IVolatilityBudgetService
     /// vào ở bước chiếu, cộng hai lần là đếm trùng.</summary>
     private async Task<(List<decimal> Values,
                         List<IReadOnlyList<VolatilityBudgetCalculator.DatedReturn>> Series,
-                        List<string> Missing, List<string> Adjusted)>
+                        List<string> Missing, List<string> Adjusted, List<string> FetchFailed)>
         LoadHoldingsAsync(string portfolioId, string candidateSymbol, CancellationToken cancellationToken)
     {
         var values = new List<decimal>();
         var series = new List<IReadOnlyList<VolatilityBudgetCalculator.DatedReturn>>();
         var missing = new List<string>();
         var adjusted = new List<string>();
+        var fetchFailed = new List<string>();
 
         var trades = await _tradeRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
         var actions = await _corporateActionRepository.GetByPortfolioIdAsync(portfolioId, cancellationToken);
@@ -161,10 +164,11 @@ public class VolatilityBudgetService : IVolatilityBudgetService
 
         foreach (var position in positions)
         {
-            var held = await GetSeriesAsync(position.Symbol, cancellationToken);
+            var (held, heldFetchFailed) = await GetSeriesAsync(position.Symbol, cancellationToken);
             if (held is null)
             {
-                missing.Add(position.Symbol);
+                if (heldFetchFailed) fetchFailed.Add(position.Symbol);
+                else missing.Add(position.Symbol);
                 continue;
             }
             if (held.RemovedCount > 0) adjusted.Add(position.Symbol);
@@ -175,7 +179,7 @@ public class VolatilityBudgetService : IVolatilityBudgetService
             series.Add(held.Returns);
         }
 
-        return (values, series, missing, adjusted);
+        return (values, series, missing, adjusted, fetchFailed);
     }
 
     private sealed record SymbolSeries(
@@ -186,17 +190,23 @@ public class VolatilityBudgetService : IVolatilityBudgetService
     /// rồi ghi lại để lần sau khỏi gọi. Trả <c>null</c> khi vẫn không đủ quan sát — không trả chuỗi
     /// ngắn kèm một con số kém tin.
     /// </summary>
-    private async Task<SymbolSeries?> GetSeriesAsync(string symbol, CancellationToken cancellationToken)
+    /// <param name="FetchFailed">
+    /// <c>true</c> khi việc LẤY lịch sử hỏng, phân biệt với mã thật sự chưa đủ lịch sử. Hai ca đều
+    /// cho <c>Series = null</c> nhưng câu nói với người dùng phải khác nhau.
+    /// </param>
+    private async Task<(SymbolSeries? Series, bool FetchFailed)> GetSeriesAsync(
+        string symbol, CancellationToken cancellationToken)
     {
         var cacheKey = SeriesCacheKeyPrefix + symbol.ToUpperInvariant();
         if (_cache.TryGetValue<SymbolSeries>(cacheKey, out var cached))
-            return cached;
+            return (cached, false);
 
         var closes = await ReadLocalClosesAsync(symbol, cancellationToken);
 
+        var fetchFailed = false;
         if (closes.Count <= VolatilityBudgetCalculator.MinimumObservations)
         {
-            await BackfillAsync(symbol, cancellationToken);
+            fetchFailed = !await BackfillAsync(symbol, cancellationToken);
             closes = await ReadLocalClosesAsync(symbol, cancellationToken);
         }
 
@@ -204,13 +214,14 @@ public class VolatilityBudgetService : IVolatilityBudgetService
         var (kept, removed) = VolatilityBudgetCalculator.FilterAbnormalReturns(raw);
 
         if (kept.Count < VolatilityBudgetCalculator.MinimumObservations)
-            return null;
+            return (null, fetchFailed);
 
+        // Lấy hỏng nhưng kho cục bộ vẫn đủ dùng thì đây không phải sự cố người dùng cần biết.
         var result = new SymbolSeries(kept, closes[^1].Close, removed);
         // Chỉ đệm khi ĐỦ dữ liệu. Đệm ca thiếu là đóng băng mã đó thành "không tính được" suốt TTL,
         // tức một lỗi mạng nhất thời làm im panel trong 15 phút.
         _cache.Set(cacheKey, result, SeriesCacheTtl);
-        return result;
+        return (result, false);
     }
 
     private async Task<List<(DateTime Date, decimal Close)>> ReadLocalClosesAsync(
@@ -228,7 +239,8 @@ public class VolatilityBudgetService : IVolatilityBudgetService
             .ToList();
     }
 
-    private async Task BackfillAsync(string symbol, CancellationToken cancellationToken)
+    /// <returns><c>false</c> khi lấy lịch sử hỏng — người gọi phải phân biệt với "mã không có dữ liệu".</returns>
+    private async Task<bool> BackfillAsync(string symbol, CancellationToken cancellationToken)
     {
         try
         {
@@ -241,12 +253,16 @@ public class VolatilityBudgetService : IVolatilityBudgetService
                         "VolatilityBudgetBackfill"),
                     cancellationToken);
             }
+
+            return true;
         }
         catch (Exception ex)
         {
-            // Bổ khuyết hỏng thì mã đó rơi vào "thiếu lịch sử" và được nói rõ trên giao diện.
-            // Không để nó thành lỗi 500 cho một panel chỉ mang tính tham khảo.
+            // Không để thành lỗi 500 cho một panel chỉ mang tính tham khảo — nhưng cũng không im.
+            // Trả false để giao diện nói "chưa lấy được lịch sử giá" thay vì "chưa đủ lịch sử giá":
+            // câu sau là sai sự thật khi mã đó thật ra có thừa dữ liệu.
             _logger.LogWarning(ex, "Failed to backfill daily history for {Symbol}", symbol);
+            return false;
         }
     }
 }

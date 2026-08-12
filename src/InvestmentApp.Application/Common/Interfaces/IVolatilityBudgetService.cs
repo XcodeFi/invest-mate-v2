@@ -66,6 +66,13 @@ public class VolatilitySizingResult
     /// <summary>Mã bị loại quan sát bất thường (nghi sự kiện quyền chưa điều chỉnh).</summary>
     public List<string> AdjustedSymbols { get; set; } = new();
 
+    /// <summary>
+    /// Mã mà việc LẤY lịch sử giá hỏng (mạng, lệch hợp đồng nguồn) — khác hẳn mã thật sự chưa đủ
+    /// lịch sử. Gộp hai ca này là nói với người dùng "mã này chưa đủ lịch sử" trong khi sự thật là
+    /// "chúng tôi không lấy được", và họ sẽ kết luận sai rằng mã đó mới hoặc thanh khoản kém.
+    /// </summary>
+    public List<string> FetchFailedSymbols { get; set; } = new();
+
     /// <summary>Số phiên trong cửa sổ chung. Hiện lên để người dùng tự chiết khấu độ tin cậy.</summary>
     public int ObservationCount { get; set; }
 }

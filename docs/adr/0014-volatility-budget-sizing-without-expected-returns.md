@@ -85,6 +85,7 @@ Hai quyết định kèm theo:
 
 - Migration to run: không có. Không đổi schema.
 - Nợ kỹ thuật tách riêng: ánh xạ `days → type` trong `HmoneyMarketDataProvider` sai một bậc (yêu cầu 90 ngày nhận về thanh 3 ngày). Tính năng này đi đường riêng gọi thẳng `type=3` và có test ghim; **không** sửa ánh xạ cũ vì nó phục vụ biểu đồ hiển thị.
+- `GetDailyHistoryAsync` cố ý **không** nuốt ngoại lệ, khác 8 hàm còn lại cùng file: người gọi phải phân biệt "nguồn hỏng" (`FetchFailedSymbols`) với "mã chưa có lịch sử" (`MissingSymbols`), vì gộp lại là nói sai sự thật về mã đó trên giao diện. Khi `docs/plans/p1-provider-fail-loudly.md` triển khai phân loại lỗi diện rộng, hàm này nên chuyển sang cùng taxonomy thay vì giữ cách riêng.
 - Xem lại chân trời 21 phiên sau 2–4 tuần dùng thật. Nếu trần chạm quá thường xuyên hoặc không bao giờ chạm, tách `MaxPortfolioVolatilityPercent` thành trường riêng.
 - Docs to update: `architecture.md`, `business-domain.md`, `project-context.md`, CHANGELOG, hướng dẫn người dùng.
 

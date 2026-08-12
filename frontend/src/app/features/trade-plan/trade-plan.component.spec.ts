@@ -724,6 +724,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
         dataQuality: 'Full',
         missingSymbols: [],
         adjustedSymbols: [],
+        fetchFailedSymbols: [],
         observationCount: 64,
         ...over
       } as never;
@@ -801,6 +802,27 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       expect(volEl('volatility-ceiling')).toBeNull();
       expect(volEl('volatility-mcr')).toBeNull();
       expect(volBlockText()).not.toContain('n/a');
+      // Ca này là THIẾU lịch sử thật, không phải nguồn hỏng — không được nói nhầm thành nguồn lỗi.
+      expect(volEl('volatility-fetch-failed')).toBeNull();
+    });
+
+    it('Insufficient do nguồn lỗi: nói "chưa lấy được", không nói "chưa đủ"', () => {
+      setVol({
+        dataQuality: 'Insufficient',
+        currentVolatilityPercent: null,
+        projectedVolatilityPercent: null,
+        maxQuantityWithinBudget: null,
+        missingSymbols: [],
+        fetchFailedSymbols: ['FPT']
+      });
+
+      // FPT có thừa lịch sử; nói "chưa đủ lịch sử giá cho FPT" là nói sai sự thật, và người dùng
+      // sẽ kết luận nhầm rằng mã này mới hoặc thanh khoản kém.
+      const text = volEl('volatility-fetch-failed')!.textContent!;
+      expect(text).toContain('FPT');
+      expect(text).toContain('Chưa lấy được');
+      expect(volEl('volatility-insufficient')).toBeNull();
+      expect(volBlockText()).not.toContain('Chưa đủ lịch sử');
     });
 
     it('Partial: nêu tên mã bị chỉnh và số phiên ước lượng', () => {

@@ -162,23 +162,29 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         if (_cache.TryGetValue(cacheKey, out List<StockPriceData>? cached))
             return cached!;
 
-        var results = new List<StockPriceData>();
-        try
+        // KHÔNG bọc try/catch nuốt lỗi ở đây. Mười hàm fetch của provider số liệu doanh nghiệp đều
+        // catch → log → trả rỗng, và chính cơ chế đó khiến một lệch hợp đồng sống nhiều tháng mà
+        // trông y hệt "mã này không có dữ liệu" (PR #158). Ở đây hậu quả cụ thể hơn: panel sẽ nói
+        // "Chưa đủ lịch sử giá cho FPT" — một câu SAI SỰ THẬT, vì FPT có thừa lịch sử, chỉ là ta
+        // không lấy được. Người gọi duy nhất (VolatilityBudgetService.BackfillAsync) bắt ngoại lệ
+        // và phân biệt được hai ca đó.
+        var url = $"/v2/ios/stock/graph?symbol={symbol}&type={DailyGraphType}&{CommonParams}";
+        var response = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyGraphData>>(url, JsonOptions, cancellationToken);
+
+        var points = response?.Data?.Points;
+        if (points == null || points.Count == 0)
         {
-            var url = $"/v2/ios/stock/graph?symbol={symbol}&type={DailyGraphType}&{CommonParams}";
-            var response = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyGraphData>>(url, JsonOptions, cancellationToken);
+            // Rỗng THẬT: nguồn trả về đúng cấu trúc nhưng không có điểm nào. Khác hẳn lỗi mạng
+            // hay lệch hợp đồng ở trên — ca này mã đó đúng là chưa có lịch sử.
+            _logger.LogWarning("No daily history returned for {Symbol}", symbol);
+            return new List<StockPriceData>();
+        }
 
-            var points = response?.Data?.Points;
-            if (points == null || points.Count == 0)
-            {
-                _logger.LogWarning("No daily history returned for {Symbol}", symbol);
-                return results;
-            }
-
-            foreach (var point in points)
+        var results = points
+            .Select(point =>
             {
                 var scaledPrice = ScalePrice(point.Y);
-                results.Add(new StockPriceData
+                return new StockPriceData
                 {
                     Symbol = symbol,
                     Date = DateTimeOffset.FromUnixTimeSeconds(point.X).UtcDateTime.Date,
@@ -187,17 +193,12 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
                     Low = scaledPrice,
                     Close = scaledPrice,
                     Volume = point.Z
-                });
-            }
+                };
+            })
+            .OrderBy(r => r.Date)
+            .ToList();
 
-            results = results.OrderBy(r => r.Date).ToList();
-            _cache.Set(cacheKey, results, TimeSpan.FromHours(6));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to fetch daily history for {Symbol} from 24hmoney", symbol);
-        }
-
+        _cache.Set(cacheKey, results, TimeSpan.FromHours(6));
         return results;
     }
 
