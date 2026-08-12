@@ -187,6 +187,7 @@ builder.Services.AddScoped<IImpersonationAuditRepository, ImpersonationAuditRepo
 builder.Services.AddScoped<IFinancialProfileRepository, FinancialProfileRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<IMoodCheckInRepository, MoodCheckInRepository>();
+builder.Services.AddScoped<IMarketClosureRepository, MarketClosureRepository>();
 
 // Configure Services
 builder.Services.AddScoped<IApiKeyTokenService, ApiKeyTokenService>();

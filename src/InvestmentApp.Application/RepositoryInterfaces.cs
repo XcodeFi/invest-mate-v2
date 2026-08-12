@@ -62,6 +62,24 @@ public class DuplicateMoodCheckInException : InvalidOperationException
     public string DateKey { get; }
 }
 
+/// <summary>
+/// Ngày nghỉ giao dịch, một bản ghi cho mỗi (user, ngày). T7/CN không lưu.
+/// </summary>
+public interface IMarketClosureRepository
+{
+    Task<IEnumerable<MarketClosure>> GetByUserAndRangeAsync(
+        string userId, DateTime fromInclusive, DateTime toInclusive, CancellationToken cancellationToken = default);
+
+    /// <summary>Trả <c>false</c> khi ngày đó đã có — nhập trùng là no-op, không phải lỗi.</summary>
+    Task<bool> TryAddAsync(MarketClosure entity, CancellationToken cancellationToken = default);
+
+    /// <summary>Trả <c>false</c> khi không có gì để xoá.</summary>
+    Task<bool> DeleteByDateAsync(string userId, DateTime date, CancellationToken cancellationToken = default);
+
+    /// <summary>Ngày nghỉ xa nhất đã nhập — mốc "lịch đã biết tới đâu" cho bản tin.</summary>
+    Task<DateTime?> GetLatestDateAsync(string userId, CancellationToken cancellationToken = default);
+}
+
 public interface IUserRepository : IRepository<User>
 {
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
