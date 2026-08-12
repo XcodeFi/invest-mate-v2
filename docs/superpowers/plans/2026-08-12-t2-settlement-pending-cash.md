@@ -1989,7 +1989,20 @@ git commit -m "docs: ADR-0016 tiền bán chờ về T+2, đồng bộ tài li�
   - Chặn cuối tuần đặt ở **handler** (đếm `SkippedWeekend`) chứ không để entity ném — dán cả năm vào mà có một ngày T7 thì cả lô vỡ. Entity vẫn ném, giữ làm lớp chặn cuối.
   - Thêm 3 ca test ngoài plan: ngày trùng trong cùng một lô chỉ ghi một lần; xoá ngày không tồn tại trả `false`; query truyền đúng biên 1/1–31/12.
   - Sửa plan Task 7: mock thật tên `_portfolioRepo`/`_tradeRepo`/`_flowRepo`, và `Portfolio(userId, name, capital)` — **userId trước**. Plan cũ đoán sai cả hai.
-- **Next:** Task 4 (controller JWT + sibling ApiKey + 3 tool MCP + test ngang giá) rồi Task 5 (script seed 2026). Đọc trước: `src/InvestmentApp.Api/Mcp/PortfolioTools.cs`, `src/InvestmentApp.Api/Controllers/AiAgentPortfoliosController.cs`, và `tests/InvestmentApp.Api.Tests/Mcp/McpTestContext.cs` để lấy đúng tên helper dựng `IHttpContextAccessor`. Hết Task 5 là đủ Mốc 1 → chạy `/code-review` rồi mới push + PR.
+- **Next:** Task 4 + Task 5 — đã xong, xem checkpoint dưới.
+
+## Checkpoint — Mốc 1 đủ (Task 1-5, xong 2026-08-12)
+
+- **Đã làm thêm:** Task 4 (3 tool MCP + controller JWT + sibling ApiKey + test schema/ngang giá), Task 5 (script seed 2026 + test ghim danh sách hai chiều).
+- **Commit:** `2a97902` (Task 4), `+1` (Task 5).
+- **Test:** **2035 pass / 0 fail**, đủ 4 project. Riêng lịch nghỉ: 4 Domain + 11 Application + 13 Api.
+- **Hai bước plan thiếu, do guard test có sẵn của repo bắt được:**
+  1. `McpToolDiscoveryTests.No_Tool_Escapes_The_Guard_Lists` — mọi tool mới **phải** được khai vào `ReadTools`/`WriteTools`, nếu không nó thoát toàn bộ guard (ReadOnly, schema phẳng, rò rỉ service tiêm). Đã khai 3 tool, số đếm 52 → **55**, đổi tên test `Registers_All_52_Tools` → `Registers_All_55_Tools`.
+  2. `Write_Tools_Are_Destructive` — tool ghi **phải** khai `Destructive = true` tường minh, SDK không tự suy ra từ việc không có `ReadOnly`.
+  → **Task 4 của bất kỳ plan MCP nào về sau phải có hai bước này.**
+- **Một lỗi test tự gây:** ca ghim seed chiều ngược quét regex cả file nên hút thêm `2026-12-31` ở dòng verify. Đã siết vào đúng khối `const CLOSURES = [...]`.
+- **Next:** Task 6 (`VietnamDate.Today` + `SettlementCalculator`, golden Tết 12/02→23/02 và 13/02→24/02 chạy trên hằng số `Vn2026Closures.Dates` đã có ở `tests/InvestmentApp.Application.Tests/MarketClosures/MarketClosureSeedConsistencyTests.cs`). Rồi Task 7-11.
+- **Chưa làm:** `/code-review`, push, PR. Chưa chạy script seed lên DB nào.
 
 ## Verify trước khi mở PR
 
