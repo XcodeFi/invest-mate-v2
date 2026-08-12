@@ -61,6 +61,40 @@ Khi bạn đã chọn danh mục và điền đủ mã + số lượng + giá v�
 
 Mã mà nguồn dữ liệu không trả về ngành sẽ hiện **"n/a"** chứ không hiện "0%". Hai câu này khác nhau: "n/a" là *chưa tính được*, "0%" là *chưa giữ gì ngành đó*.
 
+### Trần khối lượng theo ngân sách biến động
+
+Cùng khối kiểm-trước đó còn một dòng nữa: **mã này mua tối đa bao nhiêu cổ** mà biến động danh mục vẫn nằm trong ngân sách.
+
+**Vì sao cần con số này.** Ba ràng buộc còn lại — tỷ trọng vị thế, tỷ trọng ngành, tỷ lệ lãi/lỗ — đều tính trên từng mã riêng lẻ. Không cái nào nhìn vào *quan hệ* giữa mã sắp mua và những mã bạn đang giữ. Mua một mã chạy cùng nhịp với vị thế lớn nhất của bạn, và mua một mã chạy độc lập, là hai việc rủi ro khác hẳn nhau — nhưng nếu chỉ nhìn tỷ trọng vốn thì chúng giống hệt nhau.
+
+**Panel hiện gì:**
+
+| Dòng | Nghĩa |
+|---|---|
+| Biến động danh mục 19,4% → 20,6%/năm | Trước và sau lệnh này |
+| Ngân sách 21,1%/năm | Suy từ ngưỡng sụt giảm bạn đặt trong Risk Profile |
+| Gánh 22% rủi ro · chiếm 14% vốn | Chênh lệch giữa hai số này là thứ tỷ trọng vốn không nói được |
+| Tương quan 0,42 | Mức mã này chạy cùng nhịp với danh mục hiện tại |
+| Trần theo ngân sách: 5.600 cổ | Vượt trần thì hiện nút **Dùng 5.600 cổ** |
+
+**Ngân sách đến từ đâu.** Từ `Ngưỡng cảnh báo sụt giảm` bạn đã đặt sẵn — không có ô cấu hình mới. Ngưỡng đó được hiểu là mức lỗ bạn chấp nhận trong khoảng một tháng, rồi quy về biến động năm. Panel luôn ghi rõ phép suy đó, vì một con số ràng buộc mà không giải thích được thì không đáng tin.
+
+Đặt ngưỡng sụt giảm thấp hơn ⇒ ngân sách chặt hơn ⇒ trần thấp hơn.
+
+**Cảnh báo, không chặn** — cùng lý do với tỷ trọng ngành, và ở đây còn mạnh hơn: con số dựa trên ước lượng thống kê từ khoảng 65 phiên gần nhất. Đó là dữ liệu đủ để tham khảo, không đủ để cấm.
+
+**Bốn trạng thái:**
+
+- **Bình thường** — đủ dữ liệu, khối xám, có trần.
+- **Vượt trần** — khối đỏ, có nút áp trần.
+- **Thiếu dữ liệu một phần** — vẫn có số, kèm dòng nêu mã nào thiếu lịch sử hoặc mã nào bị loại phiên bất thường, và ước lượng trên bao nhiêu phiên.
+- **Không đủ dữ liệu** — mã quá mới, chưa đủ lịch sử giá. Panel nói thẳng là chưa tính được và **không hiện con số nào**. Một panel trống dễ bị đọc thành "không có vấn đề gì", nên nó phải nói ra.
+- **Chưa lấy được dữ liệu** — nguồn giá đang lỗi. Khối màu hổ phách, ghi *"Chưa lấy được lịch sử giá cho …"*. Đây là câu **khác** với "chưa đủ lịch sử": mã đó có thể có thừa dữ liệu, chỉ là lúc này không lấy về được. Thử lại sau.
+
+**Vì sao đôi khi thấy "đã loại phiên bất thường".** Nguồn giá không điều chỉnh theo ngày giao dịch không hưởng quyền, nên một phiên chia tách làm giá rơi một nửa. Tính thẳng thì mã đó trông như biến động gấp đôi thực tế. Những phiên vượt xa biên độ sàn bị loại khỏi ước lượng, và panel nói rõ mã nào đã bị loại.
+
+**Chỉ áp cho lệnh MUA.** Với lệnh bán, phép chiếu sẽ báo rủi ro tăng đúng lúc lệnh đó làm giảm, nên đường bán không gọi.
+
 ### Hàng đợi quyết định trên Trang chủ
 
 Widget ở vị trí đầu Trang chủ gộp mọi việc cần quyết trong ngày, xếp theo mức khẩn cấp:

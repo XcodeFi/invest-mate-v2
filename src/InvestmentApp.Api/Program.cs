@@ -161,6 +161,7 @@ builder.Services.AddScoped<IStockInfoProvider>(sp =>
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<ICashFlowAdjustedReturnService, CashFlowAdjustedReturnService>();
 builder.Services.AddScoped<IRiskCalculationService, RiskCalculationService>();
+builder.Services.AddScoped<IVolatilityBudgetService, VolatilityBudgetService>();
 builder.Services.AddSingleton<IPositionSizingService, PositionSizingService>();
 builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IPriceSnapshotJobService, PriceSnapshotJobService>();

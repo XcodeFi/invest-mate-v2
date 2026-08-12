@@ -31,6 +31,9 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     // 24hmoney returns stock prices in units of 1,000 VND
     private const decimal PriceScale = 1000m;
 
+    /// <summary>Tham số <c>type</c> duy nhất của endpoint graph trả lợi suất theo phiên.</summary>
+    private const int DailyGraphType = 3;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -141,6 +144,61 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
             _logger.LogError(ex, "Failed to fetch historical prices for {Symbol} from 24hmoney", symbol);
         }
 
+        return results;
+    }
+
+    /// <summary>
+    /// <c>type=3</c> là lựa chọn duy nhất trả lợi suất theo phiên: đo ngày 2026-08-11 cho 65 điểm
+    /// phủ 90 ngày, giãn cách ~1,4 ngày. <c>type=4</c> (nhãn "3 months") cho thanh 3 ngày, <c>5</c>
+    /// cho thanh tuần, <c>6</c> cho thanh tháng. Không lọc theo from/to — lọc là cắt mất chính
+    /// những quan sát cần cho ước lượng.
+    /// </summary>
+    public async Task<List<StockPriceData>> GetDailyHistoryAsync(
+        string symbol, CancellationToken cancellationToken = default)
+    {
+        symbol = symbol.ToUpper().Trim();
+
+        var cacheKey = $"daily-history:{symbol}";
+        if (_cache.TryGetValue(cacheKey, out List<StockPriceData>? cached))
+            return cached!;
+
+        // KHÔNG bọc try/catch nuốt lỗi ở đây. Mười hàm fetch của provider số liệu doanh nghiệp đều
+        // catch → log → trả rỗng, và chính cơ chế đó khiến một lệch hợp đồng sống nhiều tháng mà
+        // trông y hệt "mã này không có dữ liệu" (PR #158). Ở đây hậu quả cụ thể hơn: panel sẽ nói
+        // "Chưa đủ lịch sử giá cho FPT" — một câu SAI SỰ THẬT, vì FPT có thừa lịch sử, chỉ là ta
+        // không lấy được. Người gọi duy nhất (VolatilityBudgetService.BackfillAsync) bắt ngoại lệ
+        // và phân biệt được hai ca đó.
+        var url = $"/v2/ios/stock/graph?symbol={symbol}&type={DailyGraphType}&{CommonParams}";
+        var response = await _httpClient.GetFromJsonAsync<HmoneyResponse<HmoneyGraphData>>(url, JsonOptions, cancellationToken);
+
+        var points = response?.Data?.Points;
+        if (points == null || points.Count == 0)
+        {
+            // Rỗng THẬT: nguồn trả về đúng cấu trúc nhưng không có điểm nào. Khác hẳn lỗi mạng
+            // hay lệch hợp đồng ở trên — ca này mã đó đúng là chưa có lịch sử.
+            _logger.LogWarning("No daily history returned for {Symbol}", symbol);
+            return new List<StockPriceData>();
+        }
+
+        var results = points
+            .Select(point =>
+            {
+                var scaledPrice = ScalePrice(point.Y);
+                return new StockPriceData
+                {
+                    Symbol = symbol,
+                    Date = DateTimeOffset.FromUnixTimeSeconds(point.X).UtcDateTime.Date,
+                    Open = scaledPrice,
+                    High = scaledPrice,
+                    Low = scaledPrice,
+                    Close = scaledPrice,
+                    Volume = point.Z
+                };
+            })
+            .OrderBy(r => r.Date)
+            .ToList();
+
+        _cache.Set(cacheKey, results, TimeSpan.FromHours(6));
         return results;
     }
 

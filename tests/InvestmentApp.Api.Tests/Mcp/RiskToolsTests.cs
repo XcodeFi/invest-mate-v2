@@ -5,6 +5,7 @@ using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Risk.Queries.GetPortfolioRisk;
 using InvestmentApp.Application.Risk.Queries.GetStopLossTargets;
 using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
+using InvestmentApp.Application.Risk.Queries.GetVolatilitySizingForPlan;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
 using MediatR;
 using Moq;
@@ -43,6 +44,22 @@ public class RiskToolsTests
         await RiskTools.GetTrailingStopAlerts("p3", _mediator.Object, McpTestContext.WithUser("u-3"), CancellationToken.None);
         sent()!.UserId.Should().Be("u-3");
         sent()!.PortfolioId.Should().Be("p3");
+    }
+
+    [Fact]
+    public async Task GetVolatilitySizing_PassesAllFourArgs_AndUserId()
+    {
+        McpTestContext.Capture<VolatilitySizingResult, GetVolatilitySizingForPlanQuery>(
+            _mediator, out var sent, new VolatilitySizingResult { Symbol = "FPT" });
+
+        await RiskTools.GetVolatilitySizing("p5", "FPT", 100_000m, 250,
+            _mediator.Object, McpTestContext.WithUser("u-5"), CancellationToken.None);
+
+        sent()!.UserId.Should().Be("u-5", "danh tính lấy từ ApiKey, không từ tham số");
+        sent()!.PortfolioId.Should().Be("p5");
+        sent()!.Symbol.Should().Be("FPT");
+        sent()!.EntryPrice.Should().Be(100_000m);
+        sent()!.Quantity.Should().Be(250);
     }
 
     [Fact]

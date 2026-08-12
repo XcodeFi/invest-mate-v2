@@ -9,6 +9,16 @@ public interface IMarketDataProvider
 {
     Task<StockPriceData?> GetCurrentPriceAsync(string symbol, CancellationToken cancellationToken = default);
     Task<List<StockPriceData>> GetHistoricalPricesAsync(string symbol, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lịch sử giá theo <b>phiên</b>, sâu nhất mà nguồn cho (24hmoney: ~65 phiên).
+    /// </summary>
+    /// <remarks>
+    /// Tách khỏi <see cref="GetHistoricalPricesAsync"/> có chủ đích: hàm đó chọn độ chi tiết theo
+    /// độ rộng cửa sổ, và mọi cửa sổ &gt; 35 ngày rơi vào thanh 3 ngày trở lên. Ước lượng hiệp
+    /// phương sai cần lợi suất theo phiên, nên nó phải có đường đi riêng — xem ADR-0014.
+    /// </remarks>
+    Task<List<StockPriceData>> GetDailyHistoryAsync(string symbol, CancellationToken cancellationToken = default);
     Task<Dictionary<string, StockPriceData>> GetBatchPricesAsync(IEnumerable<string> symbols, CancellationToken cancellationToken = default);
     Task<MarketIndexData?> GetIndexDataAsync(string indexSymbol, CancellationToken cancellationToken = default);
 }

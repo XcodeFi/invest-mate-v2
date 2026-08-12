@@ -2,6 +2,32 @@
 
 ---
 
+## [v2.81.0] — 2026-08-12 · Mã này mua được tối đa bao nhiêu
+
+### Tính năng
+
+**📊 Trần khối lượng theo biến động danh mục.** Khi bạn điền kế hoạch mua, khối kiểm-trước có thêm một dòng: mã này mua tối đa bao nhiêu cổ mà danh mục vẫn nằm trong ngân sách biến động của bạn. Vượt trần thì hiện nút **Dùng N cổ** để điền thẳng vào ô khối lượng.
+
+Đây là ràng buộc đầu tiên trong app nhìn vào **quan hệ giữa các mã**, không chỉ quy mô từng mã. Mua thêm một mã chạy cùng nhịp với vị thế lớn nhất của bạn, và mua một mã chạy độc lập, là hai việc rủi ro khác hẳn nhau — trước giờ app coi chúng như nhau miễn tỷ trọng vốn bằng nhau.
+
+**🧭 Gánh bao nhiêu rủi ro so với chiếm bao nhiêu vốn.** Panel hiện cả hai cạnh nhau, kiểu "gánh 22% rủi ro · chiếm 14% vốn". Chênh lệch giữa hai số đó là thứ tỷ trọng vốn đơn thuần không nói được.
+
+**💡 Ngân sách suy từ ngưỡng sụt giảm bạn đã đặt** — không thêm ô cấu hình nào. Panel luôn ghi rõ nó suy ra từ đâu, để bạn tự phán đoán chứ không phải tin một con số từ trên trời.
+
+**⚠️ Cảnh báo, không chặn.** Con số dựa trên ước lượng thống kê từ khoảng 65 phiên, nên nó không có quyền cấm bạn lưu kế hoạch. Vẫn lưu được bình thường.
+
+**🤖 Agent AI đọc được trần này.** Thêm công cụ `get_volatility_sizing` — trước đây agent lập được kế hoạch nhưng không có đường nào biết trần, tức lan can chỉ tồn tại trên đường bạn tự bấm.
+
+**🔔 Nhờ agent lập kế hoạch cũng nhận được cảnh báo.** Trước đó công cụ trên chỉ là tuỳ chọn, và lời dặn "gọi nó trước" lại nằm trong chính cái tuỳ chọn ấy — agent đi thẳng vào tạo kế hoạch thì không có gì bắn ra. Giờ lệnh mua có gắn danh mục sẽ tự kiểm, và kết quả trả về kèm dòng *"khối lượng 500 vượt trần 198 cổ"*. Kế hoạch vẫn được tạo bình thường.
+
+### Sửa lỗi
+
+**🔌 "Chưa lấy được dữ liệu" không còn bị nói nhầm thành "chưa đủ dữ liệu".** Khi nguồn giá lỗi, panel trước đây báo *"Chưa đủ lịch sử giá cho FPT"* — một câu sai, vì FPT có thừa lịch sử. Giờ hai tình huống có hai câu khác nhau.
+
+**🧮 Giá chưa điều chỉnh sự kiện quyền không còn thổi phồng độ biến động.** Một phiên chia tách chưa điều chỉnh làm giá rơi một nửa, và nếu tính thẳng thì mã đó trông như biến động gấp đôi thực tế. Giờ những phiên như vậy bị loại và panel nói rõ mã nào đã bị loại.
+
+---
+
 ## [v2.80.0] — 2026-08-11 · Gửi hồ sơ công ty cho người khác
 
 ### Tính năng

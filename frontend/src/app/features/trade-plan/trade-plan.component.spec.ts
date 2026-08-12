@@ -20,7 +20,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
   beforeEach(async () => {
     const strategySpy = jasmine.createSpyObj('StrategyService', ['getAll']);
     const portfolioSpy = jasmine.createSpyObj('PortfolioService', ['getAll']);
-    const riskSpy = jasmine.createSpyObj('RiskService', ['getRiskProfile', 'getPortfolioRiskSummary', 'calculatePositionSize', 'getSizingModels', 'getSectorExposureForPlan']);
+    const riskSpy = jasmine.createSpyObj('RiskService', ['getRiskProfile', 'getPortfolioRiskSummary', 'calculatePositionSize', 'getSizingModels', 'getSectorExposureForPlan', 'getVolatilitySizingForPlan']);
     const marketSpy = jasmine.createSpyObj('MarketDataService', ['getPrice', 'getTechnicalAnalysis', 'getCurrentPrice']);
     const templateSpy = jasmine.createSpyObj('TradePlanTemplateService', ['getAll', 'create', 'delete']);
     const planSpy = jasmine.createSpyObj('TradePlanService', [
@@ -37,6 +37,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     planSpy.getScenarioPresets.and.returnValue(of([]));
     riskSpy.getPortfolioRiskSummary.and.returnValue(EMPTY);
     riskSpy.getSectorExposureForPlan.and.returnValue(EMPTY);
+    riskSpy.getVolatilitySizingForPlan.and.returnValue(EMPTY);
     marketSpy.getCurrentPrice.and.returnValue(EMPTY);
     marketSpy.getTechnicalAnalysis.and.returnValue(EMPTY);
     dossierSpy.gateStatus.and.returnValue(EMPTY);
@@ -698,6 +699,203 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
         expect(component.sectorNotice).toBeNull();
         expect((fixture.nativeElement as HTMLElement)
           .querySelector('[data-testid="sector-notice"]')).toBeNull();
+        done();
+      }, 700);
+    });
+  });
+
+  // ============================================
+  // Trần khối lượng theo ngân sách biến động (ADR-0014) — cảnh báo, không chặn
+  // ============================================
+  describe('volatilityNotice', () => {
+    function setVol(over: Record<string, unknown> = {}): void {
+      component.volatilityNotice = {
+        symbol: 'FPT',
+        currentVolatilityPercent: 19.4,
+        projectedVolatilityPercent: 20.6,
+        budgetVolatilityPercent: 21.1,
+        sourceMaxDrawdownPercent: 10,
+        correlationWithPortfolio: 0.42,
+        marginalRiskContributionPercent: 22,
+        capitalWeightPercent: 14,
+        maxQuantityWithinBudget: 5600,
+        isUnconstrainedByVolatility: false,
+        portfolioAlreadyOverBudget: false,
+        dataQuality: 'Full',
+        missingSymbols: [],
+        adjustedSymbols: [],
+        fetchFailedSymbols: [],
+        observationCount: 64,
+        ...over
+      } as never;
+      fixture.detectChanges();
+    }
+
+    function volBlockText(): string {
+      const block = (fixture.nativeElement as HTMLElement)
+        .querySelector('[data-testid="volatility-notice"]');
+      return block?.textContent || '';
+    }
+
+    function volEl(id: string): HTMLElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector(`[data-testid="${id}"]`);
+    }
+
+    it('Full trong trần: hiện biến động trước/sau, ngân sách, đóng góp rủi ro và trần', () => {
+      component.plan.quantity = 1000;
+      setVol();
+
+      expect(volBlockText()).toContain('19.4%/năm');
+      expect(volEl('volatility-projected')!.textContent).toContain('20.6%/năm');
+      expect(volEl('volatility-budget')!.textContent).toContain('21.1%/năm');
+      expect(volEl('volatility-mcr')!.textContent).toContain('22% rủi ro');
+      expect(volEl('volatility-mcr')!.textContent).toContain('14% vốn');
+      expect(volEl('volatility-ceiling')!.textContent).toContain('5600');
+      // Trong trần thì không mời áp trần.
+      expect(volEl('volatility-apply-ceiling')).toBeNull();
+    });
+
+    it('ngân sách luôn nói rõ suy ra từ đâu, không phải hằng số ẩn', () => {
+      setVol();
+
+      expect(volBlockText()).toContain('ngưỡng sụt giảm 10%');
+      expect(volBlockText()).toContain('1 tháng');
+    });
+
+    it('Full vượt trần: hiện nút áp trần và tô đỏ', () => {
+      component.plan.quantity = 8000;
+      setVol();
+
+      expect(component.volOverCeiling()).toBeTrue();
+      const button = volEl('volatility-apply-ceiling');
+      expect(button).not.toBeNull();
+      expect(button!.textContent).toContain('5600');
+      expect(volEl('volatility-notice')!.className).toContain('bg-red-50');
+    });
+
+    it('bấm áp trần thì điền đúng số vào ô khối lượng và khoá tính tự động', () => {
+      component.plan.quantity = 8000;
+      setVol();
+
+      (volEl('volatility-apply-ceiling') as HTMLButtonElement).click();
+
+      expect(component.plan.quantity).toBe(5600);
+      // Không đặt cờ này thì vòng tính size tự động ghi đè lại ngay, và nút thành vô nghĩa.
+      expect(component.manualQuantity).toBeTrue();
+    });
+
+    it('Insufficient: chỉ nói thiếu dữ liệu, KHÔNG hiện con số nào', () => {
+      setVol({
+        dataQuality: 'Insufficient',
+        currentVolatilityPercent: null,
+        projectedVolatilityPercent: null,
+        correlationWithPortfolio: null,
+        marginalRiskContributionPercent: null,
+        capitalWeightPercent: null,
+        maxQuantityWithinBudget: null,
+        missingSymbols: ['NEWCO']
+      });
+
+      expect(volEl('volatility-insufficient')!.textContent).toContain('NEWCO');
+      // Khối phải TỒN TẠI. Panel rỗng đọc thành "không có vấn đề gì" — ngược với sự thật.
+      expect(volEl('volatility-notice')).not.toBeNull();
+      expect(volEl('volatility-ceiling')).toBeNull();
+      expect(volEl('volatility-mcr')).toBeNull();
+      expect(volBlockText()).not.toContain('n/a');
+      // Ca này là THIẾU lịch sử thật, không phải nguồn hỏng — không được nói nhầm thành nguồn lỗi.
+      expect(volEl('volatility-fetch-failed')).toBeNull();
+    });
+
+    it('Insufficient do nguồn lỗi: nói "chưa lấy được", không nói "chưa đủ"', () => {
+      setVol({
+        dataQuality: 'Insufficient',
+        currentVolatilityPercent: null,
+        projectedVolatilityPercent: null,
+        maxQuantityWithinBudget: null,
+        missingSymbols: [],
+        fetchFailedSymbols: ['FPT']
+      });
+
+      // FPT có thừa lịch sử; nói "chưa đủ lịch sử giá cho FPT" là nói sai sự thật, và người dùng
+      // sẽ kết luận nhầm rằng mã này mới hoặc thanh khoản kém.
+      const text = volEl('volatility-fetch-failed')!.textContent!;
+      expect(text).toContain('FPT');
+      expect(text).toContain('Chưa lấy được');
+      expect(volEl('volatility-insufficient')).toBeNull();
+      expect(volBlockText()).not.toContain('Chưa đủ lịch sử');
+    });
+
+    it('Partial: nêu tên mã bị chỉnh và số phiên ước lượng', () => {
+      setVol({ dataQuality: 'Partial', missingSymbols: ['GHOST'], adjustedSymbols: ['VHM'] });
+
+      const text = volEl('volatility-partial')!.textContent!;
+      expect(text).toContain('GHOST');
+      expect(text).toContain('VHM');
+      expect(text).toContain('64 phiên');
+    });
+
+    it('danh mục đã vượt ngân sách: báo trạng thái, không mời áp trần 0 cổ', () => {
+      component.plan.quantity = 8000;
+      setVol({ portfolioAlreadyOverBudget: true, maxQuantityWithinBudget: 0 });
+
+      expect(volEl('volatility-over-budget')).not.toBeNull();
+      // "Dùng 0 cổ" không phải một hành động.
+      expect(volEl('volatility-apply-ceiling')).toBeNull();
+      expect(component.canApplyVolCeiling()).toBeFalse();
+    });
+
+    it('không bị ràng buộc khác hẳn không tính được', () => {
+      setVol({ maxQuantityWithinBudget: null, isUnconstrainedByVolatility: true });
+
+      expect(volEl('volatility-unconstrained')).not.toBeNull();
+      expect(volEl('volatility-insufficient')).toBeNull();
+      expect(component.volOverCeiling()).toBeFalse();
+    });
+
+    it('vượt trần không đổi khả năng lưu nháp — cảnh báo, không chặn', () => {
+      component.volatilityNotice = null;
+      fixture.detectChanges();
+      const before = component.canSaveDraft();
+
+      component.plan.quantity = 99_999;
+      setVol();
+
+      expect(component.volOverCeiling()).toBeTrue();
+      expect(component.canSaveDraft()).toBe(before);
+    });
+
+    it('không gọi endpoint trần khối lượng khi lệnh là BÁN', (done) => {
+      const riskSpy = TestBed.inject(RiskService) as jasmine.SpyObj<RiskService>;
+      fixture.detectChanges();
+      component.plan.symbol = 'HPG';
+      component.plan.quantity = 1000;
+      component.plan.entryPrice = 60000;
+      component.accountBalance = 100_000_000;
+      component.plan.portfolioId = 'port-1';
+      component.plan.direction = 'Sell';
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        expect(riskSpy.getVolatilitySizingForPlan).not.toHaveBeenCalled();
+        done();
+      }, 700);
+    });
+
+    it('gọi endpoint với giá vào và số lượng khi đã chọn danh mục', (done) => {
+      const riskSpy = TestBed.inject(RiskService) as jasmine.SpyObj<RiskService>;
+      fixture.detectChanges();
+      component.plan.symbol = 'HPG';
+      component.plan.quantity = 1000;
+      component.plan.entryPrice = 60000;
+      component.accountBalance = 100_000_000;
+      component.plan.portfolioId = 'port-1';
+
+      component.onSymbolInput();
+
+      setTimeout(() => {
+        expect(riskSpy.getVolatilitySizingForPlan)
+          .toHaveBeenCalledWith('port-1', 'HPG', 60000, 1000);
         done();
       }, 700);
     });

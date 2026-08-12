@@ -24,7 +24,7 @@ public class McpToolDiscoveryTests
         // P0 — Decision & Risk Intelligence
         "get_decision_queue", "get_discipline_score", "get_discipline_streak",
         "get_pending_thesis_reviews", "get_portfolio_risk", "get_stop_loss_targets",
-        "get_trailing_stop_alerts", "get_scenario_advisories",
+        "get_trailing_stop_alerts", "get_scenario_advisories", "get_volatility_sizing",
         // Phase B — daily digest
         "get_daily_digest",
         // P1 — Performance & Wealth Analytics
@@ -62,12 +62,26 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_51_Tools()
+    public void Registers_All_52_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(51);
+        (ReadTools.Length + WriteTools.Length).Should().Be(52);
+    }
+
+    [Fact]
+    public void No_Tool_Escapes_The_Guard_Lists()
+    {
+        // Mọi guard khác trong file này chỉ chạy trên tên nằm trong ReadTools/WriteTools. Thiếu
+        // chiều ngược lại thì một tool mới được đăng ký nhưng không có trong danh sách sẽ đi qua
+        // TOÀN BỘ guard mà không test nào đỏ: không kiểm ReadOnly, không kiểm schema phẳng, không
+        // kiểm rò rỉ service tiêm vào. Chính là hình dạng "luật có nhưng không có đường bắn".
+        var registered = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
+        var listed = ReadTools.Concat(WriteTools).ToHashSet();
+
+        registered.Except(listed).Should().BeEmpty(
+            "tool mới phải được khai vào ReadTools hoặc WriteTools, nếu không nó thoát mọi guard");
     }
 
     [Fact]

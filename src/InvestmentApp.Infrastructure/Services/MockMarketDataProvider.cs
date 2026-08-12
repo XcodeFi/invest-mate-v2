@@ -93,6 +93,10 @@ public class MockMarketDataProvider : IMarketDataProvider
         return Task.FromResult(results);
     }
 
+    /// <summary>Bắt chước độ sâu thật của 24hmoney: ~65 phiên (bỏ cuối tuần).</summary>
+    public Task<List<StockPriceData>> GetDailyHistoryAsync(string symbol, CancellationToken cancellationToken = default)
+        => GetHistoricalPricesAsync(symbol, DateTime.UtcNow.Date.AddDays(-91), DateTime.UtcNow.Date, cancellationToken);
+
     public async Task<Dictionary<string, StockPriceData>> GetBatchPricesAsync(IEnumerable<string> symbols, CancellationToken cancellationToken = default)
     {
         var result = new Dictionary<string, StockPriceData>();
