@@ -1795,8 +1795,8 @@ Chứng khoán Việt Nam thanh toán **T+2**: bán hôm nay thì tiền về sa
 
 | Bề mặt | Hành vi |
 |---|---|
-| Hero card `/dashboard` + `/capital-flows` | Số lớn giữ nguyên là tổng; thêm dòng `trong đó X ₫ chờ về — dự kiến DD/MM` (ngày về xa nhất), ẩn khi không còn gì chờ |
-| Cửa sổ ghi lệnh MUA | Cảnh báo vàng *"Vượt tiền đã về X ₫ — cần ứng trước tiền bán"*. **Nhắc, không chặn** — form ghi lệnh đã khớp |
+| Hero card `/dashboard` + `/capital-flows` | Số lớn giữ nguyên là tổng; thêm dòng `trong đó X đ chờ về — dự kiến DD/MM` (ngày về xa nhất), ẩn khi không còn gì chờ |
+| Cửa sổ ghi lệnh MUA | Cảnh báo vàng *"Vượt tiền đã về X đ — cần ứng trước tiền bán"*. **Nhắc, không chặn** — form ghi lệnh đã khớp |
 | Bản tin AI / MCP digest | `<portfolio_cash_pending>` + `<market_closures_known_through>`; advisor trừ phần chưa về khi gợi ý khối lượng |
 | Lịch nghỉ giao dịch | `GET/POST /api/v1/market-closures`, `DELETE /{date}` + sibling ApiKey + 3 tool MCP. Một bản ghi cho một ngày; T7/CN suy ra tự động, không lưu |
 

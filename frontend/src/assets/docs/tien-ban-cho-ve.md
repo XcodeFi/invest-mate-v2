@@ -14,8 +14,8 @@ Thẻ **Tiền mặt khả dụng** trên Tổng quan và Dòng vốn hiện:
 
 ```
 Tiền mặt khả dụng
-120.000.000 ₫
-trong đó 30.000.000 ₫ chờ về — dự kiến 24/02
+120.000.000 đ
+trong đó 30.000.000 đ chờ về — dự kiến 24/02
 ```
 
 - **Số lớn** là tổng tiền — con số này khớp sổ công ty chứng khoán để bạn đối chiếu.
@@ -24,7 +24,7 @@ trong đó 30.000.000 ₫ chờ về — dự kiến 24/02
 
 Khi ghi lệnh MUA vượt phần tiền đã về, cửa sổ ghi lệnh hiện dòng vàng:
 
-> Vượt tiền đã về 10.000.000 ₫ — cần ứng trước tiền bán.
+> Vượt tiền đã về 10.000.000 đ — cần ứng trước tiền bán.
 
 Đây là **nhắc, không phải chặn**. Bạn vẫn lưu được lệnh, vì cửa sổ này ghi lại lệnh **đã khớp** — có thể bạn đã dùng dịch vụ ứng trước tiền bán của công ty chứng khoán.
 

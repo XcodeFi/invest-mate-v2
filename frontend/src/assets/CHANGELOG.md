@@ -6,7 +6,7 @@
 
 ### Tính năng
 
-**⏳ Tiền bán chưa về không còn bị tính là tiền đang có.** Chứng khoán Việt Nam thanh toán T+2 — bán hôm nay thì tiền về sau 2 phiên giao dịch. Trước đây app cộng tiền bán vào "Tiền mặt khả dụng" ngay tại ngày khớp lệnh, nên số hiển thị cao hơn thực tế tới 2 phiên, đúng con số bạn dùng để quyết định vào lệnh mới. Giờ thẻ tiền mặt hiện `120.000.000 ₫` kèm dòng `trong đó 30.000.000 ₫ chờ về — dự kiến 24/02`. Số lớn vẫn khớp sổ công ty chứng khoán để đối chiếu.
+**⏳ Tiền bán chưa về không còn bị tính là tiền đang có.** Chứng khoán Việt Nam thanh toán T+2 — bán hôm nay thì tiền về sau 2 phiên giao dịch. Trước đây app cộng tiền bán vào "Tiền mặt khả dụng" ngay tại ngày khớp lệnh, nên số hiển thị cao hơn thực tế tới 2 phiên, đúng con số bạn dùng để quyết định vào lệnh mới. Giờ thẻ tiền mặt hiện `120.000.000 đ` kèm dòng `trong đó 30.000.000 đ chờ về — dự kiến 24/02`. Số lớn vẫn khớp sổ công ty chứng khoán để đối chiếu.
 
 **📅 Lịch nghỉ giao dịch nhập được qua trợ lý AI.** Lịch nghỉ đổi mỗi năm và HOSE thường công bố lẻ từng đợt, nên nó nằm trong cơ sở dữ liệu chứ không nằm trong code — không phải chờ bản cập nhật app. Nhập một ngày, một đợt lễ, hay cả năm trong cùng một lần; sửa và xoá được từng ngày. Lịch 2026 đã có sẵn 12 ngày. Thứ Bảy và Chủ nhật tự biết, không cần nhập.
 

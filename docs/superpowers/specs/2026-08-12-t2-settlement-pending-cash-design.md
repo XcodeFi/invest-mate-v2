@@ -121,13 +121,13 @@ flowchart LR
 
 ```
 Tiền mặt khả dụng
-120.000.000 ₫
-trong đó 30.000.000 ₫ chờ về — dự kiến 24/02      ← chỉ hiện khi > 0
+120.000.000 đ
+trong đó 30.000.000 đ chờ về — dự kiến 24/02      ← chỉ hiện khi > 0
 ```
 
 **Bản tin AI** — thêm `<portfolio_cash_pending>` và `<market_closures_known_through>` (ngày nghỉ xa nhất đã nhập) vào section tiền/net-worth; sửa dòng hướng dẫn ở [AiAssistantService.cs:2153](../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L2153) để advisor trừ phần chờ về khi gợi ý khối lượng. Thiếu trades → in `n/a`, **không in `0`** — giữ nguyên nguyên tắc đã có của section này ([dòng 107](../../../src/InvestmentApp.Infrastructure/Services/AiAssistantService.cs#L107)).
 
-**Cửa sổ ghi lệnh MUA** — gate cứng theo tổng tiền giữ nguyên; thêm cảnh báo vàng khi giá trị lệnh vượt phần tiền đã về: *"Vượt tiền đã về 12.000.000 ₫ — cần ứng trước tiền bán."* Vẫn lưu được (Q7).
+**Cửa sổ ghi lệnh MUA** — gate cứng theo tổng tiền giữ nguyên; thêm cảnh báo vàng khi giá trị lệnh vượt phần tiền đã về: *"Vượt tiền đã về 12.000.000 đ — cần ứng trước tiền bán."* Vẫn lưu được (Q7).
 
 ## 8. Ngoài phạm vi
 

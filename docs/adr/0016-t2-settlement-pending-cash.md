@@ -58,7 +58,7 @@ Trade-off chấp nhận: nhiều bộ phận hơn Option C, và **quên nhập l
 
 **Positive:**
 
-- Hero card hiện `120.000.000 ₫` kèm `trong đó 30.000.000 ₫ chờ về — dự kiến 24/02`; con số tổng vẫn khớp sổ công ty chứng khoán để đối chiếu.
+- Hero card hiện `120.000.000 đ` kèm `trong đó 30.000.000 đ chờ về — dự kiến 24/02`; con số tổng vẫn khớp sổ công ty chứng khoán để đối chiếu.
 - Bản tin AI có `<portfolio_cash_pending>`, advisor trừ phần chưa về khi gợi ý khối lượng.
 - Cửa sổ ghi lệnh MUA cảnh báo khi vượt phần đã về, nhưng **vẫn cho lưu** — form đó ghi lệnh đã khớp, có thể đã dùng dịch vụ ứng trước tiền bán; chặn cứng là app từ chối ghi nhận hiện thực.
 - Bất biến `đã về + chờ về = TotalSold` được ghim bằng test.
