@@ -404,4 +404,79 @@ describe('TradeCreateComponent — Bidirectional Auto-suggest', () => {
       expect(component.isSellMismatch).toBeFalse();
     });
   });
+
+  describe('cảnh báo tiền bán chưa về (T+2)', () => {
+    // Tổng tiền 100tr, trong đó 40tr chờ về → đã về 60tr.
+    const withPending = (pending: number, arrival: string | null = '2026-06-17') => {
+      component.portfolios = [{
+        id: 'p1', name: 'P1', initialCapital: 100_000_000, netCashFlow: 0,
+        currentCapital: 100_000_000, createdAt: '2026-01-01', tradeCount: 0,
+        uniqueSymbols: 0, totalInvested: 0, totalSold: 0,
+        pendingSettlementCash: pending, pendingSettlementArrivalDate: arrival
+      }];
+      component.form.portfolioId = 'p1';
+    };
+
+    it('vượt tiền đã về thì cảnh báo nhưng KHÔNG chặn lưu', () => {
+      withPending(40_000_000);
+      component.form.tradeType = TradeType.BUY;
+      component.form.quantity = 7_000;   // 70tr > 60tr đã về
+      component.form.price = 10_000;
+
+      component.validateQuantity();
+
+      expect(component.settlementWarning).toContain('ứng trước tiền bán');
+      expect(component.settlementWarning).toContain('10.000.000');
+      // quantityError là chuỗi CHẶN lưu — cảnh báo mềm không được rơi vào đó.
+      expect(component.quantityError).toBe('');
+    });
+
+    it('nằm trong tiền đã về thì không cảnh báo', () => {
+      withPending(40_000_000);
+      component.form.tradeType = TradeType.BUY;
+      component.form.quantity = 5_000;   // 50tr < 60tr đã về
+      component.form.price = 10_000;
+
+      component.validateQuantity();
+
+      expect(component.settlementWarning).toBe('');
+    });
+
+    it('lệnh BÁN không bị cảnh báo tiền chờ về', () => {
+      withPending(40_000_000);
+      component.form.tradeType = TradeType.SELL;
+      component.form.quantity = 1_000;
+      component.form.price = 10_000;
+
+      component.validateQuantity();
+
+      expect(component.settlementWarning).toBe('');
+    });
+
+    it('vượt cả tổng tiền thì vẫn là lỗi chặn, không phải cảnh báo mềm', () => {
+      withPending(40_000_000);
+      component.form.tradeType = TradeType.BUY;
+      component.form.quantity = 20_000;  // 200tr > 100tr tổng
+      component.form.price = 10_000;
+
+      component.validateQuantity();
+
+      expect(component.quantityError).toContain('vượt quá tiền còn lại');
+      expect(component.settlementWarning).toBe('');
+    });
+
+    it('cảnh báo được xoá khi sửa lại khối lượng cho hợp lệ', () => {
+      withPending(40_000_000);
+      component.form.tradeType = TradeType.BUY;
+      component.form.price = 10_000;
+      component.form.quantity = 7_000;
+      component.validateQuantity();
+      expect(component.settlementWarning).not.toBe('');
+
+      component.form.quantity = 5_000;
+      component.validateQuantity();
+
+      expect(component.settlementWarning).toBe('');
+    });
+  });
 });
