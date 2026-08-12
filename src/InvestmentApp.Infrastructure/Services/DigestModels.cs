@@ -1,12 +1,16 @@
 namespace InvestmentApp.Infrastructure.Services;
 
-/// <summary>Một dòng danh mục trong &lt;portfolio_overview&gt;. Cash null = chưa lấy được (n/a).</summary>
+/// <summary>
+/// Một dòng danh mục trong &lt;portfolio_overview&gt;. Cash null = chưa lấy được (n/a).
+/// PendingCash là phần tiền bán chưa về theo T+2 — đã nằm TRONG Cash, null khi Cash null.
+/// </summary>
 public sealed record PortfolioDigestRow(
     string Name,
     decimal MarketValue,
     decimal? Cash,
     decimal UnrealizedPnL,
-    decimal RealizedPnL);
+    decimal RealizedPnL,
+    decimal? PendingCash = null);
 
 /// <summary>
 /// Một dòng vị thế trong &lt;positions&gt;. Ghép <c>PositionPnL</c> với <c>PositionRiskItem</c>.

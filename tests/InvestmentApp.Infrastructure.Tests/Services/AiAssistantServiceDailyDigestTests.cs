@@ -147,6 +147,77 @@ public class AiAssistantServiceDailyDigestTests
         section.Should().Contain("<investable_capital>200,000,000 VND (chưa đầy đủ: 1 danh mục không lấy được)</investable_capital>");
     }
 
+    // --- Tiền bán chờ về T+2 ---
+
+    [Fact]
+    public void Tien_ban_cho_ve_duoc_in_tach_khoi_portfolio_cash()
+    {
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 287_903_688m, portfolioCash: 287_903_688m, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,
+            missingCashPortfolios: 0,
+            pendingSettlementCash: 30_000_000m,
+            closuresKnownThrough: new DateTime(2026, 9, 2));
+
+        section.Should().Contain("<portfolio_cash>287,903,688 VND</portfolio_cash>");
+        section.Should().Contain("<portfolio_cash_pending>30,000,000 VND</portfolio_cash_pending>");
+        section.Should().Contain("<market_closures_known_through>2026-09-02</market_closures_known_through>");
+    }
+
+    [Fact]
+    public void Khong_co_tien_cho_ve_thi_khong_in_tag_pending()
+    {
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 100_000_000m, portfolioCash: 100_000_000m, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,
+            missingCashPortfolios: 0,
+            pendingSettlementCash: 0m,
+            closuresKnownThrough: new DateTime(2026, 9, 2));
+
+        section.Should().NotContain("portfolio_cash_pending");
+    }
+
+    [Fact]
+    public void Thieu_trades_thi_pending_la_na_tuyet_doi_khong_phai_0()
+    {
+        // Ba trạng thái phải phân biệt: null = chưa tính được, 0 = không có gì chờ, >0 = số thật.
+        // Gộp null với 0 là nói "không có tiền chờ" khi thật ra là "chưa biết".
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 0m, portfolioCash: null, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,
+            missingCashPortfolios: 1,
+            pendingSettlementCash: null,
+            closuresKnownThrough: null);
+
+        section.Should().Contain("<portfolio_cash>n/a</portfolio_cash>");
+        section.Should().Contain("<portfolio_cash_pending>n/a</portfolio_cash_pending>");
+        section.Should().NotContain("<portfolio_cash_pending>0 VND</portfolio_cash_pending>");
+    }
+
+    [Fact]
+    public void Chua_nhap_lich_nghi_nao_thi_known_through_la_na()
+    {
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 100_000_000m, portfolioCash: 100_000_000m, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null,
+            missingCashPortfolios: 0,
+            pendingSettlementCash: 5_000_000m,
+            closuresKnownThrough: null);
+
+        section.Should().Contain("<market_closures_known_through>n/a</market_closures_known_through>");
+    }
+
+    [Fact]
+    public void Call_site_cu_khong_truyen_2_tham_so_moi_van_bien_dich_va_khong_in_pending()
+    {
+        // Hai tham số mới có default → mọi lời gọi cũ giữ nguyên hành vi.
+        var section = AiAssistantService.FormatCashNetWorthSection(
+            investableCapital: 100_000_000m, portfolioCash: 100_000_000m, idleCash: null,
+            netWorth: null, totalAssets: null, totalDebt: null, healthScore: null);
+
+        section.Should().Contain("<portfolio_cash_pending>n/a</portfolio_cash_pending>");
+    }
+
     [Fact]
     public void FormatCashNetWorthSection_CompleteCash_HasNoCaveat()
     {

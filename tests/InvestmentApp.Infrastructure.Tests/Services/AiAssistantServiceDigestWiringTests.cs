@@ -151,6 +151,14 @@ public class AiAssistantServiceDigestWiringTests
         profileRepo.Setup(r => r.GetByUserIdAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((FinancialProfile?)null);
 
+        // Chưa nhập lịch nghỉ nào → T+2 chỉ bỏ T7/CN, và known_through là n/a.
+        var closureRepo = new Mock<IMarketClosureRepository>();
+        closureRepo.Setup(r => r.GetByUserAndRangeAsync(
+                It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<MarketClosure>());
+        closureRepo.Setup(r => r.GetLatestDateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateTime?)null);
+
         return new AiAssistantService(
             new Mock<IAiSettingsRepository>().Object,
             new Mock<IAiKeyEncryptionService>().Object,
@@ -171,6 +179,7 @@ public class AiAssistantServiceDigestWiringTests
             new PositionSizingService(),     // service thật → số khối lượng gợi ý là số thật
             new Mock<IMarketDataProvider>().Object,
             flowRepo.Object,
+            closureRepo.Object,
             mediator.Object);
     }
 
