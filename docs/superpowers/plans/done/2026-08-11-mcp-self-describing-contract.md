@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 9, `ModelContextProtocol.AspNetCore` 2.0.0-rc.1, MediatR, FluentValidation, xUnit + FluentAssertions + Moq.
 
-**Spec:** [`docs/superpowers/specs/2026-08-11-mcp-self-describing-contract-design.md`](../specs/2026-08-11-mcp-self-describing-contract-design.md)
+**Spec:** [`docs/superpowers/specs/done/2026-08-11-mcp-self-describing-contract-design.md`](../../specs/done/2026-08-11-mcp-self-describing-contract-design.md)
 
 ## Global Constraints
 
