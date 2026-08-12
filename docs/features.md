@@ -1,6 +1,6 @@
 # Investment Mate v2 — Tài liệu Tính năng
 
-> **Cập nhật lần cuối:** 2026-04-23
+> **Cập nhật lần cuối:** 2026-08-12
 > **Trạng thái:** Phase 7 đang tiếp tục + P0.7 (Campaign Review) + P1-P4 (Post-Trade Review, Stress Test, Bollinger/ATR, Risk Budget) + Symbol Timeline (P7) + Tài chính cá nhân (Tier 3) + Thesis-driven Plan Discipline (Vin-style)
 > **Xem thêm:** [AI Integration — Tài liệu kỹ thuật chi tiết](ai-integration.md)
 
@@ -1786,3 +1786,20 @@ Chỉ áp cho lệnh MUA. Cảnh báo, không chặn. Backend 1923 test, fronten
 | B5 | Dark mode | Thấp | |
 | ~~B6~~ | ~~Multi-timeframe Dashboard~~ | ✅ Done v2.2.0 | |
 | ~~B7~~ | ~~Tài chính cá nhân~~ | ✅ Done 2026-04-22 | Xem section "Tài chính cá nhân (Tier 3)" bên dưới; plan archived tại `docs/plans/done/personal-finance.md` |
+
+---
+
+## Tiền bán chờ về T+2 (2026-08-12)
+
+Chứng khoán Việt Nam thanh toán **T+2**: bán hôm nay thì tiền về sau 2 phiên giao dịch. App trước đây cộng tiền bán vào "Tiền mặt khả dụng" ngay tại ngày khớp lệnh.
+
+| Bề mặt | Hành vi |
+|---|---|
+| Hero card `/dashboard` + `/capital-flows` | Số lớn giữ nguyên là tổng; thêm dòng `trong đó X ₫ chờ về — dự kiến DD/MM` (ngày về xa nhất), ẩn khi không còn gì chờ |
+| Cửa sổ ghi lệnh MUA | Cảnh báo vàng *"Vượt tiền đã về X ₫ — cần ứng trước tiền bán"*. **Nhắc, không chặn** — form ghi lệnh đã khớp |
+| Bản tin AI / MCP digest | `<portfolio_cash_pending>` + `<market_closures_known_through>`; advisor trừ phần chưa về khi gợi ý khối lượng |
+| Lịch nghỉ giao dịch | `GET/POST /api/v1/market-closures`, `DELETE /{date}` + sibling ApiKey + 3 tool MCP. Một bản ghi cho một ngày; T7/CN suy ra tự động, không lưu |
+
+Lịch 2026 seed sẵn 12 phiên: 01/01; 16–20/02 (Tết Bính Ngọ); 27/04; 30/04–01/05; 31/08–02/09.
+
+**Ngoài phạm vi:** cổ phiếu mua chờ về T+2; dịch vụ ứng trước tiền bán. Chi tiết: [ADR-0016](adr/0016-t2-settlement-pending-cash.md).

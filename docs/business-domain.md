@@ -114,7 +114,8 @@ ImpersonationAudit (independent, append-only)
 - Tạo danh mục với **vốn ban đầu** (`InitialCapital`) — snapshot lúc tạo, không đổi theo thời gian
 - Nạp/rút tiền qua `CapitalFlow` (Deposit, Withdraw, Dividend, Interest, Fee)
 - **Vốn hiện tại** (`CurrentCapital`) = `InitialCapital + Σ SignedAmount` — đây là giá trị "vốn ròng" hiện tại của danh mục, phản ánh mọi nạp/rút/cổ tức/phí đã xảy ra
-- **Cash còn lại** = `CurrentCapital − TotalInvested + TotalSold` — tiền mặt khả dụng để vào lệnh mới
+- **Cash còn lại** = `CurrentCapital − TotalInvested + TotalSold` — tổng tiền trong tài khoản chứng khoán
+- **Tiền đã về** = `Cash còn lại − PendingSettlementCash` — phần dùng mua được ngay. `PendingSettlementCash` là tiền bán chưa về theo chu kỳ **T+2** (2 phiên giao dịch, bỏ T7/CN + ngày nghỉ lễ trong `market_closures`), tính bởi `SettlementCalculator`. Xem [ADR-0016](adr/0016-t2-settlement-pending-cash.md)
 - **Quy tắc:** Mọi chỗ tính position sizing, account balance, allocation % phải dùng `CurrentCapital` (không dùng `InitialCapital`) để phản ánh đúng vốn user đang có.
 
 ### 3.1b. Sự kiện quyền (CorporateAction)

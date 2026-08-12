@@ -166,6 +166,7 @@ export class HelpComponent implements OnInit, OnDestroy {
     { id: 'chien-luoc-giao-dich', title: 'Chiến lược giao dịch', description: '7 chiến lược, kết hợp chỉ báo, 10 nguyên tắc', icon: '🎯', color: 'amber' },
     { id: 'tai-chinh-ca-nhan', title: 'Tài chính cá nhân', description: '5 loại tài khoản, vàng tích trữ, sức khỏe tài chính 6/50/30', icon: '💰', color: 'yellow' },
     { id: 'su-kien-quyen', title: 'Sự kiện quyền', description: 'Cổ tức tiền mặt, cổ tức cổ phiếu, chia tách và tính lại giá vốn', icon: '🎁', color: 'pink' },
+    { id: 'tien-ban-cho-ve', title: 'Tiền bán chờ về (T+2)', description: 'Vì sao bán rồi chưa dùng được tiền, cách nhập lịch nghỉ giao dịch', icon: '⏳', color: 'cyan' },
   ];
 
   topicContents: TopicContent[] = [];
