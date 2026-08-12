@@ -27,7 +27,9 @@ using Microsoft.OpenApi.Models;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
+using InvestmentApp.Api.Logging;
 using Serilog;
+using Serilog.Events;
 using Swashbuckle.AspNetCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
@@ -57,11 +59,57 @@ if (!BsonClassMap.IsClassMapRegistered(typeof(AggregateRoot)))
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
-builder.Host.UseSerilog((context, config) =>
+// Configure Serilog. Dùng overload có `services` để enricher lấy được IHttpContextAccessor —
+// lambda này chạy sau Build() nên thứ tự đăng ký service ở dưới không ảnh hưởng.
+builder.Host.UseSerilog((context, services, config) =>
 {
     config.ReadFrom.Configuration(context.Configuration);
+
+    var httpContextAccessor = services.GetRequiredService<IHttpContextAccessor>();
+    config.Enrich.With(
+        new UserIdEnricher(httpContextAccessor),
+        new RequestPathEnricher(httpContextAccessor));
+
+    ConfigureTelegramSink(config, context.Configuration);
 });
+
+// Lỗi của chính bộ ghi log không được biến mất — một bộ báo động hỏng mà im lặng
+// còn tệ hơn không có bộ báo động nào.
+Serilog.Debugging.SelfLog.Enable(Console.Error);
+
+static void ConfigureTelegramSink(LoggerConfiguration config, IConfiguration configuration)
+{
+    var botToken = configuration["Telegram:BotToken"];
+    var chatId = configuration["Telegram:ChatId"];
+
+    // Phải kiểm CẢ placeholder chưa thay: appsettings.json giữ "{Telegram__BotToken}" theo quy
+    // ước của dự án, mà chuỗi đó KHÔNG rỗng — chỉ kiểm IsNullOrWhiteSpace là sink vẫn đăng ký
+    // rồi gọi Telegram bằng chính chuỗi placeholder làm token, hỏng mọi lần và không ai biết.
+    if (!IsConfigured(botToken) || !IsConfigured(chatId))
+    {
+        Console.Error.WriteLine(
+            "[STARTUP WARNING] Telegram:BotToken/ChatId chưa cấu hình — lỗi mức Error sẽ chỉ vào console và file, "
+            + "không bắn về Telegram. Đặt env var Telegram__BotToken và Telegram__ChatId để bật.");
+        return;
+    }
+
+    // Sink tự in mốc thời gian theo giờ CỦA MÁY. Máy dev ở +07 nên đọc đúng ngay, còn container
+    // production chạy UTC sẽ hiện lệch 7 tiếng — đặt env var TZ=Asia/Ho_Chi_Minh khi deploy.
+    // Cố ý không tự quy đổi trong code: làm thế thì Telegram một giờ, console và file một giờ
+    // khác, và lúc đối chiếu sự cố thì hai nguồn không khớp nhau mới là thứ tốn thời gian nhất.
+    config.WriteTo.Telegram(
+        botToken: botToken!,
+        chatId: chatId!,
+        applicationName: "Invest Mate",
+        batchSizeLimit: 5,
+        period: TimeSpan.FromSeconds(10),
+        restrictedToMinimumLevel: LogEventLevel.Error,
+        includeStackTrace: true,
+        failureCallback: ex => Console.Error.WriteLine($"[TELEGRAM SINK] {ex.Message}"));
+}
+
+static bool IsConfigured(string? value) =>
+    !string.IsNullOrWhiteSpace(value) && !value.StartsWith('{');
 
 // Add services to the container
 builder.Services.AddControllers()

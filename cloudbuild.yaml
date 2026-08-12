@@ -128,7 +128,9 @@ steps:
       - '--no-cpu-throttling'
       - '--concurrency=80'
       - '--allow-unauthenticated'
-      - '--set-env-vars=ASPNETCORE_ENVIRONMENT=Production'
+      # TZ: container Cloud Run mặc định chạy UTC. Serilog (và sink Telegram) in mốc thời gian
+      # theo giờ máy, nên thiếu dòng này là mọi log lệch 7 tiếng so với giờ đọc.
+      - '--set-env-vars=ASPNETCORE_ENVIRONMENT=Production,TZ=Asia/Ho_Chi_Minh'
       - '--set-secrets=ConnectionStrings__MongoDb=mongo-connection-string:latest'
       - '--set-secrets=MongoDb__DatabaseName=mongo-database-name:latest'
       - '--set-secrets=Jwt__Key=jwt-key:latest'
@@ -136,6 +138,13 @@ steps:
       - '--set-secrets=Jwt__Audience=jwt-audience:latest'
       - '--set-secrets=GoogleOAuth__ClientId=google-oauth-client-id:latest'
       - '--set-secrets=GoogleOAuth__ClientSecret=google-oauth-client-secret:latest'
+      # Bắn lỗi mức Error về Telegram. Cố ý để dạng chú thích: bật hai dòng này khi secret CHƯA
+      # tồn tại sẽ làm hỏng cả lần deploy. Tạo secret trước rồi mới bỏ dấu #:
+      #   printf '%s' "<bot token>" | gcloud secrets create telegram-bot-token --data-file=-
+      #   printf '%s' "<chat id>"   | gcloud secrets create telegram-chat-id  --data-file=-
+      # Chưa bật thì app vẫn chạy bình thường, chỉ in một dòng [STARTUP WARNING] và không bắn.
+      # - '--set-secrets=Telegram__BotToken=telegram-bot-token:latest'
+      # - '--set-secrets=Telegram__ChatId=telegram-chat-id:latest'
     id: 'deploy-api'
     waitFor: ['push-api']
 

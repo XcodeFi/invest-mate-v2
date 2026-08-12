@@ -24,12 +24,29 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred");
-            await HandleExceptionAsync(context, ex);
+            var status = await HandleExceptionAsync(context, ex);
+
+            // Mức log bám theo LỚP MÃ TRẠNG THÁI, không bám theo kiểu exception — cùng một phép
+            // ánh xạ đã dùng để trả lời client, nên hai chỗ không thể lệch nhau.
+            //
+            // 4xx là người gọi gửi sai: đã trả lời họ rồi, không còn việc gì để ai làm. Ghi mức
+            // Error là đẩy nó lên kênh cảnh báo, và một kênh báo cả lỗi nhập liệu sẽ bị tắt sau
+            // vài ngày — lúc đó còn tệ hơn không có, vì ta tưởng mình đang được giám sát.
+            if (status >= 500)
+            {
+                _logger.LogError(ex, "An unhandled exception occurred");
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Request rejected with {StatusCode}: {ExceptionType} — {ExceptionMessage}",
+                    status, ex.GetType().Name, ex.Message);
+            }
         }
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    /// <returns>Mã trạng thái đã ghi vào response — để chỗ gọi chọn mức log theo đúng nó.</returns>
+    private static async Task<int> HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
 
@@ -45,7 +62,7 @@ public class ExceptionMiddleware
                 reason = dge.Result.Reason,
                 missing = dge.Result.Missing
             });
-            return;
+            return context.Response.StatusCode;
         }
 
         // FluentValidation ValidationException: surface as 400 ValidationProblemDetails so FE can
@@ -67,7 +84,7 @@ public class ExceptionMiddleware
 
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             await context.Response.WriteAsJsonAsync(validationProblem);
-            return;
+            return context.Response.StatusCode;
         }
 
         var statusCode = exception switch
@@ -100,5 +117,6 @@ public class ExceptionMiddleware
         context.Response.StatusCode = problem.Status.Value;
 
         await context.Response.WriteAsJsonAsync(problem);
+        return context.Response.StatusCode;
     }
 }
