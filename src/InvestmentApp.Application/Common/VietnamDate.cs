@@ -14,6 +14,9 @@ public static class VietnamDate
     /// <summary>Ngày lịch VN của một mốc UTC, dạng <c>"YYYY-MM-DD"</c>.</summary>
     public static string ToDateKey(DateTime utc) => ToLocal(utc).ToString("yyyy-MM-dd");
 
+    /// <summary>Ngày lịch VN của một mốc UTC, phần giờ bằng 0.</summary>
+    public static DateTime Today(DateTime utcNow) => ToLocal(utcNow).Date;
+
     /// <summary>
     /// Số ngày lịch VN giữa hai mốc. Đếm theo ngày lịch chứ không theo số giờ trôi qua:
     /// 23:00 hôm nay và 01:00 sáng mai cách nhau 1 ngày, không phải 0.
