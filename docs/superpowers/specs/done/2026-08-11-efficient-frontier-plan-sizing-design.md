@@ -163,7 +163,9 @@ Thứ tự đọc cho từng mã:
 
 Ngưỡng 40 là sàn để hiệp phương sai có nghĩa (trên trần 65 đo được ở §3.1). Dưới ngưỡng, kết quả trả `null` chứ không trả giá trị kém tin.
 
-Đệm kết quả Σ theo danh mục, TTL 15 phút — form gọi lại mỗi nhịp hoãn 500ms, không được biến mỗi phím gõ thành một chùm truy vấn.
+Đệm **chuỗi lợi suất từng mã**, TTL 15 phút — form gọi lại mỗi nhịp hoãn 500ms, không được biến mỗi phím gõ thành một chùm truy vấn.
+
+> **Đo lại sau khi ship (2026-08-12):** đệm ở mức từng mã **không** làm lần gọi sau nhanh hơn — FPT lần 1 962ms, lần 2 1534ms, VHM 8593ms. Mỗi request vẫn đọc lại trades + sự kiện quyền + dựng vị thế từ Mongo, và chi phí bị chi phối bởi các vòng gọi đó chứ không phải giá. Muốn đạt ý định ban đầu thì phải đệm ở mức **kết quả cả request theo danh mục**, chưa làm.
 
 ### 4.3 Tiền xử lý lợi suất
 
@@ -225,6 +227,8 @@ C = V²(σ_p² − σ_ngân sách²)
 
 Nghiệm đóng, không cần bộ tối ưu, không cần thư viện ngoài. Trần khối lượng = ⌊a*/P⌋ với a* là nghiệm dương lớn nhất thỏa ràng buộc.
 
+**Toàn bộ phép giải phải chạy bằng `double`, không phải `decimal`** — kể cả khi dựng A, B, C. Cả ba hệ số tỷ lệ với luỹ thừa của giá trị danh mục (C với V², B với V), nên chính việc *dựng* chúng đã vượt `decimal.MaxValue` (7,9×10²⁸): C = V²·(σ_p²−σ_b²) tràn từ V ≈ 3×10¹². Ném ở bất kỳ đâu trong đây nghĩa là panel "cảnh báo, không bao giờ chặn" trả về 500. Phép ép cuối `(decimal)root` cũng phải chặn ngưỡng: A dương nhưng cực nhỏ (σ_mã sát σ_ngân sách) cho nghiệm hữu hạn trong `double` mà vượt `decimal.MaxValue`.
+
 Các ca biên phải xử lý tường minh, mỗi ca một test:
 
 | Ca | Điều kiện | Kết quả |
@@ -281,26 +285,41 @@ public class VolatilitySizingResult
     public VolatilityDataQuality DataQuality { get; set; }
     public List<string> MissingSymbols { get; set; } = new();
     public List<string> AdjustedSymbols { get; set; } = new();
+    public List<string> FetchFailedSymbols { get; set; } = new();
     public int ObservationCount { get; set; }
 }
 
 public enum VolatilityDataQuality { Full, Partial, Insufficient }
 ```
 
+`FetchFailedSymbols` tách khỏi `MissingSymbols`: nguồn giá hỏng và mã thật sự chưa có lịch sử đều cho `Insufficient`, nhưng nói nhầm ca đầu thành ca sau là phát biểu **sai sự thật** về mã đó — "chưa đủ lịch sử giá cho FPT" trong khi FPT có thừa, và người dùng kết luận mã này mới hoặc thanh khoản kém. Kéo theo: `IMarketDataProvider.GetDailyHistoryAsync` **không** được nuốt ngoại lệ, khác 8 hàm còn lại cùng file.
+
 Mọi trường phần trăm đều nullable **theo chủ ý**. Trả 0 cho một đại lượng chưa tính được là lẫn "bằng không" với "chưa biết" — cùng nguyên tắc đã áp cho `SectorExposureForPlan`. `IsUnconstrainedByVolatility` tách bạch với `MaxQuantityWithinBudget = null`: một cái nghĩa là không có ràng buộc, cái kia nghĩa là không tính được.
 
-### 4.9 Giao diện
+### 4.9 Bề mặt agent (MCP)
+
+Hai thứ, và chỉ có cái thứ hai mới là cơ chế:
+
+- `get_volatility_sizing` — tool read-only, cùng dữ liệu với panel.
+- `create_trade_plan` **tự gọi** truy vấn trần cho lệnh Mua có gắn danh mục, rồi nối cảnh báo vào chuỗi trả về.
+
+Cái thứ hai là bắt buộc vì không có nó thì lan can chỉ tồn tại trên đường người dùng tự bấm form: `get_volatility_sizing` là tool riêng, và lời dặn "gọi trước khi create_trade_plan" lại nằm trên chính cái tool agent phải đã quyết định gọi rồi mới đọc được. **Lời dặn không phải cơ chế.**
+
+Vẫn không chặn (Đ4): kế hoạch tạo bình thường, id giữ nguyên ở đầu chuỗi. Im lặng ở ba ca — trong trần, không bị ràng buộc, không gắn danh mục — vì nối một dòng vào *mọi* lời gọi biến cảnh báo thành tiếng ồn. Ca **không tính được** thì phải nói, vì im ở đó đọc thành "đã kiểm và ổn". Truy vấn hỏng thì nuốt ngoại lệ: kế hoạch đã tạo xong, ném ra khiến agent tưởng thất bại rồi tạo lại, sinh kế hoạch trùng.
+
+### 4.10 Giao diện
 
 Panel nằm dưới ô khối lượng trong form lập kế hoạch, tái dùng đúng khuôn hoãn 500ms của panel tỷ trọng ngành.
 
-Bốn trạng thái, mỗi trạng thái là một ca kiểm thử:
+Năm trạng thái, mỗi trạng thái là một ca kiểm thử:
 
 | Trạng thái | Hiển thị |
 |---|---|
-| `Full`, trong trần | σ trước → sau, ngân sách, MCR vs tỷ trọng vốn, trần, viền xanh |
+| `Full`, trong trần | σ trước → sau, ngân sách, MCR vs tỷ trọng vốn, trần, viền xám |
 | `Full`, vượt trần | như trên, viền đỏ, nút **Dùng {trần}** điền thẳng vào ô khối lượng |
 | `Partial` | như trên kèm dòng nêu tên mã bị chỉnh và số quan sát bị loại |
-| `Insufficient` | chỉ một dòng nêu mã thiếu lịch sử. **Không hiện con số nào.** |
+| `Insufficient`, thiếu lịch sử thật | một dòng nêu mã thiếu. **Không hiện con số nào.** |
+| `Insufficient`, nguồn giá lỗi | dòng màu hổ phách "Chưa **lấy** được lịch sử giá cho …". Câu khác hẳn dòng trên |
 
 Trạng thái `Insufficient` không được im lặng biến mất — panel rỗng đọc thành "không có vấn đề gì", tức là kết luận ngược với sự thật.
 
@@ -352,7 +371,7 @@ Một test ghim rằng đường lấy lịch sử của tính năng này dùng 
 
 ### 6.4 Frontend (Karma)
 
-Bốn trạng thái panel ở §4.9, mỗi trạng thái một spec. Cộng: nút áp trần điền đúng giá trị vào ô khối lượng; hoãn 500ms không bắn một lần gọi cho mỗi phím.
+Năm trạng thái panel ở §4.10, mỗi trạng thái một spec. Cộng: nút áp trần điền đúng giá trị vào ô khối lượng; hoãn 500ms không bắn một lần gọi cho mỗi phím.
 
 Lưu ý dự án: không có `zone.js/testing`, nên test hoãn dùng `done` + `setTimeout` thật.
 
@@ -394,8 +413,18 @@ Frontier khi đó không còn là lời tiên tri về thị trường, mà là 
 
 ## 9. Câu hỏi còn mở
 
-| # | Câu hỏi | Ảnh hưởng |
+| # | Câu hỏi | Trạng thái |
 |---|---|---|
-| M1 | Chân trời một tháng ở §4.4 là suy luận từ dữ liệu, không phải điều người dùng từng phát biểu. Có đúng ý không? | Đổi chân trời là đổi toàn bộ độ chặt của trần |
-| M2 | Khi danh mục đã vượt ngân sách, có nên gợi ý khối lượng bán bớt để quay lại trong ngân sách? | Thêm phạm vi; V1 hiện chỉ báo trạng thái |
-| M3 | Có nên áp cùng panel này cho lệnh **bán** (giảm vị thế thường làm giảm rủi ro, nhưng không phải luôn luôn)? | V1 giả định hướng Mua |
+| M1 | Chân trời một tháng ở §4.4 là suy luận từ dữ liệu, không phải điều người dùng từng phát biểu | **Đã có dữ liệu thật, chưa quyết.** Xem dưới |
+| M2 | Khi danh mục đã vượt ngân sách, có nên gợi ý khối lượng bán bớt để quay lại trong ngân sách? | Còn mở. V1 chỉ báo trạng thái |
+| M3 | Có nên áp cùng panel này cho lệnh **bán**? | **Đã chốt: không.** Phép chiếu giả định lệnh mua nên sẽ báo rủi ro tăng đúng lúc lệnh bán làm giảm. Đường bán không gọi, cả trên web lẫn MCP |
+
+**M1 — số đo trên danh mục thật (QA 2026-08-12).** Danh mục kiểm thử có **một mã** (HHV), σ = 24,76%/năm. Với ngưỡng sụt giảm mặc định 10% ⇒ ngân sách 21,06% ⇒ **luôn** ở nhánh "đã vượt ngân sách, trần 0", trước khi mua bất cứ thứ gì. Phải nâng ngưỡng lên 13% (ngân sách 27,38%) mới ra trần hữu hạn.
+
+Đây không phải lỗi cài đặt — danh mục một mã **thật sự** rủi ro hơn ngân sách 21%. Nhưng hệ quả thực dụng là người dùng mới, với giá trị mặc định, sẽ không bao giờ nhìn thấy con số trần. Ba hướng, chưa chọn:
+
+1. Nâng mặc định `MaxDrawdownAlertPercent` từ 10% lên ~13%. Rẻ nhất, nhưng đổi cả ngưỡng cảnh báo sụt giảm vốn có mục đích riêng.
+2. Rút chân trời từ 21 phiên xuống ~15 phiên (10% ⇒ ngân sách ~25%). Không đụng cấu hình nào, nhưng con số 15 lại càng khó biện minh hơn 21.
+3. Tách `MaxPortfolioVolatilityPercent` thành trường riêng — chính là điều Đ3 cố ý tránh. Đổi lại, một trường thôi điều khiển hai thứ là cái giá đang phải trả.
+
+Quyết sau 2–4 tuần dùng thật, đúng như Đ3 đã hẹn.

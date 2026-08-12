@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-11
-- **Related plan:** `docs/plans/volatility-budget-plan-sizing.md`
+- **Related plan:** `docs/plans/done/volatility-budget-plan-sizing.md`
 - **Affected layers:** Application / Infrastructure / Api / Frontend
 
 ## Context
@@ -75,10 +75,13 @@ Hai quyết định kèm theo:
 **Negative / Trade-offs:**
 
 - **`MaxDrawdownAlertPercent` giờ có hai nghĩa.** Risk-dashboard đọc nó theo nghĩa cũ ("báo khi tôi xuống 10% từ đỉnh"); tính năng này đọc nó là *ngưỡng lỗ ở mức tin cậy 95% trong 21 phiên*, quy ra ngân sách σ năm qua `MaxDD / (1,645 × √(21/252))`. Hai cách đọc cùng hướng — đặt thấp là thận trọng ở cả hai nơi — nhưng người đọc code sau này sẽ không tự suy ra được vì sao chia cho hằng số đó. Đây là lý do ADR này tồn tại.
-- **Chân trời 21 phiên là suy ngược từ dữ liệu, không phải từ ý định người dùng.** Nếu diễn giải theo năm, giá trị mặc định 10% cho ngân sách 6,1%/năm trong khi danh mục 7 mã thật đo được 19,4%/năm — trần sẽ luôn bằng 0 và panel thành tiếng ồn ngay ngày đầu. Chọn 21 phiên vì nó cho 21,1%/năm, sát mức thật nên trần thỉnh thoảng mới chạm. Con số này cần xem lại sau vài tuần dùng thật.
+- **Chân trời 21 phiên là suy ngược từ dữ liệu, không phải từ ý định người dùng.** Nếu diễn giải theo năm, giá trị mặc định 10% cho ngân sách 6,1%/năm trong khi danh mục 7 mã thật đo được 19,4%/năm — trần sẽ luôn bằng 0 và panel thành tiếng ồn ngay ngày đầu. Chọn 21 phiên vì nó cho 21,1%/năm, sát mức thật nên trần thỉnh thoảng mới chạm.
+
+  Đo lại trên danh mục thật (QA 2026-08-12) cho thấy 21,1% vẫn **chưa đủ rộng cho danh mục tập trung**: một danh mục **một mã** có σ = 24,76%/năm nên luôn ở nhánh "đã vượt ngân sách, trần 0" trước khi mua gì; phải nâng ngưỡng lên 13% (ngân sách 27,38%) mới ra trần hữu hạn. Con số 19,4% dùng để chọn 21 phiên là của rổ **7 mã** — đúng cho danh mục đã đa dạng hoá, quá chặt cho danh mục mới. Ba hướng xử lý ghi trong §9 spec; chưa chọn.
 - Vẫn tạo được lệnh vượt trần. Cảnh báo chỉ là chữ, giống ADR-0012.
 - Bộ lọc 15% **không** dựng lại giá đúng, chỉ bỏ quan sát. Mã có sự kiện quyền mất một quan sát trong cửa sổ vốn đã chỉ 65 — chấp nhận, vì thay thế là xây đường điều chỉnh giá cho mọi mã trên sàn.
-- Chỉ lệnh MUA, giống ADR-0012 §Phạm vi. Lệnh bán không gọi endpoint.
+- Chỉ lệnh MUA, giống ADR-0012 §Phạm vi. Lệnh bán không gọi endpoint, cả trên web lẫn MCP.
+- `create_trade_plan` (MCP) nay tự truy vấn trần và nối cảnh báo vào chuỗi trả về. Cần thiết vì một tool read-only riêng cộng lời dặn "gọi trước" đặt trên chính nó **không phải cơ chế** — agent đi thẳng vào tạo kế hoạch sẽ không thấy gì. Đổi lại: mỗi lần tạo kế hoạch Mua có gắn danh mục tốn thêm một truy vấn, và chuỗi trả về không còn thuần là id.
 - Ước lượng Σ từ 65 quan sát có sai số thật. Panel hiện số quan sát để người dùng tự chiết khấu độ tin cậy.
 
 **Follow-ups (if any):**
@@ -91,7 +94,8 @@ Hai quyết định kèm theo:
 
 ## References
 
-- Spec: `docs/superpowers/specs/2026-08-11-efficient-frontier-plan-sizing-design.md`
-- Plan: `docs/plans/volatility-budget-plan-sizing.md`
+- Spec: `docs/superpowers/specs/done/2026-08-11-efficient-frontier-plan-sizing-design.md`
+- Plan: `docs/plans/done/volatility-budget-plan-sizing.md`
 - ADR liên quan: [ADR-0012](0012-sector-concentration-display-only.md) — nguyên lý "nguồn dữ liệu quyết định quyền chặn" mà ADR này kế thừa; [ADR-0011](0011-company-dossier-gate-at-plan-creation.md) — cổng chặn duy nhất, cố ý không nhân bản; [ADR-0010](0010-corporate-actions-position-projection.md) — `PositionBuilder` là nguồn duy nhất của toán vị thế, tính năng này gọi lại qua `GetPortfolioRiskSummaryAsync` thay vì tự dựng
-- PR: #XX (điền sau khi merge)
+- PR: [#162](https://github.com/XcodeFi/invest-mate-v2/pull/162)
+- QA verify: `scratch/qa-reports/qa-verify-volatility-budget-sizing-20260812-0252z.md` (localhost trỏ DB prod; PR chưa merge nên prod chưa có tính năng)
