@@ -416,7 +416,7 @@ builder.Services.AddSingleton(new SchedulerEmailAllowlist(
 // MCP server — expose the agent surface as schema-typed tools over streamable HTTP.
 // Stateless: no cross-instance session state (survives Cloud Run multi-instance scaling).
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddMcpServer()
+builder.Services.AddMcpServer(InvestmentApp.Api.Mcp.McpErrorTranslator.Configure)
     .WithHttpTransport(options => options.Stateless = true)
     .WithToolsFromAssembly();   // scans [McpServerToolType] classes in this assembly
 

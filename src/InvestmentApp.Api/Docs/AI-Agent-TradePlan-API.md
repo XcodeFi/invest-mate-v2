@@ -47,6 +47,11 @@ Enums scenario: `conditionType ∈ {PriceAbove,PriceBelow,PricePercentChange,Tra
 `actionType ∈ {SellPercent,SellAll,MoveStopLoss,MoveStopToBreakeven,ActivateTrailingStop,AddPosition,SendNotification}`;
 `trailingStopConfig.method ∈ {Percentage,ATR,FixedAmount}`.
 
+Các tập giá trị trên **cũng nằm trong `inputSchema` của tool MCP** (mảng `enum`), nên client MCP không cần
+đọc tài liệu này mới gọi đúng — tài liệu chỉ dành cho người. `scenarioNodes[].actionType` và
+`scenarioNodes[].conditionType` **bắt buộc**, không có giá trị mặc định; `trailingStopConfig.method` bỏ
+trống hoặc `null` thì về `Percentage`. Lưu ý `exitTargets[].actionType` là **tập giá trị khác** dù trùng tên.
+
 Ví dụ tối thiểu:
 ```json
 { "symbol":"VNM","direction":"Buy","entryPrice":50,"stopLoss":47,"target":60,"quantity":100,

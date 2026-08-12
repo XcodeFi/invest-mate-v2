@@ -125,7 +125,7 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
 
         var invalidationCriteria = request.InvalidationCriteria?.Select(r => new InvalidationRule
         {
-            Trigger = Enum.Parse<InvalidationTrigger>(r.Trigger, ignoreCase: true),
+            Trigger = r.Trigger ?? InvalidationTrigger.Manual,
             Detail = r.Detail,
             CheckDate = r.CheckDate,
             IsTriggered = r.IsTriggered,
@@ -165,7 +165,7 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
             var targets = request.ExitTargets.Select(e => new ExitTarget
             {
                 Level = e.Level,
-                ActionType = Enum.Parse<ExitActionType>(e.ActionType, ignoreCase: true),
+                ActionType = e.ActionType ?? ExitActionType.TakeProfit,
                 Price = e.Price,
                 Quantity = e.Quantity,
                 PercentOfPosition = e.PercentOfPosition,
@@ -180,7 +180,9 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
             var mode = Enum.Parse<ExitStrategyMode>(request.ExitStrategyMode, ignoreCase: true);
             plan.SetExitStrategyMode(mode);
         }
-        if (request.ScenarioNodes != null && plan.ExitStrategyMode == ExitStrategyMode.Advanced)
+        // Không lọc theo chế độ ở đây: SetScenarioNodes đã có luật "Simple thì không nhận node".
+        // Thêm vế lọc khiến luật đó không bao giờ chạy tới, nodes rơi im lặng mà tool trả "ok".
+        if (request.ScenarioNodes != null)
         {
             var nodes = request.ScenarioNodes.Select(CreateTradePlanCommandHandler.MapToScenarioNode).ToList();
             plan.SetScenarioNodes(nodes);

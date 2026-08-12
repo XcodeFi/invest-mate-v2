@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
+using InvestmentApp.Domain.Entities;
 using MediatR;
 
 namespace InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -46,7 +48,7 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
         Notes = p.Notes,
         InvalidationCriteria = p.InvalidationCriteria?.Select(r => new InvalidationRuleDto
         {
-            Trigger = r.Trigger.ToString(),
+            Trigger = r.Trigger,
             Detail = r.Detail,
             CheckDate = r.CheckDate,
             IsTriggered = r.IsTriggered,
@@ -74,7 +76,7 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             PlannedQuantity = l.PlannedQuantity,
             AllocationPercent = l.AllocationPercent,
             Label = l.Label,
-            Status = l.Status.ToString(),
+            Status = l.Status,
             ActualPrice = l.ActualPrice,
             ExecutedAt = l.ExecutedAt,
             TradeId = l.TradeId
@@ -82,7 +84,7 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
         ExitTargets = p.ExitTargets?.Select(e => new ExitTargetDto
         {
             Level = e.Level,
-            ActionType = e.ActionType.ToString(),
+            ActionType = e.ActionType,
             Price = e.Price,
             Quantity = e.Quantity,
             PercentOfPosition = e.PercentOfPosition,
@@ -105,21 +107,21 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             ParentId = n.ParentId,
             Order = n.Order,
             Label = n.Label,
-            ConditionType = n.ConditionType.ToString(),
+            ConditionType = n.ConditionType,
             ConditionValue = n.ConditionValue,
             ConditionNote = n.ConditionNote,
-            ActionType = n.ActionType.ToString(),
+            ActionType = n.ActionType,
             ActionValue = n.ActionValue,
             TrailingStopConfig = n.TrailingStopConfig != null ? new TrailingStopConfigDto
             {
-                Method = n.TrailingStopConfig.Method.ToString(),
+                Method = n.TrailingStopConfig.Method,
                 TrailValue = n.TrailingStopConfig.TrailValue,
                 ActivationPrice = n.TrailingStopConfig.ActivationPrice,
                 StepSize = n.TrailingStopConfig.StepSize,
                 CurrentTrailingStop = n.TrailingStopConfig.CurrentTrailingStop,
                 HighestPrice = n.TrailingStopConfig.HighestPrice
             } : null,
-            Status = n.Status.ToString(),
+            Status = n.Status,
             TriggeredAt = n.TriggeredAt,
             TradeId = n.TradeId
         }).ToList(),
@@ -219,7 +221,10 @@ public class PlanLotDto
     public int PlannedQuantity { get; set; }
     public decimal? AllocationPercent { get; set; }
     public string? Label { get; set; }
-    public string Status { get; set; } = "Pending";
+
+    [Description("Trạng thái lô (bỏ trống = Pending).")]
+    public PlanLotStatus Status { get; set; } = PlanLotStatus.Pending;
+
     public decimal? ActualPrice { get; set; }
     public DateTime? ExecutedAt { get; set; }
     public string? TradeId { get; set; }
@@ -228,7 +233,12 @@ public class PlanLotDto
 public class ExitTargetDto
 {
     public int Level { get; set; }
-    public string ActionType { get; set; } = "TakeProfit";
+
+    [Description("Hành động tại mốc. TakeProfit = chốt lời; CutLoss = cắt lỗ; " +
+                 "TrailingStop = chuyển sang trailing; PartialExit = thoát một phần. Bắt buộc. " +
+                 "Lưu ý: tập giá trị này KHÁC với actionType của scenarioNodes.")]
+    public ExitActionType? ActionType { get; set; }
+
     public decimal Price { get; set; }
     public int? Quantity { get; set; }
     public decimal? PercentOfPosition { get; set; }
@@ -246,27 +256,47 @@ public class StopLossHistoryDto
     public DateTime ChangedAt { get; set; }
 }
 
+/// <summary>
+/// Kiểu enum thật, không phải chuỗi: SDK sinh ra mảng "enum" trong inputSchema nên agent —
+/// vốn chỉ thấy MCP và không đọc tài liệu — biết được tập giá trị hợp lệ ngay ở tools/list.
+/// </summary>
 public class ScenarioNodeDto
 {
     public string NodeId { get; set; } = null!;
     public string? ParentId { get; set; }
     public int Order { get; set; }
     public string Label { get; set; } = string.Empty;
-    public string ConditionType { get; set; } = "PriceAbove";
+
+    [Description("Điều kiện kích hoạt nhánh. PriceAbove/PriceBelow so với conditionValue (VND); " +
+                 "PricePercentChange so với giá vào (%); TimeElapsed tính theo số ngày. Bắt buộc.")]
+    public ScenarioConditionType? ConditionType { get; set; }
+
     public decimal? ConditionValue { get; set; }
     public string? ConditionNote { get; set; }
-    public string ActionType { get; set; } = "SellPercent";
+
+    [Description("Hành động khi điều kiện chạm. SellPercent = bán actionValue% vị thế; " +
+                 "SellAll = bán toàn bộ; MoveStopLoss = dời cắt lỗ tới actionValue (VND); " +
+                 "MoveStopToBreakeven = dời cắt lỗ về giá hòa vốn; " +
+                 "ActivateTrailingStop = bật trailing theo trailingStopConfig; " +
+                 "AddPosition = mua thêm actionValue% vị thế; SendNotification = chỉ báo, không lệnh. " +
+                 "Bắt buộc — không có giá trị mặc định.")]
+    public ScenarioActionType? ActionType { get; set; }
+
     public decimal? ActionValue { get; set; }
     public TrailingStopConfigDto? TrailingStopConfig { get; set; }
-    public string Status { get; set; } = "Pending";
+    public ScenarioNodeStatus Status { get; set; } = ScenarioNodeStatus.Pending;
     public DateTime? TriggeredAt { get; set; }
     public string? TradeId { get; set; }
 }
 
 public class TrailingStopConfigDto
 {
-    public string Method { get; set; } = "Percentage";
+    [Description("Cách tính khoảng trailing (bỏ trống = Percentage).")]
+    public TrailingStopMethod? Method { get; set; }
+
+    [Description("Độ rộng trailing: % nếu Method=Percentage, số lần ATR nếu ATR, VND nếu FixedAmount.")]
     public decimal TrailValue { get; set; }
+
     public decimal? ActivationPrice { get; set; }
     public decimal? StepSize { get; set; }
     public decimal? CurrentTrailingStop { get; set; }

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using FluentValidation.TestHelper;
+using InvestmentApp.Domain.Entities;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 
@@ -73,7 +74,7 @@ public class UpdateTradePlanCommandValidatorTests
         var cmd = MinimalCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = "", CheckDate = null }
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = "", CheckDate = null }
         };
 
         var result = _validator.TestValidate(cmd);
@@ -87,7 +88,7 @@ public class UpdateTradePlanCommandValidatorTests
         var cmd = MinimalCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = "ngắn" }
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = "ngắn" }
         };
 
         var result = _validator.TestValidate(cmd);
@@ -101,7 +102,7 @@ public class UpdateTradePlanCommandValidatorTests
         var cmd = MinimalCommand();
         cmd.InvalidationCriteria = new List<InvalidationRuleDto>
         {
-            new() { Trigger = "EarningsMiss", Detail = new string('a', 20) }
+            new() { Trigger = InvalidationTrigger.EarningsMiss, Detail = new string('a', 20) }
         };
 
         var result = _validator.TestValidate(cmd);
