@@ -1,7 +1,7 @@
 # Handoff 2026-08-12 — Tiền bán chờ về T+2
 
 **Nhánh:** `feature/t2-settlement-pending-cash` (tách từ `origin/master` tại `dacf311`, chưa có upstream)
-**Trạng thái:** Task 1-3 đã thi hành xong, test xanh. Chưa push, chưa PR.
+**Trạng thái:** Task 1-11 XONG HẾT. PR [#165](https://github.com/XcodeFi/invest-mate-v2/pull/165) đã mở, chưa merge.
 
 ## Đã xong
 
@@ -15,34 +15,19 @@
 
 Cả bộ backend: **2015 pass / 0 fail**, đủ 4 project.
 
-## Vào lại từ đâu
+## Vào lại từ đâu — 3 việc treo trước khi merge #165
 
-**Task 4** (controller JWT + sibling ApiKey + 3 tool MCP + test ngang giá), rồi **Task 5** (script seed 12 ngày nghỉ 2026). Hết Task 5 là đủ Mốc 1 → chạy `/code-review` rồi mới push + PR.
+1. **`/qa-verify` trên browser chưa chạy.** Mở `/dashboard` + `/capital-flows`, xác nhận dòng `trong đó X ₫ chờ về — dự kiến DD/MM` hiển thị đúng tiếng Việt có dấu và số khớp. Cần có lệnh SELL trong 2 phiên gần nhất để dòng đó hiện; không có thì ghi lệnh thử trên dev, chụp, rồi xoá.
+2. **Script seed chưa chạy trên môi trường nào.** `mongosh "<conn>/<db>" --eval 'var USER_ID="<userId>"' scripts/migrations/2026-08-12-market-closures-2026.mongo.js`. Chưa nhập thì T+2 chỉ bỏ T7/CN, tức tính thiếu ngày nghỉ lễ.
+3. **Re-review diff bản vá cuối** (`1c161fa`): 1 điều kiện null + 2 chỗ `.slice(0, 10)` + test.
 
-Đọc trước khi làm Task 4: `src/InvestmentApp.Api/Mcp/PortfolioTools.cs`, `src/InvestmentApp.Api/Controllers/AiAgentPortfoliosController.cs`, và `tests/InvestmentApp.Api.Tests/Mcp/McpTestContext.cs` (lấy đúng tên helper dựng `IHttpContextAccessor`).
+## Kết quả
 
-Task 6-11 (SettlementCalculator, DTO, hero card, cảnh báo lệnh mua, bản tin AI, ADR + tài liệu) để phiên sau. Xem mục Checkpoint trong plan để biết 3 chỗ đã lệch khỏi plan khi thi hành.
+- **17+1 commit.** Backend **2061 pass / 0 fail** (4 project). Frontend **373 pass / 0 fail**. `npm run build` 0 error.
+- Hai vòng code review, **4 finding thật đã vá**. Chi tiết trong body PR #165.
+- Bài học đã lưu: tool MCP phải khai vào `ReadTools`/`WriteTools` + `Destructive = true`; `DateTime?` trên dây là ISO có giờ nên FE cắt chuỗi phải `slice(0,10)`.
 
-## Bốn quyết định đã chốt, đừng mở lại
+## Hai chỗ tiền đề sai bị bắt trong phiên (đáng nhớ)
 
-1. **Không sửa `PortfolioCashCalculator`** — ADR-0007 ghim nó, `CashFlowAdjustedReturnService` dùng chung, đổi là lệch TWR. Thêm đại lượng `PendingSettlementCash` riêng, số tổng giữ nguyên.
-2. **Lịch nghỉ trong DB, nhập theo từng ngày** — một bản ghi cho một ngày, gửi được cả mảng, xoá được từng ngày. T7/CN không lưu, suy ra từ `DayOfWeek`. Không có khái niệm "bảng theo năm".
-3. **Cửa sổ ghi lệnh MUA chỉ cảnh báo, không chặn** — form ghi lệnh đã khớp; chặn cứng thì không ghi được lệnh thật dùng dịch vụ ứng trước tiền bán. Phải dùng field `settlementWarning` riêng, **không** nhồi vào `quantityError` (chuỗi đó chặn lưu).
-4. **Ngoài phạm vi:** cổ phiếu mua chờ về T+2; `RiskCalculationService`/`SnapshotService` (dùng `− TotalInvested`, vốn dĩ không cộng tiền bán).
-
-## Hai con số đã đối chiếu nguồn ngoài
-
-- Lịch nghỉ HOSE 2026 = **12 phiên**: 01/01 · 16–20/02 · 27/04 · 30/04–01/05 · 31/08–02/09.
-- Golden test lấy từ thông báo HOSE: giao dịch **12/02/2026 → thanh toán 23/02**, **13/02 → 24/02**. Quy tắc "+2 phiên giao dịch" khớp chính xác.
-
-## Cần biết khi thi hành
-
-- `Application/Common/VietnamDate.cs` đã có sẵn — Task 6 chỉ thêm `Today(utcNow)`. Đừng viết lại helper múi giờ; `GetPendingThesisReviewsQuery` đang tự tra `TimeZoneInfo` là code có trước, không sửa.
-- Khuôn idempotent-upsert dùng lại `MoodCheckInRepository`: unique index **có tên** + phân biệt `DuplicateKey` theo tên index.
-- Tool MCP tự nạp qua `.WithToolsFromAssembly()` ở `Program.cs:426`, không đăng ký tay. Tham số optional phải nằm **sau** `ct` và có `= null`.
-- `dotnet test` âm thầm bỏ project có DLL bị khoá mà tổng vẫn báo Passed — đếm số project trong output sau mỗi lần chạy.
-
-## Chưa làm, có chủ ý
-
-- Chưa push, chưa PR.
-- Hai file untracked của phiên khác, **không** stage: `.claude/settings.json`, `docs/superpowers/specs/2026-08-12-thesis-review-action-design.md`.
+1. Review vòng 1 báo lỗi **500 NullReference** cho body thiếu `dates`. Kiểm lại: `Enumerable.Select` trên null ném `ArgumentNullException`, kế thừa `ArgumentException`, và `ExceptionMiddleware` map sang **400**. Chưa từng có 500 — validator vẫn giữ nhưng vì lý do khác (thân lỗi nói rõ thiếu gì). Đã sửa lại comment/tên test viết theo lý do sai.
+2. Test `ThrowAsync` không `await` trong method `void` → assertion fire-and-forget, không bao giờ đỏ được. Chính nó che luôn tiền đề sai ở trên.
