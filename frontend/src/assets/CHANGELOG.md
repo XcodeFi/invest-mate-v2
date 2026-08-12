@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.81.0] — 2026-08-12 · Lỗi tự báo về điện thoại
+
+### Kỹ thuật
+
+**🔔 Lỗi production bắn thẳng về Telegram.** Trước đây app hỏng thì phải tự phát hiện — hoặc tệ hơn, không phát hiện. Giờ lỗi hệ thống ở cả máy chủ lẫn trình duyệt đều tự nhắn về một kênh riêng tư trong khoảng 15 giây, kèm mã người dùng, đường dẫn và stack trace.
+
+**🤫 Chỉ báo lỗi thật.** Người dùng gõ sai form, tìm mã không tồn tại, hay bị từ chối quyền — những cái đó **không** báo. Chỉ lỗi từ 500 trở lên mới nhắn. Một kênh báo cả lỗi nhập liệu sẽ bị tắt sau vài ngày, và lúc đó còn tệ hơn không có vì cứ tưởng mình đang được giám sát.
+
+**🔒 Không đặt token trong mã nguồn.** Chưa cấu hình thì app chạy bình thường, chỉ in một dòng cảnh báo lúc khởi động và không bắn gì. Frontend cũng không tự gọi Telegram — nó đẩy lỗi về máy chủ, vì mọi khoá đặt trong bundle JS đều đọc được.
+
+---
+
 ## [v2.81.0] — 2026-08-12 · Mã này mua được tối đa bao nhiêu
 
 ### Tính năng

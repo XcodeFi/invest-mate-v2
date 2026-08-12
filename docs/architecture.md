@@ -596,3 +596,27 @@ Feature cho phép non-interactive API access (e.g., local NPU assistant pulling 
 | `AiDigestController` | `/api/v1/ai/daily-digest` | Read-only — daily digest context |
 | `AiAgentController` | `/api/v1/ai/agent` | **Curated write** — lập/sửa/thực-hiện trade plans + ghi trade; IDOR-safe (ownership assert trên mọi command). `POST trades` auto-resolve `portfolioId` (auto-pick khi 1 danh mục) + `fee`/`tax` (tự tính khi bỏ trống) — ADR-0005 |
 | `AiAgentPortfoliosController` / `AiAgentFeesController` | `/api/v1/ai/agent/{portfolios,fees/calculate}` | **Agent self-service (ADR-0005)** — `GET portfolios` (mirror GetAllPortfoliosQuery) + `POST fees/calculate` (mirror FeesController, inject IFeeCalculationService). Giúp agent lấy portfolioId + tính phí/thuế trước khi ghi trade |
+
+## Bắn lỗi về Telegram (2026-08-12)
+
+Lỗi mức `Error`/`Fatal` của backend và lỗi chưa bắt được của frontend đi về **một** kênh Telegram riêng tư trong ~15 giây. Thuận theo `p12-slice-1-2-telegram-error-logging.md` của dự án co-356, đã sửa cho khớp dự án này — bảng đối chiếu 7 điểm lệch nằm trong [`docs/plans/done/p1-telegram-error-logging.md`](plans/done/p1-telegram-error-logging.md).
+
+| Thành phần | Vai trò |
+|---|---|
+| `Api/Logging/LogContextEnrichers.cs` | `UserIdEnricher` (claim `sub`, KHÔNG lấy email) + `RequestPathEnricher` (method + path, **không** query string, **không** body). Cả hai bọc try/catch — đường ghi log không bao giờ được ném |
+| `Program.cs` → `ConfigureTelegramSink` | Chỉ đăng ký sink khi token **đã resolve**. `Serilog.Debugging.SelfLog` bật ra stderr |
+| `Api/Controllers/ClientLogsController.cs` | `POST /api/v1/client-logs`, `[Authorize]`. `UserId` gán từ JWT, không nhận từ body |
+| `Application/ClientLogs/Commands/RecordClientLog/` | Command + validator (blocklist tên trường) + handler (cắt stack ≤ 1000, chỉ dùng placeholder có tên) |
+| `frontend/.../core/services/error-logger.service.ts` | Dựng payload, **tự gắn `Authorization`** (dự án không có global auth interceptor), POST bắn-và-quên nuốt lỗi |
+| `frontend/.../core/error/global-error-handler.ts` | Luôn `console.error`; chỉ gửi khi `environment.production` |
+
+**Bốn quyết định đáng nhớ:**
+
+- **Frontend không gọi Telegram trực tiếp.** Bot token sẽ nằm trong bundle JS mà ai cũng đọc được. Nó POST về backend, Serilog mới chuyển tiếp.
+- **Guard cấu hình phải kiểm cả placeholder chưa thay.** `appsettings.json` giữ `{Telegram__BotToken}` theo quy ước dự án, mà chuỗi đó **không rỗng** — chỉ kiểm `IsNullOrWhiteSpace` là sink vẫn đăng ký rồi gọi Telegram bằng chính chuỗi placeholder làm token, hỏng mọi lần và không ai biết. Dùng `IsConfigured()`: rỗng **hoặc** bắt đầu bằng `{` đều coi là chưa cấu hình.
+- **4xx ghi mức `Warning`, chỉ 5xx mới `Error`** (`ExceptionMiddleware`). Trước bản này mọi exception đều `LogError`, nên một người dùng gõ sai form cũng đẩy một tin nhắn kèm stack trace vào kênh cảnh báo. Mức log bám theo **lớp mã trạng thái** — dùng lại đúng phép ánh xạ đã trả lời client, nên hai chỗ không thể lệch nhau.
+- **Mốc thời gian theo giờ máy, không tự quy đổi trong code.** Cloud Run chạy UTC nên `cloudbuild.yaml` đặt `TZ=Asia/Ho_Chi_Minh`. Tự quy đổi riêng cho Telegram sẽ khiến Telegram một giờ, console và file một giờ khác — lúc đối chiếu sự cố mới là thứ tốn thời gian nhất.
+
+**Giới hạn phải biết:** blocklist tên trường chỉ bảo vệ đường relay từ trình duyệt. Exception backend đi thẳng ra Telegram **nguyên văn `Message` + stack**, và nhiều exception trong dự án nội suy định danh vào message. Đây là đánh đổi có ý thức — lọc chúng đi là vứt bỏ đúng thứ kênh này sinh ra để bắt. Hệ quả: quy ước **chỉ log ID mờ, không log giá trị tiền hay khối lượng** áp cho toàn bộ codebase.
+
+**Còn nợ:** `SuppressModelStateInvalidFilter = true` nghĩa là body hỏng bind ra `null` chứ không tự thành 400. `ClientLogsController` đã chặn, nhưng còn ~30 controller khác cùng phơi — mỗi cái là một đường để request méo thành 500 và bắn tin nhắn. Nên xử lý bằng một action filter dùng chung thay vì vá từng nơi.

@@ -7,6 +7,7 @@ using FluentValidation.Results;
 using InvestmentApp.Api.Middleware;
 using InvestmentApp.Application.CompanyDossiers.Gate;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InvestmentApp.Api.Tests.Middleware;
@@ -151,5 +152,94 @@ public class ExceptionMiddlewareTests
     {
         var (status, _) = await InvokeAsync(toThrow);
         status.Should().Be(expectedStatus);
+    }
+}
+
+/// <summary>
+/// Mức log quyết định lỗi nào bắn ra Telegram: sink chỉ lấy từ Error trở lên.
+///
+/// Trước bản sửa, mọi exception đều `LogError`, nên một người dùng gõ sai form cũng đẩy một
+/// tin nhắn kèm nguyên stack trace vào kênh cảnh báo. Một kênh báo cả lỗi nhập liệu sẽ bị tắt
+/// sau vài ngày — và lúc đó còn tệ hơn không có, vì ta tưởng mình đang được giám sát.
+/// </summary>
+public class ExceptionMiddlewareLogLevelTests
+{
+    private sealed class CapturingLogger : ILogger<ExceptionMiddleware>
+    {
+        public readonly List<LogLevel> Levels = new();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) => Levels.Add(logLevel);
+    }
+
+    private static async Task<(int Status, List<LogLevel> Levels)> InvokeAsync(Exception toThrow)
+    {
+        var logger = new CapturingLogger();
+        var middleware = new ExceptionMiddleware(_ => throw toThrow, logger);
+        var ctx = new DefaultHttpContext();
+        ctx.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(ctx);
+
+        return (ctx.Response.StatusCode, logger.Levels);
+    }
+
+    [Fact]
+    public async Task ValidationException_ghi_muc_Warning_chu_khong_phai_Error()
+    {
+        var ex = new ValidationException(new[] { new ValidationFailure("Message", "sai rồi") });
+
+        var (status, levels) = await InvokeAsync(ex);
+
+        status.Should().Be(400);
+        levels.Should().NotContain(LogLevel.Error);
+        levels.Should().Contain(LogLevel.Warning);
+    }
+
+    [Theory]
+    [InlineData(typeof(UnauthorizedAccessException), 401)]
+    [InlineData(typeof(KeyNotFoundException), 404)]
+    [InlineData(typeof(ArgumentException), 400)]
+    [InlineData(typeof(InvalidOperationException), 409)]
+    public async Task Moi_loi_4xx_deu_la_Warning(Type exceptionType, int expectedStatus)
+    {
+        var ex = (Exception)Activator.CreateInstance(exceptionType, "lỗi phía người gọi")!;
+
+        var (status, levels) = await InvokeAsync(ex);
+
+        status.Should().Be(expectedStatus);
+        levels.Should().NotContain(LogLevel.Error);
+    }
+
+    [Fact]
+    public async Task Loi_5xx_van_ghi_muc_Error_de_bay_len_Telegram()
+    {
+        // Đây mới là thứ kênh cảnh báo sinh ra để bắt — không được im.
+        var (status, levels) = await InvokeAsync(new NotSupportedException("hỏng thật"));
+
+        status.Should().Be(500);
+        levels.Should().Contain(LogLevel.Error);
+    }
+}
+
+/// <summary>
+/// `SuppressModelStateInvalidFilter = true` trong Program.cs nghĩa là body hỏng KHÔNG tự thành 400
+/// — nó bind ra null. Controller không chặn thì thành NullReferenceException, tức 500, tức một
+/// request méo cũng đủ đẩy một tin nhắn vào kênh cảnh báo.
+/// </summary>
+public class ClientLogsControllerNullBodyTests
+{
+    [Fact]
+    public async Task Body_null_tra_400_chu_khong_no_thanh_500()
+    {
+        var controller = new InvestmentApp.Api.Controllers.ClientLogsController(
+            new Moq.Mock<MediatR.IMediator>().Object);
+
+        var result = await controller.Record(null, default);
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.BadRequestObjectResult>();
     }
 }
