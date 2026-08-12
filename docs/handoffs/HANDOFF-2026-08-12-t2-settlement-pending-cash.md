@@ -1,20 +1,27 @@
 # Handoff 2026-08-12 — Tiền bán chờ về T+2
 
 **Nhánh:** `feature/t2-settlement-pending-cash` (tách từ `origin/master` tại `dacf311`, chưa có upstream)
-**Trạng thái:** spec + plan đã chốt và commit. **Chưa chạm một dòng code nào.**
+**Trạng thái:** Task 1-3 đã thi hành xong, test xanh. Chưa push, chưa PR.
 
 ## Đã xong
 
 | Commit | Nội dung |
 |---|---|
-| `aa21cfe` | Spec [`docs/superpowers/specs/2026-08-12-t2-settlement-pending-cash-design.md`](../superpowers/specs/2026-08-12-t2-settlement-pending-cash-design.md) |
-| `1c6252e` | Plan [`docs/superpowers/plans/2026-08-12-t2-settlement-pending-cash.md`](../superpowers/plans/2026-08-12-t2-settlement-pending-cash.md) — 11 task, TDD từng bước |
+| `aa21cfe` | Spec [`2026-08-12-t2-settlement-pending-cash-design.md`](../superpowers/specs/2026-08-12-t2-settlement-pending-cash-design.md) |
+| `1c6252e` | Plan [`2026-08-12-t2-settlement-pending-cash.md`](../superpowers/plans/2026-08-12-t2-settlement-pending-cash.md) — 11 task |
+| `ea1c440` | Task 1 — entity `MarketClosure` (4 test) |
+| `5be95fb` | Task 2 — `IMarketClosureRepository` + Mongo impl + DI |
+| `7a900af` | Task 3 — add/remove command + get query (7 test) |
+
+Cả bộ backend: **2015 pass / 0 fail**, đủ 4 project.
 
 ## Vào lại từ đâu
 
-Chạy `/ship` trên plan, **Mốc 1 = Task 1-5**: entity `MarketClosure` → repository → command/query → endpoint + 3 tool MCP → script seed 12 ngày nghỉ 2026. Mốc này tự chạy và tự kiểm được, không để lại nửa vời.
+**Task 4** (controller JWT + sibling ApiKey + 3 tool MCP + test ngang giá), rồi **Task 5** (script seed 12 ngày nghỉ 2026). Hết Task 5 là đủ Mốc 1 → chạy `/code-review` rồi mới push + PR.
 
-Task 6-11 (SettlementCalculator, DTO, hero card, cảnh báo lệnh mua, bản tin AI, ADR + tài liệu) để phiên sau.
+Đọc trước khi làm Task 4: `src/InvestmentApp.Api/Mcp/PortfolioTools.cs`, `src/InvestmentApp.Api/Controllers/AiAgentPortfoliosController.cs`, và `tests/InvestmentApp.Api.Tests/Mcp/McpTestContext.cs` (lấy đúng tên helper dựng `IHttpContextAccessor`).
+
+Task 6-11 (SettlementCalculator, DTO, hero card, cảnh báo lệnh mua, bản tin AI, ADR + tài liệu) để phiên sau. Xem mục Checkpoint trong plan để biết 3 chỗ đã lệch khỏi plan khi thi hành.
 
 ## Bốn quyết định đã chốt, đừng mở lại
 

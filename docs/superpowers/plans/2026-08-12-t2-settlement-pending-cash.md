@@ -1979,6 +1979,18 @@ git commit -m "docs: ADR-0016 tiền bán chờ về T+2, đồng bộ tài li�
 
 ---
 
+## Checkpoint — Task 1-3 (xong 2026-08-12)
+
+- **Đã làm:** Task 1 (entity `MarketClosure`), Task 2 (`IMarketClosureRepository` + Mongo impl + DI), Task 3 (add/remove command + get query).
+- **Commit:** `ea1c440` → `5be95fb` → `7a900af` trên `feature/t2-settlement-pending-cash`.
+- **Test:** 11 test mới (4 Domain + 7 Application). Cả bộ **2015 pass / 0 fail**, đủ 4 project.
+- **Tầng bị ảnh hưởng:** Domain, Application, Infrastructure, Api (chỉ 1 dòng DI).
+- **Lệch so với plan khi thi hành:**
+  - Chặn cuối tuần đặt ở **handler** (đếm `SkippedWeekend`) chứ không để entity ném — dán cả năm vào mà có một ngày T7 thì cả lô vỡ. Entity vẫn ném, giữ làm lớp chặn cuối.
+  - Thêm 3 ca test ngoài plan: ngày trùng trong cùng một lô chỉ ghi một lần; xoá ngày không tồn tại trả `false`; query truyền đúng biên 1/1–31/12.
+  - Sửa plan Task 7: mock thật tên `_portfolioRepo`/`_tradeRepo`/`_flowRepo`, và `Portfolio(userId, name, capital)` — **userId trước**. Plan cũ đoán sai cả hai.
+- **Next:** Task 4 (controller JWT + sibling ApiKey + 3 tool MCP + test ngang giá) rồi Task 5 (script seed 2026). Đọc trước: `src/InvestmentApp.Api/Mcp/PortfolioTools.cs`, `src/InvestmentApp.Api/Controllers/AiAgentPortfoliosController.cs`, và `tests/InvestmentApp.Api.Tests/Mcp/McpTestContext.cs` để lấy đúng tên helper dựng `IHttpContextAccessor`. Hết Task 5 là đủ Mốc 1 → chạy `/code-review` rồi mới push + PR.
+
 ## Verify trước khi mở PR
 
 1. `dotnet test` — PASS toàn bộ, **đếm số project** trong output cho khớp số project test có thật.
