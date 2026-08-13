@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
 import {
   DecisionAction,
@@ -23,9 +23,10 @@ import { MoveStopLossModalComponent } from '../../../shared/components/move-stop
  * thay vì widget biến mất hoàn toàn.
  *
  * Inline action (P4): mỗi item có 2 button BÁN THEO KẾ HOẠCH / GIỮ + GHI LÝ DO.
- *  - BÁN: chỉ enable khi item có `tradePlanId` → confirm dialog → POST /resolve {action: ExecuteSell}.
+ *  - BÁN: chỉ enable khi item có `tradePlanId` → điều hướng sang `/trades/create` với form điền sẵn
+ *    theo kế hoạch (sửa được số lượng). KHÔNG tạo lệnh và KHÔNG resolve lúc bấm.
  *  - GIỮ: expand inline note form → ≥ 20 chars → POST /resolve {action: HoldWithJournal}.
- *  - Optimistic remove item khỏi list sau khi resolve thành công.
+ *  - Optimistic remove item khỏi list sau khi resolve thành công (chỉ còn đường GIỮ).
  */
 const MIN_HOLD_NOTE_LENGTH = 20;
 
@@ -132,6 +133,7 @@ const MIN_HOLD_NOTE_LENGTH = 20;
                     (click)="onExecuteSell(item)"
                     [disabled]="resolving"
                     data-test="btn-sell"
+                    title="Mở màn hình bán, form điền sẵn theo kế hoạch — sửa được số lượng trước khi ghi"
                     class="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white rounded-md font-bold transition-colors">
               🔪 BÁN THEO KẾ HOẠCH
             </button>
@@ -187,6 +189,7 @@ export class DecisionQueueComponent implements OnInit {
   private decisionService = inject(DecisionService);
   private disciplineService = inject(DisciplineService);
   private tradePlanService = inject(TradePlanService);
+  private router = inject(Router);
 
   items: DecisionItemDto[] = [];
   streakDays: number | null = null;
@@ -331,14 +334,32 @@ export class DecisionQueueComponent implements OnInit {
     this.noteDraft = '';
   }
 
+  /**
+   * Mở màn hình bán với form điền sẵn theo kế hoạch, KHÔNG tạo lệnh ngay.
+   *
+   * Bản cũ hỏi `window.confirm` rồi POST `ExecuteSell`: lệnh bán được tạo với giá hiện tại và
+   * khối lượng lấy cứng từ kế hoạch, người dùng không sửa được bán bao nhiêu. Nó còn ghi kèm
+   * một journal `Decision` làm cờ dập thẻ cho hết ngày VN — xoá lệnh bán ở trang giao dịch
+   * không xoá cờ đó, nên hành động đã hoàn tác mà cảnh báo vẫn mất. Điều hướng thì không ghi
+   * gì lúc bấm, nên không có gì phải dọn.
+   */
   onExecuteSell(item: DecisionItemDto): void {
     if (!this.canExecuteSell(item) || this.resolving) return;
-    const confirmed = window.confirm(
-      `Xác nhận BÁN ${item.symbol} theo plan?\n\n` +
-      `Hệ thống sẽ tạo lệnh bán với giá hiện tại + quantity tính từ TradePlan ${item.tradePlanId}.`
-    );
-    if (!confirmed) return;
-    this.runResolve(item, { action: 'ExecuteSell' as DecisionAction, tradePlanId: item.tradePlanId });
+    const queryParams: Record<string, string | number> = {
+      symbol: item.symbol,
+      portfolioId: item.portfolioId,
+      direction: 'Sell',
+      planId: item.tradePlanId!,
+    };
+    if (item.currentPrice) queryParams['price'] = item.currentPrice;
+
+    // Khối lượng chỉ để điền sẵn — lấy không được thì vẫn mở màn hình, người dùng tự nhập.
+    this.tradePlanService.getById(item.tradePlanId!)
+      .pipe(catchError(() => of(null)))
+      .subscribe((plan) => {
+        if (plan?.quantity) queryParams['quantity'] = plan.quantity;
+        this.router.navigate(['/trades/create'], { queryParams });
+      });
   }
 
   submitHold(item: DecisionItemDto): void {

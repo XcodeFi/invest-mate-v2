@@ -524,7 +524,7 @@ interface DossierGateError {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích 2">2</sup> *
+                  Take-Profit <sup class="text-emerald-500 font-bold cursor-default" title="Giải thích 2">2</sup>
                 </label>
                 <input [(ngModel)]="plan.target" type="text" inputmode="numeric" appNumMask [emptyWhenZero]="true" (ngModelChange)="recalculate()"
                   [readonly]="!canEditTakeProfit"
@@ -1356,7 +1356,7 @@ interface DossierGateError {
             <!-- Glossary footnotes -->
             <div class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
               <div><sup class="text-red-400 font-bold">1</sup> <strong>Stop-Loss (SL) — Cắt lỗ:</strong> Mức giá mà bạn chấp nhận bán lỗ để giới hạn thiệt hại. VD: Mua ở 50,000 đ, SL = 47,500 đ → thua tối đa 5%.</div>
-              <div><sup class="text-emerald-500 font-bold">2</sup> <strong>Take-Profit (TP) — Chốt lời:</strong> Mức giá mục tiêu để hiện thực hóa lợi nhuận. VD: TP = 57,500 đ → lãi 15% nếu chạm mức này.</div>
+              <div><sup class="text-emerald-500 font-bold">2</sup> <strong>Take-Profit (TP) — Chốt lời:</strong> Mức giá mục tiêu để hiện thực hóa lợi nhuận. VD: TP = 57,500 đ → lãi 15% nếu chạm mức này. <em>Không bắt buộc</em> — bỏ trống được nếu bạn đã đặt Mốc chốt lời hoặc Kịch bản thoát; khi đó R:R để trống thay vì đọc thành 0.</div>
               <div><sup class="text-violet-400 font-bold">3</sup> <strong>Số lượng CP — Position Size:</strong> Số cổ phiếu nên mua để rủi ro không vượt % vốn cho phép. Tự tính nếu chọn Danh mục có Risk Profile.</div>
               <div><sup class="text-amber-400 font-bold">4</sup> <strong>Mức độ tự tin:</strong> Điểm 1–10 đánh giá mức chắc chắn của tín hiệu. &lt;5 = tín hiệu yếu nên bỏ qua; ≥8 = tín hiệu mạnh.</div>
               <div><sup class="text-blue-400 font-bold">5</sup> <strong>R:R Ratio (Risk:Reward):</strong> Tỷ lệ lợi nhuận/rủi ro. R:R = 1:2 nghĩa là rủi ro 1đ để kiếm 2đ. Nên giao dịch khi R:R ≥ 1:2 (màu xanh).</div>
