@@ -2,6 +2,12 @@
 
 ---
 
+## [v2.83.1] — 2026-08-13 · Sửa lệch một ngày khi đếm phiên T+2
+
+### Sửa lỗi
+
+**⏳ Tiền bán được đánh dấu "đã về" sớm một ngày.** Lệnh bán ghi ngày 12/08 bị tính là đã về ví ngay 13/08 thay vì 14/08, nên phần "chờ về" hụt đúng số tiền của lệnh đó — lệch về phía lạc quan, đúng hướng mà tính năng này sinh ra để chặn. Nguyên nhân: ngày lệnh được lưu dưới dạng mốc quốc tế nên đọc thô ra ngày hôm trước. Nay quy về ngày lịch Việt Nam trước khi đếm phiên.
+
 ## [v2.83.0] — 2026-08-12 · Tiền bán chờ về T+2
 
 ### Tính năng
