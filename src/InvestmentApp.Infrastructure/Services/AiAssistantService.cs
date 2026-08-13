@@ -10,6 +10,7 @@ using InvestmentApp.Application.Decisions.Queries.GetDecisionQueue;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.ValueObjects;
 using MediatR;
+using Microsoft.Extensions.Options;
 
 namespace InvestmentApp.Infrastructure.Services;
 
@@ -35,6 +36,7 @@ public class AiAssistantService : IAiAssistantService
     private readonly IMarketDataProvider _marketDataProvider;
     private readonly ICapitalFlowRepository _capitalFlowRepo;
     private readonly IMarketClosureRepository _marketClosureRepo;
+    private readonly int _settlementSessions;
     private readonly IMediator _mediator;
 
     private const string BasePrompt = @"Bạn là trợ lý AI tích hợp trong Investment Mate — ứng dụng quản lý danh mục đầu tư chứng khoán Việt Nam.
@@ -424,6 +426,7 @@ Quy tắc bắt buộc:
         IMarketDataProvider marketDataProvider,
         ICapitalFlowRepository capitalFlowRepo,
         IMarketClosureRepository marketClosureRepo,
+        IOptions<SettlementOptions> settlementOptions,
         IMediator mediator)
     {
         _settingsRepo = settingsRepo;
@@ -446,6 +449,7 @@ Quy tắc bắt buộc:
         _marketDataProvider = marketDataProvider;
         _capitalFlowRepo = capitalFlowRepo;
         _marketClosureRepo = marketClosureRepo;
+        _settlementSessions = settlementOptions.Value.Sessions;
         _mediator = mediator;
     }
 
@@ -2024,7 +2028,7 @@ Nhiệm vụ: Quét và đánh giá watchlist cổ phiếu.
             // trades lấy được mà netFlow chết là chuyện có thật. Lệch điều kiện thì bản tin
             // in một con số chờ về nằm bên trong một tổng tiền đang là n/a.
             decimal? pendingCash = trades != null && netFlow.HasValue
-                ? SettlementCalculator.PendingSellProceeds(trades, todayVn, closedDates).Amount
+                ? SettlementCalculator.PendingSellProceeds(trades, todayVn, closedDates, _settlementSessions).Amount
                 : null;
 
             portfolioRows.Add(new PortfolioDigestRow(

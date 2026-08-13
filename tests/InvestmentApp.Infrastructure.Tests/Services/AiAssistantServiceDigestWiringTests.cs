@@ -186,6 +186,8 @@ public class AiAssistantServiceDigestWiringTests
             new Mock<IMarketDataProvider>().Object,
             flowRepo.Object,
             closureRepo.Object,
+            Microsoft.Extensions.Options.Options.Create(
+                new InvestmentApp.Application.Common.SettlementOptions()),
             mediator.Object);
     }
 

@@ -14,8 +14,14 @@ public static class VietnamDate
     /// <summary>Ngày lịch VN của một mốc UTC, dạng <c>"YYYY-MM-DD"</c>.</summary>
     public static string ToDateKey(DateTime utc) => ToLocal(utc).ToString("yyyy-MM-dd");
 
-    /// <summary>Ngày lịch VN của một mốc UTC, phần giờ bằng 0.</summary>
-    public static DateTime Today(DateTime utcNow) => ToLocal(utcNow).Date;
+    /// <summary>
+    /// Ngày lịch VN của một mốc bất kỳ, phần giờ bằng 0. Dùng cho mốc đọc từ DB:
+    /// nửa đêm giờ VN được Mongo lưu thành 17:00Z hôm trước, đọc <c>.Date</c> trần là lùi một ngày.
+    /// </summary>
+    public static DateTime DayOf(DateTime utc) => ToLocal(utc).Date;
+
+    /// <summary>Ngày lịch VN của hiện tại.</summary>
+    public static DateTime Today(DateTime utcNow) => DayOf(utcNow);
 
     /// <summary>
     /// Số ngày lịch VN giữa hai mốc. Đếm theo ngày lịch chứ không theo số giờ trôi qua:

@@ -24,12 +24,12 @@ public class GetAllPortfoliosQueryHandlerTests
         _closureRepo.Setup(r => r.GetByUserAndRangeAsync(
                 It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<MarketClosure>());
-        _handler = new GetAllPortfoliosQueryHandler(
-            _portfolioRepo.Object,
-            _tradeRepo.Object,
-            _flowRepo.Object,
-            _closureRepo.Object);
+        _handler = HandlerWith(SettlementOptions.DefaultSessions);
     }
+
+    private GetAllPortfoliosQueryHandler HandlerWith(int sessions)
+        => new(_portfolioRepo.Object, _tradeRepo.Object, _flowRepo.Object, _closureRepo.Object,
+            Microsoft.Extensions.Options.Options.Create(new SettlementOptions { Sessions = sessions }));
 
     [Fact]
     public async Task Handle_PortfolioWithFlows_ReturnsCurrentCapitalIncludingNetFlows()
@@ -184,8 +184,56 @@ public class GetAllPortfoliosQueryHandlerTests
         // asOf là hôm nay (2026-08+) nên lệnh 11/6 đã về từ lâu — ở đây chỉ khẳng định
         // lịch nghỉ THỰC SỰ được truyền vào phép tính, qua ngày về của chính lệnh đó.
         SettlementCalculator.SettlementDateOf(new DateTime(2026, 6, 11),
-                new[] { new DateOnly(2026, 6, 15) }.ToHashSet())
+                new[] { new DateOnly(2026, 6, 15) }.ToHashSet(), SettlementOptions.DefaultSessions)
             .Should().Be(new DateTime(2026, 6, 16));
         result[0].PendingSettlementCash.Should().Be(0m);
+    }
+
+    // --- Chu kỳ thanh toán lấy từ cấu hình ---
+
+    [Fact]
+    public async Task Ngay_tien_ve_di_theo_cau_hinh_chu_khong_ghim_cung_T2()
+    {
+        // Bán HÔM NAY nên với T+2 và T+1 đều còn đang chờ, bất kể hôm nay là thứ mấy —
+        // so được hai mốc về mà không phụ thuộc ngày chạy test.
+        var todayVn = VietnamDate.Today(DateTime.UtcNow);
+        ArrangeMotLenhBan(todayVn);
+
+        var t2 = await HandlerWith(2).Handle(new GetAllPortfoliosQuery { UserId = "user1" }, CancellationToken.None);
+        var t1 = await HandlerWith(1).Handle(new GetAllPortfoliosQuery { UserId = "user1" }, CancellationToken.None);
+
+        t2[0].PendingSettlementArrivalDate.Should().NotBeNull();
+        t1[0].PendingSettlementArrivalDate.Should().NotBeNull();
+        t1[0].PendingSettlementArrivalDate!.Value.Should()
+            .BeBefore(t2[0].PendingSettlementArrivalDate!.Value,
+                "T+1 về sớm hơn T+2 đúng một phiên — hai mốc bằng nhau nghĩa là handler bỏ qua cấu hình");
+    }
+
+    [Fact]
+    public async Task Cau_hinh_T0_thi_khong_con_khai_niem_tien_cho_ve()
+    {
+        var todayVn = VietnamDate.Today(DateTime.UtcNow);
+        ArrangeMotLenhBan(todayVn);
+
+        var result = await HandlerWith(0).Handle(
+            new GetAllPortfoliosQuery { UserId = "user1" }, CancellationToken.None);
+
+        result[0].PendingSettlementCash.Should().Be(0m, "T+0 là tiền về ngay trong ngày");
+        result[0].PendingSettlementArrivalDate.Should().BeNull();
+        result[0].TotalSold.Should().BeGreaterThan(0m, "vẫn phải có lệnh bán, nếu không ca này rỗng ruột");
+    }
+
+    private void ArrangeMotLenhBan(DateTime tradeDate)
+    {
+        var portfolio = new Portfolio("user1", "Chính", 100_000_000m);
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync("user1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { portfolio });
+        _tradeRepo.Setup(r => r.GetByPortfolioIdAsync(portfolio.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[]
+            {
+                new Trade("p1", "HHV", TradeType.SELL, 1_000m, 20_000m, 30_000m, 20_000m, tradeDate)
+            });
+        _flowRepo.Setup(r => r.GetTotalFlowByPortfolioIdAsync(portfolio.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0m);
     }
 }
