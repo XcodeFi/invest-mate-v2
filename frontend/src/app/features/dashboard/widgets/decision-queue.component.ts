@@ -12,6 +12,8 @@ import {
 } from '../../../core/services/decision.service';
 import { DisciplineService } from '../../../core/services/discipline.service';
 import { SymbolLinkDirective } from '../../../shared/directives/symbol-link.directive';
+import { TradePlanService } from '../../../core/services/trade-plan.service';
+import { MoveStopLossModalComponent } from '../../../shared/components/move-stop-loss-modal/move-stop-loss-modal.component';
 
 /**
  * Decision Queue — vị trí #1 trên Home (P3 + P4 Decision Engine v1.1).
@@ -30,7 +32,7 @@ const MIN_HOLD_NOTE_LENGTH = 20;
 @Component({
   selector: 'app-decision-queue',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, MoveStopLossModalComponent],
   template: `
     <!-- Loading skeleton -->
     <div *ngIf="loading" data-test="decision-queue-loading"
@@ -139,6 +141,13 @@ const MIN_HOLD_NOTE_LENGTH = 20;
                     class="px-3 py-1.5 text-xs bg-amber-100 hover:bg-amber-200 disabled:opacity-50 text-amber-900 border border-amber-300 rounded-md font-medium transition-colors">
               ✋ GIỮ + GHI LÝ DO
             </button>
+            <button *ngIf="canMoveStopLoss(item)"
+                    (click)="openMoveSl(item)"
+                    [disabled]="resolving"
+                    data-test="btn-move-sl"
+                    class="px-3 py-1.5 text-xs bg-white hover:bg-amber-50 disabled:opacity-50 text-amber-700 border border-amber-500 rounded-md font-medium transition-colors">
+              🛡 DỜI SL
+            </button>
             <a [routerLink]="getActionRoute(item)" [queryParams]="getActionParams(item)"
                data-test="btn-process"
                class="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors">
@@ -163,11 +172,21 @@ const MIN_HOLD_NOTE_LENGTH = 20;
         </a>
       </div>
     </div>
+
+    <app-move-stop-loss-modal
+      [open]="!!slMoveItem"
+      [symbol]="slMoveItem?.symbol || ''"
+      [currentStopLoss]="slMoveItem?.plannedExitPrice || 0"
+      direction="Buy"
+      [submitting]="slMoveSubmitting"
+      (confirm)="submitMoveSl($event)"
+      (cancel)="closeMoveSl()"></app-move-stop-loss-modal>
   `,
 })
 export class DecisionQueueComponent implements OnInit {
   private decisionService = inject(DecisionService);
   private disciplineService = inject(DisciplineService);
+  private tradePlanService = inject(TradePlanService);
 
   items: DecisionItemDto[] = [];
   streakDays: number | null = null;
@@ -183,6 +202,45 @@ export class DecisionQueueComponent implements OnInit {
 
   errorFor(itemId: string): string | null {
     return this.resolveErrors[itemId] ?? null;
+  }
+
+  /** Thẻ đang mở modal dời SL. Vị thế trong queue luôn là long nên hướng cố định 'Buy'. */
+  slMoveItem: DecisionItemDto | null = null;
+  slMoveSubmitting = false;
+
+  /**
+   * Chỉ dời được khi có kế hoạch cấp ngưỡng. Thẻ MissingStopLoss theo định nghĩa không có
+   * ngưỡng ở đâu cả nên cũng không có gì để dời — xử lý ở trang rủi ro. Xem ADR-0017.
+   */
+  canMoveStopLoss(item: DecisionItemDto): boolean {
+    return !!item.tradePlanId && !!item.plannedExitPrice;
+  }
+
+  openMoveSl(item: DecisionItemDto): void {
+    this.slMoveItem = item;
+    this.slMoveSubmitting = false;
+    delete this.resolveErrors[item.id];
+  }
+
+  closeMoveSl(): void {
+    this.slMoveItem = null;
+    this.slMoveSubmitting = false;
+  }
+
+  submitMoveSl(payload: { newStopLoss: number; reason?: string }): void {
+    const item = this.slMoveItem;
+    if (!item?.tradePlanId) return;
+    this.slMoveSubmitting = true;
+    this.tradePlanService.updateStopLoss(item.tradePlanId, payload).subscribe({
+      next: () => {
+        this.closeMoveSl();
+        this.loadQueue();
+      },
+      error: () => {
+        this.resolveErrors[item.id] = 'Không dời được SL. Thử lại sau ít phút.';
+        this.slMoveSubmitting = false;
+      }
+    });
   }
 
   ngOnInit(): void {

@@ -167,6 +167,12 @@ public interface ITradePlanRepository : IRepository<TradePlan>
     Task<IEnumerable<TradePlan>> GetExecutedByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<TradePlan>> GetReviewedByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<TradePlan>> GetReviewedByUserIdAndTimeHorizonAsync(string userId, TimeHorizon horizon, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Kế hoạch mà stop-loss còn hiệu lực: <c>Ready</c>, <c>InProgress</c>, <c>Executed</c>.
+    /// Loại <c>Draft</c> — kế hoạch nháp không được làm im cảnh báo cho vị thế thật đang hở.
+    /// </summary>
+    Task<IEnumerable<TradePlan>> GetOpenByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default);
 }
 
 public interface IAlertRuleRepository : IRepository<AlertRule>

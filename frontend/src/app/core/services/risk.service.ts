@@ -76,6 +76,10 @@ export interface PositionRiskItem {
   sector: string | null;
   beta: number | null;
   positionVaR: number | null;
+  /** 'Target' = bản ghi stop_loss_targets, 'Plan' = kế hoạch (tradePlanId), null = chưa đặt (ADR-0017). */
+  stopLossSource: 'Target' | 'Plan' | null;
+  /** Kế hoạch đang cấp SL. Chỉ có giá trị khi stopLossSource === 'Plan'. */
+  tradePlanId: string | null;
 }
 
 export interface PortfolioRiskSummary {

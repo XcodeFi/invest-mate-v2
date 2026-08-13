@@ -120,7 +120,7 @@ Frontend áp dụng ma trận phân quyền sửa form theo state. Backend `Trad
 | Field Group | Draft | Ready | InProgress | Executed | Reviewed | Cancelled |
 |---|---|---|---|---|---|---|
 | Entry Info (symbol/direction/entry/qty/strategy/portfolio/entryMode, DCA) | ✏️ | ✏️ | 🔒 | 🔒 | 🔒 | 🔒 |
-| Stop-Loss | ✏️ | ✏️ | ⚠️ tighten-only | 🔒 | 🔒 | 🔒 |
+| Stop-Loss | ✏️ | ✏️ | ⚠️ tighten-only trong form · dời được qua "Dời SL" | ⚠️ dời được qua "Dời SL" | 🔒 | 🔒 |
 | Take-Profit, Exit Targets, Scenario nodes | ✏️ | ✏️ | 🔒 | 🔒 | 🔒 | 🔒 |
 | Risk Context (market/horizon/confidence) | ✏️ | ✏️ | ✏️ | 🔒 | 🔒 | 🔒 |
 | Lots | ✏️ | ✏️ | ⚠️ pending-only | 🔒 | 🔒 | 🔒 |
@@ -128,7 +128,15 @@ Frontend áp dụng ma trận phân quyền sửa form theo state. Backend `Trad
 | Reason, Notes | ✏️ | ✏️ | ✏️ | ✏️ | ✏️ | 🔒 |
 | Campaign Review (lessons) | — | — | — | — | ✏️ only | — |
 
-**Tighten-SL gate (InProgress):** Long `newSl ≥ currentSl`, Short `newSl ≤ currentSl`. Vi phạm → chặn save với notification. Mục đích: kỷ luật "không dời SL để tránh loss".
+**Tighten-SL gate (InProgress, trong form):** Long `newSl ≥ currentSl`, Short `newSl ≤ currentSl`. Vi phạm → chặn save với notification. Mục đích: kỷ luật "không dời SL để tránh loss".
+
+**Hành động "Dời SL" (ngoài form) — ADR-0017.** `Executed` **không phải trạng thái đã đóng**: nút "Đóng chiến dịch" chỉ hiện cho plan `Executed` và nó mới chuyển sang `Reviewed`. Một kế hoạch là chiến dịch tổng hợp đi qua nhiều giai đoạn (vào từng phần, pyramid, chốt từng mức), nên SL phải dời được theo từng giai đoạn mà vẫn nằm trong cùng kế hoạch.
+
+- Nút "Dời SL" hiện cho plan `InProgress` và `Executed` có `StopLoss > 0`, ở **ba mặt**: danh sách kế hoạch (cạnh "Đóng chiến dịch"), thẻ Decision Queue trên Dashboard, và dòng vị thế ở trang Quản lý rủi ro.
+- Đi qua `PATCH /api/v1/trade-plans/{id}/stop-loss` (`UpdateStopLossCommand`), **không** qua `TradePlan.Update()` — bản đó chặn `Executed`. Mỗi lần dời ghi một dòng `StopLossHistory`.
+- Siết SL: tự do, lý do tuỳ chọn. **Nới SL: cho phép nhưng bắt buộc lý do** + cảnh báo trong modal là lần nới được đếm vào điểm kỷ luật. Không chặn cứng — răn đe bằng điểm kỷ luật (`DisciplineScoreCalculator` đã đếm từ `StopLossHistory`), không bằng cái khoá; chặn cứng chỉ đẩy người dùng sang huỷ plan tạo lại và mất dấu vết.
+- Modal dùng chung: `shared/components/move-stop-loss-modal/`. Gate lý do nằm trong modal nên cả ba mặt cùng một luật.
+- Các nhóm trường khác của plan `Executed` giữ 🔒 nguyên — chỉ SL mở.
 
 **UI chi tiết:**
 - State banner hiển thị message + gợi ý action theo trạng thái

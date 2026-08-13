@@ -22,6 +22,7 @@ import { of, throwError } from 'rxjs';
 import { DecisionQueueComponent } from './decision-queue.component';
 import { DecisionService, DecisionItemDto, DecisionQueueDto, DecisionType } from '../../../core/services/decision.service';
 import { DisciplineService, DisciplineStreakDto } from '../../../core/services/discipline.service';
+import { TradePlanService } from '../../../core/services/trade-plan.service';
 
 const mockItem = (over: Partial<DecisionItemDto> = {}): DecisionItemDto => ({
   id: 'StopLossHit:p1:FPT',
@@ -46,11 +47,15 @@ describe('DecisionQueueComponent', () => {
   let decisionSpy: jasmine.SpyObj<DecisionService>;
   let disciplineSpy: jasmine.SpyObj<DisciplineService>;
 
+  let planSpy: jasmine.SpyObj<TradePlanService>;
+
   function setup(queue: DecisionQueueDto, streak: DisciplineStreakDto) {
     decisionSpy = jasmine.createSpyObj('DecisionService', ['getQueue', 'resolve']);
     disciplineSpy = jasmine.createSpyObj('DisciplineService', ['getStreak']);
+    planSpy = jasmine.createSpyObj('TradePlanService', ['updateStopLoss']);
     decisionSpy.getQueue.and.returnValue(of(queue));
     disciplineSpy.getStreak.and.returnValue(of(streak));
+    planSpy.updateStopLoss.and.returnValue(of(undefined as void));
 
     TestBed.configureTestingModule({
       imports: [DecisionQueueComponent],
@@ -60,6 +65,7 @@ describe('DecisionQueueComponent', () => {
         provideHttpClientTesting(),
         { provide: DecisionService, useValue: decisionSpy },
         { provide: DisciplineService, useValue: disciplineSpy },
+        { provide: TradePlanService, useValue: planSpy },
       ],
     });
     fixture = TestBed.createComponent(DecisionQueueComponent);
@@ -398,5 +404,66 @@ describe('DecisionQueueComponent', () => {
     expect(links.length).toBe(2);
     expect(links.map(l => l.nativeElement.getAttribute('title')))
       .toEqual(['Xem dòng thời gian HPG', 'Xem dòng thời gian FPT']);
+  });
+  // -----------------------------------------------------------------
+  // Dời SL ngay trên thẻ (ADR-0017)
+  // -----------------------------------------------------------------
+  describe('dời SL trên thẻ', () => {
+    it('hiện nút dời SL khi item có tradePlanId và giá SL', () => {
+      setup({ items: [mockItem({ tradePlanId: 'plan-1', plannedExitPrice: 89.5 })], totalCount: 1 },
+        { daysWithoutViolation: 0, hasData: true });
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('[data-test="btn-move-sl"]'))).toBeTruthy();
+    });
+
+    it('ẩn nút dời SL khi item không có tradePlanId', () => {
+      setup({ items: [mockItem({ tradePlanId: null })], totalCount: 1 },
+        { daysWithoutViolation: 0, hasData: true });
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('[data-test="btn-move-sl"]'))).toBeNull();
+    });
+
+    it('ẩn nút dời SL trên thẻ MissingStopLoss — không có ngưỡng nào để dời', () => {
+      setup({
+        items: [mockItem({
+          type: 'MissingStopLoss' as DecisionType, tradePlanId: null, plannedExitPrice: null
+        })], totalCount: 1
+      }, { daysWithoutViolation: 0, hasData: true });
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('[data-test="btn-move-sl"]'))).toBeNull();
+    });
+
+    it('gửi đúng planId + giá mới rồi tải lại queue', () => {
+      setup({ items: [mockItem({ tradePlanId: 'plan-1', plannedExitPrice: 89.5 })], totalCount: 1 },
+        { daysWithoutViolation: 0, hasData: true });
+      fixture.detectChanges();
+      decisionSpy.getQueue.calls.reset();
+
+      component.openMoveSl(component.items[0]);
+      component.submitMoveSl({ newStopLoss: 92, reason: 'dời lên sau khi chốt 50%' });
+
+      expect(planSpy.updateStopLoss).toHaveBeenCalledWith('plan-1', {
+        newStopLoss: 92, reason: 'dời lên sau khi chốt 50%'
+      });
+      expect(decisionSpy.getQueue).toHaveBeenCalled();
+      expect(component.slMoveItem).toBeNull();
+    });
+
+    it('lỗi API thì giữ modal mở và hiện lỗi theo item', () => {
+      setup({ items: [mockItem({ tradePlanId: 'plan-1', plannedExitPrice: 89.5 })], totalCount: 1 },
+        { daysWithoutViolation: 0, hasData: true });
+      fixture.detectChanges();
+      planSpy.updateStopLoss.and.returnValue(throwError(() => new Error('boom')));
+
+      component.openMoveSl(component.items[0]);
+      component.submitMoveSl({ newStopLoss: 92 });
+      fixture.detectChanges();
+
+      expect(component.slMoveItem).not.toBeNull();
+      expect(component.errorFor('StopLossHit:p1:FPT')).toBeTruthy();
+    });
   });
 });

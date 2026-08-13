@@ -24,6 +24,15 @@ public class TradePlanRepository : ITradePlanRepository
 
         var tradeIndex = Builders<TradePlan>.IndexKeys.Ascending(p => p.TradeId);
         _collection.Indexes.CreateOne(new CreateIndexModel<TradePlan>(tradeIndex));
+
+        // GetOpenByPortfolioIdAsync chạy mỗi lần đọc rủi ro của mỗi danh mục; các index trên
+        // đều bắt đầu bằng UserId nên không phục vụ được filter theo PortfolioId.
+        var portfolioStatusIndex = Builders<TradePlan>.IndexKeys.Combine(
+            Builders<TradePlan>.IndexKeys.Ascending(p => p.PortfolioId),
+            Builders<TradePlan>.IndexKeys.Ascending(p => p.Status),
+            Builders<TradePlan>.IndexKeys.Ascending(p => p.IsDeleted)
+        );
+        _collection.Indexes.CreateOne(new CreateIndexModel<TradePlan>(portfolioStatusIndex));
     }
 
     public async Task<TradePlan?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
@@ -99,6 +108,17 @@ public class TradePlanRepository : ITradePlanRepository
                 p.UserId == userId && !p.IsDeleted &&
                 p.Status == TradePlanStatus.Reviewed &&
                 p.TimeHorizon == horizon)
+            .SortByDescending(p => p.UpdatedAt).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<TradePlan>> GetOpenByPortfolioIdAsync(string portfolioId, CancellationToken cancellationToken = default)
+    {
+        return await _collection.Find(p =>
+                p.PortfolioId == portfolioId &&
+                !p.IsDeleted &&
+                (p.Status == TradePlanStatus.Ready ||
+                 p.Status == TradePlanStatus.InProgress ||
+                 p.Status == TradePlanStatus.Executed))
             .SortByDescending(p => p.UpdatedAt).ToListAsync(cancellationToken);
     }
 

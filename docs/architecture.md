@@ -106,7 +106,7 @@ are now **in-process** in the API:
 | CapitalFlow | SignedAmount (Deposit/Dividend=+, Withdraw/Fee=-) |
 | Watchlist | Duplicate detection, bulk import, target prices |
 | DailyRoutine | Streak tracking, completion management, template-based creation |
-| StopLossTarget | R:R ratio calculation, trailing stop |
+| StopLossTarget | R:R ratio calculation, trailing stop. **Không còn là nguồn SL duy nhất** — `RiskCalculationService` lùi về `TradePlan.StopLoss` khi vị thế không có bản ghi (ADR-0017). Chỉ được ghi từ trade-wizard + form trang `/risk` |
 | AiSettings | Multi-provider (Claude/Gemini), encrypted API keys, token usage tracking |
 | RiskProfile | Position size limits, drawdown alerts, sector exposure |
 | JournalEntry | Standalone journal (không cần Trade), 5 loại entry, cảm xúc, snapshot giá |
@@ -122,7 +122,7 @@ are now **in-process** in the API:
 | Service | Responsibility | Key Dependencies |
 |---------|---------------|-----------------|
 | PnLService | P&L realized + unrealized. **Từ 2026-08-08 (ADR-0010) tính qua `PositionBuilder`** — không còn tự gộp `Trade` thô, không còn hard-code `"USD"`, có tính phí/thuế. Trả thêm `SettledQuantity`/`PendingQuantity`/`DividendNet`/`PendingDividend`/`TotalPnLWithDividend` | ITradeRepository, IStockPriceService, **ICorporateActionRepository** |
-| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts, hạn mức rủi ro ngày, stress test. **Giá vào/cắt lỗ/mục tiêu điều chỉnh qua `CorporateActionAdjuster` tại thời điểm đọc**; số lượng và giá vốn lấy từ `PositionBuilder` — cả 4 method đã đấu nối (ADR-0010) | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider, **ICorporateActionRepository** |
+| RiskCalculationService | VaR(95%), max drawdown, position sizing, correlation matrix, portfolio optimization (concentration/sector/correlation), trailing stop alerts, hạn mức rủi ro ngày, stress test. **Giá vào/cắt lỗ/mục tiêu điều chỉnh qua `CorporateActionAdjuster` tại thời điểm đọc**; số lượng và giá vốn lấy từ `PositionBuilder` — cả 4 method đã đấu nối (ADR-0010). **Ngưỡng SL: `stop_loss_targets` thắng khi có, còn lại lùi về `TradePlan` (ADR-0017)** — trả kèm `StopLossSource` + `TradePlanId` | IPnLService, ISnapshotRepo, IRiskProfileRepo, IFundamentalDataProvider, **ICorporateActionRepository**, **ITradePlanRepository** |
 | VolatilityBudgetService | Trần khối lượng theo ngân sách biến động cho một lệnh mua dự kiến (ADR-0014). Lấy lịch sử giá (kho cục bộ → bổ khuyết qua provider `type=3`), lọc lợi suất bất thường, dựng chuỗi lợi suất danh mục qua `PositionBuilder`, gọi `VolatilityBudgetCalculator`. Đệm chuỗi lợi suất 15 phút, **chỉ đệm khi đủ dữ liệu**. Không thêm vào `IRiskCalculationService` (đã 929 dòng, 9 trách nhiệm) | ITradeRepo, ICorporateActionRepo, IStockPriceRepo, IRiskProfileRepo, IMarketDataProvider, IMemoryCache |
 | PerformanceMetricsService | CAGR, Sharpe, Sortino, win rate, profit factor, equity curve | ISnapshotRepo, ITradeRepo |
 | PositionSizingService | 5 position sizing models: Fixed Risk, ATR-Based, Kelly Criterion (Half-Kelly, 25% cap), Turtle (1-unit entry), Volatility-Adjusted (ATR% scaling). Pure calculation, no DB dependencies | None (stateless) |
@@ -289,6 +289,7 @@ Feature B1 (2026-04-21) — cho phép admin debug data của user cụ thể b�
 - `Middleware/ImpersonationValidationMiddleware.cs` — validate + mutation-block, đặt giữa `UseAuthentication` và `UseAuthorization`
 - `Infrastructure/Services/AdminBootstrapHostedService.cs` — promote user từ `Admin:AllowEmails` khi startup (idempotent)
 - `frontend/src/app/core/services/impersonation.service.ts` — start/stop, backup `auth_token` sang `admin_auth_token`
+- `frontend/src/app/shared/components/move-stop-loss-modal/` — modal dời SL dùng chung cho trang Kế hoạch, Decision Queue và trang Quản lý rủi ro; gate "nới SL bắt buộc lý do" nằm ở đây nên cả ba mặt cùng một luật (ADR-0017)
 - `frontend/src/app/shared/components/impersonation-banner/` — sticky red banner top
 
 **Config (`appsettings.json`):**

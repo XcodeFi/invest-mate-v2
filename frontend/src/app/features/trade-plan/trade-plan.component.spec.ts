@@ -25,7 +25,8 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     const templateSpy = jasmine.createSpyObj('TradePlanTemplateService', ['getAll', 'create', 'delete']);
     const planSpy = jasmine.createSpyObj('TradePlanService', [
       'getAll', 'create', 'update', 'updateStatus', 'delete', 'cancel', 'restore',
-      'previewReview', 'review', 'getScenarioPresets', 'getScenarioHistory', 'fetchScenarioSuggestion', 'getAdvisory'
+      'previewReview', 'review', 'getScenarioPresets', 'getScenarioHistory', 'fetchScenarioSuggestion', 'getAdvisory',
+      'updateStopLoss'
     ]);
     const notifSpy = jasmine.createSpyObj('NotificationService', ['success', 'error', 'warning', 'info']);
     const dossierSpy = jasmine.createSpyObj('CompanyDossierService', ['gateStatus', 'suggestedRules']);
@@ -898,6 +899,92 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
           .toHaveBeenCalledWith('port-1', 'HPG', 60000, 1000);
         done();
       }, 700);
+    });
+  });
+  // ============================================
+  // Dời SL trên kế hoạch đang giữ vị thế (ADR-0017)
+  // ============================================
+  describe('dời SL trên kế hoạch đang chạy', () => {
+    function plan(status: string, overrides: Record<string, unknown> = {}): any {
+      return {
+        id: 'plan-1', symbol: 'MWG', direction: 'Buy', entryPrice: 74700,
+        stopLoss: 64700, target: 85000, quantity: 100, status,
+        createdAt: new Date().toISOString(), ...overrides
+      };
+    }
+
+    it('cho dời SL khi InProgress và Executed', () => {
+      expect(component.canMoveStopLoss(plan('InProgress'))).toBe(true);
+      expect(component.canMoveStopLoss(plan('Executed'))).toBe(true);
+    });
+
+    it('không cho dời SL khi kế hoạch chưa chạy hoặc đã đóng', () => {
+      expect(component.canMoveStopLoss(plan('Draft'))).toBe(false);
+      expect(component.canMoveStopLoss(plan('Ready'))).toBe(false);
+      expect(component.canMoveStopLoss(plan('Reviewed'))).toBe(false);
+      expect(component.canMoveStopLoss(plan('Cancelled'))).toBe(false);
+    });
+
+    it('không cho dời khi kế hoạch chưa đặt SL', () => {
+      expect(component.canMoveStopLoss(plan('Executed', { stopLoss: 0 }))).toBe(false);
+    });
+
+    it('mở modal nạp đúng SL hiện tại và hướng vị thế', () => {
+      component.openMoveSl(plan('Executed'));
+
+      expect(component.slMovePlan?.id).toBe('plan-1');
+      expect(component.slMoveCurrent).toBe(64700);
+      expect(component.slMoveDirection).toBe('Buy');
+    });
+
+    it('gửi đúng planId, giá mới và lý do rồi tải lại danh sách', () => {
+      const planService = TestBed.inject(TradePlanService) as jasmine.SpyObj<TradePlanService>;
+      planService.updateStopLoss.and.returnValue(of(undefined as void));
+      planService.getAll.calls.reset();
+      component.openMoveSl(plan('Executed'));
+
+      component.submitMoveSl({ newStopLoss: 71000, reason: 'pyramid xong' });
+
+      expect(planService.updateStopLoss).toHaveBeenCalledWith('plan-1', {
+        newStopLoss: 71000, reason: 'pyramid xong'
+      });
+      expect(planService.getAll).toHaveBeenCalled();
+      expect(component.slMovePlan).toBeNull();
+    });
+
+    it('lỗi từ API thì giữ modal mở và báo lỗi', () => {
+      const planService = TestBed.inject(TradePlanService) as jasmine.SpyObj<TradePlanService>;
+      const notif = TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>;
+      planService.updateStopLoss.and.returnValue(throwError(() => new Error('boom')));
+      component.openMoveSl(plan('Executed'));
+
+      component.submitMoveSl({ newStopLoss: 71000 });
+
+      expect(notif.error).toHaveBeenCalled();
+      expect(component.slMovePlan).not.toBeNull();
+      expect(component.slMoveSubmitting).toBe(false);
+    });
+
+    it('nút Dời SL hiện trên hàng kế hoạch Executed', () => {
+      fixture.detectChanges(); // ngOnInit chạy ở đây và nạp list rỗng — set dữ liệu SAU đó
+      component.savedPlansLoading = false;
+      component.savedPlans = [plan('Executed')];
+      component.filterSavedPlans();
+      fixture.detectChanges();
+
+      const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="move-sl"]');
+      expect(buttons.length).toBeGreaterThan(0);
+    });
+
+    it('nút Dời SL không hiện trên hàng kế hoạch Reviewed', () => {
+      fixture.detectChanges(); // ngOnInit chạy ở đây và nạp list rỗng — set dữ liệu SAU đó
+      component.savedPlansLoading = false;
+      component.savedPlans = [plan('Reviewed')];
+      component.filterSavedPlans();
+      fixture.detectChanges();
+
+      const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="move-sl"]');
+      expect(buttons.length).toBe(0);
     });
   });
 });
