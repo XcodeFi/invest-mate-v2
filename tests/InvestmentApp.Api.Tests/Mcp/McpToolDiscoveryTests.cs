@@ -41,7 +41,7 @@ public class McpToolDiscoveryTests
 
     private static readonly string[] WriteTools =
     {
-        "create_trade_plan", "update_trade_plan", "set_trade_plan_status", "create_trade",
+        "create_trade_plan", "update_trade_plan", "set_trade_plan_status", "move_stop_loss", "create_trade",
         "create_watchlist", "update_watchlist", "delete_watchlist", "add_watchlist_item",
         "update_watchlist_item", "remove_watchlist_item", "import_vn30",
         "create_journal", "update_journal", "delete_journal",
@@ -66,12 +66,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_55_Tools()
+    public void Registers_All_56_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(55);
+        (ReadTools.Length + WriteTools.Length).Should().Be(56);
     }
 
     [Fact]
@@ -144,6 +144,11 @@ public class McpToolDiscoveryTests
         schema["create_trade"].Should().Contain("symbol");
         schema["create_trade"].Should().NotContain("feeService").And.NotContain("mediator");
 
+        // move_stop_loss → dời SL cho kế hoạch đang giữ vị thế; không đi qua update_trade_plan
+        // (bản đó chặn cứng plan Executed), nên schema phải tự mang newStopLoss + reason.
+        schema["move_stop_loss"].Should().Contain("newStopLoss").And.Contain("reason");
+        schema["move_stop_loss"].Should().NotContain("mediator").And.NotContain("http");
+
         // P0 risk tools → portfolioId arg present; injected services absent.
         schema["get_portfolio_risk"].Should().Contain("portfolioId").And.NotContain("mediator");
         schema["get_stop_loss_targets"].Should().Contain("portfolioId").And.NotContain("mediator");
@@ -196,6 +201,9 @@ public class McpToolDiscoveryTests
         Required(schema["import_vn30"]).Should().BeEmpty();
         Required(schema["update_journal"]).Should().BeEquivalentTo(new[] { "id" });
         Required(schema["update_trade_plan"]).Should().BeEquivalentTo(new[] { "id" });
+        // reason là tuỳ chọn ở tầng schema — bắt buộc hay không do entity quyết theo chiều dời SL,
+        // nên đánh dấu required ở đây sẽ chặn cả trường hợp siết SL vốn không cần lý do.
+        Required(schema["move_stop_loss"]).Should().BeEquivalentTo(new[] { "id", "newStopLoss" });
         Required(schema["update_watchlist"]).Should().BeEquivalentTo(new[] { "id", "name" });
         Required(schema["add_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });
         Required(schema["update_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });

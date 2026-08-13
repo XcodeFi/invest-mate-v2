@@ -5,7 +5,7 @@ import { RouterModule } from '@angular/router';
 import {
   RiskService, RiskProfile, PortfolioRiskSummary, DrawdownResult,
   CorrelationMatrix, StopLossTargetsResponse, SetRiskProfileRequest,
-  SetStopLossTargetRequest, StopLossTargetItem
+  SetStopLossTargetRequest, StopLossTargetItem, PositionRiskItem
 } from '../../core/services/risk.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -13,12 +13,14 @@ import { TemplateService, RiskProfileTemplate } from '../../core/services/templa
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
+import { TradePlanService } from '../../core/services/trade-plan.service';
+import { MoveStopLossModalComponent } from '../../shared/components/move-stop-loss-modal/move-stop-loss-modal.component';
 import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
 
 @Component({
   selector: 'app-risk',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, MoveStopLossModalComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Quản lý Rủi ro</h1>
@@ -109,7 +111,19 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
                           {{ pos.positionSizePercent | number:'1.1-1' }}%
                         </span>
                       </td>
-                      <td class="px-4 py-3 text-right text-red-500">{{ pos.stopLossPrice ? (pos.stopLossPrice | vndCurrency) : '-' }}</td>
+                      <td class="px-4 py-3 text-right text-red-500">
+                        <div class="flex items-center justify-end gap-1.5">
+                          <span>{{ pos.stopLossPrice ? (pos.stopLossPrice | vndCurrency) : '-' }}</span>
+                          <span *ngIf="pos.stopLossSource === 'Plan'" data-test="sl-source-badge"
+                            title="Ngưỡng lấy từ kế hoạch"
+                            class="px-1 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800 rounded">KH</span>
+                          <button *ngIf="canMoveStopLoss(pos)" (click)="openMoveSl(pos)"
+                            data-test="move-sl-position" title="Dời stop-loss"
+                            class="px-1.5 py-0.5 text-[11px] bg-white border border-amber-500 text-amber-700 hover:bg-amber-50 rounded">
+                            Dời
+                          </button>
+                        </div>
+                      </td>
                       <td class="px-4 py-3 text-right text-green-500">{{ pos.targetPrice ? (pos.targetPrice | vndCurrency) : '-' }}</td>
                       <td class="px-4 py-3 text-right">{{ pos.riskRewardRatio ? (pos.riskRewardRatio | number:'1.1-1') : '-' }}</td>
                     </tr>
@@ -138,7 +152,12 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
                     <div><span class="text-gray-500">Giá:</span> <span class="font-medium">{{ pos.currentPrice | vndCurrency }}</span></div>
                     <div><span class="text-gray-500">GT:</span> <span class="font-medium">{{ pos.marketValue | vndCurrency }}</span></div>
                     <div><span class="text-gray-500">R:R:</span> <span class="font-medium">{{ pos.riskRewardRatio ? (pos.riskRewardRatio | number:'1.1-1') : '-' }}</span></div>
-                    <div><span class="text-red-500">SL:</span> <span class="font-medium text-red-500">{{ pos.stopLossPrice ? (pos.stopLossPrice | vndCurrency) : '-' }}</span></div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-red-500">SL:</span>
+                      <span class="font-medium text-red-500">{{ pos.stopLossPrice ? (pos.stopLossPrice | vndCurrency) : '-' }}</span>
+                      <button *ngIf="canMoveStopLoss(pos)" (click)="openMoveSl(pos)" title="Dời stop-loss"
+                        class="px-1.5 py-0.5 text-[11px] bg-white border border-amber-500 text-amber-700 rounded">Dời</button>
+                    </div>
                     <div><span class="text-green-500">TP:</span> <span class="font-medium text-green-500">{{ pos.targetPrice ? (pos.targetPrice | vndCurrency) : '-' }}</span></div>
                   </div>
                 </div>
@@ -458,6 +477,15 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
         Chọn danh mục để xem phân tích rủi ro
       </div>
     </div>
+
+    <app-move-stop-loss-modal
+      [open]="!!slMovePosition"
+      [symbol]="slMovePosition?.symbol || ''"
+      [currentStopLoss]="slMoveCurrent"
+      direction="Buy"
+      [submitting]="slMoveSubmitting"
+      (confirm)="submitMoveSl($event)"
+      (cancel)="closeMoveSl()"></app-move-stop-loss-modal>
   `
 })
 export class RiskComponent implements OnInit {
@@ -498,12 +526,53 @@ export class RiskComponent implements OnInit {
     entryPrice: 0, stopLossPrice: 0, targetPrice: 0
   };
 
+  // Dời SL cho vị thế mà ngưỡng đến từ kế hoạch — gửi tới kế hoạch, KHÔNG ghi
+  // stop_loss_targets, tránh dựng thêm nguồn cạnh tranh. Xem ADR-0017.
+  // Hướng cố định 'Buy': PositionRiskItem không mang hướng, và vị thế ở đây luôn là long
+  // (RiskCalculationService bỏ qua quantity <= 0). Hỗ trợ short thì phải thêm hướng vào DTO.
+  slMovePosition: PositionRiskItem | null = null;
+  slMoveCurrent = 0;
+  slMoveSubmitting = false;
+
   constructor(
     private riskService: RiskService,
     private portfolioService: PortfolioService,
     private notification: NotificationService,
-    private templateService: TemplateService
+    private templateService: TemplateService,
+    private tradePlanService: TradePlanService
   ) {}
+
+  canMoveStopLoss(pos: PositionRiskItem): boolean {
+    return pos.stopLossSource === 'Plan' && !!pos.tradePlanId && !!pos.stopLossPrice;
+  }
+
+  openMoveSl(pos: PositionRiskItem): void {
+    this.slMovePosition = pos;
+    this.slMoveCurrent = pos.stopLossPrice ?? 0;
+    this.slMoveSubmitting = false;
+  }
+
+  closeMoveSl(): void {
+    this.slMovePosition = null;
+    this.slMoveSubmitting = false;
+  }
+
+  submitMoveSl(payload: { newStopLoss: number; reason?: string }): void {
+    const planId = this.slMovePosition?.tradePlanId;
+    if (!planId) return;
+    this.slMoveSubmitting = true;
+    this.tradePlanService.updateStopLoss(planId, payload).subscribe({
+      next: () => {
+        this.notification.success('Đã dời SL', `SL mới ${payload.newStopLoss.toLocaleString('vi-VN')}`);
+        this.closeMoveSl();
+        this.loadRiskData();
+      },
+      error: () => {
+        this.notification.error('Không dời được SL', 'Thử lại sau ít phút.');
+        this.slMoveSubmitting = false;
+      }
+    });
+  }
 
   ngOnInit() {
     this.portfolioService.getAll().subscribe({

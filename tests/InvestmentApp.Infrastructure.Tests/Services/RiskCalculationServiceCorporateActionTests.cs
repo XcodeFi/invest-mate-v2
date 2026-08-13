@@ -32,6 +32,9 @@ public class RiskCalculationServiceCorporateActionTests
     private readonly Mock<IComprehensiveStockDataProvider> _comprehensiveProvider = new();
     private readonly Mock<IMarketDataProvider> _marketDataProvider = new();
     private readonly Mock<ICorporateActionRepository> _corporateActionRepo = new();
+    // DefaultValue.Empty: repo trả list rỗng thay vì null, nên các test không liên quan
+    // tới kế hoạch không phải khai stub riêng.
+    private readonly Mock<ITradePlanRepository> _tradePlanRepo = new() { DefaultValue = DefaultValue.Empty };
     private readonly Mock<ILogger<RiskCalculationService>> _logger = new();
     private readonly RiskCalculationService _sut;
 
@@ -48,7 +51,7 @@ public class RiskCalculationServiceCorporateActionTests
             _stopLossRepo.Object, _snapshotRepo.Object, _stockPriceRepo.Object,
             _pnlService.Object, _capitalFlowRepo.Object, _riskProfileRepo.Object,
             _fundamentalDataProvider.Object, _comprehensiveProvider.Object,
-            _marketDataProvider.Object, _corporateActionRepo.Object,
+            _marketDataProvider.Object, _corporateActionRepo.Object, _tradePlanRepo.Object,
             new MemoryCache(new MemoryCacheOptions()), _logger.Object);
     }
 

@@ -2,6 +2,39 @@
 
 ---
 
+## [v2.84.0] — 2026-08-13 · Stop-loss trong kế hoạch được tính, và dời được theo từng giai đoạn
+
+### Sửa lỗi
+
+**🛡 Vị thế có stop-loss trong kế hoạch vẫn bị báo "Thiếu stop-loss".** Ngưỡng cắt lỗ trước đây chỉ được đọc từ một chỗ duy nhất: bảng riêng chỉ được ghi khi bạn đi qua bước SL của trình nhập lệnh, hoặc điền tay ở trang Quản lý rủi ro. Kế hoạch có ô Stop-Loss điền đủ thì không chỗ nào đọc tới. Kết quả: mã đã có ngưỡng rõ ràng trong kế hoạch vẫn nằm trong hàng đợi như một vị thế lỗ không giới hạn — đúng loại báo động giả làm người ta thôi tin hàng đợi. Nay nếu mã có kế hoạch (Sẵn sàng / Đang chờ / Đã thực hiện) với Stop-Loss đã điền thì ngưỡng đó được dùng; bảng riêng vẫn thắng khi có bản ghi. Kế hoạch **Nháp** không được tính — nháp không nên làm im cảnh báo cho một vị thế thật đang hở.
+
+**📉 Các số rủi ro của vị thế trống rỗng.** R:R, rủi ro mỗi cổ phiếu, tổng tiền rủi ro và khoảng cách tới SL cùng lấy từ nguồn nói trên, nên vị thế nào không có bản ghi riêng là cả hàng trống. Nay có giá trị thật, lấy cùng một kế hoạch nên các con số nhất quán với nhau.
+
+**🩺 Điểm "Sức khỏe rủi ro" trừ 20 điểm sai.** Panel này chấm độ phủ stop-loss bằng số bản ghi trong bảng riêng, nên danh mục có SL trong kế hoạch vẫn bị dán nhãn "Thiếu cắt lỗ". Nay chấm theo ngưỡng thật của từng vị thế.
+
+### Tính năng
+
+**🔁 Dời stop-loss theo từng giai đoạn của kế hoạch.** Một kế hoạch là cả chiến dịch chứ không phải một lệnh: pyramid xong thì dời SL cả cụm lên, chốt 50% thì dời SL phần còn lại. Trước đây khoá cứng — kế hoạch chuyển sang "Đã thực hiện" là ô Stop-Loss thành chỉ đọc, nên chính playbook bạn tự viết lại không thực hiện được. Nay có nút **"Dời SL"** ở ba nơi: hàng kế hoạch (cạnh "Đóng chiến dịch"), thẻ stop-loss trên Trang chủ, và dòng vị thế ở trang Quản lý rủi ro. "Đã thực hiện" nghĩa là đang giữ vị thế; chỉ khi bấm "Đóng chiến dịch" mới thật sự đóng.
+
+**⚖️ Nới stop-loss: cho phép, nhưng phải trả giá bằng dấu vết.** Siết SL làm tự do. Nới SL — kéo ngưỡng xa ra, chấp nhận lỗ lớn hơn — vẫn làm được nhưng bắt buộc ghi lý do, và lần nới đó được đếm vào điểm kỷ luật. Chọn cách này thay vì chặn cứng: chặn cứng chỉ đẩy người ta sang huỷ kế hoạch rồi tạo lại, mất luôn dấu vết — răn đe nên nằm ở điểm số, không nằm ở cái khoá. Mỗi lần dời ghi một dòng vào lịch sử SL, nên phần review chiến dịch đọc lại được.
+
+**🏷 Nhãn nguồn ngưỡng.** Trên trang Quản lý rủi ro, ngưỡng lấy từ kế hoạch có nhãn **KH** cạnh con số — để biết sửa ở đâu thì đúng chỗ.
+
+**🤖 Trợ lý AI dời được stop-loss.** Trước đây trợ lý chỉ sửa được kế hoạch chưa khớp; đúng những kế hoạch đang giữ vị thế — nơi cần dời SL nhất — thì nó bị chặn. Nay có công cụ riêng cho việc này, và nó chịu **cùng một luật** với bạn: nới ngưỡng thì phải nêu lý do, và lần nới đó vẫn bị đếm vào điểm kỷ luật.
+
+**🔒 Luật "nới SL phải có lý do" nay chặn ở mọi đường.** Trước đó luật chỉ nằm trong ô nhập trên màn hình, nên bất cứ đường nào không đi qua màn hình đó đều lách được. Nay nó nằm ở tầng dữ liệu — màn hình, trợ lý AI, hay gọi trực tiếp đều bị chặn như nhau.
+
+### Kỹ thuật
+
+- ADR-0017 — kế hoạch là nguồn sự thật của stop-loss, và dời được khi vị thế còn mở
+- `RiskCalculationService` nhận `ITradePlanRepository`; `PositionRiskItem` thêm `StopLossSource` + `TradePlanId`
+- `ITradePlanRepository.GetOpenByPortfolioIdAsync` + index `(PortfolioId, Status, IsDeleted)` trên `trade_plans`
+- `DecisionItemDto.TradePlanId` nay được điền cho thẻ stop-loss (trước đây hardcode null)
+- Modal dùng chung `shared/components/move-stop-loss-modal/` — cả ba mặt cùng một component
+- Gate "nới SL bắt buộc lý do" chuyển vào `TradePlan.UpdateStopLossWithHistory`: chiều nới đọc từ `plan.Direction` ở server, `StopLoss = 0` không tính là nới, guard chạy trước khi gán nên lần bị từ chối không để lại dòng `StopLossHistory`. Thêm chặn `newStopLoss ≤ 0` và chặn kế hoạch `Reviewed`/`Cancelled`
+- Tool MCP `move_stop_loss` (`Destructive`, tham số phẳng, `reason` sau `ct` với `= null`) → `UpdateStopLossCommand`. Tổng 56 tool; `McpToolDiscoveryTests` nâng đếm 55 → 56
+- Tests: **2104 backend** (+26), **408 frontend** (+28) — tất cả pass
+
 ## [v2.83.1] — 2026-08-13 · Sửa lệch một ngày khi đếm phiên T+2
 
 ### Tính năng

@@ -752,8 +752,10 @@ export class RiskDashboardComponent implements OnInit {
       this.healthItems.push({ label: 'Tương quan thấp', status: 'good' });
     }
 
-    // Stop-loss coverage
-    const hasSL = this.overview.activeSLCount > 0;
+    // Stop-loss coverage — chấm theo ngưỡng THẬT của vị thế, không theo activeSLCount.
+    // activeSLCount chỉ đếm bản ghi stop_loss_targets, nên vị thế có SL trong kế hoạch
+    // vẫn bị dán nhãn "Thiếu cắt lỗ" và trừ 20 điểm. Xem ADR-0017.
+    const hasSL = risk.positions.some(p => p.stopLossPrice != null);
     if (!hasSL && risk.positionCount > 0) {
       score -= 20;
       this.healthItems.push({ label: 'Thiếu cắt lỗ', status: 'danger' });

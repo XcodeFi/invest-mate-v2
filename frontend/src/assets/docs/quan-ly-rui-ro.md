@@ -104,12 +104,16 @@ Widget ở vị trí đầu Trang chủ gộp mọi việc cần quyết trong n
 | **Stop-loss** | Khẩn cấp / Lưu ý | Giá đã thủng hoặc đang sát stop-loss |
 | **Kịch bản** | Lưu ý | Một nhánh kịch bản trong kế hoạch đã kích hoạt |
 | **Review thesis** | Khẩn cấp / Lưu ý | Luận điểm đầu tư đến hạn xem lại |
-| **Thiếu stop-loss** | Lưu ý | Vị thế đang mở nhưng **chưa** đặt stop-loss |
+| **Thiếu stop-loss** | Lưu ý | Vị thế đang mở nhưng **chưa** đặt stop-loss ở đâu cả — kể cả trong kế hoạch |
 | **Cơ hội mua** | Thông tin | Mã theo dõi có giá về ≤ "Mục tiêu mua" bạn đặt |
 
 Hai điều nên biết:
 
 - **"Thiếu stop-loss" là loại thẻ đáng xử lý trước tiên.** Vị thế không có stop-loss là vị thế có mức lỗ không giới hạn. Trước đây các vị thế này không xuất hiện ở đâu cả, nên hàng đợi rỗng dễ bị hiểu nhầm thành "danh mục an toàn".
+- **Stop-loss trong kế hoạch cũng được tính.** Không cần đặt lại ngưỡng ở trang Quản lý rủi ro: nếu mã đó có kế hoạch (Sẵn sàng / Đang chờ / Đã thực hiện) với ô Stop-Loss đã điền, hệ thống lấy luôn ngưỡng đó. Thẻ "Thiếu stop-loss" chỉ nổi khi **không có ngưỡng ở bất kỳ đâu**. Trên trang Quản lý rủi ro, ngưỡng lấy từ kế hoạch có nhãn **KH** cạnh con số.
+- **Dời stop-loss theo từng giai đoạn.** Một kế hoạch là cả chiến dịch, không phải một lệnh — pyramid xong thì dời SL cả cụm lên, chốt 50% thì dời SL phần còn lại. Nút **"Dời SL"** có ở ba nơi: hàng kế hoạch (cạnh "Đóng chiến dịch"), thẻ stop-loss trên Trang chủ, và dòng vị thế ở trang Quản lý rủi ro. Kế hoạch **Đã thực hiện** vẫn dời được — nó nghĩa là "đang giữ vị thế", chỉ khi bấm "Đóng chiến dịch" mới thật sự đóng.
+  - Siết SL (kéo lên gần giá hơn với vị thế mua): làm tự do, ghi lý do tuỳ ý.
+  - **Nới SL (kéo xa ra, chấp nhận lỗ lớn hơn): bắt buộc ghi lý do**, và lần nới đó bị đếm vào điểm kỷ luật. Đây là chủ ý — không chặn bạn, nhưng để lại dấu vết cho lần review chiến dịch.
 - **"Cơ hội mua" luôn nằm dưới cùng.** Đó là chủ ý: dọn xong vị thế đang chảy máu rồi hãy tính chuyện mua thêm. Muốn nhận thẻ này, vào **Danh sách theo dõi** và điền **"Mục tiêu mua"** cho mã — để trống thì hệ thống không có mốc nào để so sánh và sẽ không bao giờ báo.
 
 Bấm **"Giữ + ghi lý do"** (tối thiểu 20 ký tự) để tạm gác một thẻ — nó sẽ im đến hết ngày rồi quay lại vào hôm sau nếu tình trạng chưa đổi.

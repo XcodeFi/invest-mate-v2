@@ -27,6 +27,11 @@ public class RiskCalculationService : IRiskCalculationService
     private readonly IComprehensiveStockDataProvider _comprehensiveProvider;
     private readonly IMarketDataProvider _marketDataProvider;
     private readonly ICorporateActionRepository _corporateActionRepository;
+    private readonly ITradePlanRepository _tradePlanRepository;
+    /// <summary>Nguồn ngưỡng SL — xem <c>PositionRiskItem.StopLossSource</c> và ADR-0017.</summary>
+    private const string StopLossSourceTarget = "Target";
+    private const string StopLossSourcePlan = "Plan";
+
     /// <summary>Nhãn ngành đổi theo năm, không theo phiên — TTL dài là an toàn và cắt hẳn N+1 qua các nhịp debounce.</summary>
     private const string IndustryCacheKeyPrefix = "risk:industry:";
     private static readonly TimeSpan IndustryCacheTtl = TimeSpan.FromHours(6);
@@ -48,6 +53,7 @@ public class RiskCalculationService : IRiskCalculationService
         IComprehensiveStockDataProvider comprehensiveProvider,
         IMarketDataProvider marketDataProvider,
         ICorporateActionRepository corporateActionRepository,
+        ITradePlanRepository tradePlanRepository,
         IMemoryCache cache,
         ILogger<RiskCalculationService> logger)
     {
@@ -64,6 +70,7 @@ public class RiskCalculationService : IRiskCalculationService
         _comprehensiveProvider = comprehensiveProvider;
         _marketDataProvider = marketDataProvider;
         _corporateActionRepository = corporateActionRepository;
+        _tradePlanRepository = tradePlanRepository;
         _cache = cache;
         _logger = logger;
     }
@@ -103,6 +110,18 @@ public class RiskCalculationService : IRiskCalculationService
             .GetByPortfolioIdAsync(portfolioId, cancellationToken)).ToList();
         var actionsBySymbol = corporateActions.ToLookup(a => a.Symbol, StringComparer.OrdinalIgnoreCase);
 
+        // Đường lùi khi vị thế không có bản ghi stop_loss_targets: lấy ngưỡng từ kế hoạch.
+        // Collection đó chỉ được ghi từ trade-wizard và form tay ở trang rủi ro, nên vị thế vào
+        // bằng đường khác không có bản ghi nào và bị báo "chưa đặt stop-loss" oan (ADR-0017).
+        // Bỏ kế hoạch có StopLoss = 0 — không đặt ngưỡng thì không được che kế hoạch có đặt.
+        var openPlans = await _tradePlanRepository.GetOpenByPortfolioIdAsync(portfolioId, cancellationToken);
+        var planBySymbol = openPlans
+            .Where(p => p.StopLoss > 0
+                && p.Status is TradePlanStatus.Ready or TradePlanStatus.InProgress or TradePlanStatus.Executed)
+            .GroupBy(p => p.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.UpdatedAt).First(),
+                StringComparer.OrdinalIgnoreCase);
+
         // Calculate total portfolio value
         var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId, cancellationToken);
         var totalFlows = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolioId, cancellationToken);
@@ -125,15 +144,36 @@ public class RiskCalculationService : IRiskCalculationService
                 slTargetMap.TryGetValue(symbolGroup.Key, out var slTarget);
 
                 var symbolActions = actionsBySymbol[symbolGroup.Key];
-                decimal? adjustedStopLoss = slTarget != null
-                    ? CorporateActionAdjuster.AdjustPrice(slTarget.StopLossPrice, slTarget.UpdatedAt, symbolActions)
-                    : null;
-                decimal? adjustedTarget = slTarget != null
-                    ? CorporateActionAdjuster.AdjustPrice(slTarget.TargetPrice, slTarget.UpdatedAt, symbolActions)
-                    : null;
-                decimal? adjustedEntry = slTarget != null
-                    ? CorporateActionAdjuster.AdjustPrice(slTarget.EntryPrice, slTarget.UpdatedAt, symbolActions)
-                    : null;
+
+                // Ưu tiên bản ghi stop_loss_targets — form ở trang rủi ro ghi trực tiếp vào đó,
+                // nên người dùng vừa sửa ở đấy phải thắng. Kế hoạch là đường lùi.
+                string? stopLossSource = null;
+                string? sourceTradePlanId = null;
+                decimal? adjustedStopLoss = null;
+                decimal? adjustedTarget = null;
+                decimal? adjustedEntry = null;
+
+                if (slTarget != null)
+                {
+                    stopLossSource = StopLossSourceTarget;
+                    adjustedStopLoss = CorporateActionAdjuster.AdjustPrice(slTarget.StopLossPrice, slTarget.UpdatedAt, symbolActions);
+                    adjustedTarget = CorporateActionAdjuster.AdjustPrice(slTarget.TargetPrice, slTarget.UpdatedAt, symbolActions);
+                    adjustedEntry = CorporateActionAdjuster.AdjustPrice(slTarget.EntryPrice, slTarget.UpdatedAt, symbolActions);
+                }
+                else if (planBySymbol.TryGetValue(symbolGroup.Key, out var slPlan))
+                {
+                    // Mốc điều chỉnh riêng của kế hoạch: PricesSetAt, không phải UpdatedAt —
+                    // sửa ghi chú cũng dời UpdatedAt thì việc điều chỉnh bị vô hiệu.
+                    var planAnchor = TradePlanPriceAdjuster.PriceAnchor(slPlan);
+                    stopLossSource = StopLossSourcePlan;
+                    sourceTradePlanId = slPlan.Id;
+                    adjustedStopLoss = CorporateActionAdjuster.AdjustPrice(slPlan.StopLoss, planAnchor, symbolActions);
+                    adjustedEntry = CorporateActionAdjuster.AdjustPrice(slPlan.EntryPrice, planAnchor, symbolActions);
+                    adjustedTarget = slPlan.Target > 0
+                        ? CorporateActionAdjuster.AdjustPrice(slPlan.Target, planAnchor, symbolActions)
+                        : null;
+                }
+
                 var adjustedRiskPerShare = adjustedEntry.HasValue && adjustedStopLoss.HasValue
                     ? adjustedEntry.Value - adjustedStopLoss.Value
                     : (decimal?)null;
@@ -152,9 +192,11 @@ public class RiskCalculationService : IRiskCalculationService
                     TargetPrice = adjustedTarget,
                     // null = chưa đặt stop-loss (khác hẳn "tỷ lệ bằng 0"). Bản tin AI kiểm
                     // HasValue để in "—", nên trả 0 ở đây sẽ đọc thành R:R = 0.
-                    RiskRewardRatio = slTarget == null
+                    RiskRewardRatio = stopLossSource == null
                         ? null
                         : adjustedRiskPerShare > 0 ? adjustedReward / adjustedRiskPerShare : 0,
+                    StopLossSource = stopLossSource,
+                    TradePlanId = sourceTradePlanId,
                     RiskPerShare = adjustedRiskPerShare,
                     RiskAmount = adjustedRiskPerShare.HasValue ? adjustedRiskPerShare * positionPnl.Quantity : null,
                     DistanceToStopLossPercent = adjustedStopLoss.HasValue && positionPnl.CurrentPrice > 0

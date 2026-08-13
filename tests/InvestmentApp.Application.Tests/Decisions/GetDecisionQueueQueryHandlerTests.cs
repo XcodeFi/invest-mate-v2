@@ -86,6 +86,32 @@ public class GetDecisionQueueQueryHandlerTests
     }
 
     [Fact]
+    public async Task Handle_StopLossFromPlan_CarriesTradePlanIdSoCardCanMoveSl()
+    {
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", stopLossPrice: 89.5m, currentPrice: 89.4m,
+            distanceToSlPercent: -0.1m, stopLossSource: "Plan", tradePlanId: "plan-42"));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items[0].TradePlanId.Should().Be("plan-42");
+    }
+
+    [Fact]
+    public async Task Handle_MissingStopLoss_HasNoTradePlanIdBecauseNoPlanSuppliesOne()
+    {
+        var portfolio = MakePortfolio("p1", "Main");
+        SetupPortfolios(portfolio);
+        SetupRiskSummary(portfolio.Id, MakePosition("FPT", stopLossPrice: null, currentPrice: 89.4m, distanceToSlPercent: 0m));
+
+        var result = await _handler.Handle(new GetDecisionQueueQuery { UserId = UserId }, CancellationToken.None);
+
+        result.Items[0].Type.Should().Be(DecisionType.MissingStopLoss);
+        result.Items[0].TradePlanId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Handle_PositionWithin2PercentOfSL_AddsWarningStopLossItem()
     {
         var portfolio = MakePortfolio("p1", "Main");
@@ -344,7 +370,8 @@ public class GetDecisionQueueQueryHandlerTests
         return p;
     }
 
-    private static PositionRiskItem MakePosition(string symbol, decimal? stopLossPrice, decimal currentPrice, decimal distanceToSlPercent)
+    private static PositionRiskItem MakePosition(string symbol, decimal? stopLossPrice, decimal currentPrice, decimal distanceToSlPercent,
+        string? stopLossSource = null, string? tradePlanId = null)
         => new()
         {
             Symbol = symbol,
@@ -353,7 +380,9 @@ public class GetDecisionQueueQueryHandlerTests
             MarketValue = currentPrice * 100,
             PositionSizePercent = 10m,
             StopLossPrice = stopLossPrice,
-            DistanceToStopLossPercent = distanceToSlPercent
+            DistanceToStopLossPercent = distanceToSlPercent,
+            StopLossSource = stopLossSource,
+            TradePlanId = tradePlanId
         };
 
     private void SetupPortfolios(params Portfolio[] portfolios)

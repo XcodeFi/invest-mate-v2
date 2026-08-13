@@ -18,6 +18,7 @@ import { isBuyTrade, getTradeTypeDisplay, getTradeTypeClass } from '../../shared
 import { TIME_HORIZON_OPTIONS, DEFAULT_TIME_HORIZON } from '../../shared/constants/time-horizon';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
+import { MoveStopLossModalComponent } from '../../shared/components/move-stop-loss-modal/move-stop-loss-modal.component';
 
 interface ChecklistItem {
   label: string;
@@ -107,7 +108,7 @@ interface DossierGateError {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -213,6 +214,11 @@ interface DossierGateError {
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
                         </svg>
                       </a>
+                      <button *ngIf="canMoveStopLoss(sp)" (click)="$event.stopPropagation(); openMoveSl(sp)" title="Dời stop-loss"
+                        data-testid="move-sl"
+                        class="px-2 py-1 text-xs bg-white border border-amber-500 text-amber-700 hover:bg-amber-50 rounded-lg transition-colors font-medium">
+                        Dời SL
+                      </button>
                       <button *ngIf="sp.status === 'Executed'" (click)="openCampaignReview(sp)" title="Đóng chiến dịch"
                         class="px-2 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium">
                         Đóng chiến dịch
@@ -295,6 +301,11 @@ interface DossierGateError {
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
+                  </button>
+                  <button *ngIf="canMoveStopLoss(sp)" (click)="$event.stopPropagation(); openMoveSl(sp)" title="Dời stop-loss"
+                    data-testid="move-sl"
+                    class="px-2 py-1 text-xs bg-white border border-amber-500 text-amber-700 hover:bg-amber-50 rounded-lg font-medium">
+                    Dời SL
                   </button>
                   <button *ngIf="sp.status === 'Executed'" (click)="openCampaignReview(sp)" title="Đóng chiến dịch"
                     class="px-2 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium">
@@ -1996,6 +2007,15 @@ interface DossierGateError {
       </div>
     </div>
 
+    <app-move-stop-loss-modal
+      [open]="!!slMovePlan"
+      [symbol]="slMovePlan?.symbol || ''"
+      [currentStopLoss]="slMoveCurrent"
+      [direction]="slMoveDirection"
+      [submitting]="slMoveSubmitting"
+      (confirm)="submitMoveSl($event)"
+      (cancel)="closeMoveSl()"></app-move-stop-loss-modal>
+
     <app-ai-chat-panel [(isOpen)]="showAiPanel" title="AI Tư vấn Kế hoạch" useCase="trade-plan-advisor" [contextData]="{ tradePlanId: aiTradePlanId }"></app-ai-chat-panel>
   `,
   styles: [`
@@ -2128,6 +2148,13 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   // Saved plans
   savedPlans: TradePlanDto[] = [];
+
+  // Dời SL trên kế hoạch đang giữ vị thế. Không đi qua form sửa (form khoá ở Executed) mà
+  // qua PATCH /{id}/stop-loss, nên ghi được StopLossHistory. Xem ADR-0017.
+  slMovePlan: TradePlanDto | null = null;
+  slMoveCurrent = 0;
+  slMoveDirection: 'Buy' | 'Sell' = 'Buy';
+  slMoveSubmitting = false;
   filteredSavedPlans: TradePlanDto[] = [];
   savedPlansLoading = false;
   timeHorizonOptions = TIME_HORIZON_OPTIONS;
@@ -2607,6 +2634,43 @@ export class TradePlanComponent implements OnInit, OnDestroy {
    * Tighten-SL gate: in InProgress, SL can only be moved closer to entry (tighter).
    * Draft/Ready/other states: no restriction.
    */
+  /**
+   * Kế hoạch đang giữ vị thế mới dời được SL. `Executed` KHÔNG phải trạng thái đã đóng —
+   * "Đóng chiến dịch" mới chuyển sang `Reviewed`. Chưa đặt SL thì không có gì để dời.
+   */
+  canMoveStopLoss(sp: TradePlanDto): boolean {
+    return (sp.status === 'InProgress' || sp.status === 'Executed') && sp.stopLoss > 0;
+  }
+
+  openMoveSl(sp: TradePlanDto): void {
+    this.slMovePlan = sp;
+    this.slMoveCurrent = sp.stopLoss;
+    this.slMoveDirection = sp.direction === 'Sell' ? 'Sell' : 'Buy';
+    this.slMoveSubmitting = false;
+  }
+
+  closeMoveSl(): void {
+    this.slMovePlan = null;
+    this.slMoveSubmitting = false;
+  }
+
+  submitMoveSl(payload: { newStopLoss: number; reason?: string }): void {
+    if (!this.slMovePlan) return;
+    const planId = this.slMovePlan.id;
+    this.slMoveSubmitting = true;
+    this.tradePlanService.updateStopLoss(planId, payload).subscribe({
+      next: () => {
+        this.notification.success('Đã dời SL', `SL mới ${payload.newStopLoss.toLocaleString('vi-VN')}`);
+        this.closeMoveSl();
+        this.loadSavedPlans();
+      },
+      error: () => {
+        this.notification.error('Không dời được SL', 'Thử lại sau ít phút.');
+        this.slMoveSubmitting = false;
+      }
+    });
+  }
+
   validateTightenSl(newSl: number): { ok: boolean; reason?: string } {
     if (!this.isInProgress() || this.loadedCurrentSl === null) {
       return { ok: true };

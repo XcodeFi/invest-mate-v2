@@ -233,7 +233,8 @@ public class GetDecisionQueueQueryHandler : IRequestHandler<GetDecisionQueueQuer
                     ThesisOrReason = null,
                     CurrentPrice = pos.CurrentPrice,
                     PlannedExitPrice = pos.StopLossPrice,
-                    TradePlanId = null,
+                    // Kế hoạch cấp ngưỡng này — thẻ cần id để dời SL ngay tại chỗ (ADR-0017).
+                    TradePlanId = pos.TradePlanId,
                     DueAt = now,
                     CreatedAt = now
                 });

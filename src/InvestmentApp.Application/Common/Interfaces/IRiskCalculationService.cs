@@ -105,6 +105,16 @@ public class PositionRiskItem
     public string? Sector { get; set; }
     public decimal? Beta { get; set; }
     public decimal? PositionVaR { get; set; }
+
+    /// <summary>
+    /// Nguồn của <see cref="StopLossPrice"/>: <c>"Target"</c> = bản ghi <c>stop_loss_targets</c>,
+    /// <c>"Plan"</c> = kế hoạch (<see cref="TradePlanId"/>), null = chưa đặt ở đâu cả.
+    /// Giao diện cần biết để gửi lệnh dời SL tới đúng chỗ (ADR-0017).
+    /// </summary>
+    public string? StopLossSource { get; set; }
+
+    /// <summary>Kế hoạch đang cấp SL. Chỉ có giá trị khi <see cref="StopLossSource"/> = <c>"Plan"</c>.</summary>
+    public string? TradePlanId { get; set; }
 }
 
 public class DrawdownResult

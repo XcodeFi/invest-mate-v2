@@ -90,7 +90,8 @@ Tóm tắt 3 trụ:
 
 1. **P2: Editability Matrix (Strict, Option A)** — ✅ Form Trade Plan phân quyền sửa theo trạng thái:
    - Entry Info (symbol, direction, entry, qty, strategy, portfolio, entryMode, DCA) — chỉ Draft/Ready
-   - Stop-Loss — Draft/Ready đầy đủ; InProgress chỉ được tighten (Long: newSl ≥ currentSl; Short: newSl ≤ currentSl); terminal read-only
+   - Stop-Loss — Draft/Ready đầy đủ; InProgress chỉ được tighten (Long: newSl ≥ currentSl; Short: newSl ≤ currentSl); terminal read-only trong form
+     - **Cập nhật 2026-08-13 (ADR-0017):** `InProgress`/`Executed` dời được SL qua nút "Dời SL" ngoài form (`PATCH /{id}/stop-loss`). Nới SL cho phép nhưng bắt buộc lý do. `Executed` bị xếp sai vào nhóm terminal — nó là trạng thái đang giữ vị thế.
    - Take-Profit, Exit Targets, Scenario Playbook — chỉ Draft/Ready
    - Risk Context (market/horizon/confidence), Checklist — Draft/Ready/InProgress; terminal read-only
    - Reason, Notes — sửa được mọi state trừ Cancelled
