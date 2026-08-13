@@ -118,10 +118,11 @@ Ví dụ thêm mã theo dõi có giá mục tiêu:
 ```
 
 ## <a id="journal-entries"></a>Journal Entries (nhật ký theo mã/quyết định)
-- `POST /api/v1/ai/agent/journal-entries` body (chính) `{ "symbol", "entryType"(Observation|PreTrade|DuringTrade|PostTrade|Review|Decision),
+- `POST /api/v1/ai/agent/journal-entries` body (chính) `{ "symbol", "entryType"(Observation|PreTrade|DuringTrade|PostTrade|Review),
   "title", "content", "portfolioId"?, "tradeId"?, "tradePlanId"?, "emotionalState"?, "confidenceLevel"?(1-10),
   "priceAtTime"?, "marketContext"?, "tags"?[], "timestamp"? }` → `201 { "id" }`.
 - `PUT /api/v1/ai/agent/journal-entries/{id}` body `{ "title"?, "content"?, "entryType"?, "emotionalState"?, "confidenceLevel"?, "marketContext"?, "tags"?[], "rating"? }` → `204`, không tồn tại → `404`.
+- **`entryType = Decision` bị từ chối (400)** ở cả POST và PUT. Loại đó là cờ dập cảnh báo trong Hàng đợi quyết định, chỉ sinh từ hành động xử lý thật. Muốn ghi "hôm nay tôi giữ" thì dùng tool MCP `hold_decision` — nó đi qua luật lý do ≥ 20 ký tự.
 - `DELETE /api/v1/ai/agent/journal-entries/{id}` → `204`, không tồn tại → `404`.
 - `GET /api/v1/ai/agent/journal-entries/pending-review?portfolioId={id?}` — danh sách lệnh đã đóng còn chờ viết nhật ký.
 - `GET /api/v1/ai/agent/journal-entries?symbol={mã}&from=&to=` — nhật ký của một mã (`symbol` **bắt buộc**, thiếu → `400`).
