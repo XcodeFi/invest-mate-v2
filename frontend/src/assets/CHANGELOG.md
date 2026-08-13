@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.85.0] — 2026-08-13 · Bán theo kế hoạch đi qua màn hình bán, không còn bấm một cái là xong
+
+### Sửa lỗi
+
+**🔪 Nút "BÁN THEO KẾ HOẠCH" tạo lệnh ngay mà không cho sửa số lượng.** Bấm nút chỉ hiện một hộp xác nhận, đồng ý cái là lệnh bán được ghi luôn với giá hiện tại và **toàn bộ** khối lượng lấy cứng từ kế hoạch. Muốn bán một phần thì không có đường nào. Nay nút mở **màn hình ghi lệnh bán** với form điền sẵn theo kế hoạch — mã, danh mục, giá hiện tại, số lượng — bạn sửa lại số lượng rồi mới lưu. Lúc bấm nút không có gì được ghi.
+
+**🔁 Hoàn tác lệnh bán mà cảnh báo không quay lại.** Bản cũ khi bấm BÁN ghi kèm một dấu ẩn để thẻ cảnh báo không hiện lại trong ngày. Xoá lệnh bán ở trang Giao dịch thì vị thế và cắt lỗ trở về đúng như trước, **chỉ riêng cảnh báo là mất tới nửa đêm** — đọc thành "hệ thống ăn mất cảnh báo của tôi". Dấu ẩn đó còn dập luôn cả cảnh báo kịch bản và nhắc soát lại luận điểm của cùng kế hoạch. Nay không ghi gì lúc bấm nút nên không còn gì phải dọn: bán xong đóng hết vị thế thì thẻ mất tự nhiên; bán một phần mà giá vẫn dưới ngưỡng cắt lỗ thì thẻ ở lại — đúng như nó phải vậy.
+
+### Thay đổi
+
+**🎯 Take-Profit không còn là bắt buộc.** Ô Take-Profit vẫn mang dấu `*` dù chẳng có gì bắt — lưu kế hoạch trống ô đó vẫn được. Dấu đó sai từ đầu: kế hoạch có thể đặt đường ra bằng **Mốc chốt lời** hoặc **Kịch bản thoát** thay cho một mức giá duy nhất. Bỏ dấu `*` cho khớp thực tế. Để trống thì R:R hiện trống thay vì đọc thành 0.
+
+### Kỹ thuật
+
+- `onExecuteSell` điều hướng `/trades/create` với `symbol`/`portfolioId`/`direction=Sell`/`planId`/`price`/`quantity` — cùng khuôn params trang Vị thế đã dùng cho "Ghi nhận bán". `quantity` từ `TradePlanService.getById`; lấy fail vẫn điều hướng
+- `DecisionAction.ExecuteSell` ở backend còn nguyên nhưng không còn caller từ FE
+- Bỏ `window.confirm` khỏi luồng BÁN; `runResolve` chỉ còn đường GIỮ dùng
+- Tests: **409 frontend** (+1) — 3 ca điều hướng mới (tham số đúng, không resolve, kế hoạch lấy fail), 2 ca cũ chuyển sang đường GIỮ
+
+---
+
 ## [v2.84.0] — 2026-08-13 · Stop-loss trong kế hoạch được tính, và dời được theo từng giai đoạn
 
 ### Sửa lỗi

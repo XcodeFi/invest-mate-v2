@@ -30,7 +30,7 @@ Module Trade Plan cho phép lập kế hoạch giao dịch chi tiết trước k
 | Direction | string | "Buy" / "Sell" |
 | EntryPrice | decimal | Giá vào lệnh |
 | StopLoss | decimal | Giá cắt lỗ |
-| Target | decimal | Giá mục tiêu |
+| Target | decimal | Giá mục tiêu — **không bắt buộc**, `0` = chưa đặt |
 | Quantity | int | Số lượng CP |
 | StrategyId | string? | Chiến lược liên kết |
 | MarketCondition | string | "Trending" / "Ranging" / "Volatile" |
@@ -50,6 +50,8 @@ Module Trade Plan cho phép lập kế hoạch giao dịch chi tiết trước k
 | Status | TradePlanStatus | Draft→Ready→InProgress→Executed→Reviewed / Cancelled |
 | TradeId | string? | Liên kết trade đơn |
 | TradeIds | List\<string\>? | Liên kết nhiều trades (multi-lot) |
+
+**Target không bắt buộc (2026-08-13).** Form trước đây gắn dấu `*` cho Take-Profit nhưng không có gì bắt: `CreateTradePlanCommandValidator` chỉ ràng `EntryPrice`/`StopLoss`/`Quantity` > 0. Bỏ dấu `*` cho đúng thực tế, vì kế hoạch có thể đặt đường ra bằng `ExitTargets` hoặc `ScenarioNodes` thay vì một mức TP duy nhất. Hệ quả cần biết: `Target = 0` thì `R:R` để **trống** (không đọc thành 0), và mục checklist "R:R ratio >= 2:1" — vốn tự tick theo `rr >= 2` chứ không tick tay — sẽ không bao giờ tick được. Muốn mục đó có nghĩa với kế hoạch dùng `ExitTargets` thì phải tính `R:R` từ mốc chốt lời đầu tiên — kế hoạch chi tiết ở [`docs/plans/rr-from-first-exit-target.md`](plans/rr-from-first-exit-target.md), chưa implement.
 
 ### 2.2 Status Lifecycle
 
