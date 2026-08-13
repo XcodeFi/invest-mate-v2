@@ -47,6 +47,10 @@ Vì vậy có hai chỗ để bạn tự soát:
 1. **Ngày về dự kiến** luôn hiện cạnh số tiền chờ về — thấy ngày rơi vào tuần nghỉ lễ mà vẫn tính như ngày thường thì biết là thiếu.
 2. **Bản tin hằng ngày** in `market_closures_known_through` — ngày nghỉ xa nhất bạn đã nhập. Mốc này cũ đi so với hôm nay là dấu hiệu cần nhập tiếp.
 
+## Nếu sau này chu kỳ đổi thành T+1 hay T+0
+
+Chu kỳ nằm ở cấu hình, không nằm trong code, nên khi thị trường rút ngắn chu kỳ thì **không cần bản cập nhật ứng dụng** — chỉ đặt lại một giá trị rồi khởi động lại. Không đặt gì thì vẫn là T+2 như hiện nay. Đặt về T+0 thì khái niệm "chờ về" biến mất hoàn toàn: tiền bán vào thẳng phần khả dụng, và dòng "chờ về" không còn hiện.
+
 ## Chưa làm
 
 **Cổ phiếu mua chờ về** chưa được mô hình hoá — mua hôm nay thì ứng dụng vẫn cho ghi lệnh bán trong ngày, dù thực tế cổ phiếu cũng về theo T+2. Ứng dụng là sổ ghi nhận sau khi khớp, không phải hệ thống chặn lệnh.

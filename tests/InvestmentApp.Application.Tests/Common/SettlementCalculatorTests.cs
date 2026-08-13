@@ -7,6 +7,8 @@ namespace InvestmentApp.Application.Tests.Common;
 
 public class SettlementCalculatorTests
 {
+    private const int T2 = SettlementOptions.DefaultSessions;
+
     private static readonly IReadOnlySet<DateOnly> Closures2026 =
         Vn2026Closures.Dates.Select(DateOnly.Parse).ToHashSet();
 
@@ -25,7 +27,7 @@ public class SettlementCalculatorTests
     [InlineData("2026-02-13", "2026-02-24")]
     public void Golden_Tet_2026_khop_thong_bao_HOSE(string tradeDate, string expected)
     {
-        SettlementCalculator.SettlementDateOf(DateTime.Parse(tradeDate), Closures2026)
+        SettlementCalculator.SettlementDateOf(DateTime.Parse(tradeDate), Closures2026, T2)
             .Should().Be(DateTime.Parse(expected));
     }
 
@@ -33,7 +35,7 @@ public class SettlementCalculatorTests
     public void Ban_thu_Nam_thi_tien_ve_thu_Hai_vi_vat_qua_cuoi_tuan()
     {
         // 2026-06-11 là thứ Năm, không có lễ quanh đó: T+1 = thứ Sáu 12/6, T+2 = thứ Hai 15/6.
-        SettlementCalculator.SettlementDateOf(new DateTime(2026, 6, 11), Closures2026)
+        SettlementCalculator.SettlementDateOf(new DateTime(2026, 6, 11), Closures2026, T2)
             .Should().Be(new DateTime(2026, 6, 15));
     }
 
@@ -41,7 +43,7 @@ public class SettlementCalculatorTests
     public void Khong_co_ngay_nghi_nao_thi_chi_bo_cuoi_tuan()
     {
         // Cùng ngày 12/02 nhưng tập ngày nghỉ rỗng: T+1 = 13/2 (thứ Sáu), T+2 = 16/2 (thứ Hai).
-        SettlementCalculator.SettlementDateOf(new DateTime(2026, 2, 12), NoClosures)
+        SettlementCalculator.SettlementDateOf(new DateTime(2026, 2, 12), NoClosures, T2)
             .Should().Be(new DateTime(2026, 2, 16));
     }
 
@@ -49,9 +51,57 @@ public class SettlementCalculatorTests
     public void Ban_ngay_truoc_dot_le_dai_thi_ngay_ve_nhay_qua_ca_dot()
     {
         // Bán 28/4 (thứ Ba). T+1 = 29/4 (thứ Tư). 30/4 + 1/5 nghỉ, 2-3/5 cuối tuần → T+2 = 4/5.
-        SettlementCalculator.SettlementDateOf(new DateTime(2026, 4, 28), Closures2026)
+        SettlementCalculator.SettlementDateOf(new DateTime(2026, 4, 28), Closures2026, T2)
             .Should().Be(new DateTime(2026, 5, 4));
     }
+
+    // --- Chu kỳ thanh toán đổi được: T+1 và T+0 ---
+
+    [Fact]
+    public void T1_thi_tien_ve_ngay_phien_giao_dich_ke_tiep()
+    {
+        // Thứ Năm 11/6/2026 → T+1 là thứ Sáu 12/6 (T+2 mới là thứ Hai 15/6).
+        SettlementCalculator.SettlementDateOf(new DateTime(2026, 6, 11), Closures2026, sessions: 1)
+            .Should().Be(new DateTime(2026, 6, 12));
+    }
+
+    [Fact]
+    public void T1_van_vat_qua_ca_dot_nghi_Tet()
+    {
+        // Bán thứ Sáu 13/02: 14-15 cuối tuần, 16-20 nghỉ Tết, 21-22 cuối tuần
+        // → phiên kế tiếp là thứ Hai 23/02. Ngày nghỉ vẫn được đếm khi chu kỳ ngắn đi.
+        SettlementCalculator.SettlementDateOf(new DateTime(2026, 2, 13), Closures2026, sessions: 1)
+            .Should().Be(new DateTime(2026, 2, 23));
+    }
+
+    [Fact]
+    public void T0_thi_tien_ve_ngay_trong_ngay_nen_khong_bao_gio_cho()
+    {
+        SettlementCalculator.SettlementDateOf(new DateTime(2026, 6, 11), Closures2026, sessions: 0)
+            .Should().Be(new DateTime(2026, 6, 11));
+
+        var trades = new[] { Sell("2026-06-11", 1_000m, 20_000m) };
+
+        var (amount, last) = SettlementCalculator.PendingSellProceeds(
+            trades, new DateTime(2026, 6, 11), Closures2026, sessions: 0);
+
+        amount.Should().Be(0m);
+        last.Should().BeNull();
+    }
+
+    [Fact]
+    public void So_phien_am_bi_chan_chu_khong_lang_le_thanh_T0()
+    {
+        // `while (counted < sessions)` không chạy lần nào với số âm, nên không chặn thì
+        // một cấu hình sai biến thành T+0 trong im lặng — mất hẳn khái niệm chờ về.
+        var act = () => SettlementCalculator.SettlementDateOf(
+            new DateTime(2026, 6, 11), Closures2026, sessions: -1);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("sessions");
+    }
+
+    // --- Tiền chờ về ---
 
     [Fact]
     public void Tien_cho_ve_tru_phi_va_thue()
@@ -59,7 +109,7 @@ public class SettlementCalculatorTests
         var trades = new[] { Sell("2026-06-11", 1_000m, 20_000m, fee: 30_000m, tax: 20_000m) };
 
         var (amount, _) = SettlementCalculator.PendingSellProceeds(
-            trades, new DateTime(2026, 6, 12), Closures2026);
+            trades, new DateTime(2026, 6, 12), Closures2026, T2);
 
         amount.Should().Be(1_000m * 20_000m - 30_000m - 20_000m);
     }
@@ -71,7 +121,7 @@ public class SettlementCalculatorTests
 
         // asOf = đúng ngày về (15/6) → đã về, không còn chờ.
         var (amount, last) = SettlementCalculator.PendingSellProceeds(
-            trades, new DateTime(2026, 6, 15), Closures2026);
+            trades, new DateTime(2026, 6, 15), Closures2026, T2);
 
         amount.Should().Be(0m);
         last.Should().BeNull();
@@ -83,7 +133,7 @@ public class SettlementCalculatorTests
         var trades = new[] { Buy("2026-06-11", 1_000m, 20_000m) };
 
         var (amount, _) = SettlementCalculator.PendingSellProceeds(
-            trades, new DateTime(2026, 6, 12), Closures2026);
+            trades, new DateTime(2026, 6, 12), Closures2026, T2);
 
         amount.Should().Be(0m);
     }
@@ -98,7 +148,7 @@ public class SettlementCalculatorTests
         };
 
         var (_, last) = SettlementCalculator.PendingSellProceeds(
-            trades, new DateTime(2026, 6, 12), Closures2026);
+            trades, new DateTime(2026, 6, 12), Closures2026, T2);
 
         last.Should().Be(new DateTime(2026, 6, 16));
     }
@@ -118,7 +168,7 @@ public class SettlementCalculatorTests
             .Where(t => t.TradeType == TradeType.SELL)
             .Sum(t => t.Quantity * t.Price - t.Fee - t.Tax);
 
-        var (pending, _) = SettlementCalculator.PendingSellProceeds(trades, asOf, Closures2026);
+        var (pending, _) = SettlementCalculator.PendingSellProceeds(trades, asOf, Closures2026, T2);
         var settled = totalSold - pending;
 
         settled.Should().Be(500m * 15_000m - 10_000m);
@@ -138,7 +188,7 @@ public class SettlementCalculatorTests
             DateTime.Parse(stored, null, System.Globalization.DateTimeStyles.AdjustToUniversal));
 
         var (amount, last) = SettlementCalculator.PendingSellProceeds(
-            new[] { trade }, new DateTime(2026, 8, 13), NoClosures);
+            new[] { trade }, new DateTime(2026, 8, 13), NoClosures, T2);
 
         amount.Should().Be(1_000_000m);
         // 13/08/2026 là thứ Năm: T+1 = thứ Sáu 14/08, T+2 = thứ Hai 17/08.
@@ -154,7 +204,7 @@ public class SettlementCalculatorTests
             new DateTime(2026, 8, 11, 17, 0, 0, DateTimeKind.Utc));  // = 12/08 giờ VN
 
         var (amount, last) = SettlementCalculator.PendingSellProceeds(
-            new[] { trade }, new DateTime(2026, 8, 13), NoClosures);
+            new[] { trade }, new DateTime(2026, 8, 13), NoClosures, T2);
 
         amount.Should().Be(1_000m * 21_000m - 30_000m - 21_000m);
         last.Should().Be(new DateTime(2026, 8, 14));
@@ -171,7 +221,7 @@ public class SettlementCalculatorTests
 
         var trades = new[] { Sell("2026-06-11", 1_000m, 20_000m) };
         var (amount, _) = SettlementCalculator.PendingSellProceeds(
-            trades, VietnamDate.Today(utc), Closures2026);
+            trades, VietnamDate.Today(utc), Closures2026, T2);
 
         amount.Should().Be(0m, "tiền về ngày 15/6, mà giờ VN đã sang 15/6");
     }

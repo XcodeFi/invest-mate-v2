@@ -305,6 +305,15 @@ builder.Services.AddScoped<
     InvestmentApp.Application.Common.Interfaces.IHypotheticalSavingsReturnService,
     InvestmentApp.Infrastructure.Services.HypotheticalSavingsReturnService>();
 
+// Chu kỳ thanh toán. Thiếu section "Settlement" thì Bind không ghi gì lên object nên
+// giữ nguyên T+2 từ initializer của SettlementOptions.Sessions. ValidateOnStart để một
+// giá trị vô nghĩa (âm, hoặc quá 10 phiên) chết ngay lúc khởi động chứ không đợi tới
+// request đầu tiên rồi hiện ra dưới dạng một con số tiền sai.
+builder.Services.AddOptions<InvestmentApp.Application.Common.SettlementOptions>()
+    .Bind(builder.Configuration.GetSection(InvestmentApp.Application.Common.SettlementOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 // Configure Trading Fees
 builder.Services.Configure<TradingFeesConfig>(builder.Configuration.GetSection("TradingFees"));
 builder.Services.AddScoped<IFeeConfiguration, FeeConfiguration>();

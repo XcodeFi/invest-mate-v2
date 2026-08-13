@@ -74,13 +74,21 @@ Trade-off chấp nhận: nhiều bộ phận hơn Option C, và **quên nhập l
 
 **Follow-ups (if any):**
 
-- Migration to run: `scripts/migrations/2026-08-12-market-closures-2026.mongo.js` (cần `USER_ID`). Chưa chạy trên môi trường nào.
+- Migration to run: `scripts/migrations/2026-08-12-market-closures-2026.mongo.js` (cần `USER_ID`). ~~Chưa chạy trên môi trường nào.~~ Script vẫn chưa chạy ở đâu; 12 ngày nghỉ 2026 đã được nhập vào prod bằng `POST /market-closures` (2026-08-13), nên script chỉ còn dùng cho môi trường mới.
 - Tests to add: lịch nghỉ 2027 khi HOSE công bố (tháng 12/2026) — nhập qua `add_market_closures`, không cần sửa code.
 - Docs to update: `docs/business-domain.md`, `docs/architecture.md`, `docs/features.md`, user guide `tien-ban-cho-ve.md` — đã làm trong PR này.
+
+## Addendum 2026-08-13 (PR #166) — hai điều chỉnh sau khi verify bằng dữ liệu thật
+
+**1. Chu kỳ thanh toán thành cấu hình, không còn hằng số.** Quyết định gốc để `SettlementSessions = 2` là hằng số trong code. Việt Nam đang hướng tới rút ngắn chu kỳ, mà đổi hằng số thì phải sửa code + phát hành. Nay `SettlementOptions` đọc section `Settlement`: **vắng key → T+2** (không cần khai gì trong `appsettings.json`, nên không phải giữ hai nơi đồng bộ), có key → theo key, `0` là T+0 hợp lệ. Ngoài khoảng 0–10 thì `ValidateOnStart` cho app chết lúc khởi động. `sessions` là tham số **bắt buộc** của `SettlementCalculator`, không có giá trị mặc định: mặc định ở tầng hàm thuần thì một call site quên nối cấu hình sẽ im lặng chạy T+2 mãi mãi, và không test nào đỏ.
+
+**2. Ngày lệnh phải quy về lịch VN trước khi đếm phiên.** `Trade.TradeDate` thiếu `[BsonDateTimeOptions(Kind = DateTimeKind.Utc)]`, nên driver quy đổi theo giờ local của tiến trình — và giờ local đó là biến triển khai (`TZ=Asia/Ho_Chi_Minh` được thêm vào `cloudbuild.yaml` ở PR #163 cho Serilog). Kết quả: cùng payload cho hai kết quả tuỳ ngày deploy, và tiền bị đánh dấu đã về **sớm một ngày**. Vá bằng `VietnamDate.DayOf()`.
+
+Giới hạn cần biết: `DayOf()` đúng cho mọi bản ghi tạo từ PR #163 trở đi, nhưng **vượt một ngày** với 18 bản ghi tháng 3–4/2026 (ghi khi container còn chạy UTC nên giờ treo tường VN bị đóng dấu như UTC) khi giờ lưu ≥ 17:00Z. 18 bản ghi đó nằm ngoài cửa sổ thanh toán rất xa nên không chạm con số "chờ về". **Không rải `DayOf()` sang `PositionBuilder` / `BehavioralAnalysisService` / digest trước khi rebase chúng** — sẽ đúng chỗ mới mà làm sai chỗ cũ. Sửa gốc (thêm attribute + migration) cần ADR riêng. Chi tiết bảng ba hình dạng: `docs/project-context.md`.
 
 ## References
 
 - Spec: `docs/superpowers/specs/2026-08-12-t2-settlement-pending-cash-design.md`
 - Plan: `docs/superpowers/plans/2026-08-12-t2-settlement-pending-cash.md`
-- PR: [#165](https://github.com/XcodeFi/invest-mate-v2/pull/165)
+- PR: [#165](https://github.com/XcodeFi/invest-mate-v2/pull/165), addendum [#166](https://github.com/XcodeFi/invest-mate-v2/pull/166)
 - External: thông báo lịch nghỉ giao dịch năm 2026 của HOSE — 12 phiên (01/01; 16–20/02; 27/04; 30/04–01/05; 31/08–02/09).

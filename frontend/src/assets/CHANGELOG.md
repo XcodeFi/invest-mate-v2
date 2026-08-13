@@ -4,9 +4,19 @@
 
 ## [v2.83.1] — 2026-08-13 · Sửa lệch một ngày khi đếm phiên T+2
 
+### Tính năng
+
+**⚙️ Chu kỳ thanh toán đổi được mà không cần bản cập nhật.** Việt Nam đang hướng tới rút ngắn chu kỳ thanh toán, nên số phiên nay nằm ở cấu hình chứ không nằm trong code: đặt lại một giá trị là chạy T+1, hay T+0 (tiền về ngay trong ngày, dòng "chờ về" biến mất). Không đặt gì thì vẫn T+2 như hiện nay.
+
 ### Sửa lỗi
 
 **⏳ Tiền bán được đánh dấu "đã về" sớm một ngày.** Lệnh bán ghi ngày 12/08 bị tính là đã về ví ngay 13/08 thay vì 14/08, nên phần "chờ về" hụt đúng số tiền của lệnh đó — lệch về phía lạc quan, đúng hướng mà tính năng này sinh ra để chặn. Nguyên nhân: ngày lệnh được lưu dưới dạng mốc quốc tế nên đọc thô ra ngày hôm trước. Nay quy về ngày lịch Việt Nam trước khi đếm phiên.
+
+### Kỹ thuật
+
+- `SettlementOptions` đọc section `Settlement`; vắng key → T+2 nên `appsettings.json` không cần khai gì. Đổi trên Cloud Run bằng `Settlement__Sessions=<n>` trong `--set-env-vars`. Hợp lệ 0–10, ngoài khoảng đó app chết lúc khởi động (`ValidateOnStart`).
+- `sessions` là tham số **bắt buộc** của `SettlementCalculator` — không đặt mặc định ở tầng hàm thuần, để một call site quên nối cấu hình không thể im lặng chạy T+2.
+- Lệch ngày bắt nguồn từ `TZ=Asia/Ho_Chi_Minh` thêm ở PR #163 cho Serilog: nó đổi luôn cách driver Mongo quy đổi `DateTime` `Unspecified`. Bảng ba hình dạng đang tồn tại trong `trades` và phạm vi chưa sửa: [ADR-0016 addendum](../../../docs/adr/0016-t2-settlement-pending-cash.md), `docs/project-context.md`.
 
 ## [v2.83.0] — 2026-08-12 · Tiền bán chờ về T+2
 

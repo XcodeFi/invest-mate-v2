@@ -115,7 +115,16 @@ ImpersonationAudit (independent, append-only)
 - Nạp/rút tiền qua `CapitalFlow` (Deposit, Withdraw, Dividend, Interest, Fee)
 - **Vốn hiện tại** (`CurrentCapital`) = `InitialCapital + Σ SignedAmount` — đây là giá trị "vốn ròng" hiện tại của danh mục, phản ánh mọi nạp/rút/cổ tức/phí đã xảy ra
 - **Cash còn lại** = `CurrentCapital − TotalInvested + TotalSold` — tổng tiền trong tài khoản chứng khoán
-- **Tiền đã về** = `Cash còn lại − PendingSettlementCash` — phần dùng mua được ngay. `PendingSettlementCash` là tiền bán chưa về theo chu kỳ **T+2** (2 phiên giao dịch, bỏ T7/CN + ngày nghỉ lễ trong `market_closures`), tính bởi `SettlementCalculator`. Xem [ADR-0016](adr/0016-t2-settlement-pending-cash.md)
+- **Tiền đã về** = `Cash còn lại − PendingSettlementCash` — phần dùng mua được ngay. `PendingSettlementCash` là tiền bán chưa về theo chu kỳ thanh toán đang cấu hình (bỏ T7/CN + ngày nghỉ lễ trong `market_closures`), tính bởi `SettlementCalculator`. Xem [ADR-0016](adr/0016-t2-settlement-pending-cash.md)
+  - **Chu kỳ thanh toán đổi được bằng cấu hình** — `SettlementOptions` đọc section `Settlement`:
+
+    | Cấu hình | Kết quả |
+    |---|---|
+    | không có key (mặc định) | **T+2** — chuẩn HOSE hiện hành |
+    | `Settlement__Sessions=1` | T+1 |
+    | `Settlement__Sessions=0` | T+0 — tiền về ngay trong ngày, `PendingSettlementCash` luôn bằng 0 |
+
+    Đổi trên Cloud Run: thêm `Settlement__Sessions=<n>` vào `--set-env-vars` trong `cloudbuild.yaml`. Section này **không** có trong `appsettings.json` là có chủ ý: vắng key nghĩa là T+2, nên không cần đồng bộ hai nơi. Giá trị hợp lệ 0–10; ngoài khoảng đó app chết ngay lúc khởi động (`ValidateOnStart`) thay vì lặng lẽ trả một con số tiền sai. Lưu ý `0` là giá trị hợp lệ, không phải "chưa cấu hình".
 - **Quy tắc:** Mọi chỗ tính position sizing, account balance, allocation % phải dùng `CurrentCapital` (không dùng `InitialCapital`) để phản ánh đúng vốn user đang có.
 
 ### 3.1b. Sự kiện quyền (CorporateAction)
