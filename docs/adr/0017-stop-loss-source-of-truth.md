@@ -95,4 +95,4 @@ Nới SL (Buy: dời xuống) **được phép** nhưng bắt buộc nhập lý 
 
 - Plan: `docs/plans/done/sl-source-of-truth-plan.md`
 - Liên quan: ADR-0009 (Decision Queue entry-side signals), ADR-0010 (corporate actions — mốc điều chỉnh giá)
-- PR: #XX (điền sau khi merge)
+- PR: #167
