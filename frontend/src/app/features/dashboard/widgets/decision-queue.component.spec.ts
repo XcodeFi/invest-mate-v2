@@ -7,14 +7,14 @@
  *   4. Cap 5 items, hiện overflow link khi tổng > 5.
  *   5. Severity/type label đúng tiếng Việt.
  *   6. Loading skeleton hiện trước khi service trả về.
- *   7. (P4) BÁN button gọi resolve API với ExecuteSell + tradePlanId.
+ *   7. BÁN button điều hướng sang màn hình bán, form fill sẵn từ kế hoạch (KHÔNG resolve ngay).
  *   8. (P4) GIỮ button expand inline note form.
  *   9. (P4) Submit button disabled khi note < 20 chars.
  *  10. (P4) Item bị remove khỏi list sau resolve thành công.
  *  11. (P4) BÁN button ẩn khi item không có tradePlanId.
  */
 import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
@@ -22,7 +22,7 @@ import { of, throwError } from 'rxjs';
 import { DecisionQueueComponent } from './decision-queue.component';
 import { DecisionService, DecisionItemDto, DecisionQueueDto, DecisionType } from '../../../core/services/decision.service';
 import { DisciplineService, DisciplineStreakDto } from '../../../core/services/discipline.service';
-import { TradePlanService } from '../../../core/services/trade-plan.service';
+import { TradePlanService, TradePlan } from '../../../core/services/trade-plan.service';
 
 const mockItem = (over: Partial<DecisionItemDto> = {}): DecisionItemDto => ({
   id: 'StopLossHit:p1:FPT',
@@ -52,10 +52,11 @@ describe('DecisionQueueComponent', () => {
   function setup(queue: DecisionQueueDto, streak: DisciplineStreakDto) {
     decisionSpy = jasmine.createSpyObj('DecisionService', ['getQueue', 'resolve']);
     disciplineSpy = jasmine.createSpyObj('DisciplineService', ['getStreak']);
-    planSpy = jasmine.createSpyObj('TradePlanService', ['updateStopLoss']);
+    planSpy = jasmine.createSpyObj('TradePlanService', ['updateStopLoss', 'getById']);
     decisionSpy.getQueue.and.returnValue(of(queue));
     disciplineSpy.getStreak.and.returnValue(of(streak));
     planSpy.updateStopLoss.and.returnValue(of(undefined as void));
+    planSpy.getById.and.returnValue(of({ quantity: 300 } as unknown as TradePlan));
 
     TestBed.configureTestingModule({
       imports: [DecisionQueueComponent],
@@ -232,31 +233,66 @@ describe('DecisionQueueComponent', () => {
     expect(fixture.debugElement.query(By.css('[data-test="btn-hold"]'))).toBeTruthy();
   });
 
-  it('calls resolve API with ExecuteSell when BÁN clicked + confirmed', () => {
-    spyOn(window, 'confirm').and.returnValue(true);
-    const item = mockItem({ id: 'ScenarioTrigger:plan-x:n1', type: 'ScenarioTrigger', tradePlanId: 'plan-x' });
+  it('BÁN điều hướng sang màn hình bán với form fill sẵn từ kế hoạch', (done) => {
+    const item = mockItem({
+      id: 'ScenarioTrigger:plan-x:n1', type: 'ScenarioTrigger', tradePlanId: 'plan-x',
+      symbol: 'FPT', portfolioId: 'p1', currentPrice: 74_100,
+    });
     setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
-    decisionSpy.resolve.and.returnValue(of({ resultId: 't1', message: 'OK', resultType: 'Trade' }));
+    planSpy.getById.and.returnValue(of({ quantity: 300 } as unknown as TradePlan));
+    const router = TestBed.inject(Router);
+    const nav = spyOn(router, 'navigate').and.resolveTo(true);
     fixture.detectChanges();
 
     fixture.debugElement.query(By.css('[data-test="btn-sell"]')).nativeElement.click();
-    fixture.detectChanges();
 
-    expect(decisionSpy.resolve).toHaveBeenCalledWith(
-      'ScenarioTrigger:plan-x:n1',
-      jasmine.objectContaining({ action: 'ExecuteSell', tradePlanId: 'plan-x' })
-    );
+    setTimeout(() => {
+      expect(nav).toHaveBeenCalledWith(['/trades/create'], {
+        queryParams: {
+          symbol: 'FPT', portfolioId: 'p1', direction: 'Sell',
+          planId: 'plan-x', price: 74_100, quantity: 300,
+        },
+      });
+      done();
+    }, 0);
   });
 
-  it('does NOT call resolve when user cancels BÁN confirm dialog', () => {
-    spyOn(window, 'confirm').and.returnValue(false);
+  it('BÁN không gọi resolve nữa — không ghi cờ dập cảnh báo khi chưa bán thật', (done) => {
+    // Bản cũ POST ExecuteSell ngay lúc bấm: lệnh bán được tạo VÀ một journal Decision được ghi
+    // làm cờ dập thẻ cho hết ngày VN. Xoá lệnh bán ở trang giao dịch không xoá cờ đó, nên
+    // hành động đã hoàn tác mà cảnh báo vẫn mất. Không ghi gì lúc bấm thì không có gì phải dọn.
     const item = mockItem({ tradePlanId: 'plan-x' });
     setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
     fixture.detectChanges();
 
     fixture.debugElement.query(By.css('[data-test="btn-sell"]')).nativeElement.click();
 
-    expect(decisionSpy.resolve).not.toHaveBeenCalled();
+    setTimeout(() => {
+      expect(decisionSpy.resolve).not.toHaveBeenCalled();
+      expect(component.items.length).toBe(1);
+      done();
+    }, 0);
+  });
+
+  it('BÁN vẫn điều hướng khi không lấy được kế hoạch — chỉ thiếu ô số lượng', (done) => {
+    const item = mockItem({ tradePlanId: 'plan-x', symbol: 'FPT', portfolioId: 'p1', currentPrice: 74_100 });
+    setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
+    planSpy.getById.and.returnValue(throwError(() => ({ status: 404 })));
+    const nav = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('[data-test="btn-sell"]')).nativeElement.click();
+
+    setTimeout(() => {
+      expect(nav).toHaveBeenCalledWith(['/trades/create'], {
+        queryParams: {
+          symbol: 'FPT', portfolioId: 'p1', direction: 'Sell',
+          planId: 'plan-x', price: 74_100,
+        },
+      });
+      done();
+    }, 0);
   });
 
   it('expands inline note form when GIỮ clicked', () => {
@@ -285,14 +321,15 @@ describe('DecisionQueueComponent', () => {
     expect(btn.disabled).toBeTrue();
   });
 
-  it('shows error message at item-level when BÁN API fails', () => {
-    spyOn(window, 'confirm').and.returnValue(true);
+  it('shows error message at item-level when GIỮ API fails', () => {
     const item = mockItem({ id: 'i-err', symbol: 'FPT', tradePlanId: 'plan-1' });
     setup({ items: [item], totalCount: 1 }, { daysWithoutViolation: 0, hasData: false });
     decisionSpy.resolve.and.returnValue(throwError(() => ({ error: { message: 'Plan đã bị xóa' } })));
     fixture.detectChanges();
 
-    component.onExecuteSell(component.items[0]);
+    component.expandNote(component.items[0]);
+    component.noteDraft = 'Giữ vì nền hỗ trợ vẫn còn nguyên, chưa vỡ';
+    component.submitHold(component.items[0]);
     fixture.detectChanges();
 
     const err = fixture.debugElement.query(By.css('[data-test="resolve-error"]'));
@@ -308,11 +345,12 @@ describe('DecisionQueueComponent', () => {
       mockItem({ id: 'i2', symbol: 'VNM', tradePlanId: 'plan-2' }),
     ];
     setup({ items: [...items], totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
-    decisionSpy.resolve.and.returnValue(of({ resultId: 't1', message: 'OK', resultType: 'Trade' }));
+    decisionSpy.resolve.and.returnValue(of({ resultId: 'j1', message: 'OK', resultType: 'JournalEntry' }));
     fixture.detectChanges();
 
-    spyOn(window, 'confirm').and.returnValue(true);
-    component.onExecuteSell(component.items[0]);
+    component.expandNote(component.items[0]);
+    component.noteDraft = 'Giữ vì nền hỗ trợ vẫn còn nguyên, chưa vỡ';
+    component.submitHold(component.items[0]);
     fixture.detectChanges();
 
     expect(component.items.length).toBe(1);

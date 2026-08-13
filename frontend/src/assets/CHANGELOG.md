@@ -2,6 +2,49 @@
 
 ---
 
+## [v2.86.0] — 2026-08-13 · Trợ lý AI xử lý được việc cần làm hôm nay — nhưng chỉ hướng GIỮ
+
+### Sửa lỗi
+
+**🚪 Trợ lý AI tắt được cảnh báo mà không cần nêu lý do.** Khi bạn bấm "GIỮ + GHI LÝ DO", hệ thống bắt viết ít nhất 20 ký tự — cố ý, để bạn nghĩ thật thay vì bấm cho qua. Nhưng trợ lý AI có một đường khác: nó ghi một mục nhật ký loại đặc biệt (loại mà hệ thống dùng làm dấu ẩn cảnh báo), và đường đó **không đi qua luật 20 ký tự nào**. Tài liệu dành cho trợ lý còn liệt kê loại đó là hợp lệ, tức là đang chỉ đường. Nay loại đó bị từ chối ở mọi đường tạo/sửa nhật ký — dấu ẩn chỉ sinh ra từ hành động xử lý thật.
+
+### Tính năng
+
+**🤖 Trợ lý AI xử lý được "Việc cần xử lý hôm nay".** Trước đây trợ lý **đọc** được hàng đợi nhưng không làm gì được với nó. Nay nó GIỮ được một việc kèm lý do — cùng luật 20 ký tự như bạn bấm trên màn hình. Hãy nói cho nó biết vì sao bạn giữ; nó không được tự bịa lý do thay bạn.
+
+**⛔ Cố ý không mở đường BÁN cho trợ lý.** Bán bao nhiêu là quyết định của bạn. Đường bán tự động vốn lấy cứng toàn bộ khối lượng theo kế hoạch — đường đó vừa bị bỏ khỏi màn hình chính (v2.85.0) vì không cho sửa số lượng, nên mở lại cho trợ lý là dựng lại đúng cái vừa tháo. Muốn ghi lệnh bán thì trợ lý phải hỏi bạn khối lượng rồi ghi như một lệnh bình thường.
+
+### Kỹ thuật
+
+- Tool MCP `hold_decision` (`Destructive`, tham số phẳng) → `ResolveDecisionCommand` với `Action` **cố định** `HoldWithJournal`; `action` không phải tham số nên `ExecuteSell` không tới được từ MCP. Tổng 57 tool; `McpToolDiscoveryTests` nâng đếm 56 → 57
+- `JournalEntryTypeRule` + `CreateJournalEntryCommandValidator` + `UpdateJournalEntryCommandValidator` — allowlist **theo tên** (không phải "khác Decision là được": `Enum.Parse` nhận cả chuỗi số `"5"` và bỏ khoảng trắng). Một vị từ dùng cho cả create lẫn update
+- `Docs/AI-Agent-TradePlan-API.md` — bỏ `Decision` khỏi tập giá trị `entryType`, ghi rõ 400 + trỏ sang `hold_decision`
+- 4 test binding qua SDK cho `hold_decision` và `move_stop_loss` (`move_stop_loss` chưa có từ v2.84.0)
+- Tests: **2119 backend** (+15), 409 frontend — tất cả pass
+
+---
+
+## [v2.85.0] — 2026-08-13 · Bán theo kế hoạch đi qua màn hình bán, không còn bấm một cái là xong
+
+### Sửa lỗi
+
+**🔪 Nút "BÁN THEO KẾ HOẠCH" tạo lệnh ngay mà không cho sửa số lượng.** Bấm nút chỉ hiện một hộp xác nhận, đồng ý cái là lệnh bán được ghi luôn với giá hiện tại và **toàn bộ** khối lượng lấy cứng từ kế hoạch. Muốn bán một phần thì không có đường nào. Nay nút mở **màn hình ghi lệnh bán** với form điền sẵn theo kế hoạch — mã, danh mục, giá hiện tại, số lượng — bạn sửa lại số lượng rồi mới lưu. Lúc bấm nút không có gì được ghi.
+
+**🔁 Hoàn tác lệnh bán mà cảnh báo không quay lại.** Bản cũ khi bấm BÁN ghi kèm một dấu ẩn để thẻ cảnh báo không hiện lại trong ngày. Xoá lệnh bán ở trang Giao dịch thì vị thế và cắt lỗ trở về đúng như trước, **chỉ riêng cảnh báo là mất tới nửa đêm** — đọc thành "hệ thống ăn mất cảnh báo của tôi". Dấu ẩn đó còn dập luôn cả cảnh báo kịch bản và nhắc soát lại luận điểm của cùng kế hoạch. Nay không ghi gì lúc bấm nút nên không còn gì phải dọn: bán xong đóng hết vị thế thì thẻ mất tự nhiên; bán một phần mà giá vẫn dưới ngưỡng cắt lỗ thì thẻ ở lại — đúng như nó phải vậy.
+
+### Thay đổi
+
+**🎯 Take-Profit không còn là bắt buộc.** Ô Take-Profit vẫn mang dấu `*` dù chẳng có gì bắt — lưu kế hoạch trống ô đó vẫn được. Dấu đó sai từ đầu: kế hoạch có thể đặt đường ra bằng **Mốc chốt lời** hoặc **Kịch bản thoát** thay cho một mức giá duy nhất. Bỏ dấu `*` cho khớp thực tế. Để trống thì R:R hiện trống thay vì đọc thành 0.
+
+### Kỹ thuật
+
+- `onExecuteSell` điều hướng `/trades/create` với `symbol`/`portfolioId`/`direction=Sell`/`planId`/`price`/`quantity` — cùng khuôn params trang Vị thế đã dùng cho "Ghi nhận bán". `quantity` từ `TradePlanService.getById`; lấy fail vẫn điều hướng
+- `DecisionAction.ExecuteSell` ở backend còn nguyên nhưng không còn caller từ FE
+- Bỏ `window.confirm` khỏi luồng BÁN; `runResolve` chỉ còn đường GIỮ dùng
+- Tests: **409 frontend** (+1) — 3 ca điều hướng mới (tham số đúng, không resolve, kế hoạch lấy fail), 2 ca cũ chuyển sang đường GIỮ
+
+---
+
 ## [v2.84.0] — 2026-08-13 · Stop-loss trong kế hoạch được tính, và dời được theo từng giai đoạn
 
 ### Sửa lỗi

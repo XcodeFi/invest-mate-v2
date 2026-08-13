@@ -4,11 +4,13 @@ using FluentAssertions;
 using InvestmentApp.Api.Mcp;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Decisions.Commands.ResolveDecision;
 using InvestmentApp.Application.JournalEntries.Commands.CreateJournalEntry;
 using InvestmentApp.Application.JournalEntries.Commands.UpdateJournalEntry;
 using InvestmentApp.Application.Journals.Commands.CreateJournal;
 using InvestmentApp.Application.Journals.Commands.UpdateJournal;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
+using InvestmentApp.Application.TradePlans.Commands.UpdateStopLoss;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
@@ -79,6 +81,65 @@ public class McpToolArgumentBindingTests
         result.IsError.Should().NotBe(true, $"{toolName} should accept flat arguments");
         captured.Should().NotBeNull($"{toolName} should forward a {typeof(TCommand).Name} to MediatR");
         return captured!;
+    }
+
+    [Fact]
+    public async Task Hold_Decision_Accepts_Flat_Args_And_Always_Holds()
+    {
+        var cmd = await CallAsync<ResolveDecisionCommand, ResolveDecisionResult>("hold_decision",
+            """
+            {"decisionId":"StopLossHit:pf-1:HHV","note":"Nền hỗ trợ 10.000 vẫn giữ, chưa vỡ khối lượng",
+             "tradePlanId":"plan-1","symbol":"HHV","portfolioId":"pf-1"}
+            """,
+            new ResolveDecisionResult { ResultId = "j1", Message = "ok", ResultType = "JournalEntry" });
+
+        cmd.UserId.Should().Be(TestUserId);
+        cmd.DecisionId.Should().Be("StopLossHit:pf-1:HHV");
+        cmd.Note.Should().Be("Nền hỗ trợ 10.000 vẫn giữ, chưa vỡ khối lượng");
+        cmd.TradePlanId.Should().Be("plan-1");
+        cmd.Symbol.Should().Be("HHV");
+        // portfolioId phải tới được command: thiếu nó thì cờ dập cảnh báo rơi về phạm vi
+        // (mã, loại) và giấu luôn cảnh báo cùng mã ở danh mục khác.
+        cmd.PortfolioId.Should().Be("pf-1");
+        // Điểm cốt tử: action LUÔN là HoldWithJournal. Không có tham số nào đặt được ExecuteSell —
+        // đường tạo lệnh bán với khối lượng cứng theo kế hoạch cố tình không mở ra MCP.
+        cmd.Action.Should().Be(DecisionAction.HoldWithJournal);
+    }
+
+    [Fact]
+    public async Task Hold_Decision_Accepts_Only_Required_Args()
+    {
+        var cmd = await CallAsync<ResolveDecisionCommand, ResolveDecisionResult>("hold_decision",
+            """{"decisionId":"BuyOpportunity:VCB","note":"Chờ xác nhận khối lượng trước khi vào"}""",
+            new ResolveDecisionResult { ResultId = "j1", Message = "ok", ResultType = "JournalEntry" });
+
+        cmd.TradePlanId.Should().BeNull();
+        cmd.Symbol.Should().BeNull();
+        cmd.PortfolioId.Should().BeNull();
+        cmd.Action.Should().Be(DecisionAction.HoldWithJournal);
+    }
+
+    [Fact]
+    public async Task Move_Stop_Loss_Accepts_Flat_Args()
+    {
+        var cmd = await CallAsync<UpdateStopLossCommand, Unit>("move_stop_loss",
+            """{"id":"plan-1","newStopLoss":71000,"reason":"Pyramid xong, dời cả cụm lên"}""",
+            Unit.Value);
+
+        cmd.PlanId.Should().Be("plan-1");
+        cmd.NewStopLoss.Should().Be(71_000m);
+        cmd.Reason.Should().Be("Pyramid xong, dời cả cụm lên");
+        cmd.UserId.Should().Be(TestUserId);
+    }
+
+    [Fact]
+    public async Task Move_Stop_Loss_Accepts_Omitted_Reason()
+    {
+        // Siết SL không cần lý do; entity mới là chỗ quyết bắt buộc hay không theo chiều dời.
+        var cmd = await CallAsync<UpdateStopLossCommand, Unit>("move_stop_loss",
+            """{"id":"plan-1","newStopLoss":71000}""", Unit.Value);
+
+        cmd.Reason.Should().BeNull();
     }
 
     [Fact]
