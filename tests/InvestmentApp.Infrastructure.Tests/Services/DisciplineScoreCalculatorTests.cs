@@ -58,7 +58,9 @@ public class DisciplineScoreCalculatorTests
             tradesByPlan[plan.Id] = MakeBuyExitTrades(plan, honored: i < 9);
         }
         // 1 plan has SL widened underwater (adds to widenedRatio).
-        plans[0].UpdateStopLossWithHistory(plans[0].StopLoss * 0.9m); // lower SL = widen for Buy
+        // Lower SL = widen for Buy. Lý do là bắt buộc khi nới, nhưng có lý do KHÔNG miễn bị đếm —
+        // đó là cả điểm của cơ chế: cho phép, ghi vết, rồi trừ điểm.
+        plans[0].UpdateStopLossWithHistory(plans[0].StopLoss * 0.9m, "Nới theo nền hỗ trợ mới");
 
         // Tất cả plan có StopLossHistory (vì widenedCount / widenableCount): chỉ plan[0] có SL history
         // nên widenableCount = 1, widenedCount = 1 → widenedRatio = 1.0

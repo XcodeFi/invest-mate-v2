@@ -1290,6 +1290,135 @@ public class TradePlanTests
         plan.UpdatedAt.Should().BeOnOrAfter(before);
     }
 
+    // Nới SL = dời ngưỡng ra xa giá vào hơn (Buy: xuống, Sell: lên) → bắt buộc lý do.
+    // Luật này phải nằm ở đây chứ không chỉ ở modal frontend: REST và MCP đi cùng đường này.
+
+    [Fact]
+    public void UpdateStopLossWithHistory_BuyWidenWithoutReason_ShouldThrow()
+    {
+        var plan = CreateDefaultPlan(direction: "Buy", stopLoss: 75_000m);
+
+        var act = () => plan.UpdateStopLossWithHistory(70_000m);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*lý do*");
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_BuyWidenWithWhitespaceReason_ShouldThrow()
+    {
+        var plan = CreateDefaultPlan(direction: "Buy", stopLoss: 75_000m);
+
+        var act = () => plan.UpdateStopLossWithHistory(70_000m, "   ");
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_BuyWidenWithReason_ShouldApply()
+    {
+        var plan = CreateDefaultPlan(direction: "Buy", stopLoss: 75_000m);
+
+        plan.UpdateStopLossWithHistory(70_000m, "Nền hỗ trợ lùi về 70 sau tin quý");
+
+        plan.StopLoss.Should().Be(70_000m);
+        plan.StopLossHistory.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_BuyTightenWithoutReason_ShouldApply()
+    {
+        var plan = CreateDefaultPlan(direction: "Buy", stopLoss: 75_000m);
+
+        plan.UpdateStopLossWithHistory(78_000m);
+
+        plan.StopLoss.Should().Be(78_000m);
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_SellWidenWithoutReason_ShouldThrow()
+    {
+        // Chiều Sell: nới là dời LÊN. Không đảo chiều thì lệnh short nới thoải mái không lý do.
+        var plan = CreateDefaultPlan(direction: "Sell", entryPrice: 70_000m, stopLoss: 75_000m, target: 60_000m);
+
+        var act = () => plan.UpdateStopLossWithHistory(80_000m);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_SellTightenWithoutReason_ShouldApply()
+    {
+        var plan = CreateDefaultPlan(direction: "Sell", entryPrice: 70_000m, stopLoss: 75_000m, target: 60_000m);
+
+        plan.UpdateStopLossWithHistory(72_000m);
+
+        plan.StopLoss.Should().Be(72_000m);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1000)]
+    public void UpdateStopLossWithHistory_NonPositive_ShouldThrow(decimal newStopLoss)
+    {
+        var plan = CreateDefaultPlan(stopLoss: 75_000m);
+
+        var act = () => plan.UpdateStopLossWithHistory(newStopLoss, "xoá ngưỡng");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_ReviewedPlan_ShouldThrow()
+    {
+        // Chiến dịch đã chốt: thêm một dòng StopLossHistory là sửa số liệu của bản review đã ký.
+        // Modal chỉ hiện nút với InProgress/Executed, nhưng tool MCP không đi qua modal.
+        var plan = CreateReviewedPlan();
+
+        var act = () => plan.UpdateStopLossWithHistory(70_000m, "dời sau khi đã đóng");
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_CancelledPlan_ShouldThrow()
+    {
+        var plan = CreateDefaultPlan(stopLoss: 75_000m);
+        plan.Cancel();
+
+        var act = () => plan.UpdateStopLossWithHistory(70_000m, "dời sau khi đã huỷ");
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_ExecutedPlan_ShouldApply()
+    {
+        // Cột trụ của ADR-0017: Executed là ĐANG giữ vị thế, không phải đã đóng.
+        var plan = CreateExecutedPlan();
+        var slBefore = plan.StopLoss;
+
+        plan.UpdateStopLossWithHistory(slBefore + 2_000m);
+
+        plan.StopLoss.Should().Be(slBefore + 2_000m);
+    }
+
+    [Fact]
+    public void UpdateStopLossWithHistory_WidenRejected_ShouldLeaveStateUntouched()
+    {
+        // Chốt thứ tự: guard chạy TRƯỚC khi gán. Nếu ghi history rồi mới chặn thì kế hoạch
+        // mang một dòng history của lần dời không hề xảy ra, và điểm kỷ luật đếm oan.
+        var plan = CreateDefaultPlan(direction: "Buy", stopLoss: 75_000m);
+        var versionBefore = plan.Version;
+
+        var act = () => plan.UpdateStopLossWithHistory(70_000m);
+
+        act.Should().Throw<InvalidOperationException>();
+        plan.StopLoss.Should().Be(75_000m);
+        plan.StopLossHistory.Should().BeNullOrEmpty();
+        plan.Version.Should().Be(versionBefore);
+    }
+
     #endregion
 
     // =====================================================================

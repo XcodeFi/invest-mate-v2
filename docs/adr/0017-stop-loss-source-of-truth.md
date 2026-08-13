@@ -66,6 +66,12 @@ Về ma trận editability: `Executed` **không phải trạng thái đã đóng
 
 Nới SL (Buy: dời xuống) **được phép** nhưng bắt buộc nhập lý do và có cảnh báo trong giao diện. Không chặn cứng, vì `DisciplineScoreCalculator` đã đếm mỗi lần nới từ `StopLossHistory` — cơ chế răn đe là điểm kỷ luật, không phải cái khoá. Chặn cứng chỉ đẩy người dùng sang huỷ kế hoạch rồi tạo lại, mất luôn dấu vết.
 
+Kế hoạch `Reviewed`/`Cancelled` không dời được SL, và điều kiện này cũng nằm ở entity. Nút trên giao diện chỉ hiện với `InProgress`/`Executed` nên tưởng như đủ, nhưng tool MCP không đi qua giao diện — thiếu chặn ở dưới thì agent thêm được một dòng `StopLossHistory` vào chiến dịch đã chốt và làm lệch chính số liệu review của nó.
+
+Chỗ đặt gate: **`TradePlan.UpdateStopLossWithHistory`**, không phải modal. Modal giữ gate riêng để người dùng biết ngay khi gõ, nhưng nó là lớp UX. Luật thật nằm ở entity vì cả `PATCH /api/v1/trade-plans/{id}/stop-loss` lẫn tool MCP `move_stop_loss` đi qua đó, và mọi caller thêm sau này cũng vậy — gate chỉ ở frontend là gate không có ai canh. Chiều nới lấy từ `plan.Direction` ở server, không tin tham số client gửi. `StopLoss = 0` nghĩa là chưa đặt ngưỡng nên lần đặt đầu không tính là nới. Guard chạy **trước** khi gán, để lần bị từ chối không để lại dòng `StopLossHistory` nào cho điểm kỷ luật đếm oan.
+
+Agent AI dời SL bằng tool MCP riêng `move_stop_loss` chứ không mở rộng `update_trade_plan`: bản đó đi qua `TradePlan.Update()`, vốn throw với plan `Executed` — đúng những kế hoạch mà quyết định này mở ra. Không nới lỏng `Update()` vì các nhóm trường khác của plan `Executed` vẫn phải khoá.
+
 ## Consequences
 
 **Positive:**
@@ -80,6 +86,8 @@ Nới SL (Buy: dời xuống) **được phép** nhưng bắt buộc nhập lý 
 - SL có hai nguồn đọc; ai đọc code phải biết thứ tự ưu tiên. Giảm nhẹ bằng một helper duy nhất trong `RiskCalculationService` và ADR này.
 - Kế hoạch `Ready` (chưa khớp) sẽ làm im cảnh báo cho vị thế vào bằng đường khác. Chấp nhận: kế hoạch có SL vẫn là ý định đã tuyên bố cho mã đó.
 - Nới SL dễ hơn trước. Đổi lại có lý do bắt buộc + dấu vết + điểm kỷ luật, thay vì bị chặn rồi lách bằng cách huỷ plan.
+- Agent AI có thêm một cửa ghi vào kế hoạch đã khớp (`move_stop_loss`). Cùng gate với người dùng, nhưng agent gọi được không cần mở giao diện — nên description của tool phải tự nói ra chuyện "mỗi lần nới bị đếm vào điểm kỷ luật" (ADR-0015: hướng dẫn nằm trong schema).
+- Modal ở Decision Queue và trang Quản lý rủi ro truyền cố định `direction="Buy"`, nên với plan `Sell` gate ở modal có thể lệch với gate ở server. Server đọc `plan.Direction` nên kết quả cuối vẫn đúng; muốn hai lớp khớp nhau thì phải thêm chiều vị thế vào `PositionRiskItem`.
 - Thêm một query Mongo mỗi danh mục mỗi lần đọc rủi ro (gộp theo danh mục, không theo từng mã).
 
 **Follow-ups:**
@@ -87,7 +95,7 @@ Nới SL (Buy: dời xuống) **được phép** nhưng bắt buộc nhập lý 
 - Migration: không cần.
 - `PositionRiskItem` phải nói rõ nguồn: thêm `StopLossSource` (`"Target"`/`"Plan"`/null) + `TradePlanId`. Không có hai trường này thì nút "Dời SL" ở trang Quản lý rủi ro sẽ ghi vào `stop_loss_targets` và dựng thêm nguồn cạnh tranh.
 - `DecisionItemDto.TradePlanId` đang hardcode null cho item stop-loss — phải điền để thẻ trên dashboard dời được SL.
-- Tests: 8 ca ở `RiskCalculationService` (ưu tiên nguồn, lọc trạng thái, điều chỉnh sự kiện quyền), 12 ca ở tầng frontend + decision queue (nút dời SL ở ba mặt, gate lý do, không regression ma trận).
+- Tests: 8 ca ở `RiskCalculationService` (ưu tiên nguồn, lọc trạng thái, điều chỉnh sự kiện quyền), 12 ca ở tầng frontend + decision queue (nút dời SL ở ba mặt, gate lý do, không regression ma trận), 12 ca ở `TradePlan` (gate nới theo hai chiều, lần đặt đầu, giá ≤ 0, từ chối không để lại history, chặn `Reviewed`/`Cancelled`, ca đối chứng `Executed` vẫn dời được).
 - Docs: cập nhật ma trận editability ở `docs/trade-plans.md`, `docs/features.md:429`, `docs/project-context.md:93`.
 - Chưa làm: trailing-stop vẫn cần `StopLossTarget`; `GetTrailingStopAlertsAsync` không đổi.
 

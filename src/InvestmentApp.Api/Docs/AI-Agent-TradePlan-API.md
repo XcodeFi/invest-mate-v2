@@ -29,6 +29,7 @@ App là nhật ký/tracker — KHÔNG đặt lệnh sàn, KHÔNG tiền thật, 
 3. `entryPrice`/`stopLoss`/`quantity` > 0. `invalidationCriteria.trigger ∈ {EarningsMiss, TrendBreak, NewsShock, ThesisTimeout, Manual}`.
 4. Trade: `tradeType ∈ {BUY, SELL}`, `quantity`/`price` > 0, `fee`/`tax` ≥ 0, `symbol` ≤10.
 5. Không sửa plan `Executed`/`Reviewed`. Ghi Trade TRƯỚC khi mark Executed.
+6. **Ngoại lệ duy nhất của rule 5:** stop-loss dời được cả khi plan `Executed`, bằng tool MCP `move_stop_loss`. Nới SL (Buy: dời xuống, Sell: dời lên) BẮT BUỘC có `reason`, thiếu là 409; siết SL thì `reason` tuỳ chọn. `newStopLoss` > 0. Plan `Reviewed`/`Cancelled` vẫn không dời được. Mỗi lần nới bị đếm vào điểm kỷ luật — nói rõ với người dùng trước khi gọi.
 
 ## <a id="read"></a>Read
 - `GET /api/v1/ai/agent/trade-plans?activeOnly=true|false`

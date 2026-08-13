@@ -457,6 +457,21 @@ public class TradePlan : AggregateRoot
 
     public void UpdateStopLossWithHistory(decimal newStopLoss, string? reason = null)
     {
+        if (Status == TradePlanStatus.Reviewed || Status == TradePlanStatus.Cancelled)
+            throw new InvalidOperationException("Không dời được stop-loss của kế hoạch đã đóng");
+
+        if (newStopLoss <= 0)
+            throw new ArgumentException("Giá stop-loss phải lớn hơn 0", nameof(newStopLoss));
+
+        // Nới = dời ngưỡng ra xa giá vào hơn (Buy: xuống, Sell: lên). Guard nằm ở entity vì
+        // REST, MCP và mọi caller sau này đều đi qua đây — để riêng ở modal là để trống cửa.
+        // StopLoss = 0 nghĩa là chưa đặt ngưỡng, lần đặt đầu không tính là nới.
+        var widening = StopLoss > 0 && (IsSellDirection()
+            ? newStopLoss > StopLoss
+            : newStopLoss < StopLoss);
+        if (widening && string.IsNullOrWhiteSpace(reason))
+            throw new InvalidOperationException("Nới stop-loss bắt buộc ghi lý do");
+
         StopLossHistory ??= new List<StopLossHistoryEntry>();
         StopLossHistory.Add(new StopLossHistoryEntry
         {
@@ -470,6 +485,9 @@ public class TradePlan : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
+
+    private bool IsSellDirection()
+        => string.Equals(Direction, "Sell", StringComparison.OrdinalIgnoreCase);
 
     // --- Scenario Playbook methods ---
 

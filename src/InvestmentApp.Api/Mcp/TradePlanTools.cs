@@ -2,6 +2,7 @@ using System.ComponentModel;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Risk.Queries.GetVolatilitySizingForPlan;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
+using InvestmentApp.Application.TradePlans.Commands.UpdateStopLoss;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlanStatus;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -181,6 +182,29 @@ public static class TradePlanTools
             ExitStrategyMode = exitStrategyMode?.ToString(),
             ScenarioNodes = scenarioNodes,
             TimeHorizon = timeHorizon?.ToString()
+        }, ct));
+        return "ok";
+    }
+
+    [McpServerTool(Name = "move_stop_loss", Destructive = true)]
+    [Description("Dời stop-loss của một kế hoạch và ghi vào lịch sử SL. Dùng được cả khi kế hoạch đã "
+               + "khớp (Executed) — update_trade_plan chặn cứng trạng thái đó nên không thay được. "
+               + "Nới SL (Buy: dời xuống, Sell: dời lên) BẮT BUỘC truyền reason, thiếu là bị từ chối; "
+               + "siết SL về gần giá vào hơn thì reason không bắt buộc. Mỗi lần nới đều bị đếm vào "
+               + "điểm kỷ luật, hãy nói rõ điều đó cho người dùng trước khi gọi. Kế hoạch đã đóng "
+               + "(Reviewed/Cancelled) không dời được.")]
+    public static async Task<string> MoveStopLoss(
+        [Description("ID kế hoạch.")] string id,
+        [Description("Giá stop-loss mới, VND. Phải lớn hơn 0.")] decimal newStopLoss,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Lý do dời SL. Bỏ trống được khi siết SL, bắt buộc khi nới SL.")] string? reason = null)
+    {
+        await McpErrorTranslator.RunAsync(() => mediator.Send(new UpdateStopLossCommand
+        {
+            PlanId = id,
+            UserId = http.GetUserId(),
+            NewStopLoss = newStopLoss,
+            Reason = reason
         }, ct));
         return "ok";
     }

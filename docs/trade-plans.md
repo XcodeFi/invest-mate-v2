@@ -135,7 +135,11 @@ Frontend áp dụng ma trận phân quyền sửa form theo state. Backend `Trad
 - Nút "Dời SL" hiện cho plan `InProgress` và `Executed` có `StopLoss > 0`, ở **ba mặt**: danh sách kế hoạch (cạnh "Đóng chiến dịch"), thẻ Decision Queue trên Dashboard, và dòng vị thế ở trang Quản lý rủi ro.
 - Đi qua `PATCH /api/v1/trade-plans/{id}/stop-loss` (`UpdateStopLossCommand`), **không** qua `TradePlan.Update()` — bản đó chặn `Executed`. Mỗi lần dời ghi một dòng `StopLossHistory`.
 - Siết SL: tự do, lý do tuỳ chọn. **Nới SL: cho phép nhưng bắt buộc lý do** + cảnh báo trong modal là lần nới được đếm vào điểm kỷ luật. Không chặn cứng — răn đe bằng điểm kỷ luật (`DisciplineScoreCalculator` đã đếm từ `StopLossHistory`), không bằng cái khoá; chặn cứng chỉ đẩy người dùng sang huỷ plan tạo lại và mất dấu vết.
-- Modal dùng chung: `shared/components/move-stop-loss-modal/`. Gate lý do nằm trong modal nên cả ba mặt cùng một luật.
+- **Gate "nới bắt buộc lý do" nằm trong `TradePlan.UpdateStopLossWithHistory`**, không phải trong modal. Chiều nới lấy từ `plan.Direction` ở server (Buy: dời xuống, Sell: dời lên), `StopLoss = 0` là chưa đặt nên lần đặt đầu không tính là nới. Thiếu lý do → `InvalidOperationException` → 409. `newStopLoss ≤ 0` → `ArgumentException` → 400. Modal vẫn giữ gate riêng để người dùng biết ngay, nhưng nó chỉ là lớp UX — REST và MCP đi cùng một luật ở entity.
+- Kế hoạch `Reviewed`/`Cancelled` **không dời được SL** (409). Điều kiện này cũng ở entity: nút trên giao diện chỉ hiện với `InProgress`/`Executed`, nhưng tool MCP không đi qua giao diện — thiếu nó thì agent thêm được một dòng `StopLossHistory` vào chiến dịch đã chốt và làm lệch số liệu review.
+- Modal dùng chung: `shared/components/move-stop-loss-modal/` — cả ba mặt cùng một component.
+- Agent AI dời SL bằng tool MCP `move_stop_loss` (`id`, `newStopLoss`, `reason?`). `update_trade_plan` **không** làm được việc này vì nó đi qua `TradePlan.Update()`.
+- Modal ở Decision Queue và trang Quản lý rủi ro truyền cố định `direction="Buy"` (`PositionRiskItem` không mang chiều vị thế). Server không tin tham số đó — nó đọc `plan.Direction` — nên với plan `Sell` gate ở modal có thể lệch với gate ở server; đường quyết định cuối vẫn đúng.
 - Các nhóm trường khác của plan `Executed` giữ 🔒 nguyên — chỉ SL mở.
 
 **UI chi tiết:**

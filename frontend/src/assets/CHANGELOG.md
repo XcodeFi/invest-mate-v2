@@ -20,14 +20,20 @@
 
 **🏷 Nhãn nguồn ngưỡng.** Trên trang Quản lý rủi ro, ngưỡng lấy từ kế hoạch có nhãn **KH** cạnh con số — để biết sửa ở đâu thì đúng chỗ.
 
+**🤖 Trợ lý AI dời được stop-loss.** Trước đây trợ lý chỉ sửa được kế hoạch chưa khớp; đúng những kế hoạch đang giữ vị thế — nơi cần dời SL nhất — thì nó bị chặn. Nay có công cụ riêng cho việc này, và nó chịu **cùng một luật** với bạn: nới ngưỡng thì phải nêu lý do, và lần nới đó vẫn bị đếm vào điểm kỷ luật.
+
+**🔒 Luật "nới SL phải có lý do" nay chặn ở mọi đường.** Trước đó luật chỉ nằm trong ô nhập trên màn hình, nên bất cứ đường nào không đi qua màn hình đó đều lách được. Nay nó nằm ở tầng dữ liệu — màn hình, trợ lý AI, hay gọi trực tiếp đều bị chặn như nhau.
+
 ### Kỹ thuật
 
 - ADR-0017 — kế hoạch là nguồn sự thật của stop-loss, và dời được khi vị thế còn mở
 - `RiskCalculationService` nhận `ITradePlanRepository`; `PositionRiskItem` thêm `StopLossSource` + `TradePlanId`
 - `ITradePlanRepository.GetOpenByPortfolioIdAsync` + index `(PortfolioId, Status, IsDeleted)` trên `trade_plans`
 - `DecisionItemDto.TradePlanId` nay được điền cho thẻ stop-loss (trước đây hardcode null)
-- Modal dùng chung `shared/components/move-stop-loss-modal/` — gate lý do nằm ở một chỗ cho cả ba mặt
-- Tests: **2092 backend** (+14), **408 frontend** (+28) — tất cả pass
+- Modal dùng chung `shared/components/move-stop-loss-modal/` — cả ba mặt cùng một component
+- Gate "nới SL bắt buộc lý do" chuyển vào `TradePlan.UpdateStopLossWithHistory`: chiều nới đọc từ `plan.Direction` ở server, `StopLoss = 0` không tính là nới, guard chạy trước khi gán nên lần bị từ chối không để lại dòng `StopLossHistory`. Thêm chặn `newStopLoss ≤ 0` và chặn kế hoạch `Reviewed`/`Cancelled`
+- Tool MCP `move_stop_loss` (`Destructive`, tham số phẳng, `reason` sau `ct` với `= null`) → `UpdateStopLossCommand`. Tổng 56 tool; `McpToolDiscoveryTests` nâng đếm 55 → 56
+- Tests: **2104 backend** (+26), **408 frontend** (+28) — tất cả pass
 
 ## [v2.83.1] — 2026-08-13 · Sửa lệch một ngày khi đếm phiên T+2
 
