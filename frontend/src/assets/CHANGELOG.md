@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.86.0] — 2026-08-13 · Trợ lý AI xử lý được việc cần làm hôm nay — nhưng chỉ hướng GIỮ
+
+### Sửa lỗi
+
+**🚪 Trợ lý AI tắt được cảnh báo mà không cần nêu lý do.** Khi bạn bấm "GIỮ + GHI LÝ DO", hệ thống bắt viết ít nhất 20 ký tự — cố ý, để bạn nghĩ thật thay vì bấm cho qua. Nhưng trợ lý AI có một đường khác: nó ghi một mục nhật ký loại đặc biệt (loại mà hệ thống dùng làm dấu ẩn cảnh báo), và đường đó **không đi qua luật 20 ký tự nào**. Tài liệu dành cho trợ lý còn liệt kê loại đó là hợp lệ, tức là đang chỉ đường. Nay loại đó bị từ chối ở mọi đường tạo/sửa nhật ký — dấu ẩn chỉ sinh ra từ hành động xử lý thật.
+
+### Tính năng
+
+**🤖 Trợ lý AI xử lý được "Việc cần xử lý hôm nay".** Trước đây trợ lý **đọc** được hàng đợi nhưng không làm gì được với nó. Nay nó GIỮ được một việc kèm lý do — cùng luật 20 ký tự như bạn bấm trên màn hình. Hãy nói cho nó biết vì sao bạn giữ; nó không được tự bịa lý do thay bạn.
+
+**⛔ Cố ý không mở đường BÁN cho trợ lý.** Bán bao nhiêu là quyết định của bạn. Đường bán tự động vốn lấy cứng toàn bộ khối lượng theo kế hoạch — đường đó vừa bị bỏ khỏi màn hình chính (v2.85.0) vì không cho sửa số lượng, nên mở lại cho trợ lý là dựng lại đúng cái vừa tháo. Muốn ghi lệnh bán thì trợ lý phải hỏi bạn khối lượng rồi ghi như một lệnh bình thường.
+
+### Kỹ thuật
+
+- Tool MCP `hold_decision` (`Destructive`, tham số phẳng) → `ResolveDecisionCommand` với `Action` **cố định** `HoldWithJournal`; `action` không phải tham số nên `ExecuteSell` không tới được từ MCP. Tổng 57 tool; `McpToolDiscoveryTests` nâng đếm 56 → 57
+- `JournalEntryTypeRule` + `CreateJournalEntryCommandValidator` + `UpdateJournalEntryCommandValidator` — allowlist **theo tên** (không phải "khác Decision là được": `Enum.Parse` nhận cả chuỗi số `"5"` và bỏ khoảng trắng). Một vị từ dùng cho cả create lẫn update
+- `Docs/AI-Agent-TradePlan-API.md` — bỏ `Decision` khỏi tập giá trị `entryType`, ghi rõ 400 + trỏ sang `hold_decision`
+- 4 test binding qua SDK cho `hold_decision` và `move_stop_loss` (`move_stop_loss` chưa có từ v2.84.0)
+- Tests: **2119 backend** (+15), 409 frontend — tất cả pass
+
+---
+
 ## [v2.85.0] — 2026-08-13 · Bán theo kế hoạch đi qua màn hình bán, không còn bấm một cái là xong
 
 ### Sửa lỗi

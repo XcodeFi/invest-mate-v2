@@ -47,7 +47,9 @@ public class McpToolDiscoveryTests
         "create_journal", "update_journal", "delete_journal",
         "create_journal_entry", "update_journal_entry", "delete_journal_entry",
         "upsert_company_dossier",
-        "add_market_closures", "remove_market_closure"
+        "add_market_closures", "remove_market_closure",
+        // Hàng đợi quyết định: agent GIỮ được (có lý do), KHÔNG bán được — xem DecisionTools
+        "hold_decision"
     };
 
     private static IReadOnlyList<McpServerTool> Tools()
@@ -66,12 +68,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_56_Tools()
+    public void Registers_All_57_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(56);
+        (ReadTools.Length + WriteTools.Length).Should().Be(57);
     }
 
     [Fact]
@@ -149,6 +151,11 @@ public class McpToolDiscoveryTests
         schema["move_stop_loss"].Should().Contain("newStopLoss").And.Contain("reason");
         schema["move_stop_loss"].Should().NotContain("mediator").And.NotContain("http");
 
+        // hold_decision — KHÔNG được phơi tham số action ra schema: mở action là mở lại ExecuteSell,
+        // đường vừa bị bỏ khỏi giao diện vì nó ghi lệnh không cho sửa số lượng.
+        schema["hold_decision"].Should().Contain("note").And.Contain("decisionId");
+        schema["hold_decision"].Should().NotContain("action").And.NotContain("mediator");
+
         // P0 risk tools → portfolioId arg present; injected services absent.
         schema["get_portfolio_risk"].Should().Contain("portfolioId").And.NotContain("mediator");
         schema["get_stop_loss_targets"].Should().Contain("portfolioId").And.NotContain("mediator");
@@ -204,6 +211,9 @@ public class McpToolDiscoveryTests
         // reason là tuỳ chọn ở tầng schema — bắt buộc hay không do entity quyết theo chiều dời SL,
         // nên đánh dấu required ở đây sẽ chặn cả trường hợp siết SL vốn không cần lý do.
         Required(schema["move_stop_loss"]).Should().BeEquivalentTo(new[] { "id", "newStopLoss" });
+        // decisionId + note bắt buộc; phạm vi dập cảnh báo (tradePlanId/symbol/portfolioId) tuỳ chọn
+        // ở schema vì item nào có gì thì truyền cái đó — handler đòi ít nhất một trong hai.
+        Required(schema["hold_decision"]).Should().BeEquivalentTo(new[] { "decisionId", "note" });
         Required(schema["update_watchlist"]).Should().BeEquivalentTo(new[] { "id", "name" });
         Required(schema["add_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });
         Required(schema["update_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });
