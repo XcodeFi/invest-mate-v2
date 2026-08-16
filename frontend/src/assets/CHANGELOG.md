@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.86.1] — 2026-08-16 · Biến động giá hiện lại: một trường null của nguồn dữ liệu đã làm chết cả khối
+## [v2.86.1] — 2026-08-16 · 24hmoney đổi hợp đồng hai kiểu: khối biến động giá chết, panel phân tích kỹ thuật đói dữ liệu
 
 ### Sửa lỗi
 
@@ -10,12 +10,21 @@
 
 **Vì sao không quy `null` thành 0:** 0% nghĩa là "giá đi ngang 3 tháng" — một kết luận đầu tư sai hẳn so với "nguồn không cung cấp".
 
+**📊 Panel "Phân tích kỹ thuật" báo "Không đủ dữ liệu" ở 8/10 chỉ báo — cùng nguồn, lệch kiểu khác.** Tham số `type` của biểu đồ 24hmoney không còn chọn KHOẢNG thời gian nữa: đo hôm nay, `type` 3/4/5/6 đều trả cùng một cửa sổ 67 ngày, chỉ khác độ mịn thanh nến (50/26/11/4 điểm). Bên mình vẫn map "xin bao nhiêu ngày → chọn type nào", nên **xin lịch sử DÀI hơn lại nhận được ÍT điểm hơn**: phân tích kỹ thuật xin 12 tháng → rơi vào `type=5` → 11 điểm → dưới ngưỡng 20 của mọi chỉ báo. Nay mọi khoảng dài hơn một ngày đều lấy chuỗi ngày dày nhất: 50 điểm, đủ cho EMA20/50, RSI, MACD, Bollinger, ATR, Stochastic, ADX, OBV, MFI.
+
+**Ba ô RSI / MACD / Khối lượng trống trơn** trong khi các ô khác ghi "Không đủ dữ liệu" — thiếu nhánh `else`. Nay cả ba nói rõ khi không có số.
+
+⚠️ **EMA200 không còn khả dụng.** Nguồn chỉ còn phát 67 ngày lịch sử; EMA200 cần 200 phiên. Không có cách nào lấy được từ nguồn hiện tại.
+
 ### Kỹ thuật
 
 - `HmoneyTradingHistorySummary`, `TradingHistorySummaryInfo`, `TradingHistorySummaryDto`, FE `TradingHistorySummary`: **cả năm** khung (`ChangeDay`/`Week`/`Month`/`3Month`/`6Month`) → `decimal?` / `number | null`. Ba khung đầu hôm nay vẫn có số, nhưng chúng đến từ đúng endpoint vừa chứng minh nguồn sẵn sàng trả null; để non-nullable là giữ nguyên ngòi nổ
 - Fixture thật bắt bằng curl ngày 2026-08-16: `Fixtures/Hmoney/trading_history_summary.json`
 - 4 test mới trong `HmoneyMarketDataProviderTradingSummaryTests` — ca null, ca có số, ca ba khung còn lại sống sót, và ca cả năm khung cùng null
-- Tests: **2123 backend** (+4) — tất cả pass
+- `GetHistoricalPricesAsync`: bỏ bảng map `days → type`, còn `days <= 1 ? 1 : 3`. Cache nay giữ chuỗi **chưa lọc** — mọi khoảng dùng chung một cacheKey nên cache bản đã lọc sẽ khiến một lần xin hẹp cắt mất mọi lần xin rộng sau
+- Sửa một hàm này chữa luôn ba nơi cùng dùng ngưỡng 20 điểm: panel phân tích kỹ thuật, 5 cổng `DataPoints >= 20` trong `AiAssistantService`, và `ScenarioEvaluationService`
+- 8 test mới trong `HmoneyMarketDataProviderHistoryTests` — ghim `type=3` cho mọi khoảng > 1 ngày, giữ intraday cho khoảng ≤ 1 ngày, ghim bẫy cache hẹp-trước-rộng-sau, và ghim việc KHÔNG cache chuỗi rỗng
+- Tests: **2131 backend** (+12) — tất cả pass
 
 ---
 
