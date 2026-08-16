@@ -168,9 +168,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
             <div class="flex flex-wrap gap-3">
               <span *ngFor="let item of summaryItems" class="text-sm">
                 <span class="text-gray-500">{{ item.label }}:</span>
-                <span class="font-medium ml-1" [class.text-green-600]="item.value >= 0" [class.text-red-600]="item.value < 0">
+                <span *ngIf="item.value !== null; else khongCoSoLieu" class="font-medium ml-1"
+                  [class.text-green-600]="item.value >= 0" [class.text-red-600]="item.value < 0">
                   {{ item.value >= 0 ? '+' : '' }}{{ item.value.toFixed(2) }}%
                 </span>
+                <ng-template #khongCoSoLieu>
+                  <span class="font-medium ml-1 text-gray-400" title="Nguồn dữ liệu không cung cấp khung thời gian này">—</span>
+                </ng-template>
               </span>
             </div>
           </div>
@@ -705,7 +709,7 @@ export class MarketDataComponent implements OnInit {
   stockDetail: StockDetail | null = null;
   loadingDetail = false;
   tradingSummary: TradingHistorySummary | null = null;
-  summaryItems: { label: string; value: number }[] = [];
+  summaryItems: { label: string; value: number | null }[] = [];
 
   // Technical Analysis
   analysis: TechnicalAnalysis | null = null;

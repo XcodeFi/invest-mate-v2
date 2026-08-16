@@ -282,8 +282,8 @@ export interface TradingHistorySummary {
   changeDay: number;
   changeWeek: number;
   changeMonth: number;
-  change3Month: number;
-  change6Month: number;
+  change3Month: number | null;
+  change6Month: number | null;
 }
 
 @Injectable({

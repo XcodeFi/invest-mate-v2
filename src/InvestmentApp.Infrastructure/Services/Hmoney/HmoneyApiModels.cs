@@ -407,10 +407,10 @@ public class HmoneyTradingHistorySummary
     public decimal ChangeMonth { get; set; }
 
     [JsonPropertyName("change_3_month")]
-    public decimal Change3Month { get; set; }
+    public decimal? Change3Month { get; set; }
 
     [JsonPropertyName("change_6_month")]
-    public decimal Change6Month { get; set; }
+    public decimal? Change6Month { get; set; }
 }
 
 // === Trading History (Daily) ===

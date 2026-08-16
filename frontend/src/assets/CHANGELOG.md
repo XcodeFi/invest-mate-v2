@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.86.1] — 2026-08-16 · Biến động giá hiện lại: một trường null của nguồn dữ liệu đã làm chết cả khối
+
+### Sửa lỗi
+
+**📉 Khối "Biến động giá" trống ở MỌI mã, không riêng HAH.** 24hmoney đổi hợp đồng: `change_3_month` và `change_6_month` nay trả `null` cho tất cả mã (kiểm chứng trên HAH, FPT, VNM). Bên mình khai hai trường đó là số bắt buộc, nên bộ giải mã JSON ném lỗi và **vứt luôn cả gói** — mất nốt 1 ngày / 1 tuần / 1 tháng vốn vẫn có số. Người dùng thấy khối biến động biến mất, còn hệ thống thì bắn cảnh báo Telegram mỗi lần tra mã. Nay hai khung 3 tháng và 6 tháng nhận `null` và hiện dấu "—" (không có số liệu); ba khung còn lại hiển thị bình thường.
+
+**Vì sao không quy `null` thành 0:** 0% nghĩa là "giá đi ngang 3 tháng" — một kết luận đầu tư sai hẳn so với "nguồn không cung cấp".
+
+### Kỹ thuật
+
+- `HmoneyTradingHistorySummary`, `TradingHistorySummaryInfo`, `TradingHistorySummaryDto`, FE `TradingHistorySummary`: `Change3Month`/`Change6Month` → `decimal?` / `number | null`
+- Fixture thật bắt bằng curl ngày 2026-08-16: `Fixtures/Hmoney/trading_history_summary.json`
+- 3 test mới trong `HmoneyMarketDataProviderTradingSummaryTests` — ca null, ca có số, và ca chứng minh ba khung còn lại sống sót
+- Tests: **2122 backend** (+3) — tất cả pass
+
+---
+
 ## [v2.86.0] — 2026-08-13 · Trợ lý AI xử lý được việc cần làm hôm nay — nhưng chỉ hướng GIỮ
 
 ### Sửa lỗi
