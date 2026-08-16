@@ -33,6 +33,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     /// <summary>Tham số <c>type</c> duy nhất của endpoint graph trả lợi suất theo phiên.</summary>
     private const int DailyGraphType = 3;
+    private const int IntradayGraphType = 1;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -88,23 +89,36 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     {
         symbol = symbol.ToUpper().Trim();
 
+        // `type` không còn chọn KHOẢNG. Đo 2026-08-16 (HAH): type 3/4/5/6 đều trả cùng cửa sổ
+        // 2026-06-08 → 2026-08-14, lần lượt 50/26/11/4 điểm — chỉ khác độ mịn thanh nến. Bảng map
+        // cũ theo số ngày khiến xin khoảng DÀI hơn lại nhận ÍT điểm hơn: 12 tháng → type 5 → 11
+        // điểm, dưới ngưỡng 20 của mọi chỉ báo kỹ thuật. Chuỗi ngày là dày nhất cho mọi khoảng.
         var days = (to - from).TotalDays;
-        int graphType = days switch
-        {
-            <= 1 => 1,   // Intraday
-            <= 14 => 7,  // 2 weeks
-            <= 35 => 3,  // 1 month
-            <= 100 => 4, // 3 months
-            <= 400 => 5, // 1 year
-            _ => 6       // 5 years
-        };
+        int graphType = days <= 1 ? IntradayGraphType : DailyGraphType;
 
         var cacheKey = $"history:{symbol}:{graphType}";
-        if (_cache.TryGetValue(cacheKey, out List<StockPriceData>? cached))
-            return cached!;
+        if (!_cache.TryGetValue(cacheKey, out List<StockPriceData>? series))
+        {
+            series = await FetchGraphSeriesAsync(symbol, graphType, cancellationToken);
+            if (series == null || series.Count == 0)
+                return new List<StockPriceData>();
 
-        var results = new List<StockPriceData>();
+            // Historical data changes less frequently — cache 60s.
+            // Cache chuỗi CHƯA lọc: mọi khoảng nay dùng chung một cacheKey, nên nếu cache bản đã
+            // lọc thì một lần xin hẹp sẽ cắt mất mọi lần xin rộng sau đó. Chuỗi rỗng KHÔNG cache:
+            // có thể chỉ là trục trặc nhất thời, cache 60 giây là tự khoá mình khỏi lần thử sau.
+            _cache.Set(cacheKey, series, TimeSpan.FromSeconds(60));
+        }
 
+        return series!
+            .Where(p => p.Date >= from.Date && p.Date <= to.Date)
+            .ToList();
+    }
+
+    /// <summary>Trả <c>null</c> khi không lấy được; danh sách rỗng nghĩa là nguồn thật sự không có điểm nào.</summary>
+    private async Task<List<StockPriceData>?> FetchGraphSeriesAsync(
+        string symbol, int graphType, CancellationToken cancellationToken)
+    {
         try
         {
             var url = $"/v2/ios/stock/graph?symbol={symbol}&type={graphType}&{CommonParams}";
@@ -114,37 +128,32 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
             if (graphData?.Points == null || graphData.Points.Count == 0)
             {
                 _logger.LogWarning("No historical graph data returned for {Symbol}", symbol);
-                return results;
+                return new List<StockPriceData>();
             }
 
-            foreach (var point in graphData.Points)
-            {
-                var date = DateTimeOffset.FromUnixTimeSeconds(point.X).UtcDateTime.Date;
-                if (date < from.Date || date > to.Date)
-                    continue;
-
-                var scaledPrice = ScalePrice(point.Y);
-                results.Add(new StockPriceData
+            return graphData.Points
+                .Select(point =>
                 {
-                    Symbol = symbol,
-                    Date = date,
-                    Open = scaledPrice,
-                    High = scaledPrice,
-                    Low = scaledPrice,
-                    Close = scaledPrice,
-                    Volume = point.Z
-                });
-            }
-
-            // Historical data changes less frequently — cache 60s
-            _cache.Set(cacheKey, results, TimeSpan.FromSeconds(60));
+                    var scaledPrice = ScalePrice(point.Y);
+                    return new StockPriceData
+                    {
+                        Symbol = symbol,
+                        Date = DateTimeOffset.FromUnixTimeSeconds(point.X).UtcDateTime.Date,
+                        Open = scaledPrice,
+                        High = scaledPrice,
+                        Low = scaledPrice,
+                        Close = scaledPrice,
+                        Volume = point.Z
+                    };
+                })
+                .OrderBy(p => p.Date)
+                .ToList();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to fetch historical prices for {Symbol} from 24hmoney", symbol);
+            return null;
         }
-
-        return results;
     }
 
     /// <summary>

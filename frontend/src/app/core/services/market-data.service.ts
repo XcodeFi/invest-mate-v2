@@ -279,11 +279,11 @@ export interface CompanyFundamentals {
 
 export interface TradingHistorySummary {
   symbol: string;
-  changeDay: number;
-  changeWeek: number;
-  changeMonth: number;
-  change3Month: number;
-  change6Month: number;
+  changeDay: number | null;
+  changeWeek: number | null;
+  changeMonth: number | null;
+  change3Month: number | null;
+  change6Month: number | null;
 }
 
 @Injectable({

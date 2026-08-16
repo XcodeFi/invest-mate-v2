@@ -168,9 +168,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
             <div class="flex flex-wrap gap-3">
               <span *ngFor="let item of summaryItems" class="text-sm">
                 <span class="text-gray-500">{{ item.label }}:</span>
-                <span class="font-medium ml-1" [class.text-green-600]="item.value >= 0" [class.text-red-600]="item.value < 0">
+                <span *ngIf="item.value !== null; else khongCoSoLieu" class="font-medium ml-1"
+                  [class.text-green-600]="item.value >= 0" [class.text-red-600]="item.value < 0">
                   {{ item.value >= 0 ? '+' : '' }}{{ item.value.toFixed(2) }}%
                 </span>
+                <ng-template #khongCoSoLieu>
+                  <span class="font-medium ml-1 text-gray-400" title="Nguồn dữ liệu không cung cấp khung thời gian này">—</span>
+                </ng-template>
               </span>
             </div>
           </div>
@@ -307,7 +311,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
           <!-- RSI -->
           <div class="bg-gray-50 rounded-lg p-3">
             <div class="text-xs text-gray-500 font-medium mb-1">📈 RSI (14)</div>
-            <div *ngIf="analysis.rsi14" class="text-sm">
+            <div *ngIf="analysis.rsi14 !== null && analysis.rsi14 !== undefined" class="text-sm">
               <div class="text-2xl font-bold"
                 [class.text-green-600]="analysis.rsiSignal === 'oversold'"
                 [class.text-red-600]="analysis.rsiSignal === 'overbought'"
@@ -320,6 +324,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
                 {{ analysis.rsiSignal === 'oversold' ? '🟢 Quá bán' : analysis.rsiSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
               </div>
             </div>
+            <div *ngIf="analysis.rsi14 === null || analysis.rsi14 === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
           </div>
 
           <!-- MACD -->
@@ -334,12 +339,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
                 {{ analysis.macdSignal === 'buy' ? '✅ Tín hiệu MUA' : analysis.macdSignal === 'sell' ? '❌ Tín hiệu BÁN' : '🟡 Trung tính' }}
               </div>
             </div>
+            <div *ngIf="analysis.macdLine === null || analysis.macdLine === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
           </div>
 
           <!-- Volume -->
           <div class="bg-gray-50 rounded-lg p-3">
             <div class="text-xs text-gray-500 font-medium mb-1">📊 Khối lượng</div>
-            <div *ngIf="analysis.volumeRatio" class="text-sm">
+            <div *ngIf="analysis.volumeRatio !== null && analysis.volumeRatio !== undefined" class="text-sm">
               <div>KL/TB20: <span class="font-bold">{{ analysis.volumeRatio | number:'1.1-1' }}x</span></div>
               <div class="mt-1 text-xs font-medium"
                 [class.text-green-600]="analysis.volumeSignal === 'spike' || analysis.volumeSignal === 'high'"
@@ -348,6 +354,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
                 {{ analysis.volumeSignal === 'spike' ? '🔥 Đột biến' : analysis.volumeSignal === 'high' ? '📈 Cao' : analysis.volumeSignal === 'low' ? '📉 Thấp' : '🟡 Bình thường' }}
               </div>
             </div>
+            <div *ngIf="analysis.volumeRatio === null || analysis.volumeRatio === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
           </div>
 
             <!-- Bollinger Bands -->
@@ -705,7 +712,7 @@ export class MarketDataComponent implements OnInit {
   stockDetail: StockDetail | null = null;
   loadingDetail = false;
   tradingSummary: TradingHistorySummary | null = null;
-  summaryItems: { label: string; value: number }[] = [];
+  summaryItems: { label: string; value: number | null }[] = [];
 
   // Technical Analysis
   analysis: TechnicalAnalysis | null = null;

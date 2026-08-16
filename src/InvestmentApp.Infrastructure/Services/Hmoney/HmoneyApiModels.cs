@@ -398,19 +398,19 @@ public class HmoneyTopFluctuationItem
 public class HmoneyTradingHistorySummary
 {
     [JsonPropertyName("change_day")]
-    public decimal ChangeDay { get; set; }
+    public decimal? ChangeDay { get; set; }
 
     [JsonPropertyName("change_week")]
-    public decimal ChangeWeek { get; set; }
+    public decimal? ChangeWeek { get; set; }
 
     [JsonPropertyName("change_month")]
-    public decimal ChangeMonth { get; set; }
+    public decimal? ChangeMonth { get; set; }
 
     [JsonPropertyName("change_3_month")]
-    public decimal Change3Month { get; set; }
+    public decimal? Change3Month { get; set; }
 
     [JsonPropertyName("change_6_month")]
-    public decimal Change6Month { get; set; }
+    public decimal? Change6Month { get; set; }
 }
 
 // === Trading History (Daily) ===
