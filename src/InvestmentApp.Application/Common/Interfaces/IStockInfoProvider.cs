@@ -86,9 +86,9 @@ public class TopStockInfo
 public class TradingHistorySummaryInfo
 {
     public string Symbol { get; set; } = null!;
-    public decimal ChangeDay { get; set; }
-    public decimal ChangeWeek { get; set; }
-    public decimal ChangeMonth { get; set; }
+    public decimal? ChangeDay { get; set; }
+    public decimal? ChangeWeek { get; set; }
+    public decimal? ChangeMonth { get; set; }
     public decimal? Change3Month { get; set; }
     public decimal? Change6Month { get; set; }
 }

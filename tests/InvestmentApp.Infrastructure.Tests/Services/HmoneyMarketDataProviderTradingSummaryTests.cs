@@ -70,6 +70,21 @@ public class HmoneyMarketDataProviderTradingSummaryTests
         result.Change6Month.Should().Be(-3.75m);
     }
 
+    [Fact]
+    public async Task GetTradingHistorySummaryAsync_KhiKhungNgayTuanThangCungNull_VanTraVeGoi()
+    {
+        var provider = CreateProvider(
+            """{"message":"success","status":200,"data":{"change_day":null,"change_week":null,"change_month":null,"change_3_month":null,"change_6_month":null}}""");
+
+        var result = await provider.GetTradingHistorySummaryAsync("HAH");
+
+        result.Should().NotBeNull();
+        result!.Symbol.Should().Be("HAH");
+        result.ChangeDay.Should().BeNull();
+        result.ChangeWeek.Should().BeNull();
+        result.ChangeMonth.Should().BeNull();
+    }
+
     private class FakeHttpHandler(string body) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(

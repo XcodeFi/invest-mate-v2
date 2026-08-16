@@ -12,10 +12,10 @@
 
 ### Kỹ thuật
 
-- `HmoneyTradingHistorySummary`, `TradingHistorySummaryInfo`, `TradingHistorySummaryDto`, FE `TradingHistorySummary`: `Change3Month`/`Change6Month` → `decimal?` / `number | null`
+- `HmoneyTradingHistorySummary`, `TradingHistorySummaryInfo`, `TradingHistorySummaryDto`, FE `TradingHistorySummary`: **cả năm** khung (`ChangeDay`/`Week`/`Month`/`3Month`/`6Month`) → `decimal?` / `number | null`. Ba khung đầu hôm nay vẫn có số, nhưng chúng đến từ đúng endpoint vừa chứng minh nguồn sẵn sàng trả null; để non-nullable là giữ nguyên ngòi nổ
 - Fixture thật bắt bằng curl ngày 2026-08-16: `Fixtures/Hmoney/trading_history_summary.json`
-- 3 test mới trong `HmoneyMarketDataProviderTradingSummaryTests` — ca null, ca có số, và ca chứng minh ba khung còn lại sống sót
-- Tests: **2122 backend** (+3) — tất cả pass
+- 4 test mới trong `HmoneyMarketDataProviderTradingSummaryTests` — ca null, ca có số, ca ba khung còn lại sống sót, và ca cả năm khung cùng null
+- Tests: **2123 backend** (+4) — tất cả pass
 
 ---
 
