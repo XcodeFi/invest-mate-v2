@@ -3,6 +3,8 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 > **Lane mode:** lane dev tự thực hiện task-by-task trong session của mình; review do lane review đảm nhận (không spawn sub-agent review).
 
+**Ghi chú:** Task 2 phần EMA200 đã gỡ sau khi thực hiện (nguồn chỉ còn 67 ngày lịch sử), xem mục Sửa quyết định trong spec.
+
 **Goal:** Panel phân tích kỹ thuật trang Tra cứu giá hiển thị theo 6 khối có tiêu đề (Tổng hợp lên đầu) và bổ sung Fibonacci + EMA200 đã tính sẵn.
 
 **Architecture:** Chỉ sửa inline template của `market-data.component.ts` (giải thể lưới 3 cột đầu panel, xếp lại 10 thẻ + 2 bổ sung theo nhóm, giữ nguyên mọi guard điều kiện); không đổi TS logic trừ khi template cần alias. Không đụng backend/DTO.

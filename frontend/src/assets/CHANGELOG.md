@@ -15,9 +15,9 @@
 ### Kỹ thuật
 
 - Chỉ sửa inline template `market-data.component.ts` — không đổi cách tính, không đổi API/DTO
-- Spec mới `market-data.component.spec.ts`: 7 test (6 tiêu đề khối đúng thứ tự, ẩn khối Tổng hợp khi trống, S/R rỗng vẫn hiện thẻ, Fibonacci 5 mốc/thiếu dữ liệu)
+- Spec mới `market-data.component.spec.ts`: 8 test (6 tiêu đề khối đúng thứ tự, ẩn khối Tổng hợp khi trống, thẻ Trạng thái hiện/ẩn theo marketCondition, S/R rỗng vẫn hiện thẻ, Fibonacci 5 mốc/thiếu dữ liệu)
 - EMA200 backend có tính nhưng KHÔNG hiển thị: nguồn chỉ còn ~67 ngày lịch sử (xem v2.86.1) nên dòng này sẽ luôn là "—" — user quyết bỏ thay vì treo UI chết
-- Tests: 416 frontend (+7) — tất cả pass
+- Tests: 417 frontend (+8) — tất cả pass
 
 ---
 

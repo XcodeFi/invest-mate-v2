@@ -161,6 +161,16 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
     expect(text).toContain('Kháng cự');
   });
 
+  it('marketCondition trending thì hiện thẻ Trạng thái thị trường trong nhóm Xu hướng', () => {
+    setup(fullTa());
+
+    const text: string = fixture.nativeElement.textContent;
+    const idx = text.indexOf('Trạng thái thị trường');
+    expect(idx).toBeGreaterThan(text.indexOf('📈 Xu hướng'));
+    expect(idx).toBeLessThan(text.indexOf('⚡ Động lượng'));
+    expect(text).toContain('Có xu hướng');
+  });
+
   it('marketCondition unknown thì ẩn thẻ Trạng thái nhưng nhóm Xu hướng vẫn còn', () => {
     const ta = fullTa();
     ta.marketCondition = 'unknown';

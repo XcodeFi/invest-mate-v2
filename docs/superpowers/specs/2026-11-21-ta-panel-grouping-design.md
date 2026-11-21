@@ -1,7 +1,7 @@
 # Sắp xếp panel Phân tích kỹ thuật theo nhóm chỉ báo
 
 **Ngày:** 2026-11-21
-**Trạng thái:** Chờ duyệt
+**Trạng thái:** Đã triển khai
 **Trang liên quan:** `/market-data` — [market-data.component.ts](../../../frontend/src/app/features/market-data/market-data.component.ts) (khối Technical Analysis, dòng 192–548)
 
 ## Ý định & lý do
