@@ -207,37 +207,119 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
           </span>
         </div>
 
-        <!-- P2: Confluence Score + Market Condition + Divergence -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <!-- Confluence Score -->
-          @if (analysis.confluenceScore != null) {
-            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-              <div class="text-xs text-blue-600 font-medium mb-2">🎯 Điểm Confluence</div>
-              <div class="flex items-end gap-2">
-                <span class="text-3xl font-bold"
+        <!-- Khối 1: Tổng hợp (Confluence + Gợi ý giao dịch) -->
+        @if (analysis.confluenceScore != null || analysis.suggestedEntry) {
+          <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="tong-hop">🎯 Tổng hợp</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            <!-- Confluence Score -->
+            @if (analysis.confluenceScore != null) {
+              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                <div class="text-xs text-blue-600 font-medium mb-2">🎯 Điểm Confluence</div>
+                <div class="flex items-end gap-2">
+                  <span class="text-3xl font-bold"
+                    [class.text-green-600]="analysis.confluenceScore! > 60"
+                    [class.text-red-600]="analysis.confluenceScore! < 40"
+                    [class.text-amber-600]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
+                    {{ analysis.confluenceScore | number:'1.1-1' }}
+                  </span>
+                  <span class="text-sm text-gray-500 mb-1">/ 100</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div class="h-2 rounded-full transition-all"
+                    [style.width.%]="analysis.confluenceScore"
+                    [class.bg-green-500]="analysis.confluenceScore! > 60"
+                    [class.bg-red-500]="analysis.confluenceScore! < 40"
+                    [class.bg-amber-400]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
+                  </div>
+                </div>
+                <div class="text-xs mt-1"
                   [class.text-green-600]="analysis.confluenceScore! > 60"
                   [class.text-red-600]="analysis.confluenceScore! < 40"
                   [class.text-amber-600]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
-                  {{ analysis.confluenceScore | number:'1.1-1' }}
-                </span>
-                <span class="text-sm text-gray-500 mb-1">/ 100</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-                <div class="h-2 rounded-full transition-all"
-                  [style.width.%]="analysis.confluenceScore"
-                  [class.bg-green-500]="analysis.confluenceScore! > 60"
-                  [class.bg-red-500]="analysis.confluenceScore! < 40"
-                  [class.bg-amber-400]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
+                  {{ analysis.confluenceScore! > 60 ? 'Tín hiệu tích cực' : analysis.confluenceScore! < 40 ? 'Tín hiệu tiêu cực' : 'Trung tính' }}
                 </div>
               </div>
-              <div class="text-xs mt-1"
-                [class.text-green-600]="analysis.confluenceScore! > 60"
-                [class.text-red-600]="analysis.confluenceScore! < 40"
-                [class.text-amber-600]="analysis.confluenceScore! >= 40 && analysis.confluenceScore! <= 60">
-                {{ analysis.confluenceScore! > 60 ? 'Tín hiệu tích cực' : analysis.confluenceScore! < 40 ? 'Tín hiệu tiêu cực' : 'Trung tính' }}
+            }
+
+            <!-- Trade Suggestion -->
+            <div *ngIf="analysis.suggestedEntry" class="bg-blue-50 rounded-lg p-4">
+              <div class="text-xs text-blue-600 font-medium mb-2">💡 Gợi ý giao dịch</div>
+              <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                <div>
+                  <span class="text-gray-500">Entry:</span>
+                  <span class="font-mono font-medium ml-1">{{ analysis.suggestedEntry | vndCurrency }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Stop-loss:</span>
+                  <span class="font-mono font-medium text-red-600 ml-1">{{ analysis.suggestedStopLoss | vndCurrency }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Mục tiêu:</span>
+                  <span class="font-mono font-medium text-green-600 ml-1">{{ analysis.suggestedTarget | vndCurrency }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">R:R:</span>
+                  <span class="font-bold ml-1" [class.text-green-600]="(analysis.riskRewardRatio || 0) >= 2"
+                    [class.text-amber-600]="(analysis.riskRewardRatio || 0) < 2">
+                    1:{{ analysis.riskRewardRatio | number:'1.1-1' }}
+                  </span>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button (click)="onCreatePlanFromSignal()"
+                  class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                  📋 Tạo Trade Plan từ gợi ý
+                </button>
               </div>
             </div>
-          }
+          </div>
+        }
+
+        <!-- Khối 2: Xu hướng -->
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="xu-huong">📈 Xu hướng</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+          <!-- EMA -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50)</div>
+            <div *ngIf="analysis.ema20 && analysis.ema50" class="text-sm">
+              <div>EMA20: <span class="font-mono font-medium">{{ analysis.ema20 | vndCurrency }}</span></div>
+              <div>EMA50: <span class="font-mono font-medium">{{ analysis.ema50 | vndCurrency }}</span></div>
+              <div class="mt-1 text-xs font-medium"
+                [class.text-green-600]="analysis.emaTrend === 'bullish'"
+                [class.text-red-600]="analysis.emaTrend === 'bearish'">
+                {{ analysis.emaTrend === 'bullish' ? '✅ Xu hướng TĂNG' : '❌ Xu hướng GIẢM' }}
+              </div>
+            </div>
+            <div *ngIf="!analysis.ema20" class="text-xs text-gray-400">Không đủ dữ liệu</div>
+          </div>
+
+          <!-- ADX -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">💪 ADX (14)</div>
+            @if (analysis.adx14 != null) {
+              <div class="text-2xl font-bold"
+                [class.text-emerald-600]="analysis.adxSignal === 'strong_trend'"
+                [class.text-blue-600]="analysis.adxSignal === 'trending'"
+                [class.text-amber-600]="analysis.adxSignal === 'sideway'"
+                [class.text-gray-700]="analysis.adxSignal === 'neutral'">
+                {{ analysis.adx14 | number:'1.1-1' }}
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                +DI: <span class="text-green-600 font-mono">{{ analysis.plusDi | number:'1.1-1' }}</span>
+                · -DI: <span class="text-red-600 font-mono">{{ analysis.minusDi | number:'1.1-1' }}</span>
+              </div>
+              <div class="text-xs font-medium mt-1"
+                [class.text-emerald-600]="analysis.adxSignal === 'strong_trend'"
+                [class.text-blue-600]="analysis.adxSignal === 'trending'"
+                [class.text-amber-600]="analysis.adxSignal === 'sideway'">
+                {{ analysis.adxSignal === 'strong_trend' ? '🔥 Xu hướng rất mạnh' :
+                   analysis.adxSignal === 'trending' ? '📈 Có xu hướng' :
+                   analysis.adxSignal === 'sideway' ? '↔️ Đi ngang' : '🟡 Trung tính' }}
+              </div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
+          </div>
 
           <!-- Market Condition -->
           @if (analysis.marketCondition !== 'unknown') {
@@ -257,6 +339,68 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
               }
             </div>
           }
+        </div>
+
+        <!-- Khối 3: Động lượng -->
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="dong-luong">⚡ Động lượng</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+          <!-- RSI -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">📈 RSI (14)</div>
+            <div *ngIf="analysis.rsi14 !== null && analysis.rsi14 !== undefined" class="text-sm">
+              <div class="text-2xl font-bold"
+                [class.text-green-600]="analysis.rsiSignal === 'oversold'"
+                [class.text-red-600]="analysis.rsiSignal === 'overbought'"
+                [class.text-gray-700]="analysis.rsiSignal === 'neutral'">
+                {{ analysis.rsi14 | number:'1.1-1' }}
+              </div>
+              <div class="text-xs font-medium mt-1"
+                [class.text-green-600]="analysis.rsiSignal === 'oversold'"
+                [class.text-red-600]="analysis.rsiSignal === 'overbought'">
+                {{ analysis.rsiSignal === 'oversold' ? '🟢 Quá bán' : analysis.rsiSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
+              </div>
+            </div>
+            <div *ngIf="analysis.rsi14 === null || analysis.rsi14 === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
+          </div>
+
+          <!-- Stochastic Oscillator -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">🔀 Stochastic (14,3,3)</div>
+            @if (analysis.stochasticK != null) {
+              <div class="text-sm">
+                <span class="text-2xl font-bold"
+                  [class.text-green-600]="analysis.stochasticSignal === 'oversold'"
+                  [class.text-red-600]="analysis.stochasticSignal === 'overbought'"
+                  [class.text-gray-700]="analysis.stochasticSignal === 'neutral'">
+                  {{ analysis.stochasticK | number:'1.1-1' }}
+                </span>
+                <span class="text-xs text-gray-500 ml-1">%K</span>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">%D: {{ analysis.stochasticD | number:'1.1-1' }}</div>
+              <div class="text-xs font-medium mt-1"
+                [class.text-green-600]="analysis.stochasticSignal === 'oversold'"
+                [class.text-red-600]="analysis.stochasticSignal === 'overbought'">
+                {{ analysis.stochasticSignal === 'oversold' ? '🟢 Quá bán' : analysis.stochasticSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
+              </div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
+          </div>
+
+          <!-- MACD -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">📉 MACD (12,26,9)</div>
+            <div *ngIf="analysis.macdLine !== null && analysis.macdLine !== undefined" class="text-sm">
+              <div>MACD: <span class="font-mono font-medium">{{ analysis.macdLine | number:'1.0-0' }}</span></div>
+              <div>Signal: <span class="font-mono font-medium">{{ analysis.signalLine | number:'1.0-0' }}</span></div>
+              <div class="mt-1 text-xs font-medium"
+                [class.text-green-600]="analysis.macdSignal === 'buy'"
+                [class.text-red-600]="analysis.macdSignal === 'sell'">
+                {{ analysis.macdSignal === 'buy' ? '✅ Tín hiệu MUA' : analysis.macdSignal === 'sell' ? '❌ Tín hiệu BÁN' : '🟡 Trung tính' }}
+              </div>
+            </div>
+            <div *ngIf="analysis.macdLine === null || analysis.macdLine === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
+          </div>
 
           <!-- Divergence Alert -->
           @if (analysis.divergenceSignal) {
@@ -291,57 +435,54 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
           }
         </div>
 
-        <!-- Indicators Grid -->
+        <!-- Khối 4: Biến động -->
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="bien-dong">📏 Biến động</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-          <!-- EMA -->
+          <!-- Bollinger Bands -->
           <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50)</div>
-            <div *ngIf="analysis.ema20 && analysis.ema50" class="text-sm">
-              <div>EMA20: <span class="font-mono font-medium">{{ analysis.ema20 | vndCurrency }}</span></div>
-              <div>EMA50: <span class="font-mono font-medium">{{ analysis.ema50 | vndCurrency }}</span></div>
-              <div class="mt-1 text-xs font-medium"
-                [class.text-green-600]="analysis.emaTrend === 'bullish'"
-                [class.text-red-600]="analysis.emaTrend === 'bearish'">
-                {{ analysis.emaTrend === 'bullish' ? '✅ Xu hướng TĂNG' : '❌ Xu hướng GIẢM' }}
+            <div class="text-xs text-gray-500 font-medium mb-1">📊 Bollinger Bands (20,2)</div>
+            @if (analysis.bollingerMiddle) {
+              <div class="text-sm font-semibold">
+                <span class="text-red-500">{{ analysis.bollingerUpper | number:'1.0-0' }}</span> /
+                <span class="text-gray-700">{{ analysis.bollingerMiddle | number:'1.0-0' }}</span> /
+                <span class="text-emerald-500">{{ analysis.bollingerLower | number:'1.0-0' }}</span>
               </div>
-            </div>
-            <div *ngIf="!analysis.ema20" class="text-xs text-gray-400">Không đủ dữ liệu</div>
-          </div>
-
-          <!-- RSI -->
-          <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xs text-gray-500 font-medium mb-1">📈 RSI (14)</div>
-            <div *ngIf="analysis.rsi14 !== null && analysis.rsi14 !== undefined" class="text-sm">
-              <div class="text-2xl font-bold"
-                [class.text-green-600]="analysis.rsiSignal === 'oversold'"
-                [class.text-red-600]="analysis.rsiSignal === 'overbought'"
-                [class.text-gray-700]="analysis.rsiSignal === 'neutral'">
-                {{ analysis.rsi14 | number:'1.1-1' }}
-              </div>
+              <div class="text-xs text-gray-500 mt-1">Bandwidth: {{ analysis.bollingerBandwidth | number:'1.2-2' }}% · %B: {{ analysis.bollingerPercentB | number:'1.3-3' }}</div>
               <div class="text-xs font-medium mt-1"
-                [class.text-green-600]="analysis.rsiSignal === 'oversold'"
-                [class.text-red-600]="analysis.rsiSignal === 'overbought'">
-                {{ analysis.rsiSignal === 'oversold' ? '🟢 Quá bán' : analysis.rsiSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
+                [class.text-amber-600]="analysis.bollingerSignal === 'squeeze'"
+                [class.text-emerald-600]="analysis.bollingerSignal === 'breakout_up'"
+                [class.text-red-600]="analysis.bollingerSignal === 'breakout_down'"
+                [class.text-gray-500]="analysis.bollingerSignal === 'neutral'">
+                {{ analysis.bollingerSignal === 'squeeze' ? 'Nén (Squeeze)' :
+                   analysis.bollingerSignal === 'breakout_up' ? 'Phá lên' :
+                   analysis.bollingerSignal === 'breakout_down' ? 'Phá xuống' : 'Trung tính' }}
               </div>
-            </div>
-            <div *ngIf="analysis.rsi14 === null || analysis.rsi14 === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
           </div>
 
-          <!-- MACD -->
+          <!-- ATR -->
           <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xs text-gray-500 font-medium mb-1">📉 MACD (12,26,9)</div>
-            <div *ngIf="analysis.macdLine !== null && analysis.macdLine !== undefined" class="text-sm">
-              <div>MACD: <span class="font-mono font-medium">{{ analysis.macdLine | number:'1.0-0' }}</span></div>
-              <div>Signal: <span class="font-mono font-medium">{{ analysis.signalLine | number:'1.0-0' }}</span></div>
-              <div class="mt-1 text-xs font-medium"
-                [class.text-green-600]="analysis.macdSignal === 'buy'"
-                [class.text-red-600]="analysis.macdSignal === 'sell'">
-                {{ analysis.macdSignal === 'buy' ? '✅ Tín hiệu MUA' : analysis.macdSignal === 'sell' ? '❌ Tín hiệu BÁN' : '🟡 Trung tính' }}
+            <div class="text-xs text-gray-500 font-medium mb-1">📏 ATR (14)</div>
+            @if (analysis.atr14) {
+              <div class="text-2xl font-bold text-gray-900">{{ analysis.atr14 | number:'1.0-0' }}</div>
+              <div class="text-xs text-gray-500 mt-1">{{ analysis.atrPercent | number:'1.2-2' }}% giá hiện tại</div>
+              <div class="text-xs font-medium mt-1"
+                [class.text-red-600]="analysis.atrPercent! > 3"
+                [class.text-amber-600]="analysis.atrPercent! > 2 && analysis.atrPercent! <= 3"
+                [class.text-emerald-600]="analysis.atrPercent! <= 2">
+                {{ analysis.atrPercent! > 3 ? 'Biến động cao' : analysis.atrPercent! > 2 ? 'Biến động TB' : 'Biến động thấp' }}
               </div>
-            </div>
-            <div *ngIf="analysis.macdLine === null || analysis.macdLine === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
           </div>
+        </div>
 
+        <!-- Khối 5: Dòng tiền -->
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="dong-tien">💰 Dòng tiền</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- Volume -->
           <div class="bg-gray-50 rounded-lg p-3">
             <div class="text-xs text-gray-500 font-medium mb-1">📊 Khối lượng</div>
@@ -357,141 +498,48 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
             <div *ngIf="analysis.volumeRatio === null || analysis.volumeRatio === undefined" class="text-xs text-gray-400">Không đủ dữ liệu</div>
           </div>
 
-            <!-- Bollinger Bands -->
-            <div class="bg-gray-50 rounded-lg p-3">
-              <div class="text-xs text-gray-500 font-medium mb-1">📊 Bollinger Bands (20,2)</div>
-              @if (analysis.bollingerMiddle) {
-                <div class="text-sm font-semibold">
-                  <span class="text-red-500">{{ analysis.bollingerUpper | number:'1.0-0' }}</span> /
-                  <span class="text-gray-700">{{ analysis.bollingerMiddle | number:'1.0-0' }}</span> /
-                  <span class="text-emerald-500">{{ analysis.bollingerLower | number:'1.0-0' }}</span>
-                </div>
-                <div class="text-xs text-gray-500 mt-1">Bandwidth: {{ analysis.bollingerBandwidth | number:'1.2-2' }}% · %B: {{ analysis.bollingerPercentB | number:'1.3-3' }}</div>
-                <div class="text-xs font-medium mt-1"
-                  [class.text-amber-600]="analysis.bollingerSignal === 'squeeze'"
-                  [class.text-emerald-600]="analysis.bollingerSignal === 'breakout_up'"
-                  [class.text-red-600]="analysis.bollingerSignal === 'breakout_down'"
-                  [class.text-gray-500]="analysis.bollingerSignal === 'neutral'">
-                  {{ analysis.bollingerSignal === 'squeeze' ? 'Nén (Squeeze)' :
-                     analysis.bollingerSignal === 'breakout_up' ? 'Phá lên' :
-                     analysis.bollingerSignal === 'breakout_down' ? 'Phá xuống' : 'Trung tính' }}
-                </div>
-              } @else {
-                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
-              }
-            </div>
+          <!-- OBV -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">💰 OBV (Dòng tiền)</div>
+            @if (analysis.obv != null) {
+              <div class="text-sm font-mono font-medium text-gray-900">
+                {{ formatObv(analysis.obv!) }}
+              </div>
+              <div class="text-xs font-medium mt-1"
+                [class.text-green-600]="analysis.obvSignal === 'rising'"
+                [class.text-red-600]="analysis.obvSignal === 'falling'">
+                {{ analysis.obvSignal === 'rising' ? '📈 Dòng tiền vào' :
+                   analysis.obvSignal === 'falling' ? '📉 Dòng tiền ra' : '🟡 Trung tính' }}
+              </div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
+          </div>
 
-            <!-- ATR -->
-            <div class="bg-gray-50 rounded-lg p-3">
-              <div class="text-xs text-gray-500 font-medium mb-1">📏 ATR (14)</div>
-              @if (analysis.atr14) {
-                <div class="text-2xl font-bold text-gray-900">{{ analysis.atr14 | number:'1.0-0' }}</div>
-                <div class="text-xs text-gray-500 mt-1">{{ analysis.atrPercent | number:'1.2-2' }}% giá hiện tại</div>
-                <div class="text-xs font-medium mt-1"
-                  [class.text-red-600]="analysis.atrPercent! > 3"
-                  [class.text-amber-600]="analysis.atrPercent! > 2 && analysis.atrPercent! <= 3"
-                  [class.text-emerald-600]="analysis.atrPercent! <= 2">
-                  {{ analysis.atrPercent! > 3 ? 'Biến động cao' : analysis.atrPercent! > 2 ? 'Biến động TB' : 'Biến động thấp' }}
-                </div>
-              } @else {
-                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
-              }
-            </div>
-
-            <!-- Stochastic Oscillator -->
-            <div class="bg-gray-50 rounded-lg p-3">
-              <div class="text-xs text-gray-500 font-medium mb-1">🔀 Stochastic (14,3,3)</div>
-              @if (analysis.stochasticK != null) {
-                <div class="text-sm">
-                  <span class="text-2xl font-bold"
-                    [class.text-green-600]="analysis.stochasticSignal === 'oversold'"
-                    [class.text-red-600]="analysis.stochasticSignal === 'overbought'"
-                    [class.text-gray-700]="analysis.stochasticSignal === 'neutral'">
-                    {{ analysis.stochasticK | number:'1.1-1' }}
-                  </span>
-                  <span class="text-xs text-gray-500 ml-1">%K</span>
-                </div>
-                <div class="text-xs text-gray-500 mt-1">%D: {{ analysis.stochasticD | number:'1.1-1' }}</div>
-                <div class="text-xs font-medium mt-1"
-                  [class.text-green-600]="analysis.stochasticSignal === 'oversold'"
-                  [class.text-red-600]="analysis.stochasticSignal === 'overbought'">
-                  {{ analysis.stochasticSignal === 'oversold' ? '🟢 Quá bán' : analysis.stochasticSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
-                </div>
-              } @else {
-                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
-              }
-            </div>
-
-            <!-- ADX -->
-            <div class="bg-gray-50 rounded-lg p-3">
-              <div class="text-xs text-gray-500 font-medium mb-1">💪 ADX (14)</div>
-              @if (analysis.adx14 != null) {
-                <div class="text-2xl font-bold"
-                  [class.text-emerald-600]="analysis.adxSignal === 'strong_trend'"
-                  [class.text-blue-600]="analysis.adxSignal === 'trending'"
-                  [class.text-amber-600]="analysis.adxSignal === 'sideway'"
-                  [class.text-gray-700]="analysis.adxSignal === 'neutral'">
-                  {{ analysis.adx14 | number:'1.1-1' }}
-                </div>
-                <div class="text-xs text-gray-500 mt-1">
-                  +DI: <span class="text-green-600 font-mono">{{ analysis.plusDi | number:'1.1-1' }}</span>
-                  · -DI: <span class="text-red-600 font-mono">{{ analysis.minusDi | number:'1.1-1' }}</span>
-                </div>
-                <div class="text-xs font-medium mt-1"
-                  [class.text-emerald-600]="analysis.adxSignal === 'strong_trend'"
-                  [class.text-blue-600]="analysis.adxSignal === 'trending'"
-                  [class.text-amber-600]="analysis.adxSignal === 'sideway'">
-                  {{ analysis.adxSignal === 'strong_trend' ? '🔥 Xu hướng rất mạnh' :
-                     analysis.adxSignal === 'trending' ? '📈 Có xu hướng' :
-                     analysis.adxSignal === 'sideway' ? '↔️ Đi ngang' : '🟡 Trung tính' }}
-                </div>
-              } @else {
-                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
-              }
-            </div>
-
-            <!-- OBV -->
-            <div class="bg-gray-50 rounded-lg p-3">
-              <div class="text-xs text-gray-500 font-medium mb-1">💰 OBV (Dòng tiền)</div>
-              @if (analysis.obv != null) {
-                <div class="text-sm font-mono font-medium text-gray-900">
-                  {{ formatObv(analysis.obv!) }}
-                </div>
-                <div class="text-xs font-medium mt-1"
-                  [class.text-green-600]="analysis.obvSignal === 'rising'"
-                  [class.text-red-600]="analysis.obvSignal === 'falling'">
-                  {{ analysis.obvSignal === 'rising' ? '📈 Dòng tiền vào' :
-                     analysis.obvSignal === 'falling' ? '📉 Dòng tiền ra' : '🟡 Trung tính' }}
-                </div>
-              } @else {
-                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
-              }
-            </div>
-
-            <!-- MFI -->
-            <div class="bg-gray-50 rounded-lg p-3">
-              <div class="text-xs text-gray-500 font-medium mb-1">🌊 MFI (14)</div>
-              @if (analysis.mfi14 != null) {
-                <div class="text-2xl font-bold"
-                  [class.text-green-600]="analysis.mfiSignal === 'oversold'"
-                  [class.text-red-600]="analysis.mfiSignal === 'overbought'"
-                  [class.text-gray-700]="analysis.mfiSignal === 'neutral'">
-                  {{ analysis.mfi14 | number:'1.1-1' }}
-                </div>
-                <div class="text-xs font-medium mt-1"
-                  [class.text-green-600]="analysis.mfiSignal === 'oversold'"
-                  [class.text-red-600]="analysis.mfiSignal === 'overbought'">
-                  {{ analysis.mfiSignal === 'oversold' ? '🟢 Quá bán' : analysis.mfiSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
-                </div>
-              } @else {
-                <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
-              }
-            </div>
+          <!-- MFI -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-xs text-gray-500 font-medium mb-1">🌊 MFI (14)</div>
+            @if (analysis.mfi14 != null) {
+              <div class="text-2xl font-bold"
+                [class.text-green-600]="analysis.mfiSignal === 'oversold'"
+                [class.text-red-600]="analysis.mfiSignal === 'overbought'"
+                [class.text-gray-700]="analysis.mfiSignal === 'neutral'">
+                {{ analysis.mfi14 | number:'1.1-1' }}
+              </div>
+              <div class="text-xs font-medium mt-1"
+                [class.text-green-600]="analysis.mfiSignal === 'oversold'"
+                [class.text-red-600]="analysis.mfiSignal === 'overbought'">
+                {{ analysis.mfiSignal === 'oversold' ? '🟢 Quá bán' : analysis.mfiSignal === 'overbought' ? '🔴 Quá mua' : '🟡 Trung tính' }}
+              </div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
+          </div>
         </div>
 
-        <!-- Support / Resistance -->
-        <div *ngIf="analysis.supportLevels.length > 0 || analysis.resistanceLevels.length > 0"
-          class="grid grid-cols-2 gap-3 mb-4">
+        <!-- Khối 6: Mốc giá -->
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="moc-gia">🧱 Mốc giá</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <div class="bg-green-50 rounded-lg p-3">
             <div class="text-xs text-green-600 font-medium mb-1">Hỗ trợ</div>
             <div class="flex flex-wrap gap-2">
@@ -512,37 +560,39 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
               <span *ngIf="analysis.resistanceLevels.length === 0" class="text-xs text-gray-400">Chưa xác định</span>
             </div>
           </div>
-        </div>
 
-        <!-- Trade Suggestion -->
-        <div *ngIf="analysis.suggestedEntry" class="bg-blue-50 rounded-lg p-4">
-          <div class="text-xs text-blue-600 font-medium mb-2">💡 Gợi ý giao dịch</div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
-            <div>
-              <span class="text-gray-500">Entry:</span>
-              <span class="font-mono font-medium ml-1">{{ analysis.suggestedEntry | vndCurrency }}</span>
-            </div>
-            <div>
-              <span class="text-gray-500">Stop-loss:</span>
-              <span class="font-mono font-medium text-red-600 ml-1">{{ analysis.suggestedStopLoss | vndCurrency }}</span>
-            </div>
-            <div>
-              <span class="text-gray-500">Mục tiêu:</span>
-              <span class="font-mono font-medium text-green-600 ml-1">{{ analysis.suggestedTarget | vndCurrency }}</span>
-            </div>
-            <div>
-              <span class="text-gray-500">R:R:</span>
-              <span class="font-bold ml-1" [class.text-green-600]="(analysis.riskRewardRatio || 0) >= 2"
-                [class.text-amber-600]="(analysis.riskRewardRatio || 0) < 2">
-                1:{{ analysis.riskRewardRatio | number:'1.1-1' }}
-              </span>
-            </div>
-          </div>
-          <div class="flex gap-2">
-            <button (click)="onCreatePlanFromSignal()"
-              class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-              📋 Tạo Trade Plan từ gợi ý
-            </button>
+          <!-- Fibonacci Retracement -->
+          <div class="bg-gray-50 rounded-lg p-3" data-card="fibonacci">
+            <div class="text-xs text-gray-500 font-medium mb-1">📐 Fibonacci Retracement</div>
+            @if (analysis.fibonacci; as fib) {
+              <div class="text-sm space-y-0.5">
+                <div class="flex justify-between" data-fib-level="236">
+                  <span class="text-gray-500">23.6%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement236 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="382">
+                  <span class="text-gray-500">38.2%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement382 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="500">
+                  <span class="text-gray-500">50%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement500 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="618">
+                  <span class="text-gray-500">61.8%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement618 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="786">
+                  <span class="text-gray-500">78.6%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement786 | vndCurrency }}</span>
+                </div>
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                Swing: {{ fib.swingLow | vndCurrency }} – {{ fib.swingHigh | vndCurrency }}
+              </div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
           </div>
         </div>
       </div>

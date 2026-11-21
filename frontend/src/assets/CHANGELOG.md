@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.87.0] — 2026-11-21 · Panel phân tích kỹ thuật xếp theo 6 khối, hiện thêm Fibonacci
+
+### Tính năng
+
+**🗂️ Panel phân tích kỹ thuật xếp theo 6 khối có tiêu đề.** Trước đây 10 thẻ chỉ báo nằm trong một lưới phẳng — người đọc phải tự nhóm trong đầu "cái nào nói về xu hướng, cái nào về dòng tiền". Nay panel chia theo câu hỏi mà chỉ báo trả lời: **🎯 Tổng hợp** (Điểm Confluence + Gợi ý giao dịch, đưa lên đầu — chốt lại làm gì bây giờ) → **📈 Xu hướng** (EMA, ADX, Trạng thái thị trường) → **⚡ Động lượng** (RSI, Stochastic, MACD, Phân kỳ) → **📏 Biến động** (Bollinger, ATR) → **💰 Dòng tiền** (Khối lượng, OBV, MFI) → **🧱 Mốc giá** (Hỗ trợ, Kháng cự, Fibonacci). Nội dung và cách tính từng thẻ giữ nguyên.
+
+**📐 Thẻ Fibonacci mới trong khối Mốc giá.** Backend đã tính sẵn từ lâu nhưng panel chưa từng hiển thị: 5 mốc retracement 23.6% / 38.2% / 50% / 61.8% / 78.6% kèm swing high/low. Thiếu dữ liệu thì ghi "Không đủ dữ liệu".
+
+**🧱 Hỗ trợ/Kháng cự luôn hiện thẻ.** Trước đây cả hai thẻ biến mất khi không có mức nào; nay thẻ vẫn hiện với "Chưa xác định" như các thẻ khác.
+
+### Kỹ thuật
+
+- Chỉ sửa inline template `market-data.component.ts` — không đổi cách tính, không đổi API/DTO
+- Spec mới `market-data.component.spec.ts`: 8 test (6 tiêu đề khối đúng thứ tự, ẩn khối Tổng hợp khi trống, thẻ Trạng thái hiện/ẩn theo marketCondition, S/R rỗng vẫn hiện thẻ, Fibonacci 5 mốc/thiếu dữ liệu)
+- EMA200 backend có tính nhưng KHÔNG hiển thị: nguồn chỉ còn ~67 ngày lịch sử (xem v2.86.1) nên dòng này sẽ luôn là "—" — user quyết bỏ thay vì treo UI chết
+- Tests: 417 frontend (+8) — tất cả pass
+
+---
+
 ## [v2.86.1] — 2026-08-16 · 24hmoney đổi hợp đồng hai kiểu: khối biến động giá chết, panel phân tích kỹ thuật đói dữ liệu
 
 ### Sửa lỗi

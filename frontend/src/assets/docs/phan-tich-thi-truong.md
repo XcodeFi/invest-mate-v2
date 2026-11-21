@@ -1,6 +1,6 @@
 # Phân tích thị trường
 
-> Tra cứu giá cổ phiếu, phân tích kỹ thuật 10 chỉ báo, tín hiệu mua/bán tổng hợp.
+> Tra cứu giá cổ phiếu, phân tích kỹ thuật xếp theo 6 khối chỉ báo, tín hiệu mua/bán tổng hợp.
 
 ---
 
@@ -25,26 +25,46 @@ Tab **HOSE/HNX/UPCOM** — bảng mã cổ phiếu biến động mạnh nhất 
 
 ---
 
-## Smart Signals — 10 chỉ báo kỹ thuật
+## Smart Signals — panel 6 khối chỉ báo
 
-Khi tra cứu mã CP, hệ thống tự động phân tích 10 chỉ báo:
+Khi tra cứu mã CP, panel phân tích kỹ thuật hiển thị theo **6 khối**, mỗi khối trả lời một câu hỏi khi soi mã:
 
-### Nhóm Xu hướng
+| Khối | Trả lời câu hỏi |
+|------|-----------------|
+| 🎯 **Tổng hợp** | Chốt lại: làm gì bây giờ? (Điểm Confluence + Gợi ý giao dịch) |
+| 📈 **Xu hướng** | Trend hay sideway? Hướng nào, mạnh không? |
+| ⚡ **Động lượng** | Lực còn không, sắp đảo chiều chưa? |
+| 📏 **Biến động** | Dao động rộng cỡ nào → stop bao xa? |
+| 💰 **Dòng tiền** | Tiền vào thật hay chỉ kéo giá? |
+| 🧱 **Mốc giá** | Vào/ra ở vùng nào? |
+
+Khối **🎯 Tổng hợp** nằm trên cùng (chỉ hiện khi có Điểm Confluence hoặc Gợi ý giao dịch — xem hai mục bên dưới). Các khối còn lại:
+
+### 📈 Xu hướng
 
 | Chỉ báo | Đọc thế nào |
 |---------|-------------|
 | **EMA (20/50)** | EMA20 > EMA50 = xu hướng TĂNG; ngược lại = GIẢM |
 | **ADX (14)** | > 25 = có xu hướng rõ; < 20 = đi ngang; > 40 = rất mạnh. +DI > -DI = hướng tăng |
+| **Trạng thái thị trường** | Phân loại trend/sideway kèm chiến lược gợi ý (xem mục Trạng thái thị trường) |
 
-### Nhóm Động lượng
+### ⚡ Động lượng
 
 | Chỉ báo | Đọc thế nào |
 |---------|-------------|
 | **RSI (14)** | < 30 = quá bán (cơ hội mua); > 70 = quá mua (cẩn trọng) |
-| **MACD** | MACD cắt lên Signal = tín hiệu MUA; cắt xuống = BÁN |
 | **Stochastic** | < 20 = quá bán; > 80 = quá mua. Nhạy hơn RSI |
+| **MACD** | MACD cắt lên Signal = tín hiệu MUA; cắt xuống = BÁN |
+| **Phân kỳ** | Giá và RSI/MACD lệch hướng → tín hiệu đảo chiều (xem mục Phát hiện phân kỳ) |
 
-### Nhóm Khối lượng
+### 📏 Biến động
+
+| Chỉ báo | Đọc thế nào |
+|---------|-------------|
+| **Bollinger** | Nén (Squeeze) = sắp biến động mạnh; Phá dải = xu hướng mạnh |
+| **ATR (14)** | Đo biến động — dùng tính SL: SL = Entry ± 2 × ATR |
+
+### 💰 Dòng tiền
 
 | Chỉ báo | Đọc thế nào |
 |---------|-------------|
@@ -52,12 +72,12 @@ Khi tra cứu mã CP, hệ thống tự động phân tích 10 chỉ báo:
 | **OBV** | Tăng = smart money mua; Giảm = smart money bán |
 | **MFI (14)** | Giống RSI nhưng tính cả volume → phản ánh dòng tiền thực tế |
 
-### Nhóm Biến động
+### 🧱 Mốc giá
 
-| Chỉ báo | Đọc thế nào |
-|---------|-------------|
-| **Bollinger** | Nén (Squeeze) = sắp biến động mạnh; Phá dải = xu hướng mạnh |
-| **ATR (14)** | Đo biến động — dùng tính SL: SL = Entry ± 2 × ATR |
+| Thẻ | Đọc thế nào |
+|-----|-------------|
+| **Hỗ trợ / Kháng cự** | Các mức swing gần nhất; rỗng thì hiện "Chưa xác định" |
+| **Fibonacci** | 5 mốc retracement 23.6% / 38.2% / 50% / 61.8% / 78.6% kèm swing high/low (xem mục Hỗ trợ / Kháng cự & Fibonacci) |
 
 ---
 
@@ -158,7 +178,7 @@ Bộ lọc giảm tín hiệu sai: swing points cách nhau ≥ 5 phiên, chênh 
 
 - **Hỗ trợ**: 3 mức swing low gần nhất dưới giá hiện tại
 - **Kháng cự**: 3 mức swing high gần nhất trên giá hiện tại
-- **Fibonacci**: Retracement (23.6%–78.6%) + Extension (127.2%, 161.8%)
+- **Fibonacci**: thẻ trong khối 🧱 Mốc giá hiển thị 5 mốc retracement (23.6% / 38.2% / 50% / 61.8% / 78.6%) tính từ swing high/low gần nhất, kèm chính swing high/low bên dưới. Extension (127.2%, 161.8%) backend có tính nhưng chưa hiển thị. Thiếu dữ liệu thì thẻ ghi "Không đủ dữ liệu"
 
 ---
 
