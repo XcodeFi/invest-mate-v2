@@ -44,7 +44,7 @@ Khối **🎯 Tổng hợp** nằm trên cùng (chỉ hiện khi có Điểm Con
 
 | Chỉ báo | Đọc thế nào |
 |---------|-------------|
-| **EMA (20/50/200)** | EMA20 > EMA50 = xu hướng TĂNG; ngược lại = GIẢM. **EMA200** là mốc xu hướng dài hạn — hiện "—" khi mã chưa đủ 200 phiên dữ liệu (nguồn hiện tại chỉ cấp ~67 ngày lịch sử nên dòng này thường là "—") |
+| **EMA (20/50)** | EMA20 > EMA50 = xu hướng TĂNG; ngược lại = GIẢM |
 | **ADX (14)** | > 25 = có xu hướng rõ; < 20 = đi ngang; > 40 = rất mạnh. +DI > -DI = hướng tăng |
 | **Trạng thái thị trường** | Phân loại trend/sideway kèm chiến lược gợi ý (xem mục Trạng thái thị trường) |
 

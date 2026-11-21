@@ -280,15 +280,10 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- EMA -->
           <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50/200)</div>
+            <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50)</div>
             <div *ngIf="analysis.ema20 && analysis.ema50" class="text-sm">
               <div>EMA20: <span class="font-mono font-medium">{{ analysis.ema20 | vndCurrency }}</span></div>
               <div>EMA50: <span class="font-mono font-medium">{{ analysis.ema50 | vndCurrency }}</span></div>
-              @if (analysis.ema200) {
-                <div>EMA200: <span class="font-mono font-medium">{{ analysis.ema200 | vndCurrency }}</span></div>
-              } @else {
-                <div>EMA200: <span class="text-gray-400" title="Mã chưa đủ 200 phiên giao dịch">—</span></div>
-              }
               <div class="mt-1 text-xs font-medium"
                 [class.text-green-600]="analysis.emaTrend === 'bullish'"
                 [class.text-red-600]="analysis.emaTrend === 'bearish'">

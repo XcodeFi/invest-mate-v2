@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.87.0] — 2026-11-21 · Panel phân tích kỹ thuật xếp theo 6 khối, hiện thêm Fibonacci + EMA200
+## [v2.87.0] — 2026-11-21 · Panel phân tích kỹ thuật xếp theo 6 khối, hiện thêm Fibonacci
 
 ### Tính năng
 
@@ -10,15 +10,14 @@
 
 **📐 Thẻ Fibonacci mới trong khối Mốc giá.** Backend đã tính sẵn từ lâu nhưng panel chưa từng hiển thị: 5 mốc retracement 23.6% / 38.2% / 50% / 61.8% / 78.6% kèm swing high/low. Thiếu dữ liệu thì ghi "Không đủ dữ liệu".
 
-**📊 Thẻ EMA thêm dòng EMA200** (tiêu đề thành "Xu hướng (EMA20/50/200)") — mốc xu hướng dài hạn. Mã chưa đủ 200 phiên dữ liệu thì hiện "—"; với nguồn hiện tại (chỉ cấp ~67 ngày lịch sử, xem v2.86.1) dòng này thường là "—" cho tới khi nguồn phát lại lịch sử dài.
-
 **🧱 Hỗ trợ/Kháng cự luôn hiện thẻ.** Trước đây cả hai thẻ biến mất khi không có mức nào; nay thẻ vẫn hiện với "Chưa xác định" như các thẻ khác.
 
 ### Kỹ thuật
 
 - Chỉ sửa inline template `market-data.component.ts` — không đổi cách tính, không đổi API/DTO
-- Spec mới `market-data.component.spec.ts`: 9 test (6 tiêu đề khối đúng thứ tự, ẩn khối Tổng hợp khi trống, S/R rỗng vẫn hiện thẻ, EMA200 có/thiếu, Fibonacci 5 mốc/thiếu dữ liệu)
-- Tests: 418 frontend (+9) — tất cả pass
+- Spec mới `market-data.component.spec.ts`: 7 test (6 tiêu đề khối đúng thứ tự, ẩn khối Tổng hợp khi trống, S/R rỗng vẫn hiện thẻ, Fibonacci 5 mốc/thiếu dữ liệu)
+- EMA200 backend có tính nhưng KHÔNG hiển thị: nguồn chỉ còn ~67 ngày lịch sử (xem v2.86.1) nên dòng này sẽ luôn là "—" — user quyết bỏ thay vì treo UI chết
+- Tests: 416 frontend (+7) — tất cả pass
 
 ---
 
