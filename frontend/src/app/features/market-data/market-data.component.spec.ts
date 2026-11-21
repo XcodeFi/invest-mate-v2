@@ -170,4 +170,49 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
     const text: string = fixture.nativeElement.textContent;
     expect(text).not.toContain('Trạng thái thị trường');
   });
+
+  function normalizedText(): string {
+    return (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+  }
+
+  it('có ema200 thì thẻ EMA hiện giá trị EMA200', () => {
+    setup(fullTa());
+
+    const text = normalizedText();
+    // toContain vì tiêu đề thật có emoji 📊 phía trước
+    expect(text).toContain('Xu hướng (EMA20/50/200)');
+    expect(text).toContain('EMA200:');
+    expect(text).not.toContain('EMA200: —');
+  });
+
+  it('thiếu ema200 thì hiện EMA200: —', () => {
+    const ta = fullTa();
+    ta.ema200 = undefined;
+    setup(ta);
+
+    expect(normalizedText()).toContain('EMA200: —');
+  });
+
+  it('có fibonacci thì thẻ Fibonacci hiện 5 mốc retracement', () => {
+    setup(fullTa());
+
+    const levels = fixture.debugElement.queryAll(By.css('[data-fib-level]'));
+    expect(levels.length).toBe(5);
+    const labels = levels.map(l => (l.nativeElement.textContent as string));
+    for (const expected of ['23.6%', '38.2%', '50%', '61.8%', '78.6%']) {
+      expect(labels.some(t => t.includes(expected)))
+        .withContext(`thiếu mốc ${expected}`).toBeTrue();
+    }
+  });
+
+  it('thiếu fibonacci thì thẻ hiện Không đủ dữ liệu', () => {
+    const ta = fullTa();
+    ta.fibonacci = undefined;
+    setup(ta);
+
+    const fibCard = fixture.debugElement.query(By.css('[data-card="fibonacci"]'));
+    expect(fibCard).toBeTruthy();
+    expect(fibCard.nativeElement.textContent).toContain('Không đủ dữ liệu');
+    expect(fixture.debugElement.queryAll(By.css('[data-fib-level]')).length).toBe(0);
+  });
 });

@@ -280,10 +280,15 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- EMA -->
           <div class="bg-gray-50 rounded-lg p-3">
-            <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50)</div>
+            <div class="text-xs text-gray-500 font-medium mb-1">📊 Xu hướng (EMA20/50/200)</div>
             <div *ngIf="analysis.ema20 && analysis.ema50" class="text-sm">
               <div>EMA20: <span class="font-mono font-medium">{{ analysis.ema20 | vndCurrency }}</span></div>
               <div>EMA50: <span class="font-mono font-medium">{{ analysis.ema50 | vndCurrency }}</span></div>
+              @if (analysis.ema200) {
+                <div>EMA200: <span class="font-mono font-medium">{{ analysis.ema200 | vndCurrency }}</span></div>
+              } @else {
+                <div>EMA200: <span class="text-gray-400" title="Mã chưa đủ 200 phiên giao dịch">—</span></div>
+              }
               <div class="mt-1 text-xs font-medium"
                 [class.text-green-600]="analysis.emaTrend === 'bullish'"
                 [class.text-red-600]="analysis.emaTrend === 'bearish'">
@@ -559,6 +564,40 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
               </span>
               <span *ngIf="analysis.resistanceLevels.length === 0" class="text-xs text-gray-400">Chưa xác định</span>
             </div>
+          </div>
+
+          <!-- Fibonacci Retracement -->
+          <div class="bg-gray-50 rounded-lg p-3" data-card="fibonacci">
+            <div class="text-xs text-gray-500 font-medium mb-1">📐 Fibonacci Retracement</div>
+            @if (analysis.fibonacci; as fib) {
+              <div class="text-sm space-y-0.5">
+                <div class="flex justify-between" data-fib-level="236">
+                  <span class="text-gray-500">23.6%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement236 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="382">
+                  <span class="text-gray-500">38.2%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement382 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="500">
+                  <span class="text-gray-500">50%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement500 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="618">
+                  <span class="text-gray-500">61.8%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement618 | vndCurrency }}</span>
+                </div>
+                <div class="flex justify-between" data-fib-level="786">
+                  <span class="text-gray-500">78.6%</span>
+                  <span class="font-mono font-medium">{{ fib.retracement786 | vndCurrency }}</span>
+                </div>
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                Swing: {{ fib.swingLow | vndCurrency }} – {{ fib.swingHigh | vndCurrency }}
+              </div>
+            } @else {
+              <div class="text-sm text-gray-400">Không đủ dữ liệu</div>
+            }
           </div>
         </div>
       </div>
