@@ -13,7 +13,7 @@
 
 ## Global Constraints
 
-- Nhánh mới `feat/ta-panel-grouping` tạo từ `master` (worktree riêng — working tree hiện tại đang dở việc MCP trên `fix/hmoney-summary-null-timeframes`).
+- Làm trong worktree riêng, nhánh mới `feat/ta-panel-grouping` tạo từ `master`.
 - UI text tiếng Việt có dấu đầy đủ; commit message tiếng Việt, prefix conventional-commit tiếng Anh; **không** thêm trailer attribution (quy ước user).
 - Không dùng backtick trong HTML comment của inline template (TS1005 cascade).
 - Mọi guard điều kiện hiện có giữ nguyên trừ chỗ spec nói rõ (S/R bỏ wrapper ẩn-khi-rỗng).
