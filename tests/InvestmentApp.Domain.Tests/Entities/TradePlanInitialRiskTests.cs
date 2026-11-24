@@ -143,6 +143,23 @@ public class TradePlanInitialRiskTests
     }
 
     [Fact]
+    public void inprogress_with_null_snapshot_and_moved_stop_executing_next_lot_keeps_null()
+    {
+        // Kế hoạch cũ/ảnh chụp đầu không hợp lệ (SL = Entry) nên InitialRisk = null khi đã InProgress.
+        var plan = NewPlan(entry: 100m, stop: 100m, quantity: 1);
+        plan.SetLots(EntryMode.ScalingIn, TwoLots());
+        plan.MarkReady();
+        plan.MarkInProgress();
+        plan.InitialRisk.Should().BeNull();
+
+        plan.UpdateStopLossWithHistory(95m, "đặt SL hợp lệ");   // SL dời về mức hợp lệ
+        plan.ExecuteLot(1, "t1", 100m);
+
+        plan.InitialRisk.Should().BeNull(
+            "lot khớp sau không được chụp SL đã dời rồi gắn cờ chốt-kế-hoạch: 1R sai mà trông như thật");
+    }
+
+    [Fact]
     public void restore_clears_snapshot()
     {
         var plan = NewPlan();

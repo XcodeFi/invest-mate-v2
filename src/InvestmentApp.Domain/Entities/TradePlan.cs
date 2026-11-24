@@ -435,6 +435,8 @@ public class TradePlan : AggregateRoot
         if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed || Status == TradePlanStatus.Cancelled)
             throw new InvalidOperationException($"Cannot execute lot on a {Status} plan");
 
+        var statusBeforeFill = Status;   // chụp TRƯỚC khi chuyển trạng thái: chỉ lần khớp đầu (Draft/Ready) mới được chụp 1R
+
         lot.Status = PlanLotStatus.Executed;
         lot.ActualPrice = actualPrice;
         lot.ExecutedAt = DateTime.UtcNow;
@@ -447,9 +449,14 @@ public class TradePlan : AggregateRoot
         if (Status == TradePlanStatus.Ready || Status == TradePlanStatus.Draft)
             Status = TradePlanStatus.InProgress;
 
-        // Lần khớp đầu: chụp (nếu đi thẳng từ Draft) rồi khoá 1R. Chụp theo khối lượng DỰ TÍNH, không theo giá khớp.
-        RefreshInitialRisk();
-        LockInitialRisk();
+        // Lần khớp đầu (trước đó là Draft/Ready): chụp (nếu đi thẳng từ Draft) rồi khoá 1R, theo khối lượng DỰ TÍNH.
+        // Đã InProgress thì KHÔNG chụp: ảnh chụp null (kế hoạch cũ hoặc ảnh đầu không hợp lệ) mà chụp bây giờ sẽ lấy SL đã dời
+        // và gắn cờ chốt-kế-hoạch, 1R sai nhưng trông như thật. Để null thì khi đọc dùng ước tính ("uoc-tinh").
+        if (statusBeforeFill == TradePlanStatus.Draft || statusBeforeFill == TradePlanStatus.Ready)
+        {
+            RefreshInitialRisk();
+            LockInitialRisk();
+        }
 
         if (Lots.All(l => l.Status != PlanLotStatus.Pending))
         {
