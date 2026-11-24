@@ -12,6 +12,7 @@ using InvestmentApp.Application.Risk.Queries.GetSectorExposureForPlan;
 using InvestmentApp.Application.Risk.Queries.GetStopLossTargets;
 using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Application.Risk.Queries.GetVolatilitySizingForPlan;
+using InvestmentApp.Application.TradePlans.Queries.GetEstimateCalibration;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
 using InvestmentApp.Application.TradePlans.Queries.GetStrategyExpectancy;
 using MediatR;
@@ -177,5 +178,36 @@ public class RiskToolsTests
 
         act.Should().NotThrow();
         act().Should().Contain("FPT").And.Contain("0.4");
+    }
+
+    [Fact]
+    public async Task GetEstimateCalibration_SetsUserId_FromTheCaller_AndPassesStrategyId()
+    {
+        McpTestContext.Capture<InvestmentApp.Domain.Services.CalibrationResult, GetEstimateCalibrationQuery>(
+            _mediator, out var sent, InvestmentApp.Domain.Services.Calibration.Compute(Array.Empty<(decimal, decimal)>()));
+        await RiskTools.GetEstimateCalibration(_mediator.Object, McpTestContext.WithUser("u-cal"), CancellationToken.None, "s-1");
+        sent()!.UserId.Should().Be("u-cal");
+        sent()!.StrategyId.Should().Be("s-1");
+    }
+
+    [Fact]
+    public async Task GetEstimateCalibration_StrategyId_DefaultsToNull()
+    {
+        McpTestContext.Capture<InvestmentApp.Domain.Services.CalibrationResult, GetEstimateCalibrationQuery>(
+            _mediator, out var sent, InvestmentApp.Domain.Services.Calibration.Compute(Array.Empty<(decimal, decimal)>()));
+        await RiskTools.GetEstimateCalibration(_mediator.Object, McpTestContext.WithUser("u-cal"), CancellationToken.None);
+        sent()!.StrategyId.Should().BeNull();
+    }
+
+    [Fact]
+    public void CalibrationResult_SerializesThroughTheMcpJsonOptions_WithoutBrierBelowTheThreshold()
+    {
+        var result = InvestmentApp.Domain.Services.Calibration.Compute(new List<(decimal, decimal)> { (0.6m, 2m), (0.6m, -1m) });
+
+        var json = System.Text.Json.JsonSerializer.Serialize(result, ModelContextProtocol.McpJsonUtilities.DefaultOptions);
+
+        json.Should().Contain("\"n\":2").And.Contain("\"buckets\"");
+        json.Should().NotContain("brier", "dưới 15 mẫu thì không có brier (vắng mặt), không phải 0");
+        json.Should().Contain("\"sufficient\":false");
     }
 }

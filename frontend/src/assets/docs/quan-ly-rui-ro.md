@@ -135,6 +135,16 @@ Số CP = Rủi ro mỗi lệnh ÷ (Giá vào - Stop-Loss)
 - Rủi ro = 100tr × 2% = 2 triệu
 - Số CP = 2,000,000 ÷ 3,000 = 666 CP → làm tròn 600 CP (lô chẵn)
 
+### Kelly thận trọng theo dữ liệu của bạn
+
+Khối **So sánh mô hình** ở phần tính vị thế của trang **Kế hoạch giao dịch** có công tắc **Dùng dữ liệu của tôi**. Khi bật, khối hiện thêm mô hình Kelly (nếu có lợi thế) và phần "Cỡ vị thế thận trọng" tính từ R của chính các chiến dịch đã review của bạn:
+
+- Cần **tối thiểu 20 chiến dịch thắng/thua**. Chưa đủ thì khối nói rõ còn thiếu bao nhiêu và không đưa ra con số.
+- **Vì sao dùng cận dưới 95% của % thắng, không dùng % thắng thô:** với vài chục lệnh, tỉ lệ thắng thô dao động rất mạnh và Kelly cực kỳ nhạy với nó; dùng thô dễ ra cỡ vị thế quá lớn đúng lúc may mắn. Cận dưới Wilson là mức thắng mà dữ liệu đủ tin để nói "ít nhất cỡ này".
+- Công thức: f* = (b·p − (1 − p)) ÷ b với p là cận dưới đó, b = R thắng trung bình ÷ |R thua trung bình|. Lấy **một nửa (half-Kelly)** và **trần 25%** danh mục.
+- Không có lợi thế theo dữ liệu (f* ≤ 0, hoặc toàn lệnh thua) thì hiện "Kelly = 0". Chưa có lệnh thua nào thì không ước lượng được b và khối ghi rõ.
+- Luôn hiện n, cận dưới đã dùng và tỉ lệ R. Đây là **cỡ vị thế thận trọng theo dữ liệu, không phải lời khuyên vào lệnh**: vẫn phải khớp với stop-loss, giới hạn danh mục và ngân sách rủi ro.
+
 ### Position size tự tính trong Trade Plan
 
 Khi bạn nhập Entry và SL trong Kế hoạch GD, hệ thống tự tính:
