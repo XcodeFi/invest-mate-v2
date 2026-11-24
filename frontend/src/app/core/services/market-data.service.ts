@@ -113,6 +113,35 @@ export interface TopFluctuation {
   referencePrice: number;
 }
 
+/** Chuỗi chỉ báo theo từng phiên (GET analysis/series). Mọi mảng dài bằng dates; null = chưa đủ warm-up. */
+export interface TechnicalSeries {
+  symbol: string;
+  dates: string[];
+  open: number[];
+  high: number[];
+  low: number[];
+  close: number[];
+  volume: number[];
+  ema20: (number | null)[];
+  ema50: (number | null)[];
+  bollingerUpper: (number | null)[];
+  bollingerMiddle: (number | null)[];
+  bollingerLower: (number | null)[];
+  rsi14: (number | null)[];
+  stochK: (number | null)[];
+  stochD: (number | null)[];
+  macdLine: (number | null)[];
+  macdSignal: (number | null)[];
+  macdHistogram: (number | null)[];
+  adx: (number | null)[];
+  plusDi: (number | null)[];
+  minusDi: (number | null)[];
+  atr14: (number | null)[];
+  obv: (number | null)[];
+  mfi14: (number | null)[];
+  volumeSma20: (number | null)[];
+}
+
 export interface TechnicalAnalysis {
   symbol: string;
   analyzedAt: string;
@@ -373,6 +402,11 @@ export class MarketDataService {
 
   getTechnicalAnalysis(symbol: string): Observable<TechnicalAnalysis> {
     return this.http.get<TechnicalAnalysis>(`${this.API_URL}/stock/${symbol}/analysis`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getTechnicalSeries(symbol: string): Observable<TechnicalSeries> {
+    return this.http.get<TechnicalSeries>(`${this.API_URL}/stock/${symbol}/analysis/series`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 
