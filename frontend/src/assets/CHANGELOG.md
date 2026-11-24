@@ -2,6 +2,35 @@
 
 ---
 
+## [v2.88.0] — 2026-11-24 · Bấm tên nhóm chỉ báo để xem biểu đồ
+
+### Tính năng mới
+
+**📊 Biểu đồ chỉ báo theo nhóm trên trang Tra cứu giá.** Trong panel "Phân tích kỹ thuật", bấm tiêu đề một khối (🎯 Tổng hợp, 📈 Xu hướng, ⚡ Động lượng, 📏 Biến động, 💰 Dòng tiền, 🧱 Mốc giá) thì biểu đồ nến ngay dưới tiêu đề panel vẽ các chỉ báo của khối đó. Bấm lại khối đang chọn thì biểu đồ chỉ còn nến. Mỗi lần chỉ một nhóm.
+
+| Nhóm | Đè lên nến | Tầng bên dưới |
+|---|---|---|
+| 🎯 Tổng hợp | Đường ngang Giá vào / Cắt lỗ / Chốt lời | — |
+| 📈 Xu hướng | EMA20, EMA50 | ADX + DI+/DI− |
+| ⚡ Động lượng | — | RSI, MACD, Stochastic |
+| 📏 Biến động | Bollinger trên/giữa/dưới | ATR14 |
+| 💰 Dòng tiền | — | Khối lượng + SMA20, OBV, MFI |
+| 🧱 Mốc giá | Hỗ trợ, kháng cự, Fibonacci (5 mức, đỉnh/đáy swing) | — |
+
+- Điểm cuối mỗi đường bằng đúng con số trên thẻ cùng tên (cùng một công thức, cùng một lần lấy giá).
+- Các tầng dưới dùng chung trục thời gian với tầng giá (kéo/zoom một tầng thì các tầng khác theo); trỏ chuột vào một tầng thì các tầng còn lại hiện đường dọc tại cùng phiên và tiêu đề mỗi tầng ghi giá trị của phiên đó.
+- Mã chưa đủ dữ liệu cho một chỉ báo: biểu đồ vẫn có nến, chỉ báo thiếu hiện "Không đủ dữ liệu". Không tải được chuỗi: hiện "Không tải được dữ liệu biểu đồ", các thẻ vẫn dùng bình thường.
+- Chuỗi chỉ báo chỉ tải khi bấm nhóm lần đầu và được giữ cho đến khi đổi mã. Không vẽ EMA200 (nguồn chỉ có khoảng 60 phiên).
+
+### Kỹ thuật
+
+- Backend: `GET /api/v1/market/stock/{symbol}/analysis/series` trả 18 chuỗi chỉ báo theo từng phiên (EMA20/50, Bollinger ×3, RSI, Stochastic %K/%D, MACD ×3, ADX, +DI, −DI, ATR, OBV, MFI, SMA20 khối lượng). Mỗi hàm tính trả cả chuỗi và giá trị scalar của `/analysis` là phần tử cuối của chính chuỗi đó; payload `/analysis` không đổi. Đã đối chiếu scalar cũ và mới trên 156 bộ giá (kể cả giá phẳng và các độ dài sát ngưỡng warm-up): giống hệt từng trường
+- Frontend: `getTechnicalSeries`; hàm thuần `buildGroupLayers` ánh xạ nhóm sang lớp vẽ; component dùng chung `app-indicator-chart` (lightweight-charts v4, mỗi tầng một chart, đồng bộ trục thời gian và crosshair) để trang khác dùng lại được
+- Chỉ tiêu đề khối là vùng bấm (không cướp click của nút "Tạo Trade Plan"); tiêu đề có `role="button"`, `aria-pressed`, Enter/Space. Đổi mã khi đang tải: request cũ bị huỷ, kết quả muộn không vẽ lên mã mới
+- Tests: backend +11 (chuỗi, parity, endpoint), frontend +36 (service, ánh xạ nhóm, component biểu đồ, nối vào trang)
+
+---
+
 ## [v2.87.5] — 2026-11-24 · Mã liên kết chỉ được lưu khi thuộc tài khoản đang gọi
 
 ### Sửa lỗi

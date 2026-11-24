@@ -11,6 +11,13 @@ const EMPTY_LAYERS: GroupLayers = { overlays: [], panes: [], priceLines: [], not
 const EMPTY_CANDLES: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
 
 const PRICE_HEIGHT = 300;
+
+/** Nhãn trục/crosshair: triệu trở lên (OBV, khối lượng) viết gọn kiểu 2,8M; nghìn trở lên không lẻ thập phân; số nhỏ (RSI, ADX...) 1 chữ số lẻ. */
+const formatAxisValue = (v: number): string =>
+  Math.abs(v) >= 1_000_000
+    ? `${(v / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}M`
+    : v.toLocaleString('vi-VN', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 1 });
+const PRICE_FORMAT = { type: 'custom' as const, formatter: formatAxisValue, minMove: 0.01 };
 const PANE_HEIGHT = 120;
 
 interface ReadoutItem { label: string; values: (number | null)[]; }
@@ -104,7 +111,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     const candleSeries = priceChart.addCandlestickSeries({
       upColor: '#22c55e', downColor: '#ef4444',
       borderUpColor: '#16a34a', borderDownColor: '#dc2626',
-      wickUpColor: '#16a34a', wickDownColor: '#dc2626'
+      wickUpColor: '#16a34a', wickDownColor: '#dc2626',
+      priceFormat: PRICE_FORMAT
     });
     candleSeries.setData(this.sourceIndex.map((src, k) => ({
       time: times[k] as Time,
@@ -116,7 +124,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     layers.overlays.forEach(line => {
       const series = priceChart.addLineSeries({
         color: line.color ?? '#2563eb', lineWidth: 2,
-        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false
+        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        priceFormat: PRICE_FORMAT
       });
       series.setData(this.lineData(times, line.values));
       priceReadout.push({ label: line.label, values: line.values });
@@ -140,10 +149,11 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       pane.lines.forEach(line => {
         const data = this.lineData(times, line.values);
         const series = line.kind === 'histogram'
-          ? chart.addHistogramSeries({ color: line.color ?? '#94a3b8', priceLineVisible: false, lastValueVisible: false })
+          ? chart.addHistogramSeries({ color: line.color ?? '#94a3b8', priceLineVisible: false, lastValueVisible: false, priceFormat: PRICE_FORMAT })
           : chart.addLineSeries({
               color: line.color ?? '#2563eb', lineWidth: 2,
-              priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false
+              priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        priceFormat: PRICE_FORMAT
             });
         series.setData(data as any);
         firstSeries ??= series;
@@ -232,7 +242,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       layout: { background: { color: '#ffffff' }, textColor: '#374151', fontFamily: 'system-ui, sans-serif' },
       grid: { vertLines: { color: '#f3f4f6' }, horzLines: { color: '#f3f4f6' } },
       crosshair: { mode: 0 },
-      rightPriceScale: { borderColor: '#e5e7eb' },
+      // Cùng bề rộng trục giá ở mọi tầng, để vùng vẽ (và các bar) thẳng cột với nhau
+      rightPriceScale: { borderColor: '#e5e7eb', minimumWidth: 72 },
       timeScale: { borderColor: '#e5e7eb', timeVisible: false, visible: showTime },
       width: container.clientWidth || this.root.nativeElement.clientWidth || 600,
       height
@@ -268,7 +279,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   private formatValue(v: number): string {
-    return v.toLocaleString('vi-VN', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 1 });
+    return formatAxisValue(v);
   }
 
   private priceLineColor(label: string): string {
