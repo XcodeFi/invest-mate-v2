@@ -86,16 +86,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build Worker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.worker
-          push: false
-          tags: investment-mate-worker:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
       - name: Build Frontend image
         uses: docker/build-push-action@v6
         with:
