@@ -10,7 +10,25 @@ import { GroupLayers, IndicatorChartCandles, LineLayer } from './indicator-chart
 const EMPTY_LAYERS: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
 const EMPTY_CANDLES: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
 
-const PRICE_HEIGHT = 300;
+/**
+ * Tổng chiều cao component (mọi canvas + dòng tiêu đề của từng tầng) tối đa. Khối dính trên trang gồm thêm thanh chip
+ * và đệm (~60px) nên toàn khối ≤ 560px, vừa một màn hình máy tính 800px cao.
+ */
+const TOTAL_HEIGHT = 500;
+const TITLE_HEIGHT = 18;
+const MAX_PRICE_ONLY_HEIGHT = 300;
+const MIN_PANE_HEIGHT = 60;
+const MAX_PANE_HEIGHT = 120;
+const PRICE_SHARE = 0.45;
+
+/** Chia chiều cao canvas: các tầng dưới tối đa 120px mỗi tầng, tầng giá lấy phần còn lại nhưng không dưới 45% vùng vẽ. */
+export function computeHeights(paneCount: number): { price: number; pane: number } {
+  const canvas = TOTAL_HEIGHT - TITLE_HEIGHT * (paneCount + 1);
+  if (paneCount === 0) return { price: Math.min(canvas, MAX_PRICE_ONLY_HEIGHT), pane: 0 };
+  const price = Math.max(Math.round(canvas * PRICE_SHARE), canvas - paneCount * MAX_PANE_HEIGHT);
+  const pane = Math.max(MIN_PANE_HEIGHT, Math.min(MAX_PANE_HEIGHT, Math.floor((canvas - price) / paneCount)));
+  return { price, pane };
+}
 
 /** Nhãn trục/crosshair: triệu trở lên (OBV, khối lượng) viết gọn kiểu 2,8M; nghìn trở lên không lẻ thập phân; số nhỏ (RSI, ADX...) 1 chữ số lẻ. */
 const formatAxisValue = (v: number): string =>
@@ -18,7 +36,6 @@ const formatAxisValue = (v: number): string =>
     ? `${(v / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}M`
     : v.toLocaleString('vi-VN', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 1 });
 const PRICE_FORMAT = { type: 'custom' as const, formatter: formatAxisValue, minMove: 0.01 };
-const PANE_HEIGHT = 120;
 
 interface ReadoutItem { label: string; values: (number | null)[]; }
 interface Readout { el: HTMLElement; items: ReadoutItem[]; }
@@ -113,10 +130,11 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     const host = this.root.nativeElement;
     const layers = this.layers ?? EMPTY_LAYERS;
     const paneCount = layers.panes.length;
+    const { price: priceHeight, pane: paneHeight } = computeHeights(paneCount);
 
     // ----- Tầng giá -----
-    const priceBlock = this.createBlock(host, 'Giá', PRICE_HEIGHT);
-    const priceChart = this.createChart(priceBlock.host, PRICE_HEIGHT, paneCount === 0);
+    const priceBlock = this.createBlock(host, 'Giá', priceHeight);
+    const priceChart = this.createChart(priceBlock.host, priceHeight, paneCount === 0);
     const candleSeries = priceChart.addCandlestickSeries({
       upColor: '#22c55e', downColor: '#ef4444',
       borderUpColor: '#16a34a', borderDownColor: '#dc2626',
@@ -150,8 +168,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
 
     // ----- Các tầng dưới -----
     layers.panes.forEach((pane, i) => {
-      const block = this.createBlock(host, pane.title, PANE_HEIGHT);
-      const chart = this.createChart(block.host, PANE_HEIGHT, i === paneCount - 1);
+      const block = this.createBlock(host, pane.title, paneHeight);
+      const chart = this.createChart(block.host, paneHeight, i === paneCount - 1);
       const items: ReadoutItem[] = [];
       let firstSeries: ISeriesApi<'Line' | 'Histogram'> | null = null;
 
@@ -241,7 +259,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     const block = document.createElement('div');
     block.className = 'indicator-chart-pane';
     const header = document.createElement('div');
-    header.className = 'flex items-baseline justify-between gap-2 px-1 text-xs text-gray-600';
+    header.className = 'flex items-baseline justify-between gap-2 px-1 text-xs text-gray-600 overflow-hidden';
+    header.style.height = `${TITLE_HEIGHT}px`;
     const titleEl = document.createElement('span');
     titleEl.className = 'font-semibold';
     titleEl.textContent = title;

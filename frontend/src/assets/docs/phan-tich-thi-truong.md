@@ -40,9 +40,9 @@ Khi tra cứu mã CP, panel phân tích kỹ thuật hiển thị theo **6 khố
 
 Khối **🎯 Tổng hợp** nằm trên cùng (chỉ hiện khi có Điểm Confluence hoặc Gợi ý giao dịch — xem hai mục bên dưới). Các khối còn lại:
 
-### 📊 Bấm tên nhóm để xem biểu đồ
+### 📊 Chọn nhóm để xem biểu đồ
 
-Bấm vào **tên một nhóm** (🎯 Tổng hợp, 📈 Xu hướng, ⚡ Động lượng, 📏 Biến động, 💰 Dòng tiền, 🧱 Mốc giá) thì biểu đồ nến ngay dưới tiêu đề panel vẽ các chỉ báo của nhóm đó. Bấm lại nhóm đang chọn để chỉ còn nến. Mỗi lần xem một nhóm.
+Bấm một **nút nhóm** trên thanh ngay phía trên biểu đồ (🎯 Tổng hợp, 📈 Xu hướng, ⚡ Động lượng, 📏 Biến động, 💰 Dòng tiền, 🧱 Mốc giá) thì biểu đồ nến ngay dưới tiêu đề panel vẽ các chỉ báo của nhóm đó. Bấm lại nhóm đang chọn để chỉ còn nến. Mỗi lần xem một nhóm.
 
 | Nhóm | Vẽ gì |
 |------|-------|

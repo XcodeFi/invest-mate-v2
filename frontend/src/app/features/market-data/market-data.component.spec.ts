@@ -117,8 +117,8 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
   }
 
   function groupValues(): (string | null)[] {
-    return fixture.debugElement.queryAll(By.css('[data-group]'))
-      .map(el => el.nativeElement.getAttribute('data-group'));
+    return fixture.debugElement.queryAll(By.css('h4[data-heading]'))
+      .map(el => el.nativeElement.getAttribute('data-heading'));
   }
 
   it('6 tiêu đề khối render đúng thứ tự', () => {
@@ -152,7 +152,7 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
     ta.resistanceLevels = [];
     setup(ta);
 
-    const mocGia = fixture.debugElement.query(By.css('[data-group="moc-gia"]'));
+    const mocGia = fixture.debugElement.query(By.css('[data-heading="moc-gia"]'));
     expect(mocGia).toBeTruthy();
     const text: string = fixture.nativeElement.textContent;
     const matches = text.match(/Chưa xác định/g) ?? [];
@@ -166,8 +166,10 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
 
     const text: string = fixture.nativeElement.textContent;
     const idx = text.indexOf('Trạng thái thị trường');
-    expect(idx).toBeGreaterThan(text.indexOf('📈 Xu hướng'));
-    expect(idx).toBeLessThan(text.indexOf('⚡ Động lượng'));
+    // bỏ qua thanh chip (cũng ghi tên nhóm) để so vị trí với tiêu đề khối
+    const afterChips = text.indexOf('🧱 Mốc giá') + 1;
+    expect(idx).toBeGreaterThan(text.indexOf('📈 Xu hướng', afterChips));
+    expect(idx).toBeLessThan(text.indexOf('⚡ Động lượng', afterChips));
     expect(text).toContain('Có xu hướng');
   });
 
@@ -176,7 +178,7 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
     ta.marketCondition = 'unknown';
     setup(ta);
 
-    expect(fixture.debugElement.query(By.css('[data-group="xu-huong"]'))).toBeTruthy();
+    expect(fixture.debugElement.query(By.css('[data-heading="xu-huong"]'))).toBeTruthy();
     const text: string = fixture.nativeElement.textContent;
     expect(text).not.toContain('Trạng thái thị trường');
   });
@@ -266,11 +268,47 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
 
   afterEach(() => fixture?.destroy());
 
-  it('before any click shows hint "Bấm tên nhóm để xem biểu đồ" and no chart', () => {
+  it('before any click shows hint "Chọn nhóm để xem biểu đồ" and no chart', () => {
     setup();
 
-    expect(text()).toContain('Bấm tên nhóm để xem biểu đồ');
+    expect(text()).toContain('Chọn nhóm để xem biểu đồ');
     expect(chartEl()).toBeNull();
+    expect(marketSpy.getTechnicalSeries).not.toHaveBeenCalled();
+  });
+
+  it('chip bar with 6 groups is shown before any click, inside the chart area', () => {
+    setup();
+
+    const chips = fixture.debugElement.queryAll(By.css('[data-testid="ta-chart-area"] [data-group]'));
+    expect(chips.map(c => c.nativeElement.getAttribute('data-group'))).toEqual([
+      'tong-hop', 'xu-huong', 'dong-luong', 'bien-dong', 'dong-tien', 'moc-gia',
+    ]);
+    expect(chips.map(c => c.nativeElement.textContent.trim())).toEqual([
+      '🎯 Tổng hợp', '📈 Xu hướng', '⚡ Động lượng', '📏 Biến động', '💰 Dòng tiền', '🧱 Mốc giá',
+    ]);
+    chips.forEach(c => {
+      expect(c.nativeElement.tagName).toBe('BUTTON');
+      expect(c.nativeElement.getAttribute('type')).toBe('button');
+      expect(c.nativeElement.getAttribute('aria-pressed')).toBe('false');
+    });
+    expect(fixture.debugElement.queryAll(By.css('[data-group]')).length).toBe(6);
+  });
+
+  it('h4 headings are not interactive', () => {
+    setup();
+
+    const headings = fixture.debugElement.queryAll(By.css('h4[data-heading]'));
+    expect(headings.length).toBe(6);
+    headings.forEach(h => {
+      const el = h.nativeElement as HTMLElement;
+      expect(el.hasAttribute('role')).toBeFalse();
+      expect(el.hasAttribute('tabindex')).toBeFalse();
+      expect(el.hasAttribute('aria-pressed')).toBeFalse();
+      expect(el.className).not.toContain('cursor-pointer');
+    });
+    (headings[1].nativeElement as HTMLElement).click();
+    fixture.detectChanges();
+    expect(component.selectedGroup).toBeNull();
     expect(marketSpy.getTechnicalSeries).not.toHaveBeenCalled();
   });
 
@@ -283,7 +321,7 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
     expect(header('xu-huong').getAttribute('aria-pressed')).toBe('true');
     expect(header('dong-luong').getAttribute('aria-pressed')).toBe('false');
     expect(chartEl()).not.toBeNull();
-    expect(text()).not.toContain('Bấm tên nhóm để xem biểu đồ');
+    expect(text()).not.toContain('Chọn nhóm để xem biểu đồ');
   });
 
   it('clicking the selected header again clears selection and keeps the candles-only chart', () => {
@@ -323,16 +361,16 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
     expect(component.groupLayers.panes.map(p => p.title)).toEqual(['RSI', 'MACD', 'Stochastic']);
   });
 
-  it('Enter and Space on the header toggle the group', () => {
+  it('chips are native buttons, so Enter/Space activation is the browser click (no extra key handlers)', () => {
     setup();
 
+    // kích hoạt bàn phím trên <button> chính là sự kiện click; chỉ một lần bật/tắt cho mỗi lần kích hoạt
+    header('xu-huong').click();
+    fixture.detectChanges();
+    expect(component.selectedGroup).toBe('xu-huong');
     header('xu-huong').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     fixture.detectChanges();
     expect(component.selectedGroup).toBe('xu-huong');
-
-    header('xu-huong').dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
-    fixture.detectChanges();
-    expect(component.selectedGroup).toBeNull();
   });
 
   it('late response for previous symbol is ignored', () => {

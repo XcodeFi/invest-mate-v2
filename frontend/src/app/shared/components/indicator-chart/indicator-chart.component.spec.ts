@@ -204,6 +204,37 @@ describe('IndicatorChartComponent', () => {
     });
   });
 
+  describe('chiều cao', () => {
+    const TITLE = 18;
+    const heights = () => Array.from(containers()).map(c => parseInt((c as HTMLElement).style.height, 10));
+    const titleHeights = () =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.indicator-chart-pane > div:first-child'))
+        .map(h => parseInt((h as HTMLElement).style.height, 10));
+    const total = () => heights().reduce((a, h) => a + h, 0) + titleHeights().reduce((a, h) => a + h, 0);
+
+    [0, 1, 2, 3].forEach(n => {
+      it(`${n} panes: canvases + titles stay within 500px, price chart is the tallest, panes >= 60px`, () => {
+        setInputs(layers(['RSI', 'MACD', 'Stochastic'].slice(0, n)));
+
+        const h = heights();
+        expect(h.length).toBe(n + 1);
+        expect(total()).toBeLessThanOrEqual(500);
+        h.slice(1).forEach(p => {
+          expect(p).toBeGreaterThanOrEqual(60);
+          expect(p).toBeLessThanOrEqual(h[0]);
+        });
+      });
+    });
+
+    it('a single pane does not balloon: it is capped at 120px and the price chart takes the rest', () => {
+      setInputs(layers(['RSI']));
+
+      const h = heights();
+      expect(h[1]).toBe(120);
+      expect(h[0]).toBeGreaterThan(300);
+    });
+  });
+
   describe('giữ khoảng nhìn khi đổi nhóm', () => {
     // Layout của lightweight-charts trong Karma không đủ để zoom thật (setVisibleLogicalRange không đổi khoảng nhìn),
     // nên giả lập ở lớp TimeScaleApi: khoảng nhìn "người dùng đã chọn" trả về từ getVisibleLogicalRange.

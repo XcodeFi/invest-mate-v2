@@ -211,8 +211,21 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
           </span>
         </div>
 
-        <!-- Biểu đồ chỉ báo của nhóm đang chọn (tải khi bấm nhóm lần đầu) -->
-        <div class="mb-4" data-testid="ta-chart-area">
+        <!-- Thanh chọn nhóm + biểu đồ chỉ báo của nhóm đang chọn (chuỗi tải khi bấm nhóm lần đầu).
+             chỉ dính khi màn hình rộng ≥1024 VÀ cao ≥800 (laptop thấp thì khối dính chiếm hết màn hình); header là z-50 nên z-40. -->
+        <div class="mb-4 bg-white pb-2 ta-chart-sticky" data-testid="ta-chart-area">
+          <div class="flex flex-wrap gap-2 mb-2" role="group" aria-label="Chọn nhóm chỉ báo để vẽ biểu đồ">
+            @for (g of taGroups; track g.key) {
+              <button type="button" class="px-3 py-1 rounded-full text-sm font-semibold border cursor-pointer select-none"
+                [class.bg-blue-600]="selectedGroup === g.key" [class.text-white]="selectedGroup === g.key"
+                [class.border-blue-600]="selectedGroup === g.key"
+                [class.bg-white]="selectedGroup !== g.key" [class.text-gray-700]="selectedGroup !== g.key"
+                [class.border-gray-300]="selectedGroup !== g.key" [class.hover:bg-gray-100]="selectedGroup !== g.key"
+                [attr.aria-pressed]="selectedGroup === g.key"
+                (click)="toggleGroup(g.key)"
+                [attr.data-group]="g.key">{{ g.label }}</button>
+            }
+          </div>
           @if (chartLoading) {
             <div class="text-sm text-gray-500 py-8 text-center" data-testid="ta-chart-loading">Đang tải biểu đồ...</div>
           } @else if (chartError) {
@@ -220,19 +233,13 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
           } @else if (currentSeries) {
             <app-indicator-chart [dates]="currentSeries.dates" [candles]="chartCandles" [layers]="groupLayers"></app-indicator-chart>
           } @else {
-            <p class="text-xs text-gray-500" data-testid="ta-chart-hint">Bấm tên nhóm để xem biểu đồ</p>
+            <p class="text-xs text-gray-500" data-testid="ta-chart-hint">Chọn nhóm để xem biểu đồ</p>
           }
         </div>
 
         <!-- Khối 1: Tổng hợp (Confluence + Gợi ý giao dịch) -->
         @if (analysis.confluenceScore != null || analysis.suggestedEntry) {
-          <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
-          [class.text-gray-700]="selectedGroup !== 'tong-hop'"
-          [class.bg-blue-100]="selectedGroup === 'tong-hop'" [class.text-blue-800]="selectedGroup === 'tong-hop'"
-          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'tong-hop'"
-          title="Bấm để xem biểu đồ của nhóm này"
-          (click)="toggleGroup('tong-hop')" (keydown.enter)="onGroupKey($event, 'tong-hop')" (keydown.space)="onGroupKey($event, 'tong-hop')"
-          data-group="tong-hop">🎯 Tổng hợp</h4>
+          <h4 class="text-sm font-bold text-gray-700 mb-2" data-heading="tong-hop">🎯 Tổng hợp</h4>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <!-- Confluence Score -->
             @if (analysis.confluenceScore != null) {
@@ -299,13 +306,7 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
         }
 
         <!-- Khối 2: Xu hướng -->
-        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
-          [class.text-gray-700]="selectedGroup !== 'xu-huong'"
-          [class.bg-blue-100]="selectedGroup === 'xu-huong'" [class.text-blue-800]="selectedGroup === 'xu-huong'"
-          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'xu-huong'"
-          title="Bấm để xem biểu đồ của nhóm này"
-          (click)="toggleGroup('xu-huong')" (keydown.enter)="onGroupKey($event, 'xu-huong')" (keydown.space)="onGroupKey($event, 'xu-huong')"
-          data-group="xu-huong">📈 Xu hướng</h4>
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-heading="xu-huong">📈 Xu hướng</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- EMA -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -371,13 +372,7 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
         </div>
 
         <!-- Khối 3: Động lượng -->
-        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
-          [class.text-gray-700]="selectedGroup !== 'dong-luong'"
-          [class.bg-blue-100]="selectedGroup === 'dong-luong'" [class.text-blue-800]="selectedGroup === 'dong-luong'"
-          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'dong-luong'"
-          title="Bấm để xem biểu đồ của nhóm này"
-          (click)="toggleGroup('dong-luong')" (keydown.enter)="onGroupKey($event, 'dong-luong')" (keydown.space)="onGroupKey($event, 'dong-luong')"
-          data-group="dong-luong">⚡ Động lượng</h4>
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-heading="dong-luong">⚡ Động lượng</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- RSI -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -471,13 +466,7 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
         </div>
 
         <!-- Khối 4: Biến động -->
-        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
-          [class.text-gray-700]="selectedGroup !== 'bien-dong'"
-          [class.bg-blue-100]="selectedGroup === 'bien-dong'" [class.text-blue-800]="selectedGroup === 'bien-dong'"
-          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'bien-dong'"
-          title="Bấm để xem biểu đồ của nhóm này"
-          (click)="toggleGroup('bien-dong')" (keydown.enter)="onGroupKey($event, 'bien-dong')" (keydown.space)="onGroupKey($event, 'bien-dong')"
-          data-group="bien-dong">📏 Biến động</h4>
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-heading="bien-dong">📏 Biến động</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- Bollinger Bands -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -522,13 +511,7 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
         </div>
 
         <!-- Khối 5: Dòng tiền -->
-        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
-          [class.text-gray-700]="selectedGroup !== 'dong-tien'"
-          [class.bg-blue-100]="selectedGroup === 'dong-tien'" [class.text-blue-800]="selectedGroup === 'dong-tien'"
-          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'dong-tien'"
-          title="Bấm để xem biểu đồ của nhóm này"
-          (click)="toggleGroup('dong-tien')" (keydown.enter)="onGroupKey($event, 'dong-tien')" (keydown.space)="onGroupKey($event, 'dong-tien')"
-          data-group="dong-tien">💰 Dòng tiền</h4>
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-heading="dong-tien">💰 Dòng tiền</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- Volume -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -585,13 +568,7 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
         </div>
 
         <!-- Khối 6: Mốc giá -->
-        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
-          [class.text-gray-700]="selectedGroup !== 'moc-gia'"
-          [class.bg-blue-100]="selectedGroup === 'moc-gia'" [class.text-blue-800]="selectedGroup === 'moc-gia'"
-          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'moc-gia'"
-          title="Bấm để xem biểu đồ của nhóm này"
-          (click)="toggleGroup('moc-gia')" (keydown.enter)="onGroupKey($event, 'moc-gia')" (keydown.space)="onGroupKey($event, 'moc-gia')"
-          data-group="moc-gia">🧱 Mốc giá</h4>
+        <h4 class="text-sm font-bold text-gray-700 mb-2" data-heading="moc-gia">🧱 Mốc giá</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <div class="bg-green-50 rounded-lg p-3">
             <div class="text-xs text-green-600 font-medium mb-1">Hỗ trợ</div>
@@ -803,7 +780,13 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
       [useCase]="aiPanelUseCase"
       [contextData]="{ symbol: searchSymbol }">
     </app-ai-chat-panel>
-  `
+  `,
+  styles: [`
+    /* Dính dưới header (3.5rem) chỉ khi đủ rộng và đủ cao; header là z-50 nên khối này z-40 */
+    @media (min-width: 1024px) and (min-height: 800px) {
+      .ta-chart-sticky { position: sticky; top: 3.5rem; z-index: 40; }
+    }
+  `]
 })
 export class MarketDataComponent implements OnInit {
   // Overview
@@ -822,6 +805,14 @@ export class MarketDataComponent implements OnInit {
   analyzingSignal = false;
 
   // Biểu đồ chỉ báo theo nhóm (tải lazy khi bấm nhóm lần đầu, cache theo mã đang xem)
+  readonly taGroups: { key: TaGroup; label: string }[] = [
+    { key: 'tong-hop', label: '🎯 Tổng hợp' },
+    { key: 'xu-huong', label: '📈 Xu hướng' },
+    { key: 'dong-luong', label: '⚡ Động lượng' },
+    { key: 'bien-dong', label: '📏 Biến động' },
+    { key: 'dong-tien', label: '💰 Dòng tiền' },
+    { key: 'moc-gia', label: '🧱 Mốc giá' },
+  ];
   selectedGroup: TaGroup | null = null;
   seriesCache = new Map<string, TechnicalSeries>();
   chartError: string | null = null;
@@ -1030,11 +1021,6 @@ export class MarketDataComponent implements OnInit {
   }
 
   // --- Biểu đồ chỉ báo theo nhóm ---
-
-  onGroupKey(event: Event, group: TaGroup): void {
-    event.preventDefault();
-    this.toggleGroup(group);
-  }
 
   /** Bấm nhóm đang chọn → bỏ chọn (chỉ còn nến). Bấm nhóm khác → vẽ nhóm đó; lần đầu thì tải chuỗi + phân tích cùng lúc. */
   toggleGroup(group: TaGroup): void {
