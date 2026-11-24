@@ -51,8 +51,9 @@ public class CreateJournalCommandHandler : IRequestHandler<CreateJournalCommand,
         if (existing != null)
             throw new Exception($"Journal already exists for trade {request.TradeId}");
 
+        // PortfolioId lấy từ trade đã kiểm chủ, không tin giá trị caller đưa vào body.
         var journal = new TradeJournal(
-            request.TradeId, request.UserId, request.PortfolioId,
+            request.TradeId, request.UserId, trade.PortfolioId,
             request.EntryReason, request.MarketContext, request.TechnicalSetup,
             request.EmotionalState, request.ConfidenceLevel
         );

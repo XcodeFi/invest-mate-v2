@@ -39,9 +39,11 @@ public class GetJournalsQueryHandler : IRequestHandler<GetJournalsQuery, IEnumer
 
     public async Task<IEnumerable<JournalDto>> Handle(GetJournalsQuery request, CancellationToken cancellationToken)
     {
+        // Tra theo portfolio không kèm chủ sở hữu nên phải lọc UserId: chỉ nhật ký thuộc tài khoản đang gọi được trả ra.
         var journals = string.IsNullOrEmpty(request.PortfolioId)
             ? await _journalRepository.GetByUserIdAsync(request.UserId, cancellationToken)
-            : await _journalRepository.GetByPortfolioIdAsync(request.PortfolioId, cancellationToken);
+            : (await _journalRepository.GetByPortfolioIdAsync(request.PortfolioId, cancellationToken))
+                .Where(j => j.UserId == request.UserId);
 
         return journals.Select(j => new JournalDto
         {

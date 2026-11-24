@@ -41,6 +41,28 @@ public class CreateJournalCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_PortfolioIdInBodyDiffersFromTrade_StoresThePortfolioOfTheTrade()
+    {
+        // Trade và danh mục thuộc tài khoản đang gọi; body mang PortfolioId khác thì nhật ký vẫn lưu PortfolioId của trade.
+        var trade = new Trade("pf-mine", "VNM", TradeType.BUY, 100, 50000);
+        _tradeRepo.Setup(r => r.GetByIdAsync(trade.Id, It.IsAny<CancellationToken>())).ReturnsAsync(trade);
+        _portfolioRepo.Setup(r => r.GetByIdAsync("pf-mine", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(NewPortfolio("pf-mine", "user-1"));
+        _journalRepo.Setup(r => r.GetByTradeIdAsync(trade.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TradeJournal?)null);
+        TradeJournal? saved = null;
+        _journalRepo.Setup(r => r.AddAsync(It.IsAny<TradeJournal>(), It.IsAny<CancellationToken>()))
+            .Callback<TradeJournal, CancellationToken>((j, _) => saved = j)
+            .Returns(Task.CompletedTask);
+
+        var cmd = new CreateJournalCommand { TradeId = trade.Id, PortfolioId = "pf-other", UserId = "user-1", EntryReason = "test" };
+        await _handler.Handle(cmd, CancellationToken.None);
+
+        saved.Should().NotBeNull();
+        saved!.PortfolioId.Should().Be("pf-mine");
+    }
+
+    [Fact]
     public async Task Handle_TradeBelongsToCaller_CreatesJournal()
     {
         var trade = new Trade("pf-1", "VNM", TradeType.BUY, 100, 50000);
