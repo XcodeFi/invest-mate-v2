@@ -303,7 +303,6 @@ public class TradePlan : AggregateRoot
         RefreshInitialRisk();
         LockInitialRisk();
         LockEstimateAndRecordGate();
-        LockEstimateAndRecordGate();
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -792,7 +791,7 @@ public class EstimateSnapshot
 public class EvGateException : InvalidOperationException
 {
     public EvGateException(int minReasonLength)
-        : base($"Kỳ vọng âm hoặc chưa ước lượng — cần ghi lý do (evGateReason, tối thiểu {minReasonLength} ký tự) trước khi chuyển sang Sẵn sàng.")
+        : base($"Kỳ vọng âm hoặc chưa ước lượng, chưa thể chuyển sang Sẵn sàng. Nhập kịch bản có tổng xác suất 100% và EV dương, hoặc ghi lý do (evGateReason, tối thiểu {minReasonLength} ký tự).")
     {
     }
 }

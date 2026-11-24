@@ -27,7 +27,7 @@ public class TradePlanEvGateTests
 
         var act = () => plan.MarkReadyWithEvGate(null);
 
-        act.Should().Throw<EvGateException>().Which.Message.Should().Contain("cần ghi lý do");
+        act.Should().Throw<EvGateException>().Which.Message.Should().Contain("Nhập kịch bản có tổng xác suất 100% và EV dương, hoặc ghi lý do (evGateReason, tối thiểu 10 ký tự)");
         plan.Status.Should().Be(TradePlanStatus.Draft, "bị từ chối thì không đổi trạng thái");
     }
 
