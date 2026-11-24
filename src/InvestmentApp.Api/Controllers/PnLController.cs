@@ -1,4 +1,4 @@
-using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Portfolios.Queries.GetPnL;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -11,18 +11,11 @@ namespace InvestmentApp.Api.Controllers;
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class PnLController : ControllerBase
 {
-    private readonly IPnLService _pnlService;
-    private readonly IPortfolioRepository _portfolioRepository;
-    private readonly ICapitalFlowRepository _capitalFlowRepository;
+    private readonly IMediator _mediator;
 
-    public PnLController(
-        IPnLService pnlService,
-        IPortfolioRepository portfolioRepository,
-        ICapitalFlowRepository capitalFlowRepository)
+    public PnLController(IMediator mediator)
     {
-        _pnlService = pnlService;
-        _portfolioRepository = portfolioRepository;
-        _capitalFlowRepository = capitalFlowRepository;
+        _mediator = mediator;
     }
 
     private string GetUserId() =>
@@ -32,30 +25,19 @@ public class PnLController : ControllerBase
     /// Get P&L summary for a portfolio
     /// </summary>
     [HttpGet("portfolio/{portfolioId}")]
-    [ProducesResponseType(typeof(Application.Portfolios.Queries.PortfolioPnLSummary), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PortfolioPnLDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPortfolioPnL(string portfolioId)
     {
-        var userId = GetUserId();
-
-        // Verify user owns the portfolio
-        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId);
-        if (portfolio == null || portfolio.UserId != userId)
-            return NotFound();
-
-        var pnlSummary = await _pnlService.CalculatePortfolioPnLAsync(portfolioId);
-        return Ok(new
+        try
         {
-            PortfolioId = portfolio.Id,
-            PortfolioName = portfolio.Name,
-            pnlSummary.TotalInvested,
-            TotalMarketValue = pnlSummary.TotalPortfolioValue,
-            pnlSummary.TotalRealizedPnL,
-            pnlSummary.TotalUnrealizedPnL,
-            pnlSummary.TotalPnL,
-            pnlSummary.TotalPnLPercent,
-            pnlSummary.Positions
-        });
+            // Kiểm chủ sở hữu nằm trong handler (cùng đường với MCP); danh mục không có hoặc của người khác → 404 thân rỗng
+            return Ok(await _mediator.Send(new GetPortfolioPnLQuery { PortfolioId = portfolioId, UserId = GetUserId() }));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
     /// <summary>
@@ -66,89 +48,26 @@ public class PnLController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPositionPnL(string portfolioId, string symbol)
     {
-        var userId = GetUserId();
-
-        var portfolio = await _portfolioRepository.GetByIdAsync(portfolioId);
-        if (portfolio == null || portfolio.UserId != userId)
+        try
+        {
+            return Ok(await _mediator.Send(new GetPositionPnLQuery
+            {
+                PortfolioId = portfolioId,
+                Symbol = symbol,
+                UserId = GetUserId()
+            }));
+        }
+        catch (KeyNotFoundException)
+        {
             return NotFound();
-
-        var stockSymbol = new Domain.ValueObjects.StockSymbol(symbol);
-        var positionPnL = await _pnlService.CalculatePositionPnLAsync(portfolioId, stockSymbol);
-        return Ok(positionPnL);
+        }
     }
 
     /// <summary>
     /// Get P&L summary across all user portfolios
     /// </summary>
     [HttpGet("summary")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OverallPnLDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetOverallPnL()
-    {
-        var userId = GetUserId();
-        var portfolios = await _portfolioRepository.GetByUserIdAsync(userId);
-        var portfolioList = portfolios.ToList();
-
-        decimal totalInvested = 0;
-        decimal totalUnrealizedPnL = 0;
-        decimal totalRealizedPnL = 0;
-        decimal totalPortfolioValue = 0;
-        decimal totalNetCashFlow = 0;
-        var portfolioPnLs = new List<object>();
-
-        decimal totalInitialCapital = portfolioList.Sum(p => p.InitialCapital);
-
-        foreach (var portfolio in portfolioList)
-        {
-            var netCashFlow = await _capitalFlowRepository.GetTotalFlowByPortfolioIdAsync(portfolio.Id);
-            // Accumulate netCashFlow outside the try so portfolios with no trades
-            // (PnLService throws) still contribute to totalNetCashFlow. Otherwise
-            // totalCurrentCapital = totalInitialCapital (all portfolios) + totalNetCashFlow
-            // (only portfolios with trades) produces an inconsistent aggregate.
-            totalNetCashFlow += netCashFlow;
-
-            try
-            {
-                var pnl = await _pnlService.CalculatePortfolioPnLAsync(portfolio.Id);
-                totalInvested += pnl.TotalInvested;
-                totalUnrealizedPnL += pnl.TotalUnrealizedPnL;
-                totalRealizedPnL += pnl.TotalRealizedPnL;
-                totalPortfolioValue += pnl.TotalPortfolioValue;
-
-                portfolioPnLs.Add(new
-                {
-                    PortfolioId = portfolio.Id,
-                    PortfolioName = portfolio.Name,
-                    InitialCapital = portfolio.InitialCapital,
-                    NetCashFlow = netCashFlow,
-                    CurrentCapital = portfolio.InitialCapital + netCashFlow,
-                    pnl.TotalInvested,
-                    TotalMarketValue = pnl.TotalPortfolioValue,
-                    pnl.TotalUnrealizedPnL,
-                    pnl.TotalRealizedPnL,
-                    pnl.TotalPnL,
-                    TotalPnLPercent = pnl.TotalReturnPercentage,
-                    Positions = pnl.Positions
-                });
-            }
-            catch
-            {
-                // Skip portfolios with no trades
-            }
-        }
-
-        return Ok(new
-        {
-            TotalPortfolios = portfolioList.Count,
-            TotalInitialCapital = totalInitialCapital,
-            TotalNetCashFlow = totalNetCashFlow,
-            TotalCurrentCapital = totalInitialCapital + totalNetCashFlow,
-            TotalInvested = totalInvested,
-            TotalMarketValue = totalPortfolioValue,
-            TotalUnrealizedPnL = totalUnrealizedPnL,
-            TotalRealizedPnL = totalRealizedPnL,
-            TotalPnL = totalRealizedPnL + totalUnrealizedPnL,
-            TotalPnLPercent = totalInvested > 0 ? ((totalRealizedPnL + totalUnrealizedPnL) / totalInvested) * 100 : 0,
-            Portfolios = portfolioPnLs
-        });
-    }
+        => Ok(await _mediator.Send(new GetOverallPnLQuery { UserId = GetUserId() }));
 }

@@ -2,6 +2,14 @@
 
 ---
 
+## [v2.93.2] — 2026-11-24 · Lãi/lỗ: REST và MCP dùng chung một đường kiểm chủ sở hữu
+
+### Kỹ thuật
+
+- `PnLController` chuyển sang gửi ba query `GetPortfolioPnL`/`GetPositionPnL`/`GetOverallPnL` qua MediatR thay vì gọi `IPnLService` và kho dữ liệu trực tiếp; REST và MCP nay cùng một đường, kiểm chủ sở hữu nằm một chỗ trong handler. Phản hồi giữ nguyên từng byte (tên thuộc tính, thứ tự, kiểu chữ); danh mục không có hoặc của người khác vẫn là 404 thân rỗng. Có test đặc tả viết trước trên code cũ và giữ nguyên sau khi chuyển.
+
+---
+
 ## [v2.93.1] — 2026-11-24 · Phản hồi thống nhất khi thao tác trên kế hoạch không có hoặc không thuộc tài khoản
 
 ### Sửa lỗi

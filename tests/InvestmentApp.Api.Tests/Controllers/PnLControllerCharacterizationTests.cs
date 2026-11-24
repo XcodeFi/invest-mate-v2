@@ -46,6 +46,7 @@ public class PnLControllerCharacterizationTests
         services.AddSingleton(_pnl.Object);
         services.AddSingleton(_portfolios.Object);
         services.AddSingleton(_flows.Object);
+        services.AddLogging();
         services.AddMediatR(c => c.RegisterServicesFromAssembly(typeof(PortfolioPnLSummary).Assembly));
         var controller = ActivatorUtilities.CreateInstance<PnLController>(services.BuildServiceProvider());
         controller.ControllerContext = new ControllerContext
