@@ -259,6 +259,10 @@ export interface CampaignReviewDataDto {
   totalFees: number;
   lessonsLearned?: string;
   reviewedAt: string;
+  /** PnL ròng / 1R ban đầu; null nếu không tính được (hiện n/a). */
+  realizedR?: number | null;
+  /** chot-ke-hoach | uoc-tinh | khop-mot-phan */
+  riskBasis?: string | null;
 }
 
 export interface CampaignReviewDto {
@@ -273,6 +277,10 @@ export interface CampaignReviewDto {
   totalFees: number;
   lessonsLearned?: string;
   reviewedAt: string;
+  /** PnL ròng / 1R ban đầu; null nếu không tính được (hiện n/a). */
+  realizedR?: number | null;
+  /** chot-ke-hoach | uoc-tinh | khop-mot-phan */
+  riskBasis?: string | null;
 }
 
 export interface CampaignAnalyticsDto {

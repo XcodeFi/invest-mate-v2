@@ -141,7 +141,9 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             TotalReturned = p.ReviewData.TotalReturned,
             TotalFees = p.ReviewData.TotalFees,
             LessonsLearned = p.ReviewData.LessonsLearned,
-            ReviewedAt = p.ReviewData.ReviewedAt
+            ReviewedAt = p.ReviewData.ReviewedAt,
+            RealizedR = RMath.ResolveRealizedR(p).R,
+            RiskBasis = RMath.ResolveRealizedR(p).Basis
         } : null,
         Status = p.Status.ToString(),
         TradeId = p.TradeId,
@@ -324,4 +326,7 @@ public class CampaignReviewDataDto
     public decimal TotalFees { get; set; }
     public string? LessonsLearned { get; set; }
     public DateTime ReviewedAt { get; set; }
+    /// <summary>PnL ròng / 1R ban đầu. Review cũ thiếu giá trị thì tính khi đọc (chỉ trong DTO).</summary>
+    public decimal? RealizedR { get; set; }
+    public string? RiskBasis { get; set; }
 }

@@ -1913,6 +1913,13 @@ interface DossierGateError {
               <span class="text-gray-500">Đạt mục tiêu:</span>
               <span class="font-medium ml-1">{{ reviewPreview.targetAchievementPercent | number:'1.0-0' }}%</span>
             </div>
+            <div class="bg-white rounded-lg p-2" data-testid="review-realized-r"
+              [title]="reviewPreview.riskBasis === 'uoc-tinh' ? 'Ước tính: kế hoạch cũ chưa chụp rủi ro ban đầu, dùng cắt lỗ đầu tiên còn ghi lại' : reviewPreview.riskBasis === 'khop-mot-phan' ? 'Có lot chưa khớp: 1R vẫn theo khối lượng dự tính' : '1R = |giá vào − cắt lỗ| × số lượng lúc chốt kế hoạch'">
+              <span class="text-gray-500">R thực tế:</span>
+              <span class="font-medium ml-1">{{ formatR(reviewPreview.realizedR) }}</span>
+              <span *ngIf="reviewPreview.riskBasis === 'uoc-tinh'" class="text-xs text-amber-600 ml-1">(ước tính)</span>
+              <span *ngIf="reviewPreview.riskBasis === 'khop-mot-phan'" class="text-xs text-amber-600 ml-1">(khớp một phần)</span>
+            </div>
           </div>
 
           <!-- Lessons learned -->
@@ -3768,6 +3775,12 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       },
       error: () => this.notification.error('Lỗi', 'Không thể khôi phục')
     });
+  }
+
+  /** R thực tế: null = không biết rủi ro ban đầu, hiện n/a (không phải 0R). */
+  formatR(r: number | null | undefined): string {
+    if (r == null) return 'n/a';
+    return `${r > 0 ? '+' : ''}${r.toFixed(2)}R`;
   }
 
   getRR(sp: TradePlanDto): number {

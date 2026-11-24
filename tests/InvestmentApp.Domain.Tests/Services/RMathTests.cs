@@ -188,6 +188,101 @@ public class RMathTests
         plan.RiskRewardRatio.Should().Be(5m, "R:R tính khi đọc, không ghi đè field đã lưu");
     }
 
+    // ---------- R thực tế của một chiến dịch đã review ----------
+
+    private static TradePlan ReviewedPlan(decimal pnl, decimal? storedR = null, string? storedBasis = null)
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);   // 1R = 1.000
+        plan.MarkReady();
+        plan.MarkInProgress();
+        plan.Execute("t1");
+        plan.MarkReviewed(new CampaignReviewData { PnLAmount = pnl, RealizedR = storedR, RiskBasis = storedBasis });
+        return plan;
+    }
+
+    private static void ClearSnapshot(TradePlan plan)
+        => typeof(TradePlan).GetProperty(nameof(TradePlan.InitialRisk))!.SetValue(plan, null);
+
+    [Fact]
+    public void ResolveForReview_uses_initial_risk_snapshot()
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);
+        plan.MarkReady();
+
+        var r = RMath.ResolveRealizedR(plan, pnl: 2_500m);
+
+        r.R.Should().Be(2.5m);
+        r.Basis.Should().Be(RMath.RiskBasisPlanned);
+    }
+
+    [Fact]
+    public void ResolveForReview_uses_legacy_estimate_and_marks_basis()
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);   // chưa qua MarkReady: không có ảnh chụp
+
+        var r = RMath.ResolveRealizedR(plan, pnl: -1_000m);
+
+        r.R.Should().Be(-1m);
+        r.Basis.Should().Be(RMath.RiskBasisEstimated);
+    }
+
+    [Fact]
+    public void ResolveForReview_null_when_no_risk()
+    {
+        var plan = NewPlan(entry: 100m, stop: 100m, quantity: 100);
+
+        var r = RMath.ResolveRealizedR(plan, pnl: 500m);
+
+        r.R.Should().BeNull();
+        r.Basis.Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveForReview_flags_partial_fill_when_some_lots_never_filled()
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 1);
+        plan.SetLots(EntryMode.ScalingIn, new List<PlanLot>
+        {
+            new() { LotNumber = 1, PlannedPrice = 100m, PlannedQuantity = 100 },
+            new() { LotNumber = 2, PlannedPrice = 100m, PlannedQuantity = 100 },
+        });
+        plan.ExecuteLot(1, "t1", 100m);   // lot 2 không bao giờ khớp
+
+        var r = RMath.ResolveRealizedR(plan, pnl: 2_000m);
+
+        r.Basis.Should().Be(RMath.RiskBasisPartialFill);
+        r.R.Should().Be(1.0m, "1R vẫn theo khối lượng dự tính (2.000), không tự co lại");
+    }
+
+    [Fact]
+    public void ResolveForReviewedPlan_prefers_the_stored_value()
+    {
+        var plan = ReviewedPlan(pnl: 5_000m, storedR: 1.5m, storedBasis: RMath.RiskBasisPlanned);
+
+        var r = RMath.ResolveRealizedR(plan);
+
+        r.R.Should().Be(1.5m);
+        r.Basis.Should().Be(RMath.RiskBasisPlanned);
+    }
+
+    [Fact]
+    public void ResolveForReviewedPlan_computes_when_stored_value_is_missing_without_touching_the_plan()
+    {
+        var plan = ReviewedPlan(pnl: 3_000m);
+        ClearSnapshot(plan);
+
+        var r = RMath.ResolveRealizedR(plan);
+
+        r.R.Should().Be(3m);
+        r.Basis.Should().Be(RMath.RiskBasisEstimated);
+        plan.ReviewData!.RealizedR.Should().BeNull("tính khi đọc không được gán vào entity (sẽ bị UpdateAsync ghi xuống)");
+        plan.ReviewData.RiskBasis.Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveForReviewedPlan_null_for_plans_that_are_not_reviewed()
+        => RMath.ResolveRealizedR(NewPlan(entry: 100m, stop: 90m, quantity: 100)).R.Should().BeNull();
+
     private static TradePlan NewPlan(decimal entry, decimal stop, int quantity, string direction = "Buy")
         => new("u1", "VNM", direction, entry, stop, 120m, quantity,
             thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R");

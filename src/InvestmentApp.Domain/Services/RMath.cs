@@ -14,6 +14,9 @@ public enum TradeOutcome
 /// Không đọc/ghi dữ liệu, không biết gì về nguồn gốc con số; thiếu dữ liệu thì trả null chứ không trả 0
 /// (0 lẫn với "hoà vốn", còn null nghĩa là "không tính được").
 /// </summary>
+/// <summary>Kết quả R thực tế kèm cơ sở tính 1R (null/null nếu không tính được).</summary>
+public readonly record struct RealizedRResult(decimal? R, string? Basis);
+
 public static class RMath
 {
     /// <summary>Ảnh chụp chốt khi chốt kế hoạch.</summary>
@@ -73,6 +76,37 @@ public static class RMath
     /// </summary>
     public static decimal? EffectiveRiskReward(TradePlan plan)
         => ComputeRiskReward(plan) ?? plan.RiskRewardRatio;
+
+    /// <summary>
+    /// R thực tế của một kế hoạch đang được review với PnL ròng <paramref name="pnl"/>. 1R lấy từ ảnh chụp
+    /// <see cref="TradePlan.InitialRisk"/>, không có (kế hoạch cũ) thì <see cref="EstimateLegacy"/>. Có lot chưa bao giờ khớp thì
+    /// cờ cơ sở là <see cref="RiskBasisPartialFill"/>: 1R vẫn theo khối lượng dự tính, không tự co lại.
+    /// </summary>
+    public static RealizedRResult ResolveRealizedR(TradePlan plan, decimal pnl)
+    {
+        var risk = plan.InitialRisk ?? EstimateLegacy(plan);
+        if (risk == null) return new RealizedRResult(null, null);
+
+        var r = RealizedR(pnl, risk.RiskAmount);
+        if (r == null) return new RealizedRResult(null, null);
+
+        var basis = risk.RiskBasis == RiskBasisPlanned && plan.Lots?.Any(l => l.Status == PlanLotStatus.Pending) == true
+            ? RiskBasisPartialFill
+            : risk.RiskBasis;
+        return new RealizedRResult(Math.Round(r.Value, 4), basis);
+    }
+
+    /// <summary>
+    /// R thực tế của kế hoạch ĐÃ review. Dùng giá trị đã lưu nếu có; kế hoạch cũ thiếu thì tính lại từ PnL đã lưu. Chỉ
+    /// đọc: kết quả không được gán ngược vào entity (<c>UpdateReviewLessons</c> lưu cả <c>ReviewData</c> xuống DB).
+    /// </summary>
+    public static RealizedRResult ResolveRealizedR(TradePlan plan)
+    {
+        var review = plan.ReviewData;
+        if (review == null || plan.Status != TradePlanStatus.Reviewed) return new RealizedRResult(null, null);
+        if (review.RealizedR != null) return new RealizedRResult(review.RealizedR, review.RiskBasis);
+        return ResolveRealizedR(plan, review.PnLAmount);
+    }
 
     /// <summary>PnL ròng / số tiền rủi ro ban đầu. Null nếu không có rủi ro (không chia cho 0).</summary>
     public static decimal? RealizedR(decimal netPnL, decimal riskAmount)

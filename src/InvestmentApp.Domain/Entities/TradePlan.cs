@@ -698,6 +698,11 @@ public class CampaignReviewData
     public decimal TotalFees { get; set; }
     public string? LessonsLearned { get; set; }
     public DateTime ReviewedAt { get; set; }
+
+    /// <summary>PnL ròng / 1R ban đầu. Null nếu không tính được. Review cũ không có giá trị này: tính khi đọc, không ghi lại.</summary>
+    public decimal? RealizedR { get; set; }
+    /// <summary>"chot-ke-hoach" | "uoc-tinh" | "khop-mot-phan" (xem <see cref="InvestmentApp.Domain.Services.RMath"/>).</summary>
+    public string? RiskBasis { get; set; }
 }
 
 // --- Scenario Playbook types ---

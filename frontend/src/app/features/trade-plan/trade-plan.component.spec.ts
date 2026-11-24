@@ -1000,4 +1000,17 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       expect(component.getRR(plan({ effectiveRiskReward: null }))).toBe(2);
     });
   });
+
+  describe('formatR (R thực tế)', () => {
+    it('shows n/a when the risk was unknown, never 0R', () => {
+      expect(component.formatR(null)).toBe('n/a');
+      expect(component.formatR(undefined)).toBe('n/a');
+    });
+
+    it('formats signed R with two decimals', () => {
+      expect(component.formatR(1.6)).toBe('+1.60R');
+      expect(component.formatR(-0.4)).toBe('-0.40R');
+      expect(component.formatR(0)).toBe('0.00R');
+    });
+  });
 });

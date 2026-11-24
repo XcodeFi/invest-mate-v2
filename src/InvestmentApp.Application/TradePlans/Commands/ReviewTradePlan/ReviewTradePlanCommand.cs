@@ -29,6 +29,9 @@ public class CampaignReviewDto
     public decimal TotalFees { get; set; }
     public string? LessonsLearned { get; set; }
     public DateTime ReviewedAt { get; set; }
+    /// <summary>PnL ròng / 1R ban đầu (null nếu không tính được).</summary>
+    public decimal? RealizedR { get; set; }
+    public string? RiskBasis { get; set; }
 }
 
 public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanCommand, CampaignReviewDto>
@@ -84,6 +87,8 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
         TotalReturned = data.TotalReturned,
         TotalFees = data.TotalFees,
         LessonsLearned = data.LessonsLearned,
-        ReviewedAt = data.ReviewedAt
+        ReviewedAt = data.ReviewedAt,
+        RealizedR = data.RealizedR,
+        RiskBasis = data.RiskBasis
     };
 }

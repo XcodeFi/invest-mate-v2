@@ -1,5 +1,6 @@
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.Services;
 
 namespace InvestmentApp.Infrastructure.Services;
 
@@ -33,6 +34,8 @@ public class CampaignReviewService : ICampaignReviewService
             ? pnlPercent / plannedTargetPercent * 100m
             : 0m;
 
+        var realized = RMath.ResolveRealizedR(plan, pnlAmount);
+
         return new CampaignReviewData
         {
             PnLAmount = pnlAmount,
@@ -44,7 +47,9 @@ public class CampaignReviewService : ICampaignReviewService
             TotalInvested = totalInvested,
             TotalReturned = totalReturned,
             TotalFees = totalFees,
-            ReviewedAt = DateTime.UtcNow
+            ReviewedAt = DateTime.UtcNow,
+            RealizedR = realized.R,
+            RiskBasis = realized.Basis
         };
     }
 
