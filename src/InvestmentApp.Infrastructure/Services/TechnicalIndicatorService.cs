@@ -100,8 +100,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         // --- Volume ---
         if (volumes.Count >= 20)
         {
-            var last20 = volumes.Skip(volumes.Count - 20).Take(20).ToList();
-            result.AvgVolume20 = last20.Average();
+            result.AvgVolume20 = VolumeSmaSeries(volumes, 20).Last();
 
             if (result.AvgVolume20 > 0)
             {
@@ -327,27 +326,110 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         return result;
     }
 
+    /// <summary>
+    /// Chuỗi chỉ báo theo từng phiên cho biểu đồ. Dùng CÙNG khoảng giá và CÙNG các hàm tính với
+    /// <see cref="AnalyzeAsync"/> (scalar là phần tử cuối của chuỗi), nên đường vẽ khớp thẻ.
+    /// Dưới 20 phiên: trả đủ nến, mọi chuỗi chỉ báo toàn null.
+    /// </summary>
+    public async Task<TechnicalSeriesResult> GetSeriesAsync(string symbol, int months = 12, CancellationToken ct = default)
+    {
+        var from = DateTime.UtcNow.AddMonths(-months);
+        var to = DateTime.UtcNow;
+        var prices = await _marketData.GetHistoricalPricesAsync(symbol, from, to, ct);
+        var n = prices.Count;
+
+        var closes = prices.Select(p => p.Close).ToList();
+        var highs = prices.Select(p => p.High).ToList();
+        var lows = prices.Select(p => p.Low).ToList();
+        var volumes = prices.Select(p => (decimal)p.Volume).ToList();
+
+        var result = new TechnicalSeriesResult
+        {
+            Symbol = symbol,
+            Dates = prices.Select(p => p.Date).ToList(),
+            Open = prices.Select(p => p.Open).ToList(),
+            High = highs,
+            Low = lows,
+            Close = closes,
+            Volume = prices.Select(p => p.Volume).ToList(),
+        };
+
+        if (n < 20)
+        {
+            result.Ema20 = NullSeries(n); result.Ema50 = NullSeries(n);
+            result.BollingerUpper = NullSeries(n); result.BollingerMiddle = NullSeries(n); result.BollingerLower = NullSeries(n);
+            result.Rsi14 = NullSeries(n); result.StochK = NullSeries(n); result.StochD = NullSeries(n);
+            result.MacdLine = NullSeries(n); result.MacdSignal = NullSeries(n); result.MacdHistogram = NullSeries(n);
+            result.Adx = NullSeries(n); result.PlusDi = NullSeries(n); result.MinusDi = NullSeries(n);
+            result.Atr14 = NullSeries(n); result.Obv = NullSeries(n); result.Mfi14 = NullSeries(n);
+            result.VolumeSma20 = NullSeries(n);
+            return result;
+        }
+
+        result.Ema20 = EmaSeries(closes, 20);
+        result.Ema50 = EmaSeries(closes, 50);
+        (result.BollingerMiddle, result.BollingerUpper, result.BollingerLower) = BollingerSeries(closes, 20, 2m);
+        result.Rsi14 = RsiSeriesFull(closes, 14);
+        (result.StochK, result.StochD) = StochasticSeries(highs, lows, closes, 14, 3);
+        (result.MacdLine, result.MacdSignal, result.MacdHistogram) = MacdSeries(closes, 12, 26, 9);
+        (result.Adx, result.PlusDi, result.MinusDi) = AdxSeries(highs, lows, closes, 14);
+        result.Atr14 = AtrSeries(highs, lows, closes, 14);
+        result.Obv = ObvSeries(closes, volumes);
+        result.Mfi14 = MfiSeries(highs, lows, closes, volumes, 14);
+        result.VolumeSma20 = VolumeSmaSeries(volumes, 20);
+
+        return result;
+    }
+
+    private static List<decimal?> VolumeSmaSeries(List<decimal> volumes, int period)
+    {
+        var result = NullSeries(volumes.Count);
+        for (int i = period - 1; i < volumes.Count; i++)
+            result[i] = volumes.GetRange(i - period + 1, period).Average();
+        return result;
+    }
+
     // --- Indicator Calculations ---
 
-    private static decimal? CalculateEma(List<decimal> data, int period)
+    private static List<decimal?> NullSeries(int n) => Enumerable.Repeat<decimal?>(null, n).ToList();
+
+    /// <summary>EMA từng phiên (seed = SMA của `period` điểm đầu); null trước khi đủ warm-up. Làm tròn như scalar.</summary>
+    private static List<decimal?> EmaSeries(List<decimal> data, int period)
     {
-        if (data.Count < period) return null;
+        var result = NullSeries(data.Count);
+        if (data.Count < period) return result;
 
         decimal multiplier = 2.0m / (period + 1);
         // SMA as seed
         decimal ema = data.Take(period).Average();
+        result[period - 1] = Math.Round(ema, 0);
 
         for (int i = period; i < data.Count; i++)
         {
             ema = (data[i] - ema) * multiplier + ema;
+            result[i] = Math.Round(ema, 0);
         }
 
-        return Math.Round(ema, 0);
+        return result;
     }
 
-    private static decimal? CalculateRsi(List<decimal> data, int period)
+    private static decimal? CalculateEma(List<decimal> data, int period)
     {
-        if (data.Count < period + 1) return null;
+        return EmaSeries(data, period).LastOrDefault();
+    }
+
+    private static decimal RsiValue(decimal avgGain, decimal avgLoss)
+    {
+        if (avgLoss == 0) return 100;
+        var rs = avgGain / avgLoss;
+        return Math.Round(100 - (100 / (1 + rs)), 1);
+    }
+
+    /// <summary>RSI(Wilder) từng phiên; null trước khi có `period + 1` điểm.</summary>
+    private static List<decimal?> RsiSeriesFull(List<decimal> data, int period)
+    {
+        var result = NullSeries(data.Count);
+        if (data.Count < period + 1) return result;
 
         decimal avgGain = 0, avgLoss = 0;
 
@@ -360,6 +442,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         }
         avgGain /= period;
         avgLoss /= period;
+        result[period] = RsiValue(avgGain, avgLoss);
 
         // Smoothed RSI
         for (int i = period + 1; i < data.Count; i++)
@@ -375,11 +458,15 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
                 avgGain = (avgGain * (period - 1)) / period;
                 avgLoss = (avgLoss * (period - 1) + Math.Abs(change)) / period;
             }
+            result[i] = RsiValue(avgGain, avgLoss);
         }
 
-        if (avgLoss == 0) return 100;
-        var rs = avgGain / avgLoss;
-        return Math.Round(100 - (100 / (1 + rs)), 1);
+        return result;
+    }
+
+    private static decimal? CalculateRsi(List<decimal> data, int period)
+    {
+        return RsiSeriesFull(data, period).LastOrDefault();
     }
 
     private static (decimal? macd, decimal? signal, decimal? histogram) CalculateMacd(
@@ -391,53 +478,86 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
     private static (decimal? macd, decimal? signal, decimal? histogram) CalculateMacdAt(
         List<decimal> data, int fastPeriod, int slowPeriod, int signalPeriod)
     {
-        if (data.Count < slowPeriod + signalPeriod) return (null, null, null);
+        var (macd, signal, histogram) = MacdSeries(data, fastPeriod, slowPeriod, signalPeriod);
+        return (macd.LastOrDefault(), signal.LastOrDefault(), histogram.LastOrDefault());
+    }
 
-        // Calculate MACD line series (fast EMA - slow EMA) for signal line EMA
-        var macdSeries = new List<decimal>();
-        for (int i = slowPeriod; i <= data.Count; i++)
+    /// <summary>
+    /// MACD từng phiên. Đường MACD là hiệu hai EMA đã làm tròn, signal là EMA của chuỗi đó — đúng như
+    /// scalar. Chỉ có giá trị từ phiên thứ `slow + signal` (cùng ngưỡng với scalar).
+    /// </summary>
+    private static (List<decimal?> macd, List<decimal?> signal, List<decimal?> histogram) MacdSeries(
+        List<decimal> data, int fastPeriod, int slowPeriod, int signalPeriod)
+    {
+        var macd = NullSeries(data.Count);
+        var signal = NullSeries(data.Count);
+        var histogram = NullSeries(data.Count);
+        if (data.Count < slowPeriod + signalPeriod) return (macd, signal, histogram);
+
+        var fast = EmaSeries(data, fastPeriod);
+        var slow = EmaSeries(data, slowPeriod);
+
+        // macdValues[k] ứng với phiên (slowPeriod - 1 + k)
+        var macdValues = new List<decimal>();
+        for (int i = slowPeriod - 1; i < data.Count; i++)
+            macdValues.Add(fast[i]!.Value - slow[i]!.Value);
+
+        var signalEma = EmaSeries(macdValues, signalPeriod);
+        for (int k = 0; k < macdValues.Count; k++)
         {
-            var subset = data.Take(i).ToList();
-            var fastEma = CalculateEma(subset, fastPeriod);
-            var slowEma = CalculateEma(subset, slowPeriod);
-            if (fastEma.HasValue && slowEma.HasValue)
-                macdSeries.Add(fastEma.Value - slowEma.Value);
+            var index = slowPeriod - 1 + k;
+            if (index < slowPeriod + signalPeriod - 1 || !signalEma[k].HasValue) continue;
+
+            macd[index] = Math.Round(macdValues[k], 0);
+            signal[index] = signalEma[k];
+            histogram[index] = Math.Round(macdValues[k] - signalEma[k]!.Value, 0);
         }
 
-        if (macdSeries.Count < signalPeriod) return (null, null, null);
-
-        var macdLine = macdSeries.Last();
-        var signalLine = CalculateEma(macdSeries, signalPeriod);
-
-        if (!signalLine.HasValue) return (macdLine, null, null);
-
-        var histogram = macdLine - signalLine.Value;
-        return (Math.Round(macdLine, 0), Math.Round(signalLine.Value, 0), Math.Round(histogram, 0));
+        return (macd, signal, histogram);
     }
 
     private static (decimal? middle, decimal? upper, decimal? lower) CalculateBollingerBands(
         List<decimal> data, int period, decimal multiplier)
     {
-        if (data.Count < period) return (null, null, null);
+        var (middle, upper, lower) = BollingerSeries(data, period, multiplier);
+        return (middle.LastOrDefault(), upper.LastOrDefault(), lower.LastOrDefault());
+    }
 
-        var last = data.TakeLast(period).ToList();
-        var mean = last.Average();
-        var sma = Math.Round(mean, 0);
+    private static (List<decimal?> middle, List<decimal?> upper, List<decimal?> lower) BollingerSeries(
+        List<decimal> data, int period, decimal multiplier)
+    {
+        var middle = NullSeries(data.Count);
+        var upper = NullSeries(data.Count);
+        var lower = NullSeries(data.Count);
 
-        var variance = last.Average(p => (p - mean) * (p - mean));
-        var stddev = (decimal)Math.Sqrt((double)variance);
+        for (int i = period - 1; i < data.Count; i++)
+        {
+            var window = data.GetRange(i - period + 1, period);
+            var mean = window.Average();
+            var sma = Math.Round(mean, 0);
 
-        var upper = Math.Round(sma + multiplier * stddev, 0);
-        var lower = Math.Round(sma - multiplier * stddev, 0);
+            var variance = window.Average(p => (p - mean) * (p - mean));
+            var stddev = (decimal)Math.Sqrt((double)variance);
 
-        return (sma, upper, lower);
+            middle[i] = sma;
+            upper[i] = Math.Round(sma + multiplier * stddev, 0);
+            lower[i] = Math.Round(sma - multiplier * stddev, 0);
+        }
+
+        return (middle, upper, lower);
     }
 
     private static decimal? CalculateAtr(List<decimal> highs, List<decimal> lows, List<decimal> closes, int period)
     {
-        if (highs.Count < period + 1) return null;
+        return AtrSeries(highs, lows, closes, period).LastOrDefault();
+    }
 
-        // Calculate True Range series
+    private static List<decimal?> AtrSeries(List<decimal> highs, List<decimal> lows, List<decimal> closes, int period)
+    {
+        var result = NullSeries(highs.Count);
+        if (highs.Count < period + 1) return result;
+
+        // True Range: trueRanges[j] ứng với phiên (j + 1)
         var trueRanges = new List<decimal>();
         for (int i = 1; i < highs.Count; i++)
         {
@@ -447,18 +567,18 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             trueRanges.Add(Math.Max(highLow, Math.Max(highPrevClose, lowPrevClose)));
         }
 
-        if (trueRanges.Count < period) return null;
-
         // Initial ATR = simple average of first `period` true ranges
         decimal atr = trueRanges.Take(period).Average();
+        result[period] = Math.Round(atr, 0);
 
         // Smoothed ATR
         for (int i = period; i < trueRanges.Count; i++)
         {
             atr = (atr * (period - 1) + trueRanges[i]) / period;
+            result[i + 1] = Math.Round(atr, 0);
         }
 
-        return Math.Round(atr, 0);
+        return result;
     }
 
     private static (List<decimal> supports, List<decimal> resistances) CalculateSwingLevels(List<decimal> closes)
@@ -521,14 +641,23 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
     private static (decimal? k, decimal? d) CalculateStochastic(
         List<decimal> highs, List<decimal> lows, List<decimal> closes, int kPeriod, int dPeriod)
     {
+        var (k, d) = StochasticSeries(highs, lows, closes, kPeriod, dPeriod);
+        return (k.LastOrDefault(), d.LastOrDefault());
+    }
+
+    private static (List<decimal?> k, List<decimal?> d) StochasticSeries(
+        List<decimal> highs, List<decimal> lows, List<decimal> closes, int kPeriod, int dPeriod)
+    {
+        var kResult = NullSeries(closes.Count);
+        var dResult = NullSeries(closes.Count);
+
         // Need kPeriod + 2*(dPeriod-1) data points: kPeriod for first raw%K, dPeriod-1 for slow%K, dPeriod-1 for %D
         int minRequired = kPeriod + 2 * dPeriod - 1;
-        if (closes.Count < minRequired) return (null, null);
+        if (closes.Count < minRequired) return (kResult, dResult);
 
-        // Calculate raw %K series over a window large enough for both slow %K and %D
-        int rawKCount = 2 * dPeriod - 1; // e.g. 5 values for dPeriod=3
-        var rawKs = new List<decimal>();
-        for (int i = closes.Count - rawKCount; i < closes.Count; i++)
+        // Raw %K từng phiên từ phiên (kPeriod - 1)
+        var rawKs = new decimal[closes.Count];
+        for (int i = kPeriod - 1; i < closes.Count; i++)
         {
             var highestHigh = decimal.MinValue;
             var lowestLow = decimal.MaxValue;
@@ -539,32 +668,49 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             }
 
             var range = highestHigh - lowestLow;
-            rawKs.Add(range > 0 ? (closes[i] - lowestLow) / range * 100 : 50m);
+            rawKs[i] = range > 0 ? (closes[i] - lowestLow) / range * 100 : 50m;
         }
 
-        // Slow %K series = SMA(dPeriod) of raw %K
-        var slowKs = new List<decimal>();
-        for (int i = 0; i <= rawKs.Count - dPeriod; i++)
+        // Slow %K = SMA(dPeriod) của raw %K
+        var slowKs = new decimal[closes.Count];
+        for (int i = kPeriod + dPeriod - 2; i < closes.Count; i++)
         {
-            slowKs.Add(rawKs.Skip(i).Take(dPeriod).Average());
+            decimal sum = 0;
+            for (int j = i - dPeriod + 1; j <= i; j++) sum += rawKs[j];
+            slowKs[i] = sum / dPeriod;
         }
 
-        // %K = last slow %K value
-        var percentK = Math.Round(slowKs.Last(), 1);
-        // %D = SMA(dPeriod) of slow %K series
-        var percentD = Math.Round(slowKs.TakeLast(dPeriod).Average(), 1);
+        // %K = slow %K; %D = SMA(dPeriod) của slow %K
+        for (int i = minRequired - 1; i < closes.Count; i++)
+        {
+            kResult[i] = Math.Round(slowKs[i], 1);
+            decimal sum = 0;
+            for (int j = i - dPeriod + 1; j <= i; j++) sum += slowKs[j];
+            dResult[i] = Math.Round(sum / dPeriod, 1);
+        }
 
-        return (percentK, percentD);
+        return (kResult, dResult);
     }
 
     // --- ADX (Average Directional Index) + DI ---
     private static (decimal? adx, decimal? plusDi, decimal? minusDi) CalculateAdx(
         List<decimal> highs, List<decimal> lows, List<decimal> closes, int period)
     {
-        // Need at least 2 * period + 1 candles (period for DI smoothing + period for ADX smoothing)
-        if (highs.Count < 2 * period + 1) return (null, null, null);
+        var (adx, plusDi, minusDi) = AdxSeries(highs, lows, closes, period);
+        return (adx.LastOrDefault(), plusDi.LastOrDefault(), minusDi.LastOrDefault());
+    }
 
-        // Step 1: Calculate +DM, -DM, and TR series
+    private static (List<decimal?> adx, List<decimal?> plusDi, List<decimal?> minusDi) AdxSeries(
+        List<decimal> highs, List<decimal> lows, List<decimal> closes, int period)
+    {
+        var adxResult = NullSeries(highs.Count);
+        var plusResult = NullSeries(highs.Count);
+        var minusResult = NullSeries(highs.Count);
+
+        // Need at least 2 * period + 1 candles (period for DI smoothing + period for ADX smoothing)
+        if (highs.Count < 2 * period + 1) return (adxResult, plusResult, minusResult);
+
+        // Step 1: +DM, -DM, TR (phần tử j ứng với phiên j + 1)
         var plusDmSeries = new List<decimal>();
         var minusDmSeries = new List<decimal>();
         var trSeries = new List<decimal>();
@@ -586,14 +732,14 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             trSeries.Add(Math.Max(highLow, Math.Max(highPrevClose, lowPrevClose)));
         }
 
-        if (trSeries.Count < 2 * period) return (null, null, null);
-
-        // Step 2: Smooth +DM, -DM, TR using Wilder's smoothing (first period = SMA, then smoothed)
+        // Step 2: Wilder smoothing (period đầu là tổng, sau đó làm mượt)
         decimal smoothPlusDm = plusDmSeries.Take(period).Sum();
         decimal smoothMinusDm = minusDmSeries.Take(period).Sum();
         decimal smoothTr = trSeries.Take(period).Sum();
 
-        var dxSeries = new List<decimal>();
+        // Step 3: ADX = trung bình DX `period` điểm đầu, sau đó làm mượt
+        int dxCount = 0;
+        decimal dxSum = 0, adx = 0;
 
         for (int i = period; i < trSeries.Count; i++)
         {
@@ -604,36 +750,40 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
                 smoothTr = smoothTr - (smoothTr / period) + trSeries[i];
             }
 
-            if (smoothTr == 0) continue;
+            if (smoothTr != 0)
+            {
+                var plusDiVal = smoothPlusDm / smoothTr * 100;
+                var minusDiVal = smoothMinusDm / smoothTr * 100;
+                var diSum = plusDiVal + minusDiVal;
+                var dx = diSum > 0 ? Math.Abs(plusDiVal - minusDiVal) / diSum * 100 : 0;
 
-            var plusDiVal = smoothPlusDm / smoothTr * 100;
-            var minusDiVal = smoothMinusDm / smoothTr * 100;
-            var diSum = plusDiVal + minusDiVal;
-            var dx = diSum > 0 ? Math.Abs(plusDiVal - minusDiVal) / diSum * 100 : 0;
-            dxSeries.Add(dx);
+                dxCount++;
+                if (dxCount <= period)
+                {
+                    dxSum += dx;
+                    if (dxCount == period) adx = dxSum / period;
+                }
+                else
+                {
+                    adx = (adx * (period - 1) + dx) / period;
+                }
+            }
+
+            if (dxCount < period) continue;
+
+            var index = i + 1;
+            adxResult[index] = Math.Round(adx, 1);
+            plusResult[index] = Math.Round(smoothTr > 0 ? smoothPlusDm / smoothTr * 100 : 0, 1);
+            minusResult[index] = Math.Round(smoothTr > 0 ? smoothMinusDm / smoothTr * 100 : 0, 1);
         }
 
-        if (dxSeries.Count < period) return (null, null, null);
-
-        // Step 3: ADX = smoothed average of DX
-        decimal adx = dxSeries.Take(period).Average();
-        for (int i = period; i < dxSeries.Count; i++)
-        {
-            adx = (adx * (period - 1) + dxSeries[i]) / period;
-        }
-
-        // Final +DI and -DI values
-        var finalPlusDi = smoothTr > 0 ? smoothPlusDm / smoothTr * 100 : 0;
-        var finalMinusDi = smoothTr > 0 ? smoothMinusDm / smoothTr * 100 : 0;
-
-        return (Math.Round(adx, 1), Math.Round(finalPlusDi, 1), Math.Round(finalMinusDi, 1));
+        return (adxResult, plusResult, minusResult);
     }
 
     // --- OBV (On-Balance Volume) ---
-    private static (decimal? obv, string? signal) CalculateObv(List<decimal> closes, List<decimal> volumes)
+    private static List<decimal?> ObvSeries(List<decimal> closes, List<decimal> volumes)
     {
-        if (closes.Count < 20) return (null, null);
-
+        var result = NullSeries(closes.Count);
         decimal obv = 0;
         for (int i = 1; i < closes.Count; i++)
         {
@@ -641,7 +791,17 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
                 obv += volumes[i];
             else if (closes[i] < closes[i - 1])
                 obv -= volumes[i];
+
+            if (i >= 19) result[i] = obv;
         }
+        return result;
+    }
+
+    private static (decimal? obv, string? signal) CalculateObv(List<decimal> closes, List<decimal> volumes)
+    {
+        if (closes.Count < 20) return (null, null);
+
+        var obv = ObvSeries(closes, volumes).Last();
 
         // Determine recent trend: net OBV change over last 10 periods
         decimal obvRecent = 0;
@@ -663,31 +823,39 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
     private static decimal? CalculateMfi(
         List<decimal> highs, List<decimal> lows, List<decimal> closes, List<decimal> volumes, int period)
     {
-        if (closes.Count < period + 1) return null;
+        return MfiSeries(highs, lows, closes, volumes, period).LastOrDefault();
+    }
 
-        // Typical Price = (H + L + C) / 3
-        // Raw Money Flow = TP * Volume
-        // Positive MF = sum of raw MF when TP > previous TP
-        // Negative MF = sum of raw MF when TP < previous TP
-        // MFI = 100 - (100 / (1 + MF Ratio))
+    private static List<decimal?> MfiSeries(
+        List<decimal> highs, List<decimal> lows, List<decimal> closes, List<decimal> volumes, int period)
+    {
+        var result = NullSeries(closes.Count);
 
-        decimal posFlow = 0, negFlow = 0;
-
-        for (int i = closes.Count - period; i < closes.Count; i++)
+        // Typical Price = (H + L + C) / 3; Raw Money Flow = TP * Volume
+        // Positive MF = tổng raw MF khi TP > TP trước; Negative MF = khi TP < TP trước
+        // MFI = 100 - (100 / (1 + MF Ratio)) trên cửa sổ `period` phiên
+        for (int end = period; end < closes.Count; end++)
         {
-            var tp = (highs[i] + lows[i] + closes[i]) / 3;
-            var prevTp = (highs[i - 1] + lows[i - 1] + closes[i - 1]) / 3;
-            var rawMf = tp * volumes[i];
+            decimal posFlow = 0, negFlow = 0;
 
-            if (tp > prevTp)
-                posFlow += rawMf;
-            else if (tp < prevTp)
-                negFlow += rawMf;
+            for (int i = end - period + 1; i <= end; i++)
+            {
+                var tp = (highs[i] + lows[i] + closes[i]) / 3;
+                var prevTp = (highs[i - 1] + lows[i - 1] + closes[i - 1]) / 3;
+                var rawMf = tp * volumes[i];
+
+                if (tp > prevTp)
+                    posFlow += rawMf;
+                else if (tp < prevTp)
+                    negFlow += rawMf;
+            }
+
+            if (negFlow == 0) { result[end] = 100; continue; }
+            var mfRatio = posFlow / negFlow;
+            result[end] = Math.Round(100 - (100 / (1 + mfRatio)), 1);
         }
 
-        if (negFlow == 0) return 100;
-        var mfRatio = posFlow / negFlow;
-        return Math.Round(100 - (100 / (1 + mfRatio)), 1);
+        return result;
     }
 
     // --- Confluence Score (0-100, weighted across 5 categories) ---
