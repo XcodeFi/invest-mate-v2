@@ -15,13 +15,15 @@ const PANE_HEIGHT = 120;
 
 interface ReadoutItem { label: string; values: (number | null)[]; }
 interface Readout { el: HTMLElement; items: ReadoutItem[]; }
+/** Chuỗi "neo" của một chart: dùng giá trị của nó để đặt crosshair khi trỏ chuột ở chart khác. */
+interface Anchor { chart: IChartApi; series: ISeriesApi<any>; values: (number | null)[]; }
 
 /**
  * Biểu đồ nến + các tầng chỉ báo xếp dọc. lightweight-charts v4 chưa có pane gốc nên mỗi tầng là một
  * instance chart riêng; trục thời gian được đồng bộ (kéo/zoom một tầng thì các tầng khác theo) và
  * mọi chuỗi đều có đủ điểm thời gian (điểm null là điểm trống, không phải 0) nên chỉ số bar khớp nhau.
- * v4 không có API đặt crosshair bằng code, nên thay cho crosshair liên kết là dòng đọc giá trị ở tiêu đề
- * mỗi tầng, cập nhật theo phiên đang trỏ chuột ở bất kỳ tầng nào.
+ * Crosshair liên kết: trỏ chuột ở tầng nào thì các tầng còn lại đặt crosshair tại cùng phiên (theo giá trị
+ * chuỗi chính của tầng đó). Ngoài ra tiêu đề mỗi tầng có dòng đọc giá trị của phiên đang trỏ.
  */
 @Component({
   selector: 'app-indicator-chart',
@@ -50,6 +52,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   private observer: ResizeObserver | null = null;
   private viewReady = false;
   private syncing = false;
+  private crosshairSyncing = false;
+  private anchors: Anchor[] = [];
   /** Chỉ số nguồn (trong dates/values) của từng điểm trên trục thời gian của biểu đồ. */
   private sourceIndex: number[] = [];
 
@@ -123,6 +127,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
         lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: pl.label
       });
     });
+    this.anchors.push({ chart: priceChart, series: candleSeries, values: this.candles.close });
     this.readouts.push({ el: priceBlock.readout, items: [{ label: 'Đóng cửa', values: this.candles.close }, ...priceReadout] });
 
     // ----- Các tầng dưới -----
@@ -150,6 +155,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
           price: g, color: '#cbd5e1', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: ''
         });
       });
+      if (firstSeries) this.anchors.push({ chart, series: firstSeries, values: pane.lines[0].values });
       this.readouts.push({ el: block.readout, items });
     });
 
@@ -165,7 +171,10 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
           this.syncing = false;
         }
       });
-      chart.subscribeCrosshairMove(param => this.updateReadouts(param));
+      chart.subscribeCrosshairMove(param => {
+        this.updateReadouts(param);
+        this.syncCrosshair(chart, param);
+      });
     });
     this.updateReadouts(null);
 
@@ -175,6 +184,28 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       if (width > 0) this.charts.forEach(c => c.applyOptions({ width }));
     });
     this.observer.observe(host);
+  }
+
+  /** Đặt/xoá crosshair trên các chart còn lại; cờ chống lặp vì setCrosshairPosition cũng phát sự kiện crosshairMove. */
+  private syncCrosshair(source: IChartApi, param: MouseEventParams<Time>): void {
+    if (this.crosshairSyncing) return;
+    this.crosshairSyncing = true;
+    try {
+      const others = this.anchors.filter(a => a.chart !== source);
+      if (param.time === undefined || !param.point || param.logical === undefined) {
+        others.forEach(a => a.chart.clearCrosshairPosition());
+        return;
+      }
+      const k = Math.round(param.logical as number);
+      const src = this.sourceIndex[k];
+      others.forEach(a => {
+        const v = src === undefined ? null : a.values[src];
+        if (v === null || v === undefined) a.chart.clearCrosshairPosition();
+        else a.chart.setCrosshairPosition(v, param.time as Time, a.series);
+      });
+    } finally {
+      this.crosshairSyncing = false;
+    }
   }
 
   private createBlock(host: HTMLElement, title: string, height: number): { host: HTMLElement; readout: HTMLElement } {
@@ -254,8 +285,10 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     this.charts.forEach(c => c.remove());
     this.charts = [];
     this.readouts = [];
+    this.anchors = [];
     this.sourceIndex = [];
     this.syncing = false;
+    this.crosshairSyncing = false;
     const host = this.root?.nativeElement;
     if (host) host.replaceChildren();
   }

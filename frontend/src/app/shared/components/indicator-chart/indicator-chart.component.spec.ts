@@ -139,4 +139,68 @@ describe('IndicatorChartComponent', () => {
     expect(readouts[0]).toContain('Đóng cửa');
     expect(readouts[1]).toContain('RSI: 89');
   });
+
+  describe('crosshair sync', () => {
+    type Anchor = { chart: any };
+    const anchors = () => (component as any).anchors as Anchor[];
+    const move = (sourceIndex: number, param: any) =>
+      (component as any).syncCrosshair(anchors()[sourceIndex].chart, param);
+
+    it('moving the crosshair on one chart places it on the others using each own series value', () => {
+      setInputs(layers(['RSI', 'MACD']));
+      const [, rsi, macd] = anchors().map(a => a.chart);
+      const rsiSpy = spyOn(rsi, 'setCrosshairPosition');
+      const macdSpy = spyOn(macd, 'setCrosshairPosition');
+      const priceSpy = spyOn(anchors()[0].chart, 'setCrosshairPosition');
+
+      move(0, { time: '2026-01-10', logical: 9, point: { x: 1, y: 1 } });
+
+      expect(priceSpy).not.toHaveBeenCalled();
+      expect(rsiSpy).toHaveBeenCalledTimes(1);
+      expect(macdSpy).toHaveBeenCalledTimes(1);
+      expect(rsiSpy.calls.mostRecent().args[0]).toBe(59);
+      expect(rsiSpy.calls.mostRecent().args[1]).toBe('2026-01-10');
+    });
+
+    it('clears the crosshair on the others when the pointer leaves', () => {
+      setInputs(layers(['RSI', 'MACD']));
+      const [price, rsi, macd] = anchors().map(a => a.chart);
+      const rsiClear = spyOn(rsi, 'clearCrosshairPosition');
+      const macdClear = spyOn(macd, 'clearCrosshairPosition');
+      const priceClear = spyOn(price, 'clearCrosshairPosition');
+
+      move(0, { time: undefined, point: undefined });
+
+      expect(rsiClear).toHaveBeenCalledTimes(1);
+      expect(macdClear).toHaveBeenCalledTimes(1);
+      expect(priceClear).not.toHaveBeenCalled();
+    });
+
+    it('clears (instead of placing) on a chart whose own value is empty at that bar', () => {
+      const gappy: GroupLayers = {
+        overlays: [], priceLines: [], notes: [],
+        panes: [{ title: 'Gappy', lines: [line('Gappy', i => (i === 9 ? null : 50 + i))] }]
+      };
+      setInputs(gappy);
+      const gappyChart = anchors()[1].chart;
+      const place = spyOn(gappyChart, 'setCrosshairPosition');
+      const clear = spyOn(gappyChart, 'clearCrosshairPosition');
+
+      move(0, { time: '2026-01-10', logical: 9, point: { x: 1, y: 1 } });
+
+      expect(place).not.toHaveBeenCalled();
+      expect(clear).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-enter while it is already syncing', () => {
+      setInputs(layers(['RSI']));
+      const rsi = anchors()[1].chart;
+      const spy = spyOn(rsi, 'setCrosshairPosition');
+      (component as any).crosshairSyncing = true;
+
+      move(0, { time: '2026-01-10', logical: 9, point: { x: 1, y: 1 } });
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
 });
