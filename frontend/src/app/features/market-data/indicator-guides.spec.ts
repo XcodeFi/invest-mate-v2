@@ -156,6 +156,14 @@ describe('readNow', () => {
     const out = readNow('bien-dong', series(), analysis());
 
     expect(out.some(s => s.includes('nằm trong dải Bollinger'))).toBeTrue();
+    expect(out.join(' ')).not.toContain('biến động ở mức bình thường');   // vị trí trong dải không nói gì về biến động
+  });
+
+  it('no reading line gives a directive (nên / canh mua / đáng vào)', () => {
+    (['xu-huong','dong-luong','bien-dong','dong-tien','tong-hop','moc-gia'] as const).forEach(g => {
+      const out = readNow(g, series(), analysis());
+      out.forEach(s => expect(s).withContext(s).not.toMatch(/(^|\s)nên |canh mua|đáng vào/));
+    });
   });
 
   it('volume ratio against the 20-session average is spelled out with a Vietnamese decimal comma', () => {

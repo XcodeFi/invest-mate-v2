@@ -96,7 +96,7 @@ Bấm một **nút nhóm** trên thanh ngay phía trên biểu đồ (🎯 Tổn
 Khi bấm nhóm **🎯 Tổng hợp**, biểu đồ vẽ ba đường ngang đứt nét theo gợi ý giao dịch: **Giá vào** (xanh dương), **Cắt lỗ** (đỏ), **Chốt lời** (xanh lá).
 
 - **Là gì:** ba mức giá hệ thống đề xuất dựa trên hỗ trợ, kháng cự và biến động gần đây.
-- **Cách đọc:** cắt lỗ là mức giá nếu chạm thì nhận sai và thoát. Chốt lời nên xa giá vào hơn cắt lỗ: vào 100, cắt lỗ 95 (rủi ro 5), chốt lời 110 (lãi 10) là lãi gấp đôi rủi ro.
+- **Cách đọc:** cắt lỗ là mức giá nếu chạm thì nhận sai và thoát. Chốt lời xa giá vào hơn cắt lỗ thường được xem là đáng cân nhắc: vào 100, cắt lỗ 95 (rủi ro 5), chốt lời 110 (lãi 10) là lãi gấp đôi rủi ro.
 - **Điểm Confluence:** con số 0 đến 100 cho biết bao nhiêu chỉ báo cùng nghiêng về một phía. Trên 60 nghiêng về mua, dưới 40 nghiêng về bán, giữa là chưa đồng thuận. Ví dụ 72 điểm: nhiều chỉ báo đang cùng chiều.
 - **Bẫy hay gặp:** đây là gợi ý để so với kế hoạch của bạn, không phải lệnh phải làm theo; điểm cao chỉ nói các chỉ báo đồng thuận trên dữ liệu quá khứ.
 
@@ -149,7 +149,7 @@ Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm ch
 **ATR 14**
 - **Là gì:** biên độ dao động trung bình mỗi phiên trong 14 phiên gần nhất, tính bằng đồng (không cho biết hướng).
 - **Trên biểu đồ:** một tầng riêng, đường xanh ngọc; số càng lớn thì giá càng dao động mạnh.
-- **Cách đọc:** ví dụ ATR là 2.000đ thì mỗi phiên giá thường chạy cỡ 2.000đ, nên cắt lỗ sát hơn mức đó dễ bị quét nhầm. Cắt lỗ thường đặt cách giá vào khoảng 1,5 đến 2 lần ATR (SL = Entry − 2 × ATR). ATR tăng nhanh là thị trường đang biến động hơn, nên giảm khối lượng mua.
+- **Cách đọc:** ví dụ ATR là 2.000đ thì mỗi phiên giá thường chạy cỡ 2.000đ, cắt lỗ sát hơn mức đó dễ bị quét nhầm. Cắt lỗ thường đặt cách giá vào khoảng 1,5 đến 2 lần ATR (SL = Entry − 2 × ATR). ATR tăng nhanh là thị trường đang biến động hơn, nhiều người thường cân nhắc giảm khối lượng mua.
 - **Bẫy hay gặp:** ATR chỉ nói dao động rộng bao nhiêu, không nói giá sẽ lên hay xuống.
 
 ### 💰 Dòng tiền
@@ -183,8 +183,8 @@ Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm ch
 **Fibonacci (đường thoái lui)**
 - **Là gì:** các mức cắt đoạn đi từ đáy đến đỉnh gần nhất theo tỉ lệ 23,6%, 38,2%, 50%, 61,8%, 78,6%, thường là chỗ giá chững lại khi điều chỉnh (xem mục Hỗ trợ / Kháng cự & Fibonacci).
 - **Trên biểu đồ:** các đường ngang đứt nét màu cam có nhãn Fib và giá, cùng hai đường xám là Đỉnh swing và Đáy swing.
-- **Cách đọc:** giá đang điều chỉnh sau nhịp tăng thì các mức 38,2%, 50%, 61,8% là chỗ thường được chú ý để canh mua lại. Giữ được mức 61,8% rồi bật lên là nhịp điều chỉnh còn khỏe; thủng hẳn mức 78,6% là điều chỉnh sâu.
-- **Bẫy hay gặp:** các mức này không có gì huyền bí: càng nhiều người cùng nhìn thì càng có tác dụng, nên chỉ dùng khi trùng với hỗ trợ hoặc kháng cự khác.
+- **Cách đọc:** giá đang điều chỉnh sau nhịp tăng thì các mức 38,2%, 50%, 61,8% là chỗ thường được chú ý để cân nhắc mua lại. Giữ được mức 61,8% rồi bật lên là nhịp điều chỉnh còn khỏe; thủng hẳn mức 78,6% là điều chỉnh sâu.
+- **Bẫy hay gặp:** các mức này không có gì huyền bí: càng nhiều người cùng nhìn thì càng có tác dụng, thường chỉ được dùng khi trùng với hỗ trợ hoặc kháng cự khác.
 
 ---
 

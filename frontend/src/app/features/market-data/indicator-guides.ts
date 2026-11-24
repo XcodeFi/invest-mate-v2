@@ -42,7 +42,7 @@ export const INDICATOR_GUIDES: Record<TaGroup, GroupGuide> = {
         onChart: 'Ba đường ngang đứt nét: xanh dương là giá vào, đỏ là cắt lỗ, xanh lá là chốt lời; mỗi đường có nhãn và giá ở chú giải bên dưới.',
         howToRead: [
           'Cắt lỗ là mức giá nếu chạm thì nhận sai và thoát, để lỗ không vượt quá mức bạn chấp nhận.',
-          'Chốt lời nằm xa giá vào hơn cắt lỗ thì mới đáng vào: ví dụ vào 100, cắt lỗ 95 (rủi ro 5), chốt lời 110 (lãi 10) là lãi gấp đôi rủi ro.',
+          'Chốt lời nằm xa giá vào hơn cắt lỗ thì thường được xem là đáng cân nhắc: ví dụ vào 100, cắt lỗ 95 (rủi ro 5), chốt lời 110 (lãi 10) là lãi gấp đôi rủi ro.',
         ],
         pitfall: 'Đây là gợi ý để bạn so với kế hoạch của mình, không phải lệnh phải làm theo.',
       },
@@ -112,7 +112,7 @@ export const INDICATOR_GUIDES: Record<TaGroup, GroupGuide> = {
           'Trên 80: giá đang sát đỉnh biên độ gần đây. Dưới 20: giá đang sát đáy.',
           '%K cắt lên trên %D ở vùng dưới 20 thường được xem là tín hiệu hồi; cắt xuống ở vùng trên 80 là tín hiệu yếu đi.',
         ],
-        pitfall: 'Rất nhạy và hay đổi chiều liên tục, nên chỉ dùng để xác nhận cùng RSI hoặc xu hướng, không dùng một mình.',
+        pitfall: 'Rất nhạy và hay đổi chiều liên tục, thường chỉ được dùng để xác nhận cùng RSI hoặc xu hướng, không dùng một mình.',
       },
     ],
   },
@@ -137,9 +137,9 @@ export const INDICATOR_GUIDES: Record<TaGroup, GroupGuide> = {
         what: 'Biên độ dao động trung bình mỗi phiên trong 14 phiên gần nhất, tính bằng đồng (không cho biết hướng).',
         onChart: 'Một tầng riêng, đường màu xanh ngọc; số càng lớn nghĩa là giá càng dao động mạnh.',
         howToRead: [
-          'Ví dụ ATR là 2.000đ: mỗi phiên giá thường chạy cỡ 2.000đ, nên cắt lỗ sát hơn mức đó dễ bị quét nhầm.',
+          'Ví dụ ATR là 2.000đ: mỗi phiên giá thường chạy cỡ 2.000đ, cắt lỗ sát hơn mức đó dễ bị quét nhầm.',
           'Cắt lỗ thường đặt cách giá vào khoảng 1,5 đến 2 lần ATR.',
-          'ATR tăng nhanh: thị trường đang biến động hơn, nên giảm khối lượng mua.',
+          'ATR tăng nhanh: thị trường đang biến động hơn, nhiều người thường cân nhắc giảm khối lượng mua.',
         ],
         pitfall: 'ATR chỉ nói dao động rộng bao nhiêu, không nói giá sẽ đi lên hay xuống.',
       },
@@ -185,7 +185,7 @@ export const INDICATOR_GUIDES: Record<TaGroup, GroupGuide> = {
 
   'moc-gia': {
     title: 'Mốc giá',
-    oneLine: 'Trả lời: nên vào hoặc ra quanh vùng giá nào, và giá có thể gặp cản ở đâu.',
+    oneLine: 'Trả lời: thường vào hoặc ra quanh vùng giá nào, và giá có thể gặp cản ở đâu.',
     items: [
       {
         name: 'Hỗ trợ và kháng cự',
@@ -203,10 +203,10 @@ export const INDICATOR_GUIDES: Record<TaGroup, GroupGuide> = {
         what: 'Các mức cắt đoạn đi từ đáy đến đỉnh gần nhất theo tỉ lệ 23,6%, 38,2%, 50%, 61,8%, 78,6%, thường là chỗ giá chững lại khi điều chỉnh.',
         onChart: 'Các đường ngang đứt nét màu cam có nhãn Fib và giá, cùng hai đường xám là Đỉnh swing và Đáy swing.',
         howToRead: [
-          'Giá đang điều chỉnh sau nhịp tăng: các mức 38,2%, 50%, 61,8% là chỗ thường được chú ý để canh mua lại.',
+          'Giá đang điều chỉnh sau nhịp tăng: các mức 38,2%, 50%, 61,8% là chỗ thường được chú ý để cân nhắc mua lại.',
           'Giá giữ được mức 61,8% rồi bật lên là dấu hiệu nhịp điều chỉnh còn khỏe; thủng hẳn mức 78,6% là điều chỉnh sâu.',
         ],
-        pitfall: 'Các mức này không có gì huyền bí: càng nhiều người cùng nhìn thì càng có tác dụng, nên chỉ dùng khi trùng với hỗ trợ hoặc kháng cự khác.',
+        pitfall: 'Các mức này không có gì huyền bí: càng nhiều người cùng nhìn thì càng có tác dụng, thường chỉ được dùng khi trùng với hỗ trợ hoặc kháng cự khác.',
       },
     ],
   },
@@ -294,11 +294,11 @@ export function readNow(group: TaGroup, s: TechnicalSeries, a: TechnicalAnalysis
       if (close !== null && upper !== null && lower !== null) {
         if (close > upper) out.push('Giá đóng cửa trên dải Bollinger trên: giá đang đi xa mức trung bình, dễ chững lại hoặc quay về.');
         else if (close < lower) out.push('Giá đóng cửa dưới dải Bollinger dưới: giá đang đi xa mức trung bình về phía giảm, dễ chững lại hoặc hồi lên.');
-        else out.push('Giá đóng cửa nằm trong dải Bollinger: biến động ở mức bình thường.');
+        else out.push('Giá đóng cửa nằm trong dải Bollinger: giá chưa đi xa mức trung bình.');
       }
       const atr = lastOf(s.atr14);
       if (atr !== null && close !== null && close > 0) {
-        out.push(`ATR 14 khoảng ${price(atr)}, tức ${vi(atr / close * 100, 1, 1)}% giá: mỗi phiên giá thường chạy cỡ này, nên đặt cắt lỗ rộng hơn mức đó.`);
+        out.push(`ATR 14 khoảng ${price(atr)}, tức ${vi(atr / close * 100, 1, 1)}% giá: mỗi phiên giá thường chạy cỡ này, cắt lỗ hẹp hơn mức đó dễ bị quét nhầm.`);
       }
       break;
     }
