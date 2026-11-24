@@ -389,6 +389,7 @@ export class PositionsComponent implements OnInit {
   }
 
   getRR(plan: any): number {
+    if (plan.effectiveRiskReward != null) return plan.effectiveRiskReward;
     const risk = Math.abs(plan.entryPrice - plan.stopLoss);
     return risk > 0 ? Math.abs(plan.target - plan.entryPrice) / risk : 0;
   }

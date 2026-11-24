@@ -186,4 +186,73 @@ public class CampaignReviewServiceTests
         result.HoldingDays.Should().Be(1);
         result.TotalInvested.Should().Be(0m);
     }
+
+    // ---------- R thực tế ----------
+
+    [Fact]
+    public void review_sets_realized_r_from_initial_risk()
+    {
+        var plan = CreatePlan();          // Entry 80.000, SL 75.000, 100 cp → 1R = 500.000
+        plan.MarkReady();
+        var trades = new[]
+        {
+            CreateBuy(80_000m, 100, date: new DateTime(2026, 1, 1)),
+            CreateSell(88_000m, 100, date: new DateTime(2026, 1, 31))   // PnL +800.000
+        };
+
+        var result = _sut.CalculateMetrics(plan, trades);
+
+        result.RealizedR.Should().Be(1.6m);
+        result.RiskBasis.Should().Be("chot-ke-hoach");
+    }
+
+    [Fact]
+    public void review_uses_net_pnl_so_fees_reduce_r()
+    {
+        var plan = CreatePlan();
+        plan.MarkReady();
+        var trades = new[]
+        {
+            CreateBuy(80_000m, 100, fee: 10_000m, date: new DateTime(2026, 1, 1)),
+            CreateSell(88_000m, 100, fee: 10_000m, tax: 20_000m, date: new DateTime(2026, 1, 31))   // 800.000 − 40.000
+        };
+
+        var result = _sut.CalculateMetrics(plan, trades);
+
+        result.PnLAmount.Should().Be(760_000m);
+        result.RealizedR.Should().Be(1.52m);
+    }
+
+    [Fact]
+    public void review_uses_legacy_estimate_and_marks_basis()
+    {
+        var plan = CreatePlan();          // chưa MarkReady: giống kế hoạch cũ không có ảnh chụp
+        var trades = new[]
+        {
+            CreateBuy(80_000m, 100, date: new DateTime(2026, 1, 1)),
+            CreateSell(78_000m, 100, date: new DateTime(2026, 1, 31))   // −200.000
+        };
+
+        var result = _sut.CalculateMetrics(plan, trades);
+
+        result.RealizedR.Should().Be(-0.4m);
+        result.RiskBasis.Should().Be("uoc-tinh");
+    }
+
+    [Fact]
+    public void review_realized_r_null_when_no_risk()
+    {
+        var plan = new TradePlan("user-1", "VNM", "Buy", 80_000m, 80_000m, 90_000m, 100,
+            thesis: "Mua mẫu cho test backward compat — luận điểm đủ dài tối thiểu");
+        var trades = new[]
+        {
+            CreateBuy(80_000m, 100, date: new DateTime(2026, 1, 1)),
+            CreateSell(88_000m, 100, date: new DateTime(2026, 1, 31))
+        };
+
+        var result = _sut.CalculateMetrics(plan, trades);
+
+        result.RealizedR.Should().BeNull();
+        result.RiskBasis.Should().BeNull();
+    }
 }

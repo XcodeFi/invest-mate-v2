@@ -125,6 +125,9 @@ export interface TradePlan {
   riskPercent?: number;
   accountBalance?: number;
   riskRewardRatio?: number;
+  /** R:R hiệu lực khi đọc: số hệ thống tính khi đủ dữ liệu, không thì giá trị đã gõ. */
+  effectiveRiskReward?: number | null;
+  riskRewardComputed?: boolean;
   confidenceLevel: number;
   checklist: ChecklistItemDto[];
   entryMode?: string;
@@ -256,6 +259,10 @@ export interface CampaignReviewDataDto {
   totalFees: number;
   lessonsLearned?: string;
   reviewedAt: string;
+  /** PnL ròng / 1R ban đầu; null nếu không tính được (hiện n/a). */
+  realizedR?: number | null;
+  /** chot-ke-hoach | uoc-tinh | khop-mot-phan */
+  riskBasis?: string | null;
 }
 
 export interface CampaignReviewDto {
@@ -270,6 +277,32 @@ export interface CampaignReviewDto {
   totalFees: number;
   lessonsLearned?: string;
   reviewedAt: string;
+  /** PnL ròng / 1R ban đầu; null nếu không tính được (hiện n/a). */
+  realizedR?: number | null;
+  /** chot-ke-hoach | uoc-tinh | khop-mot-phan */
+  riskBasis?: string | null;
+}
+
+/** Kỳ vọng theo R của các chiến dịch đã đóng (kế hoạch Mua đã review). Giá trị null = không đủ dữ liệu (hiện n/a). */
+export interface ExpectancyStatsDto {
+  strategyId: string | null;
+  strategyName: string;
+  n: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number | null;
+  winRateLow95: number | null;
+  winRateHigh95: number | null;
+  avgWinR: number | null;
+  avgLossR: number | null;
+  expectancyR: number | null;
+  profitFactorR: number | null;
+}
+
+export interface StrategyExpectancyDto {
+  total: ExpectancyStatsDto;
+  strategies: ExpectancyStatsDto[];
 }
 
 export interface CampaignAnalyticsDto {
@@ -424,6 +457,11 @@ export class TradePlanService {
 
   getAdvisories(): Observable<ScenarioAdvisoryDto[]> {
     return this.http.get<ScenarioAdvisoryDto[]>(`${this.API_URL}/advisories`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getExpectancy(): Observable<StrategyExpectancyDto> {
+    return this.http.get<StrategyExpectancyDto>(`${this.API_URL}/expectancy`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

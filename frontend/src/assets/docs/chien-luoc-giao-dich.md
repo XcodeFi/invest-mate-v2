@@ -111,6 +111,16 @@
 
 ---
 
+## Kỳ vọng theo R của từng chiến lược
+
+Trang **Chiến lược** (tab Hiệu suất) và trang **Phân tích** (tab Thống kê giao dịch) có khối "Kỳ vọng theo R (chiến dịch đã đóng)". Mỗi dòng là một chiến lược (kế hoạch không gắn chiến lược nằm ở dòng riêng):
+
+- **Mẫu (n):** số chiến dịch Mua đã review có R. Dưới 10 thì khối ghi "chưa đủ mẫu để tin": đừng rút kết luận từ vài lệnh.
+- **% thắng (95%):** thắng khi R > +0,1, thua khi R < −0,1; lệnh hoà nằm ngoài mẫu số và hiện riêng. Khoảng trong ngoặc là khoảng tin cậy 95%: mẫu càng nhỏ khoảng càng rộng.
+- **Kỳ vọng R:** R trung bình của mọi chiến dịch đã đóng, kể cả hoà. Dương nghĩa là về lâu dài mỗi lệnh kỳ vọng lãi trung bình bấy nhiêu lần mức rủi ro ban đầu.
+- **PF (R):** tổng R thắng ÷ tổng R thua; n/a khi chưa có lệnh thua.
+- Các chỉ số tiền ở phía trên (tỷ lệ thắng, P&L, Profit Factor theo tiền) tính **theo lệnh** và gồm cả lãi/lỗ chưa chốt, nên không so trực tiếp với khối này.
+
 ## Bảng chỉ báo × chiến lược
 
 | Chỉ báo | Scalp | Day | Swing | Position | Breakout | Reversion | Momentum |

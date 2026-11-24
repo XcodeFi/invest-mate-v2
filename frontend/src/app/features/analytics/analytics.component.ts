@@ -16,6 +16,7 @@ import {
 } from '../../core/services/advanced-analytics.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
+import { ExpectancyRBlockComponent } from '../../shared/components/expectancy-r-block/expectancy-r-block.component';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { catchError, of } from 'rxjs';
 import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
@@ -23,7 +24,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, VndCurrencyPipe],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, VndCurrencyPipe, ExpectancyRBlockComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -298,7 +299,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
                   <div class="text-center">
                     <div class="text-2xl font-bold text-gray-900">{{ performanceData ? (performanceData.expectancy | vndCurrency) : '--' }}</div>
                     <div class="tooltip-trigger text-sm text-gray-600 mt-1">
-                      Expectancy <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                      Expectancy (theo lệnh, gồm chưa chốt) <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
                       <div class="tooltip-box"><strong>Expectancy — Kỳ vọng lợi nhuận:</strong> Lãi/lỗ trung bình mỗi giao dịch = (WinRate × AvgWin) − (LossRate × AvgLoss). Dương = chiến lược sinh lời dài hạn.</div>
                     </div>
                   </div>
@@ -310,6 +311,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
             <div *ngIf="activeTab === 'trades'">
               <div *ngIf="advPerformance">
                 <h3 class="text-lg font-semibold mb-4">Thống kê Giao dịch</h3>
+                <app-expectancy-r-block class="block mb-6"></app-expectancy-r-block>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div class="bg-gray-50 rounded-lg p-4">
                     <div class="text-sm text-gray-500">Tổng giao dịch</div>
@@ -324,7 +326,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
                     <div class="text-2xl font-bold" [class.text-green-600]="advPerformance.expectancy > 0" [class.text-red-600]="advPerformance.expectancy <= 0">
                       {{ advPerformance.expectancy | vndCurrency }}
                     </div>
-                    <div class="text-xs text-gray-500 mt-1">Kỳ vọng lợi nhuận trung bình / giao dịch</div>
+                    <div class="text-xs text-gray-500 mt-1">Kỳ vọng lợi nhuận trung bình / giao dịch (theo lệnh, gồm cả lãi/lỗ chưa chốt)</div>
                   </div>
                   <div class="bg-gray-50 rounded-lg p-4">
                     <div class="text-sm text-gray-500">Total Return</div>

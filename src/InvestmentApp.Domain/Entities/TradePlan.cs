@@ -1,4 +1,5 @@
 using InvestmentApp.Domain.Events;
+using InvestmentApp.Domain.Services;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace InvestmentApp.Domain.Entities;
@@ -53,6 +54,13 @@ public class TradePlan : AggregateRoot
 
     // Time horizon (for campaign comparison)
     public TimeHorizon? TimeHorizon { get; private set; }
+
+    /// <summary>
+    /// 1R cố định của kế hoạch. Chụp lần đầu rời Draft (sang Ready hoặc sang InProgress qua ExecuteLot), chụp lại
+    /// mỗi lần sửa khi còn Ready, KHOÁ ở lần khớp đầu tiên, xoá khi Restore. SL dời sau đó không đổi 1R.
+    /// Null với lệnh bán, SL không thấp hơn giá vào, và kế hoạch cũ (dùng <see cref="RMath.EstimateLegacy"/> khi đọc).
+    /// </summary>
+    public InitialRiskSnapshot? InitialRisk { get; private set; }
 
     // Campaign review data (set when plan is reviewed/closed)
     public CampaignReviewData? ReviewData { get; private set; }
@@ -168,6 +176,7 @@ public class TradePlan : AggregateRoot
         if (invalidationCriteria != null) InvalidationCriteria = invalidationCriteria;
         if (expectedReviewDate.HasValue) ExpectedReviewDate = expectedReviewDate.Value;
         if (priceChanged) PricesSetAt = DateTime.UtcNow;
+        if (Status == TradePlanStatus.Ready) RefreshInitialRisk();
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -179,6 +188,7 @@ public class TradePlan : AggregateRoot
             throw new InvalidOperationException("Only draft plans can be marked ready");
         EnsureDisciplineGate();
         Status = TradePlanStatus.Ready;
+        RefreshInitialRisk();
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -189,8 +199,22 @@ public class TradePlan : AggregateRoot
             throw new InvalidOperationException("Only ready plans can be marked in progress");
         EnsureDisciplineGate();
         Status = TradePlanStatus.InProgress;
+        RefreshInitialRisk();
+        LockInitialRisk();
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
+    }
+
+    /// <summary>Chụp lại 1R theo giá/khối lượng hiện tại, trừ khi đã khoá ở lần khớp đầu.</summary>
+    private void RefreshInitialRisk()
+    {
+        if (InitialRisk?.LockedAt != null) return;
+        InitialRisk = RMath.Capture(this);
+    }
+
+    private void LockInitialRisk()
+    {
+        if (InitialRisk != null && InitialRisk.LockedAt == null) InitialRisk.LockedAt = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -315,6 +339,7 @@ public class TradePlan : AggregateRoot
         TradeId = null;
         TradeIds?.Clear();
         ExecutedAt = null;
+        InitialRisk = null;   // về Draft thì 1R chụp lại khi chốt lần sau
 
         // Clear IsTriggered flags on invalidation rules in case the cancellation came from AbortWithThesisInvalidation.
         // Rule text is preserved so user doesn't have to rewrite.
@@ -394,6 +419,7 @@ public class TradePlan : AggregateRoot
         EntryMode = mode;
         Lots = lots;
         Quantity = lots.Sum(l => l.PlannedQuantity);
+        if (Status == TradePlanStatus.Ready) RefreshInitialRisk();
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -409,6 +435,8 @@ public class TradePlan : AggregateRoot
         if (Status == TradePlanStatus.Executed || Status == TradePlanStatus.Reviewed || Status == TradePlanStatus.Cancelled)
             throw new InvalidOperationException($"Cannot execute lot on a {Status} plan");
 
+        var statusBeforeFill = Status;   // chụp TRƯỚC khi chuyển trạng thái: chỉ lần khớp đầu (Draft/Ready) mới được chụp 1R
+
         lot.Status = PlanLotStatus.Executed;
         lot.ActualPrice = actualPrice;
         lot.ExecutedAt = DateTime.UtcNow;
@@ -420,6 +448,15 @@ public class TradePlan : AggregateRoot
         // Auto-transition status: Draft/Ready → InProgress; all-lots-executed → Executed
         if (Status == TradePlanStatus.Ready || Status == TradePlanStatus.Draft)
             Status = TradePlanStatus.InProgress;
+
+        // Lần khớp đầu (trước đó là Draft/Ready): chụp (nếu đi thẳng từ Draft) rồi khoá 1R, theo khối lượng DỰ TÍNH.
+        // Đã InProgress thì KHÔNG chụp: ảnh chụp null (kế hoạch cũ hoặc ảnh đầu không hợp lệ) mà chụp bây giờ sẽ lấy SL đã dời
+        // và gắn cờ chốt-kế-hoạch, 1R sai nhưng trông như thật. Để null thì khi đọc dùng ước tính ("uoc-tinh").
+        if (statusBeforeFill == TradePlanStatus.Draft || statusBeforeFill == TradePlanStatus.Ready)
+        {
+            RefreshInitialRisk();
+            LockInitialRisk();
+        }
 
         if (Lots.All(l => l.Status != PlanLotStatus.Pending))
         {
@@ -620,6 +657,22 @@ public class ExitTarget
     public string? TradeId { get; set; }
 }
 
+/// <summary>Ảnh chụp rủi ro ban đầu (1R) của kế hoạch. Lưu nhúng trong TradePlan.</summary>
+public class InitialRiskSnapshot
+{
+    public decimal Entry { get; set; }
+    public decimal StopLoss { get; set; }
+    /// <summary>Tổng khối lượng dự tính (tổng các lot nếu có).</summary>
+    public decimal Quantity { get; set; }
+    /// <summary>|Entry − SL| × Quantity: số tiền rủi ro ban đầu = 1R.</summary>
+    public decimal RiskAmount { get; set; }
+    /// <summary><see cref="RMath.RiskBasisPlanned"/> | <see cref="RMath.RiskBasisEstimated"/> | <see cref="RMath.RiskBasisPartialFill"/>.</summary>
+    public string RiskBasis { get; set; } = RMath.RiskBasisPlanned;
+    public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>Có giá trị từ lần khớp đầu tiên: từ đó trở đi không chụp lại.</summary>
+    public DateTime? LockedAt { get; set; }
+}
+
 public class StopLossHistoryEntry
 {
     public decimal OldPrice { get; set; }
@@ -652,6 +705,11 @@ public class CampaignReviewData
     public decimal TotalFees { get; set; }
     public string? LessonsLearned { get; set; }
     public DateTime ReviewedAt { get; set; }
+
+    /// <summary>PnL ròng / 1R ban đầu. Null nếu không tính được. Review cũ không có giá trị này: tính khi đọc, không ghi lại.</summary>
+    public decimal? RealizedR { get; set; }
+    /// <summary>"chot-ke-hoach" | "uoc-tinh" | "khop-mot-phan" (xem <see cref="InvestmentApp.Domain.Services.RMath"/>).</summary>
+    public string? RiskBasis { get; set; }
 }
 
 // --- Scenario Playbook types ---

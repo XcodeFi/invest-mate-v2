@@ -139,6 +139,12 @@ Checklist thay đổi tự động theo chiến lược đã chọn:
 Nháp → Sẵn sàng → Đang thực hiện → Đã thực hiện → Đã review → Huỷ
 ```
 
+### R và kỳ vọng
+
+- **1R** là số tiền bạn chấp nhận mất ở kế hoạch: |giá vào − cắt lỗ| × số lượng. Hệ thống ghi lại 1R khi bạn chuyển kế hoạch sang **Sẵn sàng** (hoặc khớp lot đầu tiên) và **khoá** từ lần khớp đầu tiên: dời cắt lỗ sau đó không làm đổi 1R, để kết quả luôn đo bằng đúng mức rủi ro ban đầu.
+- **R:R** trong danh sách kế hoạch và trang Vị thế là số hệ thống tính từ giá vào, cắt lỗ và giá chốt lời (nhiều mốc chốt lời thì lấy bình quân theo tỷ lệ vị thế). Lệnh Bán hoặc thiếu mục tiêu thì hiện giá trị bạn đã nhập.
+- Khi review, **R thực tế** = lãi/lỗ ròng ÷ 1R (ví dụ +1,6R: lãi gấp 1,6 lần mức rủi ro ban đầu). "(ước tính)" nghĩa là kế hoạch cũ chưa ghi 1R nên dùng cắt lỗ đầu tiên còn lưu; "n/a" nghĩa là không biết rủi ro ban đầu. Hiện chỉ áp dụng cho lệnh Mua.
+
 Sau khi thực hiện xong, vào **Campaign Analytics** (`/campaign-analytics`) để review hiệu suất: P&L thực tế, % đạt target, VND/ngày, bài học rút ra.
 
 ---

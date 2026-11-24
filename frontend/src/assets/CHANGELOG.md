@@ -2,6 +2,22 @@
 
 ---
 
+## [v2.90.0] — 2026-11-24 · Nền R: rủi ro ban đầu, R thực tế và kỳ vọng theo R
+
+### Tính năng mới
+
+- **1R cố định cho mỗi kế hoạch Mua.** Khi kế hoạch rời Nháp (sang Sẵn sàng, hoặc khớp lot đầu tiên), hệ thống ghi lại rủi ro ban đầu = |giá vào − cắt lỗ| × số lượng dự tính (nhiều lot thì giá vào là bình quân theo khối lượng). Còn ở Sẵn sàng thì cập nhật theo mỗi lần sửa; khoá từ lần khớp đầu tiên. Dời cắt lỗ sau đó không đổi 1R. Khôi phục kế hoạch về Nháp thì xoá ảnh chụp.
+- **R:R do hệ thống tính.** Danh sách kế hoạch, trang Vị thế và trợ lý AI dùng R:R tính từ giá vào, cắt lỗ và giá chốt lời (bình quân các mốc chốt lời theo tỷ lệ vị thế). Khi chưa đủ dữ liệu (lệnh Bán, thiếu mục tiêu) thì dùng giá trị đã gõ. Giá trị đã gõ không bị ghi đè.
+- **R thực tế khi review.** Bản xem trước và kết quả review hiện "R thực tế" = lãi/lỗ ròng (đã trừ phí, thuế) ÷ 1R. Kế hoạch cũ chưa có ảnh chụp thì ước tính từ cắt lỗ đầu tiên còn ghi lại và ghi chú "(ước tính)"; có lot chưa khớp thì ghi "(khớp một phần)"; không biết rủi ro ban đầu thì hiện n/a.
+- **Kỳ vọng theo R theo chiến lược.** Trang Chiến lược (tab Hiệu suất) và trang Phân tích (tab Thống kê giao dịch) có khối "Kỳ vọng theo R (chiến dịch đã đóng)": số mẫu n, % thắng kèm khoảng tin cậy 95%, R thắng/thua trung bình, kỳ vọng R (gồm cả lệnh hoà) và Profit Factor theo R. Mẫu dưới 10 ghi rõ "chưa đủ mẫu để tin". Các chỉ số tiền cũ giữ nguyên và được ghi chú là tính theo lệnh, gồm cả lãi/lỗ chưa chốt.
+
+### Kỹ thuật
+
+- Domain: `RMath` (R:R, giá thoát bình quân, R thực tế, phân loại thắng/thua/hoà theo ±0,1R), `ExpectancyCalculator` (thống kê + khoảng Wilson), `InitialRiskSnapshot` nhúng trong `TradePlan.InitialRisk`; `CampaignReviewData` thêm `RealizedR`, `RiskBasis`.
+- API: `GET /api/v1/trade-plans/expectancy`; `TradePlanDto` thêm `effectiveRiskReward`, `riskRewardComputed`; review DTO thêm `realizedR`, `riskBasis`. R tính khi đọc cho review cũ chỉ nằm trong DTO, không ghi xuống dữ liệu. MCP `create_trade_plan`/`update_trade_plan`: mô tả `riskRewardRatio` ghi rõ hệ thống tự tính.
+
+---
+
 ## [v2.89.0] — 2026-11-24 · Trợ lý AI đọc được dữ liệu thị trường và phân tích kỹ thuật
 
 ### Tính năng mới

@@ -987,4 +987,30 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       expect(buttons.length).toBe(0);
     });
   });
+
+  describe('getRR dùng R:R hiệu lực', () => {
+    const plan = (extra: object) => ({ entryPrice: 100, stopLoss: 90, target: 120, ...extra }) as any;
+
+    it('prefers effectiveRiskReward from the API (system-computed)', () => {
+      expect(component.getRR(plan({ effectiveRiskReward: 3, riskRewardComputed: true }))).toBe(3);
+    });
+
+    it('falls back to the entry/stop/target formula when the API sends no effective value', () => {
+      expect(component.getRR(plan({}))).toBe(2);
+      expect(component.getRR(plan({ effectiveRiskReward: null }))).toBe(2);
+    });
+  });
+
+  describe('formatR (R thực tế)', () => {
+    it('shows n/a when the risk was unknown, never 0R', () => {
+      expect(component.formatR(null)).toBe('n/a');
+      expect(component.formatR(undefined)).toBe('n/a');
+    });
+
+    it('formats signed R with two decimals', () => {
+      expect(component.formatR(1.6)).toBe('+1.60R');
+      expect(component.formatR(-0.4)).toBe('-0.40R');
+      expect(component.formatR(0)).toBe('0.00R');
+    });
+  });
 });
