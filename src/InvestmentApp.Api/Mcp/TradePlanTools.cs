@@ -17,6 +17,11 @@ namespace InvestmentApp.Api.Mcp;
 [McpServerToolType]
 public static class TradePlanTools
 {
+    private const string ScenariosDescription =
+        "Bảng kịch bản kết quả của CẢ vị thế (chỉ lệnh Buy): mỗi dòng {label, probabilityPercent (0–100), exitPrice (VND, giá thoát bình quân)}. "
+        + "Tổng probabilityPercent phải bằng 100 (± 0,5) thì hệ thống mới tính kỳ vọng EV theo R (đã trừ phí ước tính). "
+        + "Gợi ý ba dòng: đạt kế hoạch, cắt lỗ, thoát sớm/hoà (giá vào). Ước lượng xác suất là việc của người dùng: không điền theo tỉ lệ nền để tránh neo.";
+
     [McpServerTool(Name = "list_trade_plans", ReadOnly = true)]
     [Description("Liệt kê kế hoạch giao dịch. activeOnly = true chỉ lấy kế hoạch đang hiệu lực.")]
     public static async Task<IEnumerable<TradePlanDto>> ListTradePlans(
@@ -62,7 +67,8 @@ public static class TradePlanTools
         [Description("Các lô vào lệnh, chỉ dùng khi entryMode = Scaled (bỏ trống = không chia lô).")] List<PlanLotDto>? lots = null,
         [Description("Các mốc chốt lời (bỏ trống = không đặt).")] List<ExitTargetDto>? exitTargets = null,
         [Description("Kiểu chiến lược thoát. Advanced mới dùng được scenarioNodes (bỏ trống = Simple).")] ExitStrategyMode? exitStrategyMode = null,
-        [Description("Cây kịch bản, chỉ dùng khi exitStrategyMode = Advanced (bỏ trống = không có).")] List<ScenarioNodeDto>? scenarioNodes = null)
+        [Description("Cây kịch bản, chỉ dùng khi exitStrategyMode = Advanced (bỏ trống = không có).")] List<ScenarioNodeDto>? scenarioNodes = null,
+        [Description(ScenariosDescription + " (bỏ trống = không có bảng)")] List<OutcomeScenarioDto>? scenarios = null)
     {
         // Status/TradeId cố tình không mở ra MCP — kế hoạch luôn tạo ở Draft (ADR-0004).
         var id = await McpErrorTranslator.RunAsync(() => mediator.Send(new CreateTradePlanCommand
@@ -92,6 +98,7 @@ public static class TradePlanTools
             ExitTargets = exitTargets,
             ExitStrategyMode = exitStrategyMode?.ToString(),
             ScenarioNodes = scenarioNodes,
+            Scenarios = scenarios,
             Status = null,
             TradeId = null
         }, ct));
@@ -152,7 +159,8 @@ public static class TradePlanTools
         [Description("Các mốc chốt lời, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ExitTargetDto>? exitTargets = null,
         [Description("Kiểu chiến lược thoát. Advanced mới dùng được scenarioNodes (bỏ trống = giữ nguyên).")] ExitStrategyMode? exitStrategyMode = null,
         [Description("Cây kịch bản, ghi đè toàn bộ (bỏ trống = giữ nguyên).")] List<ScenarioNodeDto>? scenarioNodes = null,
-        [Description("Tầm nhìn nắm giữ (bỏ trống = giữ nguyên).")] TimeHorizon? timeHorizon = null)
+        [Description("Tầm nhìn nắm giữ (bỏ trống = giữ nguyên).")] TimeHorizon? timeHorizon = null,
+        [Description(ScenariosDescription + " Ghi đè toàn bộ bảng; danh sách rỗng = xoá bảng (bỏ trống = giữ nguyên).")] List<OutcomeScenarioDto>? scenarios = null)
     {
         await McpErrorTranslator.RunAsync(() => mediator.Send(new UpdateTradePlanCommand
         {
@@ -181,7 +189,8 @@ public static class TradePlanTools
             ExitTargets = exitTargets,
             ExitStrategyMode = exitStrategyMode?.ToString(),
             ScenarioNodes = scenarioNodes,
-            TimeHorizon = timeHorizon?.ToString()
+            TimeHorizon = timeHorizon?.ToString(),
+            Scenarios = scenarios
         }, ct));
         return "ok";
     }
@@ -216,13 +225,15 @@ public static class TradePlanTools
         [Description("Trạng thái mới: ready, executed, cancelled. 'restore' bị chặn qua MCP.")]
         [System.ComponentModel.DataAnnotations.AllowedValues("ready", "executed", "cancelled")] string status,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
-        [Description("ID lệnh liên kết nếu chuyển executed (tùy chọn).")] string? tradeId = null)
+        [Description("ID lệnh liên kết nếu chuyển executed (tùy chọn).")] string? tradeId = null,
+        [Description("Lý do vượt cổng kỳ vọng, tối thiểu 10 ký tự. BẮT BUỘC khi chuyển ready mà kỳ vọng (EV) ≤ 0 hoặc kế hoạch Mua chưa có bảng kịch bản; "
+                   + "bỏ trống được khi EV dương. Thiếu thì bị từ chối kèm hướng dẫn (bỏ trống = không có lý do).")] string? evGateReason = null)
     {
         if (string.Equals(status, "restore", StringComparison.OrdinalIgnoreCase))
             throw new McpException("restore không được phép qua MCP surface.");
         await McpErrorTranslator.RunAsync(() => mediator.Send(new UpdateTradePlanStatusCommand
         {
-            Id = id, UserId = http.GetUserId(), Status = status, TradeId = tradeId
+            Id = id, UserId = http.GetUserId(), Status = status, TradeId = tradeId, EvGateReason = evGateReason
         }, ct));
         return "ok";
     }

@@ -1,5 +1,6 @@
 using FluentValidation;
 using InvestmentApp.Application.CompanyDossiers.Gate;
+using InvestmentApp.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -61,6 +62,20 @@ public class ExceptionMiddleware
                 symbol = dge.Symbol,
                 reason = dge.Result.Reason,
                 missing = dge.Result.Missing
+            });
+            return context.Response.StatusCode;
+        }
+
+        // Cổng kỳ vọng (kế hoạch Mua có EV ≤ 0 hoặc chưa ước lượng, chuyển sang Ready không kèm lý do): 400 có mã để FE mở hộp
+        // hỏi lý do. Cũng kế thừa InvalidOperationException nên phải đứng trước switch chung (nếu không sẽ thành 409).
+        if (exception is EvGateException egx)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                code = "EV_GATE_REASON_REQUIRED",
+                message = egx.Message,
+                minReasonLength = TradePlan.MinEvGateReasonLength
             });
             return context.Response.StatusCode;
         }

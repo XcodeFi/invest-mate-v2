@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.TradePlans;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Domain.Services;
@@ -18,10 +19,12 @@ public class GetTradePlansQuery : IRequest<IEnumerable<TradePlanDto>>
 public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEnumerable<TradePlanDto>>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
+    private readonly IFeeCalculationService? _fees;
 
-    public GetTradePlansQueryHandler(ITradePlanRepository tradePlanRepository)
+    public GetTradePlansQueryHandler(ITradePlanRepository tradePlanRepository, IFeeCalculationService? fees = null)
     {
         _tradePlanRepository = tradePlanRepository;
+        _fees = fees;
     }
 
     public async Task<IEnumerable<TradePlanDto>> Handle(GetTradePlansQuery request, CancellationToken cancellationToken)
@@ -30,10 +33,18 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             ? await _tradePlanRepository.GetActiveByUserIdAsync(request.UserId, cancellationToken)
             : await _tradePlanRepository.GetByUserIdAsync(request.UserId, cancellationToken);
 
-        return plans.Select(MapToDto);
+        var fee = PlanFees.Create(_fees);
+        return plans.Select(p => MapToDto(p, fee));
     }
 
-    internal static TradePlanDto MapToDto(Domain.Entities.TradePlan p) => new()
+    private static PlanExpectationDto ToExpectationDto(PlanExpectation e)
+        => new() { EvR = e.EvR, ImpliedWinPercent = e.ImpliedWinPercent, EvAmount = e.EvAmount };
+
+    private static List<OutcomeScenarioDto> ToDtos(IEnumerable<OutcomeScenario> scenarios)
+        => scenarios.Select(x => new OutcomeScenarioDto
+            { Label = x.Label, ProbabilityPercent = x.ProbabilityPercent, ExitPrice = x.ExitPrice }).ToList();
+
+    internal static TradePlanDto MapToDto(Domain.Entities.TradePlan p, RoundTripFee? fee = null) => new()
     {
         Id = p.Id,
         PortfolioId = p.PortfolioId,
@@ -60,6 +71,20 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
         RiskPercent = p.RiskPercent,
         AccountBalance = p.AccountBalance,
         RiskRewardRatio = p.RiskRewardRatio,
+        Scenarios = p.OutcomeScenarios == null ? null : ToDtos(p.OutcomeScenarios),
+        Estimate = p.Estimate == null ? null : new EstimateDto
+        {
+            Scenarios = ToDtos(p.Estimate.Scenarios),
+            EvR = p.Estimate.EvR,
+            ImpliedWinProbability = p.Estimate.ImpliedWinProbability,
+            FeesIncluded = p.Estimate.FeesIncluded,
+            CapturedAt = p.Estimate.CapturedAt,
+            Locked = p.Estimate.LockedAt != null,
+            LockedAt = p.Estimate.LockedAt
+        },
+        Expectation = ToExpectationDto(ExpectedValue.ForPlan(p, fee)),
+        EvGateReason = p.EvGateReason,
+        EvGateSkipped = p.EvGateSkipped,
         EffectiveRiskReward = RMath.EffectiveRiskReward(p),
         RiskRewardComputed = RMath.ComputeRiskReward(p) != null,
         ConfidenceLevel = p.ConfidenceLevel,
@@ -165,17 +190,19 @@ public class GetTradePlanByIdQuery : IRequest<TradePlanDto?>
 public class GetTradePlanByIdQueryHandler : IRequestHandler<GetTradePlanByIdQuery, TradePlanDto?>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
+    private readonly IFeeCalculationService? _fees;
 
-    public GetTradePlanByIdQueryHandler(ITradePlanRepository tradePlanRepository)
+    public GetTradePlanByIdQueryHandler(ITradePlanRepository tradePlanRepository, IFeeCalculationService? fees = null)
     {
         _tradePlanRepository = tradePlanRepository;
+        _fees = fees;
     }
 
     public async Task<TradePlanDto?> Handle(GetTradePlanByIdQuery request, CancellationToken cancellationToken)
     {
         var plan = await _tradePlanRepository.GetByIdAsync(request.Id, cancellationToken);
         if (plan == null || plan.UserId != request.UserId) return null;
-        return GetTradePlansQueryHandler.MapToDto(plan);
+        return GetTradePlansQueryHandler.MapToDto(plan, PlanFees.Create(_fees));
     }
 }
 
@@ -206,6 +233,15 @@ public class TradePlanDto
     public decimal? EffectiveRiskReward { get; set; }
     /// <summary>True nếu <see cref="EffectiveRiskReward"/> là số hệ thống tính, false nếu là giá trị người dùng gõ.</summary>
     public bool RiskRewardComputed { get; set; }
+    /// <summary>Bảng kịch bản kết quả hiện hành (null với kế hoạch cũ hoặc lệnh bán).</summary>
+    public List<OutcomeScenarioDto>? Scenarios { get; set; }
+    /// <summary>Ảnh chụp ước lượng lúc chốt kế hoạch (khoá ở lần khớp đầu).</summary>
+    public EstimateDto? Estimate { get; set; }
+    /// <summary>Kỳ vọng tính khi đọc từ bảng hiện hành (đã trừ phí ước tính nếu có dịch vụ phí). Các trường null khi chưa tính được.</summary>
+    public PlanExpectationDto? Expectation { get; set; }
+    public string? EvGateReason { get; set; }
+    /// <summary>Vào lệnh mà không qua cổng kỳ vọng (EV ≤ 0 hoặc chưa ước lượng, không có lý do).</summary>
+    public bool EvGateSkipped { get; set; }
     public int ConfidenceLevel { get; set; }
     public List<ChecklistItemDto> Checklist { get; set; } = new();
     public string? EntryMode { get; set; }
@@ -222,6 +258,25 @@ public class TradePlanDto
     public DateTime? ExecutedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+public class EstimateDto
+{
+    public List<OutcomeScenarioDto> Scenarios { get; set; } = new();
+    public decimal? EvR { get; set; }
+    public decimal? ImpliedWinProbability { get; set; }
+    public bool FeesIncluded { get; set; }
+    public DateTime CapturedAt { get; set; }
+    public bool Locked { get; set; }
+    public DateTime? LockedAt { get; set; }
+}
+
+public class PlanExpectationDto
+{
+    public decimal? EvR { get; set; }
+    public decimal? ImpliedWinPercent { get; set; }
+    /// <summary>EV theo VND = EV theo R × 1R.</summary>
+    public decimal? EvAmount { get; set; }
 }
 
 public class PlanLotDto

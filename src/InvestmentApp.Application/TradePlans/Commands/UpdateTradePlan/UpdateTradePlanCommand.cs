@@ -40,6 +40,8 @@ public class UpdateTradePlanCommand : IRequest<Unit>
     public decimal? RiskPercent { get; set; }
     public decimal? AccountBalance { get; set; }
     public decimal? RiskRewardRatio { get; set; }
+    /// <summary>Bảng kịch bản kết quả. Bỏ trống = giữ nguyên; danh sách rỗng = xoá bảng.</summary>
+    public List<OutcomeScenarioDto>? Scenarios { get; set; }
     public int? ConfidenceLevel { get; set; }
     public List<ChecklistItemDto>? Checklist { get; set; }
     public string? EntryMode { get; set; }
@@ -56,11 +58,13 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly IStrategyRepository _strategyRepository;
     private readonly ICompanyDossierGate _dossierGate;
+    private readonly IFeeCalculationService? _fees;
 
     public UpdateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository,
         IPortfolioRepository portfolioRepository, IStrategyRepository strategyRepository,
-        ICompanyDossierGate dossierGate)
+        ICompanyDossierGate dossierGate, IFeeCalculationService? fees = null)
     {
+        _fees = fees;
         _tradePlanRepository = tradePlanRepository;
         _portfolioRepository = portfolioRepository;
         _strategyRepository = strategyRepository;
@@ -184,6 +188,12 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
             }).ToList();
             plan.SetExitTargets(targets);
         }
+
+        // Bảng kịch bản kết quả: có gửi thì thay cả bảng (rỗng = xoá). Còn ở Ready thì chụp lại ước lượng (đã khoá thì giữ).
+        if (request.Scenarios != null)
+            plan.SetOutcomeScenarios(request.Scenarios.Select(ScenarioMapping.ToDomain).ToList(), PlanFees.Create(_fees));
+        else if (plan.Status == TradePlanStatus.Ready)
+            plan.RefreshEstimate(PlanFees.Create(_fees));   // giá/khối lượng vừa đổi: chụp lại có phí
 
         // Scenario Playbook
         if (request.ExitStrategyMode != null)

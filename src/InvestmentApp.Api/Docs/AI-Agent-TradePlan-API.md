@@ -44,6 +44,7 @@ Body (field chính): `symbol`, `direction` (Buy|Sell), `entryPrice`, `stopLoss`,
 `entryMode` (Single|ScalingIn|DCA) + `lots[]` `{lotNumber,plannedPrice,plannedQuantity,allocationPercent?,label?}`,
 `exitTargets[]` `{level,actionType(TakeProfit|CutLoss|TrailingStop|PartialExit),price,quantity?,percentOfPosition?,label?}`,
 `exitStrategyMode` (Simple|Advanced) + `scenarioNodes[]` `{nodeId,parentId?,order,label,conditionType,conditionValue?,actionType,actionValue?,trailingStopConfig?}`.
+`scenarios[]` `{label,probabilityPercent,exitPrice}` (tuỳ chọn, chỉ lệnh Buy): bảng kịch bản kết quả của CẢ vị thế; tổng `probabilityPercent` phải = 100 (± 0,5) thì hệ thống mới tính kỳ vọng EV theo R (đã trừ phí ước tính). Xác suất là ước lượng của người dùng, không điền sẵn theo tỉ lệ nền (tránh neo).
 Enums scenario: `conditionType ∈ {PriceAbove,PriceBelow,PricePercentChange,TrailingStopHit,TimeElapsed}`;
 `actionType ∈ {SellPercent,SellAll,MoveStopLoss,MoveStopToBreakeven,ActivateTrailingStop,AddPosition,SendNotification}`;
 `trailingStopConfig.method ∈ {Percentage,ATR,FixedAmount}`.
@@ -65,7 +66,7 @@ Trả về: `201 { "id": "<planId>" }`.
 `PUT /api/v1/ai/agent/trade-plans/{id}` — cùng bộ field (đều optional). Không dùng được nếu plan Executed/Reviewed.
 
 ## <a id="status"></a>Status
-`PATCH /api/v1/ai/agent/trade-plans/{id}/status` body `{ "status": "ready|inprogress|executed|cancelled", "tradeId?": "..." }`.
+`PATCH /api/v1/ai/agent/trade-plans/{id}/status` body `{ "status": "ready|inprogress|executed|cancelled", "tradeId?": "...", "evGateReason?": "..." }`. Chuyển `ready` với kế hoạch Buy có kỳ vọng EV ≤ 0 hoặc chưa có bảng kịch bản thì BẮT BUỘC `evGateReason` (≥ 10 ký tự), thiếu thì 400 `EV_GATE_REASON_REQUIRED`. Lý do được lưu và hiện ở review. `inprogress`/`executed` ghi lại lệnh đã khớp nên không bị chặn, nhưng kế hoạch bị đánh dấu "vào lệnh không qua cổng kỳ vọng" nếu EV ≤ 0 hoặc chưa ước lượng mà không có lý do.
 `restore` bị chặn (400). `executed` cần `tradeId` (tạo trade trước).
 
 ## <a id="create-trade"></a>Create Trade

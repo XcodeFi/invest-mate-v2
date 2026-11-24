@@ -238,6 +238,14 @@ public class McpToolDiscoveryTests
         Required(schema["get_discipline_score"]).Should().BeEmpty();
         Required(schema["get_symbol_timeline"]).Should().BeEquivalentTo(new[] { "symbol" });
 
+        // Kịch bản kết quả: tham số tuỳ chọn, không được đẩy vào required (agent bỏ trống vẫn gọi được).
+        schema["create_trade_plan"].GetProperty("properties").TryGetProperty("scenarios", out _).Should().BeTrue();
+        schema["update_trade_plan"].GetProperty("properties").TryGetProperty("scenarios", out _).Should().BeTrue();
+        schema["set_trade_plan_status"].GetProperty("properties").TryGetProperty("evGateReason", out _).Should().BeTrue();
+        Required(schema["create_trade_plan"]).Should().NotContain("scenarios");
+        Required(schema["update_trade_plan"]).Should().NotContain("scenarios");
+        Required(schema["set_trade_plan_status"]).Should().NotContain("evGateReason");
+
         // Dữ liệu thị trường: chỉ mã/từ khoá là bắt buộc; from/to/lastN bỏ trống phải gọi được.
         Required(schema["get_stock_price"]).Should().BeEquivalentTo(new[] { "symbol" });
         Required(schema["get_price_history"]).Should().BeEquivalentTo(new[] { "symbol" });
@@ -246,7 +254,7 @@ public class McpToolDiscoveryTests
         Required(schema["get_technical_analysis"]).Should().BeEquivalentTo(new[] { "symbol" });
         Required(schema["get_technical_series"]).Should().BeEquivalentTo(new[] { "symbol" });
         Required(schema["list_journal_entries_by_symbol"]).Should().BeEquivalentTo(new[] { "symbol" });
-        Required(schema["set_trade_plan_status"]).Should().BeEquivalentTo(new[] { "id", "status" });
+        Required(schema["set_trade_plan_status"]).Should().BeEquivalentTo(new[] { "id", "status" });   // evGateReason tuỳ chọn
         Required(schema["create_trade"]).Should()
             .BeEquivalentTo(new[] { "symbol", "tradeType", "quantity", "price" });
     }
