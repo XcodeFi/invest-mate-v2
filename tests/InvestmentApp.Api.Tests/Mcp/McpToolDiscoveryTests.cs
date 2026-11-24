@@ -36,7 +36,10 @@ public class McpToolDiscoveryTests
         "list_company_dossiers", "get_company_dossier", "get_dossier_gate_status",
         "get_company_fundamentals",
         // Lịch nghỉ giao dịch — nền tính T+2
-        "list_market_closures"
+        "list_market_closures",
+        // Dữ liệu thị trường công khai và phân tích kỹ thuật (đợt 1 MCP cho các tính năng)
+        "get_stock_price", "get_price_history", "get_market_overview", "search_stocks",
+        "get_technical_analysis", "get_technical_series"
     };
 
     private static readonly string[] WriteTools =
@@ -68,12 +71,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_57_Tools()
+    public void Registers_All_63_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(57);
+        (ReadTools.Length + WriteTools.Length).Should().Be(63);
     }
 
     [Fact]
@@ -168,6 +171,11 @@ public class McpToolDiscoveryTests
         schema["get_performance"].Should().Contain("portfolioId").And.NotContain("mediator");
         schema["get_savings_comparison"].Should().Contain("annualRate").And.NotContain("mediator");
         schema["get_flow_history"].Should().Contain("from").And.Contain("to").And.NotContain("mediator");
+
+        // Market data tools → real args present; injected services absent.
+        schema["get_stock_price"].Should().Contain("symbol").And.NotContain("mediator");
+        schema["get_price_history"].Should().Contain("from").And.Contain("to").And.NotContain("mediator");
+        schema["get_technical_series"].Should().Contain("lastN").And.NotContain("mediator");
     }
 
     [Fact]
@@ -229,6 +237,14 @@ public class McpToolDiscoveryTests
         Required(schema["list_trades_pending_review"]).Should().BeEmpty();
         Required(schema["get_discipline_score"]).Should().BeEmpty();
         Required(schema["get_symbol_timeline"]).Should().BeEquivalentTo(new[] { "symbol" });
+
+        // Dữ liệu thị trường: chỉ mã/từ khoá là bắt buộc; from/to/lastN bỏ trống phải gọi được.
+        Required(schema["get_stock_price"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["get_price_history"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["get_market_overview"]).Should().BeEmpty();
+        Required(schema["search_stocks"]).Should().BeEquivalentTo(new[] { "keyword" });
+        Required(schema["get_technical_analysis"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["get_technical_series"]).Should().BeEquivalentTo(new[] { "symbol" });
         Required(schema["list_journal_entries_by_symbol"]).Should().BeEquivalentTo(new[] { "symbol" });
         Required(schema["set_trade_plan_status"]).Should().BeEquivalentTo(new[] { "id", "status" });
         Required(schema["create_trade"]).Should()
