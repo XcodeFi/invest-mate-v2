@@ -140,6 +140,9 @@ public class CorrelationMatrix
 {
     public string PortfolioId { get; set; } = null!;
     public List<string> Symbols { get; set; } = new();
+    /// <summary>Không bao giờ được điền (cặp tương quan nằm ở <see cref="Pairs"/>). Ẩn khỏi JSON vì System.Text.Json không chuyển được
+    /// <c>decimal[,]</c>: điền vào là mọi phản hồi (REST và MCP) nổ NotSupportedException.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public decimal[,]? Matrix { get; set; }
     public List<CorrelationPair> Pairs { get; set; } = new();
 }
