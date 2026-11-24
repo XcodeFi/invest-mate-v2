@@ -42,7 +42,11 @@ public class McpToolDiscoveryTests
         "get_technical_analysis", "get_technical_series",
         // Rủi ro mở rộng + kỳ vọng theo R (đợt 2 MCP cho các tính năng)
         "get_risk_profile", "get_drawdown", "get_correlation", "get_portfolio_optimization",
-        "get_sector_exposure", "get_risk_budget", "get_strategy_expectancy"
+        "get_sector_exposure", "get_risk_budget", "get_strategy_expectancy",
+        // Kế hoạch, lãi/lỗ, cảnh báo (đợt 3 MCP)
+        "get_scenario_suggestion", "list_scenario_templates", "get_plan_scenario_history", "preview_plan_review",
+        "list_plans_pending_review", "get_portfolio_pnl", "get_position_pnl", "get_pnl_summary",
+        "list_alert_rules", "get_alert_history"
     };
 
     private static readonly string[] WriteTools =
@@ -74,12 +78,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_70_Tools()
+    public void Registers_All_80_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(70);
+        (ReadTools.Length + WriteTools.Length).Should().Be(80);
     }
 
     [Fact]
@@ -271,6 +275,15 @@ public class McpToolDiscoveryTests
             Required(schema[name]).Should().BeEquivalentTo(new[] { "portfolioId" }, name);
         Required(schema["get_sector_exposure"]).Should().BeEquivalentTo(new[] { "portfolioId", "symbol", "addValue" });
         Required(schema["get_strategy_expectancy"]).Should().BeEmpty();
+
+        // Đợt 3: kế hoạch / lãi-lỗ / cảnh báo
+        Required(schema["get_scenario_suggestion"]).Should().BeEquivalentTo(new[] { "symbol", "entryPrice" });
+        foreach (var name in new[] { "list_scenario_templates", "list_plans_pending_review", "get_pnl_summary", "list_alert_rules", "get_alert_history" })
+            Required(schema[name]).Should().BeEmpty(name);
+        foreach (var name in new[] { "get_plan_scenario_history", "preview_plan_review" })
+            Required(schema[name]).Should().BeEquivalentTo(new[] { "planId" }, name);
+        Required(schema["get_portfolio_pnl"]).Should().BeEquivalentTo(new[] { "portfolioId" });
+        Required(schema["get_position_pnl"]).Should().BeEquivalentTo(new[] { "portfolioId", "symbol" });
 
         // Dữ liệu thị trường: chỉ mã/từ khoá là bắt buộc; from/to/lastN bỏ trống phải gọi được.
         Required(schema["get_stock_price"]).Should().BeEquivalentTo(new[] { "symbol" });
