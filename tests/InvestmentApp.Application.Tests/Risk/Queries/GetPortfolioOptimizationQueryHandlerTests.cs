@@ -81,6 +81,7 @@ public class GetPortfolioOptimizationQueryHandlerTests
         // Act & Assert
         await _handler.Invoking(h => h.Handle(query, CancellationToken.None))
             .Should().ThrowAsync<ArgumentException>();
+        _riskService.Verify(s => s.GetPortfolioOptimizationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -95,7 +96,9 @@ public class GetPortfolioOptimizationQueryHandlerTests
 
         // Act & Assert
         await _handler.Invoking(h => h.Handle(query, CancellationToken.None))
-            .Should().ThrowAsync<ArgumentException>();
+            .Should().ThrowAsync<ArgumentException>().WithMessage("*access denied*");
+        // Có throw là chưa đủ: dịch vụ giữ dữ liệu danh mục của người khác không bao giờ được gọi
+        _riskService.Verify(s => s.GetPortfolioOptimizationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

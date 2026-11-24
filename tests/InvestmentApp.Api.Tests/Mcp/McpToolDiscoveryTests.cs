@@ -39,7 +39,10 @@ public class McpToolDiscoveryTests
         "list_market_closures",
         // Dữ liệu thị trường công khai và phân tích kỹ thuật (đợt 1 MCP cho các tính năng)
         "get_stock_price", "get_price_history", "get_market_overview", "search_stocks",
-        "get_technical_analysis", "get_technical_series"
+        "get_technical_analysis", "get_technical_series",
+        // Rủi ro mở rộng + kỳ vọng theo R (đợt 2 MCP cho các tính năng)
+        "get_risk_profile", "get_drawdown", "get_correlation", "get_portfolio_optimization",
+        "get_sector_exposure", "get_risk_budget", "get_strategy_expectancy"
     };
 
     private static readonly string[] WriteTools =
@@ -71,12 +74,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_63_Tools()
+    public void Registers_All_70_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(63);
+        (ReadTools.Length + WriteTools.Length).Should().Be(70);
     }
 
     [Fact]
@@ -179,6 +182,23 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
+    public void No_Tool_Takes_A_UserId_Parameter()
+    {
+        // Người gọi chỉ được là người gọi: UserId lấy từ claim `sub` của khoá API, không bao giờ từ tham số mà agent gửi lên.
+        // Một tham số userId (hay owner/ownerId/user) trong schema là lỗ ghi/đọc chéo người dùng.
+        foreach (var tool in Tools())
+        {
+            var schema = tool.ProtocolTool.InputSchema;
+            if (!schema.TryGetProperty("properties", out var props)) continue;
+            props.EnumerateObject().Select(p => p.Name).Should()
+                .NotContain(n => n.Contains("userid", StringComparison.OrdinalIgnoreCase)
+                              || n.Equals("user", StringComparison.OrdinalIgnoreCase)
+                              || n.Contains("owner", StringComparison.OrdinalIgnoreCase),
+                    $"{tool.ProtocolTool.Name} không được nhận định danh người dùng từ tham số");
+        }
+    }
+
+    [Fact]
     public void No_Tool_Wraps_Its_Args_In_A_Command_Object()
     {
         // Taking a MediatR command as the tool parameter generates a nested {"command":{...}}
@@ -245,6 +265,12 @@ public class McpToolDiscoveryTests
         Required(schema["create_trade_plan"]).Should().NotContain("scenarios");
         Required(schema["update_trade_plan"]).Should().NotContain("scenarios");
         Required(schema["set_trade_plan_status"]).Should().NotContain("evGateReason");
+
+        // Rủi ro mở rộng: danh mục bắt buộc; sector exposure cần thêm mã và giá trị dự kiến; kỳ vọng theo R không có tham số.
+        foreach (var name in new[] { "get_risk_profile", "get_drawdown", "get_correlation", "get_portfolio_optimization", "get_risk_budget" })
+            Required(schema[name]).Should().BeEquivalentTo(new[] { "portfolioId" }, name);
+        Required(schema["get_sector_exposure"]).Should().BeEquivalentTo(new[] { "portfolioId", "symbol", "addValue" });
+        Required(schema["get_strategy_expectancy"]).Should().BeEmpty();
 
         // Dữ liệu thị trường: chỉ mã/từ khoá là bắt buộc; from/to/lastN bỏ trống phải gọi được.
         Required(schema["get_stock_price"]).Should().BeEquivalentTo(new[] { "symbol" });

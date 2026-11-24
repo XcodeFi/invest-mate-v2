@@ -2,6 +2,20 @@
 
 ---
 
+## [v2.92.0] — 2026-11-24 · Trợ lý AI đọc được hồ sơ rủi ro, drawdown, tương quan và kỳ vọng theo R
+
+### Tính năng mới
+
+- Trợ lý AI nối qua MCP hỏi thêm được 7 việc về rủi ro: hồ sơ rủi ro của danh mục, drawdown, tương quan giữa các mã, phân tích tối ưu danh mục, tỷ trọng ngành sau một lệnh dự kiến, ngân sách rủi ro trong ngày, và kỳ vọng theo R của các chiến dịch đã đóng theo từng chiến lược. Tất cả chỉ đọc và chỉ trả dữ liệu của chính người dùng.
+
+### Kỹ thuật
+
+- 7 tool chỉ đọc trong `RiskTools` (số tool MCP 63 → 70): `get_risk_profile`, `get_drawdown`, `get_correlation`, `get_portfolio_optimization`, `get_sector_exposure` (`symbol` và `addValue` bắt buộc), `get_risk_budget`, `get_strategy_expectancy` (đợt 1 R). `UserId` chỉ lấy từ người gọi; không tool nào có tham số `userId` (test chung trên toàn bộ schema).
+- Kiểm chủ sở hữu trước khi bọc: 6 handler theo `portfolioId` đều kiểm `portfolio.UserId == request.UserId` trước khi đọc dữ liệu (từ chối bằng `ArgumentException` cùng thông điệp cho danh mục thiếu hay của người khác). Bốn handler chưa có test âm (hồ sơ rủi ro, drawdown, tương quan, ngân sách rủi ro) nay đã có; hai test cũ (tối ưu, ngành) kiểm thêm dịch vụ không bao giờ được gọi. Mỗi bộ kiểm tra bỏ đi thì đúng test của nó đỏ.
+- `CorrelationMatrix.Matrix` (`decimal[,]`, không bao giờ được điền) bị ẩn khỏi JSON: System.Text.Json không chuyển được kiểu này nên điền vào là mọi phản hồi REST và MCP nổ lỗi. Dữ liệu tương quan nằm ở `pairs`.
+
+---
+
 ## [v2.91.0] — 2026-11-24 · Kịch bản kết quả, kỳ vọng (EV) và cổng kỳ vọng trên kế hoạch Mua
 
 ### Tính năng mới

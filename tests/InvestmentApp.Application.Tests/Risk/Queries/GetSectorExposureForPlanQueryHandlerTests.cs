@@ -29,7 +29,7 @@ public class GetSectorExposureForPlanQueryHandlerTests
 
         var act = () => _handler.Handle(query, default);
 
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*access denied*");
         // Assert "có throw" là không đủ: phải chứng minh service chưa bao giờ được gọi, đó mới là
         // bằng chứng kiểm quyền chạy TRƯỚC khi đọc dữ liệu danh mục của người khác.
         _riskService.Verify(s => s.GetSectorExposureForPlanAsync(
@@ -48,7 +48,7 @@ public class GetSectorExposureForPlanQueryHandlerTests
 
         var act = () => _handler.Handle(query, default);
 
-        await act.Should().ThrowAsync<ArgumentException>();
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*access denied*");
         _riskService.Verify(s => s.GetSectorExposureForPlanAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<CancellationToken>()), Times.Never);
     }
