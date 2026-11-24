@@ -181,4 +181,17 @@ public class McpSchemaContractTests
     {
         RequiredOf(toolName).Should().BeEquivalentTo(param);
     }
+
+    [Theory]
+    [InlineData("create_trade_plan")]
+    [InlineData("update_trade_plan")]
+    public void RiskRewardRatio_Description_Says_The_System_Computes_It(string toolName)
+    {
+        var description = SchemaOf(toolName)
+            .GetProperty("properties").GetProperty("riskRewardRatio")
+            .GetProperty("description").GetString();
+
+        description.Should().Contain("tự tính", "agent phải biết số gửi lên chỉ là phương án dự phòng");
+        description.Should().NotContain("KHÔNG tự tính");
+    }
 }

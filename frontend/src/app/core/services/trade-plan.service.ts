@@ -125,6 +125,9 @@ export interface TradePlan {
   riskPercent?: number;
   accountBalance?: number;
   riskRewardRatio?: number;
+  /** R:R hiệu lực khi đọc: số hệ thống tính khi đủ dữ liệu, không thì giá trị đã gõ. */
+  effectiveRiskReward?: number | null;
+  riskRewardComputed?: boolean;
   confidenceLevel: number;
   checklist: ChecklistItemDto[];
   entryMode?: string;

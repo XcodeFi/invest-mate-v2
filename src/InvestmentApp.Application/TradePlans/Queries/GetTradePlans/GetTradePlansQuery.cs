@@ -2,6 +2,7 @@ using System.ComponentModel;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.Services;
 using MediatR;
 
 namespace InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -59,6 +60,8 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
         RiskPercent = p.RiskPercent,
         AccountBalance = p.AccountBalance,
         RiskRewardRatio = p.RiskRewardRatio,
+        EffectiveRiskReward = RMath.EffectiveRiskReward(p),
+        RiskRewardComputed = RMath.ComputeRiskReward(p) != null,
         ConfidenceLevel = p.ConfidenceLevel,
         Checklist = p.Checklist?.Select(c => new ChecklistItemDto
         {
@@ -195,7 +198,12 @@ public class TradePlanDto
     public bool LegacyExempt { get; set; }
     public decimal? RiskPercent { get; set; }
     public decimal? AccountBalance { get; set; }
+    /// <summary>Giá trị người dùng đã gõ (giữ nguyên, không bị ghi đè).</summary>
     public decimal? RiskRewardRatio { get; set; }
+    /// <summary>R:R hiệu lực khi đọc: số hệ thống tính khi đủ dữ liệu, không thì giá trị đã gõ.</summary>
+    public decimal? EffectiveRiskReward { get; set; }
+    /// <summary>True nếu <see cref="EffectiveRiskReward"/> là số hệ thống tính, false nếu là giá trị người dùng gõ.</summary>
+    public bool RiskRewardComputed { get; set; }
     public int ConfidenceLevel { get; set; }
     public List<ChecklistItemDto> Checklist { get; set; } = new();
     public string? EntryMode { get; set; }

@@ -53,6 +53,27 @@ public static class RMath
         return fallbackTarget is > 0m ? fallbackTarget : null;
     }
 
+    /// <summary>
+    /// R:R do hệ thống tính từ dữ liệu kế hoạch: (giá thoát bình quân − Entry) / (Entry − SL hiện tại), làm tròn 2 chữ số.
+    /// Chỉ lệnh mua, Entry &gt; SL &gt; 0 và có giá thoát (các mức chốt lời hoặc Target); ngược lại null.
+    /// </summary>
+    public static decimal? ComputeRiskReward(TradePlan plan)
+    {
+        var snapshot = Build(plan, plan.StopLoss, RiskBasisPlanned);
+        if (snapshot == null) return null;
+        var exit = BlendedExitPrice(plan.ExitTargets, plan.Target);
+        if (exit == null) return null;
+        var rr = RiskReward(snapshot.Entry, snapshot.StopLoss, exit.Value);
+        return rr == null ? null : Math.Round(rr.Value, 2);
+    }
+
+    /// <summary>
+    /// R:R hiệu lực: số tính được thì dùng số tính, không tính được (lệnh bán, thiếu mục tiêu...) thì dùng giá trị người dùng
+    /// đã gõ. Tính khi đọc, không bao giờ ghi đè field đã lưu.
+    /// </summary>
+    public static decimal? EffectiveRiskReward(TradePlan plan)
+        => ComputeRiskReward(plan) ?? plan.RiskRewardRatio;
+
     /// <summary>PnL ròng / số tiền rủi ro ban đầu. Null nếu không có rủi ro (không chia cho 0).</summary>
     public static decimal? RealizedR(decimal netPnL, decimal riskAmount)
         => riskAmount > 0m ? netPnL / riskAmount : null;

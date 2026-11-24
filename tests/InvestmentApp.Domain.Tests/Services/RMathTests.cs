@@ -132,6 +132,62 @@ public class RMathTests
     public void EstimateLegacy_null_when_quantity_missing()
         => RMath.EstimateLegacy(NewPlan(entry: 100m, stop: 95m, quantity: 0)).Should().BeNull();
 
+    // ---------- R:R hiệu lực (tính khi đọc) ----------
+
+    [Fact]
+    public void effective_rr_computed_when_inputs_valid()
+    {
+        var plan = new TradePlan("u1", "VNM", "Buy", 100m, 90m, 120m, 100,
+            thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R", riskRewardRatio: 5m);
+
+        RMath.EffectiveRiskReward(plan).Should().Be(2.0m, "số tính thắng số gõ tay khi đủ dữ liệu");
+    }
+
+    [Fact]
+    public void effective_rr_uses_blended_exit_targets()
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);
+        plan.SetExitTargets(new List<ExitTarget>
+        {
+            new() { Level = 1, ActionType = ExitActionType.TakeProfit, Price = 110m, PercentOfPosition = 50m },
+            new() { Level = 2, ActionType = ExitActionType.TakeProfit, Price = 130m, PercentOfPosition = 50m },
+        });
+
+        RMath.EffectiveRiskReward(plan).Should().Be(2.0m);   // bình quân 120
+    }
+
+    [Fact]
+    public void effective_rr_falls_back_to_stored_for_sell_or_missing_target()
+    {
+        var sell = new TradePlan("u1", "VNM", "Sell", 100m, 110m, 80m, 100,
+            thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R", riskRewardRatio: 3m);
+        var noTarget = new TradePlan("u1", "VNM", "Buy", 100m, 90m, 0m, 100,
+            thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R", riskRewardRatio: 3m);
+        var stopAboveEntry = new TradePlan("u1", "VNM", "Buy", 100m, 105m, 120m, 100,
+            thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R", riskRewardRatio: 3m);
+
+        RMath.EffectiveRiskReward(sell).Should().Be(3m);
+        RMath.EffectiveRiskReward(noTarget).Should().Be(3m);
+        RMath.EffectiveRiskReward(stopAboveEntry).Should().Be(3m);
+    }
+
+    [Fact]
+    public void effective_rr_null_when_nothing_computable_and_nothing_stored()
+        => RMath.EffectiveRiskReward(NewPlan(entry: 100m, stop: 100m, quantity: 100)).Should().BeNull();
+
+    [Fact]
+    public void stored_rr_not_overwritten()
+    {
+        var plan = new TradePlan("u1", "VNM", "Buy", 100m, 90m, 120m, 100,
+            thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R", riskRewardRatio: 5m);
+
+        plan.MarkReady();
+        plan.Update(notes: "sửa ghi chú");
+        RMath.EffectiveRiskReward(plan);
+
+        plan.RiskRewardRatio.Should().Be(5m, "R:R tính khi đọc, không ghi đè field đã lưu");
+    }
+
     private static TradePlan NewPlan(decimal entry, decimal stop, int quantity, string direction = "Buy")
         => new("u1", "VNM", direction, entry, stop, 120m, quantity,
             thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R");

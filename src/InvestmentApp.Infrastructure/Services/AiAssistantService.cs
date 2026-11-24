@@ -8,6 +8,7 @@ using InvestmentApp.Application.Services;
 using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Decisions.Queries.GetDecisionQueue;
 using InvestmentApp.Domain.Entities;
+using InvestmentApp.Domain.Services;
 using InvestmentApp.Domain.ValueObjects;
 using MediatR;
 using Microsoft.Extensions.Options;
@@ -1001,8 +1002,7 @@ Nhiệm vụ: Đánh giá danh mục đầu tư toàn diện.
         if (plan.EntryPrice > 0 && plan.StopLoss > 0 && plan.Target > 0)
         {
             var risk = Math.Abs(plan.EntryPrice - plan.StopLoss);
-            var reward = Math.Abs(plan.Target - plan.EntryPrice);
-            var rr = risk > 0 ? reward / risk : 0;
+            var rr = PlanRiskReward(plan);
             sb.AppendLine($"  <risk_reward>1:{rr:F1}</risk_reward>");
             if (plan.Quantity > 0)
                 sb.AppendLine($"  <risk_amount>{risk * plan.Quantity:N0} VND</risk_amount>");
@@ -1068,9 +1068,7 @@ Nhiệm vụ: Đánh giá danh mục đầu tư toàn diện.
             sb.AppendLine($"  <max_portfolio_risk>{riskProfile.MaxPortfolioRiskPercent}%</max_portfolio_risk>");
             if (plan.EntryPrice > 0 && plan.StopLoss > 0 && plan.Target > 0)
             {
-                var risk = Math.Abs(plan.EntryPrice - plan.StopLoss);
-                var reward = Math.Abs(plan.Target - plan.EntryPrice);
-                var rr = risk > 0 ? reward / risk : 0;
+                var rr = PlanRiskReward(plan);
                 var rrCompliant = rr >= riskProfile.DefaultRiskRewardRatio;
                 sb.AppendLine($"  <rr_status>{(rrCompliant ? "✅ Đạt" : "⚠️ Chưa đạt")} (plan: 1:{rr:F1}, yêu cầu: 1:{riskProfile.DefaultRiskRewardRatio:F1})</rr_status>");
             }
@@ -2603,5 +2601,17 @@ Yêu cầu: Phân tích dựa trên DỮ LIỆU THỰC được cung cấp, khô
 
         return (inputTokens / 1_000_000m * inputPricePerMTok) +
                (outputTokens / 1_000_000m * outputPricePerMTok);
+    }
+
+    /// <summary>
+    /// R:R hiệu lực của kế hoạch để so ngưỡng: số hệ thống tính (Entry, SL, giá thoát bình quân) khi đủ dữ liệu;
+    /// không thì công thức cũ |Target − Entry| / |Entry − SL| (lệnh bán hoặc dữ liệu chưa đủ để tính theo R).
+    /// </summary>
+    public static decimal PlanRiskReward(TradePlan plan)
+    {
+        var computed = RMath.ComputeRiskReward(plan);
+        if (computed.HasValue) return computed.Value;
+        var risk = Math.Abs(plan.EntryPrice - plan.StopLoss);
+        return risk > 0 ? Math.Abs(plan.Target - plan.EntryPrice) / risk : 0;
     }
 }

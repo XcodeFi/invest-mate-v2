@@ -3771,6 +3771,8 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   }
 
   getRR(sp: TradePlanDto): number {
+    // Số hệ thống tính khi đọc (Buy, đủ giá vào/cắt lỗ/mục tiêu); không có thì công thức cũ
+    if (sp.effectiveRiskReward != null) return sp.effectiveRiskReward;
     const risk = Math.abs(sp.entryPrice - sp.stopLoss);
     return risk > 0 ? Math.abs(sp.target - sp.entryPrice) / risk : 0;
   }
