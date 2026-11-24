@@ -7,17 +7,21 @@ import {
 } from 'lightweight-charts';
 import { GroupLayers, IndicatorChartCandles, LineLayer } from './indicator-chart.types';
 
+const UP_COLOR = '#22c55e';
+const DOWN_COLOR = '#ef4444';
+
 const EMPTY_LAYERS: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
 const EMPTY_CANDLES: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
 
 /**
- * Tổng chiều cao component (mọi canvas + dòng tiêu đề của từng tầng) tối đa. Khối dính trên trang gồm thêm thanh chip
+ * Tổng chiều cao component (mọi canvas + dòng tiêu đề/chú giải của từng tầng + chú giải đường ngang) tối đa. Khối dính trên trang gồm thêm thanh chip
  * và đệm (~60px) nên toàn khối ≤ 560px, vừa một màn hình máy tính 800px cao.
  */
 const TOTAL_HEIGHT = 500;
-const TITLE_HEIGHT = 18;
+const TITLE_HEIGHT = 20;
 const MAX_PRICE_ONLY_HEIGHT = 300;
 const MIN_PANE_HEIGHT = 60;
+const MIN_PRICE_HEIGHT = 120;
 const MAX_PANE_HEIGHT = 120;
 const PRICE_SHARE = 0.45;
 
@@ -37,8 +41,11 @@ const formatAxisValue = (v: number): string =>
     : v.toLocaleString('vi-VN', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 1 });
 const PRICE_FORMAT = { type: 'custom' as const, formatter: formatAxisValue, minMove: 0.01 };
 
-interface ReadoutItem { label: string; values: (number | null)[]; }
-interface Readout { el: HTMLElement; items: ReadoutItem[]; }
+/** Một mục chú giải: values để đọc giá trị theo phiên, valueEl là chỗ ghi giá trị (textContent). */
+interface ReadoutItem { values: (number | null)[]; valueEl: HTMLElement; }
+interface Readout { items: ReadoutItem[]; }
+/** Canvas của một tầng, để co lại khi chú giải xuống dòng làm tổng cao quá ngân sách. */
+interface PaneCanvas { chart: IChartApi; container: HTMLElement; min: number; height: number; isPrice: boolean; }
 /** Chuỗi "neo" của một chart: dùng giá trị của nó để đặt crosshair khi trỏ chuột ở chart khác. */
 interface Anchor { chart: IChartApi; series: ISeriesApi<any>; values: (number | null)[]; }
 
@@ -73,6 +80,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
 
   private charts: IChartApi[] = [];
   private readouts: Readout[] = [];
+  private canvases: PaneCanvas[] = [];
   private observer: ResizeObserver | null = null;
   private viewReady = false;
   private syncing = false;
@@ -135,8 +143,9 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     // ----- Tầng giá -----
     const priceBlock = this.createBlock(host, 'Giá', priceHeight);
     const priceChart = this.createChart(priceBlock.host, priceHeight, paneCount === 0);
+    this.canvases.push({ chart: priceChart, container: priceBlock.host, min: MIN_PRICE_HEIGHT, height: priceHeight, isPrice: true });
     const candleSeries = priceChart.addCandlestickSeries({
-      upColor: '#22c55e', downColor: '#ef4444',
+      upColor: UP_COLOR, downColor: DOWN_COLOR,
       borderUpColor: '#16a34a', borderDownColor: '#dc2626',
       wickUpColor: '#16a34a', wickDownColor: '#dc2626',
       priceFormat: PRICE_FORMAT
@@ -147,7 +156,10 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       low: this.candles.low[src], close: this.candles.close[src]
     })));
 
-    const priceReadout: ReadoutItem[] = [];
+    this.addCandleLegend(priceBlock.legend);
+    const priceReadout: ReadoutItem[] = [
+      this.addLegendItem(priceBlock.legend, 'Đóng cửa', '#374151', 'bar', this.candles.close)
+    ];
     layers.overlays.forEach(line => {
       const series = priceChart.addLineSeries({
         color: line.color ?? '#2563eb', lineWidth: 2,
@@ -155,7 +167,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
         priceFormat: PRICE_FORMAT
       });
       series.setData(this.lineData(times, line.values));
-      priceReadout.push({ label: line.label, values: line.values });
+      priceReadout.push(this.addLegendItem(priceBlock.legend, line.label, line.color ?? '#2563eb', 'bar', line.values));
     });
     layers.priceLines.forEach(pl => {
       candleSeries.createPriceLine({
@@ -164,12 +176,13 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       });
     });
     this.anchors.push({ chart: priceChart, series: candleSeries, values: this.candles.close });
-    this.readouts.push({ el: priceBlock.readout, items: [{ label: 'Đóng cửa', values: this.candles.close }, ...priceReadout] });
+    this.readouts.push({ items: priceReadout });
 
     // ----- Các tầng dưới -----
     layers.panes.forEach((pane, i) => {
       const block = this.createBlock(host, pane.title, paneHeight);
       const chart = this.createChart(block.host, paneHeight, i === paneCount - 1);
+      this.canvases.push({ chart, container: block.host, min: MIN_PANE_HEIGHT, height: paneHeight, isPrice: false });
       const items: ReadoutItem[] = [];
       let firstSeries: ISeriesApi<'Line' | 'Histogram'> | null = null;
 
@@ -184,17 +197,21 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
             });
         series.setData(data as any);
         firstSeries ??= series;
-        items.push({ label: line.label, values: line.values });
+        items.push(this.addLegendItem(block.legend, line.label, line.color ?? (line.kind === 'histogram' ? '#94a3b8' : '#2563eb'),
+          line.kind === 'histogram' ? 'square' : 'bar', line.values));
       });
 
       (pane.guides ?? []).forEach(g => {
         firstSeries?.createPriceLine({
-          price: g, color: '#cbd5e1', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: ''
+          price: g.value, color: '#94a3b8', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: g.label
         });
+        this.addGuideLegend(block.legend, g.value, g.label);
       });
       if (firstSeries) this.anchors.push({ chart, series: firstSeries, values: pane.lines[0].values });
-      this.readouts.push({ el: block.readout, items });
+      this.readouts.push({ items });
     });
+
+    this.addPriceLineLegend(host, layers);
 
     // ----- Đồng bộ trục thời gian + dòng đọc giá trị -----
     this.charts.forEach(chart => {
@@ -229,8 +246,31 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     this.observer = new ResizeObserver(() => {
       const width = host.clientWidth;
       if (width > 0) this.charts.forEach(c => c.applyOptions({ width }));
+      this.fitHeights();   // khung hẹp hơn thì chú giải xuống dòng nhiều hơn
     });
     this.observer.observe(host);
+    this.fitHeights();
+  }
+
+  /**
+   * Chú giải xuống dòng làm cao hơn dự tính: co canvas để tổng (canvas + chú giải) không vượt TOTAL_HEIGHT.
+   * Co các tầng dưới trước (tới mức tối thiểu), rồi mới tới tầng giá.
+   */
+  private fitHeights(): void {
+    const host = this.root?.nativeElement;
+    if (!host || this.canvases.length === 0) return;
+    let over = host.offsetHeight - TOTAL_HEIGHT;
+    if (over <= 0) return;
+    const order = [...this.canvases.filter(c => !c.isPrice).reverse(), ...this.canvases.filter(c => c.isPrice)];
+    for (const c of order) {
+      if (over <= 0) break;
+      const cut = Math.min(over, c.height - c.min);
+      if (cut <= 0) continue;
+      c.height -= cut;
+      c.container.style.height = `${c.height}px`;
+      c.chart.applyOptions({ height: c.height });
+      over -= cut;
+    }
   }
 
   /** Đặt/xoá crosshair trên các chart còn lại; cờ chống lặp vì setCrosshairPosition cũng phát sự kiện crosshairMove. */
@@ -255,24 +295,101 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     }
   }
 
-  private createBlock(host: HTMLElement, title: string, height: number): { host: HTMLElement; readout: HTMLElement } {
+  private createBlock(host: HTMLElement, title: string, height: number): { host: HTMLElement; legend: HTMLElement } {
     const block = document.createElement('div');
     block.className = 'indicator-chart-pane';
     const header = document.createElement('div');
-    header.className = 'flex items-baseline justify-between gap-2 px-1 text-xs text-gray-600 overflow-hidden';
-    header.style.height = `${TITLE_HEIGHT}px`;
+    header.className = 'flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-1 text-xs leading-4 text-gray-600';
+    header.style.minHeight = `${TITLE_HEIGHT}px`;
     const titleEl = document.createElement('span');
     titleEl.className = 'font-semibold';
     titleEl.textContent = title;
-    const readout = document.createElement('span');
-    readout.className = 'indicator-chart-readout truncate';
-    header.append(titleEl, readout);
+    const legend = document.createElement('div');
+    legend.className = 'indicator-chart-legend flex flex-wrap items-center gap-x-3 gap-y-0.5';
+    legend.setAttribute('data-testid', 'legend');
+    header.append(titleEl, legend);
     const container = document.createElement('div');
     container.className = 'indicator-chart-container w-full';
     container.style.height = `${height}px`;
     block.append(header, container);
     host.appendChild(block);
-    return { host: container, readout };
+    return { host: container, legend };
+  }
+
+  /** Mục chú giải của một đường: ô màu đúng màu đường (cột thì ô vuông), tên, và giá trị (cập nhật theo phiên đang trỏ). Chỉ textContent. */
+  private addLegendItem(legend: HTMLElement, label: string, color: string, shape: 'bar' | 'square', values: (number | null)[]): ReadoutItem {
+    const item = document.createElement('span');
+    item.className = 'inline-flex items-center gap-1 whitespace-nowrap';
+    item.setAttribute('data-testid', 'legend-item');
+    const swatch = document.createElement('span');
+    swatch.setAttribute('data-testid', 'legend-swatch');
+    swatch.dataset['shape'] = shape;
+    swatch.className = 'inline-block shrink-0';
+    swatch.style.backgroundColor = color;
+    swatch.style.width = shape === 'square' ? '8px' : '14px';
+    swatch.style.height = shape === 'square' ? '8px' : '3px';
+    swatch.style.borderRadius = shape === 'square' ? '1px' : '2px';
+    const name = document.createElement('span');
+    name.textContent = label;
+    const valueEl = document.createElement('span');
+    valueEl.className = 'font-semibold text-gray-800';
+    valueEl.setAttribute('data-testid', 'legend-value');
+    item.append(swatch, name, valueEl);
+    legend.appendChild(item);
+    return { values, valueEl };
+  }
+
+  /** Chú giải nến: ô xanh/đỏ kèm lời giải thích, không có giá trị. */
+  private addCandleLegend(legend: HTMLElement): void {
+    const item = document.createElement('span');
+    item.className = 'inline-flex items-center gap-1 whitespace-nowrap';
+    item.setAttribute('data-testid', 'candle-legend');
+    [UP_COLOR, DOWN_COLOR].forEach(color => {
+      const box = document.createElement('span');
+      box.className = 'inline-block shrink-0';
+      box.style.cssText = `width:8px;height:8px;border-radius:1px;background-color:${color}`;
+      item.appendChild(box);
+    });
+    const text = document.createElement('span');
+    text.textContent = 'Nến: xanh = phiên tăng, đỏ = phiên giảm';
+    item.appendChild(text);
+    legend.appendChild(item);
+  }
+
+  /** Vạch tham chiếu của tầng (ví dụ "70 Quá mua") nằm cùng dòng chú giải để người xem biết vạch mờ đó là gì. */
+  private addGuideLegend(legend: HTMLElement, value: number, label: string): void {
+    const item = document.createElement('span');
+    item.className = 'inline-flex items-center gap-1 whitespace-nowrap text-gray-500';
+    const dash = document.createElement('span');
+    dash.className = 'inline-block shrink-0';
+    dash.style.cssText = 'width:14px;height:0;border-top:2px dashed #94a3b8';
+    const text = document.createElement('span');
+    text.setAttribute('data-testid', 'legend-guide');
+    text.textContent = `${this.formatValue(value)} ${label}`;
+    item.append(dash, text);
+    legend.appendChild(item);
+  }
+
+  /** Chú giải các đường ngang trên tầng giá (hỗ trợ, kháng cự, cắt lỗ, Fibonacci...): vạch đứt nét đúng màu + nhãn + giá. */
+  private addPriceLineLegend(host: HTMLElement, layers: GroupLayers): void {
+    if (layers.priceLines.length === 0) return;
+    const list = document.createElement('div');
+    list.className = 'flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 pt-1 text-xs text-gray-600';
+    list.setAttribute('data-testid', 'price-line-legend');
+    layers.priceLines.forEach(pl => {
+      const item = document.createElement('span');
+      item.className = 'inline-flex items-center gap-1 whitespace-nowrap';
+      item.setAttribute('data-testid', 'price-line-item');
+      const swatch = document.createElement('span');
+      swatch.setAttribute('data-testid', 'price-line-swatch');
+      swatch.className = 'inline-block shrink-0';
+      swatch.style.cssText = `width:14px;height:0;border-top:2px dashed ${this.priceLineColor(pl.label)}`;
+      const text = document.createElement('span');
+      text.textContent = `${pl.label} · ${this.formatValue(pl.price)}`;
+      item.append(swatch, text);
+      list.appendChild(item);
+    });
+    host.appendChild(list);
   }
 
   private createChart(container: HTMLElement, height: number, showTime: boolean): IChartApi {
@@ -305,15 +422,10 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       if (k >= 0 && k < this.sourceIndex.length) position = k;
     }
     const src = this.sourceIndex[position];
-    this.readouts.forEach(r => {
-      r.el.textContent = r.items
-        .map(item => {
-          const v = item.values[src];
-          return v === null || v === undefined ? null : `${item.label}: ${this.formatValue(v)}`;
-        })
-        .filter((x): x is string => x !== null)
-        .join('  ·  ');
-    });
+    this.readouts.forEach(r => r.items.forEach(item => {
+      const v = item.values[src];
+      item.valueEl.textContent = v === null || v === undefined ? '—' : this.formatValue(v);
+    }));
   }
 
   private formatValue(v: number): string {
@@ -336,6 +448,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     this.charts.forEach(c => c.remove());
     this.charts = [];
     this.readouts = [];
+    this.canvases = [];
     this.anchors = [];
     this.sourceIndex = [];
     this.syncing = false;

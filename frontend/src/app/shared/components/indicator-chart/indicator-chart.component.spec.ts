@@ -109,7 +109,7 @@ describe('IndicatorChartComponent', () => {
     const allNullButOne = line('One', i => (i === 10 ? 55 : null));
     const l: GroupLayers = {
       overlays: [gappy],
-      panes: [{ title: 'Gappy pane', lines: [gappy, allNullButOne], guides: [30, 70] }],
+      panes: [{ title: 'Gappy pane', lines: [gappy, allNullButOne], guides: [{ value: 30, label: 'Thấp' }, { value: 70, label: 'Cao' }] }],
       priceLines: [{ label: 'Giá vào', price: 110 }],
       notes: [],
     };
@@ -129,15 +129,124 @@ describe('IndicatorChartComponent', () => {
     expect(component.chartCount).toBe(2);
   });
 
-  it('shows the latest values in the readout of each pane', () => {
-    setInputs(layers(['RSI']));
+  describe('chú giải (legend)', () => {
+    const root = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="indicator-chart-root"]') as HTMLElement;
+    const items = () => Array.from(root().querySelectorAll('[data-testid="legend-item"]')) as HTMLElement[];
+    const itemOf = (label: string) => items().find(i => i.textContent!.includes(label))!;
+    /** Chuẩn hoá màu CSS (hex → rgb) để so với giá trị trình duyệt trả về. */
+    const norm = (c: string) => { const e = document.createElement('i'); e.style.color = c; return e.style.color; };
 
-    const readouts = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('.indicator-chart-readout')
-    ).map(e => e.textContent ?? '');
-    expect(readouts.length).toBe(2);
-    expect(readouts[0]).toContain('Đóng cửa');
-    expect(readouts[1]).toContain('RSI: 89');
+    it('legend shows a color swatch per line matching series color', () => {
+      const green: LineLayer = { label: 'Đường xanh', values: series(i => 10 + i), color: '#16a34a' };
+      const red: LineLayer = { label: 'Đường đỏ', values: series(i => 20 + i), color: '#dc2626' };
+      setInputs({ overlays: [green], panes: [{ title: 'Tầng', lines: [red] }], priceLines: [], notes: [] });
+
+      const swatch = (label: string) => itemOf(label).querySelector('[data-testid="legend-swatch"]') as HTMLElement;
+      expect(swatch('Đường xanh').style.backgroundColor).toBe(norm('#16a34a'));
+      expect(swatch('Đường đỏ').style.backgroundColor).toBe(norm('#dc2626'));
+    });
+
+    it('histogram lines get a square swatch, plain lines a thin bar', () => {
+      const hist: LineLayer = { label: 'Cột', values: series(i => i), color: '#94a3b8', kind: 'histogram' };
+      const plain: LineLayer = { label: 'Đường', values: series(i => i), color: '#2563eb' };
+      setInputs({ overlays: [], panes: [{ title: 'Tầng', lines: [hist, plain] }], priceLines: [], notes: [] });
+
+      const swatch = (label: string) => itemOf(label).querySelector('[data-testid="legend-swatch"]') as HTMLElement;
+      expect(swatch('Cột').dataset['shape']).toBe('square');
+      expect(swatch('Đường').dataset['shape']).toBe('bar');
+    });
+
+    it('legend shows last value when not hovering', () => {
+      setInputs(layers(['RSI']));
+
+      const value = itemOf('RSI').querySelector('[data-testid="legend-value"]')!.textContent;
+      expect(value).toBe('89');
+    });
+
+    it('legend shows the hovered value when the pointer is on a bar', () => {
+      setInputs(layers(['RSI']));
+
+      (component as any).updateReadouts({ logical: 9, point: { x: 1, y: 1 } });
+
+      expect(itemOf('RSI').querySelector('[data-testid="legend-value"]')!.textContent).toBe('59');
+    });
+
+    it('a missing value shows a dash, not 0', () => {
+      setInputs({ overlays: [], panes: [{ title: 'Tầng', lines: [line('Thưa', i => (i === 0 ? 5 : null))] }], priceLines: [], notes: [] });
+
+      expect(itemOf('Thưa').querySelector('[data-testid="legend-value"]')!.textContent).toBe('—');
+    });
+
+    it('price line legend lists label, color and price', () => {
+      setInputs({
+        overlays: [], panes: [], notes: [],
+        priceLines: [{ label: 'Hỗ trợ 1', price: 85200 }, { label: 'Kháng cự 1', price: 99500 }, { label: 'Fib 50%', price: 90000 }],
+      });
+
+      const legend = root().querySelector('[data-testid="price-line-legend"]') as HTMLElement;
+      const entries = Array.from(legend.querySelectorAll('[data-testid="price-line-item"]')) as HTMLElement[];
+      expect(entries.length).toBe(3);
+      expect(entries[0].textContent).toContain('Hỗ trợ 1');
+      expect(entries[0].textContent).toContain('85.200');
+      const swatchColor = (e: HTMLElement) => (e.querySelector('[data-testid="price-line-swatch"]') as HTMLElement).style.borderTopColor;
+      expect(swatchColor(entries[0])).toBe(norm('#16a34a'));   // hỗ trợ: xanh lá
+      expect(swatchColor(entries[1])).toBe(norm('#dc2626'));   // kháng cự: đỏ
+      expect(swatchColor(entries[2])).toBe(norm('#f59e0b'));   // Fibonacci: cam
+    });
+
+    it('no price line legend when there are no price lines', () => {
+      setInputs(layers(['RSI']));
+
+      expect(root().querySelector('[data-testid="price-line-legend"]')).toBeNull();
+    });
+
+    it('candle legend present on price pane', () => {
+      setInputs(layers(['RSI']));
+
+      const candle = root().querySelector('[data-testid="candle-legend"]')!;
+      expect(candle.textContent).toContain('xanh = phiên tăng');
+      expect(candle.textContent).toContain('đỏ = phiên giảm');
+      expect(root().querySelectorAll('[data-testid="candle-legend"]').length).toBe(1);
+    });
+
+    it('guides carry labels (rsi 70 Quá mua / 30 Quá bán)', () => {
+      setInputs({
+        overlays: [], priceLines: [], notes: [],
+        panes: [{ title: 'RSI', lines: [line('RSI14')], guides: [{ value: 70, label: 'Quá mua' }, { value: 30, label: 'Quá bán' }] }],
+      });
+
+      const guideText = Array.from(root().querySelectorAll('[data-testid="legend-guide"]')).map(e => e.textContent);
+      expect(guideText).toEqual(['70 Quá mua', '30 Quá bán']);
+    });
+
+    it('legend uses textContent only (no innerHTML)', () => {
+      const evil: LineLayer = { label: '<b id="x">đậm</b>', values: series(i => i), color: '#2563eb' };
+      setInputs({ overlays: [evil], panes: [], priceLines: [{ label: '<i>nghiêng</i>', price: 1 }], notes: [] });
+
+      expect(root().textContent).toContain('<b id="x">đậm</b>');
+      expect(root().querySelector('b')).toBeNull();
+      expect(root().querySelector('i[id], #x')).toBeNull();
+      expect(root().textContent).toContain('<i>nghiêng</i>');
+    });
+
+    it('the whole chart block stays within the height budget when the legend wraps on a narrow container', () => {
+      const guides = [{ value: 70, label: 'Quá mua' }, { value: 30, label: 'Quá bán' }];
+      (fixture.nativeElement as HTMLElement).style.display = 'block';
+      (fixture.nativeElement as HTMLElement).style.width = '480px';
+      setInputs({
+        overlays: [line('EMA20 (TB 20 phiên)'), line('EMA50 (TB 50 phiên)')],
+        panes: [
+          { title: 'RSI (sức mạnh tương đối)', lines: [line('RSI14')], guides },
+          { title: 'MACD (động lượng)', lines: [line('Histogram'), line('MACD'), line('Signal (đường tín hiệu)')] },
+          { title: 'Stochastic (dao động)', lines: [line('%K (nhanh)'), line('%D (chậm)')], guides },
+        ],
+        priceLines: [], notes: [],
+      });
+
+      expect(root().offsetHeight).toBeLessThanOrEqual(500);
+      // và không có mục nào bị cắt mất: mọi mục chú giải vẫn nằm trong DOM
+      expect(items().length).toBeGreaterThanOrEqual(1 + 2 + 1 + 3 + 2);
+    });
   });
 
   describe('crosshair sync', () => {
@@ -205,12 +314,9 @@ describe('IndicatorChartComponent', () => {
   });
 
   describe('chiều cao', () => {
-    const TITLE = 18;
     const heights = () => Array.from(containers()).map(c => parseInt((c as HTMLElement).style.height, 10));
-    const titleHeights = () =>
-      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.indicator-chart-pane > div:first-child'))
-        .map(h => parseInt((h as HTMLElement).style.height, 10));
-    const total = () => heights().reduce((a, h) => a + h, 0) + titleHeights().reduce((a, h) => a + h, 0);
+    /** Chiều cao thật của cả khối (canvas + tiêu đề + chú giải), không phải tổng các hằng số. */
+    const total = () => ((fixture.nativeElement as HTMLElement).querySelector('[data-testid="indicator-chart-root"]') as HTMLElement).offsetHeight;
 
     [0, 1, 2, 3].forEach(n => {
       it(`${n} panes: canvases + titles stay within 500px, price chart is the tallest, panes >= 60px`, () => {
