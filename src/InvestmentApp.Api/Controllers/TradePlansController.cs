@@ -25,6 +25,7 @@ using InvestmentApp.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using InvestmentApp.Application.TradePlans.Queries.GetStrategyExpectancy;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvestmentApp.Api.Controllers;
@@ -53,6 +54,17 @@ public class TradePlansController : ControllerBase
     {
         var query = new GetTradePlansQuery { UserId = GetUserId(), ActiveOnly = activeOnly };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Kỳ vọng theo R của các chiến dịch đã đóng (kế hoạch đã review), nhóm theo chiến lược. Chỉ lệnh mua.
+    /// </summary>
+    [HttpGet("expectancy")]
+    [ProducesResponseType(typeof(StrategyExpectancyDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetExpectancy(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetStrategyExpectancyQuery { UserId = GetUserId() }, cancellationToken);
         return Ok(result);
     }
 

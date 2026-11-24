@@ -8,13 +8,14 @@ import {
 } from '../../core/services/strategy.service';
 import { TemplateService, StrategyTemplate } from '../../core/services/template.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { ExpectancyRBlockComponent } from '../../shared/components/expectancy-r-block/expectancy-r-block.component';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-strategies',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, ExpectancyRBlockComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -380,7 +381,10 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
           <!-- Performance Tab -->
           <div *ngIf="activeTab === 'performance' && selectedStrategy">
-            <h3 class="text-lg font-semibold mb-4">Hiệu suất: {{ selectedStrategy.name }}</h3>
+            <h3 class="text-lg font-semibold mb-1">Hiệu suất: {{ selectedStrategy.name }}</h3>
+            <p class="text-xs text-gray-500 mb-4" data-testid="per-trade-metrics-note">
+              Các chỉ số dưới đây tính theo lệnh và gồm cả lãi/lỗ chưa chốt. Kỳ vọng theo R (chỉ chiến dịch đã đóng) nằm ở khối cuối trang này.
+            </p>
             <div *ngIf="loadingPerformance" class="text-center py-8 text-gray-500">Đang tải...</div>
             <div *ngIf="!loadingPerformance && performance">
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -445,6 +449,8 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
             <div *ngIf="!loadingPerformance && !performance" class="text-center py-8 text-gray-500">
               Chưa có dữ liệu hiệu suất
             </div>
+
+            <app-expectancy-r-block class="block mt-6"></app-expectancy-r-block>
 
             <!-- Glossary -->
             <div *ngIf="performance" class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
