@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 
@@ -19,11 +20,14 @@ public class TriggerExitTargetCommandHandler : IRequestHandler<TriggerExitTarget
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public TriggerExitTargetCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository)
+    public TriggerExitTargetCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository,
+        IPortfolioRepository portfolioRepository)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<Unit> Handle(TriggerExitTargetCommand request, CancellationToken cancellationToken)
@@ -34,10 +38,12 @@ public class TriggerExitTargetCommandHandler : IRequestHandler<TriggerExitTarget
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
 
+        // Kiểm quyền trade TRƯỚC khi đổi plan: bị từ chối thì plan không giữ liên kết nào
+        var trade = await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
+
         plan.TriggerExitTarget(request.Level, request.TradeId);
 
         // Link trade back to plan
-        var trade = await _tradeRepository.GetByIdAsync(request.TradeId, cancellationToken);
         if (trade != null)
         {
             trade.LinkTradePlan(plan.Id);

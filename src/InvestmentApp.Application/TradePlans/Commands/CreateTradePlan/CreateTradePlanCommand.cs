@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -73,13 +74,15 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
     private readonly ICompanyDossierGate _dossierGate;
 
     public CreateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository,
-        ICompanyDossierGate dossierGate)
+        IPortfolioRepository portfolioRepository, ICompanyDossierGate dossierGate)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
         _dossierGate = dossierGate;
     }
 
@@ -181,17 +184,16 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
             plan.Execute(request.TradeId);
         }
 
+        // Kiểm quyền trade TRƯỚC khi lưu plan: bị từ chối thì không có plan nào được tạo
+        var trade = await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
+
         await _tradePlanRepository.AddAsync(plan, cancellationToken);
 
         // Link trade to plan if executing
-        if (request.TradeId != null)
+        if (trade != null)
         {
-            var trade = await _tradeRepository.GetByIdAsync(request.TradeId, cancellationToken);
-            if (trade != null)
-            {
-                trade.LinkTradePlan(plan.Id);
-                await _tradeRepository.UpdateAsync(trade, cancellationToken);
-            }
+            trade.LinkTradePlan(plan.Id);
+            await _tradeRepository.UpdateAsync(trade, cancellationToken);
         }
 
         return plan.Id;

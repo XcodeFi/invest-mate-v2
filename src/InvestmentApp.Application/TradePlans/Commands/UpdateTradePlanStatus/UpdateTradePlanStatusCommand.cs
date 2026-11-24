@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -19,13 +20,16 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
     public UpdateTradePlanStatusCommandHandler(
         ITradePlanRepository tradePlanRepository,
-        ITradeRepository tradeRepository)
+        ITradeRepository tradeRepository,
+        IPortfolioRepository portfolioRepository)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<Unit> Handle(UpdateTradePlanStatusCommand request, CancellationToken cancellationToken)
@@ -35,6 +39,11 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
 
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
+
+        // Kiểm quyền trade TRƯỚC khi đổi trạng thái plan
+        var linkedTrade = request.Status.ToLower() == "executed"
+            ? await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken)
+            : null;
 
         switch (request.Status.ToLower())
         {
@@ -58,11 +67,10 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
                     plan.MarkInProgress();
                 plan.Execute(request.TradeId);
                 // Link trade back to plan
-                var trade = await _tradeRepository.GetByIdAsync(request.TradeId, cancellationToken);
-                if (trade != null)
+                if (linkedTrade != null)
                 {
-                    trade.LinkTradePlan(plan.Id);
-                    await _tradeRepository.UpdateAsync(trade, cancellationToken);
+                    linkedTrade.LinkTradePlan(plan.Id);
+                    await _tradeRepository.UpdateAsync(linkedTrade, cancellationToken);
                 }
                 break;
             case "reviewed":

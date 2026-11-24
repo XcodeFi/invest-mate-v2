@@ -14,7 +14,8 @@ public class TriggerScenarioNodeCommandHandlerTests
     public TriggerScenarioNodeCommandHandlerTests()
     {
         _tradePlanRepo = new Mock<ITradePlanRepository>();
-        _handler = new TriggerScenarioNodeCommandHandler(_tradePlanRepo.Object);
+        _handler = new TriggerScenarioNodeCommandHandler(
+            _tradePlanRepo.Object, Mock.Of<ITradeRepository>(), Mock.Of<IPortfolioRepository>());
     }
 
     private static TradePlan CreatePlanWithScenarios(string userId = "user-1")

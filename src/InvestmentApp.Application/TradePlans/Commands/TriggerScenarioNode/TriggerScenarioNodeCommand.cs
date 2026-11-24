@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 
@@ -18,10 +19,15 @@ public class TriggerScenarioNodeCommand : IRequest<Unit>
 public class TriggerScenarioNodeCommandHandler : IRequestHandler<TriggerScenarioNodeCommand, Unit>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
+    private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public TriggerScenarioNodeCommandHandler(ITradePlanRepository tradePlanRepository)
+    public TriggerScenarioNodeCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository,
+        IPortfolioRepository portfolioRepository)
     {
         _tradePlanRepository = tradePlanRepository;
+        _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<Unit> Handle(TriggerScenarioNodeCommand request, CancellationToken cancellationToken)
@@ -31,6 +37,9 @@ public class TriggerScenarioNodeCommandHandler : IRequestHandler<TriggerScenario
 
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
+
+        // Kiểm quyền trade (nếu có) TRƯỚC khi đổi plan
+        await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
 
         plan.TriggerScenarioNode(request.NodeId, request.TradeId);
 

@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Commands.ReviewTradePlan;
@@ -16,15 +17,18 @@ public class PreviewPlanReviewQueryHandler : IRequestHandler<PreviewPlanReviewQu
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
     private readonly ICampaignReviewService _reviewService;
 
     public PreviewPlanReviewQueryHandler(
         ITradePlanRepository tradePlanRepository,
         ITradeRepository tradeRepository,
+        IPortfolioRepository portfolioRepository,
         ICampaignReviewService reviewService)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
         _reviewService = reviewService;
     }
 
@@ -36,23 +40,9 @@ public class PreviewPlanReviewQueryHandler : IRequestHandler<PreviewPlanReviewQu
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized");
 
-        // Collect linked trades (same logic as ReviewTradePlanCommand)
-        var tradeIds = new HashSet<string>();
-        if (plan.TradeId != null) tradeIds.Add(plan.TradeId);
-        if (plan.TradeIds != null) tradeIds.UnionWith(plan.TradeIds);
-
-        var trades = new List<Trade>();
-        foreach (var tradeId in tradeIds)
-        {
-            var trade = await _tradeRepository.GetByIdAsync(tradeId, cancellationToken);
-            if (trade != null) trades.Add(trade);
-        }
-        var byPlanId = await _tradeRepository.GetByTradePlanIdAsync(plan.Id, cancellationToken);
-        foreach (var trade in byPlanId)
-        {
-            if (!trades.Any(t => t.Id == trade.Id))
-                trades.Add(trade);
-        }
+        // Chỉ tính giao dịch thuộc danh mục của người gọi (cùng logic với ReviewTradePlanCommand)
+        var trades = await TradeOwnership.CollectOwnedLinkedTradesAsync(
+            plan, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
 
         var metrics = _reviewService.CalculateMetrics(plan, trades);
         return ReviewTradePlanCommandHandler.MapToDto(metrics);
