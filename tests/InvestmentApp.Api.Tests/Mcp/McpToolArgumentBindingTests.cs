@@ -12,6 +12,8 @@ using InvestmentApp.Application.Journals.Commands.UpdateJournal;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateStopLoss;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
+using InvestmentApp.Application.TradePlans.Queries.GetActivePositions;
+using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.ImportVn30;
@@ -327,5 +329,27 @@ public class McpToolArgumentBindingTests
 
         cmd.UserId.Should().Be(TestUserId);
         cmd.WatchlistId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task List_Positions_Accepts_No_Args()
+    {
+        // Agent bỏ trống bộ lọc là cách gọi bình thường nhất — trước đây nổ "missing a value
+        // for the required parameter 'portfolioId'".
+        var query = await CallAsync<GetActivePositionsQuery, List<ActivePositionDto>>("list_positions",
+            "{}", new List<ActivePositionDto>());
+
+        query.UserId.Should().Be(TestUserId);
+        query.PortfolioId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task List_Trade_Plans_Accepts_No_Args_And_Returns_All()
+    {
+        var query = await CallAsync<GetTradePlansQuery, IEnumerable<TradePlanDto>>("list_trade_plans",
+            "{}", new List<TradePlanDto>());
+
+        query.UserId.Should().Be(TestUserId);
+        query.ActiveOnly.Should().BeFalse("bỏ trống phải khớp mặc định của REST: lấy tất cả");
     }
 }

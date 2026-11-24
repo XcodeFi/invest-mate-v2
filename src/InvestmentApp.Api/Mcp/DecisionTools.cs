@@ -22,8 +22,8 @@ public static class DecisionTools
     [McpServerTool(Name = "get_discipline_score", ReadOnly = true)]
     [Description("Điểm kỷ luật 0–100 + 3 thành phần (SL integrity, plan quality, review timeliness) trong khoảng thời gian chọn.")]
     public static async Task<DisciplineScoreDto> GetDisciplineScore(
-        [Description("Số ngày thống kê: 7/30/90/365 (bỏ trống = 90).")] int? days,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Số ngày thống kê: 7/30/90/365 (bỏ trống = 90).")] int? days = null)
         => await mediator.Send(new GetDisciplineScoreQuery { UserId = http.GetUserId(), Days = days ?? 90 }, ct);
 
     [McpServerTool(Name = "get_discipline_streak", ReadOnly = true)]

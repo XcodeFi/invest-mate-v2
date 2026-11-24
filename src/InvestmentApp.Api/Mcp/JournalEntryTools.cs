@@ -85,17 +85,17 @@ public static class JournalEntryTools
     [McpServerTool(Name = "list_trades_pending_review", ReadOnly = true)]
     [Description("Liệt kê các lệnh chưa có nhật ký (cần review). portfolioId tùy chọn để lọc.")]
     public static async Task<List<PendingReviewTradeDto>> ListTradesPendingReview(
-        [Description("ID danh mục cần lọc (tùy chọn).")] string? portfolioId,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID danh mục cần lọc (tùy chọn).")] string? portfolioId = null)
         => await mediator.Send(new GetTradesPendingReviewQuery { UserId = http.GetUserId(), PortfolioId = portfolioId }, ct);
 
     [McpServerTool(Name = "list_journal_entries_by_symbol", ReadOnly = true)]
     [Description("Liệt kê mục nhật ký theo mã, trong khoảng from–to tùy chọn. Bắt buộc có symbol.")]
     public static async Task<List<JournalEntryDto>> ListJournalEntriesBySymbol(
         [Description("Mã chứng khoán (bắt buộc).")] string symbol,
-        [Description("Từ ngày (tùy chọn).")] DateTime? from,
-        [Description("Đến ngày (tùy chọn).")] DateTime? to,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Từ ngày (tùy chọn).")] DateTime? from = null,
+        [Description("Đến ngày (tùy chọn).")] DateTime? to = null)
     {
         if (string.IsNullOrWhiteSpace(symbol))
             throw new InvalidOperationException("symbol là bắt buộc.");

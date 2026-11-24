@@ -24,15 +24,15 @@ public static class TradeTools
     [McpServerTool(Name = "create_trade", Destructive = true)]
     [Description("Ghi một lệnh thật. Bỏ trống portfolioId để tự chọn (khi chỉ có 1 danh mục); bỏ trống fee/tax để tự tính (fee KHÔNG gồm thuế).")]
     public static async Task<string> CreateTrade(
-        [Description("ID danh mục. Bỏ trống = tự chọn nếu chỉ 1 danh mục.")] string? portfolioId,
         [Description("Mã chứng khoán.")] string symbol,
         [Description("Loại lệnh: BUY hoặc SELL.")] string tradeType,
         [Description("Khối lượng.")] decimal quantity,
         [Description("Giá mỗi cổ phiếu (VND).")] decimal price,
-        [Description("Phí môi giới (VND). Bỏ trống = tự tính.")] decimal? fee,
-        [Description("Thuế TNCN (VND). Bỏ trống = tự tính.")] decimal? tax,
-        [Description("Ngày giao dịch (bỏ trống = hôm nay).")] DateTime? tradeDate,
-        IMediator mediator, IFeeCalculationService feeService, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IFeeCalculationService feeService, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID danh mục. Bỏ trống = tự chọn nếu chỉ 1 danh mục.")] string? portfolioId = null,
+        [Description("Phí môi giới (VND). Bỏ trống = tự tính.")] decimal? fee = null,
+        [Description("Thuế TNCN (VND). Bỏ trống = tự tính.")] decimal? tax = null,
+        [Description("Ngày giao dịch (bỏ trống = hôm nay).")] DateTime? tradeDate = null)
     {
         var userId = http.GetUserId();
 

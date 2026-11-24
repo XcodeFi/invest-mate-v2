@@ -41,7 +41,7 @@ Stakes cao nhất — verify: state-machine guard trong handler (không nhảy c
 ## Follow-up (ngoài 4 slice)
 
 - **`CorporateActionTools` (chưa làm):** sự kiện quyền hiện chỉ nhập được qua UI. Cần tool MCP cho `list` / `create` (3 loại: cổ tức tiền mặt, cổ tức cổ phiếu, chia tách) / `settle` / `delete` — bọc các handler sẵn có trong `Application/CorporateActions/`. `create` và `delete` là `Destructive = true`; nhớ idiom optional-param bên dưới. Xem [ADR-0010](../adr/0010-corporate-actions-position-projection.md).
-- **Optional-param idiom backfill:** P1 thiết lập idiom mới — optional tool param phải có C# default (`= null`, đặt sau `ct`) để rơi khỏi `required` trong schema; guard bằng test `Optional_Params_Are_Not_Required_In_Schema`. Các tool cũ (`get_discipline_score.days`, `list_positions.portfolioId`, watchlist/journal optionals…) vẫn nằm trong `required` — backfill 1 PR riêng sau P4.
+- **Optional-param idiom backfill:** P1 thiết lập idiom mới — optional tool param phải có C# default (`= null`, đặt sau `ct`) để rơi khỏi `required` trong schema; guard bằng test `Optional_Params_Are_Not_Required_In_Schema`. ✅ Đã backfill (v2.87.1, 2026-11-24): 9 tool cũ còn tham số tùy chọn trong `required`; agent bỏ trống `list_positions.portfolioId` / `list_trade_plans.activeOnly` là nổ. Test quét `Nullable_Params_Are_Never_Required_In_Schema` chặn tool mới lặp lại.
 
 ## Checkpoints
 

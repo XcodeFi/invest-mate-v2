@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.87.1] — 2026-11-24 · Trợ lý AI bỏ trống bộ lọc không còn bị từ chối
+
+### Sửa lỗi
+
+**🤖 Trợ lý AI gọi "liệt kê vị thế" hoặc "liệt kê kế hoạch" mà không truyền bộ lọc thì bị từ chối.** Mô tả tool ghi rõ `portfolioId` / `activeOnly` là tùy chọn, nhưng tầng MCP vẫn coi chúng là bắt buộc nên mỗi lần agent bỏ trống đều nhận lỗi "Tham số sai: missing a value for the required parameter". Nay bỏ trống thì `list_positions` trả vị thế của mọi danh mục, `list_trade_plans` trả mọi kế hoạch (giống mặc định của API web).
+
+Cùng lỗi ở 7 tool khác cũng được gỡ luôn trước khi agent đâm vào: `list_journals`, `list_trades_pending_review`, `list_journal_entries_by_symbol` (`from`/`to`), `get_symbol_timeline` (`from`/`to`), `get_discipline_score` (`days`), `set_trade_plan_status` (`tradeId`), `create_trade` (`portfolioId`/`fee`/`tax`/`tradeDate`).
+
+### Kỹ thuật
+
+- Nguyên nhân: tham số `T?` mà thiếu `= null` thì MCP SDK vẫn đưa vào `required` của schema và bộ binding đòi giá trị. Sửa theo mẫu sẵn có của `hold_decision`: dời tham số tùy chọn ra sau `CancellationToken`, gán `= null` (riêng `activeOnly = false`)
+- `McpToolDiscoveryTests.Nullable_Params_Are_Never_Required_In_Schema`: quét mọi tool, đỏ khi bất kỳ tham số nullable nào lọt vào `required` — chặn tool mới lặp lại
+- `McpToolArgumentBindingTests`: gọi `list_positions` / `list_trade_plans` với `{}` qua `InvokeAsync`; gỡ default thì test schema đỏ
+- Tests: **311 Api** (+3) — tất cả pass
+
+---
+
 ## [v2.87.0] — 2026-11-21 · Panel phân tích kỹ thuật xếp theo 6 khối, hiện thêm Fibonacci
 
 ### Tính năng

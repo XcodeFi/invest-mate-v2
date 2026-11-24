@@ -42,7 +42,7 @@ public class TradeToolsTests
         SetupFees();
         McpTestContext.Capture<string, CreateTradeCommand>(_mediator, out var sent, "trade-1");
 
-        var id = await TradeTools.CreateTrade(null, "HHV", "SELL", 100, 1000000, null, null, null,
+        var id = await TradeTools.CreateTrade("HHV", "SELL", 100, 1000000,
             _mediator.Object, _fees.Object, McpTestContext.WithUser("u-9"), CancellationToken.None);
 
         id.Should().Be("trade-1");
@@ -58,7 +58,7 @@ public class TradeToolsTests
     {
         _mediator.Setup(m => m.Send(It.IsAny<GetAllPortfoliosQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<PortfolioSummaryDto> { new() { Id = "a", Name = "A" }, new() { Id = "b", Name = "B" } });
-        var act = async () => await TradeTools.CreateTrade(null, "HHV", "BUY", 100, 1000, null, null, null,
+        var act = async () => await TradeTools.CreateTrade("HHV", "BUY", 100, 1000,
             _mediator.Object, _fees.Object, McpTestContext.WithUser("u-9"), CancellationToken.None);
         await act.Should().ThrowAsync<InvalidOperationException>();
     }

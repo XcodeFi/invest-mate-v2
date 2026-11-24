@@ -221,5 +221,48 @@ public class McpToolDiscoveryTests
         Required(schema["get_savings_comparison"]).Should().BeEquivalentTo(new[] { "portfolioId" });
         Required(schema["get_flow_history"]).Should().BeEquivalentTo(new[] { "portfolioId" });
         Required(schema["get_campaign_analytics"]).Should().BeEmpty();
+
+        // Tool đọc có bộ lọc tùy chọn: agent bỏ trống thì phải gọi được.
+        Required(schema["list_positions"]).Should().BeEmpty();
+        Required(schema["list_trade_plans"]).Should().BeEmpty();
+        Required(schema["list_journals"]).Should().BeEmpty();
+        Required(schema["list_trades_pending_review"]).Should().BeEmpty();
+        Required(schema["get_discipline_score"]).Should().BeEmpty();
+        Required(schema["get_symbol_timeline"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["list_journal_entries_by_symbol"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["set_trade_plan_status"]).Should().BeEquivalentTo(new[] { "id", "status" });
+        Required(schema["create_trade"]).Should()
+            .BeEquivalentTo(new[] { "symbol", "tradeType", "quantity", "price" });
+    }
+
+    [Fact]
+    public void Nullable_Params_Are_Never_Required_In_Schema()
+    {
+        // Nullable mà thiếu "= null" thì SDK vẫn đẩy vào required → agent bỏ trống là nổ
+        // "missing a value for the required parameter". Quét mọi tool để tool mới không lặp lại.
+        var nullability = new System.Reflection.NullabilityInfoContext();
+        var methods = typeof(PortfolioTools).Assembly.GetTypes()
+            .SelectMany(t => t.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            .Select(m => (Method: m, Attr: m.GetCustomAttributes(typeof(McpServerToolAttribute), false)
+                .Cast<McpServerToolAttribute>().FirstOrDefault()))
+            .Where(x => x.Attr?.Name != null)
+            .ToDictionary(x => x.Attr!.Name!, x => x.Method);
+
+        var offenders = new List<string>();
+        foreach (var tool in Tools())
+        {
+            var schema = tool.ProtocolTool.InputSchema;
+            if (!schema.TryGetProperty("required", out var req)) continue;
+            var method = methods[tool.ProtocolTool.Name];
+            foreach (var name in req.EnumerateArray().Select(e => e.GetString()!))
+            {
+                var p = method.GetParameters().Single(x => x.Name == name);
+                var isNullable = Nullable.GetUnderlyingType(p.ParameterType) != null
+                    || nullability.Create(p).WriteState == System.Reflection.NullabilityState.Nullable;
+                if (isNullable) offenders.Add($"{tool.ProtocolTool.Name}.{name}");
+            }
+        }
+
+        offenders.Should().BeEmpty(string.Join(", ", offenders));
     }
 }

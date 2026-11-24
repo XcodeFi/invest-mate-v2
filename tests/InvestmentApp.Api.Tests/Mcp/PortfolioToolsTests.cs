@@ -25,7 +25,7 @@ public class PortfolioToolsTests
     {
         McpTestContext.Capture<List<ActivePositionDto>, GetActivePositionsQuery>(
             _mediator, out var sent, new List<ActivePositionDto>());
-        await PortfolioTools.ListPositions("p1", _mediator.Object, McpTestContext.WithUser("u-2"), CancellationToken.None);
+        await PortfolioTools.ListPositions(_mediator.Object, McpTestContext.WithUser("u-2"), CancellationToken.None, portfolioId: "p1");
         sent()!.UserId.Should().Be("u-2");
         sent()!.PortfolioId.Should().Be("p1");
     }

@@ -15,7 +15,7 @@ public class SymbolToolsTests
     {
         McpTestContext.Capture<SymbolTimelineDto, GetSymbolTimelineQuery>(_mediator, out var sent, new SymbolTimelineDto());
         var from = new DateTime(2026, 1, 1);
-        await SymbolTools.GetSymbolTimeline("VNM", from, null, _mediator.Object, McpTestContext.WithUser("u-1"), CancellationToken.None);
+        await SymbolTools.GetSymbolTimeline("VNM", _mediator.Object, McpTestContext.WithUser("u-1"), CancellationToken.None, from: from);
         sent()!.UserId.Should().Be("u-1");
         sent()!.Symbol.Should().Be("VNM");
         sent()!.From.Should().Be(from);

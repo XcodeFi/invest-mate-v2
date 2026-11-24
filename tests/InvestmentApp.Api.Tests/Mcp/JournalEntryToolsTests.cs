@@ -48,7 +48,7 @@ public class JournalEntryToolsTests
     public async Task ListTradesPendingReview_SetsUserId_AndPortfolioId()
     {
         McpTestContext.Capture<List<PendingReviewTradeDto>, GetTradesPendingReviewQuery>(_mediator, out var sent, new List<PendingReviewTradeDto>());
-        await JournalEntryTools.ListTradesPendingReview("p1", _mediator.Object, _http, CancellationToken.None);
+        await JournalEntryTools.ListTradesPendingReview(_mediator.Object, _http, CancellationToken.None, portfolioId: "p1");
         sent()!.UserId.Should().Be("u-1");
         sent()!.PortfolioId.Should().Be("p1");
     }
@@ -56,7 +56,7 @@ public class JournalEntryToolsTests
     [Fact]
     public async Task ListJournalEntriesBySymbol_EmptySymbol_Throws()
     {
-        var act = async () => await JournalEntryTools.ListJournalEntriesBySymbol("  ", null, null, _mediator.Object, _http, CancellationToken.None);
+        var act = async () => await JournalEntryTools.ListJournalEntriesBySymbol("  ", _mediator.Object, _http, CancellationToken.None);
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
@@ -64,7 +64,7 @@ public class JournalEntryToolsTests
     public async Task ListJournalEntriesBySymbol_SetsUserId_Symbol()
     {
         McpTestContext.Capture<List<JournalEntryDto>, GetJournalEntriesBySymbolQuery>(_mediator, out var sent, new List<JournalEntryDto>());
-        await JournalEntryTools.ListJournalEntriesBySymbol("VNM", null, null, _mediator.Object, _http, CancellationToken.None);
+        await JournalEntryTools.ListJournalEntriesBySymbol("VNM", _mediator.Object, _http, CancellationToken.None);
         sent()!.UserId.Should().Be("u-1");
         sent()!.Symbol.Should().Be("VNM");
     }

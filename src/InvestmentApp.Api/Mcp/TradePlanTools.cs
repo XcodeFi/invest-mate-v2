@@ -20,8 +20,8 @@ public static class TradePlanTools
     [McpServerTool(Name = "list_trade_plans", ReadOnly = true)]
     [Description("Liệt kê kế hoạch giao dịch. activeOnly = true chỉ lấy kế hoạch đang hiệu lực.")]
     public static async Task<IEnumerable<TradePlanDto>> ListTradePlans(
-        [Description("Chỉ lấy kế hoạch đang hoạt động.")] bool activeOnly,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Chỉ lấy kế hoạch đang hoạt động (bỏ trống = false, lấy tất cả).")] bool activeOnly = false)
         => await mediator.Send(new GetTradePlansQuery { UserId = http.GetUserId(), ActiveOnly = activeOnly }, ct);
 
     [McpServerTool(Name = "get_trade_plan", ReadOnly = true)]
@@ -215,8 +215,8 @@ public static class TradePlanTools
         [Description("ID kế hoạch.")] string id,
         [Description("Trạng thái mới: ready, executed, cancelled. 'restore' bị chặn qua MCP.")]
         [System.ComponentModel.DataAnnotations.AllowedValues("ready", "executed", "cancelled")] string status,
-        [Description("ID lệnh liên kết nếu chuyển executed (tùy chọn).")] string? tradeId,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID lệnh liên kết nếu chuyển executed (tùy chọn).")] string? tradeId = null)
     {
         if (string.Equals(status, "restore", StringComparison.OrdinalIgnoreCase))
             throw new McpException("restore không được phép qua MCP surface.");
