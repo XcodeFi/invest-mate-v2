@@ -135,6 +135,7 @@ Tabs:
   - **Khối lượng:** Volume ratio, OBV (dòng tiền vào/ra), MFI(14) (quá mua/quá bán có volume)
   - **Biến động:** Bollinger Bands(20,2) (squeeze/breakout), ATR(14)
   - **Hỗ trợ/Kháng cự:** Swing high/low, Fibonacci Retracement/Extension
+  - **Biểu đồ theo nhóm (2026-11-24):** bấm tiêu đề một trong 6 khối để vẽ chỉ báo của khối đó lên biểu đồ nến (EMA/Bollinger/mốc giá đè lên nến; RSI, MACD, Stochastic, ADX, ATR, OBV, MFI, khối lượng ở các tầng dưới, chung trục thời gian và crosshair). Mỗi lần một nhóm; chuỗi lấy từ `GET /market/stock/{symbol}/analysis/series`, điểm cuối khớp thẻ
   - Tín hiệu tổng hợp 10 chỉ báo: Mua mạnh/Mua/Chờ/Bán/Bán mạnh. Gợi ý giao dịch (entry, SL, TP, R:R). Link "Tạo Trade Plan từ gợi ý". Tín hiệu cũng hiển thị trên Watchlist.
 - **Điểm Confluence (0-100)**: Tổng hợp trọng số 5 nhóm: Xu hướng 30%, Động lượng 25%, Khối lượng 20%, Biến động 15%, Vị trí giá 10%. Hiển thị progress bar + đánh giá tích cực/tiêu cực/trung tính.
 - **Trạng thái thị trường**: Phân loại tự động dựa trên ADX — Xu hướng rất mạnh (≥40) / Có xu hướng (≥25) / Đi ngang (<25). Gợi ý chiến lược: Trend Following hoặc Mean Reversion.
@@ -204,6 +205,7 @@ Bước 5: ATR → Đặt SL ở đâu?
 | `GET` | `/market/search?keyword=` | Tìm kiếm mã/tên công ty |
 | `GET` | `/market/top-fluctuation?floor=` | Top biến động (10=HOSE, 02=HNX, 03=UPCOM) |
 | `GET` | `/market/stock/{symbol}/summary` | Biến động giá 1D/1W/1M/3M/6M |
+| `GET` | `/market/stock/{symbol}/analysis/series` | Chuỗi chỉ báo theo từng phiên (18 chuỗi + nến) để vẽ biểu đồ theo nhóm; điểm cuối khớp `/analysis` |
 | `GET` | `/market/stock/{symbol}/analysis` | Phân tích kỹ thuật (EMA, RSI, MACD, Stochastic, ADX, OBV, MFI, Bollinger, ATR, Volume, S&R, Fibonacci, Signal, Confluence Score, Market Condition, Divergence) |
 
 **Services:** `MarketDataService` (FE), `HmoneyMarketDataProvider` (BE — implements `IMarketDataProvider` + `IStockInfoProvider`), `TechnicalIndicatorService` (BE — implements `ITechnicalIndicatorService`)

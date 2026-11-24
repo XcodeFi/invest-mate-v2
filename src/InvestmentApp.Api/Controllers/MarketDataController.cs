@@ -9,6 +9,7 @@ using InvestmentApp.Application.MarketData.Queries.SearchStocks;
 using InvestmentApp.Application.MarketData.Queries.GetTopFluctuation;
 using InvestmentApp.Application.MarketData.Queries.GetTradingHistorySummary;
 using InvestmentApp.Application.MarketData.Queries.GetTechnicalAnalysis;
+using InvestmentApp.Application.MarketData.Queries.GetTechnicalSeries;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -208,6 +209,18 @@ public class MarketDataController : ControllerBase
     public async Task<IActionResult> GetTechnicalAnalysis(string symbol)
     {
         var query = new GetTechnicalAnalysisQuery { Symbol = symbol };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Chuỗi chỉ báo kỹ thuật theo từng phiên (vẽ biểu đồ); phần tử cuối khớp giá trị của analysis
+    /// </summary>
+    [HttpGet("stock/{symbol}/analysis/series")]
+    [ProducesResponseType(typeof(TechnicalSeriesResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTechnicalSeries(string symbol)
+    {
+        var query = new GetTechnicalSeriesQuery { Symbol = symbol };
         var result = await _mediator.Send(query);
         return Ok(result);
     }

@@ -3,9 +3,9 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { MarketDataComponent } from './market-data.component';
-import { MarketDataService, TechnicalAnalysis } from '../../core/services/market-data.service';
+import { MarketDataService, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService } from '../../core/services/company-dossier.service';
 
@@ -202,5 +202,190 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
     expect(fibCard).toBeTruthy();
     expect(fibCard.nativeElement.textContent).toContain('Không đủ dữ liệu');
     expect(fixture.debugElement.queryAll(By.css('[data-fib-level]')).length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Biểu đồ chỉ báo theo nhóm: bấm tiêu đề khối → tải chuỗi + phân tích song song, vẽ nhóm đó.
+// ---------------------------------------------------------------------------------------------
+
+function fullSeries(symbol = 'HPG'): TechnicalSeries {
+  const n = 60;
+  const nums = (): number[] => Array.from({ length: n }, (_, i) => 100 + i);
+  const vals = (): (number | null)[] => Array.from({ length: n }, (_, i) => 50 + i);
+  return {
+    symbol,
+    dates: Array.from({ length: n }, (_, i) => new Date(Date.UTC(2026, 0, 1 + i)).toISOString()),
+    open: nums(), high: nums(), low: nums(), close: nums(), volume: nums(),
+    ema20: vals(), ema50: vals(),
+    bollingerUpper: vals(), bollingerMiddle: vals(), bollingerLower: vals(),
+    rsi14: vals(), stochK: vals(), stochD: vals(),
+    macdLine: vals(), macdSignal: vals(), macdHistogram: vals(),
+    adx: vals(), plusDi: vals(), minusDi: vals(),
+    atr14: vals(), obv: vals(), mfi14: vals(), volumeSma20: vals(),
+  };
+}
+
+describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
+  let fixture: ComponentFixture<MarketDataComponent>;
+  let component: MarketDataComponent;
+  let marketSpy: jasmine.SpyObj<MarketDataService>;
+
+  function setup() {
+    marketSpy = jasmine.createSpyObj<MarketDataService>('MarketDataService', [
+      'getMarketOverview', 'getBatchPrices', 'getTopFluctuation', 'getTechnicalSeries', 'getTechnicalAnalysis',
+    ]);
+    marketSpy.getMarketOverview.and.returnValue(of([]));
+    marketSpy.getBatchPrices.and.returnValue(of([]));
+    marketSpy.getTopFluctuation.and.returnValue(of([]));
+    marketSpy.getTechnicalSeries.and.returnValue(of(fullSeries()));
+    marketSpy.getTechnicalAnalysis.and.returnValue(of({ ...fullTa(), currentPrice: 99999 }));
+
+    TestBed.configureTestingModule({
+      imports: [MarketDataComponent],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: MarketDataService, useValue: marketSpy },
+        { provide: NotificationService, useValue: jasmine.createSpyObj<NotificationService>('NotificationService', ['error', 'success']) },
+        { provide: CompanyDossierService, useValue: jasmine.createSpyObj<CompanyDossierService>('CompanyDossierService', ['get']) },
+      ],
+    });
+    fixture = TestBed.createComponent(MarketDataComponent);
+    component = fixture.componentInstance;
+    component.analysis = fullTa();
+    fixture.detectChanges();
+  }
+
+  const header = (group: string): HTMLElement =>
+    fixture.debugElement.query(By.css(`[data-group="${group}"]`)).nativeElement;
+  const click = (group: string) => { header(group).click(); fixture.detectChanges(); };
+  const chartEl = () => fixture.debugElement.query(By.css('app-indicator-chart'));
+  const text = (): string => fixture.nativeElement.textContent;
+
+  afterEach(() => fixture?.destroy());
+
+  it('before any click shows hint "Bấm tên nhóm để xem biểu đồ" and no chart', () => {
+    setup();
+
+    expect(text()).toContain('Bấm tên nhóm để xem biểu đồ');
+    expect(chartEl()).toBeNull();
+    expect(marketSpy.getTechnicalSeries).not.toHaveBeenCalled();
+  });
+
+  it('clicking a group header selects it and sets aria-pressed=true', () => {
+    setup();
+
+    click('xu-huong');
+
+    expect(component.selectedGroup).toBe('xu-huong');
+    expect(header('xu-huong').getAttribute('aria-pressed')).toBe('true');
+    expect(header('dong-luong').getAttribute('aria-pressed')).toBe('false');
+    expect(chartEl()).not.toBeNull();
+    expect(text()).not.toContain('Bấm tên nhóm để xem biểu đồ');
+  });
+
+  it('clicking the selected header again clears selection and keeps the candles-only chart', () => {
+    setup();
+    click('xu-huong');
+
+    click('xu-huong');
+
+    expect(component.selectedGroup).toBeNull();
+    expect(header('xu-huong').getAttribute('aria-pressed')).toBe('false');
+    expect(chartEl()).not.toBeNull();
+    expect(component.groupLayers.overlays).toEqual([]);
+    expect(component.groupLayers.panes).toEqual([]);
+  });
+
+  it('first click loads series and analysis together and replaces analysis', () => {
+    setup();
+
+    click('xu-huong');
+
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(1);
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledWith('HPG');
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledTimes(1);
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledWith('HPG');
+    expect(component.analysis!.currentPrice).toBe(99999);
+  });
+
+  it('second click on another group uses cache', () => {
+    setup();
+    click('xu-huong');
+
+    click('dong-luong');
+
+    expect(component.selectedGroup).toBe('dong-luong');
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(1);
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledTimes(1);
+    expect(component.groupLayers.panes.map(p => p.title)).toEqual(['RSI', 'MACD', 'Stochastic']);
+  });
+
+  it('Enter and Space on the header toggle the group', () => {
+    setup();
+
+    header('xu-huong').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+    expect(component.selectedGroup).toBe('xu-huong');
+
+    header('xu-huong').dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    fixture.detectChanges();
+    expect(component.selectedGroup).toBeNull();
+  });
+
+  it('late response for previous symbol is ignored', () => {
+    setup();
+    const oldSeries$ = new Subject<TechnicalSeries>();
+    const oldAnalysis$ = new Subject<TechnicalAnalysis>();
+    marketSpy.getTechnicalSeries.and.returnValue(oldSeries$);
+    marketSpy.getTechnicalAnalysis.and.callFake((sym: string) =>
+      sym === 'HPG' ? oldAnalysis$ : of({ ...fullTa(), symbol: 'VNM' }));
+
+    click('xu-huong');
+    expect(component.chartLoading).toBeTrue();
+
+    component.loadTechnicalAnalysis('VNM');
+    fixture.detectChanges();
+    oldSeries$.next(fullSeries('HPG'));
+    oldSeries$.complete();
+    oldAnalysis$.next(fullTa());
+    oldAnalysis$.complete();
+    fixture.detectChanges();
+
+    expect(component.analysis!.symbol).toBe('VNM');
+    expect(component.currentSeries).toBeNull();
+    expect(component.seriesCache.size).toBe(0);
+    expect(component.selectedGroup).toBeNull();
+    expect(component.chartLoading).toBeFalse();
+    expect(chartEl()).toBeNull();
+  });
+
+  it('series error shows message and clears selection', () => {
+    setup();
+    marketSpy.getTechnicalSeries.and.returnValue(throwError(() => new Error('500')));
+
+    click('xu-huong');
+
+    expect(text()).toContain('Không tải được dữ liệu biểu đồ');
+    expect(component.selectedGroup).toBeNull();
+    expect(header('xu-huong').getAttribute('aria-pressed')).toBe('false');
+    expect(fixture.debugElement.queryAll(By.css('[data-group]')).length).toBe(6);
+    expect(component.analysis!.currentPrice).toBe(28000);
+  });
+
+  it('clicking create-plan button does not toggle group', () => {
+    setup();
+    const planSpy = spyOn(component, 'onCreatePlanFromSignal');
+    const button = fixture.debugElement.queryAll(By.css('button'))
+      .find(b => (b.nativeElement.textContent as string).includes('Tạo Trade Plan'))!;
+
+    button.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(planSpy).toHaveBeenCalledTimes(1);
+    expect(component.selectedGroup).toBeNull();
+    expect(marketSpy.getTechnicalSeries).not.toHaveBeenCalled();
   });
 });

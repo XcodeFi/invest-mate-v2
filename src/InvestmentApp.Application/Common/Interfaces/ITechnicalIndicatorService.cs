@@ -3,6 +3,42 @@ namespace InvestmentApp.Application.Interfaces;
 public interface ITechnicalIndicatorService
 {
     Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, int months = 12, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Chuỗi chỉ báo theo từng phiên (cho biểu đồ). Phần tử cuối mỗi chuỗi bằng giá trị scalar tương ứng
+    /// của <see cref="AnalyzeAsync"/>; điểm chưa đủ warm-up là null.
+    /// </summary>
+    Task<TechnicalSeriesResult> GetSeriesAsync(string symbol, int months = 12, CancellationToken cancellationToken = default);
+}
+
+public class TechnicalSeriesResult
+{
+    public string Symbol { get; set; } = null!;
+    public List<DateTime> Dates { get; set; } = new();
+    public List<decimal> Open { get; set; } = new();
+    public List<decimal> High { get; set; } = new();
+    public List<decimal> Low { get; set; } = new();
+    public List<decimal> Close { get; set; } = new();
+    public List<long> Volume { get; set; } = new();
+
+    public List<decimal?> Ema20 { get; set; } = new();
+    public List<decimal?> Ema50 { get; set; } = new();
+    public List<decimal?> BollingerUpper { get; set; } = new();
+    public List<decimal?> BollingerMiddle { get; set; } = new();
+    public List<decimal?> BollingerLower { get; set; } = new();
+    public List<decimal?> Rsi14 { get; set; } = new();
+    public List<decimal?> StochK { get; set; } = new();
+    public List<decimal?> StochD { get; set; } = new();
+    public List<decimal?> MacdLine { get; set; } = new();
+    public List<decimal?> MacdSignal { get; set; } = new();
+    public List<decimal?> MacdHistogram { get; set; } = new();
+    public List<decimal?> Adx { get; set; } = new();
+    public List<decimal?> PlusDi { get; set; } = new();
+    public List<decimal?> MinusDi { get; set; } = new();
+    public List<decimal?> Atr14 { get; set; } = new();
+    public List<decimal?> Obv { get; set; } = new();
+    public List<decimal?> Mfi14 { get; set; } = new();
+    public List<decimal?> VolumeSma20 { get; set; } = new();
 }
 
 public class TechnicalAnalysisResult

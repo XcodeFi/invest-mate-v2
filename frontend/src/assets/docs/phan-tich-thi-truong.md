@@ -40,6 +40,25 @@ Khi tra cứu mã CP, panel phân tích kỹ thuật hiển thị theo **6 khố
 
 Khối **🎯 Tổng hợp** nằm trên cùng (chỉ hiện khi có Điểm Confluence hoặc Gợi ý giao dịch — xem hai mục bên dưới). Các khối còn lại:
 
+### 📊 Bấm tên nhóm để xem biểu đồ
+
+Bấm vào **tên một nhóm** (🎯 Tổng hợp, 📈 Xu hướng, ⚡ Động lượng, 📏 Biến động, 💰 Dòng tiền, 🧱 Mốc giá) thì biểu đồ nến ngay dưới tiêu đề panel vẽ các chỉ báo của nhóm đó. Bấm lại nhóm đang chọn để chỉ còn nến. Mỗi lần xem một nhóm.
+
+| Nhóm | Vẽ gì |
+|------|-------|
+| 🎯 Tổng hợp | Đường ngang Giá vào / Cắt lỗ / Chốt lời của gợi ý giao dịch |
+| 📈 Xu hướng | EMA20, EMA50 đè lên nến; tầng dưới là ADX cùng +DI, −DI (vạch 25) |
+| ⚡ Động lượng | Ba tầng: RSI (vạch 30/70), MACD, Stochastic (vạch 20/80) |
+| 📏 Biến động | Bollinger trên/giữa/dưới đè lên nến; tầng dưới là ATR |
+| 💰 Dòng tiền | Khối lượng và đường trung bình 20 phiên, OBV, MFI (vạch 20/80) |
+| 🧱 Mốc giá | Đường ngang hỗ trợ, kháng cự và các mốc Fibonacci có nhãn |
+
+- Các tầng cùng trục thời gian: kéo hoặc zoom một tầng thì các tầng khác đi theo. Trỏ chuột vào một tầng, các tầng còn lại hiện đường dọc tại cùng phiên và tiêu đề từng tầng ghi giá trị của phiên đó.
+- Điểm cuối mỗi đường bằng đúng con số trên thẻ cùng tên.
+- Mã mới có ít phiên sẽ thiếu một số chỉ báo: biểu đồ vẫn có nến, chỉ báo thiếu ghi "Không đủ dữ liệu".
+- Nếu hiện "Không tải được dữ liệu biểu đồ" thì các thẻ vẫn dùng bình thường; bấm lại tên nhóm để thử tải lại.
+- Đổi sang mã khác thì biểu đồ trở về trạng thái chưa chọn nhóm.
+
 ### 📈 Xu hướng
 
 | Chỉ báo | Đọc thế nào |

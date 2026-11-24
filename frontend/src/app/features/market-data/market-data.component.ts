@@ -2,20 +2,24 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { forkJoin, Subscription } from 'rxjs';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
-  TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis
+  TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis, TechnicalSeries
 } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
+import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
+import { GroupLayers, IndicatorChartCandles } from '../../shared/components/indicator-chart/indicator-chart.types';
+import { buildGroupLayers, TaGroup } from './ta-group-layers';
 
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -207,9 +211,28 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
           </span>
         </div>
 
+        <!-- Biểu đồ chỉ báo của nhóm đang chọn (tải khi bấm nhóm lần đầu) -->
+        <div class="mb-4" data-testid="ta-chart-area">
+          @if (chartLoading) {
+            <div class="text-sm text-gray-500 py-8 text-center" data-testid="ta-chart-loading">Đang tải biểu đồ...</div>
+          } @else if (chartError) {
+            <div role="alert" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" data-testid="ta-chart-error">{{ chartError }}</div>
+          } @else if (currentSeries) {
+            <app-indicator-chart [dates]="currentSeries.dates" [candles]="chartCandles" [layers]="groupLayers"></app-indicator-chart>
+          } @else {
+            <p class="text-xs text-gray-500" data-testid="ta-chart-hint">Bấm tên nhóm để xem biểu đồ</p>
+          }
+        </div>
+
         <!-- Khối 1: Tổng hợp (Confluence + Gợi ý giao dịch) -->
         @if (analysis.confluenceScore != null || analysis.suggestedEntry) {
-          <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="tong-hop">🎯 Tổng hợp</h4>
+          <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
+          [class.text-gray-700]="selectedGroup !== 'tong-hop'"
+          [class.bg-blue-100]="selectedGroup === 'tong-hop'" [class.text-blue-800]="selectedGroup === 'tong-hop'"
+          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'tong-hop'"
+          title="Bấm để xem biểu đồ của nhóm này"
+          (click)="toggleGroup('tong-hop')" (keydown.enter)="onGroupKey($event, 'tong-hop')" (keydown.space)="onGroupKey($event, 'tong-hop')"
+          data-group="tong-hop">🎯 Tổng hợp</h4>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <!-- Confluence Score -->
             @if (analysis.confluenceScore != null) {
@@ -276,7 +299,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         }
 
         <!-- Khối 2: Xu hướng -->
-        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="xu-huong">📈 Xu hướng</h4>
+        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
+          [class.text-gray-700]="selectedGroup !== 'xu-huong'"
+          [class.bg-blue-100]="selectedGroup === 'xu-huong'" [class.text-blue-800]="selectedGroup === 'xu-huong'"
+          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'xu-huong'"
+          title="Bấm để xem biểu đồ của nhóm này"
+          (click)="toggleGroup('xu-huong')" (keydown.enter)="onGroupKey($event, 'xu-huong')" (keydown.space)="onGroupKey($event, 'xu-huong')"
+          data-group="xu-huong">📈 Xu hướng</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- EMA -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -342,7 +371,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         </div>
 
         <!-- Khối 3: Động lượng -->
-        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="dong-luong">⚡ Động lượng</h4>
+        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
+          [class.text-gray-700]="selectedGroup !== 'dong-luong'"
+          [class.bg-blue-100]="selectedGroup === 'dong-luong'" [class.text-blue-800]="selectedGroup === 'dong-luong'"
+          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'dong-luong'"
+          title="Bấm để xem biểu đồ của nhóm này"
+          (click)="toggleGroup('dong-luong')" (keydown.enter)="onGroupKey($event, 'dong-luong')" (keydown.space)="onGroupKey($event, 'dong-luong')"
+          data-group="dong-luong">⚡ Động lượng</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- RSI -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -436,7 +471,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         </div>
 
         <!-- Khối 4: Biến động -->
-        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="bien-dong">📏 Biến động</h4>
+        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
+          [class.text-gray-700]="selectedGroup !== 'bien-dong'"
+          [class.bg-blue-100]="selectedGroup === 'bien-dong'" [class.text-blue-800]="selectedGroup === 'bien-dong'"
+          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'bien-dong'"
+          title="Bấm để xem biểu đồ của nhóm này"
+          (click)="toggleGroup('bien-dong')" (keydown.enter)="onGroupKey($event, 'bien-dong')" (keydown.space)="onGroupKey($event, 'bien-dong')"
+          data-group="bien-dong">📏 Biến động</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- Bollinger Bands -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -481,7 +522,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         </div>
 
         <!-- Khối 5: Dòng tiền -->
-        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="dong-tien">💰 Dòng tiền</h4>
+        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
+          [class.text-gray-700]="selectedGroup !== 'dong-tien'"
+          [class.bg-blue-100]="selectedGroup === 'dong-tien'" [class.text-blue-800]="selectedGroup === 'dong-tien'"
+          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'dong-tien'"
+          title="Bấm để xem biểu đồ của nhóm này"
+          (click)="toggleGroup('dong-tien')" (keydown.enter)="onGroupKey($event, 'dong-tien')" (keydown.space)="onGroupKey($event, 'dong-tien')"
+          data-group="dong-tien">💰 Dòng tiền</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <!-- Volume -->
           <div class="bg-gray-50 rounded-lg p-3">
@@ -538,7 +585,13 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
         </div>
 
         <!-- Khối 6: Mốc giá -->
-        <h4 class="text-sm font-bold text-gray-700 mb-2" data-group="moc-gia">🧱 Mốc giá</h4>
+        <h4 class="inline-block text-sm font-bold mb-2 px-2 py-1 -ml-2 rounded cursor-pointer select-none hover:bg-gray-100"
+          [class.text-gray-700]="selectedGroup !== 'moc-gia'"
+          [class.bg-blue-100]="selectedGroup === 'moc-gia'" [class.text-blue-800]="selectedGroup === 'moc-gia'"
+          role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === 'moc-gia'"
+          title="Bấm để xem biểu đồ của nhóm này"
+          (click)="toggleGroup('moc-gia')" (keydown.enter)="onGroupKey($event, 'moc-gia')" (keydown.space)="onGroupKey($event, 'moc-gia')"
+          data-group="moc-gia">🧱 Mốc giá</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <div class="bg-green-50 rounded-lg p-3">
             <div class="text-xs text-green-600 font-medium mb-1">Hỗ trợ</div>
@@ -768,6 +821,16 @@ export class MarketDataComponent implements OnInit {
   analysis: TechnicalAnalysis | null = null;
   analyzingSignal = false;
 
+  // Biểu đồ chỉ báo theo nhóm (tải lazy khi bấm nhóm lần đầu, cache theo mã đang xem)
+  selectedGroup: TaGroup | null = null;
+  seriesCache = new Map<string, TechnicalSeries>();
+  chartError: string | null = null;
+  chartLoading = false;
+  currentSeries: TechnicalSeries | null = null;
+  chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
+  groupLayers: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+  private chartSub: Subscription | null = null;
+
   // AI Evaluation
   isAiOpen = false;
   aiPanelUseCase = 'stock-evaluation';
@@ -921,6 +984,7 @@ export class MarketDataComponent implements OnInit {
     this.stockDetail = null;
     this.tradingSummary = null;
     this.analysis = null;
+    this.resetChart();
 
     this.marketDataService.getStockDetail(sym).subscribe({
       next: data => {
@@ -958,10 +1022,84 @@ export class MarketDataComponent implements OnInit {
   loadTechnicalAnalysis(symbol: string): void {
     this.analyzingSignal = true;
     this.analysis = null;
+    this.resetChart();
     this.marketDataService.getTechnicalAnalysis(symbol).subscribe({
       next: data => { this.analysis = data; this.analyzingSignal = false; },
       error: () => { this.analyzingSignal = false; }
     });
+  }
+
+  // --- Biểu đồ chỉ báo theo nhóm ---
+
+  onGroupKey(event: Event, group: TaGroup): void {
+    event.preventDefault();
+    this.toggleGroup(group);
+  }
+
+  /** Bấm nhóm đang chọn → bỏ chọn (chỉ còn nến). Bấm nhóm khác → vẽ nhóm đó; lần đầu thì tải chuỗi + phân tích cùng lúc. */
+  toggleGroup(group: TaGroup): void {
+    if (!this.analysis) return;
+    this.selectedGroup = this.selectedGroup === group ? null : group;
+    this.chartError = null;
+
+    if (this.selectedGroup === null) {
+      this.refreshLayers();
+      return;
+    }
+    const symbol = this.analysis.symbol;
+    const cached = this.seriesCache.get(symbol);
+    if (cached) {
+      this.currentSeries = cached;
+      this.refreshLayers();
+      return;
+    }
+    if (this.chartLoading) return;
+    this.loadChartData(symbol);
+  }
+
+  private loadChartData(symbol: string): void {
+    this.chartLoading = true;
+    this.chartSub?.unsubscribe();
+    this.chartSub = forkJoin([
+      this.marketDataService.getTechnicalSeries(symbol),
+      this.marketDataService.getTechnicalAnalysis(symbol)
+    ]).subscribe({
+      next: ([series, analysis]) => {
+        // Đổi mã khi đang tải: resetChart đã huỷ subscription; kiểm thêm cho chắc.
+        if (this.analysis?.symbol !== symbol) return;
+        this.seriesCache.set(symbol, series);
+        this.analysis = analysis;
+        this.currentSeries = series;
+        this.chartCandles = { open: series.open, high: series.high, low: series.low, close: series.close };
+        this.chartLoading = false;
+        this.refreshLayers();
+      },
+      error: () => {
+        if (this.analysis?.symbol !== symbol) return;
+        this.chartLoading = false;
+        this.selectedGroup = null;
+        this.chartError = 'Không tải được dữ liệu biểu đồ';
+      }
+    });
+  }
+
+  private refreshLayers(): void {
+    this.groupLayers = this.currentSeries && this.analysis
+      ? buildGroupLayers(this.selectedGroup, this.currentSeries, this.analysis)
+      : { overlays: [], panes: [], priceLines: [], notes: [] };
+  }
+
+  /** Đổi mã: bỏ chọn nhóm, huỷ request đang bay, xoá cache — response muộn của mã cũ không vẽ lên mã mới. */
+  private resetChart(): void {
+    this.chartSub?.unsubscribe();
+    this.chartSub = null;
+    this.selectedGroup = null;
+    this.chartError = null;
+    this.chartLoading = false;
+    this.currentSeries = null;
+    this.seriesCache.clear();
+    this.chartCandles = { open: [], high: [], low: [], close: [] };
+    this.groupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
   }
 
   getSignalEmoji(signal: string): string {
