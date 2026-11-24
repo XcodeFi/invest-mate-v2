@@ -11,6 +11,7 @@ using InvestmentApp.Application.Risk.Queries.GetStressTest;
 using InvestmentApp.Application.Risk.Queries.GetRiskBudget;
 using InvestmentApp.Application.Risk.Queries.GetSectorExposureForPlan;
 using InvestmentApp.Application.Risk.Queries.GetVolatilitySizingForPlan;
+using InvestmentApp.Application.TradePlans.Queries.GetKellyFromHistory;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -280,9 +281,29 @@ public class RiskController : ControllerBase
     /// </summary>
     [HttpPost("position-sizing")]
     [ProducesResponseType(typeof(PositionSizingResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> CalculatePositionSizing([FromBody] PositionSizingRequest request)
+    public async Task<IActionResult> CalculatePositionSizing(
+        [FromBody] PositionSizingRequest request,
+        [FromQuery] bool useHistory = false,
+        [FromQuery] string? strategyId = null)
     {
+        // Không bật useHistory: giữ nguyên hành vi cũ (Kelly chỉ khi người gọi tự truyền winRate/averageWin/averageLoss).
+        if (!useHistory)
+            return Ok(await _positionSizing.CalculateAsync(request));
+
+        // Bật: Kelly lấy từ dữ liệu R của chính người gọi (cận dưới Wilson), ghi đè số tự truyền; không đủ dữ liệu hoặc không có
+        // lợi thế thì không có mô hình Kelly, chỉ có khối kellyFromHistory kèm lý do.
+        var kelly = await _mediator.Send(new GetKellyFromHistoryQuery { UserId = GetUserId(), StrategyId = strategyId });
+        request.WinRate = null; request.AverageWin = null; request.AverageLoss = null;
+        if (kelly is { HalfKellyCapped: > 0m, WinRateLower95: not null, PayoffRatio: not null })
+        {
+            // b = trung bình thắng / trung bình thua: đặt thua = 1 thì thắng = b, đúng công thức Kelly hiện có
+            request.WinRate = kelly.WinRateLower95;
+            request.AverageWin = kelly.PayoffRatio;
+            request.AverageLoss = 1m;
+        }
+
         var result = await _positionSizing.CalculateAsync(request);
+        result.KellyFromHistory = kelly;
         return Ok(result);
     }
 }

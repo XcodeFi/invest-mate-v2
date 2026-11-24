@@ -19,6 +19,7 @@ using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
 using InvestmentApp.Application.TradePlans.Queries.PreviewPlanReview;
 using InvestmentApp.Application.TradePlans.Queries.GetExecutedPlansForReview;
 using InvestmentApp.Application.TradePlans.Queries.GetCampaignAnalytics;
+using InvestmentApp.Application.TradePlans.Queries.GetEstimateCalibration;
 using InvestmentApp.Application.TradePlans.Queries.GetPendingThesisReviews;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Domain.Entities;
@@ -369,6 +370,17 @@ public class TradePlansController : ControllerBase
             TimeHorizon = timeHorizon
         };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Độ khớp giữa % thắng đã ước lượng (khoá lúc vào lệnh) và kết quả thật của các chiến dịch đã review.
+    /// </summary>
+    [HttpGet("calibration")]
+    [ProducesResponseType(typeof(InvestmentApp.Domain.Services.CalibrationResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetEstimateCalibration([FromQuery] string? strategyId = null)
+    {
+        var result = await _mediator.Send(new GetEstimateCalibrationQuery { UserId = GetUserId(), StrategyId = strategyId });
         return Ok(result);
     }
 }
