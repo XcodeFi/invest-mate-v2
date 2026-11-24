@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.93.1] — 2026-11-24 · Phản hồi thống nhất khi thao tác trên kế hoạch không có hoặc không thuộc tài khoản
+
+### Sửa lỗi
+
+- Các thao tác trên kế hoạch (xoá, sửa, đổi cắt lỗ, ghi nhận lô, kích hoạt mục tiêu thoát hoặc nút kịch bản, review, sửa bài học) nay trả cùng một phản hồi 404 cho kế hoạch không có và kế hoạch không thuộc tài khoản. Trước đây hai trường hợp trả hai lỗi khác nhau.
+
+### Kỹ thuật
+
+- Mỗi handler có test: kế hoạch không có và kế hoạch của người khác ném cùng loại lỗi, cùng khuôn thông điệp, và không ghi gì xuống kho dữ liệu. Giao diện không xử lý riêng mã 401 hoặc 500 của các thao tác này (đã rà).
+
+---
+
 ## [v2.93.0] — 2026-11-24 · Trợ lý AI xem được kế hoạch, lãi/lỗ và cảnh báo
 
 ### Tính năng mới

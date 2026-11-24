@@ -23,11 +23,10 @@ public class DeleteTradePlanCommandHandler : IRequestHandler<DeleteTradePlanComm
 
     public async Task<Unit> Handle(DeleteTradePlanCommand request, CancellationToken cancellationToken)
     {
-        var plan = await _tradePlanRepository.GetByIdAsync(request.Id, cancellationToken)
-            ?? throw new Exception($"Trade plan {request.Id} not found");
-
-        if (plan.UserId != request.UserId)
-            throw new UnauthorizedAccessException("Not authorized to delete this trade plan");
+        // Kế hoạch không có và kế hoạch của người khác cho cùng một phản hồi (KeyNotFound → 404)
+        var plan = await _tradePlanRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (plan == null || plan.UserId != request.UserId)
+            throw new KeyNotFoundException($"Trade plan {request.Id} not found");
 
         plan.SoftDelete();
         await _tradePlanRepository.UpdateAsync(plan, cancellationToken);

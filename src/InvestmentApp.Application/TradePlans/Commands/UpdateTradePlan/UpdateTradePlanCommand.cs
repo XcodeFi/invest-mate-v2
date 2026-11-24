@@ -73,11 +73,10 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
 
     public async Task<Unit> Handle(UpdateTradePlanCommand request, CancellationToken cancellationToken)
     {
-        var plan = await _tradePlanRepository.GetByIdAsync(request.Id, cancellationToken)
-            ?? throw new Exception($"Trade plan {request.Id} not found");
-
-        if (plan.UserId != request.UserId)
-            throw new UnauthorizedAccessException("Not authorized to update this trade plan");
+        // Kế hoạch không có và kế hoạch của người khác cho cùng một phản hồi (KeyNotFound → 404)
+        var plan = await _tradePlanRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (plan == null || plan.UserId != request.UserId)
+            throw new KeyNotFoundException($"Trade plan {request.Id} not found");
 
         // Id liên kết mới chỉ được lưu khi thuộc tài khoản đang gọi (null vẫn hợp lệ)
         await LinkOwnership.EnsurePortfolioAsync(request.PortfolioId, request.UserId, _portfolioRepository, cancellationToken);

@@ -105,6 +105,6 @@ public class TriggerScenarioNodeCommandHandlerTests
 
         var act = () => _handler.Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        await act.Should().ThrowAsync<KeyNotFoundException>();
     }
 }
