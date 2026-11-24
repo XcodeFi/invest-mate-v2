@@ -38,7 +38,7 @@ public class ScenarioNodeExplicitActionTests
             .Callback<TradePlan, CancellationToken>((p, _) => saved = p);
 
         var handler = new CreateTradePlanCommandHandler(
-            repo.Object, Mock.Of<ITradeRepository>(), Mock.Of<IPortfolioRepository>(), Mock.Of<ICompanyDossierGate>());
+            repo.Object, Mock.Of<ITradeRepository>(), Mock.Of<IPortfolioRepository>(), Mock.Of<IStrategyRepository>(), Mock.Of<ICompanyDossierGate>());
         await handler.Handle(cmd, default);
         return saved!;
     }

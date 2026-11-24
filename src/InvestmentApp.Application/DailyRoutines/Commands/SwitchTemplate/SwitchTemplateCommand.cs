@@ -37,6 +37,10 @@ public class SwitchTemplateCommandHandler
         var template = await _templateRepo.GetByIdAsync(request.TemplateId, ct)
             ?? throw new KeyNotFoundException($"Template '{request.TemplateId}' not found.");
 
+        // Mẫu có sẵn của hệ thống (UserId null) hoặc mẫu của chính người gọi; mẫu tùy chỉnh của người khác bị từ chối
+        if (template.UserId != null && template.UserId != request.UserId)
+            throw new UnauthorizedAccessException("Not authorized to use this template");
+
         // Find active routine for today
         var existing = await _routineRepo.GetByUserIdAndDateAsync(request.UserId, today, ct);
 

@@ -29,6 +29,9 @@ public class StrategyPerformanceService : IStrategyPerformanceService
         var strategy = await _strategyRepository.GetByIdAsync(strategyId, cancellationToken)
             ?? throw new Exception($"Strategy {strategyId} not found");
 
+        if (strategy.UserId != userId)
+            throw new UnauthorizedAccessException("Not authorized to view this strategy");
+
         // Get all portfolios for user, then all trades with this strategy
         var portfolios = await _portfolioRepository.GetByUserIdAsync(userId, cancellationToken);
         var allTrades = new List<Trade>();

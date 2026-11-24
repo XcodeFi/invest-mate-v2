@@ -20,6 +20,9 @@ public class CreateJournalEntryCommandHandlerTests
         _auditService = new Mock<IAuditService>();
         _handler = new CreateJournalEntryCommandHandler(
             _journalEntryRepo.Object,
+            Mock.Of<IPortfolioRepository>(),
+            Mock.Of<ITradeRepository>(),
+            Mock.Of<ITradePlanRepository>(),
             _marketDataProvider.Object,
             _auditService.Object);
     }

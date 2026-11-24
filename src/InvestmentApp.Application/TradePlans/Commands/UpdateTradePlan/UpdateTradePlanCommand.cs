@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using InvestmentApp.Application.CompanyDossiers.Gate;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -52,11 +53,17 @@ public class UpdateTradePlanCommand : IRequest<Unit>
 public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanCommand, Unit>
 {
     private readonly ITradePlanRepository _tradePlanRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
+    private readonly IStrategyRepository _strategyRepository;
     private readonly ICompanyDossierGate _dossierGate;
 
-    public UpdateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ICompanyDossierGate dossierGate)
+    public UpdateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository,
+        IPortfolioRepository portfolioRepository, IStrategyRepository strategyRepository,
+        ICompanyDossierGate dossierGate)
     {
         _tradePlanRepository = tradePlanRepository;
+        _portfolioRepository = portfolioRepository;
+        _strategyRepository = strategyRepository;
         _dossierGate = dossierGate;
     }
 
@@ -67,6 +74,10 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
 
         if (plan.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
+
+        // Id liên kết mới chỉ được lưu khi thuộc tài khoản đang gọi (null vẫn hợp lệ)
+        await LinkOwnership.EnsurePortfolioAsync(request.PortfolioId, request.UserId, _portfolioRepository, cancellationToken);
+        await LinkOwnership.EnsureStrategyAsync(request.StrategyId, request.UserId, _strategyRepository, cancellationToken);
 
         // UpdateTradePlanCommand.Quantity/EntryPrice/AccountBalance/Symbol đều nullable —
         // update là PARTIAL (TradePlan.Update chỉ gán khi HasValue), và SetLots (nếu có lots)

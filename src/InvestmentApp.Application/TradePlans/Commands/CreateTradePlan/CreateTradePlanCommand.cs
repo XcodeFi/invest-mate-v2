@@ -75,19 +75,26 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
     private readonly IPortfolioRepository _portfolioRepository;
+    private readonly IStrategyRepository _strategyRepository;
     private readonly ICompanyDossierGate _dossierGate;
 
     public CreateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository,
-        IPortfolioRepository portfolioRepository, ICompanyDossierGate dossierGate)
+        IPortfolioRepository portfolioRepository, IStrategyRepository strategyRepository,
+        ICompanyDossierGate dossierGate)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
         _portfolioRepository = portfolioRepository;
+        _strategyRepository = strategyRepository;
         _dossierGate = dossierGate;
     }
 
     public async Task<string> Handle(CreateTradePlanCommand request, CancellationToken cancellationToken)
     {
+        // Id liên kết chỉ được lưu khi thuộc tài khoản đang gọi (null vẫn hợp lệ) — kiểm trước mọi thao tác ghi
+        await LinkOwnership.EnsurePortfolioAsync(request.PortfolioId, request.UserId, _portfolioRepository, cancellationToken);
+        await LinkOwnership.EnsureStrategyAsync(request.StrategyId, request.UserId, _strategyRepository, cancellationToken);
+
         // Chấm theo giá trị plan SẼ có sau khi lưu (quantity sau SetLots nếu có lots), không
         // phải giá trị thô trên request — nếu không, header nhỏ + lots to là qua cổng bậc nhỏ
         // rồi Quantity thật lại phình lên sau khi lưu. existingPlan=null: đường tạo không có

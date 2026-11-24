@@ -53,6 +53,16 @@ public class AlertEvaluationService : IAlertEvaluationService
         return results;
     }
 
+    /// <summary>
+    /// Rule chỉ được đọc snapshot của danh mục thuộc chính chủ rule; dữ liệu cũ có thể trỏ sang
+    /// danh mục của người khác nên không tin rule.PortfolioId mà không đối chiếu.
+    /// </summary>
+    private async Task<bool> IsOwnedByRuleOwnerAsync(AlertRule rule, CancellationToken cancellationToken)
+    {
+        var portfolio = await _portfolioRepository.GetByIdAsync(rule.PortfolioId!, cancellationToken);
+        return portfolio != null && portfolio.UserId == rule.UserId;
+    }
+
     private async Task<AlertEvaluationResult> EvaluatePriceAlert(AlertRule rule, CancellationToken cancellationToken)
     {
         var result = new AlertEvaluationResult
@@ -101,6 +111,7 @@ public class AlertEvaluationService : IAlertEvaluationService
         };
 
         if (string.IsNullOrEmpty(rule.PortfolioId)) return result;
+        if (!await IsOwnedByRuleOwnerAsync(rule, cancellationToken)) return result;
 
         var snapshots = await _snapshotRepository.GetByPortfolioIdAsync(
             rule.PortfolioId, DateTime.UtcNow.AddMonths(-3), DateTime.UtcNow, cancellationToken);
@@ -136,6 +147,7 @@ public class AlertEvaluationService : IAlertEvaluationService
         };
 
         if (string.IsNullOrEmpty(rule.PortfolioId)) return result;
+        if (!await IsOwnedByRuleOwnerAsync(rule, cancellationToken)) return result;
 
         var latest = await _snapshotRepository.GetLatestByPortfolioIdAsync(rule.PortfolioId, cancellationToken);
         if (latest == null) return result;

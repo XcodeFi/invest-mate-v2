@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -7,15 +8,24 @@ namespace InvestmentApp.Application.JournalEntries.Commands.CreateJournalEntry;
 public class CreateJournalEntryCommandHandler : IRequestHandler<CreateJournalEntryCommand, string>
 {
     private readonly IJournalEntryRepository _journalEntryRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
+    private readonly ITradeRepository _tradeRepository;
+    private readonly ITradePlanRepository _tradePlanRepository;
     private readonly IMarketDataProvider _marketDataProvider;
     private readonly IAuditService _auditService;
 
     public CreateJournalEntryCommandHandler(
         IJournalEntryRepository journalEntryRepository,
+        IPortfolioRepository portfolioRepository,
+        ITradeRepository tradeRepository,
+        ITradePlanRepository tradePlanRepository,
         IMarketDataProvider marketDataProvider,
         IAuditService auditService)
     {
         _journalEntryRepository = journalEntryRepository;
+        _portfolioRepository = portfolioRepository;
+        _tradeRepository = tradeRepository;
+        _tradePlanRepository = tradePlanRepository;
         _marketDataProvider = marketDataProvider;
         _auditService = auditService;
     }
@@ -26,6 +36,11 @@ public class CreateJournalEntryCommandHandler : IRequestHandler<CreateJournalEnt
             throw new ArgumentException("Symbol is required");
 
         var entryType = Enum.Parse<JournalEntryType>(request.EntryType, ignoreCase: true);
+
+        // Id liên kết chỉ được lưu khi thuộc tài khoản đang gọi (null vẫn hợp lệ); giao dịch đi qua danh mục
+        await LinkOwnership.EnsurePortfolioAsync(request.PortfolioId, request.UserId!, _portfolioRepository, cancellationToken);
+        await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId!, _tradeRepository, _portfolioRepository, cancellationToken);
+        await LinkOwnership.EnsureTradePlanAsync(request.TradePlanId, request.UserId!, _tradePlanRepository, cancellationToken);
 
         // Auto-fill price if not provided
         decimal? priceAtTime = request.PriceAtTime;

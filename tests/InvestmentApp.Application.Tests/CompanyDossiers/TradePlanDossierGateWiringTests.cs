@@ -466,6 +466,7 @@ public class TradePlanDossierGateWiringTests
                 repository.Object,
                 Mock.Of<ITradeRepository>(),
                 Mock.Of<IPortfolioRepository>(),
+                Mock.Of<IStrategyRepository>(),
                 gate);
         }
 
@@ -494,7 +495,7 @@ public class TradePlanDossierGateWiringTests
                 accountBalance: accountBalance,
                 thesis: "Thesis đủ dài để không vướng gate kỷ luật thesis khi test luồng sửa plan.");
             repository.Setup(r => r.GetByIdAsync("plan-1", It.IsAny<CancellationToken>())).ReturnsAsync(plan);
-            return new UpdateTradePlanCommandHandler(repository.Object, gate);
+            return new UpdateTradePlanCommandHandler(repository.Object, Mock.Of<IPortfolioRepository>(), Mock.Of<IStrategyRepository>(), gate);
         }
 
         public static UpdateTradePlanCommand UpdateCommand(int quantity, decimal? entryPrice, string? symbol = null) => new()

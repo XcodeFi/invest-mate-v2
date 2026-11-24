@@ -71,7 +71,7 @@ public class TradeLinkOwnershipTests
     // ---------- CreateTradePlan ----------
 
     private CreateTradePlanCommandHandler CreateHandler() =>
-        new(_planRepo.Object, _tradeRepo.Object, _portfolioRepo.Object, Mock.Of<ICompanyDossierGate>());
+        new(_planRepo.Object, _tradeRepo.Object, _portfolioRepo.Object, Mock.Of<IStrategyRepository>(), Mock.Of<ICompanyDossierGate>());
 
     private static CreateTradePlanCommand CreateCmd(string tradeId) => new()
     {

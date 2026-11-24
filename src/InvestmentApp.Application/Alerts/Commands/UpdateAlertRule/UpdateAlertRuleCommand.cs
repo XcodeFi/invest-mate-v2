@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 
@@ -23,10 +24,12 @@ public class UpdateAlertRuleCommand : IRequest<Unit>
 public class UpdateAlertRuleCommandHandler : IRequestHandler<UpdateAlertRuleCommand, Unit>
 {
     private readonly IAlertRuleRepository _alertRuleRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public UpdateAlertRuleCommandHandler(IAlertRuleRepository alertRuleRepository)
+    public UpdateAlertRuleCommandHandler(IAlertRuleRepository alertRuleRepository, IPortfolioRepository portfolioRepository)
     {
         _alertRuleRepository = alertRuleRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<Unit> Handle(UpdateAlertRuleCommand request, CancellationToken cancellationToken)
@@ -36,6 +39,8 @@ public class UpdateAlertRuleCommandHandler : IRequestHandler<UpdateAlertRuleComm
 
         if (rule.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized");
+
+        await LinkOwnership.EnsurePortfolioAsync(request.PortfolioId, request.UserId, _portfolioRepository, cancellationToken);
 
         rule.Update(request.Name, request.AlertType, request.Condition,
             request.Threshold, request.Channel, request.IsActive,
