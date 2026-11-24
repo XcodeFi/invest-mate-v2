@@ -26,7 +26,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     const planSpy = jasmine.createSpyObj('TradePlanService', [
       'getAll', 'create', 'update', 'updateStatus', 'delete', 'cancel', 'restore',
       'previewReview', 'review', 'getScenarioPresets', 'getScenarioHistory', 'fetchScenarioSuggestion', 'getAdvisory',
-      'updateStopLoss'
+      'updateStopLoss', 'getExpectancy'
     ]);
     const notifSpy = jasmine.createSpyObj('NotificationService', ['success', 'error', 'warning', 'info']);
     const dossierSpy = jasmine.createSpyObj('CompanyDossierService', ['gateStatus', 'suggestedRules']);
@@ -35,6 +35,7 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
     portfolioSpy.getAll.and.returnValue(of([]));
     templateSpy.getAll.and.returnValue(of([]));
     planSpy.getAll.and.returnValue(of([]));
+    planSpy.getExpectancy.and.returnValue(of({ total: { n: 0 }, strategies: [] }));
     planSpy.getScenarioPresets.and.returnValue(of([]));
     riskSpy.getPortfolioRiskSummary.and.returnValue(EMPTY);
     riskSpy.getSectorExposureForPlan.and.returnValue(EMPTY);
@@ -1011,6 +1012,183 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       expect(component.formatR(1.6)).toBe('+1.60R');
       expect(component.formatR(-0.4)).toBe('-0.40R');
       expect(component.formatR(0)).toBe('0.00R');
+    });
+  });
+
+  // ============================================
+  // Cổng kỳ vọng: EV ≤ 0 hoặc chưa ước lượng → hỏi lý do, không chặn cứng
+  // ============================================
+  describe('cổng kỳ vọng (EV gate)', () => {
+    const gateError = () => throwError(() => ({
+      status: 400,
+      error: { code: 'EV_GATE_REASON_REQUIRED', message: 'Kỳ vọng âm hoặc chưa ước lượng — cần ghi lý do', minReasonLength: 10 }
+    }));
+    const REASON = 'Chấp nhận kỳ vọng âm vì đây là lệnh thử';
+    let planSpy: jasmine.SpyObj<TradePlanService>;
+    let notifSpy: jasmine.SpyObj<NotificationService>;
+    const sp = { id: 'p1', symbol: 'VNM' } as any;
+
+    beforeEach(() => {
+      planSpy = TestBed.inject(TradePlanService) as jasmine.SpyObj<TradePlanService>;
+      notifSpy = TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>;
+    });
+
+    it('ready with negative ev opens reason modal and sends reason', () => {
+      planSpy.updateStatus.and.returnValues(gateError(), of(void 0));
+
+      component.markReady(sp);
+
+      expect(component.evGateModalOpen).toBeTrue();
+      expect(planSpy.updateStatus).toHaveBeenCalledTimes(1);
+      expect(planSpy.updateStatus.calls.argsFor(0)[1]).toEqual({ status: 'ready' });
+
+      component.evGateReasonText = REASON;
+      component.confirmEvGate();
+
+      expect(planSpy.updateStatus).toHaveBeenCalledTimes(2);
+      expect(planSpy.updateStatus.calls.argsFor(1)).toEqual(['p1', { status: 'ready', evGateReason: REASON }]);
+      expect(component.evGateModalOpen).toBeFalse();
+    });
+
+    it('confirm is refused until the reason has at least 10 characters', () => {
+      planSpy.updateStatus.and.returnValue(gateError());
+      component.markReady(sp);
+
+      component.evGateReasonText = 'ok';
+      expect(component.canConfirmEvGate).toBeFalse();
+      component.confirmEvGate();
+
+      expect(planSpy.updateStatus).toHaveBeenCalledTimes(1);
+      expect(component.evGateModalOpen).toBeTrue();
+    });
+
+    it('cancel closes the modal and sends nothing more', () => {
+      planSpy.updateStatus.and.returnValue(gateError());
+      component.markReady(sp);
+
+      component.cancelEvGate();
+
+      expect(component.evGateModalOpen).toBeFalse();
+      expect(planSpy.updateStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('a different error keeps the generic toast and does not open the modal', () => {
+      planSpy.updateStatus.and.returnValue(throwError(() => ({ status: 500, error: {} })));
+
+      component.markReady(sp);
+
+      expect(component.evGateModalOpen).toBeFalse();
+      expect(notifSpy.error).toHaveBeenCalled();
+    });
+
+    it('a second gate refusal after confirming keeps the modal open (reason still rejected)', () => {
+      planSpy.updateStatus.and.returnValues(gateError(), gateError());
+      component.markReady(sp);
+      component.evGateReasonText = REASON;
+
+      component.confirmEvGate();
+
+      expect(component.evGateModalOpen).toBeTrue();
+    });
+
+    it('create as Ready: gate refusal opens the modal and the retry carries the reason', () => {
+      planSpy.create.and.returnValues(gateError(), of({ id: 'new-1' }));
+      component.plan.symbol = 'VNM';
+      component.plan.entryPrice = 100;
+      component.plan.stopLoss = 90;
+      component.plan.target = 120;
+      component.plan.quantity = 100;
+      component.selectedPlanId = null;
+
+      component.saveAndReady();
+
+      expect(component.evGateModalOpen).toBeTrue();
+      expect((planSpy.create.calls.argsFor(0)[0] as any).status).toBe('Ready');
+      expect((planSpy.create.calls.argsFor(0)[0] as any).evGateReason).toBeUndefined();
+
+      component.evGateReasonText = REASON;
+      component.confirmEvGate();
+
+      expect(planSpy.create).toHaveBeenCalledTimes(2);
+      expect((planSpy.create.calls.argsFor(1)[0] as any).evGateReason).toBe(REASON);
+    });
+
+    it('sends the typed scenarios when saving, and nothing when the table is untouched', () => {
+      planSpy.create.and.returnValue(of({ id: 'new-1' }));
+      component.plan.symbol = 'VNM';
+      component.plan.entryPrice = 100;
+      component.plan.stopLoss = 90;
+      component.plan.target = 120;
+      component.plan.quantity = 100;
+      component.selectedPlanId = null;
+
+      component.saveDraft();
+      expect((planSpy.create.calls.mostRecent().args[0] as any).scenarios).toBeUndefined();
+
+      component.selectedPlanId = null;
+      component.onExpectationChange([
+        { label: 'Thắng', probabilityPercent: 60, exitPrice: 120 },
+        { label: 'Thua', probabilityPercent: 40, exitPrice: 90 },
+      ]);
+      component.saveDraft();
+
+      expect((planSpy.create.calls.mostRecent().args[0] as any).scenarios).toEqual([
+        { label: 'Thắng', probabilityPercent: 60, exitPrice: 120 },
+        { label: 'Thua', probabilityPercent: 40, exitPrice: 90 },
+      ]);
+    });
+
+    it('sell plans never send scenarios', () => {
+      planSpy.create.and.returnValue(of({ id: 'new-1' }));
+      component.plan.symbol = 'VNM';
+      component.plan.direction = 'Sell';
+      component.plan.entryPrice = 100;
+      component.plan.stopLoss = 110;
+      component.plan.target = 80;
+      component.plan.quantity = 100;
+      component.selectedPlanId = null;
+      component.onExpectationChange([{ label: 'x', probabilityPercent: 100, exitPrice: 80 }]);
+
+      component.saveDraft();
+
+      expect((planSpy.create.calls.mostRecent().args[0] as any).scenarios).toBeUndefined();
+    });
+
+    it('loadPlan restores the saved scenarios, the lock state and the server-side expectation', () => {
+      component.loadPlan({
+        id: 'p9', status: 'InProgress', symbol: 'VNM', direction: 'Buy', entryPrice: 100, stopLoss: 90, target: 120, quantity: 100,
+        confidenceLevel: 5,
+        scenarios: [{ label: 'Thắng', probabilityPercent: 60, exitPrice: 120 }, { label: 'Thua', probabilityPercent: 40, exitPrice: 90 }],
+        estimate: { scenarios: [], evR: 0.8, impliedWinProbability: 60, feesIncluded: true, capturedAt: '2026-11-24T00:00:00Z', locked: true },
+        expectation: { evR: 0.78, impliedWinPercent: 60, evAmount: 780 },
+      } as any);
+
+      expect(component.expectationRows.length).toBe(2);
+      expect(component.estimateLocked).toBeTrue();
+      expect(component.serverExpectation?.evR).toBe(0.78);
+    });
+
+    it('loadPlan keeps the estimate, the gate reason and the skipped flag for the review view', () => {
+      component.loadPlan({
+        id: 'p10', status: 'Reviewed', symbol: 'VNM', direction: 'Buy', entryPrice: 100, stopLoss: 90, target: 120, quantity: 100,
+        confidenceLevel: 5, evGateReason: 'Chấp nhận kỳ vọng âm vì lệnh thử nghiệm', evGateSkipped: true,
+        estimate: { scenarios: [], evR: -0.4, impliedWinProbability: 20, feesIncluded: true, capturedAt: '2026-11-24T00:00:00Z', locked: true },
+      } as any);
+
+      expect(component.loadedEstimate?.evR).toBe(-0.4);
+      expect(component.loadedEvGateReason).toBe('Chấp nhận kỳ vọng âm vì lệnh thử nghiệm');
+      expect(component.loadedEvGateSkipped).toBeTrue();
+    });
+
+    it('resetForm clears the expectation state', () => {
+      component.onExpectationChange([{ label: 'x', probabilityPercent: 100, exitPrice: 80 }]);
+      component.estimateLocked = true;
+
+      component.resetForm();
+
+      expect(component.expectationRows).toEqual([]);
+      expect(component.estimateLocked).toBeFalse();
+      expect(component.evGateModalOpen).toBeFalse();
     });
   });
 });

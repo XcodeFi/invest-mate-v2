@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
+using InvestmentApp.Domain.Entities;
 using FluentValidation;
 using FluentValidation.Results;
 using InvestmentApp.Api.Middleware;
@@ -109,6 +110,18 @@ public class ExceptionMiddlewareTests
     }
 
     [Fact]
+    public async Task EvGateException_Returns_400_With_A_Code_The_Client_Can_Act_On()
+    {
+        var (status, body) = await InvokeAsync(new EvGateException(10));
+
+        status.Should().Be((int)HttpStatusCode.BadRequest, "không phải 409: đây là cảnh báo cần lý do, không phải xung đột trạng thái");
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("code").GetString().Should().Be("EV_GATE_REASON_REQUIRED");
+        doc.RootElement.GetProperty("message").GetString().Should().Contain("evGateReason");
+        doc.RootElement.GetProperty("minReasonLength").GetInt32().Should().Be(10);
+    }
+
+    [Fact]
     public async Task UnknownException_Returns_500()
     {
         var (status, _) = await InvokeAsync(new ApplicationException("?"));
@@ -137,6 +150,7 @@ public class ExceptionMiddlewareTests
             new DossierGateException("HPG", DossierGateResult.Fail("insufficient")),
             (int)HttpStatusCode.BadRequest
         };
+        yield return new object[] { new EvGateException(10), (int)HttpStatusCode.BadRequest };
         // ValidationException: case đã regress một lần (886fd00) vì không kế thừa ArgumentException.
         yield return new object[]
         {

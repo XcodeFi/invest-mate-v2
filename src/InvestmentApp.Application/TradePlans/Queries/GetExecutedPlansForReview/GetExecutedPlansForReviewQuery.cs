@@ -21,6 +21,6 @@ public class GetExecutedPlansForReviewQueryHandler : IRequestHandler<GetExecuted
     public async Task<List<TradePlanDto>> Handle(GetExecutedPlansForReviewQuery request, CancellationToken cancellationToken)
     {
         var plans = await _tradePlanRepository.GetExecutedByUserIdAsync(request.UserId, cancellationToken);
-        return plans.Select(GetTradePlansQueryHandler.MapToDto).ToList();
+        return plans.Select(p => GetTradePlansQueryHandler.MapToDto(p)).ToList();
     }
 }

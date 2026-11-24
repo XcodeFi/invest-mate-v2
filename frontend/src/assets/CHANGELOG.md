@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.91.0] — 2026-11-24 · Kịch bản kết quả, kỳ vọng (EV) và cổng kỳ vọng trên kế hoạch Mua
+
+### Tính năng mới
+
+- **Bảng kịch bản kết quả trên form kế hoạch (lệnh Mua).** Khối "Kỳ vọng của kế hoạch" có sẵn ba dòng: Đạt kế hoạch, Cắt lỗ, Thoát sớm / hoà (giá thoát lấy từ kế hoạch). Bạn nhập xác suất cho từng dòng, thêm hoặc xoá dòng được. Ô xác suất **để trống**, không điền sẵn theo tỉ lệ lịch sử, để ước lượng của bạn không bị neo. Tổng xác suất phải là 100% thì mới tính kỳ vọng; khi tính được, form hiện EV theo R và theo VND cùng xác suất thắng ngầm định (kịch bản có R lớn hơn +0,1).
+- **Tỉ lệ nền ngay cạnh.** Bên dưới bảng hiện kết quả lịch sử của chiến lược (hoặc toàn bộ nếu chiến lược chưa có chiến dịch đóng): % thắng, số lệnh, khoảng tin cậy 95% và EV. Dưới 10 lệnh ghi rõ "chưa đủ mẫu để tin".
+- **Cổng kỳ vọng (cảnh báo, không chặn cứng).** Chuyển kế hoạch Mua sang Sẵn sàng khi EV ≤ 0 hoặc chưa nhập xác suất thì hiện hộp hỏi lý do (tối thiểu 10 ký tự). Lý do được lưu và hiện khi review. Server tính EV đã trừ phí ước tính (phí mua, phí bán, thuế bán).
+- **Ước lượng được chụp và khoá.** Bản ước lượng được ghi lại khi chốt kế hoạch, cập nhật mỗi lần sửa khi còn Sẵn sàng và **khoá ở lần khớp đầu tiên**; sau đó bạn vẫn sửa được bản hiện hành nhưng đối chiếu dùng bản đã khoá. Khôi phục kế hoạch về Nháp thì xoá ảnh chụp.
+- **Vào lệnh không qua cổng.** Ghi lại một lệnh đã khớp (hoặc khớp lô từ Nháp) không bị chặn, nhưng nếu lúc đó EV ≤ 0 hoặc chưa ước lượng mà không có lý do thì kế hoạch được đánh dấu "Vào lệnh không qua cổng kỳ vọng" và hiện ở review.
+- **Review: ước lượng so với thực tế.** Bản xem trước và kết quả review hiện "Ước lượng: EV +0,71R, thắng 50% · Thực tế: +1,70R", lý do vượt cổng nếu có và dấu vào lệnh không qua cổng.
+
+### Kỹ thuật
+
+- Domain: `OutcomeScenario`, `EstimateSnapshot`, `EvGateException`, `ExpectedValue` (EV theo R ròng, % thắng ngầm định, ba dòng mặc định), `TradePlan.MarkReadyWithEvGate`, `TradePlan.EvGateSkipped`. `MarkReady()` không tham số giữ nguyên, không cổng: các đường ghi lại sau sự kiện đi qua đó và được đánh dấu lúc khớp.
+- API: `scenarios` ở tạo/sửa kế hoạch; `evGateReason` ở đổi trạng thái và tạo thẳng ở Ready; thiếu lý do khi cần thì 400 `EV_GATE_REASON_REQUIRED`. Đọc kế hoạch trả thêm `scenarios`, `estimate`, `expectation`, `evGateReason`, `evGateSkipped`. MCP: `create_trade_plan`/`update_trade_plan` nhận `scenarios`, `set_trade_plan_status` nhận `evGateReason` (đều tuỳ chọn). Tài liệu agent cập nhật theo.
+- Đường rời Nháp của kế hoạch Mua: `status = ready` (REST, AI agent, MCP) và tạo thẳng ở Ready đi qua cổng; `inprogress`/`executed` từ Nháp, tạo thẳng ở Executed và khớp lô từ Nháp là ghi lại lệnh đã khớp (đánh dấu, không chặn).
+
+---
+
 ## [v2.90.0] — 2026-11-24 · Nền R: rủi ro ban đầu, R thực tế và kỳ vọng theo R
 
 ### Tính năng mới

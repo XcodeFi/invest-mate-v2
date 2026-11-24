@@ -48,6 +48,24 @@ public class CreateTradePlanCommand : IRequest<string>
     public string? TimeHorizon { get; set; }
     public string? Status { get; set; }
     public string? TradeId { get; set; }
+    /// <summary>Bảng kịch bản kết quả của cả vị thế (tuỳ chọn, chỉ lệnh Mua): nhãn, xác suất %, giá thoát.</summary>
+    public List<OutcomeScenarioDto>? Scenarios { get; set; }
+    /// <summary>Lý do vượt cổng kỳ vọng khi tạo thẳng ở Ready mà EV ≤ 0 hoặc chưa ước lượng (tối thiểu 10 ký tự).</summary>
+    public string? EvGateReason { get; set; }
+}
+
+/// <summary>Một kịch bản kết quả: xác suất (%) và giá thoát bình quân của cả vị thế.</summary>
+public class OutcomeScenarioDto
+{
+    public string Label { get; set; } = string.Empty;
+    public decimal ProbabilityPercent { get; set; }
+    public decimal ExitPrice { get; set; }
+}
+
+public static class ScenarioMapping
+{
+    public static OutcomeScenario ToDomain(OutcomeScenarioDto d)
+        => new() { Label = d.Label?.Trim() ?? string.Empty, ProbabilityPercent = d.ProbabilityPercent, ExitPrice = d.ExitPrice };
 }
 
 public class ChecklistItemDto
@@ -77,11 +95,13 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly IStrategyRepository _strategyRepository;
     private readonly ICompanyDossierGate _dossierGate;
+    private readonly IFeeCalculationService? _fees;
 
     public CreateTradePlanCommandHandler(ITradePlanRepository tradePlanRepository, ITradeRepository tradeRepository,
         IPortfolioRepository portfolioRepository, IStrategyRepository strategyRepository,
-        ICompanyDossierGate dossierGate)
+        ICompanyDossierGate dossierGate, IFeeCalculationService? fees = null)
     {
+        _fees = fees;
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
         _portfolioRepository = portfolioRepository;
@@ -182,8 +202,14 @@ public class CreateTradePlanCommandHandler : IRequestHandler<CreateTradePlanComm
 
         // Handle initial status if provided (e.g., "Ready" or "Executed" from wizard)
         // Must follow sequential state machine: Draft → Ready → InProgress → Executed
+        // Bảng kịch bản đặt TRƯỚC khi chuyển trạng thái để cổng kỳ vọng và ảnh chụp ước lượng thấy nó.
+        if (request.Scenarios is { Count: > 0 })
+            plan.SetOutcomeScenarios(request.Scenarios.Select(ScenarioMapping.ToDomain).ToList(), PlanFees.Create(_fees));
+
+        // "Ready" tường minh là quyết định vào lệnh: qua cổng kỳ vọng. "Executed" bên dưới là ghi lại lệnh đã khớp: không chặn,
+        // domain đánh dấu EvGateSkipped.
         if (request.Status == "Ready")
-            plan.MarkReady();
+            plan.MarkReadyWithEvGate(request.EvGateReason, PlanFees.Create(_fees));
         else if (request.Status == "Executed" && request.TradeId != null)
         {
             plan.MarkReady();

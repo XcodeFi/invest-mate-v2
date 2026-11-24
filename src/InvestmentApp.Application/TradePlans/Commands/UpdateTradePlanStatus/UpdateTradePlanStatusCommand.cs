@@ -14,6 +14,10 @@ public class UpdateTradePlanStatusCommand : IRequest<Unit>
     public string UserId { get; set; } = null!;
     public string Status { get; set; } = null!;
     public string? TradeId { get; set; }
+    /// <summary>
+    /// Lý do vượt cổng kỳ vọng khi chuyển sang Ready mà EV ≤ 0 hoặc chưa ước lượng (tối thiểu 10 ký tự). Bỏ trống nếu EV dương.
+    /// </summary>
+    public string? EvGateReason { get; set; }
 }
 
 public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePlanStatusCommand, Unit>
@@ -21,12 +25,15 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
     private readonly IPortfolioRepository _portfolioRepository;
+    private readonly IFeeCalculationService? _fees;
 
     public UpdateTradePlanStatusCommandHandler(
         ITradePlanRepository tradePlanRepository,
         ITradeRepository tradeRepository,
-        IPortfolioRepository portfolioRepository)
+        IPortfolioRepository portfolioRepository,
+        IFeeCalculationService? fees = null)
     {
+        _fees = fees;
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
         _portfolioRepository = portfolioRepository;
@@ -48,7 +55,9 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
         switch (request.Status.ToLower())
         {
             case "ready":
-                plan.MarkReady();
+                // Đường quyết định tường minh: qua cổng kỳ vọng. Các đường dưới (inprogress/executed tự chuỗi từ Draft) là ghi lại
+                // lệnh đã khớp: không chặn, domain đánh dấu EvGateSkipped lúc khoá ảnh chụp.
+                plan.MarkReadyWithEvGate(request.EvGateReason, PlanFees.Create(_fees));
                 break;
             case "inprogress":
             case "in_progress":

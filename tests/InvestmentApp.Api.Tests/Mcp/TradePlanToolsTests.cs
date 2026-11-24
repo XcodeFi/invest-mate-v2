@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InvestmentApp.Domain.Entities;
 using InvestmentApp.Api.Mcp;
 using InvestmentApp.Application.CompanyDossiers.Gate;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
@@ -162,5 +163,57 @@ public class TradePlanToolsTests
         sent()!.UserId.Should().Be("u-6");
         sent()!.Id.Should().Be("plan-1");
         sent()!.Status.Should().Be("executed");
+    }
+
+    [Fact]
+    public async Task SetTradePlanStatus_Ready_Passes_The_EvGateReason()
+    {
+        McpTestContext.Capture<Unit, UpdateTradePlanStatusCommand>(_mediator, out var sent, Unit.Value);
+
+        await TradePlanTools.SetTradePlanStatus("plan-1", "ready",
+            _mediator.Object, McpTestContext.WithUser("u-7"), CancellationToken.None,
+            evGateReason: "Chấp nhận kỳ vọng âm vì đây là lệnh thử nghiệm");
+
+        sent()!.EvGateReason.Should().Be("Chấp nhận kỳ vọng âm vì đây là lệnh thử nghiệm");
+    }
+
+    [Fact]
+    public async Task SetTradePlanStatus_Ready_Without_Reason_And_Negative_Ev_Gives_A_Clear_Vietnamese_Error()
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<UpdateTradePlanStatusCommand>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new EvGateException(InvestmentApp.Domain.Entities.TradePlan.MinEvGateReasonLength));
+
+        var act = async () => await TradePlanTools.SetTradePlanStatus("plan-1", "ready",
+            _mediator.Object, McpTestContext.WithUser("u-7"), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<McpException>();
+        ex.And.Message.Should().Contain("evGateReason").And.Contain("lý do");
+    }
+
+    [Fact]
+    public async Task UpdateTradePlan_Passes_Scenarios()
+    {
+        McpTestContext.Capture<Unit, UpdateTradePlanCommand>(_mediator, out var sent, Unit.Value);
+        var scenarios = new List<OutcomeScenarioDto>
+        {
+            new() { Label = "Thắng", ProbabilityPercent = 60m, ExitPrice = 120m },
+            new() { Label = "Thua", ProbabilityPercent = 40m, ExitPrice = 90m },
+        };
+
+        await TradePlanTools.UpdateTradePlan("plan-1", _mediator.Object, McpTestContext.WithUser("u-8"),
+            CancellationToken.None, scenarios: scenarios);
+
+        sent()!.Scenarios.Should().BeEquivalentTo(scenarios);
+    }
+
+    [Fact]
+    public async Task UpdateTradePlan_Without_Scenarios_Leaves_Them_Null()
+    {
+        McpTestContext.Capture<Unit, UpdateTradePlanCommand>(_mediator, out var sent, Unit.Value);
+
+        await TradePlanTools.UpdateTradePlan("plan-1", _mediator.Object, McpTestContext.WithUser("u-8"),
+            CancellationToken.None, notes: "x");
+
+        sent()!.Scenarios.Should().BeNull("bỏ trống là giữ nguyên, không phải xoá bảng");
     }
 }
