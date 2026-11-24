@@ -123,8 +123,8 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
     expect(block.textContent).toContain('Chỉ báo mô tả quá khứ, không đảm bảo tương lai');
     expect(block.textContent).toContain('không ra quyết định chỉ từ một chỉ báo');
     const link = block.querySelector('a[data-testid="ta-guide-help-link"]') as HTMLAnchorElement;
-    expect(link.textContent).toContain('Xem hướng dẫn đầy đủ');
-    expect(link.getAttribute('href')).toContain('/help');
+    expect(link.textContent).toContain('Xem hướng dẫn đầy đủ (Phân tích thị trường)');
+    expect(link.getAttribute('href')).toBe('/help?topic=phan-tich-thi-truong');
   });
 
   it('block collapsible and remembers state', () => {

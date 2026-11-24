@@ -306,7 +306,8 @@ export function readNow(group: TaGroup, s: TechnicalSeries, a: TechnicalAnalysis
     case 'dong-tien': {
       const volume = lastOf(s.volume), avg = lastOf(s.volumeSma20);
       if (volume !== null && avg !== null && avg > 0) {
-        const ratio = volume / avg;
+        // làm tròn trước khi chia ngưỡng, để câu chữ khớp con số hiển thị (1,49 hiện 1,5 thì phải nói "gấp")
+        const ratio = Math.round(volume / avg * 10) / 10;
         if (ratio >= 1.5) out.push(`Khối lượng phiên cuối gấp ${vi(ratio, 1)} lần trung bình 20 phiên.`);
         else if (ratio < 0.7) out.push(`Khối lượng phiên cuối chỉ bằng ${vi(ratio, 1)} lần trung bình 20 phiên: thấp, tín hiệu giá kém tin cậy.`);
         else out.push(`Khối lượng phiên cuối khoảng ${vi(ratio, 1)} lần trung bình 20 phiên: mức bình thường.`);

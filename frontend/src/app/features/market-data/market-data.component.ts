@@ -274,8 +274,8 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
                 }
                 <p class="text-xs text-gray-500">
                   Chỉ báo mô tả quá khứ, không đảm bảo tương lai; dùng kết hợp nhiều chỉ báo, không ra quyết định chỉ từ một chỉ báo.
-                  <a routerLink="/help" class="text-blue-600 underline" data-testid="ta-guide-help-link">Xem hướng dẫn đầy đủ</a>
-                  (Hướng dẫn → Phân tích thị trường).
+                  <a routerLink="/help" [queryParams]="{ topic: 'phan-tich-thi-truong' }" class="text-blue-600 underline"
+                    data-testid="ta-guide-help-link">Xem hướng dẫn đầy đủ (Phân tích thị trường)</a>.
                 </p>
               </div>
             }

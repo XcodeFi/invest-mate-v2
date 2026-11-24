@@ -164,6 +164,12 @@ describe('readNow', () => {
     expect(out).toContain('Khối lượng phiên cuối gấp 2,3 lần trung bình 20 phiên.');
   });
 
+  it('the wording follows the rounded ratio so the sentence never contradicts the number', () => {
+    const out = readNow('dong-tien', series({ volume: withLast(1000, 1490) as number[], volumeSma20: flat(1000) }), analysis());
+
+    expect(out).toContain('Khối lượng phiên cuối gấp 1,5 lần trung bình 20 phiên.');
+  });
+
   it('volume below average says it is thin', () => {
     const out = readNow('dong-tien', series({ volume: withLast(1000, 500) as number[], volumeSma20: flat(1000) }), analysis());
 

@@ -1,11 +1,11 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subject, forkJoin, of } from 'rxjs';
-import { debounceTime, catchError } from 'rxjs/operators';
+import { debounceTime, catchError, takeUntil } from 'rxjs/operators';
 import { marked } from 'marked';
 
 interface GuideTopic {
@@ -153,6 +153,7 @@ interface SearchResult {
 export class HelpComponent implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private sanitizer = inject(DomSanitizer);
+  private route = inject(ActivatedRoute);
 
   topics: GuideTopic[] = [
     { id: 'bat-dau-su-dung', title: 'Bắt đầu sử dụng', description: 'Dashboard, màn tĩnh tâm, tạo danh mục, tổng quan ứng dụng', icon: '🚀', color: 'blue' },
@@ -176,12 +177,24 @@ export class HelpComponent implements OnInit, OnDestroy {
   loading = true;
   error: string | null = null;
 
+  /** Chủ đề được yêu cầu qua ?topic=; áp dụng khi nội dung đã tải xong. Id lạ thì bỏ qua và hiện danh sách. */
+  private requestedTopic: string | null = null;
   private searchSubject = new Subject<string>();
   private destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.searchSubject.pipe(debounceTime(300)).subscribe(query => this.performSearch(query));
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      this.requestedTopic = params.get('topic');
+      this.applyRequestedTopic();
+    });
     this.loadAllTopics();
+  }
+
+  private applyRequestedTopic(): void {
+    if (this.loading || !this.requestedTopic) return;
+    const topic = this.topics.find(t => t.id === this.requestedTopic);
+    if (topic) this.selectTopic(topic);
   }
 
   ngOnDestroy(): void {
@@ -205,6 +218,7 @@ export class HelpComponent implements OnInit, OnDestroy {
           html: this.sanitizer.bypassSecurityTrustHtml(marked.parse(md) as string)
         }));
         this.loading = false;
+        this.applyRequestedTopic();
       },
       error: () => {
         this.error = 'Không tải được hướng dẫn';
