@@ -36,7 +36,7 @@ public class ScenarioNodeModeGuardTests
 
         var repo = new Mock<ITradePlanRepository>();
         repo.Setup(r => r.GetByIdAsync("p1", It.IsAny<CancellationToken>())).ReturnsAsync(plan);
-        return (new UpdateTradePlanCommandHandler(repo.Object, Mock.Of<ICompanyDossierGate>()), plan);
+        return (new UpdateTradePlanCommandHandler(repo.Object, Mock.Of<IPortfolioRepository>(), Mock.Of<IStrategyRepository>(), Mock.Of<ICompanyDossierGate>()), plan);
     }
 
     private static UpdateTradePlanCommand Cmd() => new()

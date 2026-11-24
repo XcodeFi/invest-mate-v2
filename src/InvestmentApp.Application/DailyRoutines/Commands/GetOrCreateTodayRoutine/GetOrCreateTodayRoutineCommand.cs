@@ -49,6 +49,9 @@ public class GetOrCreateTodayRoutineCommandHandler
         if (!string.IsNullOrEmpty(request.TemplateId))
         {
             template = await _templateRepo.GetByIdAsync(request.TemplateId, ct);
+            // Mẫu có sẵn của hệ thống (UserId null) hoặc mẫu của chính người gọi; mẫu tùy chỉnh của người khác bị từ chối
+            if (template?.UserId != null && template.UserId != request.UserId)
+                throw new UnauthorizedAccessException("Not authorized to use this template");
         }
 
         if (template == null)

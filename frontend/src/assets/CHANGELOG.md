@@ -2,6 +2,26 @@
 
 ---
 
+## [v2.87.5] — 2026-11-24 · Mã liên kết chỉ được lưu khi thuộc tài khoản đang gọi
+
+### Sửa lỗi
+
+**🔒 Kế hoạch, nhật ký và quy tắc cảnh báo chỉ lưu mã liên kết của chính tài khoản.** Khi tạo hoặc sửa, các mã danh mục, chiến lược, giao dịch và kế hoạch đi kèm nay được đối chiếu chủ sở hữu trước khi lưu; mã thuộc tài khoản khác bị từ chối và không có gì được ghi. Mã để trống vẫn hợp lệ, mã không tồn tại giữ nguyên hành vi cũ.
+
+**🔒 Bộ đánh giá cảnh báo chỉ đọc dữ liệu danh mục của chính chủ quy tắc.** Quy tắc trỏ tới danh mục không thuộc chủ quy tắc được coi như không kích hoạt, không đọc dữ liệu danh mục đó.
+
+**🔒 Mẫu thói quen hằng ngày chỉ nhận mẫu có sẵn của hệ thống hoặc mẫu của chính tài khoản.** Mẫu tùy chỉnh của người khác bị từ chối khi tạo hoặc đổi thói quen.
+
+**🔒 Hiệu suất chiến lược chỉ trả về chiến lược của tài khoản đang gọi.**
+
+### Kỹ thuật
+
+- Hàm dùng chung đối chiếu chủ sở hữu cho mã danh mục, chiến lược và kế hoạch (`entity.UserId == userId`, bỏ qua khi mã rỗng); giao dịch đi qua hàm kiểm quyền theo danh mục đã có
+- Test mới: 27 ca (11 ca âm dùng thực thể thật của người khác ở tầng ứng dụng, 4 ca âm ở tầng hạ tầng, còn lại là ca đối chứng của chính tài khoản và mã rỗng); 15 ca đỏ trước khi sửa; gỡ từng guard thì đúng ca tương ứng đỏ
+- Tests: **2195 backend** (+27) — tất cả pass
+
+---
+
 ## [v2.87.4] — 2026-11-24 · Liên kết giao dịch chỉ chấp nhận dữ liệu thuộc tài khoản đang gọi
 
 ### Sửa lỗi

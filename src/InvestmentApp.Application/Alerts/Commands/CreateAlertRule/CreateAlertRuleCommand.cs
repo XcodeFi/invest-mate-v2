@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
 using MediatR;
@@ -21,14 +22,18 @@ public class CreateAlertRuleCommand : IRequest<string>
 public class CreateAlertRuleCommandHandler : IRequestHandler<CreateAlertRuleCommand, string>
 {
     private readonly IAlertRuleRepository _alertRuleRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public CreateAlertRuleCommandHandler(IAlertRuleRepository alertRuleRepository)
+    public CreateAlertRuleCommandHandler(IAlertRuleRepository alertRuleRepository, IPortfolioRepository portfolioRepository)
     {
         _alertRuleRepository = alertRuleRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<string> Handle(CreateAlertRuleCommand request, CancellationToken cancellationToken)
     {
+        await LinkOwnership.EnsurePortfolioAsync(request.PortfolioId, request.UserId, _portfolioRepository, cancellationToken);
+
         var rule = new AlertRule(
             request.UserId, request.Name, request.AlertType,
             request.Condition, request.Threshold, request.Channel,
