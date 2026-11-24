@@ -148,14 +148,6 @@ dotnet run
 
 API sẽ chạy tại: `https://localhost:5001`
 
-### Worker Service
-
-```bash
-# Terminal mới
-cd src/InvestmentApp.Worker
-dotnet run
-```
-
 ### Frontend (khi có)
 
 ```bash
@@ -222,13 +214,6 @@ cd src/InvestmentApp.Api
 dotnet watch run    # auto-reload khi sửa C#, chạy tại https://localhost:5001
 ```
 
-**Terminal 3 — Worker** (thư mục `src/InvestmentApp.Worker/`):
-
-```bash
-cd src/InvestmentApp.Worker
-dotnet watch run    # xử lý P&L nền tảng, snapshot hàng ngày
-```
-
 **Build production:**
 
 ```bash
@@ -238,10 +223,6 @@ npm run build       # output: frontend/dist/investment-mate-frontend/
 
 # Backend API
 cd src/InvestmentApp.Api
-dotnet publish -c Release
-
-# Worker
-cd src/InvestmentApp.Worker
 dotnet publish -c Release
 ```
 
