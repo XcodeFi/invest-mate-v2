@@ -10,7 +10,7 @@
 
 **Challenger REVISE đã áp dụng:** đọc mục "Sửa sau challenger" trong spec; mục đó THẮNG mọi chỗ mâu thuẫn bên dưới (snapshot rời Draft/khoá ở lần khớp đầu/xoá khi Restore; R:R tính khi đọc, không ghi field; ExpectancyR gồm cả hoà; RealizedR tính khi đọc chỉ trong DTO).
 
-**Spec:** `docs/superpowers/specs/2026-11-24-expectancy-decision-design.md` (Task 0 chép bản từ `C:\Users\a\.claude\handoffs\group_indication-expectancy-design.md`).
+**Spec:** `docs/superpowers/specs/2026-11-24-expectancy-decision-design.md`.
 
 ## Global Constraints
 - Nhánh `feat/expectancy-r-foundation` tạo từ master **sau khi** MCP đợt 1 merge; main tree.

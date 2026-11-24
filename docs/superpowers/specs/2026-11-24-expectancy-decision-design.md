@@ -1,7 +1,7 @@
 # Quyết định trước giao dịch theo kỳ vọng (EV): Design
 
 **Ngày:** 2026-11-24
-**Trạng thái:** Draft. Root chốt hướng (C) trong cửa sổ tự quyết 12:08–14:08; chờ user duyệt bản thiết kế trước khi làm plan.
+**Trạng thái:** Draft. Hướng (C) đã chốt.
 
 ## Ý định (lời user)
 "Không có quyết định nào chắc thắng 100%, chỉ có quyết định tỉ lệ thắng cao hơn thua, tức là lãi nhiều hơn khả năng lỗ, và tiền lãi nhiều hơn tiền lỗ." Trước mỗi giao dịch, app phải giúp ước lượng và gợi ý theo **kỳ vọng**: EV = Σ (xác suất kịch bản × kết quả kịch bản). Các tính năng hiện có được chỉnh theo hướng đó.
