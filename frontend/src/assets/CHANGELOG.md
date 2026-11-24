@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.87.2] — 2026-11-24 · Nhật ký giao dịch chỉ còn hiện cho đúng tài khoản sở hữu
+
+### Sửa lỗi
+
+**🔒 Danh sách nhật ký giao dịch chỉ trả nhật ký của tài khoản đang gọi.** Màn nhật ký, API cho agent (khóa API) và công cụ `list_journals` của trợ lý AI dùng chung một truy vấn; khi truyền `portfolioId`, truy vấn lọc theo danh mục mà không đối chiếu chủ sở hữu. Nay chỉ trả nhật ký thuộc tài khoản đang gọi; mã danh mục không thuộc tài khoản hoặc không tồn tại đều cho danh sách rỗng.
+
+**🔒 Tạo nhật ký lấy mã danh mục từ lệnh giao dịch.** Trước đây hệ thống kiểm lệnh giao dịch có thuộc tài khoản không rồi lưu nguyên `portfolioId` gửi kèm. Nay `portfolioId` của nhật ký lấy từ chính lệnh giao dịch đã kiểm chủ.
+
+**🔒 Trợ lý AI "Đánh giá nhật ký" chỉ đưa nhật ký của tài khoản đang gọi vào ngữ cảnh.** Hàm dựng ngữ cảnh gửi cho mô hình cũng lọc theo tài khoản đang gọi khi có `portfolioId`.
+
+### Kỹ thuật
+
+- `GetJournalsQueryHandler` và `BuildJournalReviewContext` lọc `journal.UserId == userId` sau khi tra theo danh mục (nhật ký luôn mang `UserId` khác null gán trong constructor); `CreateJournalCommandHandler` lưu `trade.PortfolioId` thay cho `request.PortfolioId`
+- Lọc trong bộ nhớ thay vì thêm phương thức repository lọc kép: với người dùng hợp lệ mọi nhật ký của danh mục đều thuộc tài khoản đó nên không tốn thêm, và ca nhật ký không thuộc tài khoản kiểm được bằng test đơn vị
+- Test mới: 5 ca `GetJournalsQueryHandlerTests`, 1 ca `CreateJournalCommandHandlerTests`, 2 ca `AiAssistantServiceJournalReviewOwnershipTests`; 5 ca đỏ trước khi sửa
+- Tests: **2142 backend** (+8) — tất cả pass
+
+---
+
 ## [v2.87.1] — 2026-11-24 · Trợ lý AI bỏ trống bộ lọc không còn bị từ chối
 
 ### Sửa lỗi

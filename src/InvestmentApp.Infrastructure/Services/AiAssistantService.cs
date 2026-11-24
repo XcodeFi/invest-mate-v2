@@ -718,7 +718,7 @@ Quy tắc bắt buộc:
     {
         IEnumerable<TradeJournal> journals;
         if (!string.IsNullOrEmpty(portfolioId))
-            journals = await _journalRepo.GetByPortfolioIdAsync(portfolioId, ct);
+            journals = (await _journalRepo.GetByPortfolioIdAsync(portfolioId, ct)).Where(j => j.UserId == userId);
         else
             journals = await _journalRepo.GetByUserIdAsync(userId, ct);
 
