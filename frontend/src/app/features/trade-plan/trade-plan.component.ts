@@ -5,7 +5,7 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil, catchError, forkJoin } from 'rxjs';
 import { StrategyService, Strategy } from '../../core/services/strategy.service';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult, SectorExposureForPlan, VolatilitySizingResult } from '../../core/services/risk.service';
+import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult, ConservativeKellyDto, SectorExposureForPlan, VolatilitySizingResult } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { EstimateVsActualComponent } from './estimate-vs-actual/estimate-vs-actual.component';
@@ -1515,6 +1515,10 @@ interface DossierGateError {
           @if (sizingModels.length > 0) {
             <div class="bg-white rounded-lg shadow p-6">
               <h2 class="text-lg font-semibold mb-3">So sánh mô hình</h2>
+              <label class="flex items-start gap-2 text-sm text-gray-700 cursor-pointer mb-3">
+                <input type="checkbox" [(ngModel)]="useSizingHistory" (ngModelChange)="onSizingHistoryChange()" class="mt-1" data-testid="use-history-toggle">
+                <span>Dùng dữ liệu của tôi <span class="text-xs text-gray-500">(Kelly thận trọng từ R của các chiến dịch đã review)</span></span>
+              </label>
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                   <thead>
@@ -1559,6 +1563,27 @@ interface DossierGateError {
               </div>
               @if (loadingSizingModels) {
                 <div class="text-center text-gray-400 text-xs mt-2">Đang tính...</div>
+              }
+              @if (useSizingHistory && kellyFromHistory) {
+                <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm" data-testid="kelly-history">
+                  <div class="font-medium text-gray-800">Cỡ vị thế thận trọng theo dữ liệu của bạn</div>
+                  <div class="text-xs text-gray-500 mb-2">
+                    Đây là cỡ vị thế thận trọng theo dữ liệu, không phải lời khuyên vào lệnh. Dùng cận dưới 95% của % thắng (không dùng tỉ lệ thô),
+                    lấy một nửa Kelly, tối đa 25% danh mục.
+                  </div>
+                  <div class="grid grid-cols-1 gap-1 text-gray-700">
+                    <div>Mẫu: <span class="font-semibold">n = {{ kellyFromHistory.n }}</span> chiến dịch thắng/thua</div>
+                    <div>Cận dưới 95% của % thắng: <span class="font-semibold">{{ kellyPct0(kellyFromHistory.winRateLower95) }}</span></div>
+                    <div>Tỉ lệ R thắng / R thua: <span class="font-semibold">{{ kellyFromHistory.payoffRatio == null ? 'n/a' : (kellyFromHistory.payoffRatio | number:'1.2-2') }}</span></div>
+                  </div>
+                  @if (kellyFromHistory.reason) {
+                    <div class="mt-2 text-amber-700 bg-amber-50 rounded px-2 py-1">{{ kellyFromHistory.reason }}</div>
+                  }
+                  @if (kellyFromHistory.halfKellyCapped != null && kellyFromHistory.halfKellyCapped > 0) {
+                    <div class="mt-2">Half-Kelly: <span class="font-bold">{{ kellyPct1(kellyFromHistory.halfKellyCapped) }}</span> danh mục
+                      <span class="text-xs text-gray-500">(Kelly đầy đủ {{ kellyPct1(kellyFromHistory.fullKelly) }})</span></div>
+                  }
+                </div>
               }
               @if (sizingModels.length === 1 && !loadingSizingModels) {
                 <div class="text-center text-gray-400 text-xs mt-2">Tra cứu mã CP để xem thêm mô hình (ATR, Turtle, Volatility)</div>
@@ -2257,6 +2282,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   selectedSizingModel = 'fixed_risk';
   recommendedModel = 'fixed_risk';
   loadingSizingModels = false;
+  /** Kelly thận trọng từ dữ liệu R của chính người dùng; chỉ khi bật công tắc "Dùng dữ liệu của tôi". */
+  useSizingHistory = false;
+  kellyFromHistory: ConservativeKellyDto | null = null;
   stockAtr: number | null = null;
   stockAtrPercent: number | null = null;
 
@@ -3246,17 +3274,35 @@ export class TradePlanComponent implements OnInit, OnDestroy {
       atrPercent: this.stockAtrPercent ?? undefined
     };
 
-    this.riskService.calculatePositionSizing(request).subscribe({
+    const options = this.useSizingHistory
+      ? { useHistory: true, strategyId: this.plan.strategyId || undefined }
+      : undefined;
+    this.riskService.calculatePositionSizing(request, options).subscribe({
       next: (result) => {
         this.sizingModels = result.models;
         this.recommendedModel = result.recommendedModel;
+        this.kellyFromHistory = this.useSizingHistory ? (result.kellyFromHistory ?? null) : null;
         this.loadingSizingModels = false;
       },
       error: () => {
         this.sizingModels = [];
+        this.kellyFromHistory = null;
         this.loadingSizingModels = false;
       }
     });
+  }
+
+  onSizingHistoryChange(): void {
+    if (!this.useSizingHistory) this.kellyFromHistory = null;
+    this.fetchSizingModels();
+  }
+
+  kellyPct0(p: number | null | undefined): string {
+    return p == null ? 'n/a' : `${Math.round(p * 100)}%`;
+  }
+
+  kellyPct1(p: number | null | undefined): string {
+    return p == null ? 'n/a' : `${(p * 100).toFixed(1).replace('.', ',')}%`;
   }
 
   calculateSlMethods(): void {

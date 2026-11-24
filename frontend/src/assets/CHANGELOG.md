@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.94.0] — 2026-11-24 · Độ khớp ước lượng và cỡ vị thế Kelly thận trọng
+
+### Tính năng mới
+
+- Khối **Độ khớp ước lượng** ở trang Chiến lược (tab Hiệu suất) và trang Phân tích (tab Thống kê giao dịch): so % thắng bạn đã ước lượng khi vào lệnh với tỉ lệ thắng thật của các chiến dịch đã review, chia 4 mức (dưới 40%, 40–55%, 55–70%, 70–100%). Mức dưới 5 mẫu được làm mờ và ghi "chưa đủ mẫu". Từ 15 chiến dịch thắng/thua trở lên có thêm Brier score và nhận xét kiểu "bạn thường lạc quan khoảng 12 điểm %". Chưa có kế hoạch nào có ước lượng thì khối giải thích cần gì để có dữ liệu.
+- Khối **So sánh mô hình** (phần tính vị thế của trang Kế hoạch giao dịch) có công tắc "Dùng dữ liệu của tôi": hiện cỡ vị thế thận trọng (half-Kelly) tính từ R của chính các chiến dịch đã đóng, kèm số mẫu, cận dưới 95% của % thắng và tỉ lệ R thắng/R thua. Cần tối thiểu 20 chiến dịch thắng/thua; chưa đủ, chưa có lệnh thua hoặc không có lợi thế thì hiện lý do thay vì con số. Đây là cỡ vị thế thận trọng theo dữ liệu, không phải lời khuyên vào lệnh.
+- Trợ lý AI nối qua MCP hỏi được độ khớp ước lượng (`get_estimate_calibration`).
+
+### Kỹ thuật
+
+- Domain: `Calibration.Compute` (4 mức, Brier, lệch lạc quan; hoà bị loại; Brier và lệch chỉ có khi tổng n ≥ 15) và `KellyFromHistory.Compute` (p = cận dưới Wilson 95%, b = R thắng TB / |R thua TB|, half-Kelly, trần 25%).
+- REST: `GET /api/v1/trade-plans/calibration?strategyId=` (chỉ kế hoạch Mua của người gọi, đã review, ước lượng đã khoá; strategyId lạ cho kết quả rỗng như mã không tồn tại). `POST /api/v1/risk/position-sizing` thêm tham số query tuỳ chọn `useHistory` và `strategyId`: bật thì Kelly lấy từ dữ liệu của người gọi (ghi đè winRate/averageWin/averageLoss tự truyền) và phản hồi có thêm khối `kellyFromHistory`; không bật thì phản hồi giữ nguyên từng byte (có test golden).
+- MCP: tool chỉ đọc thứ 81, `get_estimate_calibration`.
+- Ví dụ Kelly 14 thắng/10 thua, R thắng TB +2, R thua TB −1 tính bằng code: p cận dưới = 0,3883; f* = 0,0825; half-Kelly = 0,0413.
+
+---
+
 ## [v2.93.2] — 2026-11-24 · Lãi/lỗ: REST và MCP dùng chung một đường kiểm chủ sở hữu
 
 ### Kỹ thuật

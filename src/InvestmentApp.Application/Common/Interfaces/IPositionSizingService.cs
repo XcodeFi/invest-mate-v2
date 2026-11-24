@@ -43,6 +43,10 @@ public class PositionSizingResult
 {
     public List<SizingModelResult> Models { get; set; } = new();
     public string RecommendedModel { get; set; } = "fixed_risk";
+
+    /// <summary>Chỉ có khi người gọi bật dùng dữ liệu lịch sử của chính họ; vắng mặt (không phải null) khi không bật.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public InvestmentApp.Domain.Services.ConservativeKelly? KellyFromHistory { get; set; }
 }
 
 public class SizingModelResult

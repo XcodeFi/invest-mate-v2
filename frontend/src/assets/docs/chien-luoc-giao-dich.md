@@ -121,6 +121,16 @@ Trang **Chiến lược** (tab Hiệu suất) và trang **Phân tích** (tab Th�
 - **PF (R):** tổng R thắng ÷ tổng R thua; n/a khi chưa có lệnh thua.
 - Các chỉ số tiền ở phía trên (tỷ lệ thắng, P&L, Profit Factor theo tiền) tính **theo lệnh** và gồm cả lãi/lỗ chưa chốt, nên không so trực tiếp với khối này.
 
+## Độ khớp ước lượng
+
+Khi lập kế hoạch Mua, bạn có thể nhập các kịch bản và xác suất (tổng 100%) để hệ thống tính % thắng ngầm định. Khối **Độ khớp ước lượng** (cùng chỗ với khối kỳ vọng theo R) hỏi ngược lại: những lần bạn tự tin 70%, thực tế thắng bao nhiêu?
+
+- **4 mức ước lượng:** dưới 40%, 40–55%, 55–70%, 70–100%. Mỗi dòng cho ước lượng trung bình, tỉ lệ thắng thật và số mẫu n. Dòng bị làm mờ và ghi "chưa đủ mẫu" khi n dưới 5: đừng đọc con số ở đó.
+- **Chỉ tính** kế hoạch Mua đã review và có ước lượng được **khoá khi khớp lệnh đầu tiên**; chiến dịch hoà (|R| ≤ 0,1) không tính vì không có đúng hay sai để chấm. Kế hoạch có ước lượng nhưng chưa khớp lệnh thì chưa vào.
+- **Brier score** (chỉ hiện khi có ít nhất 15 chiến dịch thắng/thua): trung bình bình phương sai lệch giữa xác suất bạn nêu và kết quả (thắng = 1, thua = 0). 0 là hoàn hảo; **0,25 tương đương luôn đoán 50/50**, nên Brier trên 0,25 nghĩa là ước lượng chưa hơn việc tung đồng xu. Càng thấp càng tốt.
+- **Nhận xét lạc quan/bi quan:** chênh lệch giữa ước lượng trung bình và tỉ lệ thắng thật, tính bằng điểm %. Dương là bạn hay ước cao hơn thực tế.
+- Chưa có kế hoạch nào đủ điều kiện thì khối báo trạng thái rỗng: cần kế hoạch có kịch bản xác suất và đã review.
+
 ## Bảng chỉ báo × chiến lược
 
 | Chỉ báo | Scalp | Day | Swing | Position | Breakout | Reversion | Momentum |

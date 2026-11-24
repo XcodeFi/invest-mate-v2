@@ -46,7 +46,9 @@ public class McpToolDiscoveryTests
         // Kế hoạch, lãi/lỗ, cảnh báo (đợt 3 MCP)
         "get_scenario_suggestion", "list_scenario_templates", "get_plan_scenario_history", "preview_plan_review",
         "list_plans_pending_review", "get_portfolio_pnl", "get_position_pnl", "get_pnl_summary",
-        "list_alert_rules", "get_alert_history"
+        "list_alert_rules", "get_alert_history",
+        // Độ khớp ước lượng (kỳ vọng theo R, đợt 3)
+        "get_estimate_calibration"
     };
 
     private static readonly string[] WriteTools =
@@ -78,12 +80,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_80_Tools()
+    public void Registers_All_81_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(80);
+        (ReadTools.Length + WriteTools.Length).Should().Be(81);
     }
 
     [Fact]
@@ -275,6 +277,7 @@ public class McpToolDiscoveryTests
             Required(schema[name]).Should().BeEquivalentTo(new[] { "portfolioId" }, name);
         Required(schema["get_sector_exposure"]).Should().BeEquivalentTo(new[] { "portfolioId", "symbol", "addValue" });
         Required(schema["get_strategy_expectancy"]).Should().BeEmpty();
+        Required(schema["get_estimate_calibration"]).Should().BeEmpty("strategyId là tuỳ chọn");
 
         // Đợt 3: kế hoạch / lãi-lỗ / cảnh báo
         Required(schema["get_scenario_suggestion"]).Should().BeEquivalentTo(new[] { "symbol", "entryPrice" });

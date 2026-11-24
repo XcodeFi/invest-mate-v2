@@ -11,6 +11,7 @@ using InvestmentApp.Application.Risk.Queries.GetSectorExposureForPlan;
 using InvestmentApp.Application.Risk.Queries.GetStopLossTargets;
 using InvestmentApp.Application.Risk.Queries.GetTrailingStopAlerts;
 using InvestmentApp.Application.Risk.Queries.GetVolatilitySizingForPlan;
+using InvestmentApp.Application.TradePlans.Queries.GetEstimateCalibration;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioAdvisories;
 using InvestmentApp.Application.TradePlans.Queries.GetStrategyExpectancy;
 using MediatR;
@@ -128,4 +129,11 @@ public static class RiskTools
     public static async Task<StrategyExpectancyDto> GetStrategyExpectancy(
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
         => await mediator.Send(new GetStrategyExpectancyQuery { UserId = http.GetUserId() }, ct);
+
+    [McpServerTool(Name = "get_estimate_calibration", ReadOnly = true)]
+    [Description("Độ khớp giữa % thắng người dùng đã ước lượng khi vào lệnh và kết quả thật của các chiến dịch đã review (chỉ kế hoạch Mua có ước lượng đã khoá, hoà không tính): 4 mức ước lượng (0–40, 40–55, 55–70, 70–100%) với n, ước lượng trung bình và tỉ lệ thắng thật; mức n dưới 5 là chưa đủ mẫu. brier và optimismPoints (dương = lạc quan, điểm %) chỉ có khi tổng n từ 15 trở lên, dưới ngưỡng thì vắng mặt (không phải 0); trường sufficient cho biết đủ ngưỡng hay chưa. Các tỉ lệ là phân số 0–1.")]
+    public static async Task<InvestmentApp.Domain.Services.CalibrationResult> GetEstimateCalibration(
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Chỉ tính một chiến lược (bỏ trống = tất cả). ID lạ cho kết quả rỗng.")] string? strategyId = null)
+        => await mediator.Send(new GetEstimateCalibrationQuery { UserId = http.GetUserId(), StrategyId = strategyId }, ct);
 }

@@ -37,4 +37,22 @@ describe('TradePlanService', () => {
     req.flush(body);
     expect(received).toEqual(body);
   });
+
+  it('getCalibration calls trade-plans/calibration with the auth header and no strategy by default', () => {
+    service.getCalibration().subscribe();
+
+    const req = http.expectOne(r => r.url === `${environment.apiUrl}/trade-plans/calibration`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
+    expect(req.request.params.has('strategyId')).toBeFalse();
+    req.flush({ n: 0, buckets: [], brier: null, optimismPoints: null, sufficient: false });
+  });
+
+  it('getCalibration passes the strategy id when given', () => {
+    service.getCalibration('s1').subscribe();
+
+    const req = http.expectOne(r => r.url === `${environment.apiUrl}/trade-plans/calibration`);
+    expect(req.request.params.get('strategyId')).toBe('s1');
+    req.flush({});
+  });
 });

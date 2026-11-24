@@ -9,13 +9,14 @@ import {
 import { TemplateService, StrategyTemplate } from '../../core/services/template.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { ExpectancyRBlockComponent } from '../../shared/components/expectancy-r-block/expectancy-r-block.component';
+import { CalibrationBlockComponent } from '../../shared/components/calibration-block/calibration-block.component';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
 @Component({
   selector: 'app-strategies',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, ExpectancyRBlockComponent],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, ExpectancyRBlockComponent, CalibrationBlockComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -451,6 +452,7 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
             </div>
 
             <app-expectancy-r-block class="block mt-6"></app-expectancy-r-block>
+            <app-calibration-block class="block mt-6"></app-calibration-block>
 
             <!-- Glossary -->
             <div *ngIf="performance" class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-500 space-y-1">
