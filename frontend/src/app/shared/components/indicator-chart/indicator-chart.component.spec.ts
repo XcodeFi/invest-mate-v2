@@ -203,4 +203,77 @@ describe('IndicatorChartComponent', () => {
       expect(spy).not.toHaveBeenCalled();
     });
   });
+
+  describe('giữ khoảng nhìn khi đổi nhóm', () => {
+    // Layout của lightweight-charts trong Karma không đủ để zoom thật (setVisibleLogicalRange không đổi khoảng nhìn),
+    // nên giả lập ở lớp TimeScaleApi: khoảng nhìn "người dùng đã chọn" trả về từ getVisibleLogicalRange.
+    const USER_RANGE = { from: 5, to: 20 };
+    const timeScaleProto = () => Object.getPrototypeOf((component as any).charts[0].timeScale());
+    const stubRange = () => {
+      const proto = timeScaleProto();
+      const getSpy = spyOn(proto, 'getVisibleLogicalRange').and.returnValue(USER_RANGE);
+      const setSpy = spyOn(proto, 'setVisibleLogicalRange').and.callThrough();
+      // giả lập chỉ cần trong lúc dựng lại; sau đó trả về thật (chính lightweight-charts gọi hàm này khi phát sự kiện đổi khoảng nhìn)
+      return { setSpy, releaseGet: () => getSpy.and.callThrough() };
+    };
+
+    // chart mới đặt lại khoảng nhìn ở khung hình kế tiếp; đợi một khung (đăng ký sau nên chạy sau)
+    const nextFrame = (fn: () => void, done: DoneFn) => requestAnimationFrame(() => { fn(); done(); });
+
+    it('keeps visible logical range when layers change with same dates', (done) => {
+      setInputs(layers(['RSI', 'MACD']));
+      const { setSpy, releaseGet } = stubRange();
+
+      // cùng nội dung ngày nhưng là mảng mới (như khi dựng lại từ cache)
+      fixture.componentRef.setInput('dates', [...dates]);
+      fixture.componentRef.setInput('layers', layers(['ATR14']));
+      fixture.detectChanges();
+      releaseGet();
+
+      nextFrame(() => expect(setSpy).toHaveBeenCalledWith(USER_RANGE), done);
+    });
+
+    it('resets range when dates change', (done) => {
+      setInputs(layers(['RSI']));
+      const { setSpy, releaseGet } = stubRange();
+
+      const otherDates = dates.map(d => new Date(Date.parse(d) + 86_400_000 * 100).toISOString());
+      fixture.componentRef.setInput('dates', otherDates);
+      fixture.componentRef.setInput('layers', layers(['RSI']));
+      fixture.detectChanges();
+      releaseGet();
+
+      nextFrame(() => expect(setSpy).not.toHaveBeenCalledWith(USER_RANGE), done);
+    });
+
+    it('destroying before the restore frame cancels it and never touches a removed chart', (done) => {
+      setInputs(layers(['RSI']));
+      const { setSpy, releaseGet } = stubRange();
+      const cancelSpy = spyOn(window, 'cancelAnimationFrame').and.callThrough();
+
+      fixture.componentRef.setInput('layers', layers(['ATR14']));
+      fixture.detectChanges();
+      releaseGet();
+      fixture.destroy();
+
+      expect(cancelSpy).toHaveBeenCalled();
+      nextFrame(() => expect(setSpy).not.toHaveBeenCalledWith(USER_RANGE), done);
+    });
+
+    it('rebuilding twice before the frame restores only once, on the latest charts', (done) => {
+      setInputs(layers(['RSI']));
+      const { setSpy, releaseGet } = stubRange();
+
+      fixture.componentRef.setInput('layers', layers(['ATR14']));
+      fixture.detectChanges();
+      fixture.componentRef.setInput('layers', layers(['MFI']));
+      fixture.detectChanges();
+      releaseGet();
+
+      nextFrame(() => {
+        const restores = setSpy.calls.allArgs().filter(a => a[0] === USER_RANGE);
+        expect(restores.length).toBe(1);
+      }, done);
+    });
+  });
 });

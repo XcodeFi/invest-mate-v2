@@ -63,6 +63,10 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   private anchors: Anchor[] = [];
   /** Chỉ số nguồn (trong dates/values) của từng điểm trên trục thời gian của biểu đồ. */
   private sourceIndex: number[] = [];
+  /** Khoá nội dung trục thời gian của lần dựng trước + khoảng nhìn, để giữ zoom khi chỉ đổi lớp chỉ báo. */
+  private timesKey = '';
+  private savedRange: { from: number; to: number } | null = null;
+  private restoreFrame: number | null = null;
 
   /** Số instance chart đang sống (dùng cho test dọn dẹp). */
   get chartCount(): number {
@@ -83,6 +87,9 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   private rebuild(): void {
+    // Lưu khoảng nhìn của chart cuối (chỉ chart này hiện trục thời gian nên có bề rộng trục > 0) trước khi dựng lại
+    this.savedRange = this.charts.length > 0 ? this.charts[this.charts.length - 1].timeScale().getVisibleLogicalRange() : null;
+    const previousKey = this.timesKey;
     this.teardown();
     const closes = this.candles?.close ?? [];
     if (!this.dates?.length || closes.length === 0) return;
@@ -100,6 +107,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       }
     });
     if (times.length === 0) return;
+    this.timesKey = times.join('|');
+    const keepRange = this.savedRange !== null && this.timesKey === previousKey;
 
     const host = this.root.nativeElement;
     const layers = this.layers ?? EMPTY_LAYERS;
@@ -153,7 +162,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
           : chart.addLineSeries({
               color: line.color ?? '#2563eb', lineWidth: 2,
               priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-        priceFormat: PRICE_FORMAT
+              priceFormat: PRICE_FORMAT
             });
         series.setData(data as any);
         firstSeries ??= series;
@@ -186,6 +195,16 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
         this.syncCrosshair(chart, param);
       });
     });
+    // Cùng bộ ngày (cùng mã): giữ khoảng nhìn người dùng đã chọn; đổi ngày thì vẫn vừa khít như cũ.
+    // Chart mới tạo bỏ qua setVisibleLogicalRange cho tới khung hình đầu tiên (và còn tự fit lại), nên đặt ở khung kế tiếp.
+    if (keepRange) {
+      const range = this.savedRange!;
+      const axisChart = this.charts[this.charts.length - 1];
+      this.restoreFrame = requestAnimationFrame(() => {
+        this.restoreFrame = null;
+        if (this.charts[this.charts.length - 1] === axisChart) axisChart.timeScale().setVisibleLogicalRange(range);
+      });
+    }
     this.updateReadouts(null);
 
     // ----- Co giãn theo khung chứa -----
@@ -291,6 +310,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   private teardown(): void {
+    if (this.restoreFrame !== null) cancelAnimationFrame(this.restoreFrame);
+    this.restoreFrame = null;
     this.observer?.disconnect();
     this.observer = null;
     this.charts.forEach(c => c.remove());
