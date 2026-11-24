@@ -1241,6 +1241,17 @@ Mỗi node gồm:
 
 ---
 
+## Nền R — rủi ro ban đầu, R thực tế, kỳ vọng theo R (2026-11-24)
+
+Mọi kết quả quy về bội số của rủi ro ban đầu (1R). Chỉ kế hoạch **Mua**; lệnh Bán chưa hỗ trợ (ẩn khỏi thống kê R). Đặc tả: `docs/superpowers/specs/2026-11-24-expectancy-decision-design.md`; plan: `docs/superpowers/plans/2026-11-24-expectancy-r-foundation.md`.
+
+- **1R cố định:** `TradePlan.InitialRisk` {Entry, StopLoss, Quantity, RiskAmount, RiskBasis} chụp lần đầu rời Draft (qua `MarkReady` hoặc `ExecuteLot` từ Draft), chụp lại mỗi lần `Update`/`SetLots` khi còn Ready, **khoá** ở lần khớp đầu (`MarkInProgress`/`ExecuteLot`), xoá khi `Restore`. Entry nhiều lot = bình quân giá dự tính theo khối lượng dự tính. `UpdateStopLossWithHistory` không đổi 1R.
+- **R:R tính khi đọc:** `RMath.ComputeRiskReward` = (giá thoát bình quân − Entry) / (Entry − SL), bình quân theo `PercentOfPosition` (không có thì `Target`). DTO có `effectiveRiskReward` + `riskRewardComputed`; field `RiskRewardRatio` đã gõ giữ nguyên. AI so ngưỡng bằng giá trị hiệu lực.
+- **R thực tế:** `CampaignReviewData.RealizedR` = PnL ròng / `RiskAmount`; `RiskBasis`: `chot-ke-hoach` | `uoc-tinh` (kế hoạch cũ, theo `StopLossHistory[0].OldPrice` > 0 rồi SL hiện tại) | `khop-mot-phan` (có lot chưa khớp). Review cũ thiếu `RealizedR` được tính khi đọc, **chỉ trong DTO** (không gán vào entity vì `UpdateReviewLessons` lưu cả `ReviewData`).
+- **Thắng/thua/hoà:** R > +0,1 thắng, R < −0,1 thua, còn lại hoà. % thắng = thắng / (thắng + thua), kèm khoảng Wilson 95%. **Kỳ vọng R = trung bình R của MỌI chiến dịch đã đóng, kể cả hoà.** PF theo R = tổng R thắng / |tổng R thua|, null khi không có lệnh thua (không dùng 999,99).
+- **Thống kê:** `GET /api/v1/trade-plans/expectancy` — nhóm theo `StrategyId` của kế hoạch đã review (nhóm "Không gắn chiến lược", "Chiến lược không còn tồn tại", và dòng tổng); kế hoạch không tính được R bị loại khỏi mẫu. Lọc theo người gọi. FE: khối `app-expectancy-r-block` trên trang Chiến lược và Phân tích; n < 10 ghi "chưa đủ mẫu để tin". Chỉ số tiền cũ giữ nguyên, ghi chú "theo lệnh, gồm cả lãi/lỗ chưa chốt".
+- **Chưa làm (đợt 2–3):** bảng kịch bản kết quả + EV + cổng cảnh báo, hiệu chỉnh xác suất (Brier), Kelly dùng dữ liệu thật, MCP cho thống kê R.
+
 ## P0.7: Campaign Review — Đóng chiến dịch & Phân tích hiệu suất
 
 **Branch:** `feat/p7-improvements` | **Trạng thái:** ✅ Done
