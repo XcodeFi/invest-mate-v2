@@ -2,6 +2,20 @@
 
 ---
 
+## [v2.87.3] — 2026-11-24 · Trợ lý AI chỉ dựng ngữ cảnh từ dữ liệu của tài khoản đang gọi
+
+### Sửa lỗi
+
+**🔒 Các chế độ phân tích của trợ lý AI đối chiếu chủ sở hữu trước khi nạp dữ liệu.** Khi nhận mã danh mục hoặc mã kế hoạch từ yêu cầu, các chế độ "Đánh giá danh mục", "Tổng kết tháng", "Đánh giá rủi ro", "Phân tích giao dịch" và "Cố vấn kế hoạch giao dịch" nay chỉ dựng ngữ cảnh từ danh mục và kế hoạch thuộc tài khoản đang gọi. Mã không thuộc tài khoản được xử lý như mã không tồn tại. Riêng "Cố vấn kế hoạch giao dịch": kế hoạch thuộc tài khoản nhưng gắn với danh mục không thuộc tài khoản vẫn chạy, chỉ bỏ phần dữ liệu theo danh mục.
+
+### Kỹ thuật
+
+- Hàm dùng chung `LoadOwnedPortfolioAsync(portfolioId, userId)` trả danh mục chỉ khi `portfolio.UserId == userId`; thay cho `_portfolioRepo.GetByIdAsync` ở ba hàm dựng ngữ cảnh theo danh mục; hàm kế hoạch kiểm thêm `plan.UserId`; hàm phân tích giao dịch chỉ nạp giao dịch khi danh mục thuộc tài khoản
+- Test mới `AiAssistantServiceOwnershipTests`: 11 ca (mỗi chế độ một ca không thuộc tài khoản và một ca thuộc tài khoản, thêm ca kế hoạch gắn danh mục không thuộc tài khoản); 6 ca đỏ trước khi sửa
+- Tests: **2153 backend** (+11) — tất cả pass
+
+---
+
 ## [v2.87.2] — 2026-11-24 · Nhật ký giao dịch chỉ còn hiện cho đúng tài khoản sở hữu
 
 ### Sửa lỗi
