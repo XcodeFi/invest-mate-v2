@@ -128,6 +128,15 @@ export interface TradePlan {
   /** R:R hiệu lực khi đọc: số hệ thống tính khi đủ dữ liệu, không thì giá trị đã gõ. */
   effectiveRiskReward?: number | null;
   riskRewardComputed?: boolean;
+  /** Bảng kịch bản kết quả hiện hành (null với kế hoạch cũ hoặc lệnh bán). */
+  scenarios?: OutcomeScenarioDto[] | null;
+  /** Ảnh chụp ước lượng lúc chốt kế hoạch; khoá ở lần khớp đầu. */
+  estimate?: EstimateDto | null;
+  /** Kỳ vọng tính ở server (đã trừ phí ước tính). Trường null = chưa tính được. */
+  expectation?: PlanExpectationDto | null;
+  evGateReason?: string | null;
+  /** Vào lệnh không qua cổng kỳ vọng. */
+  evGateSkipped?: boolean;
   confidenceLevel: number;
   checklist: ChecklistItemDto[];
   entryMode?: string;
@@ -146,7 +155,33 @@ export interface TradePlan {
   updatedAt: string;
 }
 
+export interface OutcomeScenarioDto {
+  label: string;
+  probabilityPercent: number;
+  exitPrice: number;
+}
+
+export interface EstimateDto {
+  scenarios: OutcomeScenarioDto[];
+  evR: number | null;
+  impliedWinProbability: number | null;
+  feesIncluded: boolean;
+  capturedAt: string;
+  locked: boolean;
+  lockedAt?: string | null;
+}
+
+export interface PlanExpectationDto {
+  evR: number | null;
+  impliedWinPercent: number | null;
+  /** EV theo VND = EV theo R × 1R. */
+  evAmount: number | null;
+}
+
 export interface CreateTradePlanRequest {
+  scenarios?: OutcomeScenarioDto[];
+  /** Lý do vượt cổng kỳ vọng khi tạo thẳng ở Ready (EV ≤ 0 hoặc chưa ước lượng). */
+  evGateReason?: string;
   portfolioId?: string;
   symbol: string;
   direction: string;
@@ -176,6 +211,8 @@ export interface CreateTradePlanRequest {
 }
 
 export interface UpdateTradePlanRequest {
+  /** Bỏ trống = giữ nguyên; mảng rỗng = xoá bảng. */
+  scenarios?: OutcomeScenarioDto[];
   portfolioId?: string;
   symbol?: string;
   direction?: string;
@@ -205,6 +242,8 @@ export interface UpdateTradePlanRequest {
 export interface UpdateTradePlanStatusRequest {
   status: string;
   tradeId?: string;
+  /** Bắt buộc khi chuyển ready mà EV ≤ 0 hoặc chưa ước lượng (≥ 10 ký tự). */
+  evGateReason?: string;
 }
 
 export interface AbortTradePlanResult {

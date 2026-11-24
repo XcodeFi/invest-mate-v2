@@ -41,13 +41,14 @@ describe('TradePlanComponent — đề xuất điều kiện từ hồ sơ công
     const templateSpy = jasmine.createSpyObj('TradePlanTemplateService', ['getAll', 'create', 'delete']);
     const planSpy = jasmine.createSpyObj('TradePlanService', [
       'getAll', 'create', 'update', 'updateStatus', 'delete', 'cancel', 'restore',
-      'previewReview', 'review', 'getScenarioPresets', 'getScenarioHistory', 'fetchScenarioSuggestion', 'getAdvisory'
+      'previewReview', 'review', 'getScenarioPresets', 'getScenarioHistory', 'fetchScenarioSuggestion', 'getAdvisory', 'getExpectancy'
     ]);
     const notifSpy = jasmine.createSpyObj('NotificationService', ['success', 'error', 'warning', 'info']);
     dossierSpy = jasmine.createSpyObj('CompanyDossierService', ['gateStatus', 'suggestedRules']);
 
     strategySpy.getAll.and.returnValue(of([]));
     portfolioSpy.getAll.and.returnValue(of([]));
+    planSpy.getExpectancy.and.returnValue(of({ total: { n: 0 }, strategies: [] }));
     templateSpy.getAll.and.returnValue(of([]));
     planSpy.getAll.and.returnValue(of([]));
     planSpy.getScenarioPresets.and.returnValue(of([]));

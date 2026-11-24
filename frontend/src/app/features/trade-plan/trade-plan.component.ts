@@ -8,7 +8,9 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult, SectorExposureForPlan, VolatilitySizingResult } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
-import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger } from '../../core/services/trade-plan.service';
+import { PlanExpectationComponent } from './plan-expectation/plan-expectation.component';
+import { ScenarioRow, scenariosPayload } from './plan-expectation/expectation-math';
+import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger, PlanExpectationDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService, SuggestedInvalidationRuleDto, INVALIDATION_TRIGGER_LABELS, DossierGateStatusDto, GATE_REASON_TEXT } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
@@ -108,7 +110,7 @@ interface DossierGateError {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent, PlanExpectationComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -1599,6 +1601,13 @@ interface DossierGateError {
             </div>
           </div>
 
+          <!-- Kỳ vọng: bảng kịch bản kết quả + EV + tỉ lệ nền (chỉ lệnh Mua) -->
+          <app-plan-expectation
+            [direction]="plan.direction" [entry]="expectationEntry" [stopLoss]="plan.stopLoss" [target]="plan.target"
+            [quantity]="expectationQuantity" [exitTargets]="plan.exitTargets" [strategyId]="plan.strategyId"
+            [locked]="estimateLocked" [serverExpectation]="serverExpectation" [scenarios]="expectationRows"
+            (scenariosChange)="onExpectationChange($event)"></app-plan-expectation>
+
           <!-- Pre-trade Checklist (P6: Dynamic) -->
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-2">
@@ -2024,6 +2033,27 @@ interface DossierGateError {
       (cancel)="closeMoveSl()"></app-move-stop-loss-modal>
 
     <app-ai-chat-panel [(isOpen)]="showAiPanel" title="AI Tư vấn Kế hoạch" useCase="trade-plan-advisor" [contextData]="{ tradePlanId: aiTradePlanId }"></app-ai-chat-panel>
+
+    <!-- Cổng kỳ vọng: EV ≤ 0 hoặc chưa ước lượng thì cần lý do trước khi chuyển Sẵn sàng (cảnh báo, không chặn cứng) -->
+    <div *ngIf="evGateModalOpen" class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+      role="dialog" aria-modal="true" aria-labelledby="ev-gate-title" data-testid="ev-gate-modal">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 id="ev-gate-title" class="text-lg font-semibold mb-2">Kỳ vọng âm hoặc chưa ước lượng</h3>
+        <p class="text-sm text-gray-600 mb-3">
+          Kế hoạch này có kỳ vọng (EV) không dương hoặc bạn chưa nhập bảng xác suất. Bạn vẫn có thể tiếp tục, nhưng cần ghi lý do để
+          xem lại khi review.
+        </p>
+        <label for="ev-gate-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do (tối thiểu {{ evGateMinLength }} ký tự)</label>
+        <textarea id="ev-gate-reason" rows="3" [(ngModel)]="evGateReasonText"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" data-testid="ev-gate-reason"
+          placeholder="VD: Lệnh thử nghiệm quy mô nhỏ để kiểm chứng giả thuyết..."></textarea>
+        <div class="flex justify-end gap-2 mt-4">
+          <button type="button" (click)="cancelEvGate()" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Hủy</button>
+          <button type="button" (click)="confirmEvGate()" [disabled]="!canConfirmEvGate" data-testid="ev-gate-confirm"
+            class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">Xác nhận chuyển Sẵn sàng</button>
+        </div>
+      </div>
+    </div>
   `,
   styles: [`
     /* Scenario tree visual flowchart */
@@ -2253,6 +2283,16 @@ export class TradePlanComponent implements OnInit, OnDestroy {
 
   // Campaign Review
   showReviewPanel = false;
+
+  // Kỳ vọng (bảng kịch bản kết quả) + cổng kỳ vọng
+  expectationRows: ScenarioRow[] = [];
+  private hadSavedScenarios = false;
+  estimateLocked = false;
+  serverExpectation: PlanExpectationDto | null = null;
+  evGateModalOpen = false;
+  evGateReasonText = '';
+  readonly evGateMinLength = 10;
+  private evGateRetry: ((reason: string) => void) | null = null;
   reviewPlanTarget: TradePlanDto | null = null;
   reviewPreview: CampaignReviewDto | null = null;
   loadingReviewPreview = false;
@@ -3428,6 +3468,10 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   loadPlan(sp: TradePlanDto): void {
     this.selectedPlanId = sp.id;
     this.selectedPlanStatus = sp.status;
+    this.expectationRows = (sp.scenarios || []).map(x => ({ label: x.label, probabilityPercent: x.probabilityPercent, exitPrice: x.exitPrice }));
+    this.hadSavedScenarios = this.expectationRows.length > 0;
+    this.estimateLocked = sp.estimate?.locked === true;
+    this.serverExpectation = sp.expectation ?? null;
     this.plan.symbol = sp.symbol;
     this.plan.direction = sp.direction;
     this.plan.entryPrice = sp.entryPrice;
@@ -3510,7 +3554,65 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.updateChecklistScore();
   }
 
+  /** Giá vào dùng cho EV: bình quân giá dự tính theo khối lượng khi vào nhiều lot, không thì giá vào của kế hoạch. */
+  get expectationEntry(): number {
+    const lots = this.plan.lots.filter(l => l.plannedQuantity > 0 && l.status !== 'Cancelled');
+    if (this.plan.entryMode !== 'Single' && lots.length > 0) {
+      const qty = lots.reduce((a, l) => a + l.plannedQuantity, 0);
+      return lots.reduce((a, l) => a + l.plannedPrice * l.plannedQuantity, 0) / qty;
+    }
+    return this.plan.entryPrice;
+  }
+
+  get expectationQuantity(): number {
+    const lots = this.plan.lots.filter(l => l.plannedQuantity > 0 && l.status !== 'Cancelled');
+    if (this.plan.entryMode !== 'Single' && lots.length > 0) return lots.reduce((a, l) => a + l.plannedQuantity, 0);
+    return this.plan.quantity || this.optimalShares;
+  }
+
+  onExpectationChange(rows: ScenarioRow[]): void {
+    this.expectationRows = rows;
+  }
+
+  /** `scenarios` gửi kèm khi lưu: chỉ lệnh Mua; bảng toàn ô trống thì không gửi (giữ nguyên). */
+  private scenariosForSave(): { label: string; probabilityPercent: number; exitPrice: number }[] | undefined {
+    if (this.plan.direction !== 'Buy') return undefined;
+    return scenariosPayload(this.expectationRows, this.hadSavedScenarios);
+  }
+
+  /** Lỗi 400 EV_GATE_REASON_REQUIRED (phân biệt bằng `code`): mở hộp hỏi lý do rồi chạy lại bằng `retry`. */
+  private handleEvGateError(err: any, retry: (reason: string) => void): boolean {
+    if (err?.error?.code !== 'EV_GATE_REASON_REQUIRED') return false;
+    this.evGateRetry = retry;
+    this.evGateReasonText = '';
+    this.evGateModalOpen = true;
+    return true;
+  }
+
+  get canConfirmEvGate(): boolean {
+    return (this.evGateReasonText ?? '').trim().length >= this.evGateMinLength;
+  }
+
+  confirmEvGate(): void {
+    if (!this.canConfirmEvGate || !this.evGateRetry) return;
+    const retry = this.evGateRetry;
+    const reason = this.evGateReasonText.trim();
+    this.evGateModalOpen = false;
+    retry(reason);
+  }
+
+  cancelEvGate(): void {
+    this.evGateModalOpen = false;
+    this.evGateRetry = null;
+    this.evGateReasonText = '';
+  }
+
   resetForm(): void {
+    this.expectationRows = [];
+    this.hadSavedScenarios = false;
+    this.estimateLocked = false;
+    this.serverExpectation = null;
+    this.cancelEvGate();
     this.selectedPlanId = null;
     this.selectedPlanStatus = '';
     this.plan = {
@@ -3554,7 +3656,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.savePlan('Ready');
   }
 
-  private savePlan(status: string): void {
+  private savePlan(status: string, evGateReason?: string): void {
     // Tighten-SL gate: block save if user loosened SL while plan is InProgress
     const tightenCheck = this.validateTightenSl(this.plan.stopLoss);
     if (!tightenCheck.ok) {
@@ -3603,24 +3705,15 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           percentOfPosition: e.percentOfPosition, label: e.label, isTriggered: false
         })) : undefined,
         exitStrategyMode: this.exitStrategyMode,
-        scenarioNodes: this.buildScenarioPayload()
+        scenarioNodes: this.buildScenarioPayload(),
+        scenarios: this.scenariosForSave()
       }).subscribe({
         next: () => {
+          // Bảng đã lưu theo lần này: lần sau bảng toàn ô trống nghĩa là người dùng xoá bảng
+          this.hadSavedScenarios = (this.scenariosForSave() ?? []).length > 0 || (this.hadSavedScenarios && this.scenariosForSave() === undefined);
           // If status changed (e.g., Draft → Ready), update status separately
           if (this.selectedPlanStatus === 'Draft' && status === 'Ready') {
-            this.tradePlanService.updateStatus(this.selectedPlanId!, { status: 'ready' }).subscribe({
-              next: () => {
-                this.saving = false;
-                this.selectedPlanStatus = 'Ready';
-                this.notification.success('Kế hoạch', 'Đã cập nhật & sẵn sàng');
-                this.loadSavedPlans();
-              },
-              error: () => {
-                this.saving = false;
-                this.notification.error('Lỗi', 'Cập nhật thành công nhưng không chuyển trạng thái được');
-                this.loadSavedPlans();
-              }
-            });
+            this.moveToReady(this.selectedPlanId!, evGateReason);
           } else {
             this.saving = false;
             this.notification.success('Kế hoạch', 'Đã cập nhật');
@@ -3670,10 +3763,13 @@ export class TradePlanComponent implements OnInit, OnDestroy {
           percentOfPosition: e.percentOfPosition, label: e.label, isTriggered: false
         })) : undefined,
         exitStrategyMode: this.exitStrategyMode,
-        scenarioNodes: this.buildScenarioPayload()
+        scenarioNodes: this.buildScenarioPayload(),
+        scenarios: this.scenariosForSave(),
+        evGateReason: status === 'Ready' ? evGateReason : undefined
       }).subscribe({
         next: (res) => {
           this.saving = false;
+          this.hadSavedScenarios = (this.scenariosForSave() ?? []).length > 0;
           this.selectedPlanId = res.id;
           this.selectedPlanStatus = status === 'Ready' ? 'Ready' : 'Draft';
           this.notification.success('Kế hoạch', status === 'Ready' ? 'Đã tạo & sẵn sàng' : 'Đã lưu nháp');
@@ -3682,6 +3778,7 @@ export class TradePlanComponent implements OnInit, OnDestroy {
         error: (err) => {
           this.saving = false;
           if (this.handleDossierGateError(err)) return;
+          if (this.handleEvGateError(err, reason => this.savePlan(status, reason))) return;
           this.notification.error('Lỗi', this.formatBackendError(err, 'Không thể lưu kế hoạch'));
         }
       });
@@ -3700,10 +3797,31 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     });
   }
 
-  markReady(sp: TradePlanDto): void {
-    this.tradePlanService.updateStatus(sp.id, { status: 'ready' }).subscribe({
+  /** Sau khi lưu bản cập nhật: chuyển Nháp → Sẵn sàng. Cổng kỳ vọng từ chối thì hỏi lý do và chỉ chạy lại bước chuyển trạng thái. */
+  private moveToReady(planId: string, evGateReason?: string): void {
+    this.tradePlanService.updateStatus(planId, evGateReason ? { status: 'ready', evGateReason } : { status: 'ready' }).subscribe({
+      next: () => {
+        this.saving = false;
+        this.selectedPlanStatus = 'Ready';
+        this.notification.success('Kế hoạch', 'Đã cập nhật & sẵn sàng');
+        this.loadSavedPlans();
+      },
+      error: (err) => {
+        this.saving = false;
+        if (this.handleEvGateError(err, reason => this.moveToReady(planId, reason))) { this.loadSavedPlans(); return; }
+        this.notification.error('Lỗi', 'Cập nhật thành công nhưng không chuyển trạng thái được');
+        this.loadSavedPlans();
+      }
+    });
+  }
+
+  markReady(sp: TradePlanDto, evGateReason?: string): void {
+    this.tradePlanService.updateStatus(sp.id, evGateReason ? { status: 'ready', evGateReason } : { status: 'ready' }).subscribe({
       next: () => { this.notification.success('Kế hoạch', `${sp.symbol} sẵn sàng`); this.loadSavedPlans(); },
-      error: () => this.notification.error('Lỗi', 'Không thể chuyển trạng thái')
+      error: (err) => {
+        if (this.handleEvGateError(err, reason => this.markReady(sp, reason))) return;
+        this.notification.error('Lỗi', 'Không thể chuyển trạng thái');
+      }
     });
   }
 
