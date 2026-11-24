@@ -212,18 +212,18 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
         </div>
 
         <!-- Thanh chọn nhóm + biểu đồ chỉ báo của nhóm đang chọn (chuỗi tải khi bấm nhóm lần đầu).
-             lg+: dính dưới header để cuộn các thẻ vẫn thấy biểu đồ; header là z-50 nên z-40. -->
-        <div class="mb-4 bg-white pb-2 lg:sticky lg:top-14 lg:z-40" data-testid="ta-chart-area">
+             chỉ dính khi màn hình rộng ≥1024 VÀ cao ≥800 (laptop thấp thì khối dính chiếm hết màn hình); header là z-50 nên z-40. -->
+        <div class="mb-4 bg-white pb-2 ta-chart-sticky" data-testid="ta-chart-area">
           <div class="flex flex-wrap gap-2 mb-2" role="group" aria-label="Chọn nhóm chỉ báo để vẽ biểu đồ">
             @for (g of taGroups; track g.key) {
-              <span class="px-3 py-1 rounded-full text-sm font-semibold border cursor-pointer select-none"
+              <button type="button" class="px-3 py-1 rounded-full text-sm font-semibold border cursor-pointer select-none"
                 [class.bg-blue-600]="selectedGroup === g.key" [class.text-white]="selectedGroup === g.key"
                 [class.border-blue-600]="selectedGroup === g.key"
                 [class.bg-white]="selectedGroup !== g.key" [class.text-gray-700]="selectedGroup !== g.key"
                 [class.border-gray-300]="selectedGroup !== g.key" [class.hover:bg-gray-100]="selectedGroup !== g.key"
-                role="button" tabindex="0" [attr.aria-pressed]="selectedGroup === g.key"
-                (click)="toggleGroup(g.key)" (keydown.enter)="onGroupKey($event, g.key)" (keydown.space)="onGroupKey($event, g.key)"
-                [attr.data-group]="g.key">{{ g.label }}</span>
+                [attr.aria-pressed]="selectedGroup === g.key"
+                (click)="toggleGroup(g.key)"
+                [attr.data-group]="g.key">{{ g.label }}</button>
             }
           </div>
           @if (chartLoading) {
@@ -780,7 +780,13 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
       [useCase]="aiPanelUseCase"
       [contextData]="{ symbol: searchSymbol }">
     </app-ai-chat-panel>
-  `
+  `,
+  styles: [`
+    /* Dính dưới header (3.5rem) chỉ khi đủ rộng và đủ cao; header là z-50 nên khối này z-40 */
+    @media (min-width: 1024px) and (min-height: 800px) {
+      .ta-chart-sticky { position: sticky; top: 3.5rem; z-index: 40; }
+    }
+  `]
 })
 export class MarketDataComponent implements OnInit {
   // Overview
@@ -1015,11 +1021,6 @@ export class MarketDataComponent implements OnInit {
   }
 
   // --- Biểu đồ chỉ báo theo nhóm ---
-
-  onGroupKey(event: Event, group: TaGroup): void {
-    event.preventDefault();
-    this.toggleGroup(group);
-  }
 
   /** Bấm nhóm đang chọn → bỏ chọn (chỉ còn nến). Bấm nhóm khác → vẽ nhóm đó; lần đầu thì tải chuỗi + phân tích cùng lúc. */
   toggleGroup(group: TaGroup): void {

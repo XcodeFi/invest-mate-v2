@@ -7,8 +7,8 @@
 ### Cải tiến
 
 - Trang Tra cứu giá, panel "Phân tích kỹ thuật": 6 nhóm (🎯 Tổng hợp, 📈 Xu hướng, ⚡ Động lượng, 📏 Biến động, 💰 Dòng tiền, 🧱 Mốc giá) nay là một thanh nút ngay phía trên biểu đồ, không cần cuộn xuống tiêu đề từng khối để chọn. Tiêu đề các khối trở lại là chữ thường, không bấm được. Bấm lại nút đang chọn để bỏ chọn.
-- Từ màn hình lớn, thanh nút và biểu đồ dính ngay dưới thanh menu khi cuộn xuống xem các thẻ chỉ báo. Trên điện thoại không dính.
-- Biểu đồ cao tối đa khoảng 560px (tầng giá 280px, các tầng chỉ báo chia phần còn lại, mỗi tầng tối thiểu 90px) để thanh nút và biểu đồ vừa một màn hình.
+- Trên màn hình rộng và cao (từ 1024×800), thanh nút và biểu đồ dính ngay dưới thanh menu khi cuộn xuống xem các thẻ chỉ báo. Laptop màn hình thấp và điện thoại không dính, để các thẻ không bị che.
+- Toàn khối (thanh nút, tiêu đề tầng, biểu đồ) cao tối đa khoảng 560px; nhóm nhiều tầng thì các tầng chỉ báo thấp hơn để vừa một màn hình. Các nút nhóm là nút thật nên dùng được bằng phím Enter/Space.
 
 ---
 

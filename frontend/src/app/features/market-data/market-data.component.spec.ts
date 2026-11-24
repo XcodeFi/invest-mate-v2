@@ -287,7 +287,8 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
       '🎯 Tổng hợp', '📈 Xu hướng', '⚡ Động lượng', '📏 Biến động', '💰 Dòng tiền', '🧱 Mốc giá',
     ]);
     chips.forEach(c => {
-      expect(c.nativeElement.getAttribute('role')).toBe('button');
+      expect(c.nativeElement.tagName).toBe('BUTTON');
+      expect(c.nativeElement.getAttribute('type')).toBe('button');
       expect(c.nativeElement.getAttribute('aria-pressed')).toBe('false');
     });
     expect(fixture.debugElement.queryAll(By.css('[data-group]')).length).toBe(6);
@@ -360,16 +361,16 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
     expect(component.groupLayers.panes.map(p => p.title)).toEqual(['RSI', 'MACD', 'Stochastic']);
   });
 
-  it('Enter and Space on the header toggle the group', () => {
+  it('chips are native buttons, so Enter/Space activation is the browser click (no extra key handlers)', () => {
     setup();
 
+    // kích hoạt bàn phím trên <button> chính là sự kiện click; chỉ một lần bật/tắt cho mỗi lần kích hoạt
+    header('xu-huong').click();
+    fixture.detectChanges();
+    expect(component.selectedGroup).toBe('xu-huong');
     header('xu-huong').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     fixture.detectChanges();
     expect(component.selectedGroup).toBe('xu-huong');
-
-    header('xu-huong').dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
-    fixture.detectChanges();
-    expect(component.selectedGroup).toBeNull();
   });
 
   it('late response for previous symbol is ignored', () => {

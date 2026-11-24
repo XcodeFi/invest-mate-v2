@@ -205,27 +205,33 @@ describe('IndicatorChartComponent', () => {
   });
 
   describe('chiều cao', () => {
+    const TITLE = 18;
     const heights = () => Array.from(containers()).map(c => parseInt((c as HTMLElement).style.height, 10));
+    const titleHeights = () =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.indicator-chart-pane > div:first-child'))
+        .map(h => parseInt((h as HTMLElement).style.height, 10));
+    const total = () => heights().reduce((a, h) => a + h, 0) + titleHeights().reduce((a, h) => a + h, 0);
 
-    it('price chart is 280px; panes share the remaining 280px of the 560px budget', () => {
+    [0, 1, 2, 3].forEach(n => {
+      it(`${n} panes: canvases + titles stay within 500px, price chart is the tallest, panes >= 60px`, () => {
+        setInputs(layers(['RSI', 'MACD', 'Stochastic'].slice(0, n)));
+
+        const h = heights();
+        expect(h.length).toBe(n + 1);
+        expect(total()).toBeLessThanOrEqual(500);
+        h.slice(1).forEach(p => {
+          expect(p).toBeGreaterThanOrEqual(60);
+          expect(p).toBeLessThanOrEqual(h[0]);
+        });
+      });
+    });
+
+    it('a single pane does not balloon: it is capped at 120px and the price chart takes the rest', () => {
       setInputs(layers(['RSI']));
-      expect(heights()).toEqual([280, 280]);
 
-      fixture.componentRef.setInput('layers', layers(['RSI', 'MACD', 'Stochastic']));
-      fixture.detectChanges();
-      expect(heights()).toEqual([280, 93, 93, 93]);
-    });
-
-    it('each pane is at least 90px even when that exceeds the budget', () => {
-      setInputs(layers(['ADX', 'RSI', 'MACD', 'OBV']));
-
-      expect(heights()).toEqual([280, 90, 90, 90, 90]);
-    });
-
-    it('price chart is 280px when there are no panes', () => {
-      setInputs(layers([]));
-
-      expect(heights()).toEqual([280]);
+      const h = heights();
+      expect(h[1]).toBe(120);
+      expect(h[0]).toBeGreaterThan(300);
     });
   });
 

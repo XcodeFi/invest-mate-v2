@@ -135,7 +135,7 @@ Tabs:
   - **Khối lượng:** Volume ratio, OBV (dòng tiền vào/ra), MFI(14) (quá mua/quá bán có volume)
   - **Biến động:** Bollinger Bands(20,2) (squeeze/breakout), ATR(14)
   - **Hỗ trợ/Kháng cự:** Swing high/low, Fibonacci Retracement/Extension
-  - **Biểu đồ theo nhóm (2026-11-24):** bấm một trong 6 nút nhóm (thanh phía trên biểu đồ; từ màn hình lớn thanh + biểu đồ dính dưới header khi cuộn các thẻ) để vẽ chỉ báo của khối đó lên biểu đồ nến (EMA/Bollinger/mốc giá đè lên nến; RSI, MACD, Stochastic, ADX, ATR, OBV, MFI, khối lượng ở các tầng dưới, chung trục thời gian và crosshair). Mỗi lần một nhóm; chuỗi lấy từ `GET /market/stock/{symbol}/analysis/series`, điểm cuối khớp thẻ
+  - **Biểu đồ theo nhóm (2026-11-24):** bấm một trong 6 nút nhóm (thanh phía trên biểu đồ; khi màn hình ≥1024×800 thanh + biểu đồ dính dưới header khi cuộn các thẻ) để vẽ chỉ báo của khối đó lên biểu đồ nến (EMA/Bollinger/mốc giá đè lên nến; RSI, MACD, Stochastic, ADX, ATR, OBV, MFI, khối lượng ở các tầng dưới, chung trục thời gian và crosshair). Mỗi lần một nhóm; chuỗi lấy từ `GET /market/stock/{symbol}/analysis/series`, điểm cuối khớp thẻ
   - Tín hiệu tổng hợp 10 chỉ báo: Mua mạnh/Mua/Chờ/Bán/Bán mạnh. Gợi ý giao dịch (entry, SL, TP, R:R). Link "Tạo Trade Plan từ gợi ý". Tín hiệu cũng hiển thị trên Watchlist.
 - **Điểm Confluence (0-100)**: Tổng hợp trọng số 5 nhóm: Xu hướng 30%, Động lượng 25%, Khối lượng 20%, Biến động 15%, Vị trí giá 10%. Hiển thị progress bar + đánh giá tích cực/tiêu cực/trung tính.
 - **Trạng thái thị trường**: Phân loại tự động dựa trên ADX — Xu hướng rất mạnh (≥40) / Có xu hướng (≥25) / Đi ngang (<25). Gợi ý chiến lược: Trend Following hoặc Mean Reversion.
