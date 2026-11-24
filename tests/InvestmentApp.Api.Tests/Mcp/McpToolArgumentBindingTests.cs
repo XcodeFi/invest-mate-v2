@@ -9,6 +9,8 @@ using InvestmentApp.Application.JournalEntries.Commands.CreateJournalEntry;
 using InvestmentApp.Application.JournalEntries.Commands.UpdateJournalEntry;
 using InvestmentApp.Application.Journals.Commands.CreateJournal;
 using InvestmentApp.Application.Journals.Commands.UpdateJournal;
+using InvestmentApp.Application.MarketData.Queries.GetTechnicalSeries;
+using InvestmentApp.Application.MarketData.Queries.GetStockPriceHistory;
 using InvestmentApp.Application.TradePlans.Commands.CreateTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateStopLoss;
 using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
@@ -351,5 +353,36 @@ public class McpToolArgumentBindingTests
 
         query.UserId.Should().Be(TestUserId);
         query.ActiveOnly.Should().BeFalse("bỏ trống phải khớp mặc định của REST: lấy tất cả");
+    }
+
+    [Fact]
+    public async Task Get_Technical_Series_Accepts_Only_Symbol_Through_The_Sdk_Binder()
+    {
+        var query = await CallAsync<GetTechnicalSeriesQuery, TechnicalSeriesResult>("get_technical_series",
+            """{"symbol":" fpt "}""", new TechnicalSeriesResult { Symbol = "FPT" });
+
+        query.Symbol.Should().Be("FPT");
+    }
+
+    [Fact]
+    public async Task Get_Technical_Series_Accepts_LastN_Through_The_Sdk_Binder()
+    {
+        var query = await CallAsync<GetTechnicalSeriesQuery, TechnicalSeriesResult>("get_technical_series",
+            """{"symbol":"fpt","lastN":10}""", new TechnicalSeriesResult { Symbol = "FPT" });
+
+        query.Symbol.Should().Be("FPT");
+    }
+
+    [Fact]
+    public async Task Get_Price_History_Accepts_Only_Symbol_And_Parses_Dates_Through_The_Sdk_Binder()
+    {
+        var bare = await CallAsync<GetStockPriceHistoryQuery, List<StockPriceHistoryDto>>("get_price_history",
+            """{"symbol":"vnm"}""", new List<StockPriceHistoryDto>());
+        var ranged = await CallAsync<GetStockPriceHistoryQuery, List<StockPriceHistoryDto>>("get_price_history",
+            """{"symbol":"vnm","from":"2026-01-05","to":"2026-02-10"}""", new List<StockPriceHistoryDto>());
+
+        bare.Symbol.Should().Be("VNM");
+        ranged.From.Should().Be(new DateTime(2026, 1, 5));
+        ranged.To.Should().Be(new DateTime(2026, 2, 10));
     }
 }

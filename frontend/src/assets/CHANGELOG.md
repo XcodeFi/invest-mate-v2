@@ -2,6 +2,20 @@
 
 ---
 
+## [v2.89.0] — 2026-11-24 · Trợ lý AI đọc được dữ liệu thị trường và phân tích kỹ thuật
+
+### Tính năng mới
+
+- Trợ lý AI nối qua MCP nay hỏi được 6 việc về thị trường: giá hiện tại của một mã, lịch sử giá theo khoảng ngày, tổng quan các chỉ số, tìm mã theo tên, phân tích kỹ thuật của một mã, và chuỗi chỉ báo theo phiên (mặc định 30 phiên gần nhất, tối đa 120). Dữ liệu là dữ liệu thị trường công khai, giống trang Tra cứu giá.
+- Phân tích kỹ thuật qua trợ lý không còn trường EMA200, vì nguồn chỉ có khoảng 60 phiên nên giá trị này luôn trống. Trang Tra cứu giá không đổi.
+
+### Kỹ thuật
+
+- File mới `Mcp/MarketDataTools.cs` (6 tool chỉ đọc), mỗi tool bọc đúng query của `MarketDataController`; số tool MCP 57 → 63. `get_technical_analysis` bỏ khoá `ema200`; `get_technical_series` cắt mọi mảng cùng độ dài theo `lastN` (kẹp 5–120). `from`/`to`/`lastN` là tham số tuỳ chọn (không nằm trong `required`).
+- Tests: +29 (công cụ, discovery, binder SDK); mutation: bỏ lọc ema200, bỏ kẹp `lastN`, bỏ chuẩn hoá mã đều làm đúng test tương ứng đỏ.
+
+---
+
 ## [v2.88.2] — 2026-11-24 · Chọn nhóm và xem biểu đồ trên cùng một màn hình
 
 ### Cải tiến

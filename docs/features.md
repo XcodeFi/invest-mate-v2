@@ -1580,6 +1580,8 @@ Ghi nhận cổ tức tiền mặt, cổ tức cổ phiếu và chia tách cổ 
 
 **Chưa làm — thống kê, không ra quyết định:** `BacktestEngine`, `BehavioralAnalysisService`, `StrategyPerformanceService`, `CampaignReviewService`, `DisciplineScoreCalculator`, `GetSymbolTimelineQuery`, `GetAllPortfoliosQuery.TotalInvested`; tự động lấy sự kiện từ 24hmoney; quyền mua ưu đãi và sáp nhập.
 
+**MCP dữ liệu thị trường (2026-11-24):** 6 tool chỉ đọc cho agent — `get_stock_price`, `get_price_history`, `get_market_overview`, `search_stocks`, `get_technical_analysis` (không có `ema200`), `get_technical_series` (`lastN` 5–120, mặc định 30). Tổng 63 tool MCP.
+
 **Chưa làm — MCP:** chưa có `CorporateActionTools`, nên agent không nhập/xác nhận/xoá được sự kiện quyền. Ghi trong [backlog MCP](plans/mcp-p1-p4-tools-expansion.md#follow-up-ngoài-4-slice).
 
 ### Đợt 2 — hạn mức rủi ro & kịch bản thoát lệnh (2026-08-09)
