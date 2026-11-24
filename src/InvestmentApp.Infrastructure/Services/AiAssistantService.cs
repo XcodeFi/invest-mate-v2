@@ -788,10 +788,17 @@ Nhiệm vụ: Phân tích nhật ký giao dịch của nhà đầu tư.
         return new AiContextResult { SystemPrompt = systemPrompt, UserMessage = userMessage };
     }
 
+    /// <summary>Nạp danh mục theo id và chỉ trả khi thuộc về userId; id lạ hoặc của tài khoản khác đều cho null.</summary>
+    private async Task<Portfolio?> LoadOwnedPortfolioAsync(string portfolioId, string userId, CancellationToken ct)
+    {
+        var portfolio = await _portfolioRepo.GetByIdAsync(portfolioId, ct);
+        return portfolio != null && portfolio.UserId == userId ? portfolio : null;
+    }
+
     private async Task<AiContextResult> BuildPortfolioReviewContext(
         string userId, string portfolioId, string? question, CancellationToken ct)
     {
-        var portfolio = await _portfolioRepo.GetByIdAsync(portfolioId, ct);
+        var portfolio = await LoadOwnedPortfolioAsync(portfolioId, userId, ct);
         if (portfolio == null)
             return new AiContextResult { ErrorMessage = "Không tìm thấy danh mục." };
 
@@ -941,17 +948,23 @@ Nhiệm vụ: Đánh giá danh mục đầu tư toàn diện.
         string userId, string tradePlanId, string? question, CancellationToken ct)
     {
         var plan = await _tradePlanRepo.GetByIdAsync(tradePlanId, ct);
-        if (plan == null)
+        if (plan == null || plan.UserId != userId)
             return new AiContextResult { ErrorMessage = "Không tìm thấy kế hoạch giao dịch." };
+
+        // Danh mục gắn với kế hoạch cũng phải thuộc tài khoản đang gọi; nếu không thì bỏ phần dữ liệu theo danh mục.
+        var ownedPortfolioId = !string.IsNullOrEmpty(plan.PortfolioId)
+            && await LoadOwnedPortfolioAsync(plan.PortfolioId, userId, ct) != null
+                ? plan.PortfolioId
+                : null;
 
         // Fetch market data, technical signals, risk profile, historical trades in parallel
         var stockDetailTask = _stockInfoProvider.GetStockDetailAsync(plan.Symbol, ct);
         var technicalTask = _technicalService.AnalyzeAsync(plan.Symbol, cancellationToken: ct);
-        var riskProfileTask = !string.IsNullOrEmpty(plan.PortfolioId)
-            ? _riskProfileRepo.GetByPortfolioIdAsync(plan.PortfolioId, ct)
+        var riskProfileTask = ownedPortfolioId != null
+            ? _riskProfileRepo.GetByPortfolioIdAsync(ownedPortfolioId, ct)
             : Task.FromResult<RiskProfile?>(null);
-        var historyTask = !string.IsNullOrEmpty(plan.PortfolioId)
-            ? _tradeRepo.GetByPortfolioIdAndSymbolAsync(plan.PortfolioId, plan.Symbol, ct)
+        var historyTask = ownedPortfolioId != null
+            ? _tradeRepo.GetByPortfolioIdAndSymbolAsync(ownedPortfolioId, plan.Symbol, ct)
             : Task.FromResult<IEnumerable<Trade>>(Enumerable.Empty<Trade>());
 
         await Task.WhenAll(
@@ -1154,7 +1167,7 @@ Dưới đây là context về danh mục và vị thế hiện tại của nhà
     private async Task<AiContextResult> BuildMonthlySummaryContext(
         string userId, string portfolioId, int year, int month, CancellationToken ct)
     {
-        var portfolio = await _portfolioRepo.GetByIdAsync(portfolioId, ct);
+        var portfolio = await LoadOwnedPortfolioAsync(portfolioId, userId, ct);
         if (portfolio == null)
             return new AiContextResult { ErrorMessage = "Không tìm thấy danh mục." };
 
@@ -1460,7 +1473,7 @@ Nhiệm vụ: Đánh giá toàn diện mã cổ phiếu dựa trên dữ liệu 
     private async Task<AiContextResult> BuildRiskAssessmentContext(
         string userId, string portfolioId, string? question, CancellationToken ct)
     {
-        var portfolio = await _portfolioRepo.GetByIdAsync(portfolioId, ct);
+        var portfolio = await LoadOwnedPortfolioAsync(portfolioId, userId, ct);
         if (portfolio == null)
             return new AiContextResult { ErrorMessage = "Không tìm thấy danh mục." };
 
@@ -1709,8 +1722,10 @@ Nhiệm vụ: Tư vấn quản lý vị thế đang mở.
         List<Trade> allTrades;
         if (!string.IsNullOrEmpty(portfolioId))
         {
-            var trades = await _tradeRepo.GetByPortfolioIdAsync(portfolioId, ct);
-            allTrades = trades.ToList();
+            // Danh mục không thuộc tài khoản đang gọi được xử lý như danh mục không tồn tại.
+            allTrades = await LoadOwnedPortfolioAsync(portfolioId, userId, ct) != null
+                ? (await _tradeRepo.GetByPortfolioIdAsync(portfolioId, ct)).ToList()
+                : new List<Trade>();
         }
         else
         {
