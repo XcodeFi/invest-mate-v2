@@ -17,6 +17,7 @@ import {
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
 import { CapitalFlowService, AdjustedReturn, CapitalFlowItem } from '../../core/services/capital-flow.service';
 import { ExpectancyRBlockComponent } from '../../shared/components/expectancy-r-block/expectancy-r-block.component';
+import { CalibrationBlockComponent } from '../../shared/components/calibration-block/calibration-block.component';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { catchError, of } from 'rxjs';
 import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
@@ -24,7 +25,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, VndCurrencyPipe, ExpectancyRBlockComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, VndCurrencyPipe, ExpectancyRBlockComponent, CalibrationBlockComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <!-- Header -->
@@ -312,6 +313,7 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
               <div *ngIf="advPerformance">
                 <h3 class="text-lg font-semibold mb-4">Thống kê Giao dịch</h3>
                 <app-expectancy-r-block class="block mb-6"></app-expectancy-r-block>
+                <app-calibration-block class="block mb-6"></app-calibration-block>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div class="bg-gray-50 rounded-lg p-4">
                     <div class="text-sm text-gray-500">Tổng giao dịch</div>

@@ -344,6 +344,28 @@ export interface StrategyExpectancyDto {
   strategies: ExpectancyStatsDto[];
 }
 
+/** Một mức ước lượng của độ khớp. Mọi tỉ lệ là phân số 0–1; null = chưa có mẫu. */
+export interface CalibrationBucketDto {
+  label: string;
+  low: number;
+  high: number;
+  n: number;
+  avgEstimated: number | null;
+  actualWinRate: number | null;
+  /** false khi n < 5: làm mờ, ghi chưa đủ mẫu. */
+  sufficient: boolean;
+}
+
+/** Độ khớp ước lượng. brier và optimismPoints chỉ có khi sufficient (tổng n >= 15), còn lại null. */
+export interface CalibrationResultDto {
+  n: number;
+  buckets: CalibrationBucketDto[];
+  brier: number | null;
+  /** Trung bình % thắng ước lượng trừ tỉ lệ thắng thật, tính bằng điểm %. Dương = lạc quan. */
+  optimismPoints: number | null;
+  sufficient: boolean;
+}
+
 export interface CampaignAnalyticsDto {
   totalCampaigns: number;
   winningCampaigns: number;
@@ -501,6 +523,14 @@ export class TradePlanService {
 
   getExpectancy(): Observable<StrategyExpectancyDto> {
     return this.http.get<StrategyExpectancyDto>(`${this.API_URL}/expectancy`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  /** Độ khớp giữa % thắng ước lượng (khoá lúc vào lệnh) và kết quả thật; tuỳ chọn theo chiến lược. */
+  getCalibration(strategyId?: string): Observable<CalibrationResultDto> {
+    let params = new HttpParams();
+    if (strategyId) params = params.set('strategyId', strategyId);
+    return this.http.get<CalibrationResultDto>(`${this.API_URL}/calibration`, { headers: this.getHeaders(), params })
       .pipe(catchError(this.handleError));
   }
 

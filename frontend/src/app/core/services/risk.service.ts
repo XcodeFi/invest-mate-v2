@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
@@ -275,9 +275,22 @@ export interface SizingModelResult {
   note?: string;
 }
 
+/** Kelly thận trọng từ dữ liệu R của chính người dùng. Thiếu dữ liệu thì các trường null kèm reason. */
+export interface ConservativeKellyDto {
+  n: number;
+  /** Cận dưới Wilson 95% của % thắng (phân số 0–1). */
+  winRateLower95: number | null;
+  payoffRatio: number | null;
+  fullKelly: number | null;
+  halfKellyCapped: number | null;
+  reason: string | null;
+}
+
 export interface PositionSizingResult {
   models: SizingModelResult[];
   recommendedModel: string;
+  /** Chỉ có khi gọi với useHistory. */
+  kellyFromHistory?: ConservativeKellyDto;
 }
 
 @Injectable({
@@ -375,8 +388,14 @@ export class RiskService {
       .pipe(catchError(this.handleError));
   }
 
-  calculatePositionSizing(request: PositionSizingRequest): Observable<PositionSizingResult> {
-    return this.http.post<PositionSizingResult>(`${this.API_URL}/position-sizing`, request, { headers: this.getHeaders() })
+  /** useHistory: thêm Kelly thận trọng từ dữ liệu R của chính người dùng (theo chiến lược nếu có strategyId). */
+  calculatePositionSizing(request: PositionSizingRequest, options?: { useHistory?: boolean; strategyId?: string }): Observable<PositionSizingResult> {
+    let params = new HttpParams();
+    if (options?.useHistory) {
+      params = params.set('useHistory', 'true');
+      if (options.strategyId) params = params.set('strategyId', options.strategyId);
+    }
+    return this.http.post<PositionSizingResult>(`${this.API_URL}/position-sizing`, request, { headers: this.getHeaders(), params })
       .pipe(catchError(this.handleError));
   }
 
