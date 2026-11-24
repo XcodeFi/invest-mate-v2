@@ -10,7 +10,10 @@ import { GroupLayers, IndicatorChartCandles, LineLayer } from './indicator-chart
 const EMPTY_LAYERS: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
 const EMPTY_CANDLES: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
 
-const PRICE_HEIGHT = 300;
+/** Tổng chiều cao vùng vẽ tối đa: tầng giá cố định, các tầng dưới chia phần còn lại (mỗi tầng tối thiểu MIN_PANE_HEIGHT). */
+const TOTAL_HEIGHT = 560;
+const PRICE_HEIGHT = 280;
+const MIN_PANE_HEIGHT = 90;
 
 /** Nhãn trục/crosshair: triệu trở lên (OBV, khối lượng) viết gọn kiểu 2,8M; nghìn trở lên không lẻ thập phân; số nhỏ (RSI, ADX...) 1 chữ số lẻ. */
 const formatAxisValue = (v: number): string =>
@@ -18,7 +21,6 @@ const formatAxisValue = (v: number): string =>
     ? `${(v / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}M`
     : v.toLocaleString('vi-VN', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 1 });
 const PRICE_FORMAT = { type: 'custom' as const, formatter: formatAxisValue, minMove: 0.01 };
-const PANE_HEIGHT = 120;
 
 interface ReadoutItem { label: string; values: (number | null)[]; }
 interface Readout { el: HTMLElement; items: ReadoutItem[]; }
@@ -113,6 +115,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     const host = this.root.nativeElement;
     const layers = this.layers ?? EMPTY_LAYERS;
     const paneCount = layers.panes.length;
+    const paneHeight = Math.max(MIN_PANE_HEIGHT, Math.floor((TOTAL_HEIGHT - PRICE_HEIGHT) / Math.max(paneCount, 1)));
 
     // ----- Tầng giá -----
     const priceBlock = this.createBlock(host, 'Giá', PRICE_HEIGHT);
@@ -150,8 +153,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
 
     // ----- Các tầng dưới -----
     layers.panes.forEach((pane, i) => {
-      const block = this.createBlock(host, pane.title, PANE_HEIGHT);
-      const chart = this.createChart(block.host, PANE_HEIGHT, i === paneCount - 1);
+      const block = this.createBlock(host, pane.title, paneHeight);
+      const chart = this.createChart(block.host, paneHeight, i === paneCount - 1);
       const items: ReadoutItem[] = [];
       let firstSeries: ISeriesApi<'Line' | 'Histogram'> | null = null;
 

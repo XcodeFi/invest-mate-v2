@@ -204,6 +204,31 @@ describe('IndicatorChartComponent', () => {
     });
   });
 
+  describe('chiều cao', () => {
+    const heights = () => Array.from(containers()).map(c => parseInt((c as HTMLElement).style.height, 10));
+
+    it('price chart is 280px; panes share the remaining 280px of the 560px budget', () => {
+      setInputs(layers(['RSI']));
+      expect(heights()).toEqual([280, 280]);
+
+      fixture.componentRef.setInput('layers', layers(['RSI', 'MACD', 'Stochastic']));
+      fixture.detectChanges();
+      expect(heights()).toEqual([280, 93, 93, 93]);
+    });
+
+    it('each pane is at least 90px even when that exceeds the budget', () => {
+      setInputs(layers(['ADX', 'RSI', 'MACD', 'OBV']));
+
+      expect(heights()).toEqual([280, 90, 90, 90, 90]);
+    });
+
+    it('price chart is 280px when there are no panes', () => {
+      setInputs(layers([]));
+
+      expect(heights()).toEqual([280]);
+    });
+  });
+
   describe('giữ khoảng nhìn khi đổi nhóm', () => {
     // Layout của lightweight-charts trong Karma không đủ để zoom thật (setVisibleLogicalRange không đổi khoảng nhìn),
     // nên giả lập ở lớp TimeScaleApi: khoảng nhìn "người dùng đã chọn" trả về từ getVisibleLogicalRange.
