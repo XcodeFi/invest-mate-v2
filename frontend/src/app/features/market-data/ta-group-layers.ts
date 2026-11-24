@@ -1,34 +1,12 @@
 import { TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
+import {
+  GroupLayers, LineLayer, PaneLayer, PriceLineLayer
+} from '../../shared/components/indicator-chart/indicator-chart.types';
 
 /** Sáu khối của panel Phân tích kỹ thuật — trùng giá trị data-group trên tiêu đề khối. */
 export type TaGroup = 'tong-hop' | 'xu-huong' | 'dong-luong' | 'bien-dong' | 'dong-tien' | 'moc-gia';
 
-export interface LineLayer {
-  label: string;
-  values: (number | null)[];
-  color?: string;
-  kind?: 'line' | 'histogram';
-}
-
-/** Một tầng biểu đồ riêng (thang riêng) xếp dưới tầng giá. guides = vạch ngang tham chiếu (30/70, 20/80, 25). */
-export interface PaneLayer {
-  title: string;
-  lines: LineLayer[];
-  guides?: number[];
-}
-
-export interface PriceLineLayer {
-  label: string;
-  price: number;
-}
-
-/** Mọi thứ cần vẽ cho một nhóm: đường đè lên nến, các tầng dưới, đường ngang, và ghi chú (thiếu dữ liệu...). */
-export interface GroupLayers {
-  overlays: LineLayer[];
-  panes: PaneLayer[];
-  priceLines: PriceLineLayer[];
-  notes: string[];
-}
+export type { GroupLayers, LineLayer, PaneLayer, PriceLineLayer };
 
 const NO_DATA = 'Không đủ dữ liệu';
 
