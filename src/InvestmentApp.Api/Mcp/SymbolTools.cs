@@ -13,9 +13,9 @@ public static class SymbolTools
     [Description("Dòng thời gian sự kiện (trade/nhật ký) theo mã chứng khoán, trong khoảng from–to tùy chọn.")]
     public static async Task<SymbolTimelineDto> GetSymbolTimeline(
         [Description("Mã chứng khoán.")] string symbol,
-        [Description("Từ ngày (tùy chọn).")] DateTime? from,
-        [Description("Đến ngày (tùy chọn).")] DateTime? to,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Từ ngày (tùy chọn).")] DateTime? from = null,
+        [Description("Đến ngày (tùy chọn).")] DateTime? to = null)
         => await mediator.Send(new GetSymbolTimelineQuery
         {
             UserId = http.GetUserId(), Symbol = symbol, From = from, To = to

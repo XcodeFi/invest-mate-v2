@@ -19,7 +19,7 @@ public static class PortfolioTools
     [McpServerTool(Name = "list_positions", ReadOnly = true)]
     [Description("Liệt kê vị thế (holdings) đang mở. portfolioId tùy chọn để lọc theo danh mục.")]
     public static async Task<List<ActivePositionDto>> ListPositions(
-        [Description("ID danh mục cần lọc (bỏ trống = tất cả).")] string? portfolioId,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID danh mục cần lọc (bỏ trống = tất cả).")] string? portfolioId = null)
         => await mediator.Send(new GetActivePositionsQuery { UserId = http.GetUserId(), PortfolioId = portfolioId }, ct);
 }

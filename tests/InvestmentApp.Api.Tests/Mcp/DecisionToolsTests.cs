@@ -27,7 +27,7 @@ public class DecisionToolsTests
     {
         McpTestContext.Capture<DisciplineScoreDto, GetDisciplineScoreQuery>(
             _mediator, out var sent, new DisciplineScoreDto());
-        await DecisionTools.GetDisciplineScore(30, _mediator.Object, McpTestContext.WithUser("u-2"), CancellationToken.None);
+        await DecisionTools.GetDisciplineScore(_mediator.Object, McpTestContext.WithUser("u-2"), CancellationToken.None, days: 30);
         sent()!.UserId.Should().Be("u-2");
         sent()!.Days.Should().Be(30);
     }
@@ -37,7 +37,7 @@ public class DecisionToolsTests
     {
         McpTestContext.Capture<DisciplineScoreDto, GetDisciplineScoreQuery>(
             _mediator, out var sent, new DisciplineScoreDto());
-        await DecisionTools.GetDisciplineScore(null, _mediator.Object, McpTestContext.WithUser("u-3"), CancellationToken.None);
+        await DecisionTools.GetDisciplineScore(_mediator.Object, McpTestContext.WithUser("u-3"), CancellationToken.None);
         sent()!.Days.Should().Be(90);
     }
 

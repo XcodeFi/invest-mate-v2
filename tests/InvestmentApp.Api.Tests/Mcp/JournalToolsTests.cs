@@ -20,7 +20,7 @@ public class JournalToolsTests
     public async Task ListJournals_SetsUserId_AndPortfolioId()
     {
         McpTestContext.Capture<IEnumerable<JournalDto>, GetJournalsQuery>(_mediator, out var sent, Array.Empty<JournalDto>());
-        await JournalTools.ListJournals("p1", _mediator.Object, _http, CancellationToken.None);
+        await JournalTools.ListJournals(_mediator.Object, _http, CancellationToken.None, portfolioId: "p1");
         sent()!.UserId.Should().Be("u-1");
         sent()!.PortfolioId.Should().Be("p1");
     }

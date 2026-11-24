@@ -19,7 +19,7 @@ public class TradePlanToolsTests
     public async Task ListTradePlans_SetsUserId_AndActiveOnly()
     {
         McpTestContext.Capture<IEnumerable<TradePlanDto>, GetTradePlansQuery>(_mediator, out var sent, Array.Empty<TradePlanDto>());
-        await TradePlanTools.ListTradePlans(true, _mediator.Object, McpTestContext.WithUser("u-1"), CancellationToken.None);
+        await TradePlanTools.ListTradePlans(_mediator.Object, McpTestContext.WithUser("u-1"), CancellationToken.None, activeOnly: true);
         sent()!.UserId.Should().Be("u-1");
         sent()!.ActiveOnly.Should().BeTrue();
     }
@@ -148,7 +148,7 @@ public class TradePlanToolsTests
     public async Task SetTradePlanStatus_Restore_Throws()
     {
         var act = async () => await TradePlanTools.SetTradePlanStatus(
-            "plan-1", "restore", null, _mediator.Object, McpTestContext.WithUser("u-5"), CancellationToken.None);
+            "plan-1", "restore", _mediator.Object, McpTestContext.WithUser("u-5"), CancellationToken.None);
         (await act.Should().ThrowAsync<McpException>())
             .And.Message.Should().Contain("restore");
     }
@@ -157,8 +157,8 @@ public class TradePlanToolsTests
     public async Task SetTradePlanStatus_Executed_Dispatches()
     {
         McpTestContext.Capture<Unit, UpdateTradePlanStatusCommand>(_mediator, out var sent, Unit.Value);
-        await TradePlanTools.SetTradePlanStatus("plan-1", "executed", "t-1",
-            _mediator.Object, McpTestContext.WithUser("u-6"), CancellationToken.None);
+        await TradePlanTools.SetTradePlanStatus("plan-1", "executed",
+            _mediator.Object, McpTestContext.WithUser("u-6"), CancellationToken.None, tradeId: "t-1");
         sent()!.UserId.Should().Be("u-6");
         sent()!.Id.Should().Be("plan-1");
         sent()!.Status.Should().Be("executed");

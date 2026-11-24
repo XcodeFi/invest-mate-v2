@@ -16,8 +16,8 @@ public static class JournalTools
     [McpServerTool(Name = "list_journals", ReadOnly = true)]
     [Description("Liệt kê nhật ký giao dịch (journal) gắn với các lệnh. portfolioId tùy chọn để lọc.")]
     public static async Task<IEnumerable<JournalDto>> ListJournals(
-        [Description("ID danh mục cần lọc (tùy chọn).")] string? portfolioId,
-        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("ID danh mục cần lọc (tùy chọn).")] string? portfolioId = null)
         => await mediator.Send(new GetJournalsQuery { UserId = http.GetUserId(), PortfolioId = portfolioId }, ct);
 
     [McpServerTool(Name = "get_journal_by_trade", ReadOnly = true)]
