@@ -245,5 +245,35 @@ describe('IndicatorChartComponent', () => {
 
       nextFrame(() => expect(setSpy).not.toHaveBeenCalledWith(USER_RANGE), done);
     });
+
+    it('destroying before the restore frame cancels it and never touches a removed chart', (done) => {
+      setInputs(layers(['RSI']));
+      const { setSpy, releaseGet } = stubRange();
+      const cancelSpy = spyOn(window, 'cancelAnimationFrame').and.callThrough();
+
+      fixture.componentRef.setInput('layers', layers(['ATR14']));
+      fixture.detectChanges();
+      releaseGet();
+      fixture.destroy();
+
+      expect(cancelSpy).toHaveBeenCalled();
+      nextFrame(() => expect(setSpy).not.toHaveBeenCalledWith(USER_RANGE), done);
+    });
+
+    it('rebuilding twice before the frame restores only once, on the latest charts', (done) => {
+      setInputs(layers(['RSI']));
+      const { setSpy, releaseGet } = stubRange();
+
+      fixture.componentRef.setInput('layers', layers(['ATR14']));
+      fixture.detectChanges();
+      fixture.componentRef.setInput('layers', layers(['MFI']));
+      fixture.detectChanges();
+      releaseGet();
+
+      nextFrame(() => {
+        const restores = setSpy.calls.allArgs().filter(a => a[0] === USER_RANGE);
+        expect(restores.length).toBe(1);
+      }, done);
+    });
   });
 });
