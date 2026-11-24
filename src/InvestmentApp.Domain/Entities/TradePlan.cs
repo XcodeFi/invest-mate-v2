@@ -62,6 +62,27 @@ public class TradePlan : AggregateRoot
     /// </summary>
     public InitialRiskSnapshot? InitialRisk { get; private set; }
 
+    /// <summary>
+    /// Bảng kịch bản kết quả của CẢ vị thế (nhãn, xác suất %, giá thoát) do người dùng nhập: bản hiện hành, sửa được tới khi
+    /// review. Chỉ lệnh mua. Null với kế hoạch cũ.
+    /// </summary>
+    public List<OutcomeScenario>? OutcomeScenarios { get; private set; }
+
+    /// <summary>
+    /// Ảnh chụp ước lượng (EV, % thắng ngầm định) lúc chốt kế hoạch: chụp khi rời Draft, chụp lại mỗi lần sửa khi còn Ready,
+    /// KHOÁ ở lần khớp đầu cùng chỗ khoá <see cref="InitialRisk"/>, xoá khi Restore. Là mốc để đối chiếu ước lượng với thực tế.
+    /// </summary>
+    public EstimateSnapshot? Estimate { get; private set; }
+
+    /// <summary>Lý do người dùng vượt cổng kỳ vọng (EV ≤ 0 hoặc chưa ước lượng) khi chuyển sang Sẵn sàng.</summary>
+    public string? EvGateReason { get; private set; }
+
+    /// <summary>
+    /// Vào lệnh mà không qua cổng kỳ vọng: lúc khớp đầu tiên kỳ vọng ≤ 0 hoặc chưa ước lượng và không có lý do. Không chặn
+    /// (lệnh đã xảy ra) nhưng để lại dấu vết cho review.
+    /// </summary>
+    public bool EvGateSkipped { get; private set; }
+
     // Campaign review data (set when plan is reviewed/closed)
     public CampaignReviewData? ReviewData { get; private set; }
 
@@ -176,7 +197,7 @@ public class TradePlan : AggregateRoot
         if (invalidationCriteria != null) InvalidationCriteria = invalidationCriteria;
         if (expectedReviewDate.HasValue) ExpectedReviewDate = expectedReviewDate.Value;
         if (priceChanged) PricesSetAt = DateTime.UtcNow;
-        if (Status == TradePlanStatus.Ready) RefreshInitialRisk();
+        if (Status == TradePlanStatus.Ready) { RefreshInitialRisk(); RefreshEstimate(); }
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -189,8 +210,88 @@ public class TradePlan : AggregateRoot
         EnsureDisciplineGate();
         Status = TradePlanStatus.Ready;
         RefreshInitialRisk();
+        RefreshEstimate();
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
+    }
+
+    /// <summary>
+    /// Chuyển sang Sẵn sàng qua cổng kỳ vọng: lệnh mua có EV ≤ 0 hoặc chưa ước lượng thì BẮT BUỘC có lý do (cảnh báo + lý do,
+    /// không chặn cứng). Lý do được lưu và hiện ở review. Lệnh bán không có cổng. <see cref="MarkReady"/> không tham số giữ
+    /// nguyên, không cổng: các đường ghi lại sau sự kiện đi qua đó và được đánh dấu <see cref="EvGateSkipped"/> lúc khớp.
+    /// </summary>
+    public void MarkReadyWithEvGate(string? evGateReason, RoundTripFee? feeAtExit = null)
+    {
+        if (Status == TradePlanStatus.Ready) return;
+
+        string? storedReason = null;
+        if (!IsSellDirection())
+        {
+            var ev = ExpectedValue.ForPlan(this, feeAtExit).EvR;
+            if (ev is null or <= 0m)
+            {
+                var reason = evGateReason?.Trim();
+                if (string.IsNullOrEmpty(reason) || reason.Length < MinEvGateReasonLength)
+                    throw new EvGateException(MinEvGateReasonLength);
+                storedReason = reason;
+            }
+        }
+
+        MarkReady();                 // có thể ném (kỷ luật thesis): chưa đổi gì
+        EvGateReason = storedReason;
+        RefreshEstimate(feeAtExit);  // chụp lại, lần này có phí
+    }
+
+    public const int MinEvGateReasonLength = 10;
+
+    /// <summary>
+    /// Đặt bảng kịch bản kết quả (bản hiện hành). Còn ở Ready thì chụp lại ước lượng; đã khoá thì ảnh chụp giữ nguyên.
+    /// Truyền null hoặc rỗng để xoá bảng. Không đổi được kế hoạch đã review.
+    /// </summary>
+    public void SetOutcomeScenarios(IReadOnlyList<OutcomeScenario>? scenarios, RoundTripFee? feeAtExit = null)
+    {
+        if (Status == TradePlanStatus.Reviewed)
+            throw new InvalidOperationException("Không đổi được ước lượng của kế hoạch đã review");
+
+        OutcomeScenarios = scenarios is { Count: > 0 } ? scenarios.Select(s => s.Clone()).ToList() : null;
+        if (Status == TradePlanStatus.Ready) RefreshEstimate(feeAtExit);
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
+    /// <summary>Chụp lại ảnh chụp ước lượng theo bảng hiện hành, trừ khi đã khoá. Lệnh bán không có ước lượng.</summary>
+    public void RefreshEstimate(RoundTripFee? feeAtExit = null)
+    {
+        if (Estimate?.LockedAt != null) return;
+        if (IsSellDirection() || OutcomeScenarios is not { Count: > 0 })
+        {
+            Estimate = null;
+            return;
+        }
+
+        var e = ExpectedValue.ForPlan(this, feeAtExit);
+        Estimate = new EstimateSnapshot
+        {
+            Scenarios = OutcomeScenarios.Select(s => s.Clone()).ToList(),
+            EvR = e.EvR,
+            ImpliedWinProbability = e.ImpliedWinPercent,
+            FeesIncluded = feeAtExit != null,
+            CapturedAt = DateTime.UtcNow
+        };
+    }
+
+    /// <summary>
+    /// Lần khớp đầu tiên: chụp nếu chưa có, khoá, và ghi lại việc vào lệnh không qua cổng kỳ vọng (EV ≤ 0 hoặc chưa ước lượng,
+    /// không có lý do). Chỉ gọi từ chỗ khoá <see cref="InitialRisk"/>.
+    /// </summary>
+    private void LockEstimateAndRecordGate()
+    {
+        if (Estimate == null) RefreshEstimate();
+        if (Estimate is { LockedAt: null }) Estimate.LockedAt = DateTime.UtcNow;
+
+        EvGateSkipped = !IsSellDirection()
+            && Estimate?.EvR is null or <= 0m
+            && string.IsNullOrWhiteSpace(EvGateReason);
     }
 
     public void MarkInProgress()
@@ -201,6 +302,8 @@ public class TradePlan : AggregateRoot
         Status = TradePlanStatus.InProgress;
         RefreshInitialRisk();
         LockInitialRisk();
+        LockEstimateAndRecordGate();
+        LockEstimateAndRecordGate();
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -340,6 +443,9 @@ public class TradePlan : AggregateRoot
         TradeIds?.Clear();
         ExecutedAt = null;
         InitialRisk = null;   // về Draft thì 1R chụp lại khi chốt lần sau
+        Estimate = null;      // ước lượng cũng chụp lại; bảng kịch bản người dùng nhập giữ nguyên
+        EvGateReason = null;  // cổng chạy lại ở lần chốt kế tiếp
+        EvGateSkipped = false;
 
         // Clear IsTriggered flags on invalidation rules in case the cancellation came from AbortWithThesisInvalidation.
         // Rule text is preserved so user doesn't have to rewrite.
@@ -419,7 +525,7 @@ public class TradePlan : AggregateRoot
         EntryMode = mode;
         Lots = lots;
         Quantity = lots.Sum(l => l.PlannedQuantity);
-        if (Status == TradePlanStatus.Ready) RefreshInitialRisk();
+        if (Status == TradePlanStatus.Ready) { RefreshInitialRisk(); RefreshEstimate(); }
         UpdatedAt = DateTime.UtcNow;
         IncrementVersion();
     }
@@ -456,6 +562,7 @@ public class TradePlan : AggregateRoot
         {
             RefreshInitialRisk();
             LockInitialRisk();
+            LockEstimateAndRecordGate();
         }
 
         if (Lots.All(l => l.Status != PlanLotStatus.Pending))
@@ -655,6 +762,39 @@ public class ExitTarget
     public bool IsTriggered { get; set; }
     public DateTime? TriggeredAt { get; set; }
     public string? TradeId { get; set; }
+}
+
+/// <summary>Một kịch bản kết quả của CẢ vị thế: xác suất (%) và giá thoát bình quân. Lưu nhúng trong TradePlan.</summary>
+public class OutcomeScenario
+{
+    public string Label { get; set; } = string.Empty;
+    public decimal ProbabilityPercent { get; set; }
+    public decimal ExitPrice { get; set; }
+
+    public OutcomeScenario Clone() => new() { Label = Label, ProbabilityPercent = ProbabilityPercent, ExitPrice = ExitPrice };
+}
+
+/// <summary>Ảnh chụp ước lượng lúc chốt kế hoạch (khoá ở lần khớp đầu).</summary>
+public class EstimateSnapshot
+{
+    public List<OutcomeScenario> Scenarios { get; set; } = new();
+    /// <summary>EV theo R ròng; null nếu tổng xác suất ≠ 100% hoặc thiếu 1R.</summary>
+    public decimal? EvR { get; set; }
+    /// <summary>Tổng xác suất (%) các kịch bản có R ròng &gt; +0,1.</summary>
+    public decimal? ImpliedWinProbability { get; set; }
+    /// <summary>False nếu chụp mà không có phí (đường ghi lại sau sự kiện): EV chưa trừ phí.</summary>
+    public bool FeesIncluded { get; set; }
+    public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LockedAt { get; set; }
+}
+
+/// <summary>Chuyển sang Sẵn sàng khi kỳ vọng ≤ 0 hoặc chưa ước lượng mà không có lý do. Map sang 400 EV_GATE_REASON_REQUIRED.</summary>
+public class EvGateException : InvalidOperationException
+{
+    public EvGateException(int minReasonLength)
+        : base($"Kỳ vọng âm hoặc chưa ước lượng — cần ghi lý do (evGateReason, tối thiểu {minReasonLength} ký tự) trước khi chuyển sang Sẵn sàng.")
+    {
+    }
 }
 
 /// <summary>Ảnh chụp rủi ro ban đầu (1R) của kế hoạch. Lưu nhúng trong TradePlan.</summary>
