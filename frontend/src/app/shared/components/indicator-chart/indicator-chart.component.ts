@@ -66,6 +66,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   /** Khoá nội dung trục thời gian của lần dựng trước + khoảng nhìn, để giữ zoom khi chỉ đổi lớp chỉ báo. */
   private timesKey = '';
   private savedRange: { from: number; to: number } | null = null;
+  private restoreFrame: number | null = null;
 
   /** Số instance chart đang sống (dùng cho test dọn dẹp). */
   get chartCount(): number {
@@ -194,8 +195,16 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
         this.syncCrosshair(chart, param);
       });
     });
-    // Cùng bộ ngày (cùng mã): giữ khoảng nhìn người dùng đã chọn; đổi ngày thì vẫn vừa khít như cũ
-    if (keepRange) this.charts[this.charts.length - 1].timeScale().setVisibleLogicalRange(this.savedRange!);
+    // Cùng bộ ngày (cùng mã): giữ khoảng nhìn người dùng đã chọn; đổi ngày thì vẫn vừa khít như cũ.
+    // Chart mới tạo bỏ qua setVisibleLogicalRange cho tới khung hình đầu tiên (và còn tự fit lại), nên đặt ở khung kế tiếp.
+    if (keepRange) {
+      const range = this.savedRange!;
+      const axisChart = this.charts[this.charts.length - 1];
+      this.restoreFrame = requestAnimationFrame(() => {
+        this.restoreFrame = null;
+        if (this.charts[this.charts.length - 1] === axisChart) axisChart.timeScale().setVisibleLogicalRange(range);
+      });
+    }
     this.updateReadouts(null);
 
     // ----- Co giãn theo khung chứa -----
@@ -301,6 +310,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   private teardown(): void {
+    if (this.restoreFrame !== null) cancelAnimationFrame(this.restoreFrame);
+    this.restoreFrame = null;
     this.observer?.disconnect();
     this.observer = null;
     this.charts.forEach(c => c.remove());
