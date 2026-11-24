@@ -34,11 +34,10 @@ public class PreviewPlanReviewQueryHandler : IRequestHandler<PreviewPlanReviewQu
 
     public async Task<CampaignReviewDto> Handle(PreviewPlanReviewQuery request, CancellationToken cancellationToken)
     {
-        var plan = await _tradePlanRepository.GetByIdAsync(request.PlanId, cancellationToken)
-            ?? throw new Exception($"Trade plan {request.PlanId} not found");
-
-        if (plan.UserId != request.UserId)
-            throw new UnauthorizedAccessException("Not authorized");
+        // Kế hoạch không có và kế hoạch của người khác cho cùng một phản hồi (KeyNotFound → 404), giống GetScenarioHistory
+        var plan = await _tradePlanRepository.GetByIdAsync(request.PlanId, cancellationToken);
+        if (plan == null || plan.UserId != request.UserId)
+            throw new KeyNotFoundException($"Trade plan {request.PlanId} not found");
 
         // Chỉ tính giao dịch thuộc danh mục của người gọi (cùng logic với ReviewTradePlanCommand)
         var trades = await TradeOwnership.CollectOwnedLinkedTradesAsync(

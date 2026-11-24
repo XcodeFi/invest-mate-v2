@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.93.0] — 2026-11-24 · Trợ lý AI xem được kế hoạch, lãi/lỗ và cảnh báo
+
+### Tính năng mới
+
+- Trợ lý AI nối qua MCP hỏi thêm được 10 việc, tất cả chỉ đọc và chỉ trả dữ liệu của chính người dùng: gợi ý kịch bản cho một mã, danh sách mẫu kịch bản, lịch sử kích hoạt kịch bản của một kế hoạch, xem trước review chiến dịch, các kế hoạch đã thực hiện đang chờ review, lãi/lỗ theo danh mục, theo mã, tổng hợp mọi danh mục, quy tắc cảnh báo và lịch sử cảnh báo.
+
+### Sửa lỗi
+
+- Xem trước review của một kế hoạch nay trả cùng một phản hồi (404) cho kế hoạch không có và kế hoạch không thuộc tài khoản; trước đây hai trường hợp trả hai lỗi khác nhau.
+
+### Kỹ thuật
+
+- 10 tool chỉ đọc (số tool MCP 70 → 80): `get_scenario_suggestion`, `list_scenario_templates`, `get_plan_scenario_history`, `preview_plan_review`, `list_plans_pending_review`, `get_portfolio_pnl`, `get_position_pnl`, `get_pnl_summary`, `list_alert_rules`, `get_alert_history`. `UserId` chỉ lấy từ người gọi; không tool nào có tham số `userId`.
+- `get_scenario_suggestion` kiểm đầu vào trước khi gọi: mã bắt buộc và tối đa 10 ký tự, giá vào lệnh lớn hơn 0, tầm nhìn chỉ nhận `ShortTerm`/`MediumTerm`/`LongTerm`.
+- `PnLController` gọi `IPnLService` trực tiếp và tự kiểm chủ sở hữu, còn `IPnLService` không kiểm gì. Ba query mới `GetPortfolioPnL`/`GetPositionPnL`/`GetOverallPnL` (chỉ MCP dùng) kiểm chủ sở hữu ngay trong handler rồi mới gọi service; danh mục không có hoặc của người khác cho cùng một phản hồi. REST giữ nguyên; chuyển controller sang các query này (kèm test đặc tả) làm sau.
+- Test kiểm chủ sở hữu cho 9 query: bỏ phần kiểm thì đúng test của nó đỏ.
+
+---
+
 ## [v2.92.0] — 2026-11-24 · Trợ lý AI đọc được hồ sơ rủi ro, drawdown, tương quan và kỳ vọng theo R
 
 ### Tính năng mới
