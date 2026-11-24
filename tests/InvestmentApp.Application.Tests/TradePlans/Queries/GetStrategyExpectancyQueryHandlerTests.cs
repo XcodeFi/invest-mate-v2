@@ -67,6 +67,47 @@ public class GetStrategyExpectancyQueryHandlerTests
     }
 
     [Fact]
+    public async Task sell_plan_with_a_stored_realized_r_is_still_excluded()
+    {
+        // RMath không tính được R cho lệnh bán, nhưng một review đã LƯU RealizedR thì RMath trả luôn giá trị đó.
+        // Chỉ bộ lọc Buy của handler chặn được ca này.
+        var sell = Reviewed("s1", 3, direction: "Sell");
+        sell.ReviewData!.RealizedR = 3m;
+        sell.ReviewData.RiskBasis = "chot-ke-hoach";
+        Setup(new[] { Reviewed("s1", 1), sell }, ("s1", "Breakout"));
+
+        var result = await Sut().Handle(new GetStrategyExpectancyQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.Total.N.Should().Be(1, "chiến dịch lệnh bán chưa hỗ trợ trong thống kê R");
+        result.Total.ExpectancyR.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task soft_deleted_plans_are_excluded()
+    {
+        var deleted = Reviewed("s1", 4);
+        deleted.SoftDelete();
+        Setup(new[] { Reviewed("s1", 1), deleted }, ("s1", "Breakout"));
+
+        var result = await Sut().Handle(new GetStrategyExpectancyQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.Total.N.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task another_users_plan_with_a_stored_realized_r_is_excluded_even_if_the_repository_returns_it()
+    {
+        var foreign = Reviewed("s1", 9, userId: "someone-else");
+        foreign.ReviewData!.RealizedR = 9m;
+        Setup(new[] { Reviewed("s1", 1), foreign }, ("s1", "Breakout"));
+
+        var result = await Sut().Handle(new GetStrategyExpectancyQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.Total.N.Should().Be(1);
+        result.Total.ExpectancyR.Should().Be(1m);
+    }
+
+    [Fact]
     public async Task groups_by_strategy_with_none_bucket()
     {
         Setup(new[]
