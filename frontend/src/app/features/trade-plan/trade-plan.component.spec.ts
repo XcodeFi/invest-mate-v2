@@ -1168,6 +1168,18 @@ describe('TradePlanComponent — Editability Matrix (Strict, Option A)', () => {
       expect(component.serverExpectation?.evR).toBe(0.78);
     });
 
+    it('loadPlan keeps the estimate, the gate reason and the skipped flag for the review view', () => {
+      component.loadPlan({
+        id: 'p10', status: 'Reviewed', symbol: 'VNM', direction: 'Buy', entryPrice: 100, stopLoss: 90, target: 120, quantity: 100,
+        confidenceLevel: 5, evGateReason: 'Chấp nhận kỳ vọng âm vì lệnh thử nghiệm', evGateSkipped: true,
+        estimate: { scenarios: [], evR: -0.4, impliedWinProbability: 20, feesIncluded: true, capturedAt: '2026-11-24T00:00:00Z', locked: true },
+      } as any);
+
+      expect(component.loadedEstimate?.evR).toBe(-0.4);
+      expect(component.loadedEvGateReason).toBe('Chấp nhận kỳ vọng âm vì lệnh thử nghiệm');
+      expect(component.loadedEvGateSkipped).toBeTrue();
+    });
+
     it('resetForm clears the expectation state', () => {
       component.onExpectationChange([{ label: 'x', probabilityPercent: 100, exitPrice: 80 }]);
       component.estimateLocked = true;

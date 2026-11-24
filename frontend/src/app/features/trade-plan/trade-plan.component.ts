@@ -8,9 +8,10 @@ import { PortfolioService, PortfolioSummary } from '../../core/services/portfoli
 import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, PositionSizingResult, SizingModelResult, SectorExposureForPlan, VolatilitySizingResult } from '../../core/services/risk.service';
 import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
+import { EstimateVsActualComponent } from './estimate-vs-actual/estimate-vs-actual.component';
 import { PlanExpectationComponent } from './plan-expectation/plan-expectation.component';
 import { ScenarioRow, scenariosPayload } from './plan-expectation/expectation-math';
-import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger, PlanExpectationDto } from '../../core/services/trade-plan.service';
+import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger, PlanExpectationDto, EstimateDto } from '../../core/services/trade-plan.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService, SuggestedInvalidationRuleDto, INVALIDATION_TRIGGER_LABELS, DossierGateStatusDto, GATE_REASON_TEXT } from '../../core/services/company-dossier.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
@@ -110,7 +111,7 @@ interface DossierGateError {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent, PlanExpectationComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent, PlanExpectationComponent, EstimateVsActualComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -1931,6 +1932,12 @@ interface DossierGateError {
             </div>
           </div>
 
+          <!-- Ước lượng trước khi vào lệnh so với R thực tế -->
+          <app-estimate-vs-actual class="block mb-4"
+            [direction]="reviewPlanTarget?.direction ?? 'Buy'" [estimate]="reviewPlanTarget?.estimate"
+            [realizedR]="reviewPreview.realizedR" [evGateReason]="reviewPlanTarget?.evGateReason"
+            [evGateSkipped]="reviewPlanTarget?.evGateSkipped"></app-estimate-vs-actual>
+
           <!-- Lessons learned -->
           <div class="mb-4">
             <label class="block text-sm font-medium text-amber-800 mb-1">Bài học rút ra</label>
@@ -1984,6 +1991,9 @@ interface DossierGateError {
             <div class="text-lg font-bold text-gray-700">{{ loadedReviewData.holdingDays }}</div>
           </div>
         </div>
+        <app-estimate-vs-actual class="block mb-3"
+          [direction]="plan.direction" [estimate]="loadedEstimate" [realizedR]="loadedReviewData.realizedR"
+          [evGateReason]="loadedEvGateReason" [evGateSkipped]="loadedEvGateSkipped"></app-estimate-vs-actual>
         <div *ngIf="loadedReviewData.lessonsLearned" class="bg-white rounded-lg p-3">
           <div class="text-xs text-gray-500 mb-1">Bài học rút ra</div>
           <p class="text-sm text-gray-700 whitespace-pre-line">{{ loadedReviewData.lessonsLearned }}</p>
@@ -2289,6 +2299,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   private hadSavedScenarios = false;
   estimateLocked = false;
   serverExpectation: PlanExpectationDto | null = null;
+  loadedEstimate: EstimateDto | null = null;
+  loadedEvGateReason: string | null = null;
+  loadedEvGateSkipped = false;
   evGateModalOpen = false;
   evGateReasonText = '';
   readonly evGateMinLength = 10;
@@ -3472,6 +3485,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.hadSavedScenarios = this.expectationRows.length > 0;
     this.estimateLocked = sp.estimate?.locked === true;
     this.serverExpectation = sp.expectation ?? null;
+    this.loadedEstimate = sp.estimate ?? null;
+    this.loadedEvGateReason = sp.evGateReason ?? null;
+    this.loadedEvGateSkipped = sp.evGateSkipped === true;
     this.plan.symbol = sp.symbol;
     this.plan.direction = sp.direction;
     this.plan.entryPrice = sp.entryPrice;
@@ -3612,6 +3628,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.hadSavedScenarios = false;
     this.estimateLocked = false;
     this.serverExpectation = null;
+    this.loadedEstimate = null;
+    this.loadedEvGateReason = null;
+    this.loadedEvGateSkipped = false;
     this.cancelEvGate();
     this.selectedPlanId = null;
     this.selectedPlanStatus = '';

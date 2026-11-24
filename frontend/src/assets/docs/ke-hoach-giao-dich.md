@@ -145,6 +145,17 @@ Nháp → Sẵn sàng → Đang thực hiện → Đã thực hiện → Đã re
 - **R:R** trong danh sách kế hoạch và trang Vị thế là số hệ thống tính từ giá vào, cắt lỗ và giá chốt lời (nhiều mốc chốt lời thì lấy bình quân theo tỷ lệ vị thế). Lệnh Bán hoặc thiếu mục tiêu thì hiện giá trị bạn đã nhập.
 - Khi review, **R thực tế** = lãi/lỗ ròng ÷ 1R (ví dụ +1,6R: lãi gấp 1,6 lần mức rủi ro ban đầu). "(ước tính)" nghĩa là kế hoạch cũ chưa ghi 1R nên dùng cắt lỗ đầu tiên còn lưu; "n/a" nghĩa là không biết rủi ro ban đầu. Hiện chỉ áp dụng cho lệnh Mua.
 
+### Ước lượng kỳ vọng trước khi vào lệnh (lệnh Mua)
+
+Khối **Kỳ vọng của kế hoạch** trên form giúp bạn hỏi "kèo này có đáng vào không" bằng con số:
+
+1. Mỗi dòng là một kết quả có thể xảy ra của **cả vị thế**: đạt kế hoạch, cắt lỗ, thoát sớm / hoà. Giá thoát được dựng sẵn từ kế hoạch, bạn sửa hoặc thêm dòng được (ví dụ "chạm TP1 rồi quay lại cắt lỗ").
+2. Nhập **xác suất bạn tin** cho từng dòng, tổng phải là 100%. Ô xác suất cố ý để trống: nếu điền sẵn theo tỉ lệ thắng lịch sử, ước lượng của bạn sẽ bị neo vào con số đó thay vì đánh giá riêng kèo này. Tỉ lệ nền hiện bên dưới để bạn so **sau** khi đã nhập.
+3. Form hiện **EV** (kỳ vọng) theo R và theo VND, và xác suất thắng ngầm định. EV dương nghĩa là về lâu dài kèo này kỳ vọng có lãi. Server tính lại EV đã trừ phí ước tính khi lưu.
+4. Tỉ lệ nền ghi số lệnh và khoảng tin cậy 95%: dưới 10 lệnh thì "chưa đủ mẫu để tin", đừng coi nó là sự thật.
+5. Nếu EV ≤ 0 hoặc bạn chưa nhập xác suất mà vẫn chuyển sang **Sẵn sàng**, hệ thống hỏi **lý do** (tối thiểu 10 ký tự) chứ không chặn. Lý do được lưu và hiện khi review để bạn nhìn lại quyết định.
+6. Ước lượng được ghi lại khi bạn chốt kế hoạch và **khoá khi khớp lệnh đầu tiên**. Khi review, hệ thống đặt ước lượng đã khoá cạnh R thực tế. Nếu bạn vào lệnh mà kỳ vọng không dương hoặc chưa ước lượng và không có lý do, kế hoạch được đánh dấu "Vào lệnh không qua cổng kỳ vọng".
+
 Sau khi thực hiện xong, vào **Campaign Analytics** (`/campaign-analytics`) để review hiệu suất: P&L thực tế, % đạt target, VND/ngày, bài học rút ra.
 
 ---
