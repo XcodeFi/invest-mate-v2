@@ -465,6 +465,7 @@ public class TradePlanDossierGateWiringTests
             return new CreateTradePlanCommandHandler(
                 repository.Object,
                 Mock.Of<ITradeRepository>(),
+                Mock.Of<IPortfolioRepository>(),
                 gate);
         }
 

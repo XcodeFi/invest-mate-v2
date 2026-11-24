@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Domain.Entities;
@@ -34,15 +35,18 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
 {
     private readonly ITradePlanRepository _tradePlanRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
     private readonly ICampaignReviewService _reviewService;
 
     public ReviewTradePlanCommandHandler(
         ITradePlanRepository tradePlanRepository,
         ITradeRepository tradeRepository,
+        IPortfolioRepository portfolioRepository,
         ICampaignReviewService reviewService)
     {
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
         _reviewService = reviewService;
     }
 
@@ -55,7 +59,7 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
             throw new UnauthorizedAccessException("Not authorized to review this trade plan");
 
         // Collect all linked trades: from plan's TradeIds + query by TradePlanId
-        var linkedTrades = await CollectLinkedTrades(plan, cancellationToken);
+        var linkedTrades = await TradeOwnership.CollectOwnedLinkedTradesAsync(plan, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
 
         // Auto-calculate metrics
         var reviewData = _reviewService.CalculateMetrics(plan, linkedTrades);
@@ -66,32 +70,6 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
         await _tradePlanRepository.UpdateAsync(plan, cancellationToken);
 
         return MapToDto(reviewData);
-    }
-
-    private async Task<List<Trade>> CollectLinkedTrades(TradePlan plan, CancellationToken ct)
-    {
-        var tradeIds = new HashSet<string>();
-        if (plan.TradeId != null) tradeIds.Add(plan.TradeId);
-        if (plan.TradeIds != null) tradeIds.UnionWith(plan.TradeIds);
-
-        var trades = new List<Trade>();
-
-        // Get trades by their IDs (from plan's linked list)
-        foreach (var tradeId in tradeIds)
-        {
-            var trade = await _tradeRepository.GetByIdAsync(tradeId, ct);
-            if (trade != null) trades.Add(trade);
-        }
-
-        // Also query trades that link back to this plan via TradePlanId
-        var byPlanId = await _tradeRepository.GetByTradePlanIdAsync(plan.Id, ct);
-        foreach (var trade in byPlanId)
-        {
-            if (!trades.Any(t => t.Id == trade.Id))
-                trades.Add(trade);
-        }
-
-        return trades;
     }
 
     internal static CampaignReviewDto MapToDto(CampaignReviewData data) => new()

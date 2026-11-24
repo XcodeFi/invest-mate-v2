@@ -2,6 +2,22 @@
 
 ---
 
+## [v2.87.4] — 2026-11-24 · Liên kết giao dịch chỉ chấp nhận dữ liệu thuộc tài khoản đang gọi
+
+### Sửa lỗi
+
+**🔒 Liên kết giao dịch với kế hoạch hoặc chiến lược đối chiếu chủ sở hữu trước khi ghi.** Khi yêu cầu kèm mã giao dịch, hệ thống nay kiểm giao dịch đó nằm trong danh mục của tài khoản đang gọi (giao dịch không có chủ riêng, chủ sở hữu đi qua danh mục chứa nó). Giao dịch không thuộc tài khoản bị từ chối trước mọi thao tác ghi, nên kế hoạch không lưu và không giữ liên kết nào. Mã giao dịch không tồn tại giữ nguyên hành vi cũ.
+
+**🔒 Tổng kết và xem trước đánh giá kế hoạch chỉ tính giao dịch của tài khoản đang gọi.** Dữ liệu cũ có thể đã lưu mã giao dịch không thuộc tài khoản; số liệu lãi/lỗ, tổng đầu tư, tổng thu về nay bỏ qua các giao dịch đó.
+
+### Kỹ thuật
+
+- Hàm dùng chung kiểm quyền giao dịch qua danh mục (`portfolio.UserId == userId`) và hàm gom giao dịch liên kết đã lọc theo danh mục của tài khoản; các thao tác liên kết gọi hàm kiểm trước khi đổi kế hoạch
+- Test mới: 15 ca (mỗi thao tác một ca giao dịch thuộc danh mục thật của người khác và một ca đối chứng của chính tài khoản; thêm hai ca đường đọc và một ca không kèm mã giao dịch); 8 ca đỏ trước khi sửa; gỡ từng guard thì đúng ca tương ứng đỏ
+- Tests: **2168 backend** (+15) — tất cả pass
+
+---
+
 ## [v2.87.3] — 2026-11-24 · Trợ lý AI chỉ dựng ngữ cảnh từ dữ liệu của tài khoản đang gọi
 
 ### Sửa lỗi

@@ -1,3 +1,4 @@
+using InvestmentApp.Application.Common;
 using InvestmentApp.Application.Interfaces;
 using MediatR;
 
@@ -14,11 +15,14 @@ public class LinkTradeToStrategyCommandHandler : IRequestHandler<LinkTradeToStra
 {
     private readonly IStrategyRepository _strategyRepository;
     private readonly ITradeRepository _tradeRepository;
+    private readonly IPortfolioRepository _portfolioRepository;
 
-    public LinkTradeToStrategyCommandHandler(IStrategyRepository strategyRepository, ITradeRepository tradeRepository)
+    public LinkTradeToStrategyCommandHandler(IStrategyRepository strategyRepository, ITradeRepository tradeRepository,
+        IPortfolioRepository portfolioRepository)
     {
         _strategyRepository = strategyRepository;
         _tradeRepository = tradeRepository;
+        _portfolioRepository = portfolioRepository;
     }
 
     public async Task<Unit> Handle(LinkTradeToStrategyCommand request, CancellationToken cancellationToken)
@@ -29,7 +33,7 @@ public class LinkTradeToStrategyCommandHandler : IRequestHandler<LinkTradeToStra
         if (strategy.UserId != request.UserId)
             throw new UnauthorizedAccessException("Not authorized");
 
-        var trade = await _tradeRepository.GetByIdAsync(request.TradeId, cancellationToken)
+        var trade = await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken)
             ?? throw new Exception($"Trade {request.TradeId} not found");
 
         trade.LinkStrategy(request.StrategyId);
