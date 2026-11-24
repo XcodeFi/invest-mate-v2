@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.95.0] — 2026-11-24 · Biểu đồ chỉ báo có chú giải rõ ràng và hướng dẫn cho người mới
+
+### Tính năng mới
+
+- **Chú giải trên biểu đồ chỉ báo** (trang Thị trường, khi chọn một nhóm): mỗi tầng có dòng chú giải gồm ô màu đúng màu đường, tên chỉ báo kèm tham số (EMA 20, Bollinger 20 2, RSI 14, MACD 12 26 9, Stoch 14 3, ATR 14, MFI 14, KL SMA 20) cùng gợi ý tiếng Việt ngắn như "+DI 14 (lực tăng)", và giá trị tô đúng màu đường (phiên cuối, hoặc phiên đang trỏ chuột). Con số cuối của mỗi đường còn hiện thành nhãn màu ở lề phải.
+- Tầng giá có hàng **Mở / Cao / Thấp / Đóng** kèm mức thay đổi so với phiên trước, và dòng giải thích màu nến (xanh = phiên tăng, đỏ = phiên giảm).
+- Các **đường ngang** (hỗ trợ, kháng cự, cắt lỗ, chốt lời, Fibonacci) có danh sách dưới biểu đồ: vạch đứt nét đúng màu, tên mốc và giá. Các vạch tham chiếu trong tầng có nhãn: RSI 70 "Quá mua" / 30 "Quá bán", Stochastic và MFI 80 / 20, ADX 25 "Có xu hướng".
+- Khối **📖 Cách đọc nhóm...** dưới biểu đồ: phần "Đọc nhanh hiện tại" biến giá trị phiên cuối thành câu dễ hiểu (ví dụ "RSI đang 72, trên 70: giá đã tăng nóng, dễ điều chỉnh"), rồi giải thích từng chỉ báo (là gì, nhìn trên biểu đồ, cách đọc, bẫy hay gặp). Thu gọn được và nhớ lựa chọn; có lời nhắc rằng chỉ báo mô tả quá khứ và liên kết tới hướng dẫn đầy đủ.
+- Trang Hướng dẫn mở thẳng một chủ đề qua đường dẫn `/help?topic=<mã chủ đề>`; mã lạ thì hiện danh sách như thường.
+
+### Cải thiện
+
+- Hướng dẫn "Phân tích thị trường" có mục **Đọc biểu đồ cho người mới** (nến, đường liền, đường đứt nét, vạch mờ, chú giải nằm ở đâu), viết lại 5 nhóm chỉ báo theo cùng khung với khối Cách đọc, và bỏ hai thuật ngữ khó hiểu (smart money, squeeze).
+
+### Kỹ thuật
+
+- `indicator-chart.component.ts`: chú giải dựng bằng phần tử DOM, chữ chỉ qua `textContent`; khi chú giải xuống dòng làm tổng cao hơn 500px thì canvas co lại (tầng dưới trước, tầng giá sau) để khối dính không vượt ngân sách. `PaneLayer.guides` đổi từ `number[]` sang `{ value, label }[]`.
+- `features/market-data/indicator-guides.ts` (mới): `INDICATOR_GUIDES` cho 6 nhóm và hàm thuần `readNow` (thiếu dữ liệu thì bỏ câu, không đoán).
+
+---
+
 ## [v2.94.0] — 2026-11-24 · Độ khớp ước lượng và cỡ vị thế Kelly thận trọng
 
 ### Tính năng mới

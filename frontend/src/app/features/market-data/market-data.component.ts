@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
@@ -15,11 +15,15 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
 import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
 import { GroupLayers, IndicatorChartCandles } from '../../shared/components/indicator-chart/indicator-chart.types';
 import { buildGroupLayers, TaGroup } from './ta-group-layers';
+import { GroupGuide, INDICATOR_GUIDES, readNow } from './indicator-guides';
+
+/** Khoá localStorage nhớ khối "Cách đọc" đang mở hay thu gọn ('1' mở, '0' thu gọn). */
+const GUIDE_OPEN_KEY = 'ta-guide-open';
 
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent],
+  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -236,6 +240,47 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
             <p class="text-xs text-gray-500" data-testid="ta-chart-hint">Chọn nhóm để xem biểu đồ</p>
           }
         </div>
+
+        <!-- Cách đọc nhóm đang chọn: nằm NGOÀI khối dính nên không làm khối dính cao thêm. Chỉ hiện khi đã chọn nhóm và có dữ liệu. -->
+        @if (selectedGroup && currentSeries && activeGuide) {
+          <section class="mb-4 rounded-lg border border-blue-100 bg-blue-50/40" data-testid="ta-guide">
+            <button type="button" class="w-full flex items-center justify-between gap-2 px-4 py-2 text-left"
+              [attr.aria-expanded]="guideOpen" (click)="toggleGuide()" data-testid="ta-guide-toggle">
+              <span class="text-sm font-bold text-gray-800">📖 Cách đọc nhóm {{ activeGuide.title }}</span>
+              <span class="text-xs text-blue-600">{{ guideOpen ? 'Thu gọn' : 'Mở ra' }}</span>
+            </button>
+            @if (guideOpen) {
+              <div class="px-4 pb-4 text-sm text-gray-700 space-y-3" data-testid="ta-guide-body">
+                <p class="text-gray-600">{{ activeGuide.oneLine }}</p>
+                @if (readNowLines.length > 0) {
+                  <div class="rounded-lg bg-white border border-blue-100 px-3 py-2" data-testid="ta-guide-now">
+                    <div class="text-xs font-semibold text-blue-700 mb-1">Đọc nhanh hiện tại</div>
+                    <ul class="list-disc pl-5 space-y-0.5">
+                      @for (line of readNowLines; track line) { <li>{{ line }}</li> }
+                    </ul>
+                  </div>
+                }
+                @for (item of activeGuide.items; track item.name) {
+                  <div class="rounded-lg bg-white border border-gray-100 px-3 py-2" data-testid="ta-guide-item">
+                    <div class="font-semibold text-gray-900">{{ item.name }}</div>
+                    <p class="mt-0.5">{{ item.what }}</p>
+                    <p class="mt-1 text-xs text-gray-500"><span class="font-semibold">Nhìn trên biểu đồ:</span> {{ item.onChart }}</p>
+                    <div class="mt-1 text-xs font-semibold text-gray-600">Cách đọc</div>
+                    <ul class="list-disc pl-5 space-y-0.5">
+                      @for (line of item.howToRead; track line) { <li>{{ line }}</li> }
+                    </ul>
+                    <p class="mt-1 text-xs text-amber-700"><span class="font-semibold">Bẫy hay gặp:</span> {{ item.pitfall }}</p>
+                  </div>
+                }
+                <p class="text-xs text-gray-500">
+                  Chỉ báo mô tả quá khứ, không đảm bảo tương lai; dùng kết hợp nhiều chỉ báo, không ra quyết định chỉ từ một chỉ báo.
+                  <a routerLink="/help" [queryParams]="{ topic: 'phan-tich-thi-truong' }" class="text-blue-600 underline"
+                    data-testid="ta-guide-help-link">Xem hướng dẫn đầy đủ (Phân tích thị trường)</a>.
+                </p>
+              </div>
+            }
+          </section>
+        }
 
         <!-- Khối 1: Tổng hợp (Confluence + Gợi ý giao dịch) -->
         @if (analysis.confluenceScore != null || analysis.suggestedEntry) {
@@ -820,6 +865,9 @@ export class MarketDataComponent implements OnInit {
   currentSeries: TechnicalSeries | null = null;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
   groupLayers: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+  /** Khối "Cách đọc": mở/thu gọn (nhớ bằng localStorage, có thể bị chặn nên bọc try/catch) và các câu đọc nhanh. */
+  guideOpen = MarketDataComponent.readGuideOpen();
+  readNowLines: string[] = [];
   private chartSub: Subscription | null = null;
 
   // AI Evaluation
@@ -1073,6 +1121,22 @@ export class MarketDataComponent implements OnInit {
     this.groupLayers = this.currentSeries && this.analysis
       ? buildGroupLayers(this.selectedGroup, this.currentSeries, this.analysis)
       : { overlays: [], panes: [], priceLines: [], notes: [] };
+    this.readNowLines = this.selectedGroup && this.currentSeries && this.analysis
+      ? readNow(this.selectedGroup, this.currentSeries, this.analysis)
+      : [];
+  }
+
+  get activeGuide(): GroupGuide | null {
+    return this.selectedGroup ? INDICATOR_GUIDES[this.selectedGroup] : null;
+  }
+
+  toggleGuide(): void {
+    this.guideOpen = !this.guideOpen;
+    try { localStorage.setItem(GUIDE_OPEN_KEY, this.guideOpen ? '1' : '0'); } catch { /* bị chặn: chỉ không nhớ được */ }
+  }
+
+  private static readGuideOpen(): boolean {
+    try { return localStorage.getItem(GUIDE_OPEN_KEY) !== '0'; } catch { return true; }
   }
 
   /** Đổi mã: bỏ chọn nhóm, huỷ request đang bay, xoá cache — response muộn của mã cũ không vẽ lên mã mới. */
@@ -1086,6 +1150,7 @@ export class MarketDataComponent implements OnInit {
     this.seriesCache.clear();
     this.chartCandles = { open: [], high: [], low: [], close: [] };
     this.groupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+    this.readNowLines = [];
   }
 
   getSignalEmoji(signal: string): string {

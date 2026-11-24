@@ -141,6 +141,8 @@ Tabs:
 - **Trạng thái thị trường**: Phân loại tự động dựa trên ADX — Xu hướng rất mạnh (≥40) / Có xu hướng (≥25) / Đi ngang (<25). Gợi ý chiến lược: Trend Following hoặc Mean Reversion.
 - **Phát hiện phân kỳ (Divergence)**: Auto-detect phân kỳ RSI và MACD so với giá. Phân kỳ tăng (bullish) = giá thấp hơn nhưng RSI/MACD cao hơn. Phân kỳ giảm (bearish) = ngược lại. Hiển thị alert card với chi tiết RSI/MACD.
 
+**Chú giải và hướng dẫn cho người mới trên biểu đồ chỉ báo (2026-11-24):** mỗi tầng có chú giải ô màu + tên kèm tham số + giá trị tô màu đường (phiên cuối hoặc phiên đang trỏ), tầng giá có hàng Mở/Cao/Thấp/Đóng kèm thay đổi và chú giải nến, các đường ngang có danh sách dưới biểu đồ, vạch tham chiếu có nhãn (Quá mua/Quá bán/Có xu hướng), nhãn giá cuối của từng đường trên trục. Khối "📖 Cách đọc nhóm..." dưới biểu đồ: đọc nhanh giá trị hiện tại thành câu + giải thích từng chỉ báo (là gì, nhìn trên biểu đồ, cách đọc, bẫy hay gặp), thu gọn được và nhớ trạng thái. Help "Phân tích thị trường" có mục Đọc biểu đồ cho người mới; `/help?topic=phan-tich-thi-truong` mở thẳng chủ đề.
+
 **Cách đọc 10 chỉ báo:**
 
 | Card | Giá trị | Ý nghĩa |

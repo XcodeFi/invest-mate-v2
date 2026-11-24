@@ -11,11 +11,17 @@ export interface LineLayer {
   kind?: 'line' | 'histogram';
 }
 
+/** Vạch ngang tham chiếu có nghĩa: value trên thang của tầng, label hiện cạnh vạch và trong chú giải ("Quá mua"). */
+export interface GuideLine {
+  value: number;
+  label: string;
+}
+
 /** Một tầng biểu đồ riêng (thang riêng) xếp dưới tầng giá. guides = vạch ngang tham chiếu (30/70, 20/80, 25). */
 export interface PaneLayer {
   title: string;
   lines: LineLayer[];
-  guides?: number[];
+  guides?: GuideLine[];
 }
 
 export interface PriceLineLayer {
