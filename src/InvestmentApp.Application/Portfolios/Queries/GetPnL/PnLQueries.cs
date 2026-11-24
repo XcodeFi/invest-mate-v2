@@ -4,8 +4,8 @@ using MediatR;
 
 namespace InvestmentApp.Application.Portfolios.Queries.GetPnL;
 
-// Ba query lãi/lỗ dành cho MCP. PnLController hiện gọi IPnLService trực tiếp và tự kiểm chủ sở hữu; REST giữ nguyên.
-// Ở đây việc kiểm chủ nằm trong handler, trước khi chạm vào IPnLService (service không tự kiểm).
+// Ba query lãi/lỗ dùng chung cho REST (PnLController) và MCP. IPnLService không tự kiểm chủ sở hữu,
+// nên việc kiểm nằm trong handler, trước khi chạm vào service.
 // Danh mục không có hoặc của người khác cho cùng một phản hồi.
 
 internal static class PnLOwnership
