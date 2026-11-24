@@ -9,7 +9,7 @@ Hướng dẫn chi tiết cho AI agents (GitHub Copilot, Claude, GPT) trong vi�
 - **CQRS Pattern** cho command/query separation
 - **Domain-Driven Design (DDD)** với rich domain models
 - **Event Sourcing** cho audit trails
-- **Microservices Architecture** với API, Worker, và Frontend
+- **API + Frontend**: các tác vụ nền chạy trong API, được Cloud Scheduler kích hoạt (xem ADR-0001)
 
 ## 🏗️ Kiến trúc Hệ thống
 
@@ -19,8 +19,7 @@ src/
 ├── InvestmentApp.Api/           # 🚪 Presentation Layer
 ├── InvestmentApp.Application/   # 🔄 Application Layer
 ├── InvestmentApp.Domain/        # 🎯 Domain Layer
-├── InvestmentApp.Infrastructure/# 🛠️ Infrastructure Layer
-└── InvestmentApp.Worker/        # ⚙️ Background Processing
+└── InvestmentApp.Infrastructure/# 🛠️ Infrastructure Layer
 ```
 
 ### Design Patterns
