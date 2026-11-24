@@ -358,7 +358,7 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
     expect(component.selectedGroup).toBe('dong-luong');
     expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(1);
     expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledTimes(1);
-    expect(component.groupLayers.panes.map(p => p.title)).toEqual(['RSI (sức mạnh tương đối)', 'MACD (động lượng)', 'Stochastic (dao động)']);
+    expect(component.groupLayers.panes.map(p => p.title)).toEqual(['RSI 14 (sức mạnh)', 'MACD 12 26 9', 'Stoch 14 3 (dao động)']);
   });
 
   it('chips are native buttons, so Enter/Space activation is the browser click (no extra key handlers)', () => {

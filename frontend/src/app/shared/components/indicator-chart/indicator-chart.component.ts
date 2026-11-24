@@ -39,10 +39,15 @@ const formatAxisValue = (v: number): string =>
   Math.abs(v) >= 1_000_000
     ? `${(v / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}M`
     : v.toLocaleString('vi-VN', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 1 });
+/** Giá nến (Mở/Cao/Thấp/Đóng): nghìn trở lên không lẻ, nhỏ hơn giữ tối đa 2 chữ số lẻ (46,85). */
+const formatPrice = (v: number): string =>
+  v.toLocaleString('vi-VN', { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : 2 });
 const PRICE_FORMAT = { type: 'custom' as const, formatter: formatAxisValue, minMove: 0.01 };
 
 /** Một mục chú giải: values để đọc giá trị theo phiên, valueEl là chỗ ghi giá trị (textContent). */
 interface ReadoutItem { values: (number | null)[]; valueEl: HTMLElement; }
+/** Hàng Mở/Cao/Thấp/Đóng của tầng giá: phần tử chứa bốn số và phần tử thay đổi (màu theo tăng/giảm). */
+interface OhlcRow { numbersEl: HTMLElement; changeEl: HTMLElement; }
 interface Readout { items: ReadoutItem[]; }
 /** Canvas của một tầng, để co lại khi chú giải xuống dòng làm tổng cao quá ngân sách. */
 interface PaneCanvas { chart: IChartApi; container: HTMLElement; min: number; height: number; isPrice: boolean; }
@@ -81,6 +86,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   private charts: IChartApi[] = [];
   private readouts: Readout[] = [];
   private canvases: PaneCanvas[] = [];
+  private ohlc: OhlcRow | null = null;
   private observer: ResizeObserver | null = null;
   private viewReady = false;
   private syncing = false;
@@ -156,14 +162,13 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       low: this.candles.low[src], close: this.candles.close[src]
     })));
 
+    this.ohlc = this.addOhlcRow(priceBlock.legend);
     this.addCandleLegend(priceBlock.legend);
-    const priceReadout: ReadoutItem[] = [
-      this.addLegendItem(priceBlock.legend, 'Đóng cửa', '#374151', 'bar', this.candles.close)
-    ];
+    const priceReadout: ReadoutItem[] = [];
     layers.overlays.forEach(line => {
       const series = priceChart.addLineSeries({
         color: line.color ?? '#2563eb', lineWidth: 2,
-        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
         priceFormat: PRICE_FORMAT
       });
       series.setData(this.lineData(times, line.values));
@@ -189,10 +194,10 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       pane.lines.forEach(line => {
         const data = this.lineData(times, line.values);
         const series = line.kind === 'histogram'
-          ? chart.addHistogramSeries({ color: line.color ?? '#94a3b8', priceLineVisible: false, lastValueVisible: false, priceFormat: PRICE_FORMAT })
+          ? chart.addHistogramSeries({ color: line.color ?? '#94a3b8', priceLineVisible: false, lastValueVisible: true, priceFormat: PRICE_FORMAT })
           : chart.addLineSeries({
               color: line.color ?? '#2563eb', lineWidth: 2,
-              priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+              priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
               priceFormat: PRICE_FORMAT
             });
         series.setData(data as any);
@@ -332,11 +337,45 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     const name = document.createElement('span');
     name.textContent = label;
     const valueEl = document.createElement('span');
-    valueEl.className = 'font-semibold text-gray-800';
+    valueEl.className = 'font-semibold';
+    valueEl.style.color = color;
     valueEl.setAttribute('data-testid', 'legend-value');
     item.append(swatch, name, valueEl);
     legend.appendChild(item);
     return { values, valueEl };
+  }
+
+  /** Hàng Mở/Cao/Thấp/Đóng + thay đổi so với phiên trước của phiên đang trỏ (hoặc phiên cuối). Chỉ textContent. */
+  private addOhlcRow(legend: HTMLElement): OhlcRow {
+    const row = document.createElement('span');
+    row.className = 'inline-flex flex-wrap items-center gap-x-2 whitespace-nowrap';
+    row.setAttribute('data-testid', 'ohlc-row');
+    const numbersEl = document.createElement('span');
+    numbersEl.className = 'font-semibold text-gray-800';
+    const changeEl = document.createElement('span');
+    changeEl.className = 'font-semibold';
+    changeEl.setAttribute('data-testid', 'ohlc-change');
+    row.append(numbersEl, changeEl);
+    legend.appendChild(row);
+    return { numbersEl, changeEl };
+  }
+
+  private updateOhlc(src: number): void {
+    if (!this.ohlc) return;
+    const { open, high, low, close } = this.candles;
+    this.ohlc.numbersEl.textContent =
+      `Mở ${formatPrice(open[src])}  Cao ${formatPrice(high[src])}  Thấp ${formatPrice(low[src])}  Đóng ${formatPrice(close[src])}`;
+    const prev = src > 0 ? close[src - 1] : undefined;
+    if (prev === undefined || prev === null || prev === 0) {
+      this.ohlc.changeEl.textContent = '';
+      return;
+    }
+    const diff = close[src] - prev;
+    const pct = (diff / prev) * 100;
+    const sign = diff >= 0 ? '+' : '−';
+    this.ohlc.changeEl.textContent =
+      `${sign}${formatPrice(Math.abs(diff))} (${sign}${Math.abs(pct).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)`;
+    this.ohlc.changeEl.style.color = diff >= 0 ? '#16a34a' : '#dc2626';
   }
 
   /** Chú giải nến: ô xanh/đỏ kèm lời giải thích, không có giá trị. */
@@ -422,6 +461,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       if (k >= 0 && k < this.sourceIndex.length) position = k;
     }
     const src = this.sourceIndex[position];
+    this.updateOhlc(src);
     this.readouts.forEach(r => r.items.forEach(item => {
       const v = item.values[src];
       item.valueEl.textContent = v === null || v === undefined ? '—' : this.formatValue(v);
@@ -449,6 +489,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     this.charts = [];
     this.readouts = [];
     this.canvases = [];
+    this.ohlc = null;
     this.anchors = [];
     this.sourceIndex = [];
     this.syncing = false;

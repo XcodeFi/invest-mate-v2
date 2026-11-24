@@ -84,48 +84,48 @@ export function buildGroupLayers(group: TaGroup | null, s: TechnicalSeries, a: T
 
     case 'xu-huong': {
       out.overlays = keepWithData([
-        { label: 'EMA20 (TB 20 phiên)', values: s.ema20, color: COLOR.ema20 },
-        { label: 'EMA50 (TB 50 phiên)', values: s.ema50, color: COLOR.ema50 },
+        { label: 'EMA 20 (TB 20 phiên)', values: s.ema20, color: COLOR.ema20 },
+        { label: 'EMA 50 (TB 50 phiên)', values: s.ema50, color: COLOR.ema50 },
       ], out.notes);
-      addPane(pane('ADX (độ mạnh xu hướng)', [
-        { label: 'ADX', values: s.adx, color: COLOR.adx },
-        { label: '+DI (lực tăng)', values: s.plusDi, color: COLOR.plusDi },
-        { label: '−DI (lực giảm)', values: s.minusDi, color: COLOR.minusDi },
+      addPane(pane('ADX 14 (độ mạnh)', [
+        { label: 'ADX 14', values: s.adx, color: COLOR.adx },
+        { label: '+DI 14 (lực tăng)', values: s.plusDi, color: COLOR.plusDi },
+        { label: '−DI 14 (lực giảm)', values: s.minusDi, color: COLOR.minusDi },
       ], out.notes, [{ value: 25, label: 'Có xu hướng' }]));
       break;
     }
 
     case 'dong-luong': {
-      addPane(pane('RSI (sức mạnh tương đối)', [{ label: 'RSI14', values: s.rsi14, color: COLOR.rsi }], out.notes, overboughtOversold(70, 30)));
-      addPane(pane('MACD (động lượng)', [
+      addPane(pane('RSI 14 (sức mạnh)', [{ label: 'RSI 14', values: s.rsi14, color: COLOR.rsi }], out.notes, overboughtOversold(70, 30)));
+      addPane(pane('MACD 12 26 9', [
         { label: 'Histogram', values: s.macdHistogram, color: COLOR.macdHist, kind: 'histogram' },
-        { label: 'MACD', values: s.macdLine, color: COLOR.macd },
-        { label: 'Signal (đường tín hiệu)', values: s.macdSignal, color: COLOR.macdSignal },
+        { label: 'MACD 12 26', values: s.macdLine, color: COLOR.macd },
+        { label: 'Signal 9 (tín hiệu)', values: s.macdSignal, color: COLOR.macdSignal },
       ], out.notes));
-      addPane(pane('Stochastic (dao động)', [
-        { label: '%K (nhanh)', values: s.stochK, color: COLOR.stochK },
-        { label: '%D (chậm)', values: s.stochD, color: COLOR.stochD },
+      addPane(pane('Stoch 14 3 (dao động)', [
+        { label: '%K 14 (nhanh)', values: s.stochK, color: COLOR.stochK },
+        { label: '%D 3 (chậm)', values: s.stochD, color: COLOR.stochD },
       ], out.notes, overboughtOversold(80, 20)));
       break;
     }
 
     case 'bien-dong': {
       out.overlays = keepWithData([
-        { label: 'Bollinger trên', values: s.bollingerUpper, color: COLOR.bandOuter },
-        { label: 'Bollinger giữa', values: s.bollingerMiddle, color: COLOR.bandMiddle },
-        { label: 'Bollinger dưới', values: s.bollingerLower, color: COLOR.bandOuter },
+        { label: 'Bollinger 20 2 trên', values: s.bollingerUpper, color: COLOR.bandOuter },
+        { label: 'Bollinger 20 2 giữa', values: s.bollingerMiddle, color: COLOR.bandMiddle },
+        { label: 'Bollinger 20 2 dưới', values: s.bollingerLower, color: COLOR.bandOuter },
       ], out.notes);
-      addPane(pane('ATR14 (biên độ dao động)', [{ label: 'ATR14', values: s.atr14, color: COLOR.atr }], out.notes));
+      addPane(pane('ATR 14 (biên độ)', [{ label: 'ATR 14', values: s.atr14, color: COLOR.atr }], out.notes));
       break;
     }
 
     case 'dong-tien': {
       addPane(pane('Khối lượng', [
         { label: 'Khối lượng', values: s.volume, color: COLOR.volume, kind: 'histogram' },
-        { label: 'TB 20 phiên', values: s.volumeSma20, color: COLOR.volumeSma },
+        { label: 'KL SMA 20', values: s.volumeSma20, color: COLOR.volumeSma },
       ], out.notes));
       addPane(pane('OBV (dòng tiền tích luỹ)', [{ label: 'OBV', values: s.obv, color: COLOR.obv }], out.notes));
-      addPane(pane('MFI (dòng tiền)', [{ label: 'MFI14', values: s.mfi14, color: COLOR.mfi }], out.notes, overboughtOversold(80, 20)));
+      addPane(pane('MFI 14 (dòng tiền)', [{ label: 'MFI 14', values: s.mfi14, color: COLOR.mfi }], out.notes, overboughtOversold(80, 20)));
       break;
     }
 

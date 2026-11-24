@@ -146,6 +146,15 @@ describe('IndicatorChartComponent', () => {
       expect(swatch('Đường đỏ').style.backgroundColor).toBe(norm('#dc2626'));
     });
 
+    it('value text is tinted in its line colour', () => {
+      const orange: LineLayer = { label: 'Đường cam', values: series(i => 10 + i), color: '#f59e0b' };
+      setInputs({ overlays: [orange], panes: [{ title: 'Tầng', lines: [line('Đường xanh')] }], priceLines: [], notes: [] });
+
+      const valueEl = (label: string) => itemOf(label).querySelector('[data-testid="legend-value"]') as HTMLElement;
+      expect(valueEl('Đường cam').style.color).toBe(norm('#f59e0b'));
+      expect(valueEl('Đường xanh').style.color).toBe(norm('#2563eb'));
+    });
+
     it('histogram lines get a square swatch, plain lines a thin bar', () => {
       const hist: LineLayer = { label: 'Cột', values: series(i => i), color: '#94a3b8', kind: 'histogram' };
       const plain: LineLayer = { label: 'Đường', values: series(i => i), color: '#2563eb' };
@@ -169,6 +178,66 @@ describe('IndicatorChartComponent', () => {
       (component as any).updateReadouts({ logical: 9, point: { x: 1, y: 1 } });
 
       expect(itemOf('RSI').querySelector('[data-testid="legend-value"]')!.textContent).toBe('59');
+    });
+
+    describe('OHLC row', () => {
+      const ohlc = () => root().querySelector('[data-testid="ohlc-row"]') as HTMLElement;
+
+      it('shows open/high/low/close of the last bar and the change when not hovering', () => {
+        setInputs(layers(['RSI']));
+
+        const text = ohlc().textContent!;
+        expect(text).toContain('Mở 139');
+        expect(text).toContain('Cao 141');
+        expect(text).toContain('Thấp 137');
+        expect(text).toContain('Đóng 140');
+        expect(text).toContain('+1 (+0,72%)');
+      });
+
+      it('follows the hover', () => {
+        setInputs(layers(['RSI']));
+
+        (component as any).updateReadouts({ logical: 9, point: { x: 1, y: 1 } });
+
+        const text = ohlc().textContent!;
+        expect(text).toContain('Mở 109');
+        expect(text).toContain('Cao 111');
+        expect(text).toContain('Thấp 107');
+        expect(text).toContain('Đóng 110');
+        expect(text).toContain('+1 (+0,92%)');
+      });
+
+      it('colours the change green when up and red when down', () => {
+        setInputs(layers([]));
+        const change = () => ohlc().querySelector('[data-testid="ohlc-change"]') as HTMLElement;
+        expect(change().style.color).toBe(norm('#16a34a'));
+
+        const down: IndicatorChartCandles = { ...candles, close: series(i => 200 - i) as number[] };
+        fixture.componentRef.setInput('candles', down);
+        fixture.detectChanges();
+        expect(change().style.color).toBe(norm('#dc2626'));
+      });
+
+      it('first bar has no previous close so no change is shown', () => {
+        setInputs(layers([]));
+
+        (component as any).updateReadouts({ logical: 0, point: { x: 1, y: 1 } });
+
+        expect(ohlc().querySelector('[data-testid="ohlc-change"]')!.textContent).toBe('');
+      });
+    });
+
+    describe('nhãn giá cuối trên trục', () => {
+      it('every indicator line shows its last value as an axis tag', () => {
+        setInputs(layers(['RSI']));
+        const proto = Object.getPrototypeOf((component as any).charts[0]);
+        const lineSpy = spyOn(proto, 'addLineSeries').and.callThrough();
+
+        setInputs({ overlays: [line('EMA')], panes: [{ title: 'RSI', lines: [line('RSI')] }], priceLines: [], notes: [] });
+
+        expect(lineSpy).toHaveBeenCalledTimes(2);
+        lineSpy.calls.allArgs().forEach(args => expect((args[0] as any).lastValueVisible).toBeTrue());
+      });
     });
 
     it('a missing value shows a dash, not 0', () => {
@@ -245,7 +314,7 @@ describe('IndicatorChartComponent', () => {
 
       expect(root().offsetHeight).toBeLessThanOrEqual(500);
       // và không có mục nào bị cắt mất: mọi mục chú giải vẫn nằm trong DOM
-      expect(items().length).toBeGreaterThanOrEqual(1 + 2 + 1 + 3 + 2);
+      expect(items().length).toBeGreaterThanOrEqual(2 + 1 + 3 + 2);
     });
   });
 

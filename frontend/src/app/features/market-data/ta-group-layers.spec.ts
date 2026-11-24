@@ -63,36 +63,36 @@ describe('buildGroupLayers', () => {
 
   it('xu-huong → overlays EMA20, EMA50; pane ADX with guides [25]', () => {
     const l = buildGroupLayers('xu-huong', series(), analysis());
-    expect(l.overlays.map(o => o.label)).toEqual(['EMA20 (TB 20 phiên)', 'EMA50 (TB 50 phiên)']);
+    expect(l.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)', 'EMA 50 (TB 50 phiên)']);
     expect(l.panes.length).toBe(1);
-    expect(l.panes[0].title).toBe('ADX (độ mạnh xu hướng)');
-    expect(l.panes[0].lines.map(x => x.label)).toEqual(['ADX', '+DI (lực tăng)', '−DI (lực giảm)']);
+    expect(l.panes[0].title).toBe('ADX 14 (độ mạnh)');
+    expect(l.panes[0].lines.map(x => x.label)).toEqual(['ADX 14', '+DI 14 (lực tăng)', '−DI 14 (lực giảm)']);
     expect(l.panes[0].guides).toEqual([{ value: 25, label: 'Có xu hướng' }]);
   });
 
   it('dong-luong → 3 panes RSI [30,70], MACD, Stochastic [20,80]; no overlays', () => {
     const l = buildGroupLayers('dong-luong', series(), analysis());
     expect(l.overlays).toEqual([]);
-    expect(l.panes.map(p => p.title)).toEqual(['RSI (sức mạnh tương đối)', 'MACD (động lượng)', 'Stochastic (dao động)']);
+    expect(l.panes.map(p => p.title)).toEqual(['RSI 14 (sức mạnh)', 'MACD 12 26 9', 'Stoch 14 3 (dao động)']);
     expect(l.panes[0].guides).toEqual([{ value: 70, label: 'Quá mua' }, { value: 30, label: 'Quá bán' }]);
     expect(l.panes[1].guides).toBeUndefined();
-    expect(l.panes[1].lines.map(x => x.label)).toEqual(['Histogram', 'MACD', 'Signal (đường tín hiệu)']);
+    expect(l.panes[1].lines.map(x => x.label)).toEqual(['Histogram', 'MACD 12 26', 'Signal 9 (tín hiệu)']);
     expect(l.panes[1].lines[0].kind).toBe('histogram');
     expect(l.panes[2].guides).toEqual([{ value: 80, label: 'Quá mua' }, { value: 20, label: 'Quá bán' }]);
-    expect(l.panes[2].lines.map(x => x.label)).toEqual(['%K (nhanh)', '%D (chậm)']);
+    expect(l.panes[2].lines.map(x => x.label)).toEqual(['%K 14 (nhanh)', '%D 3 (chậm)']);
   });
 
   it('bien-dong → Bollinger upper/middle/lower overlays and ATR pane', () => {
     const l = buildGroupLayers('bien-dong', series(), analysis());
-    expect(l.overlays.map(o => o.label)).toEqual(['Bollinger trên', 'Bollinger giữa', 'Bollinger dưới']);
-    expect(l.panes.map(p => p.title)).toEqual(['ATR14 (biên độ dao động)']);
+    expect(l.overlays.map(o => o.label)).toEqual(['Bollinger 20 2 trên', 'Bollinger 20 2 giữa', 'Bollinger 20 2 dưới']);
+    expect(l.panes.map(p => p.title)).toEqual(['ATR 14 (biên độ)']);
   });
 
   it('dong-tien → volume (+SMA20), OBV and MFI [20,80] panes', () => {
     const l = buildGroupLayers('dong-tien', series(), analysis());
     expect(l.overlays).toEqual([]);
-    expect(l.panes.map(p => p.title)).toEqual(['Khối lượng', 'OBV (dòng tiền tích luỹ)', 'MFI (dòng tiền)']);
-    expect(l.panes[0].lines.map(x => x.label)).toEqual(['Khối lượng', 'TB 20 phiên']);
+    expect(l.panes.map(p => p.title)).toEqual(['Khối lượng', 'OBV (dòng tiền tích luỹ)', 'MFI 14 (dòng tiền)']);
+    expect(l.panes[0].lines.map(x => x.label)).toEqual(['Khối lượng', 'KL SMA 20']);
     expect(l.panes[0].lines[0].kind).toBe('histogram');
     expect(l.panes[2].guides).toEqual([{ value: 80, label: 'Quá mua' }, { value: 20, label: 'Quá bán' }]);
   });
@@ -103,6 +103,16 @@ describe('buildGroupLayers', () => {
 
     expect(guides.length).toBe(1 + 2 + 2 + 2);   // ADX 1, RSI 2, Stochastic 2, MFI 2
     guides.forEach(g => expect(g.label.trim().length).toBeGreaterThan(0));
+  });
+
+  it('indicator names carry their parameters (like 24hmoney) next to a short Vietnamese hint', () => {
+    const names = (['xu-huong', 'dong-luong', 'bien-dong', 'dong-tien'] as TaGroup[]).flatMap(g => {
+      const l = buildGroupLayers(g, series(), analysis());
+      return [...l.overlays.map(o => o.label), ...l.panes.flatMap(p => p.lines.map(x => x.label))];
+    });
+
+    ['EMA 20', 'EMA 50', 'ADX 14', 'RSI 14', 'MACD 12 26', 'Signal 9', '%K 14', '%D 3', 'Bollinger 20 2', 'ATR 14', 'MFI 14', 'KL SMA 20']
+      .forEach(p => expect(names.some(n => n.startsWith(p))).withContext(p).toBeTrue());
   });
 
   it('every line and pane name stays short enough for the legend row (24 characters at most)', () => {
@@ -136,15 +146,15 @@ describe('buildGroupLayers', () => {
 
   it('all-null ema50 → note "EMA50: Không đủ dữ liệu" and the line is dropped', () => {
     const l = buildGroupLayers('xu-huong', series({ ema50: nulls() }), analysis());
-    expect(l.notes).toContain('EMA50 (TB 50 phiên): Không đủ dữ liệu');
-    expect(l.overlays.map(o => o.label)).toEqual(['EMA20 (TB 20 phiên)']);
+    expect(l.notes).toContain('EMA 50 (TB 50 phiên): Không đủ dữ liệu');
+    expect(l.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)']);
   });
 
   it('pane whose lines are all null is dropped with one note named after the pane', () => {
     const l = buildGroupLayers('dong-luong',
       series({ macdLine: nulls(), macdSignal: nulls(), macdHistogram: nulls() }), analysis());
-    expect(l.panes.map(p => p.title)).toEqual(['RSI (sức mạnh tương đối)', 'Stochastic (dao động)']);
-    expect(l.notes).toEqual(['MACD (động lượng): Không đủ dữ liệu']);
+    expect(l.panes.map(p => p.title)).toEqual(['RSI 14 (sức mạnh)', 'Stoch 14 3 (dao động)']);
+    expect(l.notes).toEqual(['MACD 12 26 9: Không đủ dữ liệu']);
   });
 
   it('under-20-bars series (every indicator all-null) never throws and keeps one note per missing indicator', () => {
@@ -160,7 +170,7 @@ describe('buildGroupLayers', () => {
     const trend = buildGroupLayers('xu-huong', allNull, analysis());
     expect(trend.overlays).toEqual([]);
     expect(trend.panes).toEqual([]);
-    expect(trend.notes).toEqual(['EMA20 (TB 20 phiên): Không đủ dữ liệu', 'EMA50 (TB 50 phiên): Không đủ dữ liệu', 'ADX (độ mạnh xu hướng): Không đủ dữ liệu']);
+    expect(trend.notes).toEqual(['EMA 20 (TB 20 phiên): Không đủ dữ liệu', 'EMA 50 (TB 50 phiên): Không đủ dữ liệu', 'ADX 14 (độ mạnh): Không đủ dữ liệu']);
   });
 
   it('partially-null line is kept (warm-up nulls are skipped by the chart, not here)', () => {
