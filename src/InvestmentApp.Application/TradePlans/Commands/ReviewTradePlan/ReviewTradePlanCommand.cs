@@ -55,11 +55,10 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
 
     public async Task<CampaignReviewDto> Handle(ReviewTradePlanCommand request, CancellationToken cancellationToken)
     {
-        var plan = await _tradePlanRepository.GetByIdAsync(request.PlanId, cancellationToken)
-            ?? throw new Exception($"Trade plan {request.PlanId} not found");
-
-        if (plan.UserId != request.UserId)
-            throw new UnauthorizedAccessException("Not authorized to review this trade plan");
+        // Kế hoạch không có và kế hoạch của người khác cho cùng một phản hồi (KeyNotFound → 404)
+        var plan = await _tradePlanRepository.GetByIdAsync(request.PlanId, cancellationToken);
+        if (plan == null || plan.UserId != request.UserId)
+            throw new KeyNotFoundException($"Trade plan {request.PlanId} not found");
 
         // Collect all linked trades: from plan's TradeIds + query by TradePlanId
         var linkedTrades = await TradeOwnership.CollectOwnedLinkedTradesAsync(plan, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);

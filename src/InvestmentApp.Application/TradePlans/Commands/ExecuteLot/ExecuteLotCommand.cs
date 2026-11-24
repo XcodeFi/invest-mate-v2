@@ -33,11 +33,10 @@ public class ExecuteLotCommandHandler : IRequestHandler<ExecuteLotCommand, Unit>
 
     public async Task<Unit> Handle(ExecuteLotCommand request, CancellationToken cancellationToken)
     {
-        var plan = await _tradePlanRepository.GetByIdAsync(request.PlanId, cancellationToken)
-            ?? throw new Exception($"Trade plan {request.PlanId} not found");
-
-        if (plan.UserId != request.UserId)
-            throw new UnauthorizedAccessException("Not authorized to update this trade plan");
+        // Kế hoạch không có và kế hoạch của người khác cho cùng một phản hồi (KeyNotFound → 404)
+        var plan = await _tradePlanRepository.GetByIdAsync(request.PlanId, cancellationToken);
+        if (plan == null || plan.UserId != request.UserId)
+            throw new KeyNotFoundException($"Trade plan {request.PlanId} not found");
 
         // Kiểm quyền trade TRƯỚC khi đổi plan: bị từ chối thì plan không giữ liên kết nào
         var trade = await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
