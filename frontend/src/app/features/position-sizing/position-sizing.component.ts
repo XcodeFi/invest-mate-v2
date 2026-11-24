@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioSummary } from '../../core/services/portfolio.service';
-import { RiskService, RiskProfile, ConservativeKellyDto, PositionSizingResult } from '../../core/services/risk.service';
+import { RiskService, RiskProfile } from '../../core/services/risk.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 
@@ -89,11 +89,6 @@ interface PositionSizeResult {
             </div>
           </div>
 
-          <label class="mt-4 flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
-            <input type="checkbox" [(ngModel)]="useHistory" (ngModelChange)="onUseHistoryChange()" class="mt-1" data-testid="use-history-toggle">
-            <span>Dùng dữ liệu của tôi <span class="text-xs text-gray-500">(Kelly thận trọng từ R của các chiến dịch đã review)</span></span>
-          </label>
-
           <button (click)="calculate()"
             [disabled]="!input.entryPrice || !input.stopLossPrice"
             class="mt-4 w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium">
@@ -166,30 +161,6 @@ interface PositionSizeResult {
         </div>
       </div>
 
-      <!-- Kelly thận trọng theo dữ liệu của chính người dùng -->
-      <div *ngIf="useHistory" class="mt-6 bg-white rounded-lg shadow p-6" data-testid="kelly-history">
-        <h2 class="text-lg font-semibold mb-1">Cỡ vị thế thận trọng theo dữ liệu của bạn</h2>
-        <p class="text-xs text-gray-500 mb-3">
-          Đây là cỡ vị thế thận trọng theo dữ liệu, không phải lời khuyên vào lệnh. Dùng cận dưới 95% của % thắng (không dùng tỉ lệ thô)
-          rồi lấy một nửa Kelly, tối đa 25% danh mục.
-        </p>
-        <div *ngIf="kellyLoading" class="text-sm text-gray-500">Đang tính...</div>
-        <div *ngIf="kellyError" role="alert" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ kellyError }}</div>
-        <ng-container *ngIf="kelly && !kellyLoading">
-          <div class="text-sm text-gray-700 grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div>Mẫu: <span class="font-semibold">n = {{ kelly.n }}</span> chiến dịch thắng/thua</div>
-            <div>Cận dưới 95% của % thắng: <span class="font-semibold">{{ pct0(kelly.winRateLower95) }}</span></div>
-            <div>Tỉ lệ R thắng / R thua: <span class="font-semibold">{{ kelly.payoffRatio == null ? 'n/a' : (kelly.payoffRatio | number:'1.2-2') }}</span></div>
-          </div>
-          <div *ngIf="kelly.reason" class="mt-3 text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{{ kelly.reason }}</div>
-          <div *ngIf="kelly.halfKellyCapped != null && kelly.halfKellyCapped > 0" class="mt-3 text-sm">
-            Half-Kelly: <span class="font-bold">{{ pct1(kelly.halfKellyCapped) }}</span> danh mục
-            <span class="text-xs text-gray-500">(Kelly đầy đủ {{ pct1(kelly.fullKelly) }})</span>
-            <span *ngIf="kellyShares != null" data-testid="kelly-shares"> ≈ <span class="font-bold">{{ kellyShares | number }}</span> cổ phiếu</span>
-          </div>
-        </ng-container>
-      </div>
-
       <!-- Quick Reference Table -->
       <div class="mt-6 bg-white rounded-lg shadow p-6">
         <h2 class="text-lg font-semibold mb-4">Bảng tham chiếu nhanh</h2>
@@ -229,13 +200,6 @@ export class PositionSizingComponent implements OnInit {
   selectedPortfolioId = '';
   riskProfile: RiskProfile | null = null;
   result: PositionSizeResult | null = null;
-
-  /** Kelly thận trọng từ dữ liệu R của chính người dùng (gọi server khi bật công tắc). */
-  useHistory = false;
-  kelly: ConservativeKellyDto | null = null;
-  kellyShares: number | null = null;
-  kellyLoading = false;
-  kellyError: string | null = null;
 
   input = {
     accountBalance: 100000000,
@@ -281,45 +245,9 @@ export class PositionSizingComponent implements OnInit {
     });
   }
 
-  onUseHistoryChange(): void {
-    if (!this.useHistory) {
-      this.kelly = null; this.kellyShares = null; this.kellyError = null; this.kellyLoading = false;
-      return;
-    }
-    this.loadKelly();
-  }
-
-  private loadKelly(): void {
-    const { accountBalance, riskPercent, entryPrice, stopLossPrice, maxPositionPercent } = this.input;
-    if (!entryPrice || !stopLossPrice || entryPrice <= 0 || stopLossPrice <= 0) return;
-
-    this.kellyLoading = true;
-    this.kellyError = null;
-    this.riskService.calculatePositionSizing({
-      accountBalance, entryPrice, stopLoss: stopLossPrice, riskPercent, maxPositionPercent, atrMultiplier: 2
-    }, { useHistory: true }).subscribe({
-      next: (r: PositionSizingResult) => {
-        if (!this.useHistory) return;   // người dùng đã tắt trong lúc chờ
-        this.kelly = r.kellyFromHistory ?? null;
-        this.kellyShares = r.models.find(m => m.model === 'kelly')?.shares ?? null;
-        this.kellyLoading = false;
-      },
-      error: () => { this.kellyError = 'Không tính được Kelly theo dữ liệu'; this.kellyLoading = false; }
-    });
-  }
-
-  pct0(p: number | null | undefined): string {
-    return p == null ? 'n/a' : `${Math.round(p * 100)}%`;
-  }
-
-  pct1(p: number | null | undefined): string {
-    return p == null ? 'n/a' : `${(p * 100).toFixed(1).replace('.', ',')}%`;
-  }
-
   calculate(): void {
     const { accountBalance, riskPercent, entryPrice, stopLossPrice, targetPrice, maxPositionPercent } = this.input;
     if (!entryPrice || !stopLossPrice || entryPrice <= 0) return;
-    if (this.useHistory) this.loadKelly();
 
     const riskPerShare = Math.abs(entryPrice - stopLossPrice);
     if (riskPerShare === 0) return;
