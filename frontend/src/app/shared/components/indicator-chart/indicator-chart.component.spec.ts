@@ -203,4 +203,40 @@ describe('IndicatorChartComponent', () => {
       expect(spy).not.toHaveBeenCalled();
     });
   });
+
+  describe('giữ khoảng nhìn khi đổi nhóm', () => {
+    // Layout của lightweight-charts trong Karma không đủ để zoom thật (setVisibleLogicalRange không đổi khoảng nhìn),
+    // nên giả lập ở lớp TimeScaleApi: khoảng nhìn "người dùng đã chọn" trả về từ getVisibleLogicalRange.
+    const USER_RANGE = { from: 5, to: 20 };
+    const timeScaleProto = () => Object.getPrototypeOf((component as any).charts[0].timeScale());
+    const stubRange = () => {
+      const proto = timeScaleProto();
+      spyOn(proto, 'getVisibleLogicalRange').and.returnValue(USER_RANGE);
+      return spyOn(proto, 'setVisibleLogicalRange').and.callThrough();
+    };
+
+    it('keeps visible logical range when layers change with same dates', () => {
+      setInputs(layers(['RSI', 'MACD']));
+      const setSpy = stubRange();
+
+      // cùng nội dung ngày nhưng là mảng mới (như khi dựng lại từ cache)
+      fixture.componentRef.setInput('dates', [...dates]);
+      fixture.componentRef.setInput('layers', layers(['ATR14']));
+      fixture.detectChanges();
+
+      expect(setSpy).toHaveBeenCalledWith(USER_RANGE);
+    });
+
+    it('resets range when dates change', () => {
+      setInputs(layers(['RSI']));
+      const setSpy = stubRange();
+
+      const otherDates = dates.map(d => new Date(Date.parse(d) + 86_400_000 * 100).toISOString());
+      fixture.componentRef.setInput('dates', otherDates);
+      fixture.componentRef.setInput('layers', layers(['RSI']));
+      fixture.detectChanges();
+
+      expect(setSpy).not.toHaveBeenCalledWith(USER_RANGE);
+    });
+  });
 });

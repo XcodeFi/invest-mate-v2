@@ -2,6 +2,14 @@
 
 ---
 
+## [v2.88.1] — 2026-11-24 · Giữ nguyên khoảng zoom khi đổi nhóm chỉ báo
+
+### Sửa lỗi
+
+- Biểu đồ chỉ báo theo nhóm trên trang Tra cứu giá: sau khi kéo hoặc zoom, bấm sang nhóm khác không còn bị đưa về toàn bộ phiên; khoảng đang xem được giữ nguyên. Đổi sang mã khác thì biểu đồ vẫn hiện vừa khít như trước.
+
+---
+
 ## [v2.88.0] — 2026-11-24 · Bấm tên nhóm chỉ báo để xem biểu đồ
 
 ### Tính năng mới
