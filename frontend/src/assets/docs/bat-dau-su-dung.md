@@ -61,7 +61,13 @@ Có 2 cách ghi giao dịch:
 
 ## Bước 4: Xem Dashboard
 
-Quay lại **Dashboard** (`/dashboard`) để xem:
+Quay lại **Dashboard** (`/dashboard`). Trang chia thành ba vùng đọc từ trên xuống:
+
+- **Hôm nay**: màn tĩnh tâm, Việc cần xử lý hôm nay và điểm kỷ luật, những thứ cần nhìn trước khi hành động.
+- **Tài sản**: khối **Tổng quan đầu tư** (có bộ chọn khung thời gian ngay trong khối) cạnh thẻ **Tài chính cá nhân** (từ màn rộng 1280px; màn hẹp thì xếp dọc), rồi thẻ **Lãi kép** thu gọn sẵn (bấm *Xem chi tiết* để mở mục tiêu và ước tính). Số CAGR chỉ hiện một lần, ở khối Tổng quan đầu tư.
+- **Theo dõi**: Watchlist, công việc hằng ngày, danh sách danh mục và vị thế nổi bật. Tạo danh mục mới bằng nút ở thẻ Danh mục của bạn.
+
+Chi tiết từng phần:
 
 - **🎣 Màn tĩnh tâm (đầu trang)**: một khoảng lặng trước khi bạn bấm vào bất cứ thứ gì.
   - **Cảnh người đi câu** phản ánh **số ngày bạn chưa đặt lệnh**. Vừa giao dịch xong thì nước còn động; càng lâu không động tay, mặt hồ càng phẳng và trời càng ngả hoàng hôn. Số ngày hiển thị luôn là số thật.
