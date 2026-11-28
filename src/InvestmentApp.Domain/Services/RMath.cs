@@ -109,7 +109,7 @@ public static class RMath
     }
 
     /// <summary>
-    /// R thực tế của kế hoạch ĐÃ review. Dùng giá trị đã lưu nếu có; kế hoạch cũ thiếu thì tính lại từ PnL đã lưu. Chỉ
+    /// R thực tế của kế hoạch ĐÃ review. Dùng giá trị đã lưu nếu có; review CŨ (OpenQuantity null) thiếu thì tính lại từ PnL đã lưu, review mới thì null giữ nguyên. Chỉ
     /// đọc: kết quả không được gán ngược vào entity (<c>UpdateReviewLessons</c> lưu cả <c>ReviewData</c> xuống DB).
     /// </summary>
     public static RealizedRResult ResolveRealizedR(TradePlan plan)
@@ -119,6 +119,10 @@ public static class RMath
         // Bán vượt số mua đã gắn: R không xác định. KHÔNG suy lại từ PnL (sẽ ra 0R giả, một mẫu "hoà" không có thật).
         if (review.OversoldQuantity is > 0m) return new RealizedRResult(null, null);
         if (review.RealizedR != null) return new RealizedRResult(review.RealizedR, review.RiskBasis);
+        // Chỉ review CŨ (chưa có OpenQuantity) mới được suy R từ PnL đã lưu. Review do service mới tính (OpenQuantity có giá trị)
+        // thì RealizedR/RiskBasis đã lưu là chuẩn, null nghĩa là "không tính được": suy lại với riskFraction mặc định 1 sẽ ra 0R giả
+        // (còn mở, chưa bán gì → PnL 0 → 0/1R).
+        if (review.OpenQuantity != null) return new RealizedRResult(null, null);
         return ResolveRealizedR(plan, review.PnLAmount);
     }
 

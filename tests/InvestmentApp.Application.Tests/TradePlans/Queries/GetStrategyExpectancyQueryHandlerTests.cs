@@ -74,6 +74,7 @@ public class GetStrategyExpectancyQueryHandlerTests
         open.ReviewData!.OpenQuantity = 500m;
         var closed = Reviewed("s1", 1);
         closed.ReviewData!.OpenQuantity = 0m;           // review mới đã đóng hết
+        closed.ReviewData.RealizedR = 1m;               // review mới luôn lưu R khi tính được (null = không tính được, không suy lại)
         var legacy = Reviewed("s1", 3);                 // review cũ: OpenQuantity null → giữ nguyên
         Setup(new[] { open, closed, legacy }, ("s1", "Breakout"));
 

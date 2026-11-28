@@ -2,6 +2,19 @@
 
 ---
 
+## [v2.99.0] — 2026-11-28 · Sửa: review còn mở, chưa bán gì không còn hiện 0R giả
+
+### Sửa lỗi
+
+- Kế hoạch đã review mà **còn cổ phiếu chưa bán và chưa bán được gì** không còn hiện **0R**. Số đúng là n/a (không tính được), vì chưa có phần nào đã chốt để chia cho 1R. Chỉ hiển thị (API) sai, thống kê R vốn đã loại các chiến dịch này.
+
+### Kỹ thuật
+
+- `RMath.ResolveRealizedR(plan)` chỉ suy R từ PnL đã lưu cho review CŨ (`OpenQuantity` null). Review do service mới tính thì `RealizedR`/`RiskBasis` đã lưu là chuẩn, kể cả null.
+- Test: `open_review_with_nothing_sold_resolves_r_null_not_zero`, `new_format_review_with_null_r_is_not_rederived`, `legacy_review_without_open_quantity_still_derives_from_pnl` và một test mức `GetTradePlansQuery`.
+
+---
+
 ## [v2.98.0] — 2026-11-28 · Lịch sử giá ngày là nến thật, đã điều chỉnh theo sự kiện quyền
 
 ### Cải thiện
