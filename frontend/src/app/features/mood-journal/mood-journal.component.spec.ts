@@ -55,7 +55,9 @@ describe('MoodJournalComponent (/mood-journal)', () => {
     expect(fomo.getAttribute('aria-label')).toContain('FOMO');
     expect(fomo.getAttribute('aria-label')).toContain('(từ agent)');
     expect(fomo.getAttribute('aria-label')).toContain('2 lệnh');
+    expect(fomo.getAttribute('aria-label')).toContain('đặt lệnh khi đang cảm xúc');
     expect(fomo.getAttribute('title')).toBe(fomo.getAttribute('aria-label'));
+    expect(all('mj-cell')[2].getAttribute('aria-label')).not.toContain('đặt lệnh khi đang cảm xúc');
     expect(fomo.getAttribute('tabindex')).toBe('0');
   });
 
@@ -108,7 +110,17 @@ describe('MoodJournalComponent (/mood-journal)', () => {
     expect(rows[1].textContent).toContain('FOMO');
     expect(rows[1].textContent).toContain('2');
     expect(rows[4].textContent).toContain('Chưa chấm');
-    expect(q('mj-table-toggle')!.textContent).toContain('Xem biểu đồ');
+    expect(q('mj-table-toggle')!.textContent!.trim()).toBe('Xem biểu đồ');
+    // cột "Đặt lệnh khi cảm xúc": ngày cờ bật là Có, ngày cờ tắt là Không
+    const flagCell = (r: HTMLElement) => r.querySelectorAll('td')[4].textContent!.trim();
+    expect(flagCell(rows[0])).toBe('Không');
+    expect(flagCell(rows[1])).toBe('Có');
+    expect(flagCell(rows[3])).toBe('Có');
+    expect(flagCell(rows[4])).toBe('Không');
+
+    (q('mj-table-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(q('mj-table-toggle')!.textContent!.trim()).toBe('Xem bảng');
   });
 
   it('an empty history still draws the strip of □ and says nothing has been rated yet', () => {
@@ -139,6 +151,26 @@ describe('MoodJournalComponent (/mood-journal)', () => {
     expect(scroller.scrollLeft).toBeGreaterThan(0);
     expect(last.right).toBeLessThanOrEqual(view.right + 1);
     expect(last.left).toBeGreaterThanOrEqual(view.left - 1);
+    box.remove();
+  });
+
+  it('after "Xem bảng" and back, the strip is scrolled to the latest week again', async () => {
+    setup('ok', { from: '2026-08-31', to: '2026-11-28', days: [] });
+    const box = document.createElement('div');
+    box.style.cssText = 'position:absolute;left:0;top:0;width:360px';
+    document.body.appendChild(box);
+    box.appendChild(fixture.nativeElement);
+    await new Promise(r => setTimeout(r));
+
+    (q('mj-table-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (q('mj-table-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await new Promise(r => setTimeout(r));
+
+    const scroller = q('mj-scroller')!;
+    expect(scroller.scrollLeft).toBeGreaterThan(0);
+    expect(scroller.scrollLeft + scroller.clientWidth).toBeGreaterThanOrEqual(scroller.scrollWidth - 1);
     box.remove();
   });
 

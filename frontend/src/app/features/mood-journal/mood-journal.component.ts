@@ -36,7 +36,7 @@ import {
           <div class="flex items-center justify-between gap-2 mb-3">
             <h2 class="text-lg font-semibold text-gray-700">Lịch tâm trạng</h2>
             <button type="button" data-testid="mj-table-toggle" class="text-xs text-gray-600 underline" [attr.aria-pressed]="showTable"
-              (click)="showTable = !showTable">{{ showTable ? 'Xem biểu đồ' : 'Xem bảng' }}</button>
+              (click)="toggleTable()">{{ showTable ? 'Xem biểu đồ' : 'Xem bảng' }}</button>
           </div>
 
           @if (!showTable) {
@@ -172,13 +172,23 @@ export class MoodJournalComponent implements OnInit {
         this.emotional = emotionalDays(h);
         this.loading = false;
         // Màn hẹp: mở ra ở tuần mới nhất (hôm nay ở mép phải), không phải 90 ngày trước.
-        setTimeout(() => { const el = this.scroller?.nativeElement; if (el) el.scrollLeft = el.scrollWidth; });
+        this.scrollToLatest();
       },
       error: () => {
         this.loading = false;
         this.error = 'Không tải được lịch sử tâm trạng, thử lại sau.';
       }
     });
+  }
+
+  /** Màn hẹp: lịch mở ở tuần mới nhất (hôm nay ở mép phải). Gọi lại mỗi khi lịch được dựng lại (sau khi bật tắt bảng). */
+  private scrollToLatest(): void {
+    setTimeout(() => { const el = this.scroller?.nativeElement; if (el) el.scrollLeft = el.scrollWidth; });
+  }
+
+  toggleTable(): void {
+    this.showTable = !this.showTable;
+    if (!this.showTable) this.scrollToLatest();
   }
 
   cellClass(c: Cell): string { return 'mj-m-' + (c.mood ?? 'none'); }

@@ -41,7 +41,7 @@ const CALM_CEILING_DAYS = 14;
         <div *ngIf="pickerVisible; else chosen"
              class="flex flex-wrap items-center justify-center gap-2">
           <span class="text-sm text-gray-600 mr-1">Giờ anh đang thế nào?</span>
-          <span *ngIf="fromAgent" class="text-xs text-gray-500 mr-1" data-test="mood-agent-note">Trợ lý đã ghi Bình tĩnh (từ agent) — anh tự xác nhận lại nhé.</span>
+          <span *ngIf="fromAgent && mood === null" class="text-xs text-gray-500 mr-1" data-test="mood-agent-note">Trợ lý đã ghi Bình tĩnh (từ agent) — anh tự xác nhận lại nhé.</span>
           <button *ngFor="let option of moodOptions"
                   type="button"
                   (click)="choose(option)"

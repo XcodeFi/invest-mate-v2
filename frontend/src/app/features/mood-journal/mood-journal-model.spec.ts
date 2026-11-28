@@ -1,5 +1,5 @@
 import { MoodHistoryDto } from '../../core/services/mood.service';
-import { buildCells, cellLabel, countByMood, emotionalDays, leadingBlanks, MOOD_MARK, UNRATED_MARK } from './mood-journal-model';
+import { buildCells, cellLabel, changeLine, countByMood, emotionalDays, leadingBlanks, MOOD_MARK, UNRATED_MARK } from './mood-journal-model';
 
 const history = (days: MoodHistoryDto['days'], from = '2026-11-23', to = '2026-11-29'): MoodHistoryDto => ({ from, to, days });
 
@@ -74,5 +74,18 @@ describe('mood-journal-model', () => {
     expect(label).toContain('15:05 Sợ (từ agent)');
     expect(label).toContain('1 lệnh');
     expect(label).toContain('đã bấm qua lớp phủ');
+    expect(label).toContain('đặt lệnh khi đang cảm xúc');
+  });
+
+  it('a timestamp without an offset is read as UTC (the server sends UTC), so 02:30 is 09:30 in Vietnam', () => {
+    expect(changeLine({ at: '2026-11-28T02:30:00', mood: 'Calm', source: 'web' })).toBe('09:30 Bình tĩnh');
+    expect(changeLine({ at: '2026-11-28T02:30:00Z', mood: 'Calm', source: 'web' })).toBe('09:30 Bình tĩnh');
+    expect(changeLine({ at: '2026-11-28T09:30:00+07:00', mood: 'Fear', source: 'mcp' })).toBe('09:30 Sợ (từ agent)');
+  });
+
+  it('a day without the emotional flag does not say so', () => {
+    const cells = buildCells(history([{ dateKey: '2026-11-25', mood: 'Calm', changes: [], overrode: false, tradeCount: 1, emotionalTrade: false }]));
+
+    expect(cellLabel(cells[2])).not.toContain('đặt lệnh khi đang cảm xúc');
   });
 });

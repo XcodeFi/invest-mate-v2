@@ -64,6 +64,16 @@ describe('PatienceHeroComponent', () => {
       expect(q(fixture, 'mood-current')).toBeNull();
     });
 
+    it('agent ghi trạng thái cảm xúc rồi người dùng bấm "đổi": KHÔNG có câu "Trợ lý đã ghi Bình tĩnh" (đó là câu của trường hợp Bình tĩnh)', () => {
+      const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: 'Fomo', overrode: false, fromAgent: true });
+
+      (q(fixture, 'mood-change') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(q(fixture, 'mood-Calm')).not.toBeNull();   // bảng chọn đã mở
+      expect(q(fixture, 'mood-agent-note')).toBeNull();
+    });
+
     it('tâm trạng do chính người dùng chấm thì không có nhãn từ agent', () => {
       const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: 'Calm', overrode: false });
 
