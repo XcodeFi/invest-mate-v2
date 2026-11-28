@@ -443,17 +443,19 @@ public class SignalSetupServiceTests
     [Fact]
     public async Task the_forming_bar_is_also_left_out_of_the_history_statistics()
     {
-        var full = Series(700, Today);
-        Prices(full);
+        // Nến cuối là tín hiệu mới (không có tín hiệu ở 2 nến trước): tính nó thì Signals tăng đúng 1
+        var full = SeriesEndingWithTheSignal(Today);
         Exchange("HOSE");
-        var withBar = await Sut().GetSignalSetupsAsync("FPT");
 
-        var trimmed = full.Take(699).ToList();
-        _prices.Reset();
-        Prices(trimmed);
-        var withoutBar = await new SignalSetupService(_prices.Object, _info.Object, new MemoryCache(new MemoryCacheOptions()), new FixedTime(After1500Utc)).GetSignalSetupsAsync("FPT");
+        Prices(full);
+        var beforeClose = (await Sut().GetSignalSetupsAsync("FPT")).Setups[0];
+        Prices(full.Take(full.Count - 1).ToList());
+        var closedOnly = (await Sut(After1500Utc).GetSignalSetupsAsync("FPT")).Setups[0];
+        Prices(full);
+        var afterClose = (await new SignalSetupService(_prices.Object, _info.Object, new MemoryCache(new MemoryCacheOptions()), new FixedTime(After1500Utc))
+            .GetSignalSetupsAsync("FPT")).Setups[0];
 
-        withBar.Setups[0].Signals.Should().Be(withoutBar.Setups[0].Signals);
-        withBar.Setups[0].Completed.Should().Be(withoutBar.Setups[0].Completed);
+        beforeClose.Signals.Should().Be(closedOnly.Signals, "nến đang hình thành không được tính vào thống kê");
+        afterClose.Signals.Should().Be(closedOnly.Signals + 1, "từ 15:00 nến cuối là phiên đã đóng và tín hiệu của nó được tính");
     }
 }

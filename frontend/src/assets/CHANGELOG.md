@@ -6,7 +6,7 @@
 
 ### Sửa lỗi
 
-- Trong giờ giao dịch nguồn giá trả cả nến của hôm nay khi nó còn đang hình thành, và bộ quét setup Pullback coi nó như một phiên đã đóng: có thể sinh tín hiệu "đang kích hoạt" ma, với vào lệnh ước tính = giá đóng cửa của nến dở dang. Nay nến cuối bị bỏ khi ngày của nó là hôm nay (giờ Việt Nam) và chưa tới 15:00 giờ Việt Nam; từ 15:00 nến được tính như bình thường. Quy tắc nằm một chỗ (`FormingBar`) và dùng chung cho thống kê lịch sử, tín hiệu đang kích hoạt và công cụ đếm cỡ mẫu. Đồng hồ được tiêm vào, không gọi giờ hệ thống trực tiếp.
+- Trong giờ giao dịch nguồn giá trả cả nến của hôm nay khi nó còn đang hình thành, và bộ quét setup Pullback coi nó như một phiên đã đóng: có thể sinh tín hiệu "đang kích hoạt" ma, với vào lệnh ước tính = giá đóng cửa của nến dở dang. Nay nến cuối bị bỏ khi ngày của nó là hôm nay (giờ Việt Nam) và chưa tới 15:00 giờ Việt Nam; từ 15:00 nến được tính như bình thường (kết quả tính trước 15:00 được giữ tới 15:10, nên nến đã đóng có thể hiện chậm tới 10 phút). Quy tắc nằm một chỗ (`FormingBar`) và dùng chung cho thống kê lịch sử, tín hiệu đang kích hoạt và công cụ đếm cỡ mẫu. Đồng hồ được tiêm vào, không gọi giờ hệ thống trực tiếp.
 
 ### Kỹ thuật
 
