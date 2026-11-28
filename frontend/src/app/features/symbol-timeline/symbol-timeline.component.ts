@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, forkJoin, of } from 'rxjs';
+import { Subject, Subscription, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
@@ -673,6 +673,8 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   /** Mã mà `fullSeries` thuộc về; null khi chưa tải hoặc lần tải lỗi (lần loadData sau sẽ tải lại). */
   private indicatorSymbol: string | null = null;
   private fullSeries: TechnicalSeries | null = null;
+  /** Lần tải chỉ báo đang chạy: lần tải mới huỷ lần cũ để câu trả lời hoặc lỗi đến muộn của lần cũ không ghi đè lần mới. */
+  private indicatorSub: Subscription | null = null;
   /** Phân tích (các lớp của nhóm chỉ báo) không tải được: hiện một dòng báo thay vì để các nhóm trống lặng lẽ. */
   analysisFailed = false;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
@@ -764,11 +766,12 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   }
 
   private loadIndicators(): void {
+    this.indicatorSub?.unsubscribe();
     this.indicatorSymbol = this.symbol;
     this.fullSeries = null;
     this.chartError = null;
     this.analysisFailed = false;
-    forkJoin([
+    this.indicatorSub = forkJoin([
       this.marketDataService.getTechnicalSeries(this.symbol, INDICATOR_WINDOW_MONTHS),
       this.marketDataService.getTechnicalAnalysis(this.symbol).pipe(catchError(() => {
         this.analysisFailed = true;

@@ -281,6 +281,23 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     });
   });
 
+  it('a stale load that errors late does not clobber a newer load that succeeded', () => {
+    setup({ deferred: true, analysisError: true });   // lần tải 1: chuỗi chưa về, phân tích lỗi nhanh
+    (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '1N') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(pending.length).toBe(2);                    // phân tích lỗi nên đổi khoảng tải lại chuỗi (lần tải 2)
+
+    pending[1].next(series()); pending[1].complete();  // lần tải 2 thành công, biểu đồ hiện
+    fixture.detectChanges();
+    expect(chart()).toBeDefined();
+
+    pending[0].error(new Error('muộn'));               // lần tải 1 lỗi muộn
+    fixture.detectChanges();
+
+    expect(q('timeline-chart-error')).toBeNull();
+    expect(chart()).toBeDefined();
+  });
+
   it('a failed series load can be retried by a range switch: the chart appears and the error clears', () => {
     setup({ seriesFailOnce: true });
     expect(q('timeline-chart-error')).not.toBeNull();

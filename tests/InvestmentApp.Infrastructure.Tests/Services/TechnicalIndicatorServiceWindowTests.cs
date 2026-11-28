@@ -145,4 +145,39 @@ public class TechnicalIndicatorServiceWindowTests
         _marketData.Verify(m => m.GetHistoricalPricesAsync("FPT",
             It.Is<DateTime>(d => d <= DateTime.UtcNow.AddMonths(-36).AddDays(1)), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
+
+    [Fact]
+    public async Task window_boundary_session_is_the_first_bar_of_the_series()
+    {
+        var boundary = DateTime.UtcNow.AddMonths(-12).Date;
+
+        var s12 = await _sut.GetSeriesAsync("FPT", 12);
+
+        s12.Dates.First().Should().Be(boundary, "phiên đúng ngày biên (to − months) thuộc về khoảng, không được mất");
+        (await _sut.GetSeriesAsync("FPT", 12)).Dates.Should().NotContain(boundary.AddDays(-1));
+    }
+
+    [Fact]
+    public async Task window_boundary_session_counts_for_support_resistance_too()
+    {
+        // Mốc swing cần 2 nến mỗi bên nên nến thứ 3 của khoảng (biên + 2 ngày) là nến sớm nhất có thể là đỉnh swing.
+        // Nếu khoảng bắt đầu muộn một ngày thì nến này thành nến thứ 2 và không còn được xét.
+        var today = DateTime.UtcNow.Date;
+        var boundary = DateTime.UtcNow.AddMonths(-12).Date;
+        var bars = Enumerable.Range(0, 1000).Select(i =>
+        {
+            var date = today.AddDays(-(999 - i));
+            var close = 50_000m + (i % 5) * 300m;                         // dao động nhỏ, nhiều đỉnh đáy thấp
+            if (date == boundary.AddDays(2)) close = 90_000m;             // đỉnh swing duy nhất cao hẳn, nằm ở nến thứ 3 của khoảng
+            return new StockPriceData { Symbol = "FPT", Date = date, Open = close, High = close + 100, Low = close - 100, Close = close, Volume = 1_000_000, IsAdjusted = true };
+        }).ToList();
+        var mock = new Mock<IMarketDataProvider>();
+        mock.Setup(m => m.GetHistoricalPricesAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, DateTime from, DateTime to, CancellationToken _) => bars.Where(p => p.Date >= from.Date && p.Date <= to.Date).ToList());
+
+        var a = await new TechnicalIndicatorService(mock.Object).AnalyzeAsync("FPT", 12);
+
+        a.Fibonacci.Should().NotBeNull();
+        a.Fibonacci!.SwingHigh.Should().Be(90_000m);
+    }
 }
