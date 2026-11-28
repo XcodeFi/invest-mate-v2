@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import {
@@ -25,9 +25,9 @@ import { IndicatorGuideComponent } from '../../shared/components/indicator-guide
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { isLowRiskReward, LOW_RR_NOTE, stopLossMethodLabel } from './stop-loss-method';
 import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-panel.component';
+import { QUICK_BOARD_KEY, saveQuickBoardSymbols } from './quick-board-storage';
 
-/** Khoá localStorage nhớ danh sách của Bảng giá nhanh; mặc định khi chưa có gì hoặc trình duyệt chặn lưu trữ. */
-const QUICK_BOARD_KEY = 'imv2.quickBoard.symbols';
+/** Danh sách mặc định của Bảng giá nhanh khi chưa nhớ gì hoặc trình duyệt chặn lưu trữ (khoá lưu: quick-board-storage). */
 const DEFAULT_QUICK_BOARD = 'VNM,FPT,VCB,HPG,MWG,VIC';
 
 /** Một gợi ý xem nhanh: danh sách mã có sẵn, hoặc (watchlist) chỉ có id và tải chi tiết khi bấm. */
@@ -42,11 +42,14 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent,
+  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent,
     SignalSetupsPanelComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
-      <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Dữ liệu Thị trường</h1>
+        <a routerLink="/screener" data-testid="screener-header-link" class="text-sm text-blue-600 underline">Sàng lọc cổ phiếu →</a>
+      </div>
 
       <!-- Market Indexes (Overview) -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -731,18 +734,21 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
       <!-- Batch Prices (Watchlist) -->
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-700 mb-4">Bảng giá nhanh</h2>
-        @if (quickChips.length > 0) {
-          <div class="mb-3" data-testid="quick-chips">
+        <div class="mb-3" data-testid="quick-chips">
+          @if (quickChips.length > 0) {
             <div class="text-xs text-gray-500 mb-1">Gợi ý xem nhanh hôm nay</div>
-            <div class="flex flex-wrap gap-2">
-              @for (chip of quickChips; track chip.key) {
-                <button type="button" data-testid="quick-chip"
-                  class="px-3 py-1 rounded-full text-sm font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
-                  (click)="applyChip(chip)">{{ chip.label }}</button>
-              }
-            </div>
+          }
+          <div class="flex flex-wrap gap-2">
+            @for (chip of quickChips; track chip.key) {
+              <button type="button" data-testid="quick-chip"
+                class="px-3 py-1 rounded-full text-sm font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                (click)="applyChip(chip)">{{ chip.label }}</button>
+            }
+            <!-- Mở trang sàng lọc: không tự điền mã nào, người dùng tự chọn rồi gửi sang -->
+            <a routerLink="/screener" data-testid="screener-link"
+              class="px-3 py-1 rounded-full text-sm font-medium border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100">Danh sách lọc (không xếp hạng)</a>
           </div>
-        }
+        </div>
         <div class="flex gap-3 mb-4">
           <input type="text" [(ngModel)]="batchSymbols" appUppercase data-testid="quick-board-input"
             placeholder="Nhập các mã, cách nhau dấu phẩy (VD: VNM,FPT,VCB)"
@@ -1246,7 +1252,7 @@ export class MarketDataComponent implements OnInit {
   }
 
   private static saveBoard(symbols: string[]): void {
-    try { localStorage.setItem(QUICK_BOARD_KEY, symbols.join(',')); } catch { /* bị chặn: chỉ không nhớ được */ }
+    saveQuickBoardSymbols(symbols);
   }
 
   // --- Gợi ý xem nhanh hôm nay ---

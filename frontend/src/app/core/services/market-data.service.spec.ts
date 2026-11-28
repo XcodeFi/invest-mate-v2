@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { MarketDataService, SignalSetups, TechnicalSeries } from './market-data.service';
+import { MarketDataService, ScreenerResult, SignalSetups, TechnicalSeries } from './market-data.service';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
 
@@ -69,5 +69,22 @@ describe('MarketDataService', () => {
     const analysis = http.expectOne(r => r.url === `${environment.apiUrl}/market/stock/FPT/analysis`);
     expect(analysis.request.params.get('months')).toBe('15');
     analysis.flush({});
+  });
+  it('getScreener calls market/screener with auth and sends only the criteria that are set', () => {
+    let received: ScreenerResult | undefined;
+    service.getScreener({ floors: 'HOSE,HNX', includeUpcom: false, minAdtv: 8, maxPe: undefined, lookupSymbol: '', skipQualityLayer: true })
+      .subscribe(r => (received = r));
+
+    const req = http.expectOne(r => r.url === `${environment.apiUrl}/market/screener`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
+    expect(req.request.params.get('floors')).toBe('HOSE,HNX');
+    expect(req.request.params.get('includeUpcom')).toBe('false');
+    expect(req.request.params.get('minAdtv')).toBe('8');
+    expect(req.request.params.get('skipQualityLayer')).toBe('true');
+    expect(req.request.params.has('maxPe')).toBeFalse();
+    expect(req.request.params.has('lookupSymbol')).toBeFalse();
+    req.flush({ status: 'ok', passed: [] });
+    expect(received?.status).toBe('ok');
   });
 });

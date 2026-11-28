@@ -1,4 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { ThemeService } from '../../core/services/theme.service';
+import { ensureContrastOnDark } from '../../shared/theme/contrast';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -27,6 +29,9 @@ import { buildEmotionPane, buildTimelineMarkers } from './timeline-markers';
  * bắt đầu, nên cửa sổ đổi theo khoảng thì giá trị phiên cuối cũng đổi theo. Là mức tối đa backend nhận và đủ dài cho mọi khoảng của trang.
  */
 const INDICATOR_WINDOW_MONTHS = 36;
+
+/** Nền thẻ ở chế độ tối (--dm-surface). */
+const DARK_CARD_BG = '#111827';
 
 const EMOTION_COLORS: { [key: string]: string } = {
   'Tự tin': '#22c55e',
@@ -696,6 +701,8 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   reviewTrade: { tradeType: string; quantity: number; price: number; timestamp: string } | null = null;
   reviewAlreadyDone = false;
 
+  private themeService = inject(ThemeService);
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -1130,8 +1137,10 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
     return labels[type] || type;
   }
 
+  /** Màu cảm xúc; ở chế độ tối, màu quá tối so với nền thẻ (FOMO #1f2937) được làm sáng, màu đủ tương phản giữ nguyên. */
   getEmotionColor(emotion: string): string {
-    return EMOTION_COLORS[emotion] || '#6b7280';
+    const color = EMOTION_COLORS[emotion] || '#6b7280';
+    return this.themeService.theme() === 'dark' ? ensureContrastOnDark(color, DARK_CARD_BG, 4.5) : color;
   }
 
   formatDate(dateStr: string): string {

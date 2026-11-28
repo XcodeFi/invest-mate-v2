@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { IndicatorChartComponent } from './indicator-chart.component';
+import { ThemeService } from '../../../core/services/theme.service';
+import { contrastRatio } from '../../theme/contrast';
 import { GroupLayers, IndicatorChartCandles, LineLayer } from './indicator-chart.types';
 
 const N = 40;
@@ -40,6 +42,8 @@ describe('IndicatorChartComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({ imports: [IndicatorChartComponent] }).compileComponents();
+    // Các test cũ kiểm màu ở chế độ sáng (nguyên như trước khi có chế độ tối); chế độ tối có khối test riêng ở cuối file
+    TestBed.inject(ThemeService).set('light', false);
     fixture = TestBed.createComponent(IndicatorChartComponent);
     component = fixture.componentInstance;
   });
@@ -548,6 +552,89 @@ describe('IndicatorChartComponent', () => {
 
       expect(() => setInputs(l)).not.toThrow();
       expect(component.chartCount).toBe(2);
+    });
+  });
+
+  describe('chế độ tối', () => {
+    const theme = () => TestBed.inject(ThemeService);
+    const chartOptions = () => (component as any).charts.map((c: any) => c.options());
+    const swatchOf = (label: string): HTMLElement =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="legend-item"]'))
+        .find(el => el.textContent?.includes(label))!.querySelector('[data-testid="legend-swatch"]') as HTMLElement;
+
+    it('indicator_chart_applies_dark_options_and_reapplies_on_toggle', () => {
+      theme().set('dark', false);
+      setInputs(layers(['RSI', 'MACD']));
+
+      chartOptions().forEach((o: any) => {
+        expect(o.layout.background.color).toBe('#111827');
+        expect(o.layout.textColor).toBe('#cbd5e1');
+        expect(o.grid.horzLines.color).toBe('#1f2937');
+        expect(o.rightPriceScale.borderColor).toBe('#334155');
+      });
+
+      theme().toggle();   // sang sáng
+      fixture.detectChanges();
+      expect(component.chartCount).toBe(3);
+      chartOptions().forEach((o: any) => {
+        expect(o.layout.background.color).toBe('#ffffff');
+        expect(o.layout.textColor).toBe('#374151');
+      });
+
+      theme().toggle();   // về tối
+      fixture.detectChanges();
+      chartOptions().forEach((o: any) => expect(o.layout.background.color).toBe('#111827'));
+      expect(component.chartCount).toBe(3);   // dựng lại không rò chart cũ
+    });
+
+    it('the crosshair follows the theme too', () => {
+      theme().set('dark', false);
+      setInputs(layers([]));
+
+      const o = chartOptions()[0];
+      expect(o.crosshair.vertLine.color).toBe('#64748b');
+      expect(o.crosshair.vertLine.labelBackgroundColor).toBe('#334155');
+    });
+
+    it('a toggle rebuilds the charts exactly once', () => {
+      theme().set('dark', false);
+      setInputs(layers(['RSI']));
+      const rebuildSpy = spyOn<any>(component, 'rebuild').and.callThrough();
+
+      theme().toggle();
+      fixture.detectChanges();
+
+      expect(rebuildSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('lightens a line that is too dark for the dark background, only in dark mode', () => {
+      const almostBackground: LineLayer = { label: 'Đường tối', values: series(i => 10 + i), color: '#1f2937' };
+
+      theme().set('dark', false);
+      setInputs(layers([], [], [almostBackground]));
+      const dark = swatchOf('Đường tối').style.backgroundColor;
+      expect(dark).not.toBe('rgb(31, 41, 55)');
+
+      theme().set('light', false);
+      fixture.detectChanges();
+      expect(swatchOf('Đường tối').style.backgroundColor).toBe('rgb(31, 41, 55)');
+    });
+
+    it('keeps the recognisable line colours that already read well on the dark background', () => {
+      theme().set('dark', false);
+      setInputs(layers([], [], [{ label: 'Đường xanh', values: series(i => 10 + i), color: '#16a34a' }, { label: 'Đường cam', values: series(i => 10 + i), color: '#f59e0b' }]));
+
+      expect(swatchOf('Đường xanh').style.backgroundColor).toBe('rgb(22, 163, 74)');
+      expect(swatchOf('Đường cam').style.backgroundColor).toBe('rgb(245, 158, 11)');
+      expect(contrastRatio('#16a34a', '#111827')).toBeGreaterThanOrEqual(3);
+    });
+
+    it('the price change text uses the lighter up/down colours in dark mode', () => {
+      theme().set('dark', false);
+      setInputs(layers([]));
+
+      const change = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="ohlc-change"]') as HTMLElement;
+      expect(change.style.color).toBe('rgb(74, 222, 128)');   // #4ade80: nến tăng
     });
   });
 });

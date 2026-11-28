@@ -4,6 +4,16 @@
   <meta charset="utf-8">
   <title>Investment Mate v2</title>
   <base href="/">
+  <!-- Chế độ giao diện: mặc định TỐI. Chạy trước Angular và trước stylesheet để trang không nháy sáng. Cùng khoá với ThemeService. -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('imv2.theme') !== 'light') document.documentElement.classList.add('dark');
+      } catch (e) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#2563eb">
   <meta name="description" content="Ứng dụng quản lý đầu tư chứng khoán — theo dõi danh mục, phân tích kỹ thuật và quản lý rủi ro.">

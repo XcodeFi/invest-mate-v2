@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.110.0] — 2026-11-28 · Tỉ lệ nền VN30 cho setup Pullback
+## [v2.112.0] — 2026-11-28 · Tỉ lệ nền VN30 cho setup Pullback
 
 ### Tính năng mới
 
@@ -16,6 +16,34 @@
 - **Lấy trước chuỗi giá VN30 qua job `prices` sẵn có** (không thêm job Cloud Scheduler, không đổi hạ tầng): sau việc chính, mỗi lượt lấy tối đa 1 mã (chưa có chuỗi trước, rồi cũ nhất; bỏ mã mà nguồn coi là còn tươi) nên rổ đầy sau khoảng hai ngày giao dịch. Giới hạn cứng nằm ở phía nguồn giá: tối đa **30 lần gọi UDF mỗi ngày Việt Nam** (tính cả lần lỗi, lưu bền ở collection `job_state` bằng một lệnh `$inc` nguyên tử), **không dùng graph dự phòng**, bỏ qua **không gọi** khi nguồn đang trục trặc (cooldown chung hoặc chuỗi lỗi chung ≥ 1), và lỗi của warm-up **không** cộng vào chuỗi lỗi chung hay cooldown của biểu đồ người dùng (warm-up có cooldown riêng). Chạy sau việc chính kể cả khi job không có mã nào, hạn 20 giây, mọi lỗi chỉ ghi log, kết quả job giá không đổi. Công tắc tắt: `SignalWarmup__Enabled=false`; tinh chỉnh `SignalWarmup__SymbolsPerRun`, `MarketDataProvider__WarmupMaxCallsPerDay`.
 - Rổ VN30 một nguồn duy nhất `Domain/Constants/Vn30Basket` (nhập danh sách VN30 dùng chung). Thống kê gộp `BaseRateStatistics` (hàm thuần, bộ sinh số giả ngẫu nhiên tự viết nên kết quả không đổi giữa các bản .NET) và `SignalBaseRateService` (chạy cùng engine S1 trên chuỗi đã lưu, bỏ nến đang hình thành, dùng biên độ HOSE cho cả rổ, nhớ kết quả tới 15:10 hoặc hết ngày). Công cụ đếm chỉ đọc có thêm chế độ `pooled` (k, n, số tháng, bootstrap) dùng đúng hàm gộp của dịch vụ.
 - Hàm dựng `PriceSnapshotJobService` nhận thêm `ISignalSeriesWarmup`; `IAdjustedPriceSeriesStore` thêm `GetFetchedAtAsync` (chỉ đọc `FetchedAt`, không tải nến). ADR-0019.
+## [v2.111.0] — 2026-11-28 · Chế độ tối (mặc định)
+
+### Tính năng mới
+
+- **Giao diện tối, mặc định bật** cho mọi trang để dịu mắt khi làm việc lâu. Nút **☀️/🌙** ở góc phải header (cả trên điện thoại) đổi qua lại; tooltip "Chế độ sáng" / "Chế độ tối". Lựa chọn được nhớ trên trình duyệt này; chưa chọn (hoặc trình duyệt chặn lưu) thì là tối, không lấy theo hệ điều hành. Trang không nháy sáng lúc mở vì chế độ được đặt trước khi ứng dụng khởi động.
+- **Biểu đồ đổi theo:** biểu đồ nến và các tầng chỉ báo (Thị trường, Dòng thời gian mã), biểu đồ Phân tích và Replay kế hoạch đổi nền, chữ, lưới và vạch trỏ chuột sang bảng màu tối; đường chỉ báo quá tối (ví dụ tím đậm) được làm sáng chỉ ở chế độ tối, màu nến và các đường nhận diện khác giữ nguyên. Đổi chế độ khi đang xem thì biểu đồ vẽ lại và giữ nguyên khoảng nhìn.
+- Chế độ sáng giữ nguyên như trước.
+
+### Kỹ thuật
+
+- Một lớp giao diện toàn cục thay vì sửa từng trang: `src/styles/dark-theme.css` ánh xạ các tiện ích Tailwind sáng đang dùng khắp app (nền trắng/xám, chữ xám, viền, hover, ô tô màu trạng thái, ô nhập, bóng) sang bảng màu tối, mọi luật nằm dưới `html.dark`. Luật cho class trơn dùng `:where()` để biến thể `hover:`/`focus:` vẫn thắng. Ô tô màu trạng thái (đỏ/xanh/vàng...) thành nền mờ 10–24% với chữ sắc sáng, nên màu giữ nguyên ý nghĩa. `darkMode: 'class'` được bật cho Tailwind để component mới dùng `dark:` được.
+- `ThemeService` (signal + localStorage `imv2.theme`, mọi truy cập storage bọc try/catch) và script nhỏ trong `index.html` chạy trước Angular. Component mới `app-theme-toggle`. `indicator-chart` đọc chế độ qua `indicator-chart.theme.ts`; Chart.js đặt màu mặc định qua `chartjs-theme.ts`.
+- Độ tương phản WCAG AA (≥ 4,5:1) được kiểm bằng test đọc chính file CSS: chữ chính/phụ/mờ trên trang, thẻ và nền nổi, chữ trạng thái trên nền tô mờ. Màu chữ mờ nhất dùng `#8b99ae` (6,1:1), không dùng `#64748b` vì chỉ đạt 3,7:1.
+- Chưa làm: lưu lựa chọn phía máy chủ (localStorage đủ cho một người dùng), kiểu in/email, riêng khu quản trị ngoài những gì lớp toàn cục đã phủ.
+
+---
+
+## [v2.110.0] — 2026-11-28 · Trang Sàng lọc cổ phiếu
+
+### Tính năng mới
+
+- **Trang "Sàng lọc cổ phiếu"** (`/screener`, mở từ trang Dữ liệu Thị trường và từ chip **Danh sách lọc (không xếp hạng)** ở Bảng giá nhanh): chọn sàn (UPCOM tuỳ chọn), chỉnh các ngưỡng (thanh khoản, giá, vốn hoá, ROE, trần P/E mặc định tắt, xếp hạng sức mạnh 3 tháng), bỏ qua tầng chất lượng. Bảng mã đạt xếp theo bảng chữ cái, bấm tiêu đề cột để sắp theo cột khác; mỗi dòng có cờ biến động kèm giá trị, ghi chú và "Vì sao đạt". Không có điểm số hay thứ hạng, luôn kèm lời nhắc "không phải khuyến nghị mua".
+- Mã HOSE chưa kiểm được trạng thái được tách thành nhóm riêng; có số mã bị loại theo lý do và theo ngành, dòng "loại vì định giá/chất lượng nhưng xu hướng tốt" và ô **Vì sao mã X không có?**.
+- Tick tối đa 30 mã rồi **Gửi sang Bảng giá nhanh**: trang Thị trường mở với đúng các mã đó và nhớ cho lần sau. Chip ở Bảng giá nhanh chỉ mở trang sàng lọc, không tự điền mã nào.
+- **Hướng dẫn "Sàng lọc cổ phiếu"** trong Trợ giúp: ý nghĩa từng tầng, ngưỡng mặc định, giới hạn (nguồn không chính thức, dữ liệu trễ, HNX/UPCOM chưa có danh sách cảnh báo, mã đã hủy niêm yết không còn trong dữ liệu).
+
+---
+
 ## [v2.109.1] — 2026-11-28 · Hồ sơ công ty: thanh nút đầu trang không tràn màn hình hẹp
 
 ### Sửa lỗi

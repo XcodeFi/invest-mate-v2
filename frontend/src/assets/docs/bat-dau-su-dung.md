@@ -94,6 +94,12 @@ Vào **Nhiệm vụ ngày** (`/daily-routine`):
 
 ---
 
+## Giao diện sáng/tối
+
+Ứng dụng mở ở **chế độ tối** theo mặc định để dịu mắt. Nút **☀️/🌙** ở góc phải thanh trên cùng (cả trên điện thoại) đổi qua lại giữa **Chế độ sáng** và **Chế độ tối**; lựa chọn được nhớ trên trình duyệt này (đổi trình duyệt hay máy thì chọn lại). Biểu đồ đổi màu theo.
+
+---
+
 ## Các trang chính
 
 | Trang | Mô tả |
