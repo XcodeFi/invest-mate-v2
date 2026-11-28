@@ -1,6 +1,7 @@
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
 using InvestmentApp.Application.Watchlists.Dtos;
+using InvestmentApp.Domain.Constants;
 using InvestmentApp.Domain.Entities;
 using MediatR;
 
@@ -15,17 +16,6 @@ public class ImportVn30Command : IRequest<WatchlistDetailDto>
 public class ImportVn30CommandHandler : IRequestHandler<ImportVn30Command, WatchlistDetailDto>
 {
     private readonly IWatchlistRepository _repo;
-
-    // VN30 basket (cập nhật Q1/2026)
-    private static readonly string[] Vn30Symbols = new[]
-    {
-        "ACB", "BCM", "BID", "BVH", "CTG",
-        "FPT", "GAS", "GVR", "HDB", "HPG",
-        "MBB", "MSN", "MWG", "PLX", "POW",
-        "SAB", "SHB", "SSB", "SSI", "STB",
-        "TCB", "TPB", "VCB", "VHM", "VIB",
-        "VIC", "VJC", "VNM", "VPB", "VRE"
-    };
 
     public ImportVn30CommandHandler(IWatchlistRepository repo)
     {
@@ -51,7 +41,7 @@ public class ImportVn30CommandHandler : IRequestHandler<ImportVn30Command, Watch
             await _repo.AddAsync(watchlist, ct);
         }
 
-        watchlist.AddBulkItems(Vn30Symbols);
+        watchlist.AddBulkItems(Vn30Basket.Symbols.ToArray());
         await _repo.UpdateAsync(watchlist, ct);
 
         return AddWatchlistItemCommandHandler.MapToDetail(watchlist);
