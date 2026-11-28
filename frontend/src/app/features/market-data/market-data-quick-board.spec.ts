@@ -26,6 +26,7 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
   let positions: jasmine.SpyObj<PositionsService>;
   let plans: jasmine.SpyObj<TradePlanService>;
   let watchlists: jasmine.SpyObj<WatchlistService>;
+  let notify: jasmine.SpyObj<NotificationService>;
 
   interface Sources {
     positions?: Observable<ActivePosition[]>;
@@ -47,6 +48,7 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
     watchlists = jasmine.createSpyObj<WatchlistService>('WatchlistService', ['getAll', 'getDetail']);
     watchlists.getAll.and.returnValue(src.watchlists ?? of([]));
     watchlists.getDetail.and.callFake((id: string) => (src.details ?? {})[id] ?? throwError(() => new Error('x')));
+    notify = jasmine.createSpyObj<NotificationService>('NotificationService', ['error', 'success']);
     TestBed.configureTestingModule({
       imports: [MarketDataComponent],
       providers: [
@@ -55,7 +57,7 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
         { provide: PositionsService, useValue: positions },
         { provide: TradePlanService, useValue: plans },
         { provide: WatchlistService, useValue: watchlists },
-        { provide: NotificationService, useValue: jasmine.createSpyObj<NotificationService>('NotificationService', ['error', 'success']) },
+        { provide: NotificationService, useValue: notify },
         { provide: CompanyDossierService, useValue: jasmine.createSpyObj<CompanyDossierService>('CompanyDossierService', ['get']) },
         { provide: AuthService, useValue: { getToken: () => null } },
       ],
@@ -150,6 +152,56 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
 
       expect(fixture.componentInstance.batchSymbols).toBe('AAA,BBB');
       expect(localStorage.getItem(KEY)).toBe(DEFAULT);   // danh sách đã xin vẫn được nhớ vì đã tải được
+    });
+
+    it('a chip click wins over a pending first load: the late first answer changes neither board, input nor storage', async () => {
+      const first = new Subject<BatchPrice[]>();
+      const second = new Subject<BatchPrice[]>();
+      setup({ positions: of([position('HPG'), position('SSI')]), batch: first });   // lần tải đầu (lúc mở trang) đang chờ
+      market.getBatchPrices.and.returnValue(second);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      clickChip('Đang nắm giữ');   // bấm chip trong lúc chờ
+      const row = (symbol: string) => [{ symbol, date: '2026-11-27', close: 100, volume: 1000 } as BatchPrice];
+      first.next(row('VNM'));      // câu trả lời muộn của lần đầu
+      first.complete();
+
+      expect(fixture.componentInstance.batchPrices).toEqual([]);          // chưa ghi đè bảng
+      expect(fixture.componentInstance.loadingBatch).toBeTrue();           // lần của chip vẫn đang chờ
+      expect(fixture.componentInstance.batchSymbols).toBe('HPG,SSI');
+      expect(localStorage.getItem(KEY)).toBeNull();
+
+      second.next(row('HPG'));
+      second.complete();
+
+      expect(fixture.componentInstance.batchPrices.map(b => b.symbol)).toEqual(['HPG']);
+      expect(fixture.componentInstance.loadingBatch).toBeFalse();
+      expect(localStorage.getItem(KEY)).toBe('HPG,SSI');
+    });
+
+    it('a late failure of the superseded first load shows no error and keeps loading until the chip load answers', async () => {
+      const first = new Subject<BatchPrice[]>();
+      const second = new Subject<BatchPrice[]>();
+      setup({ positions: of([position('HPG'), position('SSI')]), batch: first });
+      market.getBatchPrices.and.returnValue(second);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      clickChip('Đang nắm giữ');
+      first.error(new Error('muộn'));   // lần đầu hỏng muộn, sau khi chip đã xin lần mới
+
+      expect(notify.error).not.toHaveBeenCalled();
+      expect(fixture.componentInstance.loadingBatch).toBeTrue();
+
+      second.next([{ symbol: 'HPG', date: '2026-11-27', close: 100, volume: 1000 } as BatchPrice]);
+      second.complete();
+
+      expect(fixture.componentInstance.batchPrices.map(b => b.symbol)).toEqual(['HPG']);
+      expect(fixture.componentInstance.loadingBatch).toBeFalse();
+      expect(localStorage.getItem(KEY)).toBe('HPG,SSI');
     });
 
     it('keeps the typed text when the load fails', () => {
