@@ -47,29 +47,44 @@ public static class TrendTemplateBuilder
 
     private static decimal? Last(List<decimal?> series) => series.Count > 0 ? series[^1] : null;
 
-    /// <summary>(a / b − 1) × 100, làm tròn 2 chữ số; null khi thiếu một trong hai hoặc b = 0.</summary>
+    /// <summary>(a / b − 1) × 100 CHƯA làm tròn (đạt/không đạt quyết định trên số này, làm tròn chỉ để hiển thị); null khi thiếu một trong hai hoặc b = 0.</summary>
     private static decimal? Pct(decimal? a, decimal? b) =>
-        a.HasValue && b.HasValue && b.Value != 0 ? Math.Round((a.Value / b.Value - 1) * 100, 2) : null;
+        a.HasValue && b.HasValue && b.Value != 0 ? (a.Value / b.Value - 1) * 100 : null;
 
-    /// <summary>(đỉnh − giá) / đỉnh × 100: giá thấp hơn đỉnh bao nhiêu %.</summary>
+    /// <summary>(đỉnh − giá) / đỉnh × 100 chưa làm tròn: giá thấp hơn đỉnh bao nhiêu %.</summary>
     private static decimal? BelowPct(decimal? high, decimal? price) =>
-        high.HasValue && price.HasValue && high.Value != 0 ? Math.Round((high.Value - price.Value) / high.Value * 100, 2) : null;
+        high.HasValue && price.HasValue && high.Value != 0 ? (high.Value - price.Value) / high.Value * 100 : null;
+
+    private static decimal? Show(decimal? raw) => raw.HasValue ? Math.Round(raw.Value, 2) : null;
 
     private static TrendTemplateCriterion Above(string key, string rule, decimal? a, decimal? b, string needs)
     {
-        var value = Pct(a, b);
+        var raw = Pct(a, b);
         return new TrendTemplateCriterion
         {
-            Key = key, Rule = rule, Value = value, Unit = "%", Threshold = 0m,
-            Met = value.HasValue ? value.Value > 0 : null,
-            Detail = value.HasValue ? null : $"{NoData} ({needs}).",
+            Key = key, Rule = rule, Value = Show(raw), Unit = "%", Threshold = 0m,
+            Met = raw.HasValue ? raw.Value > 0 : null,
+            Detail = raw.HasValue ? null : $"{NoData} ({needs}).",
         };
     }
 
-    private static TrendTemplateCriterion Threshold(string key, string rule, decimal? value, decimal threshold, bool atLeast, string needs) => new()
+    private static TrendTemplateCriterion Threshold(string key, string rule, decimal? raw, decimal threshold, bool atLeast, string needs) => new()
     {
-        Key = key, Rule = rule, Value = value, Unit = "%", Threshold = threshold,
-        Met = value.HasValue ? (atLeast ? value.Value >= threshold : value.Value <= threshold) : null,
-        Detail = value.HasValue ? null : $"{NoData} ({needs}).",
+        Key = key, Rule = rule, Value = Show(raw), Unit = "%", Threshold = threshold,
+        Met = raw.HasValue ? (atLeast ? raw.Value >= threshold : raw.Value <= threshold) : null,
+        Detail = raw.HasValue ? null : $"{NoData} ({needs}).",
     };
+
+    /// <summary>
+    /// Chuỗi chưa điều chỉnh theo sự kiện quyền: không tính gì (ngày chia tách hoặc thưởng cổ phiếu là một cú tụt giả làm sai mọi mức),
+    /// mọi dòng không có số và không có kết luận đạt hay không.
+    /// </summary>
+    public static TrendTemplateInfo Unadjusted(int sessions)
+    {
+        var info = Build(new List<decimal>(), new List<decimal>(), new List<decimal>());
+        info.Sessions = sessions;
+        foreach (var row in info.Criteria.Where(r => r.Key != "rs_rating"))
+            row.Detail = "Giá chưa điều chỉnh theo sự kiện quyền nên không tính (ngày chia tách hoặc thưởng cổ phiếu là một cú tụt giả).";
+        return info;
+    }
 }

@@ -87,21 +87,29 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         result.Ema50 = CalculateEma(closes, 50);
         result.Ema200 = CalculateEma(closes, 200);
 
-        // --- SMA, đỉnh/đáy 52 tuần, kênh Donchian, Trend Template: cùng hàm với chuỗi nên phần tử cuối của chuỗi bằng giá trị này ---
-        var highsAll = prices.Select(p => p.High).ToList();
-        var lowsAll = prices.Select(p => p.Low).ToList();
-        result.Sma50 = PriceStructure.Sma(closes, 50).LastOrDefault();
-        result.Sma150 = PriceStructure.Sma(closes, 150).LastOrDefault();
-        result.Sma200 = PriceStructure.Sma(closes, 200).LastOrDefault();
-        (result.Week52High, result.Week52Low) = PriceStructure.Week52(highsAll, lowsAll);
-        if (result.Week52High is > 0) result.PctBelowWeek52High = Math.Round((result.Week52High.Value - current.Close) / result.Week52High.Value * 100, 2);
-        if (result.Week52Low is > 0) result.PctAboveWeek52Low = Math.Round((current.Close / result.Week52Low.Value - 1) * 100, 2);
-        result.Donchian20High = PriceStructure.PriorHighest(highsAll, 20).LastOrDefault();
-        result.Donchian20Low = PriceStructure.PriorLowest(lowsAll, 20).LastOrDefault();
-        result.Donchian55High = PriceStructure.PriorHighest(highsAll, 55).LastOrDefault();
-        result.Donchian55Low = PriceStructure.PriorLowest(lowsAll, 55).LastOrDefault();
-        result.ExitLow10 = PriceStructure.PriorLowest(lowsAll, 10).LastOrDefault();
-        result.TrendTemplate = TrendTemplateBuilder.Build(closes, highsAll, lowsAll);
+        // --- SMA, đỉnh/đáy 52 tuần, kênh Donchian, Trend Template: cùng hàm với chuỗi nên phần tử cuối của chuỗi bằng giá trị này.
+        // Chỉ trên chuỗi ĐÃ điều chỉnh (như bộ dò mô hình): ngày chia tách/thưởng chưa điều chỉnh là một cú tụt giả làm sai mọi mức này. ---
+        if (result.Adjusted == true)
+        {
+            var highsAll = prices.Select(p => p.High).ToList();
+            var lowsAll = prices.Select(p => p.Low).ToList();
+            result.Sma50 = PriceStructure.Sma(closes, 50).LastOrDefault();
+            result.Sma150 = PriceStructure.Sma(closes, 150).LastOrDefault();
+            result.Sma200 = PriceStructure.Sma(closes, 200).LastOrDefault();
+            (result.Week52High, result.Week52Low) = PriceStructure.Week52(highsAll, lowsAll);
+            if (result.Week52High is > 0) result.PctBelowWeek52High = Math.Round((result.Week52High.Value - current.Close) / result.Week52High.Value * 100, 2);
+            if (result.Week52Low is > 0) result.PctAboveWeek52Low = Math.Round((current.Close / result.Week52Low.Value - 1) * 100, 2);
+            result.Donchian20High = PriceStructure.PriorHighest(highsAll, 20).LastOrDefault();
+            result.Donchian20Low = PriceStructure.PriorLowest(lowsAll, 20).LastOrDefault();
+            result.Donchian55High = PriceStructure.PriorHighest(highsAll, 55).LastOrDefault();
+            result.Donchian55Low = PriceStructure.PriorLowest(lowsAll, 55).LastOrDefault();
+            result.ExitLow10 = PriceStructure.PriorLowest(lowsAll, 10).LastOrDefault();
+            result.TrendTemplate = TrendTemplateBuilder.Build(closes, highsAll, lowsAll);
+        }
+        else
+        {
+            result.TrendTemplate = TrendTemplateBuilder.Unadjusted(closes.Count);
+        }
 
         if (result.Ema20.HasValue && result.Ema50.HasValue)
         {
@@ -427,14 +435,23 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         result.Obv = ObvSeries(closes, volumes);
         result.Mfi14 = MfiSeries(highs, lows, closes, volumes, 14);
         result.VolumeSma20 = VolumeSmaSeries(volumes, 20);
-        result.Sma50 = PriceStructure.Sma(closes, 50);
-        result.Sma150 = PriceStructure.Sma(closes, 150);
-        result.Sma200 = PriceStructure.Sma(closes, 200);
-        result.Donchian20High = PriceStructure.PriorHighest(highs, 20);
-        result.Donchian20Low = PriceStructure.PriorLowest(lows, 20);
-        result.Donchian55High = PriceStructure.PriorHighest(highs, 55);
-        result.Donchian55Low = PriceStructure.PriorLowest(lows, 55);
-        result.ExitLow10 = PriceStructure.PriorLowest(lows, 10);
+        if (result.Adjusted == true)   // như bộ dò mô hình: chuỗi chưa điều chỉnh có cú tụt giả ở ngày không hưởng quyền nên không tính các mức dài hạn
+        {
+            result.Sma50 = PriceStructure.Sma(closes, 50);
+            result.Sma150 = PriceStructure.Sma(closes, 150);
+            result.Sma200 = PriceStructure.Sma(closes, 200);
+            result.Donchian20High = PriceStructure.PriorHighest(highs, 20);
+            result.Donchian20Low = PriceStructure.PriorLowest(lows, 20);
+            result.Donchian55High = PriceStructure.PriorHighest(highs, 55);
+            result.Donchian55Low = PriceStructure.PriorLowest(lows, 55);
+            result.ExitLow10 = PriceStructure.PriorLowest(lows, 10);
+        }
+        else
+        {
+            result.Sma50 = NullSeries(n); result.Sma150 = NullSeries(n); result.Sma200 = NullSeries(n);
+            result.Donchian20High = NullSeries(n); result.Donchian20Low = NullSeries(n);
+            result.Donchian55High = NullSeries(n); result.Donchian55Low = NullSeries(n); result.ExitLow10 = NullSeries(n);
+        }
 
         // Chỉ trả phần cuối theo khoảng được xin: giá trị đã được tính trên toàn bộ lịch sử nên đầu khoảng không bị trống
         return SliceSeries(result, WindowStart(prices, windowFrom));

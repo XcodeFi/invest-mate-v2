@@ -470,7 +470,7 @@ export const INDICATOR_GUIDES: Record<TaGroup, GroupGuide> = {
             who: 'Richard Donchian (người phát minh)',
             how: 'Quy tắc 4 tuần: mua khi giá vượt đỉnh của 4 tuần trước, bán khi thủng đáy của 4 tuần trước (khoảng 20 phiên ngày).',
             why: 'Đi theo xu hướng bằng một quy tắc cơ học dựa trên giá, không cần dự đoán.',
-            source: 'Richard L. Weissman, Mechanical Trading Systems (Wiley), mục Donchian\'s channel breakout; MarketCalls: Richard Donchian\'s 4-week rule; nguồn thứ cấp.',
+            source: 'Richard L. Weissman, Mechanical Trading Systems (Wiley, 2005), mục Donchian\'s channel breakout; MarketCalls: Richard Donchian\'s 4-week rule; nguồn thứ cấp.',
             note: 'Đây là người phát minh, không phải bằng chứng về thành tích. Các nguồn mô tả cách thoát của ông không giống nhau.',
           },
           {

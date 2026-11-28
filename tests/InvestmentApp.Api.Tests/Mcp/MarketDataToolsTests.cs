@@ -291,6 +291,37 @@ public class MarketDataToolsTests
     }
 
     [Fact]
+    public async Task a_short_history_has_no_long_average_or_week52_keys_in_the_json_at_all()
+    {
+        // mới đủ SMA50: các trường cần nhiều phiên hơn phải VẮNG MẶT trong JSON, không phải 0 hay null
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT", Sma50 = 100m });
+
+        var r = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        r.AsObject().ContainsKey("sma50").Should().BeTrue();
+        foreach (var key in new[] { "sma150", "sma200", "week52High", "week52Low", "pctBelowWeek52High", "pctAboveWeek52Low", "donchian55High" })
+            r.AsObject().ContainsKey(key).Should().BeFalse(key);
+    }
+
+    [Fact]
+    public void the_analysis_description_says_missing_fields_are_absent_not_zero()
+    {
+        var desc = ((System.ComponentModel.DescriptionAttribute)typeof(MarketDataTools).GetMethod(nameof(MarketDataTools.GetTechnicalAnalysis))!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false).Single()).Description;
+
+        desc.Should().Contain("Trường nào chưa đủ dữ liệu thì VẮNG MẶT, không phải 0");
+    }
+
+    [Fact]
+    public void the_trend_template_dtos_have_exactly_the_allowed_properties_so_a_new_field_needs_a_deliberate_change()
+    {
+        typeof(InvestmentApp.Application.MarketData.Trend.TrendTemplateInfo).GetProperties().Select(p => p.Name)
+            .Should().BeEquivalentTo(new[] { "Sessions", "Criteria", "Note" });
+        typeof(InvestmentApp.Application.MarketData.Trend.TrendTemplateCriterion).GetProperties().Select(p => p.Name)
+            .Should().BeEquivalentTo(new[] { "Key", "Rule", "Value", "Unit", "Threshold", "Met", "Detail" });
+    }
+
+    [Fact]
     public async Task get_technical_series_trims_the_sma_and_donchian_arrays_with_the_rest()
     {
         ReturnSeries(61, out _);

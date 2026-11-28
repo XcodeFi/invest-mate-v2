@@ -136,4 +136,94 @@ public class TrendTemplateBuilderTests
         t.Sessions.Should().Be(0);
         t.Criteria.Should().OnlyContain(r => r.Value == null && r.Met == null);
     }
+
+    private static (List<decimal> C, List<decimal> H, List<decimal> L) Flat(int n, decimal close, decimal high, decimal low)
+        => (Enumerable.Repeat(close, n).ToList(), Enumerable.Repeat(high, n).ToList(), Enumerable.Repeat(low, n).ToList());
+
+    [Fact]
+    public void A_comparison_exactly_at_zero_is_not_above()
+    {
+        var (c, h, l) = Flat(260, 100m, 101m, 99m);   // giá bằng mọi đường trung bình
+
+        var t = TrendTemplateBuilder.Build(c, h, l);
+
+        Row(t, "price_above_sma150").Value.Should().Be(0m);
+        Row(t, "price_above_sma150").Met.Should().BeFalse();
+        Row(t, "sma50_above_sma200").Met.Should().BeFalse();
+        Row(t, "sma200_rising").Met.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Exactly_30_percent_above_the_52_week_low_meets_the_threshold_and_just_under_does_not()
+    {
+        var (c, h, l) = Flat(250, 130m, 131m, 129m);
+        l[100] = 100m;   // đáy 52 tuần = 100, giá 130: đúng +30%
+
+        var exact = Row(TrendTemplateBuilder.Build(c, h, l), "above_52w_low");
+
+        exact.Value.Should().Be(30m);
+        exact.Met.Should().BeTrue();
+
+        var (c2, h2, l2) = Flat(250, 129.99m, 131m, 129m);
+        l2[100] = 100m;
+
+        var below = Row(TrendTemplateBuilder.Build(c2, h2, l2), "above_52w_low");
+
+        below.Value.Should().Be(29.99m);
+        below.Met.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Exactly_25_percent_below_the_52_week_high_meets_the_threshold_and_just_over_does_not()
+    {
+        var (c, h, l) = Flat(250, 120m, 121m, 119m);
+        h[100] = 160m;   // đỉnh 52 tuần = 160, giá 120: đúng cách đỉnh 25%
+
+        var exact = Row(TrendTemplateBuilder.Build(c, h, l), "near_52w_high");
+
+        exact.Value.Should().Be(25m);
+        exact.Met.Should().BeTrue();
+
+        var (c2, h2, l2) = Flat(250, 119.99m, 121m, 119m);
+        h2[100] = 160m;
+
+        var over = Row(TrendTemplateBuilder.Build(c2, h2, l2), "near_52w_high");
+
+        over.Value.Should().Be(25.01m);
+        over.Met.Should().BeFalse();
+    }
+
+    [Fact]
+    public void The_verdict_is_decided_on_the_unrounded_number_and_rounding_is_only_for_display()
+    {
+        // 29,996% hiển thị là 30 nhưng chưa đạt ngưỡng 30
+        var (c, h, l) = Flat(250, 129.996m, 131m, 129m);
+        l[100] = 100m;
+
+        var almost = Row(TrendTemplateBuilder.Build(c, h, l), "above_52w_low");
+
+        almost.Value.Should().Be(30m);
+        almost.Met.Should().BeFalse();
+
+        // 0,000009% trên SMA150 hiển thị là 0 nhưng giá vẫn nằm trên
+        var closes = Enumerable.Repeat(100m, 259).Append(100.001m).ToList();
+        var highs = closes.Select(x => x + 1).ToList();
+        var lows = closes.Select(x => x - 1).ToList();
+
+        var above = Row(TrendTemplateBuilder.Build(closes, highs, lows), "price_above_sma150");
+
+        above.Value.Should().Be(0m);
+        above.Met.Should().BeTrue();
+    }
+
+    [Fact]
+    public void An_unadjusted_series_gets_rows_without_numbers_and_with_the_reason()
+    {
+        var t = TrendTemplateBuilder.Unadjusted(123);
+
+        t.Sessions.Should().Be(123);
+        t.Criteria.Where(r => r.Key != "rs_rating").Should().OnlyContain(r => r.Value == null && r.Met == null && r.Detail!.Contains("chưa điều chỉnh"));
+        Row(t, "rs_rating").Detail.Should().Contain("IBD");
+        t.Note.Should().Contain("không phải tín hiệu mua");
+    }
 }

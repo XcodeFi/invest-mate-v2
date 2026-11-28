@@ -89,4 +89,32 @@ describe('TrendTemplateCardComponent', () => {
     expect(text).toContain('Trade Like a Stock Market Wizard');
     expect(text).toContain('SMA');
   });
+
+  /** Màu thật người xem thấy: chữ của dòng trạng thái và nền thẻ, đo bằng style tính toán của trình duyệt ở từng giao diện. */
+  const measure = (dark: boolean, row: HTMLElement): number => {
+    const root = document.documentElement;
+    const had = root.classList.contains('dark');
+    root.classList.toggle('dark', dark);
+    try {
+      const parse = (c: string): number[] => (c.match(/[\d.]+/g) ?? []).map(Number).slice(0, 3);
+      const lum = ([r, g, b]: number[]) => {
+        const f = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+      };
+      const fg = parse(getComputedStyle(row.querySelector('span')!).color);
+      const bg = parse(getComputedStyle(el().querySelector('[data-testid="tt-card"]')!).backgroundColor);
+      const [hi, lo] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    } finally { root.classList.toggle('dark', had); }
+  };
+
+  it('the met, not-met and no-data state labels meet AA contrast (4.5:1) in the light and the dark theme', () => {
+    setup(TEMPLATE);
+    document.body.appendChild(el());
+
+    [0, 1, 3].forEach(i => {
+      expect(measure(false, rows()[i])).withContext(`sáng, dòng ${i}`).toBeGreaterThanOrEqual(4.5);
+      expect(measure(true, rows()[i])).withContext(`tối, dòng ${i}`).toBeGreaterThanOrEqual(4.5);
+    });
+  });
 });

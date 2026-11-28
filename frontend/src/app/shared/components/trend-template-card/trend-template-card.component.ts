@@ -48,7 +48,7 @@ export class TrendTemplateCardComponent {
     return c.met === true ? 'thoả' : c.met === false ? 'chưa thoả' : 'Không đủ dữ liệu';
   }
   stateClass(c: TrendTemplateCriterion): string {
-    return c.met === true ? 'text-green-600' : c.met === false ? 'text-red-600' : 'text-gray-500';
+    return c.met === true ? 'text-green-700' : c.met === false ? 'text-red-700' : 'text-gray-500';
   }
 
   /** Khoảng cách theo %, dấu thập phân phẩy; dòng so sánh (ngưỡng 0) có dấu +/−, dòng có ngưỡng khác 0 là số dương "cách" hay "cao hơn". */

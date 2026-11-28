@@ -17,7 +17,7 @@ public class TechnicalIndicatorServiceStructureTests
 
     public TechnicalIndicatorServiceStructureTests() => _sut = new TechnicalIndicatorService(_marketData.Object);
 
-    private static List<StockPriceData> Prices(int days, int seed = 7)
+    private static List<StockPriceData> Prices(int days, int seed = 7, bool adjusted = true)
     {
         var rng = new Random(seed);
         var list = new List<StockPriceData>();
@@ -29,7 +29,7 @@ public class TechnicalIndicatorServiceStructureTests
             close = Math.Max(1_000m, close + rng.Next(-1_500, 1_600));
             list.Add(new StockPriceData
             {
-                Symbol = Symbol, Date = date.AddDays(i), Open = open,
+                Symbol = Symbol, Date = date.AddDays(i), Open = open, IsAdjusted = adjusted,
                 High = Math.Max(open, close) + rng.Next(0, 900), Low = Math.Min(open, close) - rng.Next(0, 900), Close = close,
                 Volume = 1_000_000 + rng.Next(0, 800_000)
             });
@@ -193,5 +193,118 @@ public class TechnicalIndicatorServiceStructureTests
         a.Week52High.Should().BeNull();
         a.Donchian20High.Should().BeNull();
         a.TrendTemplate.Should().BeNull();
+    }
+
+    // ---------- chuỗi chưa điều chỉnh: không tính mức dài hạn (như bộ dò mô hình) ----------
+
+    [Fact]
+    public async Task An_unadjusted_series_has_no_long_term_series_at_all()
+    {
+        Setup(Prices(400, adjusted: false));
+
+        var s = await _sut.GetSeriesAsync(Symbol, 36);
+
+        s.Adjusted.Should().BeFalse();
+        foreach (var series in new[] { s.Sma50, s.Sma150, s.Sma200, s.Donchian20High, s.Donchian20Low, s.Donchian55High, s.Donchian55Low, s.ExitLow10 })
+        {
+            series.Should().HaveCount(s.Dates.Count);
+            series.Should().OnlyContain(v => v == null);
+        }
+    }
+
+    [Fact]
+    public async Task An_unadjusted_analysis_has_no_structure_fields_and_the_template_rows_say_the_price_is_unadjusted()
+    {
+        Setup(Prices(400, adjusted: false));
+
+        var a = await _sut.AnalyzeAsync(Symbol);
+
+        a.Sma50.Should().BeNull(); a.Sma150.Should().BeNull(); a.Sma200.Should().BeNull();
+        a.Week52High.Should().BeNull(); a.Week52Low.Should().BeNull();
+        a.PctBelowWeek52High.Should().BeNull(); a.PctAboveWeek52Low.Should().BeNull();
+        a.Donchian20High.Should().BeNull(); a.Donchian55Low.Should().BeNull(); a.ExitLow10.Should().BeNull();
+        a.TrendTemplate!.Sessions.Should().Be(400);
+        a.TrendTemplate.Criteria.Where(r => r.Key != "rs_rating").Should().OnlyContain(r => r.Value == null && r.Met == null && r.Detail!.Contains("chưa điều chỉnh"));
+    }
+
+    // ---------- cửa sổ Donchian của giá trị scalar: đúng 20/55/10 phiên trước thì tính, xa hơn một phiên thì không ----------
+
+    private static List<StockPriceData> Crafted(int n = 100)
+    {
+        var list = new List<StockPriceData>();
+        var date = DateTime.UtcNow.Date.AddDays(-n);
+        for (var i = 0; i < n; i++)
+            list.Add(new StockPriceData { Symbol = Symbol, Date = date.AddDays(i), Open = 75m, High = 100m, Low = 50m, Close = 75m, Volume = 1_000_000, IsAdjusted = true });
+        return list;
+    }
+
+    [Theory]
+    [InlineData(20, 200)]    // đúng 20 phiên trước: nằm trong cửa sổ
+    [InlineData(21, 100)]    // 21 phiên trước: đã ra khỏi cửa sổ
+    [InlineData(1, 200)]
+    public async Task Donchian20High_scalar_looks_back_exactly_20_sessions(int back, decimal expected)
+    {
+        var p = Crafted(); p[p.Count - 1 - back].High = 200m;
+        Setup(p);
+
+        (await _sut.AnalyzeAsync(Symbol)).Donchian20High.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(20, 10)]
+    [InlineData(21, 50)]
+    public async Task Donchian20Low_scalar_looks_back_exactly_20_sessions(int back, decimal expected)
+    {
+        var p = Crafted(); p[p.Count - 1 - back].Low = 10m;
+        Setup(p);
+
+        (await _sut.AnalyzeAsync(Symbol)).Donchian20Low.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(55, 200)]
+    [InlineData(56, 100)]
+    public async Task Donchian55High_scalar_looks_back_exactly_55_sessions(int back, decimal expected)
+    {
+        var p = Crafted(); p[p.Count - 1 - back].High = 200m;
+        Setup(p);
+
+        (await _sut.AnalyzeAsync(Symbol)).Donchian55High.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(55, 10)]
+    [InlineData(56, 50)]
+    public async Task Donchian55Low_scalar_looks_back_exactly_55_sessions(int back, decimal expected)
+    {
+        var p = Crafted(); p[p.Count - 1 - back].Low = 10m;
+        Setup(p);
+
+        (await _sut.AnalyzeAsync(Symbol)).Donchian55Low.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(10, 10)]
+    [InlineData(11, 50)]
+    [InlineData(1, 10)]
+    public async Task ExitLow10_scalar_looks_back_exactly_10_sessions(int back, decimal expected)
+    {
+        var p = Crafted(); p[p.Count - 1 - back].Low = 10m;
+        Setup(p);
+
+        (await _sut.AnalyzeAsync(Symbol)).ExitLow10.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task The_current_session_is_never_part_of_its_own_channel()
+    {
+        var p = Crafted(); p[^1].High = 500m; p[^1].Low = 1m;
+        Setup(p);
+
+        var a = await _sut.AnalyzeAsync(Symbol);
+
+        a.Donchian20High.Should().Be(100m);
+        a.Donchian20Low.Should().Be(50m);
+        a.ExitLow10.Should().Be(50m);
     }
 }
