@@ -148,6 +148,21 @@ public class GetCompanyFundamentalsTrendHandlerTests
         _provider.Verify(p => p.GetComprehensiveDataAsync("FPT", It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData(43.9, null)]
+    [InlineData(null, 68.2)]
+    public async Task a_half_range_has_no_place_for_a_price_so_the_price_source_is_not_called_and_the_result_is_cached(double? low, double? high)
+    {
+        Provider(Data(ind: new FinanceIndicators { PE = 12m, Min52W = (decimal?)low, Max52W = (decimal?)high }));
+        Price(null);
+
+        await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+        await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+
+        _prices.Verify(p => p.GetCurrentPriceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _provider.Verify(p => p.GetComprehensiveDataAsync("FPT", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact]
     public async Task the_trend_is_cached_with_the_rest_so_the_price_is_fetched_once()
     {
