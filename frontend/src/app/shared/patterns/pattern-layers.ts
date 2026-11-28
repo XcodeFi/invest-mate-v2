@@ -1,7 +1,8 @@
 import { PatternCandidate, TechnicalSeries } from '../../core/services/market-data.service';
 import { GroupLayers } from '../components/indicator-chart/indicator-chart.types';
 
-const COLOR = { cup: '#0ea5e9', handle: '#f97316' };
+/** Cả hai đạt ≥ 3:1 (đồ hoạ) trên nền biểu đồ sáng và tối, có spec đo bằng màu nền của indicator-chart.theme. */
+const COLOR = { cup: '#0284c7', handle: '#ea580c' };
 
 const day = (iso: string): string => (iso ?? '').slice(0, 10);
 

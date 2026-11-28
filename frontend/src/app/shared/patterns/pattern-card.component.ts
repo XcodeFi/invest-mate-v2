@@ -15,10 +15,10 @@ const price = (v: number): string => v.toLocaleString('vi-VN', { maximumFraction
   host: { class: 'block' },
   template: `
     @if (candidate; as c) {
-      <section class="mb-4 rounded-lg border border-sky-200 bg-sky-50/40 p-4 text-sm text-gray-700" data-testid="pattern-card" [attr.data-state]="c.state">
+      <section class="mb-4 rounded-lg border border-blue-200 bg-blue-50/40 p-4 text-sm text-gray-700" data-testid="pattern-card" [attr.data-state]="c.state">
         <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
           <h3 class="font-bold text-gray-800">Ứng viên mô hình: {{ c.typeVi }}</h3>
-          <span class="text-xs font-semibold rounded-full px-2 py-0.5 bg-white border border-sky-200 text-sky-800" data-testid="pattern-state">{{ c.stateVi }}</span>
+          <span class="text-xs font-semibold rounded-full px-2 py-0.5 bg-white border border-blue-200 text-blue-800" data-testid="pattern-state">{{ c.stateVi }}</span>
         </div>
 
         <dl class="grid grid-cols-2 gap-x-4 gap-y-1 mb-3" data-testid="pattern-measures">

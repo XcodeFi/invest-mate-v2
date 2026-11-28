@@ -10,6 +10,14 @@ public class TechnicalIndicatorServicePatternTests
 {
     private readonly Mock<IMarketDataProvider> _market = new();
     private TechnicalIndicatorService Sut() => new(_market.Object);
+    private TechnicalIndicatorService Sut(DateTimeOffset nowUtc) => new(_market.Object, new FixedClock(nowUtc));
+
+    private sealed class FixedClock : TimeProvider
+    {
+        private readonly DateTimeOffset _now;
+        public FixedClock(DateTimeOffset now) => _now = now;
+        public override DateTimeOffset GetUtcNow() => _now;
+    }
 
     private static List<StockPriceData> CupBars(bool adjusted)
     {
@@ -76,6 +84,36 @@ public class TechnicalIndicatorServicePatternTests
         Prices(CupBars(adjusted: true).Take(10).ToList());
 
         var result = await Sut().AnalyzeAsync("TST");
+
+        result.PatternCandidates.Should().BeEmpty();
+    }
+
+    /// <summary>Chuỗi cốc (kết thúc ngày 2025-05-25) cộng một nến "hôm nay" 2026-11-28 đóng 130 (vọt xa trên pivot).</summary>
+    private static List<StockPriceData> CupPlusTodayBar()
+    {
+        var bars = CupBars(adjusted: true);
+        bars.Add(new StockPriceData { Symbol = "TST", Date = new DateTime(2026, 11, 28), Open = 130, High = 131, Low = 129, Close = 130, Volume = 5_000_000, IsAdjusted = true });
+        return bars;
+    }
+
+    [Fact]
+    public async Task todays_bar_is_dropped_before_the_vietnam_close_so_the_candidate_is_computed_on_closed_sessions_only()
+    {
+        Prices(CupPlusTodayBar());
+
+        // 03:00 UTC = 10:00 giờ Việt Nam: nến hôm nay còn đang hình thành → bỏ → ứng viên tính trên chuỗi tới 96
+        var result = await Sut(new DateTimeOffset(2026, 11, 28, 3, 0, 0, TimeSpan.Zero)).AnalyzeAsync("TST");
+
+        result.PatternCandidates.Should().ContainSingle().Which.State.Should().Be("near-pivot");
+    }
+
+    [Fact]
+    public async Task todays_bar_is_kept_after_the_vietnam_close_and_a_candidate_that_has_run_far_above_the_pivot_disappears()
+    {
+        Prices(CupPlusTodayBar());
+
+        // 09:00 UTC = 16:00 giờ Việt Nam: phiên đã đóng → nến 130 được giữ → đã chạy xa trên pivot → không còn ứng viên
+        var result = await Sut(new DateTimeOffset(2026, 11, 28, 9, 0, 0, TimeSpan.Zero)).AnalyzeAsync("TST");
 
         result.PatternCandidates.Should().BeEmpty();
     }

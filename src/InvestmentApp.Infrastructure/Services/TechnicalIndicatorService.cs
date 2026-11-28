@@ -9,10 +9,12 @@ namespace InvestmentApp.Infrastructure.Services;
 public class TechnicalIndicatorService : ITechnicalIndicatorService
 {
     private readonly IMarketDataProvider _marketData;
+    private readonly TimeProvider _time;
 
-    public TechnicalIndicatorService(IMarketDataProvider marketData)
+    public TechnicalIndicatorService(IMarketDataProvider marketData, TimeProvider? timeProvider = null)
     {
         _marketData = marketData;
+        _time = timeProvider ?? TimeProvider.System;   // đồng hồ có thể thay trong test: quy tắc "bỏ nến đang hình thành" phụ thuộc giờ Việt Nam
     }
 
     /// <summary>
@@ -65,7 +67,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         // Ứng viên mô hình (Cốc tay cầm): chỉ trên chuỗi ĐÃ điều chỉnh (chia tách/thưởng chưa điều chỉnh sẽ vẽ ra một "cốc" giả), và chỉ trên các phiên đã đóng.
         if (result.Adjusted == true)
         {
-            var closed = FormingBar.DropIfForming(prices.OrderBy(p => p.Date).ToList(), p => p.Date, DateTimeOffset.UtcNow);
+            var closed = FormingBar.DropIfForming(prices.OrderBy(p => p.Date).ToList(), p => p.Date, _time.GetUtcNow());
             var cup = CupWithHandleDetector.Detect(closed);
             if (cup != null) result.PatternCandidates.Add(cup);
         }

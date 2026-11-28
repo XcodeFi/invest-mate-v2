@@ -121,4 +121,63 @@ describe('PatternCardComponent: Ứng viên mô hình Cốc tay cầm', () => {
     expect(el().querySelector('b')).toBeNull();
     expect(text('pattern-state')).toContain('<img');
   });
+  describe('tương phản ở cả hai giao diện (tối là mặc định)', () => {
+    const parse = (c: string): [number, number, number, number] => {
+      const m = c.match(/[\d.]+/g)!.map(Number);
+      return [m[0], m[1], m[2], m[3] ?? 1];
+    };
+    const lum = ([r, g, b]: number[]) => {
+      const f = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    /** Nền thật người xem thấy: trộn dần các nền trong suốt của tổ tiên lên nền trang. */
+    const effectiveBg = (el: Element, page: number[]): number[] => {
+      const layers: [number, number, number, number][] = [];
+      for (let n: Element | null = el; n; n = n.parentElement) {
+        const c = parse(getComputedStyle(n).backgroundColor);
+        if (c[3] > 0) layers.push(c);
+        if (c[3] >= 1) break;
+      }
+      return layers.reverse().reduce<number[]>((acc, c) => [0, 1, 2].map(i => c[i] * c[3] + acc[i] * (1 - c[3])), page);
+    };
+    const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+    const inMode = (dark: boolean, run: () => void) => {
+      const root = document.documentElement;
+      const had = root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try { run(); } finally { root.classList.toggle('dark', had); }
+    };
+
+    for (const dark of [false, true]) {
+      it(`every text in the card has >= 4.5:1 against its real background, ${dark ? 'dark' : 'light'} theme`, () => {
+        show(cup());
+        inMode(dark, () => {
+          const page = dark ? [17, 24, 39] : [255, 255, 255];
+          const walker = document.createTreeWalker(el(), NodeFilter.SHOW_TEXT);
+          const bad: string[] = [];
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            if (!(n.textContent ?? '').trim()) continue;
+            const host = n.parentElement!;
+            const fg = parse(getComputedStyle(host).color).slice(0, 3);
+            const bg = effectiveBg(host, page);
+            const r = ratio(lum(fg), lum(bg));
+            if (r < 4.5) bad.push(`${(n.textContent ?? '').trim().slice(0, 30)} (${r.toFixed(2)})`);
+          }
+          expect(bad).withContext('chữ dưới 4,5:1').toEqual([]);
+        });
+      });
+    }
+
+    it('in dark mode the card is not a bright box on the dark page', () => {
+      show(cup());
+      inMode(true, () => {
+        const card = q('pattern-card')!;
+        const bg = effectiveBg(card, [17, 24, 39]);
+        expect(lum(bg)).withContext('độ sáng nền thẻ').toBeLessThan(0.1);
+        const chip = q('pattern-state')!;
+        expect(lum(effectiveBg(chip, [17, 24, 39]))).withContext('độ sáng nền nhãn trạng thái').toBeLessThan(0.1);
+      });
+    });
+  });
 });

@@ -1,5 +1,7 @@
 import { PatternCandidate, TechnicalSeries } from '../../core/services/market-data.service';
 import { GroupLayers } from '../components/indicator-chart/indicator-chart.types';
+import { contrastRatio } from '../theme/contrast';
+import { chartColors } from '../components/indicator-chart/indicator-chart.theme';
 import { buildPatternLayers, withPattern } from './pattern-layers';
 
 const N = 10;
@@ -67,6 +69,19 @@ describe('buildPatternLayers: vẽ cốc, tay cầm, pivot, cắt lỗ, mục ti
     expect(l.panes).toEqual([]);
     expect(l.notes).toEqual([]);
     expect(l.priceLines.length).toBe(3);
+  });
+});
+
+describe('màu đường của mô hình', () => {
+  it('both line colours reach 3:1 (graphics) on the light and on the dark chart background', () => {
+    const l = buildPatternLayers(cup(), series());
+    const colours = l.overlays.map(o => o.color!);
+    expect(colours.length).toBe(2);
+
+    for (const c of colours) {
+      expect(contrastRatio(c, chartColors('light').background)).withContext(`${c} trên nền sáng`).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(c, chartColors('dark').background)).withContext(`${c} trên nền tối`).toBeGreaterThanOrEqual(3);
+    }
   });
 });
 
