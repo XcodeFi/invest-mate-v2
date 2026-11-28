@@ -290,6 +290,31 @@ describe('CommandPaletteComponent: Ctrl+K tìm trang và mã', () => {
     expect(input().value).toBe('');
   });
 
+  it('ô nhập cỡ 16px để iOS Safari không phóng to trang khi bấm vào', () => {
+    setup();
+    open();
+
+    expect(parseFloat(getComputedStyle(input()).fontSize)).toBeGreaterThanOrEqual(16);
+  });
+
+  it('nhãn nhóm ở dòng đang chọn đạt tương phản AA (≥ 4,5:1) ở chế độ sáng', () => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.remove('dark');   // chế độ sáng, bất kể spec khác để lại gì
+    setup();
+    open();
+    const lum = (rgb: string) => {
+      const [r, g, b] = (rgb.match(/[\d.]+/g) ?? ['0', '0', '0']).slice(0, 3).map(Number).map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const row = qa('palette-item')[0];
+    const hint = row.querySelector('span:last-child') as HTMLElement;
+    const fill = lum(getComputedStyle(row).backgroundColor);
+    const ink = lum(getComputedStyle(hint).color);
+
+    if (wasDark) document.documentElement.classList.add('dark');
+    expect((Math.max(fill, ink) + 0.05) / (Math.min(fill, ink) + 0.05)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('hộp thoại có role dialog và aria-modal', () => {
     setup();
     open();

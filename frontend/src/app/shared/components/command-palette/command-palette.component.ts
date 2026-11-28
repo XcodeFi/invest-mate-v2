@@ -23,7 +23,7 @@ import { PaletteItem, buildItems } from './command-palette.logic';
           <input #box data-testid="palette-input" type="text" appUppercase [ngModel]="query()" (ngModelChange)="onQuery($event)"
                  autocomplete="off" spellcheck="false" aria-label="Tìm trang hoặc nhập mã cổ phiếu"
                  placeholder="Tìm trang hoặc nhập mã cổ phiếu (VD: FPT)…"
-                 class="w-full px-4 py-3 text-sm border-b border-gray-200 bg-transparent text-gray-900 placeholder-gray-500 focus:outline-none" />
+                 class="w-full px-4 py-3 text-base border-b border-gray-200 bg-transparent text-gray-900 placeholder-gray-500 focus:outline-none" />
           <ul role="listbox" class="max-h-80 overflow-y-auto py-1">
             @for (item of items(); track item.path; let i = $index) {
               <li data-testid="palette-item" role="option" [attr.aria-selected]="i === index()"
@@ -33,7 +33,7 @@ import { PaletteItem, buildItems } from './command-palette.logic';
                   [class.bg-blue-50]="i === index()" [class.text-blue-700]="i === index()" [class.text-gray-700]="i !== index()">
                 <span aria-hidden="true">{{ item.icon }}</span>
                 <span class="flex-1 truncate">{{ item.label }}</span>
-                <span class="text-xs text-gray-500">{{ item.hint }}</span>
+                <span class="text-xs text-gray-600">{{ item.hint }}</span>
               </li>
             }
           </ul>
