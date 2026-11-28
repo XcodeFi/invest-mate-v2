@@ -104,15 +104,16 @@ describe('QuarterBarsComponent: doanh thu và lợi nhuận theo quý, cùng qu�
       expect(yoy('revenue', 'Q4/2025').getAttribute('class')).toContain('viz-flat');
     });
 
-    it('a note-only direction (loss to profit) shows the arrow and the full note moves to the tooltip', () => {
+    it('a note-only direction (loss to profit): the bar label is a dash, never a bare arrow; direction and note live in the tooltip', () => {
       const list = eight();
       list[0] = { ...list[0], netProfit: 8, netProfitSameQuarterLastYear: -5, netProfitYoyPct: null, netProfitDirection: 'up', netProfitNote: 'từ lỗ sang lãi' };
       show(list);
 
-      expect(yoy('profit', 'Q2/2026').textContent).toBe('▲');
+      expect(yoy('profit', 'Q2/2026').textContent).toBe('—');
       comp.hover('profit', 'Q2/2026', { clientX: 10, clientY: 10 } as MouseEvent, document.createElement('div'));
       fixture.detectChanges();
-      expect(one('chart-tip')!.textContent).toContain('từ lỗ sang lãi');
+      expect(one('chart-tip')!.textContent).toContain('▲ từ lỗ sang lãi');
+      expect(one('chart-tip')!.textContent).toContain('so với cùng kỳ năm trước');
     });
   });
 
@@ -321,6 +322,23 @@ describe('QuarterBarsComponent: doanh thu và lợi nhuận theo quý, cùng qu�
 
       expect(light).toBe('rgb(37, 125, 224)');     // --viz-series-1 sáng #257de0
       expect(dark).toBe('rgb(51, 140, 237)');      // --viz-series-1 tối #338ced
+    });
+  });
+  describe('chữ đủ đọc ở cột hẹp (≥ 11px thực tế)', () => {
+    it('không co nhỏ theo cột: ở khung 360px biểu đồ giữ cỡ gốc và cuộn ngang trong khung riêng, mọi chữ SVG ≥ 11px', () => {
+      (fixture.nativeElement as HTMLElement).style.display = 'block';
+      (fixture.nativeElement as HTMLElement).style.width = '360px';
+      show(eight());
+
+      const svg = el().querySelector('svg.qb-svg') as SVGSVGElement;
+      const scale = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+      const texts = Array.from(svg.querySelectorAll('text')) as SVGTextElement[];
+      expect(texts.length).toBeGreaterThan(5);
+      for (const t of texts) {
+        const px = parseFloat(getComputedStyle(t).fontSize) * scale;
+        expect(px).withContext(t.getAttribute('class') ?? 'text').toBeGreaterThanOrEqual(11);
+      }
+      expect(document.documentElement.scrollWidth).withContext('trang không cuộn ngang').toBeLessThanOrEqual(window.innerWidth);
     });
   });
 });

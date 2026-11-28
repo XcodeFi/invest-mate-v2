@@ -11,6 +11,7 @@
 - **Kế hoạch kinh doanh** thành thanh tiến độ; **So sánh P/E cùng ngành** thành thanh ngang (công ty được tô nhấn, mã P/E âm hoặc thiếu ghi n/a); **Cơ cấu cổ đông** thành một thanh 100% (4 cổ đông lớn nhất + Khác); **Vùng giá 52 tuần** có chấm giá hiện tại; **Cổ tức theo năm** là dòng thời gian sự kiện (nguồn chưa cung cấp giá trị cổ tức dạng số nên chưa vẽ cột).
 - Mỗi biểu đồ có nút **Xem bảng** (cùng số liệu), tooltip khi rê chuột hoặc Tab, và câu **Chưa có dữ liệu** khi thiếu (không vẽ thành 0). Các thẻ chỉ số có giải thích ngắn bằng tiếng Việt khi rê chuột. Cả bốn khối (doanh thu, cùng ngành, cổ tức, kế hoạch) giờ mở sẵn.
 - Doanh nghiệp báo cáo theo quý nên không có số liệu tháng; trang nói rõ điều này.
+- Chữ trong biểu đồ luôn ≥ 11px: biểu đồ doanh thu/lợi nhuận không co nhỏ theo cột hẹp mà **cuộn ngang trong khung riêng** (điện thoại và cột hẹp); nhãn dài trong ô số lớn tự xuống dòng nên trang không bị tràn ngang ở 400px; nhãn % trong thanh cổ đông dùng chữ tối (≥ 4,5:1). Chỉ tiêu thiếu số vẫn hiện ô với "—" và "Chưa có dữ liệu" thay vì bị bỏ; không có % thì không vẽ mũi tên trơ.
 
 ### Kỹ thuật
 

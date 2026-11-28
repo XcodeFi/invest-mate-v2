@@ -18,7 +18,7 @@ import { formatSignedPct } from './chart-format';
     }
   `,
   styles: [`
-    .viz-arrow { font-size: inherit; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .viz-arrow { font-size: inherit; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
     .viz-arrow-label { font-weight: 400; color: var(--viz-text-2); }
     .viz-up { color: var(--viz-up); }
     .viz-down { color: var(--viz-down); }
@@ -41,7 +41,7 @@ export class TrendArrowComponent {
   text(): string {
     if (this.pct != null) return formatSignedPct(this.pct);
     if (this.note) return this.note;
-    return this.direction === 'up' ? 'tăng' : this.direction === 'down' ? 'giảm' : 'đi ngang';
+    return '—';
   }
 
   colorClass(): string {

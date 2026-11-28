@@ -7,8 +7,8 @@ interface Segment { name: string; pct: number; color: string; onFill: string; ot
 
 /** Bốn slot đầu của bảng màu theo THỨ TỰ CỐ ĐỊNH (xanh, cam, ngọc, vàng), "Khác" là màu trung tính. Màu theo vị trí xếp hạng ở đây vì danh sách luôn là top 4 hiện tại. */
 const SLOT_COLORS = ['var(--viz-series-1)', 'var(--viz-series-2)', 'var(--viz-series-3)', 'var(--viz-series-4)'];
-/** Chữ đặt trong khối màu: trắng, trừ trên vàng (xem bảng màu). */
-const ON_FILL = ['var(--viz-on-fill)', 'var(--viz-on-fill)', 'var(--viz-on-fill)', 'var(--viz-on-yellow)'];
+/** Chữ đặt trong khối màu: mực tối cho MỌI khối (trắng chỉ đạt 2,0–4,1:1 trên các màu của bảng, tối đa 4,8:1 cho mực tối ở xanh sáng). */
+const ON_FILL = ['var(--viz-on-fill)', 'var(--viz-on-fill)', 'var(--viz-on-fill)', 'var(--viz-on-fill)'];
 const MIN_LABEL_PCT = 12;
 
 /**

@@ -32,9 +32,8 @@
   --viz-up: #006c10;
   --viz-down: #b42318;
   --viz-flat: #666666;
-  /* Chữ đặt TRONG khối màu: trắng, trừ trên vàng */
-  --viz-on-fill: #ffffff;
-  --viz-on-yellow: #0b0b0b;
+  /* Chữ đặt TRONG khối màu: mực tối ở mọi khối (≥ 4,7:1 trên cả năm màu, sáng và tối) */
+  --viz-on-fill: #0b0b0b;
 }
 
 html.dark {
@@ -56,7 +55,7 @@ html.dark {
   --viz-up: #53c556;
   --viz-down: #f87171;
   --viz-flat: #9ca3af;
-  --viz-on-yellow: #0b0b0b;
+  --viz-on-fill: #0b0b0b;
 }
 
 /* Bảng "Xem bảng" dùng chung của các biểu đồ: số căn phải, đường kẻ hairline. */

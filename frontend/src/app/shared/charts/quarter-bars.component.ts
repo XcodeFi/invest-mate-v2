@@ -161,19 +161,19 @@ const DEFAULT_QUARTERS = 8;
     .qb-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
     .qb-key-current { background: var(--viz-series-1); }
     .qb-key-prev { background: var(--viz-series-1-prev); }
-    .qb-wrap { position: relative; min-width: 320px; }
+    .qb-wrap { position: relative; min-width: 560px; }
     .qb-svg { width: 100%; height: auto; display: block; margin-bottom: 0.25rem; overflow: visible; }
-    .qb-title { font-size: 10px; fill: var(--viz-text-2); font-weight: 600; }
+    .qb-title { font-size: 11px; fill: var(--viz-text-2); font-weight: 600; }
     .qb-grid { stroke: var(--viz-grid); stroke-width: 1; }
     .qb-axis { stroke: var(--viz-axis); stroke-width: 1; }
-    .qb-tick, .qb-xlabel { font-size: 9px; fill: var(--viz-text-2); }
+    .qb-tick, .qb-xlabel { font-size: 11px; fill: var(--viz-text-2); }
     .qb-bar.qb-current { fill: var(--viz-series-1); }
     .qb-bar.qb-prev { fill: var(--viz-series-1-prev); }
-    .qb-yoy { font-size: 10px; font-weight: 600; fill: var(--viz-flat); }
+    .qb-yoy { font-size: 11px; font-weight: 600; fill: var(--viz-flat); }
     .qb-yoy.viz-up { fill: var(--viz-up); }
     .qb-yoy.viz-down { fill: var(--viz-down); }
     .qb-yoy.viz-flat { fill: var(--viz-flat); }
-    .qb-incomplete { font-size: 9px; fill: var(--viz-text-2); font-style: italic; }
+    .qb-incomplete { font-size: 11px; fill: var(--viz-text-2); font-style: italic; }
     .qb-line { fill: none; stroke: var(--viz-series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
     .qb-dot { fill: var(--viz-series-1); stroke: var(--viz-surface); stroke-width: 2; }
     .qb-hit { fill: transparent; outline: none; }
@@ -301,7 +301,8 @@ export class QuarterBarsComponent {
     if (g.dir == null) return { text: '—', cls: 'viz-flat' };
     const glyph = g.dir === 'up' ? '▲' : g.dir === 'down' ? '▼' : '▬';
     const cls = g.dir === 'up' ? 'viz-up' : g.dir === 'down' ? 'viz-down' : 'viz-flat';
-    return { text: g.pct != null ? `${glyph} ${formatSignedPct(g.pct)}` : glyph, cls };
+    // Không có % (lỗ sang lãi...) thì KHÔNG vẽ mũi tên trơ: gạch ngang, chiều và ghi chú nằm trong tooltip.
+    return g.pct != null ? { text: `${glyph} ${formatSignedPct(g.pct)}`, cls } : { text: '—', cls: 'viz-flat' };
   }
 
   // ---------- Biên lợi nhuận ròng (chỉ theo quý)
@@ -394,9 +395,8 @@ export class QuarterBarsComponent {
     if (g.incomplete) return { ...pos, title: key, rows: [], note: 'Chưa đủ 4 quý nên chưa có số cả năm' };
     rows.push({ label: cur.label, value: formatCompactVn(g.current), key: cur.color });
     rows.push({ label: prv.label, value: formatCompactVn(g.prev), key: prv.color });
-    if (g.dir != null) rows.push({ label: 'so với kỳ trước năm', value: `${g.dir === 'up' ? '▲' : g.dir === 'down' ? '▼' : '▬'} ${g.pct != null ? formatSignedPct(g.pct) : (g.note ?? '')}`.trim() });
-    const noteParts = [g.pct != null && g.note ? g.note : (g.pct == null ? g.note : null)].filter(Boolean) as string[];
-    return { ...pos, title: lossy ? `${key} — Lỗ` : key, rows, note: noteParts.join('; ') || undefined };
+    if (g.dir != null) rows.push({ label: 'so với cùng kỳ năm trước', value: `${g.dir === 'up' ? '▲' : g.dir === 'down' ? '▼' : '▬'} ${g.pct != null ? formatSignedPct(g.pct) : (g.note ?? '')}`.trim() });
+    return { ...pos, title: lossy ? `${key} — Lỗ` : key, rows, note: g.note ?? undefined };
   }
 
   // ---------- Bảng (bản song sinh của biểu đồ)

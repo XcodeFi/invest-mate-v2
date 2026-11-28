@@ -109,6 +109,27 @@ describe('ShareBarComponent: cơ cấu cổ đông', () => {
     expect(segs(f).map(s => s.dataset['name'])).toEqual(['A', 'B', 'C', 'D', 'Khác']);
   });
 
+  for (const mode of ['sáng', 'tối']) {
+    it(`nhãn % trong khối đạt ≥ 4,5:1 so với màu khối, chế độ ${mode}`, () => {
+      document.documentElement.classList.toggle('dark', mode === 'tối');
+      try {
+        const f = make([{ name: 'A', percentage: 30 }, { name: 'B', percentage: 25 }, { name: 'C', percentage: 15 }, { name: 'D', percentage: 12 }]);
+        const lum = (rgb: string) => {
+          const [r, g, b] = (rgb.match(/[\d.]+/g) ?? ['0', '0', '0']).slice(0, 3).map(Number).map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const labelled = segs(f).filter(sg => sg.querySelector('[data-testid="sb-in"]'));
+        expect(labelled.length).toBe(5);
+        for (const sg of labelled) {
+          const fill = lum(getComputedStyle(sg).backgroundColor);
+          const ink = lum(getComputedStyle(sg.querySelector('[data-testid="sb-in"]')!).color);
+          const ratio = (Math.max(fill, ink) + 0.05) / (Math.min(fill, ink) + 0.05);
+          expect(ratio).withContext(sg.dataset['name'] ?? '').toBeGreaterThanOrEqual(4.5);
+        }
+      } finally { document.documentElement.classList.remove('dark'); }
+    });
+  }
+
   it('exactly 100% among the top holders leaves no "Khác" segment', () => {
     const f = make([{ name: 'A', percentage: 60 }, { name: 'B', percentage: 40 }]);
 

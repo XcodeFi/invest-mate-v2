@@ -34,10 +34,12 @@ describe('PlanBarsComponent: kế hoạch kinh doanh', () => {
     expect(el().textContent).toContain('thực hiện luỹ kế tới Q2');
   });
 
-  it('uses the percent from the source, and only falls back to actual / plan for the bar geometry when it is missing', () => {
+  it('a missing percent from the source is shown as a dash: the client never derives actual / plan itself', () => {
     show([{ label: 'A', planned: 200, actual: 50, percentComplete: null }]);
 
-    expect(qa('pb-fill')[0].style.width).toBe('25%');
+    expect(qa('pb-fill').length === 0 || qa('pb-fill')[0].style.width === '' || qa('pb-fill')[0].style.width === '0%').toBeTrue();
+    expect(el().textContent).not.toContain('25,0%');
+    expect(el().textContent).toContain('—');
   });
 
   it('more than 100% fills the bar and says "vượt kế hoạch"', () => {

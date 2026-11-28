@@ -242,6 +242,16 @@ describe('FundamentalsPanelComponent', () => {
       expect(tile('revenue-ttm')).toBeUndefined();
     });
 
+    it('số tiền thiếu thì ô vẫn hiện với dấu gạch và "Chưa có dữ liệu", không có mũi tên (không lặng lẽ bỏ ô)', () => {
+      load(withTrend(trend({ quarters: [quarter({ revenue: null, revenueYoyPct: null, revenueDirection: null })] })));
+
+      const t = tile('revenue-q')!;
+      expect(t).toBeDefined();
+      expect(t.textContent).toContain('—');
+      expect(t.textContent).toContain('Chưa có dữ liệu');
+      expect(t.querySelector('[data-testid="trend-arrow"]')).toBeNull();
+    });
+
     it('lỗ sang lãi: mũi tên lên kèm ghi chú, không có phần trăm bịa', () => {
       load(withTrend(trend({ quarters: [quarter({ netProfitYoyPct: null, netProfitDirection: 'up', netProfitNote: 'từ lỗ sang lãi' })] })));
 
@@ -255,6 +265,18 @@ describe('FundamentalsPanelComponent', () => {
       expect(t.textContent).toContain('18,6%');
       expect(t.querySelector('[data-testid="trend-sub"]')!.textContent).toContain('+2,2 điểm % so với cùng quý');
       expect(t.querySelector('[data-testid="trend-arrow"]')).toBeNull();
+    });
+
+    it('ô số lớn không tràn ngang ở 400px dù nhãn dài nhất ("từ lãi sang lỗ so với cùng quý năm trước")', () => {
+      load(withTrend(trend({ quarters: [quarter({ netProfitYoyPct: null, netProfitDirection: 'down', netProfitNote: 'từ lãi sang lỗ' })] })));
+      const host = fixture.nativeElement as HTMLElement;
+      host.style.display = 'block';
+      host.style.width = '360px';
+
+      const t = tile('profit-q')!;
+      expect(t.classList).toContain('min-w-0');
+      expect(t.scrollWidth).toBeLessThanOrEqual(t.clientWidth);
+      expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth);
     });
 
     it('ghi chú "không có số liệu tháng" của server hiện cạnh ô số', () => {

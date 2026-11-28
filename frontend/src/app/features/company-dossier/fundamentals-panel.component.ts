@@ -72,7 +72,7 @@ interface TrendTile {
         @if (trendTiles().length > 0) {
           <div class="grid grid-cols-2 gap-2 mb-1" data-testid="trend-tiles">
             @for (t of trendTiles(); track t.key) {
-              <div class="border border-gray-200 rounded-lg px-2 py-2" data-testid="trend-tile" [attr.data-key]="t.key" [attr.title]="t.full">
+              <div class="border border-gray-200 rounded-lg px-2 py-2 min-w-0" data-testid="trend-tile" [attr.data-key]="t.key" [attr.title]="t.full">
                 <div class="text-[10px] uppercase tracking-wide text-gray-400">{{ t.label }}</div>
                 <div class="text-base font-semibold text-gray-900">{{ t.value }}</div>
                 @if (t.direction) {
@@ -305,8 +305,9 @@ export class FundamentalsPanelComponent implements OnInit {
     const latest: QuarterTrend | undefined = t.quarters[0];
     const tiles: TrendTile[] = [];
     const add = (tile: Omit<TrendTile, 'value'> & { amount: number | null | undefined; percent?: boolean }) => {
-      if (tile.amount == null) return;
       const { amount, percent, ...rest } = tile;
+      // Số thiếu: vẫn hiện ô (dấu gạch + "Chưa có dữ liệu", không mũi tên), không lặng lẽ bỏ.
+      if (amount == null) { tiles.push({ ...rest, value: '—', direction: null, pct: null, note: null, sub: 'Chưa có dữ liệu' }); return; }
       tiles.push({ ...rest, value: percent ? formatPlainPct(amount) : formatCompactVn(amount) });
     };
     if (latest) {
@@ -322,9 +323,9 @@ export class FundamentalsPanelComponent implements OnInit {
       add({ key: 'profit-ttm', label: 'Lợi nhuận 4 quý', amount: t.ttm.netProfit, full: this.full(t.ttm.netProfit), direction: t.ttm.netProfitDirection ?? null,
         pct: t.ttm.netProfitYoyPct ?? null, note: t.ttm.netProfitNote ?? null, against: 'so với 4 quý trước', sub: '' });
     }
-    if (latest && latest.netMargin != null) {
+    if (latest) {
       const pp = latest.netMarginChangePp;
-      add({ key: 'margin-q', label: `Biên ròng ${quarterShortLabel(latest.period)}`, amount: latest.netMargin, percent: true, full: 'Lợi nhuận sau thuế / doanh thu', direction: null, pct: null, note: null, against: '',
+      add({ key: 'margin-q', label: `Biên ròng ${quarterShortLabel(latest.period)}`, amount: latest.netMargin ?? null, percent: true, full: 'Lợi nhuận sau thuế / doanh thu', direction: null, pct: null, note: null, against: '',
         sub: pp == null ? '' : `${pp > 0 ? '+' : pp < 0 ? '−' : ''}${Math.abs(pp).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} điểm % so với cùng quý` });
     }
     return tiles;

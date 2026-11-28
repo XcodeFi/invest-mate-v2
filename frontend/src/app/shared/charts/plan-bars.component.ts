@@ -76,7 +76,7 @@ export class PlanBarsComponent {
 
   get rows(): PlanRow[] {
     return (this.targets ?? []).map(t => {
-      const pct = t.percentComplete ?? (t.actual != null && t.planned != null && t.planned > 0 ? (t.actual / t.planned) * 100 : null);
+      const pct = t.percentComplete ?? null;   // số từ nguồn; thiếu thì để trống, không tự chia thực hiện / kế hoạch
       return {
         label: t.label && t.label.trim() ? t.label : '—',
         actual: t.actual ?? null, planned: t.planned ?? null, pct,

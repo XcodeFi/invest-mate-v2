@@ -59,10 +59,11 @@ describe('TrendArrowComponent: mũi tên xu hướng (hướng theo SỐ, màu c
     expect(text()).toBe('▲ từ lỗ sang lãi');
   });
 
-  it('a direction with neither percentage nor note still says which way', () => {
+  it('a direction with neither percentage nor note shows a dash, never a bare arrow; the accessible name still says which way', () => {
     show({ direction: 'down', pct: null, note: null });
 
-    expect(text()).toBe('▼ giảm');
+    expect(text()).toBe('▼ —');
+    expect(arrow()!.getAttribute('aria-label')).toContain('giảm');
   });
 
   it('meaning never depends on colour: sign, percent and an accessible name are always present', () => {
@@ -93,5 +94,14 @@ describe('TrendArrowComponent: mũi tên xu hướng (hướng theo SỐ, màu c
     show({ direction: 'down', pct: null, note: 'từ lãi sang lỗ' });
 
     expect(text()).toBe('▼ từ lãi sang lỗ');
+  });
+  it('nhãn dài (ghi chú + "so với cùng quý năm trước") xuống dòng trong ô hẹp, không tràn ra ngoài (400px)', () => {
+    (fixture.nativeElement as HTMLElement).style.display = 'block';
+    (fixture.nativeElement as HTMLElement).style.width = '140px';
+    show({ direction: 'down', pct: null, note: 'từ lãi sang lỗ', label: 'so với cùng quý năm trước' });
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.scrollWidth).withContext('không tràn ngang').toBeLessThanOrEqual(host.clientWidth);
+    expect(arrow()!.getBoundingClientRect().height).withContext('phải xuống dòng').toBeGreaterThan(20);
   });
 });

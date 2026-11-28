@@ -10,12 +10,12 @@ function vi(value: number, digits: number): string {
 /** 12345 → "12,3 nghìn tỷ"; 1234 → "1.234 tỷ"; 45,3 → "45,3 tỷ"; 0,45 → "0,45 tỷ". Giá trị đầy đủ nên nằm ở tooltip. */
 export function formatCompactVn(billions: number | null | undefined): string {
   if (billions == null || !Number.isFinite(billions)) return DASH;
-  const sign = billions < 0 ? MINUS : '';
   const abs = Math.abs(billions);
-  if (abs >= 10_000) return `${sign}${vi(abs / 1000, 1)} nghìn tỷ`;
-  if (abs >= 100) return `${sign}${vi(abs, 0)} tỷ`;
-  if (abs >= 1) return `${sign}${vi(abs, 1)} tỷ`;
-  return `${sign}${vi(abs, 2)} tỷ`;
+  const [scaled, digits, unit]: [number, number, string] = abs >= 10_000 ? [abs / 1000, 1, 'nghìn tỷ'] : abs >= 100 ? [abs, 0, 'tỷ'] : abs >= 1 ? [abs, 1, 'tỷ'] : [abs, 2, 'tỷ'];
+  // Dấu lấy SAU khi làm tròn: -0,004 hiển thị "0 tỷ" chứ không phải "−0 tỷ".
+  const roundedIsZero = Number(scaled.toFixed(digits)) === 0;
+  const sign = billions < 0 && !roundedIsZero ? MINUS : '';
+  return `${sign}${vi(scaled, digits)} ${unit}`;
 }
 
 /** +12,3% / −8,1% / 0,0%: luôn có dấu để nghĩa không phụ thuộc màu. */

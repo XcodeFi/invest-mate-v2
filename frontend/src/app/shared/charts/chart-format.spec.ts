@@ -3,6 +3,9 @@ import { formatCompactVn, formatPlainPct, formatSignedPct, quarterShortLabel } f
 describe('chart-format', () => {
   describe('compact_vn_number_format (tiền tính bằng tỷ đồng)', () => {
     it('shows thousands of billions with one decimal', () => {
+      expect(formatCompactVn(-0.004)).toBe('0 tỷ');   // làm tròn về 0 thì không mang dấu trừ
+      expect(formatCompactVn(0.004)).toBe('0 tỷ');
+      expect(formatCompactVn(-0.006)).toBe('−0,01 tỷ');
       expect(formatCompactVn(12345)).toBe('12,3 nghìn tỷ');
       expect(formatCompactVn(10000)).toBe('10 nghìn tỷ');
       expect(formatCompactVn(250000)).toBe('250 nghìn tỷ');
