@@ -46,18 +46,18 @@ const MAX_SELECTION = 30;
           </label>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
-          <label class="block">GTGD bình quân 10 phiên tối thiểu (tỷ)
-            <input type="number" data-testid="screener-min-adtv" [(ngModel)]="minAdtv" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded"></label>
-          <label class="block">Giá tối thiểu (đ)
-            <input type="number" data-testid="screener-min-price" [(ngModel)]="minPrice" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded"></label>
-          <label class="block">Vốn hoá tối thiểu (tỷ)
-            <input type="number" data-testid="screener-min-cap" [(ngModel)]="minCap" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded"></label>
-          <label class="block">ROE tối thiểu (%)
-            <input type="number" data-testid="screener-min-roe" [(ngModel)]="minRoe" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded"></label>
-          <label class="block">Trần P/E (để trống = tắt)
-            <input type="number" data-testid="screener-max-pe" [(ngModel)]="maxPe" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded"></label>
-          <label class="block">Xếp hạng sức mạnh 3 tháng tối thiểu (P)
-            <input type="number" data-testid="screener-min-rs3m" [(ngModel)]="minRs3m" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded"></label>
+          <label class="flex flex-col gap-1">GTGD bình quân 10 phiên tối thiểu (tỷ)
+            <input type="number" data-testid="screener-min-adtv" [(ngModel)]="minAdtv" class="mt-auto w-full px-2 py-1 border border-gray-300 rounded"></label>
+          <label class="flex flex-col gap-1">Giá tối thiểu (đ)
+            <input type="number" data-testid="screener-min-price" [(ngModel)]="minPrice" class="mt-auto w-full px-2 py-1 border border-gray-300 rounded"></label>
+          <label class="flex flex-col gap-1">Vốn hoá tối thiểu (tỷ)
+            <input type="number" data-testid="screener-min-cap" [(ngModel)]="minCap" class="mt-auto w-full px-2 py-1 border border-gray-300 rounded"></label>
+          <label class="flex flex-col gap-1">ROE tối thiểu (%)
+            <input type="number" data-testid="screener-min-roe" [(ngModel)]="minRoe" class="mt-auto w-full px-2 py-1 border border-gray-300 rounded"></label>
+          <label class="flex flex-col gap-1">Trần P/E (để trống = tắt)
+            <input type="number" data-testid="screener-max-pe" [(ngModel)]="maxPe" class="mt-auto w-full px-2 py-1 border border-gray-300 rounded"></label>
+          <label class="flex flex-col gap-1">Xếp hạng sức mạnh 3 tháng tối thiểu (P)
+            <input type="number" data-testid="screener-min-rs3m" [(ngModel)]="minRs3m" class="mt-auto w-full px-2 py-1 border border-gray-300 rounded"></label>
         </div>
         <p class="text-xs text-gray-500 mt-1">P50 là mức trung vị: chỉ giữ mã có xếp hạng sức mạnh 3 tháng từ P{{ rankFloor }} trở lên trong toàn bộ mã niêm yết.</p>
         <div class="flex flex-wrap items-center gap-4 mt-3">
