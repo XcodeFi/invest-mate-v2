@@ -167,8 +167,22 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     private void SetTimed<T>(string key, T value, DateTimeOffset until) =>
         _cache.Set(key, new Timed<T>(value, until), TimeSpan.FromHours(26));   // hạn thật do `Until` quyết, theo đồng hồ của provider
 
-    private DateTimeOffset EndOfVietnamDay() =>
-        new DateTimeOffset(VietnamDate(Now).AddDays(1), VietnamOffset);
+    /// <summary>
+    /// Sau giờ này (giờ Việt Nam) nến của phiên hôm nay đã chốt. Chuỗi lấy TRƯỚC giờ này thiếu hoặc còn dở nến hôm nay,
+    /// nên được phép lấy lại đúng một lần sau giờ đóng cửa (ngân sách tối đa 2 lần mỗi mã mỗi ngày).
+    /// </summary>
+    private static readonly TimeSpan MarketCloseVietnam = new(15, 10, 0);
+
+    /// <summary>Hạn dùng của chuỗi tốt lấy lúc <paramref name="fetchedAtUtc"/>: tới giờ đóng cửa nếu lấy trước đó, không thì tới hết ngày.</summary>
+    private DateTimeOffset GoodUntil(DateTimeOffset fetchedAtUtc)
+    {
+        var vnDay = VietnamDate(fetchedAtUtc);
+        var close = new DateTimeOffset(vnDay + MarketCloseVietnam, VietnamOffset);
+        return fetchedAtUtc < close ? close : new DateTimeOffset(vnDay.AddDays(1), VietnamOffset);
+    }
+
+    /// <summary>Chuỗi lấy lúc <paramref name="fetchedAtUtc"/> còn dùng được lúc này không (cùng ngày Việt Nam và chưa qua mốc đóng cửa kể từ lúc lấy).</summary>
+    private bool IsFresh(DateTimeOffset fetchedAtUtc) => Now < GoodUntil(fetchedAtUtc) && VietnamDate(fetchedAtUtc) == VietnamDate(Now);
 
     /// <summary>
     /// Thứ tự đọc (chuỗi CHƯA lọc theo khoảng): bộ nhớ đệm chuỗi tốt trong ngày → bản đã lưu bền nếu lấy trong
@@ -191,24 +205,29 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
             // Bản lưu bền cũng là "bộ nhớ đệm": lấy trong hôm nay thì không gọi UDF nữa, kể cả sau khi khởi động lại.
             var snapshot = await ReadSnapshotAsync(symbol, cancellationToken);
-            if (snapshot != null && VietnamDate(snapshot.FetchedAtUtc) == VietnamDate(Now))
+            if (snapshot != null && IsFresh(new DateTimeOffset(snapshot.FetchedAtUtc, TimeSpan.Zero)))
             {
                 var bars = snapshot.Bars.ToList();
-                SetTimed(goodKey, bars, EndOfVietnamDay());
+                SetTimed(goodKey, bars, GoodUntil(new DateTimeOffset(snapshot.FetchedAtUtc, TimeSpan.Zero)));
                 return bars;
             }
 
             if (!UdfCooledDown(symbol))
             {
-                var fetched = await FetchTradingViewAsync(symbol, cancellationToken);
-                if (fetched != null)
+                var fetchedAt = Now;
+                var result = await FetchTradingViewAsync(symbol, cancellationToken);
+                if (result.Bars != null)
                 {
                     RecordUdfSuccess();
-                    SetTimed(goodKey, fetched, EndOfVietnamDay());
-                    await SaveSnapshotAsync(symbol, fetched, cancellationToken);
-                    return fetched;
+                    SetTimed(goodKey, result.Bars, GoodUntil(fetchedAt));
+                    await SaveSnapshotAsync(symbol, result.Bars, cancellationToken);
+                    return result.Bars;
                 }
-                RecordUdfFailure(symbol);
+
+                if (result.NoData)
+                    RecordUdfNoData(symbol);   // mã nguồn không có (ví dụ chỉ số): không phải bị chặn nên không tính vào chuỗi lỗi
+                else
+                    RecordUdfFailure(symbol);
             }
 
             if (snapshot != null)
@@ -283,6 +302,10 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         }
     }
 
+    /// <summary>Nguồn trả đúng cấu trúc nhưng không có dữ liệu cho mã này: chỉ nghỉ theo mã, không kéo cả nguồn nghỉ chung.</summary>
+    private void RecordUdfNoData(string symbol) =>
+        SetTimed($"tv:cooldown:{symbol}", true, Now.AddMinutes(_options.TradingViewFailureCooldownMinutes));
+
     private bool UdfCooledDown(string symbol) =>
         TryFresh("tv:cooldown:global", out bool _) || TryFresh($"tv:cooldown:{symbol}", out bool _);
 
@@ -308,7 +331,9 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     /// <c>null</c> khi không dùng được (lỗi mạng, hết giờ, HTTP không thành công, <c>s != "ok"</c>, mảng rỗng
     /// hoặc lệch): người gọi chuyển sang nguồn dự phòng. Huỷ từ người gọi thì ném tiếp, không coi là lỗi nguồn.
     /// </summary>
-    private async Task<List<StockPriceData>?> FetchTradingViewAsync(string symbol, CancellationToken cancellationToken)
+    private sealed record UdfResult(List<StockPriceData>? Bars, bool NoData);
+
+    private async Task<UdfResult> FetchTradingViewAsync(string symbol, CancellationToken cancellationToken)
     {
         try
         {
@@ -323,13 +348,18 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
             {
                 _logger.LogWarning("TradingView history for {Symbol} returned HTTP {Status}; falling back to graph (unadjusted)",
                     symbol, (int)response.StatusCode);
-                return null;
+                return new UdfResult(null, false);
             }
 
-            var bars = TradingViewHistoryParser.Parse(await response.Content.ReadAsStringAsync(cancellationToken), symbol);
-            if (bars == null)
-                _logger.LogWarning("TradingView history for {Symbol} was empty or unreadable; falling back to graph (unadjusted)", symbol);
-            return bars;
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var bars = TradingViewHistoryParser.Parse(body, symbol);
+            if (bars != null)
+                return new UdfResult(bars, false);
+
+            var noData = TradingViewHistoryParser.IsNoData(body);
+            _logger.LogWarning("TradingView history for {Symbol} was {Kind}; falling back to graph (unadjusted)",
+                symbol, noData ? "reported as no_data" : "empty or unreadable");
+            return new UdfResult(null, noData);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -338,7 +368,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "TradingView history for {Symbol} failed; falling back to graph (unadjusted)", symbol);
-            return null;
+            return new UdfResult(null, false);
         }
     }
 

@@ -301,7 +301,8 @@ public class HmoneyMarketDataProviderTradingViewTests
 
     // ───────────── Gọi UDF thưa, lưu bản tốt cuối cùng, nghỉ khi lỗi ─────────────
 
-    private static readonly DateTimeOffset Morning = new(2026, 11, 30, 2, 0, 0, TimeSpan.Zero);   // 09:00 giờ Việt Nam
+    private static readonly DateTimeOffset Morning = new(2026, 11, 30, 2, 0, 0, TimeSpan.Zero);     // 09:00 giờ Việt Nam
+    private static readonly DateTimeOffset Afternoon = new(2026, 11, 30, 9, 0, 0, TimeSpan.Zero);   // 16:00 giờ Việt Nam, sau giờ đóng cửa
 
     [Fact]
     public async Task persisted_series_fetched_today_is_used_without_calling_udf()
@@ -336,15 +337,15 @@ public class HmoneyMarketDataProviderTradingViewTests
     [Fact]
     public async Task udf_is_called_at_most_once_per_symbol_per_vietnam_day()
     {
-        var time = new FakeTime(Morning);   // 09:00 VN
+        var time = new FakeTime(Afternoon);   // 16:00 VN: đã sau giờ đóng cửa
         var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), time);
 
         await Year(p);
-        time.Advance(TimeSpan.FromHours(9));    // 18:00 VN, cùng ngày
+        time.Advance(TimeSpan.FromHours(5));    // 21:00 VN, cùng ngày
         await Year(p);
-        h.TvUrls.Should().ContainSingle("cùng một ngày giao dịch");
+        h.TvUrls.Should().ContainSingle("cùng một ngày giao dịch, chuỗi đã lấy sau giờ đóng cửa");
 
-        time.Advance(TimeSpan.FromHours(7));    // 01:00 VN hôm sau
+        time.Advance(TimeSpan.FromHours(5));    // 02:00 VN hôm sau
         await Year(p);
         h.TvUrls.Should().HaveCount(2, "sang ngày mới thì được lấy lại");
     }
@@ -352,11 +353,11 @@ public class HmoneyMarketDataProviderTradingViewTests
     [Fact]
     public async Task udf_is_called_once_per_day_even_when_there_is_no_persistent_store()
     {
-        var time = new FakeTime(Morning);
+        var time = new FakeTime(Afternoon);
         var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), store: null, time: time);
 
         await Year(p);
-        time.Advance(TimeSpan.FromHours(9));   // 18:00 VN, cùng ngày
+        time.Advance(TimeSpan.FromHours(5));   // 21:00 VN, cùng ngày
         await Year(p);
 
         h.TvUrls.Should().ContainSingle("bộ nhớ đệm chuỗi tốt sống tới hết ngày Việt Nam");
@@ -549,5 +550,110 @@ public class HmoneyMarketDataProviderTradingViewTests
 
         h.TvUrls.Should().BeEmpty();
         store.GetCalls.Should().Be(0);
+    }
+
+    // ───────────── Mốc đóng cửa: chuỗi lấy trước giờ đóng cửa được lấy lại đúng một lần ─────────────
+
+    [Fact]
+    public async Task a_series_fetched_before_the_close_is_refetched_once_after_the_close_then_not_again()
+    {
+        var time = new FakeTime(Morning.AddMinutes(30));    // 09:30 VN
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), time);
+
+        await Year(p);
+        time.Advance(TimeSpan.FromHours(5));                 // 14:30 VN, trong phiên
+        await Year(p);
+        h.TvUrls.Should().ContainSingle("trong phiên vẫn dùng chuỗi đã lấy");
+
+        time.Advance(TimeSpan.FromHours(1));                 // 15:30 VN, sau giờ đóng cửa
+        await Year(p);
+        h.TvUrls.Should().HaveCount(2, "nến phiên hôm nay đã chốt nên lấy lại một lần");
+
+        time.Advance(TimeSpan.FromMinutes(10));              // 15:40 VN
+        await Year(p);
+        h.TvUrls.Should().HaveCount(2, "ngân sách tối đa 2 lần mỗi mã mỗi ngày");
+    }
+
+    [Fact]
+    public async Task a_persisted_series_fetched_before_the_close_is_refetched_after_the_close_even_after_a_restart()
+    {
+        var time = new FakeTime(Morning.AddHours(6).AddMinutes(30));   // 15:30 VN
+        var store = new FakeStore();
+        store.Data["FPT"] = Snapshot("FPT", Morning.UtcDateTime.AddMinutes(30));   // lấy lúc 09:30 VN
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), store, time);
+
+        await Year(p);
+
+        h.TvUrls.Should().ContainSingle();
+        store.Data["FPT"].FetchedAtUtc.Should().Be(time.GetUtcNow().UtcDateTime, "bản lưu được làm mới");
+    }
+
+    [Fact]
+    public async Task a_persisted_series_fetched_after_the_close_is_used_without_a_new_call()
+    {
+        var time = new FakeTime(Afternoon.AddHours(2));     // 18:00 VN
+        var store = new FakeStore();
+        store.Data["FPT"] = Snapshot("FPT", Afternoon.UtcDateTime);   // lấy lúc 16:00 VN
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), store, time);
+
+        await Year(p);
+
+        h.TvUrls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task refetch_after_the_close_that_fails_keeps_serving_the_morning_series()
+    {
+        var time = new FakeTime(Morning.AddMinutes(30));
+        var ok = true;
+        var (p, h) = Create(x => x.Tv = req => ok ? Json(TvOk(300)) : HtmlWaf()(req), new FakeStore(), time);
+        var morning = await Year(p);
+
+        time.Advance(TimeSpan.FromHours(6));                 // 15:30 VN, nguồn đã chặn
+        ok = false;
+        var afternoon = await Year(p);
+
+        afternoon.Should().HaveCount(morning.Count).And.OnlyContain(b => b.IsAdjusted);
+        h.GraphUrls.Should().BeEmpty("không rơi xuống chuỗi dẹt khi còn chuỗi tốt đã lưu");
+    }
+
+    // ───────────── no_data (mã nguồn không có) khác với bị chặn ─────────────
+
+    [Fact]
+    public async Task no_data_for_several_symbols_does_not_pause_udf_for_everyone()
+    {
+        var (p, h) = Create(x => x.Tv = _ => Json("{\"s\":\"no_data\"}"), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "VNINDEX"); await Year(p, "AAA"); await Year(p, "BBB");
+        await Year(p, "CCC");
+
+        h.TvUrls.Should().HaveCount(4, "no_data không phải dấu hiệu bị chặn nên không kéo cả nguồn nghỉ chung");
+    }
+
+    [Fact]
+    public async Task no_data_still_rests_that_symbol_so_it_is_not_asked_again()
+    {
+        var time = new FakeTime(Morning);
+        var (p, h) = Create(x => x.Tv = _ => Json("{\"s\":\"no_data\"}"), new FakeStore(), time);
+
+        await Year(p, "VNINDEX");
+        time.Advance(TimeSpan.FromMinutes(5));
+        await Year(p, "VNINDEX");
+
+        h.TvUrls.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task no_data_does_not_reset_the_streak_of_real_failures()
+    {
+        var (p, h) = Create(x => x.Tv = req => req.RequestUri!.Query.Contains("symbol=ND")
+            ? Json("{\"s\":\"no_data\"}") : HtmlWaf()(req), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "AAA"); await Year(p, "BBB");   // 2 lỗi chặn
+        await Year(p, "ND");                          // no_data: không đổi chuỗi lỗi
+        await Year(p, "CCC");                         // lỗi thứ 3 → nghỉ chung
+        await Year(p, "DDD");
+
+        h.TvUrls.Should().HaveCount(4, "AAA, BBB, ND, CCC; mã DDD bị nghỉ chung chặn lại");
     }
 }

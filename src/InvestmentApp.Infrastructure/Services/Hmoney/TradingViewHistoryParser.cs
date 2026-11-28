@@ -63,6 +63,23 @@ public static class TradingViewHistoryParser
         }
     }
 
+    /// <summary>Nguồn trả đúng cấu trúc với <c>s = "no_data"</c>: mã không có dữ liệu, khác với bị chặn hay lỗi.</summary>
+    public static bool IsNoData(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                   && doc.RootElement.TryGetProperty("s", out var s)
+                   && s.ValueKind == JsonValueKind.String && s.GetString() == "no_data";
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     private static bool TryArray(JsonElement root, string name, out JsonElement array)
     {
         if (root.TryGetProperty(name, out array) && array.ValueKind == JsonValueKind.Array) return true;

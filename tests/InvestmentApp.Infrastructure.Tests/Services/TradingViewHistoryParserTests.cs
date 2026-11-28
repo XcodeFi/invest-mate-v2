@@ -106,4 +106,15 @@ public class TradingViewHistoryParserTests
 
         TradingViewHistoryParser.Parse(json, "FPT").Should().BeNull();
     }
+
+    [Theory]
+    [InlineData("{\"s\":\"no_data\"}", true)]
+    [InlineData("{\"s\":\"error\"}", false)]
+    [InlineData("{\"s\":\"ok\",\"t\":[]}", false)]
+    [InlineData("<html>Error</html>", false)]
+    [InlineData("", false)]
+    public void IsNoData_OnlyTrueForTheNoDataStatus(string json, bool expected)
+    {
+        TradingViewHistoryParser.IsNoData(json).Should().Be(expected);
+    }
 }
