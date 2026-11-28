@@ -102,6 +102,7 @@ export class BottomNavComponent {
     { path: '/backtesting', label: 'Backtest', emoji: '🧪' },
     { path: '/watchlist', label: 'Watchlist', emoji: '⭐' },
     { path: '/market-data', label: 'Thị trường', emoji: '🌐' },
+    { path: '/screener', label: 'Sàng lọc', emoji: '🔎' },
     { path: '/snapshots', label: 'Snapshot', emoji: '📸' },
     { path: '/trade-wizard', label: 'Wizard GD', emoji: '🧙' },
     { path: '/risk-dashboard', label: 'Risk Board', emoji: '📋' },
