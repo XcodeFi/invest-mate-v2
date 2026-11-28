@@ -77,6 +77,19 @@ public class ScreenStocksWatchlistFlagTests
     }
 
     [Fact]
+    public async Task the_match_ignores_case_so_a_lowercase_stored_symbol_still_flags_its_row()
+    {
+        var sut = Sut("AAA");
+        var w = new Watchlist("u1", "L");
+        w.Items.Add(new InvestmentApp.Domain.ValueObjects.WatchlistItem { Symbol = "aaa", AddedAt = DateTime.UtcNow });   // dữ liệu cũ hoặc nhập tay không chuẩn hoá
+        _watchlists.Setup(r => r.GetByUserIdAsync("u1", It.IsAny<CancellationToken>())).ReturnsAsync(new List<Watchlist> { w });
+
+        var result = await sut.Handle(new ScreenStocksQuery { UserId = "u1" }, default);
+
+        result.Passed.Single().InWatchlist.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task without_a_user_the_flag_is_false_and_no_watchlist_is_read()
     {
         var sut = Sut("AAA");

@@ -17,6 +17,14 @@
 
 ---
 
+## [v2.123.1] — 2026-11-28 · Sửa: danh sách "Thêm" trên điện thoại luôn đủ trang như menu trái
+
+### Sửa lỗi
+
+- Danh sách **Thêm** của thanh dưới trên điện thoại nay đọc từ cùng cấu hình với menu trái, nên trang mới thêm vào menu không còn bị thiếu trên điện thoại (trước đây là một danh sách chép tay riêng, đã từng thiếu Sàng lọc và Nhật ký tâm trạng). Các mục xếp theo nhóm như menu trái; bốn trang đã có trên thanh (Tổng quan, Giao dịch, Kế hoạch, Rủi ro) không lặp lại. Mục **Changelog** không còn trong "Thêm" với bất kỳ ai (trước đây người dùng thường cũng thấy, còn menu trái thì không bao giờ hiện); quản trị viên vào được qua dòng DEV ở cuối menu bánh mì (hamburger) trên điện thoại, vì huy hiệu ở thanh trên bị ẩn khi màn hình hẹp hơn 768px.
+
+---
+
 ## [v2.123.0] — 2026-11-28 · Nhà đầu tư lão luyện dùng chỉ báo thế nào, vì sao; gắn sao nhóm hay dùng
 
 ### Tính năng mới

@@ -88,6 +88,7 @@ public class AddWatchlistItemsCommandTests
     [Theory]
     [InlineData("")]
     [InlineData("TOOLONGSYMBOL1")]
+    [InlineData("ABCDEFGHIJK")]
     [InlineData("AB CD")]
     [InlineData("AB-1")]
     [InlineData("<b>")]
@@ -100,6 +101,58 @@ public class AddWatchlistItemsCommandTests
         await act.Should().ThrowAsync<ArgumentException>();
         _repo.Verify(r => r.TryUpdateAsync(It.IsAny<Watchlist>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
         w.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task a_symbol_of_exactly_ten_characters_is_accepted()
+    {
+        var w = Existing();
+
+        var r = await Sut().Handle(Cmd(w, new[] { "ABCDEFGHIJ" }), default);
+
+        r.Added.Should().Equal("ABCDEFGHIJ");
+    }
+
+    [Fact]
+    public async Task a_note_of_exactly_200_characters_is_accepted()
+    {
+        var w = Existing();
+
+        var r = await Sut().Handle(Cmd(w, new[] { "VCB" }, new string('x', 200)), default);
+
+        r.Added.Should().Equal("VCB");
+        w.Items.Single().Note.Should().HaveLength(200);
+    }
+
+    [Fact]
+    public async Task the_note_is_trimmed_before_it_is_measured_and_stored()
+    {
+        var w = Existing();
+        await Sut().Handle(Cmd(w, new[] { "VCB" }, "  Từ sàng lọc  "), default);
+        w.Items.Single().Note.Should().Be("Từ sàng lọc");
+
+        var w2 = Existing();
+        var padded = "  " + new string('x', 200) + "  ";
+        var r = await Sut().Handle(Cmd(w2, new[] { "FPT" }, padded), default);
+        r.Added.Should().Equal(new[] { "FPT" }, "200 ký tự thật sau khi cắt khoảng trắng thì đạt");
+        w2.Items.Single().Note.Should().HaveLength(200);
+    }
+
+    [Fact]
+    public async Task ownership_is_checked_again_on_the_retry_read_and_a_foreign_watchlist_gets_no_write()
+    {
+        var mine = new Watchlist("u1", "L");
+        var id = mine.Id;
+        var foreign = new Watchlist("someone-else", "L");
+        typeof(Watchlist).BaseType!.GetProperty("Id")!.SetValue(foreign, id);
+        _repo.SetupSequence(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(mine).ReturnsAsync(foreign);
+        _repo.Setup(r => r.TryUpdateAsync(mine, It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var act = () => Sut().Handle(new AddWatchlistItemsCommand { WatchlistId = id, UserId = "u1", Symbols = new() { "VCB" } }, default);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _repo.Verify(r => r.TryUpdateAsync(It.IsAny<Watchlist>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+        foreign.Items.Should().BeEmpty();
     }
 
     [Fact]
