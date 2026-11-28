@@ -28,6 +28,8 @@ export interface PaneLayer {
 
 export interface PriceLineLayer {
   label: string;
+  /** Tiêu đề NGẮN vẽ ngay trên biểu đồ (để các nhãn không chồng lên nhau ở mép phải); chú giải bên dưới vẫn dùng `label` đầy đủ. */
+  shortLabel?: string;
   price: number;
 }
 
@@ -55,6 +57,8 @@ export interface IndicatorChartMarker {
   position: 'aboveBar' | 'belowBar';
   color: string;
   shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
+  /** Tên sắc màu theo giao diện (xem ChartColors): có thì biểu đồ lấy màu theo chế độ sáng/tối thay cho `color` để chữ marker luôn đọc được. */
+  tone?: 'trapBull' | 'trapBear';
   text: string;
   tooltip?: string[];
 }

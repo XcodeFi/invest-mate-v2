@@ -5,7 +5,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 import { MarketDataComponent } from './market-data.component';
-import { MarketDataService, PatternCandidate, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
+import { MarketDataService, PatternCandidate, TechnicalAnalysis, TechnicalSeries, TrapEvent } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService } from '../../core/services/company-dossier.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -30,17 +30,24 @@ const cup: PatternCandidate = {
   criteria: [{ key: 'cup-depth', rule: 'Cốc sâu 12–33%', value: 21.5, unit: '%', passed: true, required: true }], disclaimer: 'không phải tín hiệu mua',
 };
 
-const analysis = (withCup: boolean): TechnicalAnalysis => ({
+
+const trapEvent: TrapEvent = {
+  type: 'failed-breakout', typeVi: 'Phá vỡ thất bại', breakoutDate: '2026-01-12', returnDate: '2026-01-14', confirmedDate: '2026-01-17',
+  levelPrice: 100.4, stopPrice: 98.6, riskPct: 1.8, excursionPct: 0.8, description: 'Giá vượt rồi quay lại.', disclaimer: 'Mốc xác nhận hồi tố sau 5 phiên, không phải dự báo.',
+};
+
+const analysis = (withCup: boolean, withTrap = false): TechnicalAnalysis => ({
   symbol: 'HPG', currentPrice: 100, supportLevels: [95], resistanceLevels: [105],
   suggestedEntry: 100, suggestedStopLoss: 95, suggestedTarget: 110, confluenceScore: 68.5, overallSignal: 'buy', overallSignalVi: 'MUA',
   ...(withCup ? { patternCandidates: [cup] } : {}),
+  ...(withTrap ? { trapEvents: [trapEvent] } : {}),
 } as unknown as TechnicalAnalysis);
 
 describe('MarketDataComponent: ứng viên mô hình Cốc tay cầm', () => {
   let fixture: ComponentFixture<MarketDataComponent>;
   let component: MarketDataComponent;
 
-  function setup(withCup: boolean) {
+  function setup(withCup: boolean, withTrap = false) {
     const market = jasmine.createSpyObj<MarketDataService>('MarketDataService', [
       'getMarketOverview', 'getBatchPrices', 'getTopFluctuation', 'getTechnicalSeries', 'getTechnicalAnalysis', 'getSignalSetups',
     ]);
@@ -48,7 +55,7 @@ describe('MarketDataComponent: ứng viên mô hình Cốc tay cầm', () => {
     market.getBatchPrices.and.returnValue(of([]));
     market.getTopFluctuation.and.returnValue(of([]));
     market.getTechnicalSeries.and.returnValue(of(series()));
-    market.getTechnicalAnalysis.and.returnValue(of(analysis(withCup)));
+    market.getTechnicalAnalysis.and.returnValue(of(analysis(withCup, withTrap)));
     market.getSignalSetups.and.returnValue(of({ symbol: 'HPG', adjusted: true, setups: [], disclaimer: 'x', notes: [] }));
     TestBed.configureTestingModule({
       imports: [MarketDataComponent],
@@ -62,7 +69,7 @@ describe('MarketDataComponent: ứng viên mô hình Cốc tay cầm', () => {
     });
     fixture = TestBed.createComponent(MarketDataComponent);
     component = fixture.componentInstance;
-    component.analysis = analysis(withCup);
+    component.analysis = analysis(withCup, withTrap);
     fixture.detectChanges();
   }
 
@@ -129,5 +136,34 @@ describe('MarketDataComponent: ứng viên mô hình Cốc tay cầm', () => {
     click('tong-hop');
 
     expect(labels().some(l => l.startsWith('Pivot'))).toBeFalse();
+  });
+  describe('mốc bẫy xác nhận hồi tố', () => {
+    it('draws a marker at the breakout bar and a legend once the chart has loaded', () => {
+      setup(false, true);
+
+      click('tong-hop');
+
+      expect(component.trapMarkers.length).toBe(1);
+      expect(component.trapMarkers[0].time).toBe('2026-01-12');
+      expect(component.trapMarkers[0].tooltip!.some(l => l.startsWith('Nếu sai: −1,8% từ pivot'))).toBeTrue();
+      expect(q('trap-legend')).not.toBeNull();
+      expect(q('trap-legend')!.textContent).toContain('không phải dự báo');
+      expect(q('trap-legend')!.textContent).toContain('Không có thống kê tần suất');
+    });
+
+    it('no trap events: no marker and no legend', () => {
+      setup(false, false);
+
+      click('tong-hop');
+
+      expect(component.trapMarkers).toEqual([]);
+      expect(q('trap-legend')).toBeNull();
+    });
+
+    it('before the chart loads there is no legend even when the analysis carries events', () => {
+      setup(false, true);
+
+      expect(q('trap-legend')).toBeNull();
+    });
   });
 });

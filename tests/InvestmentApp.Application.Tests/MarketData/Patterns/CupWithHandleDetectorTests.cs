@@ -215,8 +215,13 @@ public class CupWithHandleDetectorTests
     {
         var c = CupWithHandleDetector.Detect(CleanCup())!;
 
-        typeof(PatternCandidate).GetProperties().Select(p => p.Name.ToLowerInvariant())
-            .Should().NotContain(n => n.Contains("score") || n.Contains("confidence") || n.Contains("probab"));
+        // Danh sách cho phép TUYỆT ĐỐI (phản chiếu trên kiểu): thêm bất kỳ trường nào, kể cả "SuccessPct", "WinPct" hay "Confidence", đều làm test đỏ.
+        typeof(PatternCandidate).GetProperties().Select(p => p.Name).Should().BeEquivalentTo(new[]
+        {
+            "Type", "TypeVi", "State", "StateVi", "StartDate", "BottomDate", "RightLipDate", "CupLengthWeeks", "CupDepthPct", "HandleLengthSessions", "HandleDepthPct",
+            "PivotPrice", "DistanceToPivotPct", "VolumeVsAvg50", "StopPrice", "RiskPct", "TargetPrice", "RewardPct", "RewardRisk", "Criteria", "Disclaimer"
+        });
+        typeof(PatternCriterion).GetProperties().Select(p => p.Name).Should().BeEquivalentTo(new[] { "Key", "Rule", "Value", "Unit", "Passed", "Required" });
         c.Disclaimer.Should().Contain("không phải tín hiệu mua").And.Contain("khối lượng");
         c.Criteria.Should().OnlyContain(k => !string.IsNullOrWhiteSpace(k.Rule));
     }

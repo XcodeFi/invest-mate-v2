@@ -17,7 +17,7 @@ import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
-import { GroupLayers, IndicatorChartCandles } from '../../shared/components/indicator-chart/indicator-chart.types';
+import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker } from '../../shared/components/indicator-chart/indicator-chart.types';
 import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
 import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { readNow } from '../../shared/indicators/indicator-guides';
@@ -26,6 +26,7 @@ import { IndicatorGuideComponent } from '../../shared/components/indicator-guide
 import { TrendTemplateCardComponent } from '../../shared/components/trend-template-card/trend-template-card.component';
 import { PatternCardComponent } from '../../shared/patterns/pattern-card.component';
 import { withPattern } from '../../shared/patterns/pattern-layers';
+import { buildTrapMarkers } from '../../shared/patterns/trap-markers';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { isLowRiskReward, LOW_RR_NOTE, stopLossMethodLabel } from './stop-loss-method';
 import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-panel.component';
@@ -251,7 +252,7 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
           } @else if (chartError) {
             <div role="alert" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" data-testid="ta-chart-error">{{ chartError }}</div>
           } @else if (currentSeries) {
-            <app-indicator-chart [dates]="currentSeries.dates" [candles]="chartCandles" [layers]="groupLayers"></app-indicator-chart>
+            <app-indicator-chart [dates]="currentSeries.dates" [candles]="chartCandles" [layers]="groupLayers" [markers]="trapMarkers"></app-indicator-chart>
           } @else {
             <p class="text-xs text-gray-500" data-testid="ta-chart-hint">Chọn nhóm để xem biểu đồ</p>
           }
@@ -259,6 +260,12 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
 
         <!-- Ghi chú chất lượng giá và khối Cách đọc: nằm NGOÀI khối dính để không làm khối dính cao thêm -->
         <app-series-adjusted-notes [series]="selectedGroup ? currentSeries : null"></app-series-adjusted-notes>
+        @if (currentSeries && trapMarkers.length > 0) {
+          <p class="mb-4 text-xs text-gray-600" data-testid="trap-legend">
+            Mốc bẫy trên biểu đồ (xác nhận sau 5 phiên, không phải dự báo): <strong>▼ Bẫy tăng</strong> = giá vượt đỉnh 20 phiên rồi đóng cửa trở lại dưới pivot trong 5 phiên;
+            <strong>▲ Bẫy giảm</strong> = giá thủng đáy 20 phiên rồi đóng cửa trở lại trên hỗ trợ trong 5 phiên. Trỏ chuột vào mốc để xem "Nếu sai". Không có thống kê tần suất.
+          </p>
+        }
         <app-indicator-guide [group]="currentSeries ? selectedGroup : null" [readNowLines]="readNowLines"></app-indicator-guide>
         <app-trend-template-card *ngIf="selectedGroup === 'xu-huong'" [template]="analysis?.trendTemplate"></app-trend-template-card>
         <app-pattern-card [candidate]="patternCandidate" [showOnChart]="showPattern" [chartReady]="!!currentSeries" (showOnChartChange)="setShowPattern($event)"></app-pattern-card>
@@ -873,6 +880,8 @@ export class MarketDataComponent implements OnInit {
 
   /** Vẽ cốc, pivot, cắt lỗ, mục tiêu của ứng viên mô hình lên biểu đồ (bật sẵn; thẻ ứng viên có ô tắt). */
   showPattern = true;
+  /** Mốc bẫy đã xác nhận (t+5) của mã đang xem, vẽ trên biểu đồ. Tính một lần mỗi lần dựng lớp để biểu đồ không bị vẽ lại vô ích. */
+  trapMarkers: IndicatorChartMarker[] = [];
   get patternCandidate(): PatternCandidate | null { return this.analysis?.patternCandidates?.[0] ?? null; }
   setShowPattern(on: boolean): void {
     this.showPattern = on;
@@ -1177,6 +1186,7 @@ export class MarketDataComponent implements OnInit {
       ? buildGroupLayers(this.selectedGroup, this.currentSeries, this.analysis)
       : { overlays: [], panes: [], priceLines: [], notes: [] };
     this.groupLayers = withPattern(base, this.patternCandidate, this.currentSeries, this.showPattern);
+    this.trapMarkers = buildTrapMarkers(this.analysis?.trapEvents);
     this.readNowLines = this.selectedGroup && this.currentSeries && this.analysis
       ? readNow(this.selectedGroup, this.currentSeries, this.analysis)
       : [];
@@ -1193,6 +1203,7 @@ export class MarketDataComponent implements OnInit {
     this.seriesCache.clear();
     this.chartCandles = { open: [], high: [], low: [], close: [] };
     this.groupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+    this.trapMarkers = [];
     this.readNowLines = [];
   }
 

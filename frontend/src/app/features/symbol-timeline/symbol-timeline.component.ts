@@ -21,6 +21,7 @@ import { IndicatorGuideComponent } from '../../shared/components/indicator-guide
 import { TrendTemplateCardComponent } from '../../shared/components/trend-template-card/trend-template-card.component';
 import { PatternCardComponent } from '../../shared/patterns/pattern-card.component';
 import { withPattern } from '../../shared/patterns/pattern-layers';
+import { buildTrapMarkers } from '../../shared/patterns/trap-markers';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
 import { buildTimelineQuery, parseTimelineQuery, TimelineUrlState } from './timeline-url-state';
@@ -302,6 +303,12 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
           <app-indicator-chart [dates]="series.dates" [candles]="chartCandles" [layers]="groupLayers" [markers]="chartMarkers"></app-indicator-chart>
         } @else {
           <p class="text-sm text-gray-500 py-8 text-center" data-testid="timeline-chart-loading">Đang tải biểu đồ...</p>
+        }
+        @if (trapCount > 0) {
+          <p class="mt-1 text-xs text-gray-600" data-testid="trap-legend">
+            Mốc bẫy (xác nhận sau 5 phiên, không phải dự báo): <strong>▼ Bẫy tăng</strong> = vượt đỉnh 20 phiên rồi đóng cửa trở lại dưới pivot trong 5 phiên;
+            <strong>▲ Bẫy giảm</strong> = thủng đáy 20 phiên rồi đóng cửa trở lại trên hỗ trợ trong 5 phiên. Trỏ chuột vào phiên có mốc để xem "Nếu sai". Không có thống kê tần suất.
+          </p>
         }
         <p class="mt-2 text-xs text-gray-500" data-testid="timeline-marker-legend">
           Mốc trên biểu đồ: T = giao dịch (mũi tên lên là mua, xuống là bán), J = nhật ký, E = sự kiện, A = cảnh báo, H = hồ sơ công ty. Trỏ chuột vào phiên có mốc để xem chi tiết.
@@ -704,6 +711,8 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
 
   /** Vẽ cốc, pivot, cắt lỗ, mục tiêu của ứng viên mô hình lên biểu đồ (bật sẵn; thẻ ứng viên có ô tắt). */
   showPattern = true;
+  /** Số mốc bẫy đã xác nhận đang vẽ (để hiện chú giải). */
+  trapCount = 0;
   get patternCandidate(): PatternCandidate | null { return this.analysis?.patternCandidates?.[0] ?? null; }
   setShowPattern(on: boolean): void {
     this.showPattern = on;
@@ -932,10 +941,12 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
     const items = this.timeline?.items ?? [];
     const emotionPane = buildEmotionPane(series.dates, items, EMOTION_COLORS, '#6b7280');
     this.groupLayers = emotionPane ? { ...base, panes: [...base.panes, emotionPane] } : base;
-    this.chartMarkers = buildTimelineMarkers(items, {
+    const trapMarkers = buildTrapMarkers(this.analysis?.trapEvents);
+    this.trapCount = trapMarkers.length;
+    this.chartMarkers = [...buildTimelineMarkers(items, {
       adjusted: series.adjusted, bars: { dates: series.dates, low: series.low, high: series.high },
       dossierLabel: a => this.dossierMarkerLabel(a)
-    });
+    }), ...trapMarkers];
     this.readNowLines = this.selectedGroup && this.analysis ? readNow(this.selectedGroup, series, this.analysis) : [];
   }
 
