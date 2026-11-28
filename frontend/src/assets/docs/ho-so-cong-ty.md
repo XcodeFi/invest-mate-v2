@@ -175,6 +175,10 @@ Bỏ tick ô **📋 Hồ sơ công ty** ở bộ lọc phía trên để ẩn c�
 
 ---
 
+## Thẻ "Luận điểm" trên dòng thời gian
+
+Ở trang Dòng thời gian của mã có thẻ **🧭 Luận điểm** cạnh biểu đồ (xếp dưới biểu đồ trên màn hẹp). Thẻ thu gọn sẵn; bấm để mở thì hiện mô hình kinh doanh, ba rủi ro hàng đầu, điều kiện vô hiệu luận điểm (dấu hiệu quan sát được của các rủi ro bạn đánh dấu là phá vỡ luận điểm), ngày ký và số ngày trước, cùng nút **Mở hồ sơ đầy đủ →**. Mã chưa có hồ sơ thì thẻ báo "Chưa có hồ sơ công ty" và có nút **Tạo hồ sơ**. Nút **➕ Tạo kế hoạch** mở form kế hoạch đã điền sẵn mã.
+
 ## Từ hồ sơ sang biểu đồ của mã
 
 Ở đầu trang hồ sơ có nút **📈 Dòng thời gian**: bấm vào để xem biểu đồ, giao dịch, nhật ký và sự kiện của chính mã đó. Ở chiều ngược lại, đầu trang Dòng thời gian có chip **🏢 Hồ sơ công ty**. Hai trang đi qua lại được, nên đọc luận điểm xong là xem được giá, và đang xem giá thì mở được luận điểm.

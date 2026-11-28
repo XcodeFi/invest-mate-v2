@@ -1098,6 +1098,7 @@ Mỗi node gồm:
   - Holding period zones tính từ BUY/SELL trades
   - Quick-add form: nhật ký inline với auto-fill giá
   - Date range selector: 1T / 3T / 6T / 1N
+  - **Thẻ "Luận điểm" (2026-11-28, item 3 PR3):** `ThesisCardComponent` cạnh biểu đồ (>1024px; xếp dưới từ 1024px trở xuống), thu gọn mặc định, tải lười `GET /company-dossier/:symbol` ở lần mở đầu (404 = "Chưa có hồ sơ" + "Tạo hồ sơ"); hiện mô hình kinh doanh, 3 rủi ro đầu, điều kiện vô hiệu (observableSignal của rủi ro isDealBreaker), ngày ký + tuổi, "Mở hồ sơ đầy đủ →" và "➕ Tạo kế hoạch" (`/trade-plan?symbol=`).
   - **Trạng thái trên URL (2026-11-28, item 3 PR1):** `range` (1T/3T/6T/1N), `grp` (nhóm chỉ báo) và `focus` (ngày YYYY-MM-DD giờ VN của mục đang chọn), đọc qua `queryParamMap`, ghi bằng merge + `replaceUrl`; không đụng `symbol`/`tradeId`. Trang hồ sơ công ty có nút "📈 Dòng thời gian" sang đây (chip "🏢 Hồ sơ công ty" ở chiều ngược lại đã có).
   - **Huy hiệu "hồ sơ lúc đó" trên từng giao dịch (2026-11-28, item 3 PR2):** server tính `dossierAtTrade` (`CompanyDossier.DescribeAtTrade`: unsigned / resigned-after / signed + `daysSigned` + `freshness` theo ngưỡng 90/180 của entity, ngày lịch VN); lệnh trước lần ký hiện tại chỉ báo "ký lại sau lệnh", không phán quyết. FE chỉ hiển thị (`dossier-at-trade.ts`). MCP `get_symbol_timeline` trả cùng trường.
   - Timeline detail list phía dưới chart
@@ -1717,7 +1718,7 @@ Dashboard có badge số lượng, **ẩn hoàn toàn khi bằng 0**: một dòn
 |--------|----------|---------|
 | `GET` | `/api/v1/company-dossiers` | Danh sách hồ sơ của user |
 | `GET` | `/api/v1/company-dossiers/{symbol}` | Chi tiết 1 hồ sơ |
-| `GET` | `/api/v1/market/stock/{symbol}/fundamentals` | Số liệu doanh nghiệp làm nguyên liệu — kèm `unavailableSections[]`; cả `company` và `indicators` đều rỗng nội dung → 404 |
+| `GET` | `/api/v1/market/stock/{symbol}/fundamentals` | Số liệu doanh nghiệp làm nguyên liệu — kèm `unavailableSections[]`; cả `company` và `indicators` đều rỗng nội dung → 404 **`trend` (2026-11-28):** các so sánh kỳ tính sẵn ở server cho cả giao diện và MCP: từng quý so với cùng quý năm trước (+ biên lợi nhuận ròng), TTM so với TTM trước, cả năm CHỈ khi đủ 4 quý, chiều tăng/giảm với ngưỡng 1%, và vị trí giá trong vùng 52 tuần. Giá trị thiếu là null (không phải 0); lỗ → lãi cho `yoyPct = null`, `direction = up`, ghi chú "từ lỗ sang lãi". Số liệu doanh nghiệp theo quý, không có số liệu tháng. |
 | `GET` | `/api/v1/company-dossiers/{symbol}/suggested-rules` | 3 rủi ro hạng cao nhất, ghép thành câu cho điều kiện "lý do sai" + cờ `meetsMinLength` |
 | `GET` | `/api/v1/company-dossiers/needing-review` | Hồ sơ Expired/Unconfirmed/NeedsReview, xếp cái đang chặn lên trước |
 | `PUT` | `/api/v1/company-dossiers/{symbol}` | Upsert nội dung (JWT → luôn `ByAgent=false`) |

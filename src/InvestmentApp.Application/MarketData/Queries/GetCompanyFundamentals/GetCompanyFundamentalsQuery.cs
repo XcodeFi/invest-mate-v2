@@ -26,6 +26,12 @@ public class CompanyFundamentalsDto
     public ForeignTradingSummary? ForeignTrading { get; set; }
 
     /// <summary>
+    /// Các so sánh kỳ tính sẵn ở server (cùng quý năm trước, TTM, cả năm khi đủ 4 quý, biên lợi nhuận, vị trí trong vùng giá 52 tuần).
+    /// Giao diện và MCP đọc cùng khối này. Null khi không có quý nào và không có vùng giá 52 tuần (khi đó "trend" nằm trong UnavailableSections).
+    /// </summary>
+    public FundamentalsTrendDto? Trend { get; set; }
+
+    /// <summary>
     /// Tên các phần provider không lấy được. Rỗng KHÔNG có nghĩa là bằng không — người đọc (và
     /// agent) phải phân biệt được "không có dữ liệu" với "giá trị bằng 0".
     /// </summary>
@@ -42,11 +48,13 @@ public class GetCompanyFundamentalsQueryHandler
 
     private readonly IComprehensiveStockDataProvider _provider;
     private readonly IMemoryCache _cache;
+    private readonly IMarketDataProvider _prices;
 
-    public GetCompanyFundamentalsQueryHandler(IComprehensiveStockDataProvider provider, IMemoryCache cache)
+    public GetCompanyFundamentalsQueryHandler(IComprehensiveStockDataProvider provider, IMemoryCache cache, IMarketDataProvider prices)
     {
         _provider = provider;
         _cache = cache;
+        _prices = prices;
     }
 
     public async Task<CompanyFundamentalsDto> Handle(
@@ -90,6 +98,12 @@ public class GetCompanyFundamentalsQueryHandler
             ForeignTrading = HasAnyValue(data.ForeignTrading) ? data.ForeignTrading : null
         };
 
+        // Giá hiện tại chỉ cần cho vị trí trong vùng 52 tuần: không có đáy/đỉnh thì khỏi gọi nguồn giá. Nguồn giá lỗi không làm hỏng hồ sơ.
+        decimal? priceThousands = null;
+        if (indicators?.Min52W != null && indicators.Max52W != null)
+            priceThousands = await GetPriceThousandsAsync(symbol, cancellationToken);
+        dto.Trend = FundamentalsTrendCalculator.Compute(dto.IncomeStatements, dto.Indicators, priceThousands);
+
         if (dto.Company == null) dto.UnavailableSections.Add("company");
         if (dto.Indicators == null) dto.UnavailableSections.Add("indicators");
         if (dto.IncomeStatements.Count == 0) dto.UnavailableSections.Add("incomeStatements");
@@ -98,11 +112,30 @@ public class GetCompanyFundamentalsQueryHandler
         if (dto.BusinessPlan == null) dto.UnavailableSections.Add("businessPlan");
         if (dto.AnalystReports.Count == 0) dto.UnavailableSections.Add("analystReports");
         if (dto.ForeignTrading == null) dto.UnavailableSections.Add("foreignTrading");
+        if (dto.Trend == null) dto.UnavailableSections.Add("trend");
 
         // Chỉ cache ca lấy được. Cache cả ca 404/lỗi là đóng băng một lỗi mạng nhất thời thành
-        // "mã không có dữ liệu" suốt TTL — cùng lý do đã ghi ở cache nhãn ngành.
-        _cache.Set(CacheKeyPrefix + symbol, dto, CacheTtl);
+        // "mã không có dữ liệu" suốt TTL — cùng lý do đã ghi ở cache nhãn ngành. Cùng lý do cho giá hiện tại: có đáy/đỉnh 52 tuần mà
+        // lần này không lấy được giá (nguồn giá lỗi hoặc trả giá không dương) thì KHÔNG ghi cache, để yêu cầu kế tiếp thử lại thay vì
+        // để vị trí 52 tuần trống suốt 15 phút. Ca có đủ giá, và ca không cần giá, vẫn được cache.
+        var needsPriceButHasNone = indicators?.Min52W != null && indicators.Max52W != null && priceThousands == null;
+        if (!needsPriceButHasNone) _cache.Set(CacheKeyPrefix + symbol, dto, CacheTtl);
         return dto;
+    }
+
+    /// <summary>
+    /// Giá hiện tại theo NGHÌN đồng (cùng đơn vị với đáy/đỉnh 52 tuần của nguồn: FPT 43,9–68,2). Nguồn giá trả VND nên chia 1000.
+    /// Lỗi hay giá không dương thì trả null: vị trí 52 tuần để trống thay vì làm hỏng cả hồ sơ.
+    /// </summary>
+    private async Task<decimal?> GetPriceThousandsAsync(string symbol, CancellationToken ct)
+    {
+        try
+        {
+            var price = await _prices.GetCurrentPriceAsync(symbol, ct);
+            return price is { Close: > 0 } ? price.Close / 1000m : null;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception) { return null; }
     }
 
     /// <summary>

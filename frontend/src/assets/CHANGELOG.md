@@ -2,13 +2,43 @@
 
 ---
 
-## [v2.115.1] — 2026-11-28 · Trang chủ: gộp hai thẻ tài chính thành một
+## [v2.117.2] — 2026-11-28 · Trang chủ: gộp hai thẻ tài chính thành một
 
 ### Thay đổi
 
 - **Một thẻ "Tài chính cá nhân" duy nhất** thay cho hai thẻ cùng đọc một dữ liệu (thẻ "Tài chính cá nhân" nằm giữa trang và thẻ Net Worth ở trên). Thẻ gộp hiện Net Worth và mức lệch CAGR, "Tổng tài sản − Nợ", cảnh báo nợ tiêu dùng lãi cao, thanh sức khoẻ tài chính; phần chia tài sản (CK · Vàng · TK · DP · NR) nằm sau nút **Chi tiết ▾**, mặc định thu gọn. Chỉ còn một link (**Xem chi tiết →**) nên nút Chi tiết không bị link bao ngoài nuốt.
 - Chưa thiết lập tài chính cá nhân: thẻ mời thiết lập hiện ở đúng vị trí này.
 - Khối đầu tư lớn đổi tên từ "Tổng tài sản" thành **Tổng quan đầu tư** để "Tổng tài sản" chỉ còn một nghĩa.
+## [v2.117.0] — 2026-11-28 · Dòng thời gian: thẻ "Luận điểm" cạnh biểu đồ
+
+### Tính năng mới
+
+- **Thẻ 🧭 Luận điểm** ở trang Dòng thời gian của mã, đứng cạnh biểu đồ khi màn rộng hơn 1024px và xếp dưới biểu đồ từ 1024px trở xuống. Thu gọn mặc định; bấm để mở thì mới tải hồ sơ (không thêm lần gọi nào khi chỉ xem biểu đồ).
+  - Hiện mô hình kinh doanh (một dòng), ba rủi ro hàng đầu, **điều kiện vô hiệu luận điểm** (dấu hiệu quan sát được của các rủi ro đánh dấu "phá vỡ luận điểm"; chưa có thì thẻ nói rõ là chưa ghi), ngày ký và số ngày trước, nút **Mở hồ sơ đầy đủ →**.
+  - Mã chưa có hồ sơ: "Chưa có hồ sơ công ty" kèm nút **Tạo hồ sơ**.
+  - Nút **➕ Tạo kế hoạch** mở form kế hoạch giao dịch đã điền sẵn mã (đường `/trade-plan?symbol=...` mà form kế hoạch vốn đã hỗ trợ).
+
+### Kỹ thuật
+
+- `ThesisCardComponent` dùng lại `CompanyDossierService.get`; 404 là trạng thái "chưa có hồ sơ", lỗi khác hiện thông báo và cho thử lại khi mở lại thẻ. Không thêm API.
+## [v2.116.0] — 2026-11-28 · Số liệu doanh nghiệp kèm so sánh kỳ (API và MCP)
+
+### Tính năng mới
+
+- **Khối `trend` trong `GET /api/v1/market/stock/{symbol}/fundamentals` và công cụ MCP `get_company_fundamentals`**: các so sánh kỳ tính sẵn ở server để người dùng và agent đọc cùng một bức tranh.
+  - Từng quý (mới nhất trước): doanh thu và lợi nhuận so với **cùng quý năm trước** (giá trị năm trước, % thay đổi, chiều tăng/giảm), kèm **biên lợi nhuận ròng** và chênh lệch biên so với năm trước.
+  - **TTM** (4 quý gần nhất) so với TTM liền trước; **cả năm** so với năm trước, CHỈ khi đủ 4 quý (năm chưa đủ thì số cả năm là null và `complete4Quarters = false`).
+  - Chiều `up`/`down`/`flat` với ngưỡng 1%. Lỗ chuyển sang lãi (hoặc ngược lại, lỗ thu hẹp/tăng, kỳ so sánh bằng 0) thì không có phần trăm, chỉ có chiều và ghi chú ("từ lỗ sang lãi"...). Giá trị thiếu luôn là null, không bao giờ là 0.
+  - **Vị trí giá trong vùng 52 tuần** (0–100, đơn vị nghìn đồng như nguồn trả về).
+  - Ghi chú rõ: doanh nghiệp báo cáo theo quý, không có số liệu tháng.
+- Mô tả công cụ MCP hướng dẫn agent đọc khối này (null là không có kỳ so sánh, không phải 0; đọc `direction` và `note` khi `yoyPct` null).
+- Biểu đồ và mũi tên xu hướng trên trang hồ sơ đi cùng bản sau.
+
+### Kỹ thuật
+
+- `FundamentalsTrendCalculator` (hàm thuần) trong `Application/MarketData/Queries/GetCompanyFundamentals/`; giá hiện tại lấy một lần từ nguồn giá khi có đáy/đỉnh 52 tuần, lỗi nguồn giá chỉ làm trống vị trí 52 tuần. Nguồn chỉ trả 8 quý gần nhất, nên chỉ 4 quý mới nhất có cùng quý năm trước và chỉ một năm có thể đủ 4 quý.
+
+---
 
 ---
 
