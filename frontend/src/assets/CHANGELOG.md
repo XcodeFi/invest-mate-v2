@@ -2,11 +2,13 @@
 
 ---
 
-## [v2.111.0] — 2026-11-28 · Hồ sơ công ty: thanh nút đầu trang không tràn màn hình hẹp
+## [v2.109.1] — 2026-11-28 · Hồ sơ công ty: thanh nút đầu trang không tràn màn hình hẹp
 
 ### Sửa lỗi
 
 - **Trên điện thoại (khoảng 400px), các nút "Sao chép cho AI", "Chia sẻ", "Dán nội dung" và "Sửa" ở đầu trang Hồ sơ công ty không còn tràn ra ngoài màn hình và làm cả trang cuộn ngang.** Các nút nay tự xuống hàng khi thiếu chỗ; màn rộng vẫn một hàng như cũ.
+
+---
 
 ## [v2.109.0] — 2026-11-28 · Sàng lọc cổ phiếu toàn thị trường (backend và MCP)
 
