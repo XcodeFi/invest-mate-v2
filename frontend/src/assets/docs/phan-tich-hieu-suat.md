@@ -58,6 +58,7 @@ Phân tích hiệu suất các chiến dịch giao dịch (Trade Plan đã revie
 - **Bảng so sánh**: Mỗi plan với P&L, %, VND/ngày, annualized return
 - **Bài học rút ra**: Feed lessons learned từ tất cả plan đã review
 - **Filter theo tầm nhìn**: Ngắn hạn / Trung hạn / Dài hạn
+- **Tỉ lệ thắng và trung bình chỉ tính chiến dịch ĐÃ ĐÓNG**: chiến dịch còn cổ phiếu chưa bán, hoặc bán nhiều hơn số mua đã gắn vào kế hoạch, chỉ có lãi/lỗ của phần đã chốt (có thể bằng 0) nên không đại diện cả chiến dịch. Chúng bị loại khỏi **Win Rate, TB Lãi/Lỗ và chiến dịch tốt nhất/tệ nhất**, và trang ghi một dòng "N chiến dịch còn mở/thiếu lệnh mua không tính vào tỉ lệ thắng". **Tổng tích lũy và đường lũy kế vẫn gồm mọi chiến dịch**, vì tiền đã chốt là tiền thật. Chưa có chiến dịch nào đã đóng thì Win Rate và TB Lãi/Lỗ hiện **n/a** (không phải 0%).
 
 ---
 

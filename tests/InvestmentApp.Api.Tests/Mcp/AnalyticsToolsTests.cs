@@ -84,6 +84,29 @@ public class AnalyticsToolsTests
     }
 
     [Fact]
+    public void CampaignAnalyticsDto_SerializesThroughTheMcpOptions_WithNullRatesAbsentNotZero()
+    {
+        var allOpen = new CampaignAnalyticsDto { TotalCampaigns = 3, ExcludedOpenReviews = 3, TotalAccumulatedPnL = 200_000m };
+
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(allOpen, ModelContextProtocol.McpJsonUtilities.DefaultOptions);
+
+        json.GetProperty("excludedOpenReviews").GetInt32().Should().Be(3);
+        json.GetProperty("totalAccumulatedPnL").GetDecimal().Should().Be(200_000m);
+        foreach (var name in new[] { "winRate", "averagePnLPercent", "averagePnLPerDay", "bestCampaign", "worstCampaign" })
+            if (json.TryGetProperty(name, out var v))
+                v.ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null, $"{name}: chưa có chiến dịch đã đóng thì vắng mặt/null, không bao giờ là 0");
+    }
+
+    [Fact]
+    public void CampaignAnalyticsDto_KeepsARealZeroWinRate()
+    {
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(new CampaignAnalyticsDto { WinRate = 0m },
+            ModelContextProtocol.McpJsonUtilities.DefaultOptions);
+
+        json.GetProperty("winRate").GetDecimal().Should().Be(0m, "0% thật (có chiến dịch đã đóng mà không thắng) khác với không biết");
+    }
+
+    [Fact]
     public async Task GetNetWorthSummary_SetsUserId()
     {
         McpTestContext.Capture<NetWorthSummaryDto, GetNetWorthSummaryQuery>(
