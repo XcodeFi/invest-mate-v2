@@ -73,6 +73,8 @@ Chi tiết từng phần:
   - **Cảnh người đi câu** phản ánh **số ngày bạn chưa đặt lệnh**. Vừa giao dịch xong thì nước còn động; càng lâu không động tay, mặt hồ càng phẳng và trời càng ngả hoàng hôn. Số ngày hiển thị luôn là số thật.
   - **Châm ngôn** đổi theo trạng thái bạn tự chấm.
   - **Mỗi ngày một câu hỏi**: *Giờ anh đang thế nào?* — Bình tĩnh / FOMO (sợ bỏ lỡ) / Sợ / Cay cú.
+  - Bấm **xem lịch sử** cạnh nút *đổi* để mở **Nhật ký tâm trạng** (menu ĐÁNH GIÁ): lịch 90 ngày với biểu tượng ■ Bình tĩnh, ▲ FOMO, ▼ Sợ, ✕ Cay cú, □ chưa chấm, số ngày theo từng tâm trạng và danh sách ngày bạn **đặt lệnh khi đang cảm xúc**. Có nút *Xem bảng* cho cùng số liệu.
+  - Tâm trạng do trợ lý AI ghi hiện kèm **(từ agent)**. Trợ lý ghi *Bình tĩnh* thì màn vẫn hỏi lại bạn: chỉ chính bạn mới mở được lớp phủ.
   - Chấm khác **Bình tĩnh** → Việc cần xử lý hôm nay bị **phủ mờ**, kèm câu *"Danh sách này tối nay vẫn ở đây."* Bạn vẫn xem được, nhưng phải bấm thêm một lần. Không ai cấm bạn — chỉ là bắt bạn dừng lại nửa giây.
   - Bấm **đổi** chỉ mở lại bảng chọn, lớp phủ vẫn còn. Và nếu bạn chấm Bình tĩnh rồi quay lại FOMO thì phải bấm qua lớp phủ lại từ đầu.
   - Tâm trạng lưu theo tài khoản nên mở máy khác vẫn thấy, sang ngày mới thì hỏi lại.

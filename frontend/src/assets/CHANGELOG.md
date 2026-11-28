@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.120.0] — 2026-11-28 · Ctrl+K: tìm nhanh trang và mã cổ phiếu
+## [v2.122.0] — 2026-11-28 · Ctrl+K: tìm nhanh trang và mã cổ phiếu
 
 ### Tính năng mới
 
@@ -15,6 +15,38 @@
 
 ---
 
+## [v2.121.0] — 2026-11-28 · Số liệu doanh nghiệp thành biểu đồ, có mũi tên so với cùng kỳ
+
+### Tính năng mới
+
+- **Doanh thu và lợi nhuận theo quý** thành biểu đồ cột ghép: mỗi quý là cặp cột "quý này" và "cùng quý năm trước" (bước nhạt hơn của cùng màu), nhãn **▲ +12,3% / ▼ −8,1%** phía trên mỗi cặp, lợi nhuận âm vẽ dưới đường gốc. Hai biểu đồ xếp dọc trên cùng trục quý (không trục kép), kèm đường **biên lợi nhuận ròng** riêng. Chuyển được giữa **Quý** và **Năm** (năm chỉ có khi đủ 4 quý).
+- **Ô số lớn có mũi tên xu hướng**: doanh thu và lợi nhuận quý mới nhất, tổng 4 quý gần nhất, biên ròng; mỗi ô so với cùng kỳ năm trước, dùng "1.234 tỷ" / "12,3 nghìn tỷ" cho số lớn (giá trị đầy đủ ở tooltip). Ô không có kỳ so sánh thì không có mũi tên; lỗ sang lãi không có phần trăm mà có ghi chú.
+- **Kế hoạch kinh doanh** thành thanh tiến độ; **So sánh P/E cùng ngành** thành thanh ngang (công ty được tô nhấn, mã P/E âm hoặc thiếu ghi n/a); **Cơ cấu cổ đông** thành một thanh 100% (4 cổ đông lớn nhất + Khác); **Vùng giá 52 tuần** có chấm giá hiện tại; **Cổ tức theo năm** là dòng thời gian sự kiện (nguồn chưa cung cấp giá trị cổ tức dạng số nên chưa vẽ cột).
+- Mỗi biểu đồ có nút **Xem bảng** (cùng số liệu), tooltip khi rê chuột hoặc Tab, và câu **Chưa có dữ liệu** khi thiếu (không vẽ thành 0). Các thẻ chỉ số có giải thích ngắn bằng tiếng Việt khi rê chuột. Cả bốn khối (doanh thu, cùng ngành, cổ tức, kế hoạch) giờ mở sẵn.
+- Doanh nghiệp báo cáo theo quý nên không có số liệu tháng; trang nói rõ điều này.
+- Chữ trong biểu đồ luôn ≥ 11px: biểu đồ doanh thu/lợi nhuận không co nhỏ theo cột hẹp mà **cuộn ngang trong khung riêng** (điện thoại và cột hẹp); nhãn dài trong ô số lớn tự xuống dòng nên trang không bị tràn ngang ở 400px; nhãn % trong thanh cổ đông dùng chữ tối (≥ 4,5:1). Chỉ tiêu thiếu số vẫn hiện ô với "—" và "Chưa có dữ liệu" thay vì bị bỏ; không có % thì không vẽ mũi tên trơ.
+
+### Kỹ thuật
+
+- Thư mục `shared/charts/`: SVG/HTML tự vẽ, không thêm thư viện. Màu qua biến `--viz-*` (`src/styles/charts.css`), bốn hue đầu của bảng mặc định theo thứ tự cố định, kiểm bằng `validate_palette.js` ở cả hai chế độ trên đúng nền thẻ (kết quả nằm trong mô tả PR).
+- Giao diện chỉ hiển thị khối `trend` của server (v2.116.0), không tự tính lại so sánh nào.
+
+---
+
+## [v2.120.0] — 2026-11-28 · Nhật ký tâm trạng: xem lại 90 ngày bạn đã chấm gì
+
+### Tính năng mới
+
+- **Trang mới "Nhật ký tâm trạng"** (`/mood-journal`, nhóm ĐÁNH GIÁ trong menu; link "xem lịch sử" cạnh nút "đổi" ở màn tĩnh tâm Trang chủ):
+  - **Lịch 90 ngày** theo ngày giờ Việt Nam, mỗi ô là tâm trạng cuối ngày bằng **màu kèm biểu tượng riêng**: ■ Bình tĩnh, ▲ FOMO, ▼ Sợ, ✕ Cay cú, □ chưa chấm. Rê chuột hoặc Tab vào ô để xem ngày, tâm trạng, các lần đổi trong ngày (kèm giờ và nguồn), số lệnh; bấm ô để xem chi tiết ngay dưới lịch.
+  - **Số ngày theo từng tâm trạng** và số ngày chưa chấm.
+  - **Danh sách "Ngày đặt lệnh khi đang cảm xúc"**: ngày bạn đã bấm qua lớp phủ, hoặc có lệnh trong ngày mà tâm trạng ở bất kỳ lần đổi nào khác Bình tĩnh. Ngày có lệnh nhưng chưa chấm là "chưa chấm", không bao giờ bị tính là cảm xúc. Mỗi dòng có link sang trang Giao dịch.
+  - Nút **Xem bảng** cho đúng các số đó.
+- **Màn tĩnh tâm ghi rõ "(từ agent)"** khi tâm trạng hôm nay do trợ lý AI ghi. Nếu trợ lý ghi Bình tĩnh thì màn vẫn hỏi lại bạn (Bình tĩnh do agent ghi không mở khoá lớp phủ), kèm ghi chú.
+
+### Kỹ thuật
+
+- Frontend chỉ hiển thị dữ liệu của `GET /api/v1/mood/history` (cờ cảm xúc và số lệnh do server tính). Màu là bốn hue đầu của bảng màu dataviz mặc định theo thứ tự cố định, đã chạy `validate_palette.js` ở chế độ sáng (nền #ffffff: đạt, cam/ngọc/vàng dưới 3:1 nên bắt buộc có biểu tượng, chú giải và bảng) và tối (nền #111827: đạt tất cả).
 ## [v2.119.1] — 2026-11-28 · Sửa: các ô lọc của trang Sàng lọc cổ phiếu bị lệch hàng
 
 ### Sửa lỗi

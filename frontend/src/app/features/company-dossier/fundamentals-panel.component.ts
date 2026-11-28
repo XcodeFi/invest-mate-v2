@@ -1,6 +1,28 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CompanyFundamentals, MarketDataService } from '../../core/services/market-data.service';
+import { CompanyFundamentals, FundamentalsTrend, MarketDataService, QuarterTrend, TrendDirection } from '../../core/services/market-data.service';
+import { DividendTimelineComponent } from '../../shared/charts/dividend-timeline.component';
+import { PeerBarsComponent } from '../../shared/charts/peer-bars.component';
+import { PlanBarsComponent } from '../../shared/charts/plan-bars.component';
+import { QuarterBarsComponent } from '../../shared/charts/quarter-bars.component';
+import { RangeBarComponent } from '../../shared/charts/range-bar.component';
+import { ShareBarComponent } from '../../shared/charts/share-bar.component';
+import { TrendArrowComponent } from '../../shared/charts/trend-arrow.component';
+import { formatCompactVn, formatPlainPct, quarterShortLabel } from '../../shared/charts/chart-format';
+
+interface TrendTile {
+  key: string;
+  label: string;
+  value: string;
+  full: string;
+  direction: TrendDirection | null;
+  pct: number | null;
+  note: string | null;
+  /** Chú thích đi kèm mũi tên, ví dụ "so với cùng quý năm trước". */
+  against: string;
+  /** Dòng phụ không có mũi tên (biên lợi nhuận: chênh lệch điểm phần trăm). */
+  sub: string;
+}
 
 /**
  * Số liệu doanh nghiệp đặt cạnh ô viết hồ sơ: nguyên liệu để trả lời "doanh nghiệp này kiếm tiền
@@ -10,7 +32,7 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
 @Component({
   selector: 'app-fundamentals-panel',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TrendArrowComponent, QuarterBarsComponent, PlanBarsComponent, DividendTimelineComponent, PeerBarsComponent, ShareBarComponent, RangeBarComponent],
   template: `
     <div class="bg-white rounded-lg shadow p-5">
       <div class="flex items-baseline justify-between mb-1">
@@ -30,7 +52,7 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
         @if (hasSection('indicators')) {
           <div class="grid grid-cols-3 gap-2 mb-4" data-testid="indicators">
             @for (item of indicatorCards(); track item.label) {
-              <div class="border border-gray-200 rounded-lg px-2 py-2">
+              <div class="border border-gray-200 rounded-lg px-2 py-2" [attr.title]="item.hint" data-testid="indicator-card">
                 <div class="text-[10px] uppercase tracking-wide text-gray-400">{{ item.label }}</div>
                 <div class="text-base font-semibold text-gray-900 tabular-nums">{{ item.value }}</div>
               </div>
@@ -44,6 +66,27 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
           }
         } @else {
           <p class="text-xs text-gray-400 italic mb-4">Chỉ số cơ bản: không lấy được dữ liệu</p>
+        }
+
+        <!-- Xu hướng: số lớn có mũi tên so với cùng kỳ (do server tính). Không có kỳ so sánh thì không có mũi tên. -->
+        @if (trendTiles().length > 0) {
+          <div class="grid grid-cols-2 gap-2 mb-1" data-testid="trend-tiles">
+            @for (t of trendTiles(); track t.key) {
+              <div class="border border-gray-200 rounded-lg px-2 py-2 min-w-0" data-testid="trend-tile" [attr.data-key]="t.key" [attr.title]="t.full">
+                <div class="text-[10px] uppercase tracking-wide text-gray-400">{{ t.label }}</div>
+                <div class="text-base font-semibold text-gray-900">{{ t.value }}</div>
+                @if (t.direction) {
+                  <div class="text-[11px]"><app-trend-arrow [direction]="t.direction" [pct]="t.pct" [note]="t.note" [label]="t.against"></app-trend-arrow></div>
+                }
+                @if (t.sub) { <div class="text-[11px] text-gray-500" data-testid="trend-sub">{{ t.sub }}</div> }
+              </div>
+            }
+          </div>
+          <p class="text-[11px] text-gray-400 mb-4" data-testid="trend-note">{{ data!.trend!.note }}</p>
+        }
+
+        @if (range(); as r) {
+          <app-range-bar [low]="r.low" [high]="r.high" [price]="r.price" [positionPct]="r.positionPct" [outsideRange]="r.outsideRange"></app-range-bar>
         }
 
         <!-- Thông tin công ty -->
@@ -63,12 +106,7 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
           </div>
 
           @if ((data!.company!.majorShareholders?.length ?? 0) > 0) {
-            <h3 class="text-xs font-semibold text-gray-600 mb-1">Cổ đông lớn</h3>
-            <ul class="text-xs text-gray-600 mb-4 space-y-0.5" data-testid="shareholders">
-              @for (s of data!.company!.majorShareholders; track $index) {
-                <li>{{ s.name }} — {{ pct(s.percentage) }}</li>
-              }
-            </ul>
+            <app-share-bar [holders]="data!.company!.majorShareholders" data-testid="shareholders"></app-share-bar>
           }
 
           @if ((data!.company!.leaders?.length ?? 0) > 0) {
@@ -94,7 +132,10 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
             <span class="text-gray-400">{{ isOpen('incomeStatements') ? '▾' : '▸' }}</span>
           </button>
         }
-        @if (hasSection('incomeStatements') && isOpen('incomeStatements')) {
+        @if (hasSection('incomeStatements') && isOpen('incomeStatements') && (data!.trend?.quarters?.length ?? 0) > 0) {
+          <app-quarter-bars [quarters]="data!.trend!.quarters" [annual]="data!.trend!.annual" [note]="data!.trend!.note"></app-quarter-bars>
+        }
+        @if (hasSection('incomeStatements') && isOpen('incomeStatements') && (data!.trend?.quarters?.length ?? 0) === 0) {
           <table class="w-full text-xs mb-4" data-testid="income-table">
             <thead class="text-gray-400">
               <tr><th class="text-left font-normal">Kỳ</th><th class="text-right font-normal">Doanh thu</th><th class="text-right font-normal">LN sau thuế</th></tr>
@@ -123,21 +164,7 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
           </button>
         }
         @if (hasSection('peers') && isOpen('peers')) {
-          <table class="w-full text-xs mb-4" data-testid="peers-table">
-            <thead class="text-gray-400">
-              <tr><th class="text-left font-normal">Mã</th><th class="text-right font-normal">P/E</th><th class="text-right font-normal">P/B</th><th class="text-right font-normal">± %</th></tr>
-            </thead>
-            <tbody class="text-gray-700">
-              @for (p of data!.peers; track $index) {
-                <tr class="border-t border-gray-100">
-                  <td class="py-0.5">{{ text(p.symbol) }}</td>
-                  <td class="text-right">{{ num(p.pe) }}</td>
-                  <td class="text-right">{{ num(p.pb) }}</td>
-                  <td class="text-right">{{ num(p.changePercent) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <app-peer-bars [peers]="data!.peers" [symbol]="data!.symbol" [selfPe]="data!.indicators?.pe"></app-peer-bars>
         }
 
         <!-- Cổ tức -->
@@ -152,11 +179,7 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
           </button>
         }
         @if (hasSection('dividendEvents') && isOpen('dividendEvents')) {
-          <ul class="text-xs text-gray-600 mb-4 space-y-0.5" data-testid="dividends">
-            @for (d of data!.dividendEvents; track $index) {
-              <li>{{ text(d.exDate) }} — {{ text(d.description) }}</li>
-            }
-          </ul>
+          <app-dividend-timeline [events]="data!.dividendEvents" data-testid="dividends"></app-dividend-timeline>
         }
 
         <!-- Kế hoạch kinh doanh -->
@@ -171,26 +194,7 @@ import { CompanyFundamentals, MarketDataService } from '../../core/services/mark
           </button>
         }
         @if (hasSection('businessPlan') && isOpen('businessPlan')) {
-          <div class="text-xs text-gray-600" data-testid="business-plan">
-            <div class="mb-1">
-              Năm {{ data!.businessPlan!.year }}
-              @if (data!.businessPlan!.quarter) { · thực hiện tới Q{{ data!.businessPlan!.quarter }} }
-              <span class="text-gray-400">(tỷ VND)</span>
-            </div>
-            <table class="w-full">
-              <tbody>
-                @for (t of data!.businessPlan!.targets; track $index) {
-                  <tr class="border-t border-gray-100">
-                    <td class="py-0.5 pr-2">{{ text(t.label) }}</td>
-                    <td class="py-0.5 text-right">{{ num(t.actual) }} / {{ num(t.planned) }}</td>
-                    <td class="py-0.5 pl-2 text-right font-medium"
-                      [class.text-emerald-600]="(t.percentComplete ?? 0) >= 75"
-                      >{{ pct(t.percentComplete) }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
+          <app-plan-bars [targets]="data!.businessPlan!.targets" [year]="data!.businessPlan!.year" [quarter]="data!.businessPlan!.quarter" data-testid="business-plan"></app-plan-bars>
         }
       }
     </div>
@@ -207,16 +211,16 @@ export class FundamentalsPanelComponent implements OnInit {
   error: string | null = null;
 
   /**
-   * Bốn khối dài xếp dọc làm panel cuộn mãi không hết. Mở sẵn doanh thu — đó là thứ hay đọc nhất khi
-   * đang trả lời "doanh nghiệp này kiếm tiền bằng gì"; ba khối kia gập, bung khi cần.
+   * Bốn khối xếp dọc, MỞ SẴN CẢ BỐN: nội dung của chúng giờ là biểu đồ (mỗi biểu đồ có nút "Xem bảng" cho số liệu gốc), thứ người dùng đến đây để xem.
+   * Nút gập vẫn có để thu gọn khi cần.
    * Khối KHÔNG lấy được dữ liệu thì không gập: câu "không lấy được dữ liệu" phải luôn nhìn thấy,
    * giấu nó sau một cái mũi tên là mời người đọc tưởng phần đó trống.
    */
   private readonly open: Record<string, boolean> = {
     incomeStatements: true,
-    peers: false,
-    dividendEvents: false,
-    businessPlan: false,
+    peers: true,
+    dividendEvents: true,
+    businessPlan: true,
   };
 
   isOpen(section: string): boolean {
@@ -275,19 +279,76 @@ export class FundamentalsPanelComponent implements OnInit {
     }
   }
 
-  indicatorCards(): { label: string; value: string }[] {
+  /** Khối so sánh kỳ do server tính; vắng mặt khi backend cũ hoặc không tính được. */
+  get trend(): FundamentalsTrend | null {
+    return this.data?.trend ?? null;
+  }
+
+  /** Vùng 52 tuần: ưu tiên khối của server (có giá hiện tại và vị trí); không có thì chỉ đáy/đỉnh từ chỉ số cơ bản, chưa có giá. */
+  range(): { low: number | null; high: number | null; price: number | null; positionPct: number | null; outsideRange: boolean } | null {
+    const r = this.trend?.range52W;
+    if (r && r.low != null && r.high != null) {
+      return { low: r.low, high: r.high, price: r.price ?? null, positionPct: r.positionPct ?? null, outsideRange: r.outsideRange };
+    }
+    const i = this.data?.indicators;
+    if (i && i.min52W != null && i.max52W != null) return { low: i.min52W, high: i.max52W, price: null, positionPct: null, outsideRange: false };
+    return null;
+  }
+
+  /**
+   * Ô số lớn có mũi tên: quý mới nhất và 4 quý gần nhất (TTM), mỗi ô so với kỳ tương ứng năm trước. Chỉ HIỂN THỊ số của server: ô nào thiếu giá trị thì
+   * bỏ, thiếu kỳ so sánh thì không có mũi tên.
+   */
+  trendTiles(): TrendTile[] {
+    const t = this.trend;
+    if (!t) return [];
+    const latest: QuarterTrend | undefined = t.quarters[0];
+    const tiles: TrendTile[] = [];
+    const add = (tile: Omit<TrendTile, 'value'> & { amount: number | null | undefined; percent?: boolean }) => {
+      const { amount, percent, ...rest } = tile;
+      // Số thiếu: vẫn hiện ô (dấu gạch + "Chưa có dữ liệu", không mũi tên), không lặng lẽ bỏ.
+      if (amount == null) { tiles.push({ ...rest, value: '—', direction: null, pct: null, note: null, sub: 'Chưa có dữ liệu' }); return; }
+      tiles.push({ ...rest, value: percent ? formatPlainPct(amount) : formatCompactVn(amount) });
+    };
+    if (latest) {
+      const q = quarterShortLabel(latest.period);
+      add({ key: 'revenue-q', label: `Doanh thu ${q}`, amount: latest.revenue, full: this.full(latest.revenue), direction: latest.revenueDirection ?? null,
+        pct: latest.revenueYoyPct ?? null, note: latest.revenueNote ?? null, against: 'so với cùng quý năm trước', sub: '' });
+      add({ key: 'profit-q', label: `Lợi nhuận ${q}`, amount: latest.netProfit, full: this.full(latest.netProfit), direction: latest.netProfitDirection ?? null,
+        pct: latest.netProfitYoyPct ?? null, note: latest.netProfitNote ?? null, against: 'so với cùng quý năm trước', sub: '' });
+    }
+    if (t.ttm) {
+      add({ key: 'revenue-ttm', label: 'Doanh thu 4 quý', amount: t.ttm.revenue, full: this.full(t.ttm.revenue), direction: t.ttm.revenueDirection ?? null,
+        pct: t.ttm.revenueYoyPct ?? null, note: t.ttm.revenueNote ?? null, against: 'so với 4 quý trước', sub: '' });
+      add({ key: 'profit-ttm', label: 'Lợi nhuận 4 quý', amount: t.ttm.netProfit, full: this.full(t.ttm.netProfit), direction: t.ttm.netProfitDirection ?? null,
+        pct: t.ttm.netProfitYoyPct ?? null, note: t.ttm.netProfitNote ?? null, against: 'so với 4 quý trước', sub: '' });
+    }
+    if (latest) {
+      const pp = latest.netMarginChangePp;
+      add({ key: 'margin-q', label: `Biên ròng ${quarterShortLabel(latest.period)}`, amount: latest.netMargin ?? null, percent: true, full: 'Lợi nhuận sau thuế / doanh thu', direction: null, pct: null, note: null, against: '',
+        sub: pp == null ? '' : `${pp > 0 ? '+' : pp < 0 ? '−' : ''}${Math.abs(pp).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} điểm % so với cùng quý` });
+    }
+    return tiles;
+  }
+
+  /** Giá trị đầy đủ cho tooltip của ô (tỷ đồng, đủ chữ số). */
+  private full(v: number | null | undefined): string {
+    return v == null ? '' : `${v.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ đồng`;
+  }
+
+  indicatorCards(): { label: string; value: string; hint: string }[] {
     const i = this.data?.indicators;
     if (!i) return [];
     return [
-      { label: 'P/E', value: this.num(i.pe) },
-      { label: 'P/B', value: this.num(i.pb) },
-      { label: 'ROE', value: this.pct(i.roe) },
-      { label: 'ROA', value: this.pct(i.roa) },
-      { label: 'EPS', value: this.int(i.eps) },
-      { label: 'Vốn hóa (tỷ)', value: this.int(i.marketCap != null ? i.marketCap / 1_000_000_000 : null) },
-      { label: 'Beta', value: this.num(i.beta) },
-      { label: 'Đáy 52T', value: this.num(i.min52W) },
-      { label: 'Đỉnh 52T', value: this.num(i.max52W) },
+      { label: 'P/E', value: this.num(i.pe), hint: 'P/E: giá cổ phiếu chia cho lợi nhuận mỗi cổ phiếu. Đọc là "mất bao nhiêu năm lợi nhuận hiện tại để hoàn vốn". Càng thấp càng rẻ so với lợi nhuận, nhưng lợi nhuận giảm cũng làm P/E thấp giả.' },
+      { label: 'P/B', value: this.num(i.pb), hint: 'P/B: giá chia cho giá trị sổ sách mỗi cổ phiếu. Dưới 1 là giá thấp hơn giá trị sổ sách.' },
+      { label: 'ROE', value: this.pct(i.roe), hint: 'ROE: lợi nhuận sau thuế trên vốn chủ sở hữu, đo mỗi đồng vốn của cổ đông đẻ ra bao nhiêu lợi nhuận. Trên 15% thường được coi là tốt.' },
+      { label: 'ROA', value: this.pct(i.roa), hint: 'ROA: lợi nhuận sau thuế trên tổng tài sản, đo hiệu quả dùng toàn bộ tài sản (kể cả vốn vay).' },
+      { label: 'EPS', value: this.int(i.eps), hint: 'EPS: lợi nhuận sau thuế mỗi cổ phiếu (đồng).' },
+      { label: 'Vốn hóa (tỷ)', value: this.int(i.marketCap != null ? i.marketCap / 1_000_000_000 : null), hint: 'Vốn hóa: giá cổ phiếu nhân số cổ phiếu lưu hành, tính bằng tỷ đồng.' },
+      { label: 'Beta', value: this.num(i.beta), hint: 'Beta: độ nhạy so với thị trường chung. Trên 1 là biến động mạnh hơn thị trường, dưới 1 là êm hơn.' },
+      { label: 'Đáy 52T', value: this.num(i.min52W), hint: 'Giá thấp nhất trong 52 tuần (nghìn đồng).' },
+      { label: 'Đỉnh 52T', value: this.num(i.max52W), hint: 'Giá cao nhất trong 52 tuần (nghìn đồng).' },
     ];
   }
 
