@@ -1,10 +1,20 @@
 import { TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
 import {
   GroupLayers, GuideLine, LineLayer, PaneLayer, PriceLineLayer
-} from '../../shared/components/indicator-chart/indicator-chart.types';
+} from '../components/indicator-chart/indicator-chart.types';
 
 /** Sáu khối của panel Phân tích kỹ thuật — trùng giá trị data-group trên tiêu đề khối. */
 export type TaGroup = 'tong-hop' | 'xu-huong' | 'dong-luong' | 'bien-dong' | 'dong-tien' | 'moc-gia';
+
+/** Sáu nhóm chỉ báo, theo thứ tự hiện trên thanh chọn (trang Thị trường và trang Dòng thời gian mã dùng chung). */
+export const TA_GROUPS: readonly { key: TaGroup; label: string }[] = [
+  { key: 'tong-hop', label: '🎯 Tổng hợp' },
+  { key: 'xu-huong', label: '📈 Xu hướng' },
+  { key: 'dong-luong', label: '⚡ Động lượng' },
+  { key: 'bien-dong', label: '📏 Biến động' },
+  { key: 'dong-tien', label: '💰 Dòng tiền' },
+  { key: 'moc-gia', label: '🧱 Mốc giá' },
+];
 
 export type { GroupLayers, GuideLine, LineLayer, PaneLayer, PriceLineLayer };
 
