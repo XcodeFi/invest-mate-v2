@@ -117,7 +117,7 @@ public class UpdateTradePlanCommandHandler : IRequestHandler<UpdateTradePlanComm
         // Đổi mã là mở một vị thế mới ở một công ty khác, nên áp đúng cổng mà đường TẠO
         // sẽ áp — chấm theo mã MỚI, với mọi lần đổi mã (không chỉ khi vượt ngưỡng): đường
         // tạo chặn cả lệnh nhỏ (bậc nhỏ đòi BusinessModel), nên đường sửa cũng phải vậy.
-        var newSymbol = gateInputs.Symbol.ToUpper().Trim();
+        var newSymbol = gateInputs.Symbol.ToUpperInvariant().Trim();
         var symbolChanged = newSymbol != plan.Symbol;
 
         if (symbolChanged || (wasBelow && isNowAtOrAbove))

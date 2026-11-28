@@ -266,7 +266,7 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
 
         return new SymbolTimelineDto
         {
-            Symbol = request.Symbol.ToUpper().Trim(),
+            Symbol = request.Symbol.ToUpperInvariant().Trim(),
             From = request.From,
             To = request.To,
             Items = items,

@@ -32,7 +32,7 @@ public class MarketIndexRepository : IMarketIndexRepository
     public async Task<MarketIndex?> GetBySymbolAndDateAsync(string indexSymbol, DateTime date, CancellationToken cancellationToken = default)
     {
         var filter = Builders<MarketIndex>.Filter.And(
-            Builders<MarketIndex>.Filter.Eq(m => m.IndexSymbol, indexSymbol.ToUpper()),
+            Builders<MarketIndex>.Filter.Eq(m => m.IndexSymbol, indexSymbol.ToUpperInvariant()),
             Builders<MarketIndex>.Filter.Eq(m => m.Date, date.Date)
         );
         return await _collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
@@ -41,7 +41,7 @@ public class MarketIndexRepository : IMarketIndexRepository
     public async Task<IEnumerable<MarketIndex>> GetBySymbolAsync(string indexSymbol, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
         var filter = Builders<MarketIndex>.Filter.And(
-            Builders<MarketIndex>.Filter.Eq(m => m.IndexSymbol, indexSymbol.ToUpper()),
+            Builders<MarketIndex>.Filter.Eq(m => m.IndexSymbol, indexSymbol.ToUpperInvariant()),
             Builders<MarketIndex>.Filter.Gte(m => m.Date, from.Date),
             Builders<MarketIndex>.Filter.Lte(m => m.Date, to.Date)
         );

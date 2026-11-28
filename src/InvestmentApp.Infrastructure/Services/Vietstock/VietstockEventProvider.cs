@@ -36,7 +36,7 @@ public class VietstockEventProvider : IVietstockEventProvider
 
         var formData = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["code"] = symbol.ToUpper(),
+            ["code"] = symbol.ToUpperInvariant(),
             ["type"] = "-1",
             ["page"] = page.ToString(),
             ["pageSize"] = pageSize.ToString(),
@@ -47,7 +47,7 @@ public class VietstockEventProvider : IVietstockEventProvider
         {
             Content = formData
         };
-        request.Headers.Add("Referer", $"{BaseUrl}/{symbol.ToLower()}/tin-tuc-su-kien.htm");
+        request.Headers.Add("Referer", $"{BaseUrl}/{symbol.ToLowerInvariant()}/tin-tuc-su-kien.htm");
         request.Headers.Add("X-Requested-With", "XMLHttpRequest");
 
         var response = await _httpClient.SendAsync(request, ct);
@@ -61,7 +61,7 @@ public class VietstockEventProvider : IVietstockEventProvider
 
         return items.Select(item => new VietstockNewsDto
         {
-            StockCode = item.StockCode ?? symbol.ToUpper(),
+            StockCode = item.StockCode ?? symbol.ToUpperInvariant(),
             ArticleId = item.ArticleID,
             Title = item.Title ?? "",
             Head = item.Head,
@@ -80,7 +80,7 @@ public class VietstockEventProvider : IVietstockEventProvider
         {
             ["eventTypeID"] = eventTypeId.ToString(),
             ["channelID"] = "0",
-            ["code"] = symbol.ToUpper(),
+            ["code"] = symbol.ToUpperInvariant(),
             ["catID"] = "-1",
             ["page"] = page.ToString(),
             ["pageSize"] = pageSize.ToString(),
@@ -93,7 +93,7 @@ public class VietstockEventProvider : IVietstockEventProvider
         {
             Content = formData
         };
-        request.Headers.Add("Referer", $"{BaseUrl}/{symbol.ToLower()}/tin-tuc-su-kien.htm");
+        request.Headers.Add("Referer", $"{BaseUrl}/{symbol.ToLowerInvariant()}/tin-tuc-su-kien.htm");
         request.Headers.Add("X-Requested-With", "XMLHttpRequest");
 
         var response = await _httpClient.SendAsync(request, ct);
@@ -139,7 +139,7 @@ public class VietstockEventProvider : IVietstockEventProvider
         _logger.LogInformation("Refreshing Vietstock CSRF token for {Symbol}", symbol);
 
         var request = new HttpRequestMessage(HttpMethod.Get,
-            $"{BaseUrl}/{symbol.ToLower()}/tin-tuc-su-kien.htm");
+            $"{BaseUrl}/{symbol.ToLowerInvariant()}/tin-tuc-su-kien.htm");
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
 

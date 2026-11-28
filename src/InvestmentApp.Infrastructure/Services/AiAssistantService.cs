@@ -1289,7 +1289,7 @@ Nhiệm vụ: Tổng kết hiệu suất đầu tư tháng {month:00}/{year}.
     private async Task<AiContextResult> BuildStockEvaluationContext(
         string userId, string symbol, string? question, CancellationToken ct)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
 
         // Fetch all data in parallel — individual failures should not crash the whole request
         var fundamentalTask = _fundamentalProvider.GetFundamentalsAsync(symbol, ct);
@@ -2225,7 +2225,7 @@ Nhiệm vụ: Tạo bản tin đầu tư hàng ngày cho nhà đầu tư.
     private async Task<AiContextResult> BuildComprehensiveAnalysisContext(
         string userId, string symbol, string? question, CancellationToken ct)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
 
         // Fetch comprehensive data + technical analysis in parallel
         var dataTask = _comprehensiveProvider.GetComprehensiveDataAsync(symbol, ct);

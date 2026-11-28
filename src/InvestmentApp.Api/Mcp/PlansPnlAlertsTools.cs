@@ -34,7 +34,7 @@ public static class PlanInsightTools
     {
         if (string.IsNullOrWhiteSpace(symbol))
             throw new ArgumentException("Cần nhập mã chứng khoán (symbol), ví dụ HPG.", nameof(symbol));
-        var sym = symbol.ToUpper().Trim();
+        var sym = symbol.ToUpperInvariant().Trim();
         if (sym.Length > 10)
             throw new ArgumentException("Mã chứng khoán (symbol) tối đa 10 ký tự.", nameof(symbol));
         if (entryPrice <= 0)
@@ -121,7 +121,7 @@ public static class PnLTools
         {
             UserId = http.GetUserId(),
             PortfolioId = portfolioId,
-            Symbol = symbol.ToUpper().Trim()
+            Symbol = symbol.ToUpperInvariant().Trim()
         }, ct);
     }
 

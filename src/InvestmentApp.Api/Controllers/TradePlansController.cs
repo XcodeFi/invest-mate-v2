@@ -86,7 +86,7 @@ public class TradePlansController : ControllerBase
 
         var query = new GetScenarioSuggestionQuery
         {
-            Symbol = symbol.Trim().ToUpper(),
+            Symbol = symbol.Trim().ToUpperInvariant(),
             EntryPrice = entryPrice,
             TimeHorizon = timeHorizon,
             UserId = GetUserId()

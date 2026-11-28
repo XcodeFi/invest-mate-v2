@@ -62,7 +62,7 @@ public class BulkCreateTradesCommandHandler : IRequestHandler<BulkCreateTradesCo
 
                 var trade = new Trade(
                     request.PortfolioId,
-                    item.Symbol.ToUpper(),
+                    item.Symbol.ToUpperInvariant(),
                     tradeType,
                     item.Quantity,
                     item.Price,

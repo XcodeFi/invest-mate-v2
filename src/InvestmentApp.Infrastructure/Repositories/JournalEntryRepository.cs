@@ -39,7 +39,7 @@ public class JournalEntryRepository : IJournalEntryRepository
     {
         var filter = Builders<JournalEntry>.Filter.And(
             Builders<JournalEntry>.Filter.Eq(e => e.UserId, userId),
-            Builders<JournalEntry>.Filter.Eq(e => e.Symbol, symbol.ToUpper().Trim()),
+            Builders<JournalEntry>.Filter.Eq(e => e.Symbol, symbol.ToUpperInvariant().Trim()),
             Builders<JournalEntry>.Filter.Eq(e => e.IsDeleted, false));
 
         if (from.HasValue)

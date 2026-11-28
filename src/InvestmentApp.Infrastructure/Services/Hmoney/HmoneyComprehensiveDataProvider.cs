@@ -51,7 +51,7 @@ public class HmoneyComprehensiveDataProvider : IComprehensiveStockDataProvider
     public async Task<ComprehensiveStockData?> GetComprehensiveDataAsync(
         string symbol, CancellationToken ct = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
 
         // Fire all API calls in parallel — individual failures should not crash the whole request
         var indicatorsTask = GetFinanceIndicatorsAsync(symbol, ct);

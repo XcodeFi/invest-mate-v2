@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.105.0] — 2026-11-28 · Sửa: chuẩn hoá mã cổ phiếu không phụ thuộc văn hoá của máy
+
+### Sửa lỗi
+
+- Mã cổ phiếu và các khoá (trạng thái kế hoạch, loại lệnh) nay được chuẩn hoá bằng `ToUpperInvariant()`/`ToLowerInvariant()` ở mọi nơi. Trước đây `ToUpper()` chạy theo văn hoá của máy: máy đặt tiếng Thổ Nhĩ Kỳ (tr-TR) biến "vib" thành "VİB" (chữ I có chấm), mã không khớp dữ liệu và request tới nguồn dữ liệu sai mã. Trường hợp đầu tiên được phát hiện ở nguồn dữ liệu doanh nghiệp (`HmoneyComprehensiveDataProvider`); #194 đã sửa mẫu này ở một file khác.
+
+### Kỹ thuật
+
+- 60 chỗ gọi trong 38 file (thực thể miền, repository, handler, controller, công cụ MCP, nhà cung cấp dữ liệu). Test mới: hành vi dưới tr-TR (nhà cung cấp và các thực thể), và một rào chắn quét `src/` không cho `.ToUpper()`/`.ToLower()` không tham số quay lại.
+
+---
+
 ## [v2.104.0] — 2026-11-28 · Đánh giá chiến dịch: review còn mở không kéo tỉ lệ thắng xuống
 
 ### Sửa lỗi

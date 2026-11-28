@@ -33,7 +33,7 @@ public class MarketEventRepository : IMarketEventRepository
         CancellationToken cancellationToken = default)
     {
         var filter = Builders<MarketEvent>.Filter.And(
-            Builders<MarketEvent>.Filter.Eq(e => e.Symbol, symbol.ToUpper().Trim()),
+            Builders<MarketEvent>.Filter.Eq(e => e.Symbol, symbol.ToUpperInvariant().Trim()),
             Builders<MarketEvent>.Filter.Eq(e => e.IsDeleted, false));
 
         if (from.HasValue)

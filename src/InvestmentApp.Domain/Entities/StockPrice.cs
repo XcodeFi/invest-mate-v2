@@ -24,7 +24,7 @@ public class StockPrice : AggregateRoot
     public StockPrice(string symbol, DateTime date, decimal open, decimal high, decimal low, decimal close, long volume, string source = "Manual")
     {
         Id = Guid.NewGuid().ToString();
-        Symbol = symbol?.ToUpper().Trim() ?? throw new ArgumentNullException(nameof(symbol));
+        Symbol = symbol?.ToUpperInvariant().Trim() ?? throw new ArgumentNullException(nameof(symbol));
         Date = date.Date;
         Open = open >= 0 ? open : throw new ArgumentException("Open price must be non-negative", nameof(open));
         High = high >= 0 ? high : throw new ArgumentException("High price must be non-negative", nameof(high));

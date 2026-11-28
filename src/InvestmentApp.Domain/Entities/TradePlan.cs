@@ -129,7 +129,7 @@ public class TradePlan : AggregateRoot
         Id = Guid.NewGuid().ToString();
         UserId = userId ?? throw new ArgumentNullException(nameof(userId));
         PortfolioId = portfolioId;
-        Symbol = symbol?.ToUpper().Trim() ?? throw new ArgumentNullException(nameof(symbol));
+        Symbol = symbol?.ToUpperInvariant().Trim() ?? throw new ArgumentNullException(nameof(symbol));
         Direction = direction ?? "Buy";
         EntryPrice = entryPrice;
         StopLoss = stopLoss;
@@ -177,7 +177,7 @@ public class TradePlan : AggregateRoot
             (stopLoss.HasValue && stopLoss.Value != StopLoss) ||
             (target.HasValue && target.Value != Target);
 
-        if (symbol != null) Symbol = symbol.ToUpper().Trim();
+        if (symbol != null) Symbol = symbol.ToUpperInvariant().Trim();
         if (direction != null) Direction = direction;
         if (entryPrice.HasValue) EntryPrice = entryPrice.Value;
         if (stopLoss.HasValue) StopLoss = stopLoss.Value;

@@ -33,7 +33,7 @@ public class StockPriceRepository : IStockPriceRepository
     public async Task<StockPrice?> GetBySymbolAndDateAsync(string symbol, DateTime date, CancellationToken cancellationToken = default)
     {
         var filter = Builders<StockPrice>.Filter.And(
-            Builders<StockPrice>.Filter.Eq(s => s.Symbol, symbol.ToUpper()),
+            Builders<StockPrice>.Filter.Eq(s => s.Symbol, symbol.ToUpperInvariant()),
             Builders<StockPrice>.Filter.Eq(s => s.Date, date.Date)
         );
         return await _collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
@@ -42,7 +42,7 @@ public class StockPriceRepository : IStockPriceRepository
     public async Task<IEnumerable<StockPrice>> GetBySymbolAsync(string symbol, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
         var filter = Builders<StockPrice>.Filter.And(
-            Builders<StockPrice>.Filter.Eq(s => s.Symbol, symbol.ToUpper()),
+            Builders<StockPrice>.Filter.Eq(s => s.Symbol, symbol.ToUpperInvariant()),
             Builders<StockPrice>.Filter.Gte(s => s.Date, from.Date),
             Builders<StockPrice>.Filter.Lte(s => s.Date, to.Date)
         );
@@ -51,7 +51,7 @@ public class StockPriceRepository : IStockPriceRepository
 
     public async Task<IEnumerable<StockPrice>> GetLatestPricesAsync(IEnumerable<string> symbols, CancellationToken cancellationToken = default)
     {
-        var symbolList = symbols.Select(s => s.ToUpper()).ToList();
+        var symbolList = symbols.Select(s => s.ToUpperInvariant()).ToList();
         var results = new List<StockPrice>();
 
         foreach (var symbol in symbolList)
