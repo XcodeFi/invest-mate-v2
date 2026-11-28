@@ -162,7 +162,7 @@ function serializeEditable(d: DossierEditable): string {
              3:2 chứ không phải 1:1 — chia đôi thì ô nhập rủi ro chỉ còn ~480px, câu tả một dấu hiệu
              quan sát dài hơn thế nên gõ xong không đọc lại được cả câu. -->
         <div class="grid lg:grid-cols-5 gap-6 items-start">
-        <div class="lg:col-span-3">
+        <div class="lg:col-span-3 min-w-0">
 
         @if (mode === 'view') {
           <app-dossier-view
@@ -285,7 +285,7 @@ function serializeEditable(d: DossierEditable): string {
 
         </div><!-- /cột trái -->
 
-          <div class="lg:col-span-2">
+          <div class="lg:col-span-2 min-w-0">
             <app-fundamentals-panel [symbol]="symbol" (dataLoaded)="fundamentals = $event"></app-fundamentals-panel>
           </div>
         </div><!-- /grid -->

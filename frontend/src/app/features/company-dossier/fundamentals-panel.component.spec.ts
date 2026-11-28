@@ -225,6 +225,28 @@ describe('FundamentalsPanelComponent', () => {
       expect(t.textContent).toContain('so với cùng quý năm trước');
     });
 
+    it('mỗi ô so sánh đúng kỳ của nó: quý mới nhất với cùng quý năm trước, 4 quý với 4 quý trước đó (không lẫn)', () => {
+      load(withTrend(trend()));
+      const arrow = (key: string) => tile(key)!.querySelector('[data-testid="trend-arrow"]')!.textContent!.replace(/\s+/g, ' ').trim();
+
+      expect(arrow('revenue-q')).toBe('▼ −17,1% so với cùng quý năm trước');
+      expect(arrow('profit-q')).toBe('▼ −6,2% so với cùng quý năm trước');
+      expect(arrow('revenue-ttm')).toBe('▼ −3,8% so với 4 quý trước');
+      expect(arrow('profit-ttm')).toBe('▲ +6,0% so với 4 quý trước');
+      expect(tile('revenue-q')!.textContent).toContain('13,8 nghìn tỷ');
+      expect(tile('revenue-ttm')!.textContent).toContain('63,7 nghìn tỷ');
+    });
+
+    it('biên ròng thiếu thì ô vẫn hiện với dấu gạch và "Chưa có dữ liệu" (không lặng lẽ bỏ ô)', () => {
+      load(withTrend(trend({ quarters: [quarter({ netMargin: null, netMarginChangePp: null })] })));
+
+      const t = tile('margin-q')!;
+      expect(t).toBeDefined();
+      expect(t.textContent).toContain('—');
+      expect(t.textContent).toContain('Chưa có dữ liệu');
+      expect(t.querySelector('[data-testid="trend-arrow"]')).toBeNull();
+    });
+
     it('ô TTM so với 4 quý trước; lợi nhuận tăng thì mũi tên lên', () => {
       load(withTrend(trend()));
 

@@ -117,6 +117,23 @@ describe('QuarterBarsComponent: doanh thu và lợi nhuận theo quý, cùng qu�
     });
   });
 
+  describe('trục bắt đầu từ 0', () => {
+    it('an all-positive series starts its bars at zero: heights are proportional to the values (no truncated axis)', () => {
+      const list = [q(2026, 2, { revenue: 100, netProfit: 50 }), q(2026, 1, { revenue: 50, netProfit: 25 })];
+      show(list);
+
+      const height = (period: string) => {
+        const b = bars('revenue', 'current').find(x => x.dataset['period'] === period)!;
+        return Number(b.dataset['bottom']) - Number(b.dataset['top']);
+      };
+      expect(height('Q2/2026') / height('Q1/2026')).toBeCloseTo(2, 1);
+      expect(height('Q2/2026')).withContext('cột cao nhất không vượt vùng vẽ: trục bắt đầu từ 0, không cắt cụt').toBeLessThanOrEqual(95);
+      expect(height('Q2/2026')).toBeGreaterThan(60);
+      const baseline = Number(qa('qb-baseline').find(b => b.dataset['metric'] === 'revenue')!.getAttribute('y1'));
+      for (const b of bars('revenue')) expect(Number(b.dataset['bottom'])).toBeCloseTo(baseline, 0);
+    });
+  });
+
   describe('lợi nhuận âm', () => {
     const withLoss = () => {
       const list = eight();
@@ -243,6 +260,27 @@ describe('QuarterBarsComponent: doanh thu và lợi nhuận theo quý, cùng qu�
       expect(yoy('revenue', '2025').textContent).toBe('—');
     });
 
+    it('an incomplete year WITH figures never enables the Năm toggle (the check is on complete4Quarters, not on having numbers)', () => {
+      show(eight(), [{ year: 2025, quartersPresent: 3, complete4Quarters: false, revenue: 300, netProfit: 30, prevYearRevenue: 200, prevYearNetProfit: 20 }]);
+
+      expect(one('qb-mode-year')).toBeNull();
+    });
+
+    it('in year mode an incomplete year with figures gets no bars and "chưa đủ 4 quý" in the table', () => {
+      show(eight(), [
+        { year: 2026, quartersPresent: 2, complete4Quarters: false, revenue: 999, netProfit: 99, prevYearRevenue: 888, prevYearNetProfit: 88 },
+        { year: 2025, quartersPresent: 4, complete4Quarters: true, revenue: 400, prevYearRevenue: 320, revenueYoyPct: 25, revenueDirection: 'up', netProfit: 40, prevYearNetProfit: 80, netProfitYoyPct: -50, netProfitDirection: 'down' },
+      ]);
+      one('qb-mode-year')!.click();
+      fixture.detectChanges();
+
+      expect(bars('revenue').map(b => b.dataset['period'])).not.toContain('2026');
+      expect(bars('profit').map(b => b.dataset['period'])).not.toContain('2026');
+      const row = qa('qb-row').find(r => r.dataset['period'] === '2026')!;
+      expect(row.textContent).toContain('chưa đủ 4 quý');
+      expect(row.textContent).not.toContain('999');
+    });
+
     it('year mode brings the quarter view back on request', () => {
       show(eight(), annual());
       one('qb-mode-year')!.click();
@@ -277,6 +315,17 @@ describe('QuarterBarsComponent: doanh thu và lợi nhuận theo quý, cùng qu�
       const text = qa('qb-row').find(r => r.dataset['period'] === 'Q2/2026')!.textContent!;
       expect(text).toContain('—');
       expect(bars('revenue', 'current').map(b => b.dataset['period'])).not.toContain('Q2/2026');
+    });
+
+    it('a null net margin is a dash in the table, never 0,0%', () => {
+      const list = eight();
+      list[0] = { ...list[0], netMargin: null, netMarginSameQuarterLastYear: null, netMarginChangePp: null };
+      show(list);
+
+      const cells = Array.from(qa('qb-row').find(r => r.dataset['period'] === 'Q2/2026')!.querySelectorAll('td'));
+      const margin = cells[cells.length - 1].textContent!.trim();
+      expect(margin).toBe('—');
+      expect(margin).not.toContain('0,0');
     });
 
     it('no_monthly_data_for_financials_note: the server note is shown', () => {
