@@ -10,18 +10,36 @@ export interface ChartTip {
   note?: string;
 }
 
-/** Vị trí tooltip theo con trỏ, kẹp trong khung để không tràn mép phải. */
+const TIP_WIDTH = 170;
+
+/**
+ * Cạnh trái và phải (theo toạ độ của `host`) của phần ĐANG NHÌN THẤY: biểu đồ có thể rộng hơn khung cuộn bao quanh nó (điện thoại), khi đó tooltip phải
+ * kẹp theo khung cuộn chứ không theo cả biểu đồ.
+ */
+function visibleBounds(host: HTMLElement): { left: number; right: number } {
+  const rect = host.getBoundingClientRect();
+  const scroller = host.closest('[data-testid="chart-body"]') as HTMLElement | null;
+  if (!scroller) return { left: 0, right: rect.width };
+  const s = scroller.getBoundingClientRect();
+  return { left: Math.max(s.left - rect.left, 0), right: Math.min(s.right - rect.left, rect.width) };
+}
+
+function clampX(x: number, host: HTMLElement): number {
+  const { left, right } = visibleBounds(host);
+  return Math.max(Math.min(x, right - TIP_WIDTH), left);
+}
+
+/** Vị trí tooltip theo con trỏ, kẹp trong phần nhìn thấy của khung để không tràn mép. */
 export function tipPosition(event: MouseEvent, host: HTMLElement): { x: number; y: number } {
   const rect = host.getBoundingClientRect();
-  const x = Math.min(Math.max(event.clientX - rect.left + 12, 0), Math.max(rect.width - 170, 0));
-  return { x, y: Math.max(event.clientY - rect.top + 12, 0) };
+  return { x: clampX(event.clientX - rect.left + 12, host), y: Math.max(event.clientY - rect.top + 12, 0) };
 }
 
 /** Vị trí tooltip khi tiêu điểm bàn phím rơi vào một phần tử (cùng nội dung như khi rê chuột). */
 export function tipPositionFromElement(el: Element, host: HTMLElement): { x: number; y: number } {
   const rect = host.getBoundingClientRect();
   const r = el.getBoundingClientRect();
-  const x = Math.min(Math.max(r.left - rect.left + r.width / 2, 0), Math.max(rect.width - 170, 0));
+  const x = clampX(r.left - rect.left + r.width / 2, host);
   return { x, y: Math.max(r.top - rect.top + r.height + 6, 0) };
 }
 

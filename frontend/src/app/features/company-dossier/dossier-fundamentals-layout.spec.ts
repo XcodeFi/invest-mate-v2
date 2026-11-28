@@ -57,5 +57,8 @@ describe('CompanyDossierDetailComponent: khối số liệu doanh nghiệp khôn
     expect(host.scrollWidth).withContext('trang không rộng ra').toBeLessThanOrEqual(host.clientWidth);
     expect(frame.getBoundingClientRect().right).withContext('khung nằm trong 400px').toBeLessThanOrEqual(host.getBoundingClientRect().right + 0.5);
     expect(frame.scrollWidth).withContext('biểu đồ giữ cỡ gốc').toBeGreaterThan(frame.clientWidth);
+    // Cả hai cột lưới phải được phép co (min-width:auto của ô lưới làm cột rộng theo nội dung): ghim cả cột trái, vì nội dung rộng của nó (ô nhập) cũng đẩy trang.
+    expect(host.querySelector('[class~="lg:col-span-3"]')!.classList).withContext('cột trái').toContain('min-w-0');
+    expect(host.querySelector('[class~="lg:col-span-2"]')!.classList).withContext('cột phải').toContain('min-w-0');
   });
 });

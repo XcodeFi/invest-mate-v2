@@ -373,6 +373,36 @@ describe('QuarterBarsComponent: doanh thu và lợi nhuận theo quý, cùng qu�
       expect(dark).toBe('rgb(51, 140, 237)');      // --viz-series-1 tối #338ced
     });
   });
+  describe('tooltip nằm trong vùng đang nhìn thấy của khung cuộn', () => {
+    const tipBounds = (scrollLeft: number) => {
+      (fixture.nativeElement as HTMLElement).style.display = 'block';
+      (fixture.nativeElement as HTMLElement).style.width = '400px';
+      show(eight());
+      const scroller = one('chart-body') as HTMLElement;
+      const wrap = el().querySelector('.qb-wrap') as HTMLElement;
+      scroller.scrollLeft = scrollLeft;
+      const sr = scroller.getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect();
+      return { wrap, visibleLeft: sr.left - wr.left, visibleRight: sr.right - wr.left, sr };
+    };
+
+    it('at_400px_a_tip_for_a_bar_in_the_right_half_stays_inside_the_visible_scroller_not_the_560px_chart', () => {
+      const { wrap, visibleRight, sr } = tipBounds(0);
+
+      comp.hover('revenue', 'Q2/2026', { clientX: sr.right - 5, clientY: sr.top + 20 } as MouseEvent, wrap);
+
+      expect(comp.tip!.x + 170).toBeLessThanOrEqual(visibleRight + 0.5);
+    });
+
+    it('scrolled_right_a_tip_stays_inside_the_visible_window_on_the_left_edge_too', () => {
+      const { wrap, visibleLeft, sr } = tipBounds(150);
+
+      comp.hover('revenue', 'Q2/2026', { clientX: sr.left + 2, clientY: sr.top + 20 } as MouseEvent, wrap);
+
+      expect(comp.tip!.x).toBeGreaterThanOrEqual(visibleLeft - 0.5);
+    });
+  });
+
   describe('chữ đủ đọc ở cột hẹp (≥ 11px thực tế)', () => {
     it('không co nhỏ theo cột: ở khung 360px biểu đồ giữ cỡ gốc và cuộn ngang trong khung riêng, mọi chữ SVG ≥ 11px', () => {
       (fixture.nativeElement as HTMLElement).style.display = 'block';
