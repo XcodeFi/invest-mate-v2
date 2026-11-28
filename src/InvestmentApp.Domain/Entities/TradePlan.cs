@@ -406,6 +406,32 @@ public class TradePlan : AggregateRoot
         AddDomainEvent(new PlanReviewedEvent(Id, UserId, reviewData.PnLPercent));
     }
 
+    /// <summary>
+    /// Người dùng bấm "Tính lại review": thay các số liệu tự tính bằng <paramref name="fresh"/> nhưng GIỮ bài học và ngày review
+    /// do người dùng đã có. Số cũ vào <see cref="CampaignReviewData.Legacy"/> chỉ lần đầu; lần sau giữ nguyên bản ghi đầu.
+    /// Không phát <see cref="PlanReviewedEvent"/> (kế hoạch đã được review từ trước).
+    /// </summary>
+    public void RecomputeReview(CampaignReviewData fresh)
+    {
+        if (Status != TradePlanStatus.Reviewed || ReviewData == null)
+            throw new InvalidOperationException("Only reviewed plans can be recomputed");
+        ArgumentNullException.ThrowIfNull(fresh);
+
+        var old = ReviewData;
+        fresh.LessonsLearned = old.LessonsLearned;
+        fresh.ReviewedAt = old.ReviewedAt;
+        fresh.Legacy = old.Legacy ?? new LegacyReviewSnapshot
+        {
+            PnLAmount = old.PnLAmount,
+            PnLPercent = old.PnLPercent,
+            RealizedR = old.RealizedR ?? RMath.ResolveRealizedR(this).R,
+            RecomputedAt = DateTime.UtcNow
+        };
+        ReviewData = fresh;
+        UpdatedAt = DateTime.UtcNow;
+        IncrementVersion();
+    }
+
     public void UpdateReviewLessons(string lessonsLearned)
     {
         if (Status != TradePlanStatus.Reviewed || ReviewData == null)
@@ -861,6 +887,27 @@ public class CampaignReviewData
 
     /// <summary>Giá vốn (gồm phí, thuế mua) của phần ĐÃ BÁN; mẫu số của <see cref="PnLPercent"/>.</summary>
     public decimal? RealizedCost { get; set; }
+
+    /// <summary>
+    /// Số CP bán vượt số mua đã gắn vào kế hoạch (lệnh mua nằm ngoài kế hoạch). Lớn hơn 0 thì PnL chỉ tính phần khớp được,
+    /// <see cref="RealizedR"/> là null và review bị loại khỏi thống kê R. Null = review cũ.
+    /// </summary>
+    public decimal? OversoldQuantity { get; set; }
+
+    /// <summary>Cờ dữ liệu của review, xem <see cref="InvestmentApp.Domain.Services.ReviewFlags"/>. Null/rỗng = không có.</summary>
+    public List<string>? Flags { get; set; }
+
+    /// <summary>Số liệu trước lần "Tính lại review" đầu tiên. Chỉ ghi một lần, các lần tính lại sau không ghi đè.</summary>
+    public LegacyReviewSnapshot? Legacy { get; set; }
+}
+
+/// <summary>Ảnh chụp số liệu review cũ, giữ lại khi người dùng bấm "Tính lại review" lần đầu.</summary>
+public class LegacyReviewSnapshot
+{
+    public decimal PnLAmount { get; set; }
+    public decimal PnLPercent { get; set; }
+    public decimal? RealizedR { get; set; }
+    public DateTime RecomputedAt { get; set; }
 }
 
 // --- Scenario Playbook types ---

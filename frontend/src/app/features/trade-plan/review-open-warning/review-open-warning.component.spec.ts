@@ -21,6 +21,30 @@ describe('ReviewOpenWarningComponent', () => {
     expect(text()).toContain('Còn 500 CP chưa bán — kết quả chỉ tính phần đã chốt');
   });
 
+  it('warns about sells without linked buys and says R is n/a', () => {
+    render({ openQuantity: 0, oversoldQuantity: 14500 });
+
+    expect(q('review-oversold-warning')).not.toBeNull();
+    expect(text()).toContain('Có 14,500 CP bán nhưng chưa gắn lệnh mua');
+    expect(text()).toContain('bấm Tính lại');
+    expect(text()).toContain('R là n/a');
+    expect(q('review-open-warning')).toBeNull();
+  });
+
+  it('labels the open quantity as "per linked buys" when the sells sit in another plan', () => {
+    render({ openQuantity: 29000, flags: ['lenh-ban-o-ke-hoach-khac'] });
+
+    expect(q('review-other-plan-note')).not.toBeNull();
+    expect(text()).toContain('lệnh bán có thể ở kế hoạch khác');
+  });
+
+  it('does not add the other-plan note without the flag', () => {
+    render({ openQuantity: 29000, flags: [] });
+
+    expect(q('review-open-warning')).not.toBeNull();
+    expect(q('review-other-plan-note')).toBeNull();
+  });
+
   it('shows nothing for a closed review (0) or an old review (null)', () => {
     render({ openQuantity: 0 });
     expect(q('review-open-warning')).toBeNull();

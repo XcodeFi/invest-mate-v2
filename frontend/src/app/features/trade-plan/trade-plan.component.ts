@@ -10,6 +10,7 @@ import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/ser
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { EstimateVsActualComponent } from './estimate-vs-actual/estimate-vs-actual.component';
 import { ReviewOpenWarningComponent } from './review-open-warning/review-open-warning.component';
+import { ReviewRecomputeDialogComponent } from './review-recompute-dialog/review-recompute-dialog.component';
 import { PlanExpectationComponent } from './plan-expectation/plan-expectation.component';
 import { ScenarioRow, scenariosPayload } from './plan-expectation/expectation-math';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger, PlanExpectationDto, EstimateDto } from '../../core/services/trade-plan.service';
@@ -112,7 +113,7 @@ interface DossierGateError {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent, PlanExpectationComponent, EstimateVsActualComponent, ReviewOpenWarningComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent, PlanExpectationComponent, EstimateVsActualComponent, ReviewOpenWarningComponent, ReviewRecomputeDialogComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -1910,7 +1911,8 @@ interface DossierGateError {
 
         <div *ngIf="!loadingReviewPreview && reviewPreview">
           <app-review-open-warning class="block mb-4"
-            [openQuantity]="reviewPreview.openQuantity" [dividendIncome]="reviewPreview.dividendIncome"></app-review-open-warning>
+            [openQuantity]="reviewPreview.openQuantity" [dividendIncome]="reviewPreview.dividendIncome"
+            [oversoldQuantity]="reviewPreview.oversoldQuantity" [flags]="reviewPreview.flags"></app-review-open-warning>
           <!-- Preview metrics -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
             <div class="bg-white rounded-lg p-3 text-center">
@@ -1996,7 +1998,21 @@ interface DossierGateError {
       <div *ngIf="selectedPlanId && selectedPlanStatus === 'Reviewed' && loadedReviewData" class="mt-6 bg-violet-50 border border-violet-200 rounded-lg shadow p-6">
         <h2 class="text-lg font-semibold text-violet-800 mb-4">Kết quả chiến dịch</h2>
         <app-review-open-warning class="block mb-4"
-          [openQuantity]="loadedReviewData.openQuantity" [dividendIncome]="loadedReviewData.dividendIncome"></app-review-open-warning>
+          [openQuantity]="loadedReviewData.openQuantity" [dividendIncome]="loadedReviewData.dividendIncome"
+          [oversoldQuantity]="loadedReviewData.oversoldQuantity" [flags]="loadedReviewData.flags"></app-review-open-warning>
+        <div class="flex items-center justify-end gap-3 mb-3">
+          <span *ngIf="loadedReviewData.legacy" class="text-xs text-gray-500" data-testid="review-legacy-note">
+            Số cũ trước khi tính lại: {{ loadedReviewData.legacy.pnLAmount | vndCurrency }} ({{ loadedReviewData.legacy.pnLPercent | number:'1.1-1' }}%)
+          </span>
+          <button type="button" (click)="openRecomputeDialog()" [disabled]="loadingRecomputePreview" data-testid="review-recompute-button"
+            class="px-3 py-1.5 text-xs border border-violet-300 text-violet-700 hover:bg-violet-100 rounded-lg font-medium disabled:opacity-50">
+            Tính lại theo công thức mới
+          </button>
+        </div>
+        <app-review-recompute-dialog *ngIf="recomputePreview && loadedReviewData"
+          [before]="{ pnLAmount: loadedReviewData.pnLAmount, pnLPercent: loadedReviewData.pnLPercent, realizedR: loadedReviewData.realizedR }"
+          [after]="{ pnLAmount: recomputePreview.pnLAmount, pnLPercent: recomputePreview.pnLPercent, realizedR: recomputePreview.realizedR }"
+          [busy]="recomputing" (confirm)="confirmRecompute()" (cancel)="recomputePreview = null"></app-review-recompute-dialog>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
           <div class="bg-white rounded-lg p-3 text-center">
             <div class="text-xs text-gray-500 mb-1">P&L</div>
@@ -2345,6 +2361,9 @@ export class TradePlanComponent implements OnInit, OnDestroy {
   submittingReview = false;
   reviewLessonsLearned = '';
   loadedReviewData: TradePlanDto['reviewData'] | null = null;
+  recomputePreview: CampaignReviewDto | null = null;
+  loadingRecomputePreview = false;
+  recomputing = false;
   loadedCurrentSl: number | null = null;
 
   // Order sheet
@@ -3921,6 +3940,40 @@ export class TradePlanComponent implements OnInit, OnDestroy {
     this.reviewPlanTarget = null;
     this.reviewPreview = null;
     this.reviewLessonsLearned = '';
+  }
+
+  /** Mở hộp xác nhận: lấy số sẽ có sau khi tính lại (xem trước, không ghi gì). */
+  openRecomputeDialog(): void {
+    if (!this.selectedPlanId) return;
+    this.loadingRecomputePreview = true;
+    this.tradePlanService.previewReview(this.selectedPlanId).subscribe({
+      next: (preview) => {
+        this.loadingRecomputePreview = false;
+        this.recomputePreview = preview;
+      },
+      error: () => {
+        this.loadingRecomputePreview = false;
+        this.notification.error('Lỗi', 'Không thể tải số liệu tính lại');
+      }
+    });
+  }
+
+  confirmRecompute(): void {
+    if (!this.selectedPlanId) return;
+    this.recomputing = true;
+    this.tradePlanService.recomputeReview(this.selectedPlanId).subscribe({
+      next: (result) => {
+        this.recomputing = false;
+        this.recomputePreview = null;
+        this.loadedReviewData = { ...(this.loadedReviewData as NonNullable<typeof this.loadedReviewData>), ...result } as typeof this.loadedReviewData;
+        this.notification.success('Review', 'Đã tính lại review theo công thức mới');
+        this.loadSavedPlans();
+      },
+      error: () => {
+        this.recomputing = false;
+        this.notification.error('Lỗi', 'Không thể tính lại review');
+      }
+    });
   }
 
   submitCampaignReview(): void {
