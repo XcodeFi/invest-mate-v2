@@ -9,6 +9,8 @@ export interface LineLayer {
   values: (number | null)[];
   color?: string;
   kind?: 'line' | 'histogram';
+  /** Chỉ cho cột (histogram): màu riêng từng cột, cùng độ dài với dates; null/thiếu thì dùng `color`. */
+  colors?: (string | null)[];
 }
 
 /** Vạch ngang tham chiếu có nghĩa: value trên thang của tầng, label hiện cạnh vạch và trong chú giải ("Quá mua"). */
@@ -42,4 +44,17 @@ export interface IndicatorChartCandles {
   high: number[];
   low: number[];
   close: number[];
+}
+
+/**
+ * Một mốc đặt lên chuỗi giá (giao dịch, nhật ký, sự kiện...). `time` là ngày ISO (lấy 10 ký tự đầu); ngày không có phiên
+ * thì gắn vào phiên gần nhất phía trước. `tooltip` là các dòng hiện khi trỏ chuột vào phiên đó (chỉ textContent).
+ */
+export interface IndicatorChartMarker {
+  time: string;
+  position: 'aboveBar' | 'belowBar';
+  color: string;
+  shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
+  text: string;
+  tooltip?: string[];
 }

@@ -482,4 +482,72 @@ describe('IndicatorChartComponent', () => {
       }, done);
     });
   });
+
+  describe('markers', () => {
+    const m = (time: string, text = 'T', tooltip?: string[]) =>
+      ({ time, position: 'belowBar' as const, color: '#22c55e', shape: 'arrowUp' as const, text, tooltip });
+
+    const withMarkers = (markers: any[]) => {
+      fixture.componentRef.setInput('dates', dates);
+      fixture.componentRef.setInput('candles', candles);
+      fixture.componentRef.setInput('layers', layers([]));
+      fixture.componentRef.setInput('markers', markers);
+      fixture.detectChanges();
+    };
+
+    it('renders markers on the price series', () => {
+      withMarkers([m('2026-01-05'), m('2026-01-10', 'J')]);
+
+      expect(component.markerCount).toBe(2);
+    });
+
+    it('a marker on a non-trading day snaps to the previous session and its tooltip lines sit on that session', () => {
+      const days = ['2026-11-19T00:00:00Z', '2026-11-20T00:00:00Z', '2026-11-23T00:00:00Z'];
+      const c = { open: [1, 2, 3], high: [2, 3, 4], low: [0, 1, 2], close: [1, 2, 3] };
+      fixture.componentRef.setInput('dates', days);
+      fixture.componentRef.setInput('candles', c);
+      fixture.componentRef.setInput('layers', layers([]));
+      fixture.componentRef.setInput('markers', [m('2026-11-21', 'T', ['MUA 100 × 63.000đ'])]);
+      fixture.detectChanges();
+
+      expect(component.markerCount).toBe(1);
+      expect(component.markerLinesAt('2026-11-20')).toEqual(['MUA 100 × 63.000đ']);
+      expect(component.markerLinesAt('2026-11-21')).toEqual([]);
+    });
+
+    it('a marker before the first session is not drawn', () => {
+      withMarkers([m('2025-12-01')]);
+
+      expect(component.markerCount).toBe(0);
+    });
+
+    it('changing the markers redraws them without changing the number of charts', () => {
+      withMarkers([m('2026-01-05')]);
+      expect(component.markerCount).toBe(1);
+
+      fixture.componentRef.setInput('markers', []);
+      fixture.detectChanges();
+
+      expect(component.markerCount).toBe(0);
+      expect(component.chartCount).toBe(1);
+    });
+
+    it('no markers input keeps the chart working as before', () => {
+      setInputs(layers(['RSI']));
+
+      expect(component.markerCount).toBe(0);
+      expect(component.chartCount).toBe(2);
+    });
+
+    it('a histogram pane with per-bar colors renders', () => {
+      const colors: (string | null)[] = Array.from({ length: N }, (_, i) => (i % 2 === 0 ? '#22c55e' : '#ef4444'));
+      const l: GroupLayers = {
+        overlays: [], priceLines: [], notes: [],
+        panes: [{ title: 'Cảm xúc', lines: [{ label: 'Tự tin', values: series(i => (i % 3 === 0 ? 5 : null)), kind: 'histogram', colors }] }]
+      };
+
+      expect(() => setInputs(l)).not.toThrow();
+      expect(component.chartCount).toBe(2);
+    });
+  });
 });

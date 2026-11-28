@@ -5,7 +5,8 @@ import { CommonModule } from '@angular/common';
 import {
   createChart, IChartApi, ISeriesApi, LineStyle, MouseEventParams, Time
 } from 'lightweight-charts';
-import { GroupLayers, IndicatorChartCandles, LineLayer } from './indicator-chart.types';
+import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker, LineLayer } from './indicator-chart.types';
+import { snapMarkers, toSeriesData } from './chart-markers';
 
 const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
@@ -67,7 +68,7 @@ interface Anchor { chart: IChartApi; series: ISeriesApi<any>; values: (number | 
   imports: [CommonModule],
   template: `
     <div class="space-y-1">
-      <div #root data-testid="indicator-chart-root" class="w-full"></div>
+      <div #root data-testid="indicator-chart-root" class="w-full relative"></div>
       <ul *ngIf="layers.notes.length > 0" data-testid="indicator-chart-notes"
           class="text-xs text-gray-500 space-y-0.5">
         <li *ngFor="let note of layers.notes">{{ note }}</li>
@@ -80,6 +81,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   @Input() dates: string[] = [];
   @Input() candles: IndicatorChartCandles = EMPTY_CANDLES;
   @Input() layers: GroupLayers = EMPTY_LAYERS;
+  /** Các mốc đặt lên chuỗi giá (giao dịch, nhật ký, sự kiện...); ngày không có phiên thì gắn vào phiên trước đó. */
+  @Input() markers: IndicatorChartMarker[] = [];
 
   @ViewChild('root', { static: true }) root!: ElementRef<HTMLDivElement>;
 
@@ -98,6 +101,19 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   private timesKey = '';
   private savedRange: { from: number; to: number } | null = null;
   private restoreFrame: number | null = null;
+  /** Dòng tooltip theo phiên (ngày YYYY-MM-DD) của các marker đang vẽ, và số marker đã đặt lên chuỗi giá. */
+  private markerTooltips = new Map<string, string[]>();
+  private appliedMarkers = 0;
+
+  /** Số marker đang đặt trên chuỗi giá (sau khi gắn vào phiên và bỏ marker nằm trước phiên đầu). */
+  get markerCount(): number {
+    return this.appliedMarkers;
+  }
+
+  /** Các dòng tooltip của marker nằm trên phiên `day` (YYYY-MM-DD); rỗng khi phiên không có marker kèm tooltip. */
+  markerLinesAt(day: string): string[] {
+    return this.markerTooltips.get(day) ?? [];
+  }
 
   /** Số instance chart đang sống (dùng cho test dọn dẹp). */
   get chartCount(): number {
@@ -162,6 +178,12 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       low: this.candles.low[src], close: this.candles.close[src]
     })));
 
+    const snapped = snapMarkers(this.markers ?? [], times);
+    candleSeries.setMarkers(snapped.markers as any);
+    this.appliedMarkers = snapped.markers.length;
+    this.markerTooltips = snapped.tooltips;
+    this.attachMarkerTooltip(priceChart, host, priceBlock.host);
+
     this.ohlc = this.addOhlcRow(priceBlock.legend);
     this.addCandleLegend(priceBlock.legend);
     const priceReadout: ReadoutItem[] = [];
@@ -192,7 +214,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       let firstSeries: ISeriesApi<'Line' | 'Histogram'> | null = null;
 
       pane.lines.forEach(line => {
-        const data = this.lineData(times, line.values);
+        const data = toSeriesData(times, this.sourceIndex, line.values, line.kind === 'histogram' ? line.colors : undefined);
         const series = line.kind === 'histogram'
           ? chart.addHistogramSeries({ color: line.color ?? '#94a3b8', priceLineVisible: false, lastValueVisible: true, priceFormat: PRICE_FORMAT })
           : chart.addLineSeries({
@@ -448,9 +470,35 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
 
   /** Điểm null thành điểm trống (có time, không có value) để mọi chuỗi cùng số bar với tầng giá. */
   private lineData(times: string[], values: (number | null)[]): any[] {
-    return this.sourceIndex.map((src, k) => {
-      const v = values[src];
-      return v === null || v === undefined ? { time: times[k] as Time } : { time: times[k] as Time, value: v };
+    return toSeriesData(times, this.sourceIndex, values);
+  }
+
+  /** Tooltip của các marker: hiện khi trỏ chuột vào phiên có marker kèm tooltip. Chỉ textContent, vì nội dung đến từ người dùng và dữ liệu. */
+  private attachMarkerTooltip(chart: IChartApi, host: HTMLElement, canvasHost: HTMLElement): void {
+    if (this.markerTooltips.size === 0) return;
+    const tip = document.createElement('div');
+    tip.setAttribute('data-testid', 'marker-tooltip');
+    tip.className = 'absolute pointer-events-none bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-50 max-w-xs';
+    tip.style.display = 'none';
+    host.appendChild(tip);
+    chart.subscribeCrosshairMove(param => {
+      const lines = typeof param.time === 'string' && param.point ? this.markerTooltips.get(param.time) : undefined;
+      if (!lines || lines.length === 0) {
+        tip.style.display = 'none';
+        return;
+      }
+      tip.replaceChildren(...[param.time as string, ...lines].map((text, i) => {
+        const row = document.createElement('div');
+        row.className = i === 0 ? 'font-medium text-gray-300 mb-1' : '';
+        row.textContent = text;
+        return row;
+      }));
+      tip.style.display = 'block';
+      const x = param.point!.x;
+      const top = canvasHost.offsetTop + Math.max(0, param.point!.y - 10);
+      const left = x + tip.offsetWidth + 20 > host.clientWidth ? Math.max(0, x - tip.offsetWidth - 10) : x + 10;
+      tip.style.left = `${left}px`;
+      tip.style.top = `${top}px`;
     });
   }
 
@@ -492,6 +540,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     this.ohlc = null;
     this.anchors = [];
     this.sourceIndex = [];
+    this.markerTooltips = new Map();
+    this.appliedMarkers = 0;
     this.syncing = false;
     this.crosshairSyncing = false;
     const host = this.root?.nativeElement;
