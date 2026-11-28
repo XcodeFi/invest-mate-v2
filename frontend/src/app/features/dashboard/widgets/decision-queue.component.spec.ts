@@ -145,8 +145,9 @@ describe('DecisionQueueComponent', () => {
     expect(cardsOf().length).toBe(5);
     const overflow = fixture.debugElement.query(By.css('[data-test="overflow-link"]'));
     expect(overflow.nativeElement.textContent).toContain('5/8');
-    expect(toggleBtn().nativeElement.textContent).toContain('Xem thêm 3');
+    expect(toggleBtn().nativeElement.textContent.trim()).toBe('Xem thêm 3 ▾');
     expect(toggleBtn().nativeElement.getAttribute('type')).toBe('button');
+    expect(toggleBtn().nativeElement.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('the toggle expands to all N items, says "Thu gọn", and no longer links to the risk dashboard', () => {
@@ -157,7 +158,8 @@ describe('DecisionQueueComponent', () => {
     clickToggle();
 
     expect(cardsOf().length).toBe(8);
-    expect(toggleBtn().nativeElement.textContent).toContain('Thu gọn');
+    expect(toggleBtn().nativeElement.textContent.trim()).toBe('Thu gọn ▴');
+    expect(toggleBtn().nativeElement.getAttribute('aria-expanded')).toBe('true');
     expect(fixture.debugElement.query(By.css('[data-test="overflow-link"] a[routerLink="/risk-dashboard"]'))).toBeNull();
     expect(fixture.debugElement.query(By.css('[data-test="overflow-link"] a'))).toBeNull();
   });

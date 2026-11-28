@@ -1717,7 +1717,7 @@ Dashboard có badge số lượng, **ẩn hoàn toàn khi bằng 0**: một dòn
 |--------|----------|---------|
 | `GET` | `/api/v1/company-dossiers` | Danh sách hồ sơ của user |
 | `GET` | `/api/v1/company-dossiers/{symbol}` | Chi tiết 1 hồ sơ |
-| `GET` | `/api/v1/market/stock/{symbol}/fundamentals` | Số liệu doanh nghiệp làm nguyên liệu — kèm `unavailableSections[]`; cả `company` và `indicators` đều rỗng nội dung → 404 |
+| `GET` | `/api/v1/market/stock/{symbol}/fundamentals` | Số liệu doanh nghiệp làm nguyên liệu — kèm `unavailableSections[]`; cả `company` và `indicators` đều rỗng nội dung → 404 **`trend` (2026-11-28):** các so sánh kỳ tính sẵn ở server cho cả giao diện và MCP: từng quý so với cùng quý năm trước (+ biên lợi nhuận ròng), TTM so với TTM trước, cả năm CHỈ khi đủ 4 quý, chiều tăng/giảm với ngưỡng 1%, và vị trí giá trong vùng 52 tuần. Giá trị thiếu là null (không phải 0); lỗ → lãi cho `yoyPct = null`, `direction = up`, ghi chú "từ lỗ sang lãi". Số liệu doanh nghiệp theo quý, không có số liệu tháng. |
 | `GET` | `/api/v1/company-dossiers/{symbol}/suggested-rules` | 3 rủi ro hạng cao nhất, ghép thành câu cho điều kiện "lý do sai" + cờ `meetsMinLength` |
 | `GET` | `/api/v1/company-dossiers/needing-review` | Hồ sơ Expired/Unconfirmed/NeedsReview, xếp cái đang chặn lên trước |
 | `PUT` | `/api/v1/company-dossiers/{symbol}` | Upsert nội dung (JWT → luôn `ByAgent=false`) |
