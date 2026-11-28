@@ -1,9 +1,11 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, effect, inject, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
+import { ThemeService } from '../../core/services/theme.service';
+import { applyChartJsDefaults, chartJsColors } from '../../shared/theme/chartjs-theme';
 import { PnlService, OverallPnLSummary, PositionPnL } from '../../core/services/pnl.service';
 import { AnalyticsService, PerformanceSummary, PortfolioRiskSummary } from '../../core/services/analytics.service';
 import {
@@ -637,7 +639,30 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     private advancedAnalyticsService: AdvancedAnalyticsService,
     private portfolioService: PortfolioService,
     private capitalFlowService: CapitalFlowService
-  ) {}
+  ) {
+    // Đổi chế độ sáng/tối: đặt lại màu mặc định của Chart.js rồi vẽ lại các biểu đồ đang có
+    effect(() => {
+      const theme = this.themeService.theme();
+      untracked(() => {
+        applyChartJsDefaults(Chart, theme);
+        this.rerenderCharts();
+      });
+    });
+  }
+
+  private readonly themeService = inject(ThemeService);
+
+  private get chartColors() {
+    return chartJsColors(this.themeService.theme());
+  }
+
+  /** Vẽ lại các biểu đồ đã có (đổi chế độ giao diện); chart chưa từng vẽ thì để luồng bình thường vẽ khi có dữ liệu. */
+  private rerenderCharts(): void {
+    if (this.pnlBarChart) this.renderPnLBarChart();
+    if (this.pieChart) this.renderPieChart();
+    if (this.equityCurveChart) this.renderEquityCurveChart();
+    if (this.monthlyBarChart) this.renderMonthlyBarChart();
+  }
 
   ngOnInit(): void {
     this.portfolioService.getAll().subscribe({
@@ -938,7 +963,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
             ticks: {
               callback: (v) => this.formatVndShort(Number(v))
             },
-            grid: { color: 'rgba(0,0,0,0.05)' }
+            grid: { color: this.chartColors.grid }
           },
           x: { grid: { display: false } }
         }
@@ -961,7 +986,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
           data,
           backgroundColor: this.positionColors,
           borderWidth: 2,
-          borderColor: '#f9fafb'
+          borderColor: this.chartColors.slice
         }]
       },
       options: {
@@ -1060,7 +1085,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         scales: {
           y: {
             ticks: { callback: (v) => this.formatVndShort(Number(v)) },
-            grid: { color: 'rgba(0,0,0,0.05)' }
+            grid: { color: this.chartColors.grid }
           },
           x: {
             grid: { display: false },
@@ -1108,7 +1133,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         scales: {
           y: {
             ticks: { callback: (v) => `${v}%` },
-            grid: { color: 'rgba(0,0,0,0.05)' }
+            grid: { color: this.chartColors.grid }
           },
           x: { grid: { display: false } }
         }

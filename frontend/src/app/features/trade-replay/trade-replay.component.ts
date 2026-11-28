@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, effect, inject, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -6,6 +6,8 @@ import { switchMap } from 'rxjs/operators';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
+import { ThemeService } from '../../core/services/theme.service';
+import { applyChartJsDefaults, chartJsColors } from '../../shared/theme/chartjs-theme';
 
 import {
   TradePlanService, TradePlan, PlanLotDto, ExitTargetDto, StopLossHistoryDto
@@ -182,7 +184,18 @@ export class TradeReplayComponent implements OnInit, OnDestroy, AfterViewInit {
     private marketDataService: MarketDataService,
     private portfolioService: PortfolioService,
     private notificationService: NotificationService
-  ) {}
+  ) {
+    // Đổi chế độ sáng/tối: đặt lại màu mặc định của Chart.js rồi vẽ lại biểu đồ đang có
+    effect(() => {
+      const theme = this.themeService.theme();
+      untracked(() => {
+        applyChartJsDefaults(Chart, theme);
+        if (this.chart) this.renderChart();
+      });
+    });
+  }
+
+  private readonly themeService = inject(ThemeService);
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -509,7 +522,7 @@ export class TradeReplayComponent implements OnInit, OnDestroy, AfterViewInit {
         scales: {
           y: {
             ticks: { callback: (v) => this.formatVndShort(Number(v)) },
-            grid: { color: 'rgba(0,0,0,0.05)' }
+            grid: { color: chartJsColors(this.themeService.theme()).grid }
           },
           x: {
             grid: { display: false },

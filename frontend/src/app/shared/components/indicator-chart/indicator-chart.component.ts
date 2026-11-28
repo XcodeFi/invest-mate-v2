@@ -1,5 +1,5 @@
 import {
-  AfterViewInit, Component, ElementRef, Input, OnChanges, OnDestroy, ViewChild
+  AfterViewInit, Component, effect, ElementRef, inject, Input, OnChanges, OnDestroy, untracked, ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -7,6 +7,9 @@ import {
 } from 'lightweight-charts';
 import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker, LineLayer } from './indicator-chart.types';
 import { snapMarkers, toSeriesData } from './chart-markers';
+import { Theme, ThemeService } from '../../../core/services/theme.service';
+import { ensureContrastOnDark } from '../../theme/contrast';
+import { chartColors } from './indicator-chart.theme';
 
 const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
@@ -86,6 +89,17 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
 
   @ViewChild('root', { static: true }) root!: ElementRef<HTMLDivElement>;
 
+  private readonly themeService = inject(ThemeService);
+  /** Chế độ giao diện của lần dựng hiện tại; đổi chế độ thì dựng lại (giữ nguyên khoảng nhìn). */
+  private currentTheme: Theme = this.themeService.theme();
+
+  constructor() {
+    effect(() => {
+      const theme = this.themeService.theme();
+      untracked(() => this.onThemeChange(theme));
+    });
+  }
+
   private charts: IChartApi[] = [];
   private readouts: Readout[] = [];
   private canvases: PaneCanvas[] = [];
@@ -118,6 +132,17 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   /** Số instance chart đang sống (dùng cho test dọn dẹp). */
   get chartCount(): number {
     return this.charts.length;
+  }
+
+  private onThemeChange(theme: Theme): void {
+    if (theme === this.currentTheme) return;
+    this.currentTheme = theme;
+    if (this.viewReady) this.rebuild();
+  }
+
+  /** Màu đường để vẽ: ở nền tối, đường quá tối so với nền được làm sáng; chỉ ở chế độ tối, màu đủ tương phản giữ nguyên. */
+  private tone(color: string): string {
+    return this.currentTheme === 'dark' ? ensureContrastOnDark(color, chartColors('dark').background) : color;
   }
 
   ngAfterViewInit(): void {
@@ -189,12 +214,12 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     const priceReadout: ReadoutItem[] = [];
     layers.overlays.forEach(line => {
       const series = priceChart.addLineSeries({
-        color: line.color ?? '#2563eb', lineWidth: 2,
+        color: this.tone(line.color ?? '#2563eb'), lineWidth: 2,
         priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
         priceFormat: PRICE_FORMAT
       });
       series.setData(this.lineData(times, line.values));
-      priceReadout.push(this.addLegendItem(priceBlock.legend, line.label, line.color ?? '#2563eb', 'bar', line.values));
+      priceReadout.push(this.addLegendItem(priceBlock.legend, line.label, this.tone(line.color ?? '#2563eb'), 'bar', line.values));
     });
     layers.priceLines.forEach(pl => {
       candleSeries.createPriceLine({
@@ -216,15 +241,15 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
       pane.lines.forEach(line => {
         const data = toSeriesData(times, this.sourceIndex, line.values, line.kind === 'histogram' ? line.colors : undefined);
         const series = line.kind === 'histogram'
-          ? chart.addHistogramSeries({ color: line.color ?? '#94a3b8', priceLineVisible: false, lastValueVisible: true, priceFormat: PRICE_FORMAT })
+          ? chart.addHistogramSeries({ color: this.tone(line.color ?? '#94a3b8'), priceLineVisible: false, lastValueVisible: true, priceFormat: PRICE_FORMAT })
           : chart.addLineSeries({
-              color: line.color ?? '#2563eb', lineWidth: 2,
+              color: this.tone(line.color ?? '#2563eb'), lineWidth: 2,
               priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
               priceFormat: PRICE_FORMAT
             });
         series.setData(data as any);
         firstSeries ??= series;
-        items.push(this.addLegendItem(block.legend, line.label, line.color ?? (line.kind === 'histogram' ? '#94a3b8' : '#2563eb'),
+        items.push(this.addLegendItem(block.legend, line.label, this.tone(line.color ?? (line.kind === 'histogram' ? '#94a3b8' : '#2563eb')),
           line.kind === 'histogram' ? 'square' : 'bar', line.values));
       });
 
@@ -397,7 +422,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     const sign = diff >= 0 ? '+' : '−';
     this.ohlc.changeEl.textContent =
       `${sign}${formatPrice(Math.abs(diff))} (${sign}${Math.abs(pct).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)`;
-    this.ohlc.changeEl.style.color = diff >= 0 ? '#16a34a' : '#dc2626';
+    const colors = chartColors(this.currentTheme);
+    this.ohlc.changeEl.style.color = diff >= 0 ? colors.upText : colors.downText;
   }
 
   /** Chú giải nến: ô xanh/đỏ kèm lời giải thích, không có giá trị. */
@@ -454,13 +480,18 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   private createChart(container: HTMLElement, height: number, showTime: boolean): IChartApi {
+    const c = chartColors(this.currentTheme);
     const chart = createChart(container, {
-      layout: { background: { color: '#ffffff' }, textColor: '#374151', fontFamily: 'system-ui, sans-serif' },
-      grid: { vertLines: { color: '#f3f4f6' }, horzLines: { color: '#f3f4f6' } },
-      crosshair: { mode: 0 },
+      layout: { background: { color: c.background }, textColor: c.text, fontFamily: 'system-ui, sans-serif' },
+      grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
+      crosshair: {
+        mode: 0,
+        vertLine: { color: c.crosshair, labelBackgroundColor: c.crosshairLabel },
+        horzLine: { color: c.crosshair, labelBackgroundColor: c.crosshairLabel }
+      },
       // Cùng bề rộng trục giá ở mọi tầng, để vùng vẽ (và các bar) thẳng cột với nhau
-      rightPriceScale: { borderColor: '#e5e7eb', minimumWidth: 72 },
-      timeScale: { borderColor: '#e5e7eb', timeVisible: false, visible: showTime },
+      rightPriceScale: { borderColor: c.border, minimumWidth: 72 },
+      timeScale: { borderColor: c.border, timeVisible: false, visible: showTime },
       width: container.clientWidth || this.root.nativeElement.clientWidth || 600,
       height
     });

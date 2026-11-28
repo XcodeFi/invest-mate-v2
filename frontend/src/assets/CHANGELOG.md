@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.111.0] — 2026-11-28 · Chế độ tối (mặc định)
+
+### Tính năng mới
+
+- **Giao diện tối, mặc định bật** cho mọi trang để dịu mắt khi làm việc lâu. Nút **☀️/🌙** ở góc phải header (cả trên điện thoại) đổi qua lại; tooltip "Chế độ sáng" / "Chế độ tối". Lựa chọn được nhớ trên trình duyệt này; chưa chọn (hoặc trình duyệt chặn lưu) thì là tối, không lấy theo hệ điều hành. Trang không nháy sáng lúc mở vì chế độ được đặt trước khi ứng dụng khởi động.
+- **Biểu đồ đổi theo:** biểu đồ nến và các tầng chỉ báo (Thị trường, Dòng thời gian mã), biểu đồ Phân tích và Replay kế hoạch đổi nền, chữ, lưới và vạch trỏ chuột sang bảng màu tối; đường chỉ báo quá tối (ví dụ tím đậm) được làm sáng chỉ ở chế độ tối, màu nến và các đường nhận diện khác giữ nguyên. Đổi chế độ khi đang xem thì biểu đồ vẽ lại và giữ nguyên khoảng nhìn.
+- Chế độ sáng giữ nguyên như trước.
+
+### Kỹ thuật
+
+- Một lớp giao diện toàn cục thay vì sửa từng trang: `src/styles/dark-theme.css` ánh xạ các tiện ích Tailwind sáng đang dùng khắp app (nền trắng/xám, chữ xám, viền, hover, ô tô màu trạng thái, ô nhập, bóng) sang bảng màu tối, mọi luật nằm dưới `html.dark`. Luật cho class trơn dùng `:where()` để biến thể `hover:`/`focus:` vẫn thắng. Ô tô màu trạng thái (đỏ/xanh/vàng...) thành nền mờ 10–24% với chữ sắc sáng, nên màu giữ nguyên ý nghĩa. `darkMode: 'class'` được bật cho Tailwind để component mới dùng `dark:` được.
+- `ThemeService` (signal + localStorage `imv2.theme`, mọi truy cập storage bọc try/catch) và script nhỏ trong `index.html` chạy trước Angular. Component mới `app-theme-toggle`. `indicator-chart` đọc chế độ qua `indicator-chart.theme.ts`; Chart.js đặt màu mặc định qua `chartjs-theme.ts`.
+- Độ tương phản WCAG AA (≥ 4,5:1) được kiểm bằng test đọc chính file CSS: chữ chính/phụ/mờ trên trang, thẻ và nền nổi, chữ trạng thái trên nền tô mờ. Màu chữ mờ nhất dùng `#8b99ae` (6,1:1), không dùng `#64748b` vì chỉ đạt 3,7:1.
+- Chưa làm: lưu lựa chọn phía máy chủ (localStorage đủ cho một người dùng), kiểu in/email, riêng khu quản trị ngoài những gì lớp toàn cục đã phủ.
+
+---
+
 ## [v2.110.0] — 2026-11-28 · Trang Sàng lọc cổ phiếu
 
 ### Tính năng mới
