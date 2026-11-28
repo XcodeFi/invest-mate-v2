@@ -193,6 +193,19 @@ Mỗi giao dịch trên dòng thời gian có một huy hiệu cho biết hồ s
 
 Số ngày tính theo ngày lịch giờ Việt Nam, từ lần ký hiện tại tới ngày lệnh.
 
+## Đọc các biểu đồ trong khối "Số liệu doanh nghiệp"
+
+Khối số liệu bên cạnh ô viết hồ sơ giờ là **biểu đồ**; mỗi biểu đồ có nút **Xem bảng** để xem đúng các con số đã vẽ, và rê chuột (hoặc Tab) lên từng cột để đọc giá trị.
+
+- **Ô số lớn có mũi tên.** Doanh thu và lợi nhuận quý mới nhất, và tổng 4 quý gần nhất, kèm **▲/▼/▬ + %** so với **cùng quý năm trước** (hoặc 4 quý liền trước). Chiều mũi tên theo con số; màu (xanh tăng, đỏ giảm, xám đi ngang khi biến động dưới 1%) chỉ là phụ, dấu và % luôn có chữ. Ô nào không có kỳ so sánh thì không có mũi tên. Lỗ sang lãi không có phần trăm (vô nghĩa trên số âm), thay bằng ghi chú "từ lỗ sang lãi".
+- **Doanh thu và lợi nhuận theo quý.** Mỗi quý là một cặp cột: **quý này** (đậm) và **cùng quý năm trước** (nhạt), nhãn **▲ +12,3%** hoặc **▼ −8,1%** phía trên cặp, gạch ngang khi không có quý năm trước. Hai biểu đồ xếp dọc trên cùng trục quý, không dùng hai trục. Lợi nhuận âm vẽ dưới đường gốc (rê chuột thấy "Lỗ"). Phía dưới là đường **biên lợi nhuận ròng** (lợi nhuận / doanh thu), chỗ thiếu số bị ngắt chứ không về 0. Nút **Năm** chỉ có khi có năm đủ 4 quý; năm chưa đủ ghi "chưa đủ 4 quý". Doanh nghiệp báo cáo theo quý nên **không có số liệu tháng**.
+- **Kế hoạch kinh doanh.** Thanh tiến độ cho từng chỉ tiêu: đã thực hiện bao nhiêu so với kế hoạch cả năm, và đang tính luỹ kế tới quý nào.
+- **Cổ tức theo năm.** Nguồn chưa cung cấp giá trị cổ tức dạng số nên không vẽ cột; chỉ có dòng thời gian các sự kiện theo năm kèm nội dung nguyên văn.
+- **So sánh P/E cùng ngành.** Thanh ngang xếp từ cao xuống thấp, công ty đang xem được tô màu xanh, các mã còn lại một màu xám. Mã có P/E âm (đang lỗ) hoặc chưa có số không vẽ mà ghi **n/a**.
+- **Cơ cấu cổ đông.** Một thanh 100%: bốn cổ đông lớn nhất cộng **Khác**.
+- **Vùng giá 52 tuần.** Thanh từ đáy đến đỉnh với chấm là giá hiện tại. Chưa có giá hiện tại thì chỉ hiện vùng đáy–đỉnh.
+- Rê chuột lên các thẻ chỉ số (P/E, P/B, ROE...) để xem giải thích ngắn bằng tiếng Việt. Phần nào không lấy được dữ liệu thì ghi **Chưa có dữ liệu**, không bao giờ vẽ thành 0.
+
 ## Điều cần biết
 
 - Kế hoạch **đang chạy** không bị soi lại dù hồ sơ liên quan hết hạn — chỉ kế hoạch **mới** hoặc kế hoạch sửa vượt ngưỡng 5% mới bị kiểm tra.

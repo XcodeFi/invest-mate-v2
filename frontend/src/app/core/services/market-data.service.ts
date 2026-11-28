@@ -437,6 +437,78 @@ export interface BusinessPlanInfo {
   targets: BusinessPlanTarget[];
 }
 
+/** Một quý với các so sánh kỳ do SERVER tính (FundamentalsTrendDto): giao diện chỉ hiển thị, không tự tính lại. Null = không có kỳ so sánh, không phải 0. */
+export interface QuarterTrend {
+  period: string;
+  year: number;
+  quarter: number;
+  revenue?: number | null;
+  revenueSameQuarterLastYear?: number | null;
+  revenueYoyPct?: number | null;
+  revenueDirection?: TrendDirection | null;
+  revenueNote?: string | null;
+  netProfit?: number | null;
+  netProfitSameQuarterLastYear?: number | null;
+  netProfitYoyPct?: number | null;
+  netProfitDirection?: TrendDirection | null;
+  netProfitNote?: string | null;
+  netMargin?: number | null;
+  netMarginSameQuarterLastYear?: number | null;
+  netMarginChangePp?: number | null;
+}
+
+export type TrendDirection = 'up' | 'down' | 'flat';
+
+export interface TtmTrend {
+  period: string;
+  revenue?: number | null;
+  prevRevenue?: number | null;
+  revenueYoyPct?: number | null;
+  revenueDirection?: TrendDirection | null;
+  revenueNote?: string | null;
+  netProfit?: number | null;
+  prevNetProfit?: number | null;
+  netProfitYoyPct?: number | null;
+  netProfitDirection?: TrendDirection | null;
+  netProfitNote?: string | null;
+  netMargin?: number | null;
+  prevNetMargin?: number | null;
+}
+
+export interface AnnualTrend {
+  year: number;
+  quartersPresent: number;
+  complete4Quarters: boolean;
+  revenue?: number | null;
+  prevYearRevenue?: number | null;
+  revenueYoyPct?: number | null;
+  revenueDirection?: TrendDirection | null;
+  revenueNote?: string | null;
+  netProfit?: number | null;
+  prevYearNetProfit?: number | null;
+  netProfitYoyPct?: number | null;
+  netProfitDirection?: TrendDirection | null;
+  netProfitNote?: string | null;
+}
+
+export interface Range52W {
+  low?: number | null;
+  high?: number | null;
+  /** Giá hiện tại, nghìn đồng (cùng đơn vị với đáy/đỉnh). */
+  price?: number | null;
+  positionPct?: number | null;
+  outsideRange: boolean;
+  unit: string;
+}
+
+export interface FundamentalsTrend {
+  quarters: QuarterTrend[];
+  ttm?: TtmTrend | null;
+  annual: AnnualTrend[];
+  range52W?: Range52W | null;
+  note: string;
+}
+
 export interface CompanyFundamentals {
   symbol: string;
   company: CompanyOverviewInfo | null;
@@ -447,6 +519,8 @@ export interface CompanyFundamentals {
   businessPlan: BusinessPlanInfo | null;
   /** Phần nào có tên trong đây là KHÔNG lấy được dữ liệu — không được render thành 0. */
   unavailableSections: string[];
+  /** So sánh kỳ tính sẵn ở server; vắng mặt khi backend cũ hoặc không tính được ("trend" nằm trong unavailableSections). */
+  trend?: FundamentalsTrend | null;
 }
 
 export interface TradingHistorySummary {

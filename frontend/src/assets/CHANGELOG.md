@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.118.0] — 2026-11-28 · Số liệu doanh nghiệp thành biểu đồ, có mũi tên so với cùng kỳ
+
+### Tính năng mới
+
+- **Doanh thu và lợi nhuận theo quý** thành biểu đồ cột ghép: mỗi quý là cặp cột "quý này" và "cùng quý năm trước" (bước nhạt hơn của cùng màu), nhãn **▲ +12,3% / ▼ −8,1%** phía trên mỗi cặp, lợi nhuận âm vẽ dưới đường gốc. Hai biểu đồ xếp dọc trên cùng trục quý (không trục kép), kèm đường **biên lợi nhuận ròng** riêng. Chuyển được giữa **Quý** và **Năm** (năm chỉ có khi đủ 4 quý).
+- **Ô số lớn có mũi tên xu hướng**: doanh thu và lợi nhuận quý mới nhất, tổng 4 quý gần nhất, biên ròng; mỗi ô so với cùng kỳ năm trước, dùng "1.234 tỷ" / "12,3 nghìn tỷ" cho số lớn (giá trị đầy đủ ở tooltip). Ô không có kỳ so sánh thì không có mũi tên; lỗ sang lãi không có phần trăm mà có ghi chú.
+- **Kế hoạch kinh doanh** thành thanh tiến độ; **So sánh P/E cùng ngành** thành thanh ngang (công ty được tô nhấn, mã P/E âm hoặc thiếu ghi n/a); **Cơ cấu cổ đông** thành một thanh 100% (4 cổ đông lớn nhất + Khác); **Vùng giá 52 tuần** có chấm giá hiện tại; **Cổ tức theo năm** là dòng thời gian sự kiện (nguồn chưa cung cấp giá trị cổ tức dạng số nên chưa vẽ cột).
+- Mỗi biểu đồ có nút **Xem bảng** (cùng số liệu), tooltip khi rê chuột hoặc Tab, và câu **Chưa có dữ liệu** khi thiếu (không vẽ thành 0). Các thẻ chỉ số có giải thích ngắn bằng tiếng Việt khi rê chuột. Cả bốn khối (doanh thu, cùng ngành, cổ tức, kế hoạch) giờ mở sẵn.
+- Doanh nghiệp báo cáo theo quý nên không có số liệu tháng; trang nói rõ điều này.
+
+### Kỹ thuật
+
+- Thư mục `shared/charts/`: SVG/HTML tự vẽ, không thêm thư viện. Màu qua biến `--viz-*` (`src/styles/charts.css`), bốn hue đầu của bảng mặc định theo thứ tự cố định, kiểm bằng `validate_palette.js` ở cả hai chế độ trên đúng nền thẻ (kết quả nằm trong mô tả PR).
+- Giao diện chỉ hiển thị khối `trend` của server (v2.116.0), không tự tính lại so sánh nào.
+
+---
+
+---
+
 ## [v2.117.1] — 2026-11-28 · Sửa: "Việc cần xử lý hôm nay" xem được đủ danh sách ngay trên Trang chủ
 
 ### Sửa lỗi
