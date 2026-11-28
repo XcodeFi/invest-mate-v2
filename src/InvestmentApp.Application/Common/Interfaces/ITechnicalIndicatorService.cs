@@ -20,6 +20,12 @@ public class TechnicalSeriesResult
     /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
     /// </summary>
     public bool? Adjusted { get; set; }
+
+    /// <summary>
+    /// Ngày của nến cuối trong chuỗi ĐÃ điều chỉnh được phục vụ (null khi chuỗi chưa điều chỉnh). Khi nguồn đang bị chặn và
+    /// phải dùng bản lưu cũ, ngày này lùi lại so với phiên mới nhất, nên người dùng và công cụ phía sau biết dữ liệu cũ tới đâu.
+    /// </summary>
+    public DateTime? AdjustedAsOf { get; set; }
     public List<DateTime> Dates { get; set; } = new();
     public List<decimal> Open { get; set; } = new();
     public List<decimal> High { get; set; } = new();
@@ -58,6 +64,12 @@ public class TechnicalAnalysisResult
     /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
     /// </summary>
     public bool? Adjusted { get; set; }
+
+    /// <summary>
+    /// Ngày của nến cuối trong chuỗi ĐÃ điều chỉnh được phục vụ (null khi chuỗi chưa điều chỉnh). Khi nguồn đang bị chặn và
+    /// phải dùng bản lưu cũ, ngày này lùi lại so với phiên mới nhất, nên người dùng và công cụ phía sau biết dữ liệu cũ tới đâu.
+    /// </summary>
+    public DateTime? AdjustedAsOf { get; set; }
     public DateTime AnalyzedAt { get; set; }
     public int DataPoints { get; set; }
 

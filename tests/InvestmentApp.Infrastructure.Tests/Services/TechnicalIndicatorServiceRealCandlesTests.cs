@@ -28,7 +28,8 @@ public class TechnicalIndicatorServiceRealCandlesTests
         {
             Symbol = "FPT", Date = start.AddDays(i),
             Open = close, High = close + halfRange, Low = close - halfRange, Close = close,
-            Volume = 1_000_000, IsAdjusted = adjusted
+            Volume = 1_000_000, IsAdjusted = adjusted,
+            AdjustedAsOf = adjusted ? DateTime.UtcNow.Date.AddDays(-1) : null
         }).ToList();
     }
 
@@ -41,7 +42,8 @@ public class TechnicalIndicatorServiceRealCandlesTests
             return new StockPriceData
             {
                 Symbol = "FPT", Date = start.AddDays(i), Open = c - 200m, High = c + 500m, Low = c - 600m, Close = c,
-                Volume = 1_000_000 + i * 1_000, IsAdjusted = adjusted
+                Volume = 1_000_000 + i * 1_000, IsAdjusted = adjusted,
+                AdjustedAsOf = adjusted ? DateTime.UtcNow.Date.AddDays(-1) : null
             };
         }).ToList();
     }
@@ -158,5 +160,47 @@ public class TechnicalIndicatorServiceRealCandlesTests
 
         (await _sut.AnalyzeAsync("FPT")).Adjusted.Should().BeNull("không có dữ liệu thì không biết, đừng nói là chưa điều chỉnh");
         (await _sut.GetSeriesAsync("FPT")).Adjusted.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Analyze_CarriesTheAdjustedAsOfDateOfTheServedSeries()
+    {
+        Setup(Trending(60, adjusted: true));
+
+        (await _sut.AnalyzeAsync("FPT")).AdjustedAsOf.Should().Be(DateTime.UtcNow.Date.AddDays(-1));
+    }
+
+    [Fact]
+    public async Task Series_CarriesTheAdjustedAsOfDateOfTheServedSeries()
+    {
+        Setup(Trending(60, adjusted: true));
+
+        (await _sut.GetSeriesAsync("FPT")).AdjustedAsOf.Should().Be(DateTime.UtcNow.Date.AddDays(-1));
+    }
+
+    [Fact]
+    public async Task AdjustedAsOf_IsNullWhenTheSeriesIsNotAdjusted()
+    {
+        Setup(Trending(60, adjusted: false));
+
+        (await _sut.AnalyzeAsync("FPT")).AdjustedAsOf.Should().BeNull();
+        (await _sut.GetSeriesAsync("FPT")).AdjustedAsOf.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AdjustedAsOf_IsNullWithNoBars()
+    {
+        Setup(new List<StockPriceData>());
+
+        (await _sut.AnalyzeAsync("FPT")).AdjustedAsOf.Should().BeNull();
+        (await _sut.GetSeriesAsync("FPT")).AdjustedAsOf.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Analyze_TooFewBars_StillCarriesAdjustedAsOf()
+    {
+        Setup(Trending(5, adjusted: true));
+
+        (await _sut.AnalyzeAsync("FPT")).AdjustedAsOf.Should().Be(DateTime.UtcNow.Date.AddDays(-1));
     }
 }

@@ -36,7 +36,8 @@ public class GetStockPriceHistoryQueryHandlerTests
 
     private static StockPriceData Bar(decimal close, bool adjusted, decimal range = 500m) => new()
     {
-        Symbol = "FPT", Date = D, Open = close, High = close + range, Low = close - range, Close = close, Volume = 10, IsAdjusted = adjusted
+        Symbol = "FPT", Date = D, Open = close, High = close + range, Low = close - range, Close = close, Volume = 10, IsAdjusted = adjusted,
+        AdjustedAsOf = adjusted ? new DateTime(2026, 11, 20) : null
     };
 
     [Fact]
@@ -90,5 +91,27 @@ public class GetStockPriceHistoryQueryHandlerTests
         await _sut.Handle(Q(), default);
 
         _repo.Verify(r => r.GetBySymbolAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task adjusted_rows_carry_the_as_of_date_of_the_whole_series_not_of_the_row()
+    {
+        Provider(Bar(63_715m, true));
+
+        var r = await _sut.Handle(Q(), default);
+
+        r.Single().AdjustedAsOf.Should().Be(new DateTime(2026, 11, 20), "độ tươi của chuỗi, không phải ngày của dòng 18/09");
+    }
+
+    [Fact]
+    public async Task stored_and_fallback_rows_have_no_as_of_date()
+    {
+        Provider(Bar(45_900m, false, 0m));
+        Stored(new StockPrice("FPT", D, 71_000m, 72_000m, 70_500m, 71_700m, 5));
+        (await _sut.Handle(Q(), default)).Single().AdjustedAsOf.Should().BeNull();
+
+        _repo.Setup(r => r.GetBySymbolAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<StockPrice>());
+        (await _sut.Handle(Q(), default)).Single().AdjustedAsOf.Should().BeNull();
     }
 }

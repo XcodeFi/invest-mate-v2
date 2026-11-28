@@ -16,9 +16,11 @@ const flat = (v: number): number[] => Array.from({ length: N }, () => v);
 
 // undefined = backend cũ chưa có trường; true/false/null như API
 let adjustedFlag: boolean | null | undefined;
+let adjustedAsOfFlag: string | null | undefined;
 
 const series = (): TechnicalSeries => ({
   ...(adjustedFlag === undefined ? {} : { adjusted: adjustedFlag }),
+  ...(adjustedAsOfFlag === undefined ? {} : { adjustedAsOf: adjustedAsOfFlag }),
   symbol: 'HPG', dates: Array.from({ length: N }, (_, i) => `2026-01-${String((i % 28) + 1).padStart(2, '0')}`),
   open: flat(100), high: flat(101), low: flat(99), close: flat(100), volume: flat(1000),
   ema20: flat(105), ema50: flat(100), bollingerUpper: flat(110), bollingerMiddle: flat(100), bollingerLower: flat(90),
@@ -66,7 +68,7 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
   };
   const q = (id: string): HTMLElement | null => fixture.nativeElement.querySelector(`[data-testid="${id}"]`);
 
-  beforeEach(() => { adjustedFlag = undefined; try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
+  beforeEach(() => { adjustedFlag = undefined; adjustedAsOfFlag = undefined; try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
   afterEach(() => { fixture?.destroy(); try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
 
   it('no block when no group', () => {
@@ -218,6 +220,59 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
       setup();
 
       expect(q('ta-unadjusted-note')).toBeNull();
+    });
+  });
+
+  describe('ghi chú dữ liệu đã điều chỉnh cũ', () => {
+    const isoDaysAgo = (n: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() - n);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00:00Z`;
+    };
+
+    it('shows the date when the adjusted series is more than one trading day behind', () => {
+      adjustedFlag = true;
+      adjustedAsOfFlag = '2026-11-16T00:00:00Z';     // luôn cũ hơn hôm nay hơn 1 phiên
+      setup();
+      click('xu-huong');
+
+      const note = q('ta-adjusted-asof-note')!;
+      expect(note).not.toBeNull();
+      expect(note.textContent).toContain('Dữ liệu đã điều chỉnh cập nhật tới 16/11/2026');
+    });
+
+    it('lives outside the sticky chart area', () => {
+      adjustedFlag = true;
+      adjustedAsOfFlag = '2026-11-16T00:00:00Z';
+      setup();
+      click('xu-huong');
+
+      expect(q('ta-chart-area')!.contains(q('ta-adjusted-asof-note'))).toBeFalse();
+    });
+
+    it('no note when the series is up to date', () => {
+      adjustedFlag = true;
+      adjustedAsOfFlag = isoDaysAgo(0);
+      setup();
+      click('xu-huong');
+
+      expect(q('ta-adjusted-asof-note')).toBeNull();
+    });
+
+    it('no note when the date is missing (not adjusted, or an older backend)', () => {
+      adjustedFlag = false;
+      adjustedAsOfFlag = null;
+      setup();
+      click('xu-huong');
+      expect(q('ta-adjusted-asof-note')).toBeNull();
+    });
+
+    it('no note before a group is chosen', () => {
+      adjustedFlag = true;
+      adjustedAsOfFlag = '2026-11-16T00:00:00Z';
+      setup();
+
+      expect(q('ta-adjusted-asof-note')).toBeNull();
     });
   });
 

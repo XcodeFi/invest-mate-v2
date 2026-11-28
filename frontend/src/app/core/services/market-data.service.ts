@@ -15,6 +15,7 @@ export interface StockPrice {
   volume: number;
   /** true: đã điều chỉnh theo sự kiện quyền; false: chưa (kho đã lưu hoặc nguồn dự phòng). */
   adjusted?: boolean | null;
+  adjustedAsOf?: string | null;
 }
 
 export interface BatchPrice {
@@ -120,6 +121,8 @@ export interface TechnicalSeries {
   symbol: string;
   /** true: giá đã điều chỉnh theo sự kiện quyền; false: nguồn dự phòng chưa điều chỉnh; null/thiếu: không rõ. */
   adjusted?: boolean | null;
+  /** Ngày nến cuối của chuỗi đã điều chỉnh đang phục vụ (ISO); lùi lại khi nguồn bị chặn và dùng bản lưu cũ. */
+  adjustedAsOf?: string | null;
   dates: string[];
   open: number[];
   high: number[];
@@ -152,6 +155,7 @@ export interface TechnicalAnalysis {
   symbol: string;
   /** Xem TechnicalSeries.adjusted. */
   adjusted?: boolean | null;
+  adjustedAsOf?: string | null;
   analyzedAt: string;
   dataPoints: number;
   currentPrice: number;

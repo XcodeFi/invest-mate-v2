@@ -207,7 +207,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
             var snapshot = await ReadSnapshotAsync(symbol, cancellationToken);
             if (snapshot != null && IsFresh(new DateTimeOffset(snapshot.FetchedAtUtc, TimeSpan.Zero)))
             {
-                var bars = snapshot.Bars.ToList();
+                var bars = StampAsOf(snapshot.Bars.ToList());
                 SetTimed(goodKey, bars, GoodUntil(new DateTimeOffset(snapshot.FetchedAtUtc, TimeSpan.Zero)));
                 return bars;
             }
@@ -219,6 +219,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
                 if (result.Bars != null)
                 {
                     RecordUdfSuccess();
+                    StampAsOf(result.Bars);
                     SetTimed(goodKey, result.Bars, GoodUntil(fetchedAt));
                     await SaveSnapshotAsync(symbol, result.Bars, cancellationToken);
                     return result.Bars;
@@ -237,7 +238,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
                     _logger.LogWarning(
                         "Serving a persisted adjusted series for {Symbol} that is {Days} days old (source unavailable); a newer ex-date may be missing",
                         symbol, ageDays);
-                return snapshot.Bars.ToList();
+                return StampAsOf(snapshot.Bars.ToList());
             }
 
             var fallbackKey = $"tv:fallback:{symbol}";
@@ -255,6 +256,15 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         {
             gate.Release();
         }
+    }
+
+    /// <summary>Đóng dấu ngày nến cuối của CẢ chuỗi lên mọi nến (kể cả bản lưu cũ chưa có trường này), trước khi lọc theo khoảng.</summary>
+    private static List<StockPriceData> StampAsOf(List<StockPriceData> bars)
+    {
+        if (bars.Count == 0) return bars;
+        var asOf = bars.Max(b => b.Date);
+        foreach (var b in bars) b.AdjustedAsOf = asOf;
+        return bars;
     }
 
     private async Task<AdjustedPriceSeriesSnapshot?> ReadSnapshotAsync(string symbol, CancellationToken cancellationToken)

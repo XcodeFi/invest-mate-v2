@@ -26,6 +26,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
                 AnalyzedAt = DateTime.UtcNow,
                 DataPoints = prices.Count,
                 Adjusted = AdjustedFlag(prices),
+                AdjustedAsOf = AdjustedAsOf(prices),
                 OverallSignal = "hold",
                 OverallSignalVi = "Không đủ dữ liệu"
             };
@@ -41,6 +42,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             AnalyzedAt = DateTime.UtcNow,
             DataPoints = prices.Count,
             Adjusted = AdjustedFlag(prices),
+            AdjustedAsOf = AdjustedAsOf(prices),
             CurrentPrice = current.Close,
             CurrentVolume = current.Volume
         };
@@ -349,6 +351,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         {
             Symbol = symbol,
             Adjusted = AdjustedFlag(prices),
+            AdjustedAsOf = AdjustedAsOf(prices),
             Dates = prices.Select(p => p.Date).ToList(),
             Open = prices.Select(p => p.Open).ToList(),
             High = highs,
@@ -388,6 +391,10 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
     /// <summary>Cả chuỗi cùng một nguồn nên cờ chung; không có nến thì chưa biết (null), không phải "chưa điều chỉnh".</summary>
     private static bool? AdjustedFlag(List<StockPriceData> prices) =>
         prices.Count == 0 ? null : prices.All(p => p.IsAdjusted);
+
+    /// <summary>Ngày nến cuối của chuỗi đã điều chỉnh đang được phục vụ; null khi chưa điều chỉnh hoặc không có nến.</summary>
+    private static DateTime? AdjustedAsOf(List<StockPriceData> prices) =>
+        prices.Count > 0 && prices.All(p => p.IsAdjusted) ? prices.Max(p => p.AdjustedAsOf) : null;
 
     private static List<decimal?> VolumeSmaSeries(List<decimal> volumes, int period)
     {

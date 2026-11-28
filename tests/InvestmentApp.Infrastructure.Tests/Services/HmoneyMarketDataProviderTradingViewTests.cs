@@ -656,4 +656,59 @@ public class HmoneyMarketDataProviderTradingViewTests
 
         h.TvUrls.Should().HaveCount(4, "AAA, BBB, ND, CCC; mã DDD bị nghỉ chung chặn lại");
     }
+
+    // ───────────── adjustedAsOf: ngày nến cuối của chuỗi đã điều chỉnh đang được phục vụ ─────────────
+
+    [Fact]
+    public async Task every_bar_of_a_fresh_udf_series_carries_the_date_of_its_last_bar()
+    {
+        var (p, _) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+
+        var bars = await Year(p);
+
+        bars.Should().NotBeEmpty().And.OnlyContain(b => b.AdjustedAsOf == DateTime.UtcNow.Date);
+    }
+
+    [Fact]
+    public async Task the_date_is_that_of_the_series_even_when_the_requested_range_ends_earlier()
+    {
+        var (p, _) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+
+        var bars = await p.GetHistoricalPricesAsync("FPT", DateTime.UtcNow.AddDays(-60), DateTime.UtcNow.AddDays(-30));
+
+        bars.Should().NotBeEmpty();
+        bars.Should().OnlyContain(b => b.AdjustedAsOf == DateTime.UtcNow.Date,
+            "người dùng hỏi một khoảng cũ thì độ tươi vẫn là của cả chuỗi, không phải của khoảng đó");
+    }
+
+    [Fact]
+    public async Task a_stale_persisted_series_reports_its_own_old_last_bar_date()
+    {
+        var time = new FakeTime(Morning);
+        var store = new FakeStore();
+        var snap = Snapshot("FPT", Morning.UtcDateTime.AddDays(-4));
+        // bản lưu cũ: nến cuối cách đây 4 ngày, và (như dữ liệu thật trong kho) chưa mang trường AdjustedAsOf
+        var old = snap.Bars.Select(b => new StockPriceData
+        {
+            Symbol = b.Symbol, Date = b.Date.AddDays(-4), Open = b.Open, High = b.High, Low = b.Low, Close = b.Close,
+            Volume = b.Volume, IsAdjusted = true
+        }).ToList();
+        store.Data["FPT"] = new AdjustedPriceSeriesSnapshot("FPT", snap.FetchedAtUtc, old);
+        var (p, _) = Create(x => x.Tv = HtmlWaf(), store, time);
+
+        var bars = await p.GetHistoricalPricesAsync("FPT", DateTime.UtcNow.AddYears(-2), DateTime.UtcNow);
+
+        bars.Should().NotBeEmpty();
+        bars.Should().OnlyContain(b => b.AdjustedAsOf == DateTime.UtcNow.Date.AddDays(-4));
+    }
+
+    [Fact]
+    public async Task graph_fallback_bars_have_no_adjusted_date()
+    {
+        var (p, _) = Create(x => x.Tv = HtmlWaf(), new FakeStore(), new FakeTime(Morning));
+
+        var bars = await Year(p);
+
+        bars.Should().NotBeEmpty().And.OnlyContain(b => b.AdjustedAsOf == null);
+    }
 }

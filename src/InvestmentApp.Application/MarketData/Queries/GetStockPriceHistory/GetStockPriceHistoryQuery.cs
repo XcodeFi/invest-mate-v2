@@ -22,6 +22,12 @@ public class StockPriceHistoryDto
 
     /// <summary>true: giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách); false: chưa điều chỉnh (kho đã lưu hoặc nguồn dự phòng).</summary>
     public bool? Adjusted { get; set; }
+
+    /// <summary>
+    /// Ngày của nến cuối trong chuỗi ĐÃ điều chỉnh được phục vụ (null khi chuỗi chưa điều chỉnh). Khi nguồn đang bị chặn và
+    /// phải dùng bản lưu cũ, ngày này lùi lại so với phiên mới nhất, nên người dùng và công cụ phía sau biết dữ liệu cũ tới đâu.
+    /// </summary>
+    public DateTime? AdjustedAsOf { get; set; }
 }
 
 public class GetStockPriceHistoryQueryHandler : IRequestHandler<GetStockPriceHistoryQuery, List<StockPriceHistoryDto>>
@@ -42,7 +48,7 @@ public class GetStockPriceHistoryQueryHandler : IRequestHandler<GetStockPriceHis
         // 1) Nguồn ưu tiên: nến thật ĐÃ điều chỉnh theo sự kiện quyền (provider tự dự phòng nội bộ).
         var provided = await _marketDataProvider.GetHistoricalPricesAsync(request.Symbol, request.From, request.To, cancellationToken);
         if (provided.Count > 0 && provided.All(p => p.IsAdjusted))
-            return provided.Select(p => ToDto(p.Symbol, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, true)).ToList();
+            return provided.Select(p => ToDto(p.Symbol, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, true, p.AdjustedAsOf)).ToList();
 
         // 2) Nguồn điều chỉnh không có: kho đã lưu có nến thật (O/H/L/C khác nhau) nhưng CHƯA điều chỉnh,
         //    tốt hơn chuỗi dự phòng chỉ có giá đóng cửa (O=H=L=C).
@@ -55,9 +61,9 @@ public class GetStockPriceHistoryQueryHandler : IRequestHandler<GetStockPriceHis
     }
 
     private static StockPriceHistoryDto ToDto(string symbol, DateTime date, decimal open, decimal high, decimal low,
-        decimal close, long volume, bool adjusted) => new()
+        decimal close, long volume, bool adjusted, DateTime? adjustedAsOf = null) => new()
     {
         Symbol = symbol, Date = date, Open = open, High = high, Low = low, Close = close, Volume = volume,
-        Adjusted = adjusted
+        Adjusted = adjusted, AdjustedAsOf = adjustedAsOf
     };
 }

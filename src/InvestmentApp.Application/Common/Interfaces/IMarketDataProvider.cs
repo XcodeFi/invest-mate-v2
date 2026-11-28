@@ -38,6 +38,12 @@ public class StockPriceData
     /// Nguồn dự phòng (graph, chỉ có giá đóng cửa) là <c>false</c>.
     /// </summary>
     public bool IsAdjusted { get; set; }
+
+    /// <summary>
+    /// Ngày của nến cuối trong chuỗi ĐÃ điều chỉnh mà nến này thuộc về (null khi nến chưa điều chỉnh); mọi nến của một chuỗi mang cùng giá trị. Khi nguồn đang bị chặn và
+    /// phải dùng bản lưu cũ, ngày này lùi lại so với phiên mới nhất, nên người dùng và công cụ phía sau biết dữ liệu cũ tới đâu.
+    /// </summary>
+    public DateTime? AdjustedAsOf { get; set; }
 }
 
 public class MarketIndexData

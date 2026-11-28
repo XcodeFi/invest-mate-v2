@@ -161,6 +161,41 @@ public class MarketDataToolsTests
         json[1]!["adjusted"]!.GetValue<bool>().Should().BeFalse();
     }
 
+    [Fact]
+    public async Task get_technical_series_and_analysis_expose_adjusted_as_of_and_omit_it_when_null()
+    {
+        var series = SeriesOf(30);
+        series.Adjusted = true;
+        series.AdjustedAsOf = new DateTime(2026, 11, 20);
+        McpTestContext.Capture<TechnicalSeriesResult, GetTechnicalSeriesQuery>(_mediator, out _, series);
+        var s = await MarketDataTools.GetTechnicalSeries("FPT", _mediator.Object, CancellationToken.None);
+        s["adjustedAsOf"]!.GetValue<DateTime>().Should().Be(new DateTime(2026, 11, 20));
+
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(
+            _mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT", Adjusted = true, AdjustedAsOf = new DateTime(2026, 11, 20) });
+        var a = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+        a["adjustedAsOf"]!.GetValue<DateTime>().Should().Be(new DateTime(2026, 11, 20));
+
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(
+            _mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT", Adjusted = false, AdjustedAsOf = null });
+        (await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None))
+            .AsObject().ContainsKey("adjustedAsOf").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task get_price_history_rows_carry_adjusted_as_of_in_the_mcp_json()
+    {
+        McpTestContext.Capture<List<StockPriceHistoryDto>, GetStockPriceHistoryQuery>(_mediator, out _, new List<StockPriceHistoryDto>
+        {
+            new() { Symbol = "FPT", Date = new DateTime(2026, 9, 18), Adjusted = true, AdjustedAsOf = new DateTime(2026, 11, 20) },
+        });
+
+        var rows = await MarketDataTools.GetPriceHistory("FPT", _mediator.Object, CancellationToken.None);
+        var json = JsonSerializer.SerializeToNode(rows, McpJsonUtilities.DefaultOptions)!.AsArray();
+
+        json[0]!["adjustedAsOf"]!.GetValue<DateTime>().Should().Be(new DateTime(2026, 11, 20));
+    }
+
     // ---------- get_price_history ----------
 
     [Fact]

@@ -16,6 +16,7 @@ import { IndicatorChartComponent } from '../../shared/components/indicator-chart
 import { GroupLayers, IndicatorChartCandles } from '../../shared/components/indicator-chart/indicator-chart.types';
 import { buildGroupLayers, TaGroup } from './ta-group-layers';
 import { GroupGuide, INDICATOR_GUIDES, readNow } from './indicator-guides';
+import { formatAsOf, tradingDaysBehind } from './adjusted-age';
 
 /** Khoá localStorage nhớ khối "Cách đọc" đang mở hay thu gọn ('1' mở, '0' thu gọn). */
 const GUIDE_OPEN_KEY = 'ta-guide-open';
@@ -245,6 +246,13 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
         @if (selectedGroup && currentSeries && currentSeries.adjusted === false) {
           <p class="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2" data-testid="ta-unadjusted-note">
             Dữ liệu chưa điều chỉnh theo sự kiện quyền, nến chỉ có giá đóng cửa: quanh ngày giao dịch không hưởng quyền, giá có thể tụt giả và làm lệch chỉ báo.
+          </p>
+        }
+
+        <!-- Chuỗi đã điều chỉnh đang phục vụ cũ hơn 1 phiên (nguồn bị chặn, dùng bản lưu): nằm NGOÀI khối dính -->
+        @if (selectedGroup && currentSeries && adjustedStaleDate) {
+          <p class="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2" data-testid="ta-adjusted-asof-note">
+            Dữ liệu đã điều chỉnh cập nhật tới {{ adjustedStaleDate }}: các phiên gần đây chưa có trong chuỗi này.
           </p>
         }
 
@@ -1131,6 +1139,12 @@ export class MarketDataComponent implements OnInit {
     this.readNowLines = this.selectedGroup && this.currentSeries && this.analysis
       ? readNow(this.selectedGroup, this.currentSeries, this.analysis)
       : [];
+  }
+
+  /** dd/MM/yyyy của chuỗi đã điều chỉnh khi nó lùi hơn 1 phiên so với hôm nay; rỗng khi không cần ghi chú. */
+  get adjustedStaleDate(): string {
+    const asOf = this.currentSeries?.adjustedAsOf;
+    return tradingDaysBehind(asOf, new Date()) > 1 ? formatAsOf(asOf) : '';
   }
 
   get activeGuide(): GroupGuide | null {
