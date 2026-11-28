@@ -2,13 +2,17 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin, Subscription } from 'rxjs';
+import { forkJoin, of, Subscription } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
   TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis, TechnicalSeries, SignalSetups
 } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService } from '../../core/services/company-dossier.service';
+import { PositionsService } from '../../core/services/positions.service';
+import { TradePlanService } from '../../core/services/trade-plan.service';
+import { WatchlistService } from '../../core/services/watchlist.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
@@ -21,6 +25,19 @@ import { IndicatorGuideComponent } from '../../shared/components/indicator-guide
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { isLowRiskReward, LOW_RR_NOTE, stopLossMethodLabel } from './stop-loss-method';
 import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-panel.component';
+
+/** Khoá localStorage nhớ danh sách của Bảng giá nhanh; mặc định khi chưa có gì hoặc trình duyệt chặn lưu trữ. */
+const QUICK_BOARD_KEY = 'imv2.quickBoard.symbols';
+const DEFAULT_QUICK_BOARD = 'VNM,FPT,VCB,HPG,MWG,VIC';
+
+/** Một gợi ý xem nhanh: danh sách mã có sẵn, hoặc (watchlist) chỉ có id và tải chi tiết khi bấm. */
+interface QuickChip { key: string; label: string; symbols?: string[]; watchlistId?: string; }
+
+/** Chuẩn hoá danh sách mã: tách theo dấu phẩy, bỏ khoảng trắng, viết hoa, bỏ ô trống và trùng (giữ thứ tự xuất hiện đầu). */
+function normalizeSymbols(input: string | readonly string[]): string[] {
+  const parts = typeof input === 'string' ? input.split(',') : input;
+  return [...new Set(parts.map(x => (x ?? '').trim().toUpperCase()).filter(x => x))];
+}
 
 @Component({
   selector: 'app-market-data',
@@ -714,8 +731,20 @@ import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-
       <!-- Batch Prices (Watchlist) -->
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-700 mb-4">Bảng giá nhanh</h2>
+        @if (quickChips.length > 0) {
+          <div class="mb-3" data-testid="quick-chips">
+            <div class="text-xs text-gray-500 mb-1">Gợi ý xem nhanh hôm nay</div>
+            <div class="flex flex-wrap gap-2">
+              @for (chip of quickChips; track chip.key) {
+                <button type="button" data-testid="quick-chip"
+                  class="px-3 py-1 rounded-full text-sm font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  (click)="applyChip(chip)">{{ chip.label }}</button>
+              }
+            </div>
+          </div>
+        }
         <div class="flex gap-3 mb-4">
-          <input type="text" [(ngModel)]="batchSymbols" appUppercase
+          <input type="text" [(ngModel)]="batchSymbols" appUppercase data-testid="quick-board-input"
             placeholder="Nhập các mã, cách nhau dấu phẩy (VD: VNM,FPT,VCB)"
             class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
           <button (click)="loadBatchPrices()" [disabled]="loadingBatch"
@@ -861,7 +890,8 @@ export class MarketDataComponent implements OnInit {
   historyLoaded = false;
 
   // Batch
-  batchSymbols = 'VNM,FPT,VCB,HPG,MWG,VIC';
+  batchSymbols = MarketDataComponent.readSavedBoard() ?? DEFAULT_QUICK_BOARD;
+  quickChips: QuickChip[] = [];
   batchPrices: { symbol: string; close: number; volume: number }[] = [];
   loadingBatch = false;
 
@@ -871,6 +901,9 @@ export class MarketDataComponent implements OnInit {
     private marketDataService: MarketDataService,
     private notificationService: NotificationService,
     private dossierService: CompanyDossierService,
+    private positionsService: PositionsService,
+    private tradePlanService: TradePlanService,
+    private watchlistService: WatchlistService,
     private router: Router,
     private route: ActivatedRoute
   ) {}
@@ -878,6 +911,7 @@ export class MarketDataComponent implements OnInit {
   ngOnInit(): void {
     this.loadMarketOverview();
     this.loadBatchPrices();
+    this.loadQuickChips();
     this.loadTopFluctuation(this.selectedFloor);
 
     const today = new Date();
@@ -1178,16 +1212,79 @@ export class MarketDataComponent implements OnInit {
   // --- Batch ---
 
   loadBatchPrices(): void {
-    if (!this.batchSymbols.trim()) return;
+    const symbols = normalizeSymbols(this.batchSymbols);
+    if (symbols.length === 0) return;
     this.loadingBatch = true;
-    const symbols = this.batchSymbols.split(',').map(s => s.trim()).filter(s => s);
     this.marketDataService.getBatchPrices(symbols).subscribe({
-      next: data => { this.batchPrices = data; this.loadingBatch = false; },
+      next: data => {
+        this.batchPrices = data;
+        this.loadingBatch = false;
+        MarketDataComponent.saveBoard(symbols);   // chỉ nhớ danh sách đã xem giá được
+      },
       error: () => {
         this.notificationService.error('Lỗi', 'Lỗi khi tải bảng giá');
         this.loadingBatch = false;
       }
     });
+  }
+
+  /** Danh sách đã lưu lần trước; null khi chưa có, rỗng hoặc trình duyệt chặn lưu trữ. */
+  private static readSavedBoard(): string | null {
+    try {
+      const saved = normalizeSymbols(localStorage.getItem(QUICK_BOARD_KEY) ?? '');
+      return saved.length > 0 ? saved.join(',') : null;
+    } catch { return null; }
+  }
+
+  private static saveBoard(symbols: string[]): void {
+    try { localStorage.setItem(QUICK_BOARD_KEY, symbols.join(',')); } catch { /* bị chặn: chỉ không nhớ được */ }
+  }
+
+  // --- Gợi ý xem nhanh hôm nay ---
+
+  /**
+   * Ba nguồn độc lập: vị thế đang nắm, kế hoạch đang mở, các danh sách theo dõi. Nguồn nào lỗi hoặc rỗng thì chỉ chip đó biến mất,
+   * lặng lẽ và không ảnh hưởng bảng giá. Danh sách theo dõi chỉ tải chi tiết khi bấm.
+   */
+  private loadQuickChips(): void {
+    const fromSymbols = (key: string, title: string, list: readonly string[]): QuickChip[] => {
+      const symbols = normalizeSymbols(list);
+      return symbols.length > 0 ? [{ key, label: `${title} (${symbols.length})`, symbols }] : [];
+    };
+    forkJoin([
+      this.positionsService.getAll().pipe(catchError(() => of(null))),
+      this.tradePlanService.getAll(true).pipe(catchError(() => of(null))),
+      this.watchlistService.getAll().pipe(catchError(() => of(null)))
+    ]).subscribe(([positions, plans, lists]) => {
+      this.quickChips = [
+        ...fromSymbols('positions', 'Đang nắm giữ', (positions ?? []).map(p => p.symbol)),
+        ...fromSymbols('plans', 'Kế hoạch đang mở', (plans ?? []).map(p => p.symbol)),
+        ...(lists ?? []).filter(w => w.itemCount > 0)
+          .map(w => ({ key: `wl:${w.id}`, label: `${w.emoji ? w.emoji + ' ' : ''}${w.name} (${w.itemCount})`, watchlistId: w.id }))
+      ];
+    });
+  }
+
+  applyChip(chip: QuickChip): void {
+    if (chip.symbols) {
+      this.useSymbols(chip.symbols);
+      return;
+    }
+    this.watchlistService.getDetail(chip.watchlistId!).pipe(catchError(() => of(null))).subscribe(detail => {
+      if (!detail) {
+        this.quickChips = this.quickChips.filter(c => c.key !== chip.key);   // nguồn lỗi thì ẩn chip, không báo lỗi
+        return;
+      }
+      this.useSymbols(detail.items.map(i => i.symbol));
+    });
+  }
+
+  /** Điền ô nhập bằng danh sách đã chuẩn hoá rồi xem giá luôn (loadBatchPrices sẽ nhớ danh sách khi thành công). */
+  private useSymbols(list: readonly string[]): void {
+    const symbols = normalizeSymbols(list);
+    if (symbols.length === 0) return;
+    this.batchSymbols = symbols.join(',');
+    this.loadBatchPrices();
   }
 
   // --- Helpers ---

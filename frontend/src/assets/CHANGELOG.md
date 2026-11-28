@@ -2,6 +2,22 @@
 
 ---
 
+## [v2.108.0] — 2026-11-28 · Bảng giá nhanh nhớ danh sách và có gợi ý xem nhanh
+
+### Sửa lỗi
+
+- **Ô nhập của Bảng giá nhanh không còn quay về danh sách mặc định mỗi lần mở trang.** Trang nhớ danh sách bạn xem giá thành công lần trước (lưu trong trình duyệt) và tự tải lại khi mở; chưa có thì dùng danh sách mặc định như cũ. Trình duyệt chặn lưu trữ thì vẫn dùng bình thường, chỉ không nhớ được. Danh sách được chuẩn hoá khi nhớ: viết hoa, bỏ ô trống, bỏ mã trùng.
+
+### Tính năng mới
+
+- **Gợi ý xem nhanh hôm nay** phía trên ô nhập: chip "Đang nắm giữ (N)", "Kế hoạch đang mở (N)" và mỗi danh sách theo dõi một chip. Bấm chip thì điền ô nhập bằng danh sách đã bỏ trùng, tải giá và nhớ luôn. Nguồn trống thì ẩn chip; nguồn lỗi thì chỉ chip đó biến mất, lặng lẽ, không ảnh hưởng bảng giá. Danh sách theo dõi chỉ tải chi tiết khi bấm.
+
+### Kỹ thuật
+
+- Không đổi backend và MCP: đại lý đã liệt kê được vị thế, kế hoạch và danh sách theo dõi qua các công cụ sẵn có.
+
+---
+
 ## [v2.107.0] — 2026-11-28 · Dòng thời gian mã có chỉ báo theo nhóm
 
 ### Cải thiện
