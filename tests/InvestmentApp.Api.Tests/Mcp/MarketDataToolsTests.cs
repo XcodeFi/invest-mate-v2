@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using InvestmentApp.Api.Mcp;
@@ -9,6 +10,7 @@ using InvestmentApp.Application.MarketData.Queries.GetTechnicalAnalysis;
 using InvestmentApp.Application.MarketData.Queries.GetTechnicalSeries;
 using InvestmentApp.Application.MarketData.Queries.SearchStocks;
 using MediatR;
+using ModelContextProtocol;
 using Moq;
 using Xunit;
 
@@ -88,6 +90,75 @@ public class MarketDataToolsTests
         var act = async () => await MarketDataTools.SearchStocks(bad, _mediator.Object, CancellationToken.None);
 
         (await act.Should().ThrowAsync<ArgumentException>()).Which.Message.Should().Contain("từ khoá");
+    }
+
+    // ---------- adjusted / ema200 (WS1): MCP phải lộ đúng những gì REST lộ ----------
+
+    [Fact]
+    public async Task get_technical_series_returns_adjusted_flag_and_the_ema200_array_trimmed_with_the_rest()
+    {
+        var series = SeriesOf(40);
+        series.Adjusted = true;
+        series.Ema200 = Enumerable.Range(0, 40).Select(i => i < 30 ? (decimal?)null : 64_000m + i).ToList();
+        McpTestContext.Capture<TechnicalSeriesResult, GetTechnicalSeriesQuery>(_mediator, out _, series);
+
+        var result = await MarketDataTools.GetTechnicalSeries("FPT", _mediator.Object, CancellationToken.None, lastN: 5);
+
+        result["adjusted"]!.GetValue<bool>().Should().BeTrue();
+        var ema200 = result["ema200"]!.AsArray();
+        ema200.Should().HaveCount(5, "cùng độ dài với các mảng khác sau khi cắt");
+        ema200[4]!.GetValue<decimal>().Should().Be(64_039m);
+    }
+
+    [Fact]
+    public async Task get_technical_series_reports_adjusted_false_for_the_fallback_source()
+    {
+        var series = SeriesOf(30);
+        series.Adjusted = false;
+        McpTestContext.Capture<TechnicalSeriesResult, GetTechnicalSeriesQuery>(_mediator, out _, series);
+
+        var result = await MarketDataTools.GetTechnicalSeries("FPT", _mediator.Object, CancellationToken.None);
+
+        result["adjusted"]!.GetValue<bool>().Should().BeFalse("false phải hiện ra, đừng để mất cùng với null");
+    }
+
+    [Fact]
+    public async Task get_technical_series_omits_adjusted_when_unknown()
+    {
+        var series = SeriesOf(30);
+        series.Adjusted = null;
+        McpTestContext.Capture<TechnicalSeriesResult, GetTechnicalSeriesQuery>(_mediator, out _, series);
+
+        var result = await MarketDataTools.GetTechnicalSeries("FPT", _mediator.Object, CancellationToken.None);
+
+        result.AsObject().ContainsKey("adjusted").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task get_technical_analysis_reports_adjusted_false_too()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(
+            _mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT", Adjusted = false });
+
+        var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        result["adjusted"]!.GetValue<bool>().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task get_price_history_rows_carry_the_adjusted_flag_in_the_mcp_json()
+    {
+        McpTestContext.Capture<List<StockPriceHistoryDto>, GetStockPriceHistoryQuery>(_mediator, out _, new List<StockPriceHistoryDto>
+        {
+            new() { Symbol = "FPT", Date = new DateTime(2026, 9, 18), Close = 63_715m, Adjusted = true },
+            new() { Symbol = "FPT", Date = new DateTime(2026, 9, 21), Close = 64_906m, Adjusted = false },
+        });
+
+        var rows = await MarketDataTools.GetPriceHistory("FPT", _mediator.Object, CancellationToken.None);
+        var json = JsonSerializer.SerializeToNode(rows, McpJsonUtilities.DefaultOptions)!.AsArray();
+
+        json[0]!["adjusted"]!.GetValue<bool>().Should().BeTrue();
+        json[1]!["adjusted"]!.GetValue<bool>().Should().BeFalse();
     }
 
     // ---------- get_price_history ----------

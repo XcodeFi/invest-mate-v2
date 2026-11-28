@@ -35,7 +35,7 @@ public static class MarketDataTools
         => await mediator.Send(new GetStockPriceQuery { Symbol = NormalizeSymbol(symbol) }, ct);
 
     [McpServerTool(Name = "get_price_history", ReadOnly = true)]
-    [Description("Lịch sử giá theo ngày (mở, cao, thấp, đóng, khối lượng) của một mã. Bỏ trống from/to thì lấy 3 tháng gần nhất.")]
+    [Description("Lịch sử giá theo ngày (mở, cao, thấp, đóng, khối lượng) của một mã. Bỏ trống from/to thì lấy 3 tháng gần nhất. Mỗi dòng có adjusted: true là giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách), false là chưa.")]
     public static async Task<List<StockPriceHistoryDto>> GetPriceHistory(
         [Description("Mã chứng khoán, ví dụ FPT.")] string symbol,
         IMediator mediator, CancellationToken ct,
