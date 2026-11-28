@@ -1570,6 +1570,7 @@ Tổng 1106 tests pass. V1 thêm:
 
 ### PR-2 (P3) — shipped 2026-05-04
 
+- **Decision Queue mở rộng tại chỗ (2026-11-28, Home PR1):** nút "Xem thêm N ▾" (`<button>`, không còn link sang /risk-dashboard) mở đủ danh sách trong thẻ (`showAll`, `max-h-[70vh] overflow-y-auto`), "Thu gọn ▴" về 5 việc; không lưu qua tải lại, giữ qua `loadQueue()`/xử lý một việc.
 - **Decision Queue + Empty state Positive:** gộp 3 nguồn alert rời (Risk Alert Banner + Advisory Widget + Pending Review section) thành 1 widget duy nhất ở vị trí #1 trên Home. Sort severity desc (Critical đầu tiên), dedupe theo (Symbol, PortfolioId), cap 5 items với overflow link `/risk-dashboard`.
 - **Tín hiệu phía vào lệnh (2026-08-09, ADR-0009):** queue thêm 2 loại. **Thiếu stop-loss** (Warning) — vị thế đang mở chưa đặt SL, trước đây bị bỏ qua im lặng nên rủi ro lớn nhất lại vô hình. **Cơ hội mua** (Info) — mã trong watchlist có giá về ≤ "Mục tiêu mua"; xếp dưới mọi cảnh báo rủi ro để dọn vị thế đang lỗ trước khi mua thêm. Cả hai không có `tradePlanId` nên nút BÁN tự ẩn.
 - **Empty state positive (v1.1):** khi 0 alert → hiển thị `✅ Hôm nay đang kỷ luật + 🔥 X ngày` (streak = ngày liên tiếp gần nhất không có SL violation) thay vì widget biến mất. Streak ẩn khi user chưa có plan (`hasData = false`).
