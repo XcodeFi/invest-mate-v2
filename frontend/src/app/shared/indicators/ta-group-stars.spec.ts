@@ -17,6 +17,12 @@ describe('ta-group-stars', () => {
     expect(firstStarredGroup()).toBe('xu-huong');
   });
 
+  it('never writes an unknown key to storage', () => {
+    writeGroupStars(['bogus', 'moc-gia'] as any);
+
+    expect(JSON.parse(localStorage.getItem(GROUP_STARS_KEY)!)).toEqual(['moc-gia']);
+  });
+
   it('ignores unknown keys, corrupt JSON and non-arrays', () => {
     localStorage.setItem(GROUP_STARS_KEY, JSON.stringify(['xu-huong', 'khong-co', 7]));
     expect(readGroupStars()).toEqual(['xu-huong']);
