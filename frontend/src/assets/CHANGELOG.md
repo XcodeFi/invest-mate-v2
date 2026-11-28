@@ -2,6 +2,19 @@
 
 ---
 
+## [v2.120.0] — 2026-11-28 · Ctrl+K: tìm nhanh trang và mã cổ phiếu
+
+### Tính năng mới
+
+- **Bảng lệnh Ctrl+K** (Cmd+K trên macOS): gõ để nhảy tới một trang của ứng dụng, hoặc gõ một mã (VD: FPT) để mở **Dòng thời gian** của mã đó. Gõ không dấu cũng tìm ra trang có dấu ("ke hoach" → Kế hoạch GD). ↑↓ chọn, **Enter** mở, **Esc** đóng, bấm ra ngoài cũng đóng. Chỉ mở khi đã đăng nhập.
+- Nút **🔍** ở thanh trên để mở bảng lệnh khi không có bàn phím (điện thoại).
+
+### Kỹ thuật
+
+- `shared/components/command-palette/`: component, service trạng thái mở/đóng và logic tìm. Danh sách trang đọc từ **cùng cấu hình** với menu (`nav-config.ts`), không có danh sách riêng. Ô nhập dùng `appUppercase`.
+
+---
+
 ## [v2.119.1] — 2026-11-28 · Sửa: các ô lọc của trang Sàng lọc cổ phiếu bị lệch hàng
 
 ### Sửa lỗi

@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { BehaviorSubject, of } from 'rxjs';
+import { CommandPaletteService } from '../command-palette/command-palette.service';
 import { HeaderComponent } from './header.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { PnlService } from '../../../core/services/pnl.service';
@@ -45,6 +46,15 @@ describe('HeaderComponent: thanh trên gọn, menu điện thoại đọc từ c
 
     expect(slot.querySelector('app-theme-toggle')).not.toBeNull();
     expect(slot.querySelector('[data-testid="theme-toggle"]')).not.toBeNull();
+  });
+
+  it('has a search button that opens the command palette (phone users have no Ctrl+K)', () => {
+    const svc = TestBed.inject(CommandPaletteService);
+    expect(svc.isOpen()).toBeFalse();
+
+    (q('topbar-search') as HTMLButtonElement).click();
+
+    expect(svc.isOpen()).toBeTrue();
   });
 
   it('keeps the logo that links to the dashboard', () => {

@@ -120,6 +120,10 @@ Trên máy tính (màn hình từ 1024px), menu nằm ở **cột bên trái**, 
 
 Trang đang mở được tô sáng. Bấm **« Thu gọn** ở cuối menu để chuyển thành thanh biểu tượng hẹp (rê chuột lên biểu tượng để thấy tên trang). Ở các trang nhiều biểu đồ (Dòng thời gian mã, Kế hoạch GD, Thị trường, Replay) menu tự thu gọn để biểu đồ rộng hơn; nếu bạn đã chọn thu gọn hoặc mở rộng, **lựa chọn của bạn được nhớ và luôn thắng**. Trên điện thoại, menu ở nút ba gạch trên thanh trên cùng và thanh điều hướng dưới như cũ.
 
+### Tìm nhanh: Ctrl+K
+
+Bấm **Ctrl+K** (hoặc **Cmd+K** trên Mac, hoặc nút **🔍** ở thanh trên) để mở ô tìm nhanh. Gõ tên trang (không cần dấu) rồi Enter để tới đó; gõ một mã cổ phiếu (VD: FPT) để mở **Dòng thời gian** của mã. Dùng ↑↓ để chọn, **Esc** để đóng.
+
 ## Các trang chính
 
 | Trang | Mô tả |
