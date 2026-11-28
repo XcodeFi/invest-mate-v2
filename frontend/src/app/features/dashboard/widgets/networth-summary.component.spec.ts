@@ -135,11 +135,177 @@ describe('NetWorthSummaryComponent', () => {
     expect(gap.nativeElement.textContent).toContain('20.0');
   });
 
-  it('renders link to /personal-finance', () => {
+  it('the root is a div (not a link) and the header "Xem chi tiết →" is the only link, to /personal-finance', () => {
     component.summary = SUMMARY_WITH_PROFILE;
     fixture.detectChanges();
 
-    const link = fixture.debugElement.query(By.css('a[data-test="networth-root"]'));
-    expect(link.attributes['ng-reflect-router-link']).toBe('/personal-finance');
+    const root = fixture.debugElement.query(By.css('[data-test="networth-root"]'));
+    expect(root.nativeElement.tagName).toBe('DIV');
+    const links = fixture.debugElement.queryAll(By.css('[routerLink], a'));
+    expect(links.length).toBe(1);
+    expect(links[0].nativeElement.getAttribute('href')).toBe('/personal-finance');
+    expect(links[0].nativeElement.textContent).toContain('Xem chi tiết');
+  });
+
+  const show = (over: Partial<NetWorthSummaryDto> = {}) => {
+    component.summary = { ...SUMMARY_WITH_PROFILE, ...over };
+    fixture.detectChanges();
+  };
+  const q = (id: string) => fixture.debugElement.query(By.css(`[data-test="${id}"]`));
+
+  it('title is "Tài chính cá nhân" and the big number is labelled Net Worth', () => {
+    show();
+
+    expect(fixture.nativeElement.textContent).toContain('Tài chính cá nhân');
+    expect(q('networth-label').nativeElement.textContent).toContain('Net Worth');
+  });
+
+  it('shows "Tổng tài sản X − Nợ Y" and hides the debt part when debt is 0', () => {
+    show({ totalDebt: 40_000_000 });
+    expect(q('assets-debt-line').nativeElement.textContent).toContain('Tổng tài sản');
+    expect(q('assets-debt-line').nativeElement.textContent).toContain('− Nợ');
+
+    show({ totalDebt: 0 });
+    expect(q('assets-debt-line').nativeElement.textContent).toContain('Tổng tài sản');
+    expect(q('assets-debt-line').nativeElement.textContent).not.toContain('Nợ');
+  });
+
+  it('negative Net Worth is red, non-negative is green', () => {
+    show({ netWorth: -5_000_000 });
+    expect(q('networth-value').nativeElement.classList).toContain('text-red-700');
+
+    show({ netWorth: 10_000_000 });
+    expect(q('networth-value').nativeElement.classList).toContain('text-emerald-700');
+  });
+
+  it('shows the high-interest consumer-debt warning only when flagged', () => {
+    show({ hasHighInterestConsumerDebt: true });
+    expect(q('high-interest-warning')).toBeTruthy();
+
+    show({ hasHighInterestConsumerDebt: false });
+    expect(q('high-interest-warning')).toBeFalsy();
+  });
+
+  it('health bar colour follows the score: 49 red, 50 amber, 79 amber, 80 emerald; width tracks the score, 0 is 0', () => {
+    const bar = () => q('health-bar').nativeElement as HTMLElement;
+    const colourAt = (score: number) => { show({ healthScore: score }); return Array.from(bar().classList).find(c => c.startsWith('bg-') && c !== 'bg-gray-200'); };
+
+    expect(colourAt(49)).toBe('bg-red-500');
+    expect(colourAt(50)).toBe('bg-amber-500');
+    expect(colourAt(79)).toBe('bg-amber-500');
+    expect(colourAt(80)).toBe('bg-emerald-500');
+    show({ healthScore: 0 });
+    expect(bar().style.width).toBe('0%');
+    show({ healthScore: 85 });
+    expect(bar().style.width).toBe('85%');
+    expect(q('health-score').nativeElement.textContent).toContain('85/100');
+  });
+
+  it('the health score TEXT colour follows the same boundaries as the bar: 49 red, 50 and 79 amber, 80 emerald', () => {
+    const textClass = (score: number) => {
+      show({ healthScore: score });
+      return Array.from((q('health-score').nativeElement as HTMLElement).classList).filter(c => c.startsWith('text-') && /(red|amber|emerald)/.test(c));
+    };
+
+    expect(textClass(49)).toEqual(['text-red-600']);
+    expect(textClass(50)).toEqual(['text-amber-700']);
+    expect(textClass(79)).toEqual(['text-amber-700']);
+    expect(textClass(80)).toEqual(['text-emerald-600']);
+  });
+
+  it('Net Worth of exactly 0 is not red (green class), and -1 is red', () => {
+    show({ netWorth: 0 });
+    expect(q('networth-value').nativeElement.classList).toContain('text-emerald-700');
+    expect(q('networth-value').nativeElement.classList).not.toContain('text-red-700');
+
+    show({ netWorth: -1 });
+    expect(q('networth-value').nativeElement.classList).toContain('text-red-700');
+    expect(q('networth-value').nativeElement.classList).not.toContain('text-emerald-700');
+  });
+
+  it('the Chi tiết toggle exposes aria-expanded: false collapsed, true expanded', () => {
+    show();
+    const toggle = () => q('breakdown-toggle').nativeElement as HTMLButtonElement;
+    expect(toggle().getAttribute('aria-expanded')).toBe('false');
+
+    toggle().click();
+    fixture.detectChanges();
+
+    expect(toggle().getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('the health score text is dark enough on white in light mode (amber-700, not amber-600) and keeps the bar colour', () => {
+    show({ healthScore: 73 });
+
+    const text = q('health-score').nativeElement as HTMLElement;
+    expect(text.classList).toContain('text-amber-700');
+    expect(text.classList).not.toContain('text-amber-600');
+    expect(q('health-bar').nativeElement.classList).toContain('bg-amber-500');
+  });
+
+  it('the Chi tiết toggle has a hit area of at least 32px (padding + min-height) even though its text is small', () => {
+    show();
+
+    const toggle = q('breakdown-toggle').nativeElement as HTMLButtonElement;
+    expect(toggle.classList).toContain('min-h-[32px]');
+    expect(toggle.classList).toContain('py-2');
+  });
+
+  it('the breakdown is collapsed by default and the toggle shows and hides it without navigating', () => {
+    show();
+    expect(q('breakdown')).toBeFalsy();
+    const toggle = q('breakdown-toggle').nativeElement as HTMLButtonElement;
+    expect(toggle.getAttribute('type')).toBe('button');
+    expect(toggle.textContent).toContain('Chi tiết ▾');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(q('breakdown')).toBeTruthy();
+    expect(q('breakdown-toggle').nativeElement.textContent).toContain('Chi tiết ▴');
+    expect(fixture.debugElement.queryAll(By.css('a')).length).toBe(1);   // vẫn chỉ có link ở đầu thẻ
+
+    (q('breakdown-toggle').nativeElement as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(q('breakdown')).toBeFalsy();
+  });
+
+  it('the breakdown lists CK, TK, DP, NR and hides Vàng when gold is 0', () => {
+    show({ goldTotal: 0 });
+    (q('breakdown-toggle').nativeElement as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const text = q('breakdown').nativeElement.textContent;
+    ['CK', 'TK', 'DP', 'NR'].forEach(k => expect(text).toContain(k));
+    expect(text).not.toContain('Vàng');
+
+    show({ goldTotal: 50_000_000 });
+    expect(q('breakdown').nativeElement.textContent).toContain('Vàng');
+  });
+
+  it('keeps the CAGR gap line in the same card', () => {
+    component.cagrValue = 11;
+    component.cagrTarget = 15;
+    show();
+
+    expect(q('networth-root').nativeElement.contains(q('cagr-gap').nativeElement)).toBeTrue();
+  });
+
+  it('without a profile the top slot shows the onboarding card instead (one link to /personal-finance)', () => {
+    component.summary = SUMMARY_NO_PROFILE;
+    fixture.detectChanges();
+
+    const onboarding = q('networth-onboarding');
+    expect(onboarding).toBeTruthy();
+    expect(onboarding.nativeElement.textContent).toContain('Thiết lập tài chính cá nhân');
+    expect(onboarding.nativeElement.getAttribute('href')).toBe('/personal-finance');
+    expect(q('networth-root')).toBeFalsy();
+  });
+
+  it('with a null summary (still loading) nothing is shown', () => {
+    component.summary = null;
+    fixture.detectChanges();
+
+    expect(q('networth-onboarding')).toBeFalsy();
+    expect(q('networth-root')).toBeFalsy();
   });
 });
