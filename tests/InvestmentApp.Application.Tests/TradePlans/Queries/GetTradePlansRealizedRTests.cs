@@ -45,6 +45,20 @@ public class GetTradePlansRealizedRTests
     }
 
     [Fact]
+    public async Task read_of_an_open_review_with_nothing_sold_exposes_r_null_not_zero()
+    {
+        // Kế hoạch 8d9ef87d sau Tính lại: còn mở, chưa bán gì, RealizedR lưu null. API không được suy ra 0R giả.
+        var plan = Reviewed(pnl: 0m);
+        plan.ReviewData!.OpenQuantity = 100m;
+
+        var (dto, _) = await Read(plan);
+
+        dto.ReviewData!.RealizedR.Should().BeNull();
+        dto.ReviewData.RiskBasis.Should().BeNull();
+        dto.ReviewData.OpenQuantity.Should().Be(100m);
+    }
+
+    [Fact]
     public async Task read_returns_the_stored_realized_r_when_present()
     {
         var (dto, _) = await Read(Reviewed(pnl: 5_000m, storedR: 1.5m, basis: "chot-ke-hoach"));

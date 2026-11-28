@@ -87,6 +87,21 @@ public class TradePlanReviewTests
     }
 
     [Fact]
+    public void recompute_legacy_snapshot_keeps_null_r_of_a_new_format_review_not_a_fake_zero()
+    {
+        // Review mới tính, còn mở, chưa bán gì: RealizedR lưu null. Bản lưu cũ phải giữ null, không suy ra 0R.
+        var plan = CreateExecutedPlan();
+        var data = CreateReviewData(pnlAmount: 0m, pnlPercent: 0m, lessons: "x");
+        data.RealizedR = null;
+        data.OpenQuantity = 100m;
+        plan.MarkReviewed(data);
+
+        plan.RecomputeReview(new CampaignReviewData { PnLAmount = 0m, PnLPercent = 0m, RealizedR = null, OpenQuantity = 100m });
+
+        plan.ReviewData!.Legacy!.RealizedR.Should().BeNull();
+    }
+
+    [Fact]
     public void recompute_stores_legacy_once()
     {
         var plan = ReviewedWith("x", DateTime.UtcNow);

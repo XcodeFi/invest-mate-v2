@@ -322,6 +322,42 @@ public class RMathTests
     public void ResolveForReviewedPlan_null_for_plans_that_are_not_reviewed()
         => RMath.ResolveRealizedR(NewPlan(entry: 100m, stop: 90m, quantity: 100)).R.Should().BeNull();
 
+    private static TradePlan ReviewedWith(CampaignReviewData data)
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);   // 1R = 1.000
+        plan.MarkReady(); plan.MarkInProgress(); plan.Execute("t1");
+        plan.MarkReviewed(data);
+        return plan;
+    }
+
+    [Fact]
+    public void open_review_with_nothing_sold_resolves_r_null_not_zero()
+    {
+        // Hình dạng kế hoạch 8d9ef87d sau Tính lại: còn 100 CP, chưa bán gì → PnL 0, mẫu số 1R = 0 nên RealizedR lưu là null.
+        var plan = ReviewedWith(new CampaignReviewData { PnLAmount = 0m, RealizedR = null, OpenQuantity = 100m });
+
+        RMath.ResolveRealizedR(plan).R.Should().BeNull("suy lại từ PnL 0 với riskFraction 1 sẽ ra 0R giả");
+        RMath.ResolveRealizedR(plan).Basis.Should().BeNull();
+    }
+
+    [Fact]
+    public void new_format_review_with_null_r_is_not_rederived()
+    {
+        // Review do service mới tính (OpenQuantity có giá trị, kể cả 0): RealizedR/RiskBasis đã lưu là chuẩn, null nghĩa là "không tính được".
+        var plan = ReviewedWith(new CampaignReviewData { PnLAmount = 500m, RealizedR = null, OpenQuantity = 0m });
+
+        RMath.ResolveRealizedR(plan).R.Should().BeNull();
+    }
+
+    [Fact]
+    public void legacy_review_without_open_quantity_still_derives_from_pnl()
+    {
+        // Review cũ (trước khi có OpenQuantity): vẫn suy R từ PnL đã lưu như trước.
+        var plan = ReviewedWith(new CampaignReviewData { PnLAmount = 3_000m, RealizedR = null, OpenQuantity = null });
+
+        RMath.ResolveRealizedR(plan).R.Should().Be(3m);
+    }
+
     private static TradePlan NewPlan(decimal entry, decimal stop, int quantity, string direction = "Buy")
         => new("u1", "VNM", direction, entry, stop, 120m, quantity,
             thesis: "Luận điểm mẫu đủ dài cho test kỳ vọng R");
