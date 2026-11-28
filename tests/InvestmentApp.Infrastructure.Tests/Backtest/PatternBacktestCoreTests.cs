@@ -89,11 +89,83 @@ public class PatternBacktestCoreTests
     }
 
     [Fact]
-    public void an_open_at_or_above_the_limit_up_gap_is_skipped_and_just_below_it_is_filled()
+    public void the_limit_up_price_is_rounded_down_to_the_hose_tick_so_a_locked_open_is_not_filled()
     {
-        // đóng cửa tín hiệu 101 → kịch trần = 108,07
-        PatternBacktestCore.Simulate(Sig(0), Series((108.07m, 109m, 107m, 108m))).Outcome.Should().Be(TradeOutcome.Skipped);
-        PatternBacktestCore.Simulate(Sig(0), Series((108.06m, 109m, 107m, 108m))).Outcome.Should().NotBe(TradeOutcome.Skipped);
+        // đóng cửa tín hiệu 101 (nghìn đồng) → 101.000 × 1,07 = 108.070 → bước giá 100 → kịch trần thật = 108.000 = 108,0
+        PatternBacktestCore.LimitUpPrice(101m).Should().Be(108.0m);
+        PatternBacktestCore.Simulate(Sig(0), Series((108.0m, 109m, 107m, 108m))).Outcome.Should().Be(TradeOutcome.Skipped, "mở cửa khoá kịch trần (đã làm tròn xuống bước giá) không khớp được");
+        PatternBacktestCore.Simulate(Sig(0), Series((107.9m, 109m, 107m, 108m))).Outcome.Should().NotBe(TradeOutcome.Skipped);
+    }
+
+    [Theory]
+    [InlineData(9.0, 9.63)]       // dưới 10.000đ: bước 10đ; 9.000 × 1,07 = 9.630
+    [InlineData(9.5, 10.15)]      // 9.500 × 1,07 = 10.165 → vùng 10.000–49.950: bước 50đ → 10.150
+    [InlineData(40.0, 42.8)]      // 42.800 chia hết 50
+    [InlineData(50.5, 54.0)]      // 54.035 → bước 100 → 54.000
+    [InlineData(101000, 108000)]  // đơn vị đồng: cùng quy tắc
+    public void limit_up_rounding_follows_the_three_hose_tick_bands_in_either_unit(double close, double expected)
+    {
+        PatternBacktestCore.LimitUpPrice((decimal)close).Should().Be((decimal)expected);
+    }
+
+    [Fact]
+    public void an_open_at_or_above_the_target_is_skipped_because_no_reward_is_left_but_just_below_is_filled()
+    {
+        // mức 100, cắt lỗ 98 → R = 2, mục tiêu 104; đóng cửa tín hiệu 101 nên kịch trần 108,0 không chặn
+        var sig = Sig(0, level: 100m, stop: 98m);
+
+        PatternBacktestCore.Simulate(sig, Series((105m, 106m, 104.5m, 105m))).Outcome.Should().Be(TradeOutcome.Skipped, "mở cửa 105 đã trên mục tiêu 104");
+        PatternBacktestCore.Simulate(sig, Series((104m, 105m, 103.5m, 104.5m))).Outcome.Should().Be(TradeOutcome.Skipped, "mở cửa đúng bằng mục tiêu");
+        PatternBacktestCore.Simulate(sig, Series((103.9m, 104.5m, 103m, 104m))).Outcome.Should().Be(TradeOutcome.Success, "mở cửa dưới mục tiêu thì khớp và chạm mục tiêu");
+    }
+
+    [Fact]
+    public void a_trade_with_fewer_than_twenty_sessions_left_and_no_exit_is_not_observed_not_a_timeout()
+    {
+        var bars = Series((101m, 103m, 98m, 101m), (101m, 103m, 98m, 101m), (101m, 103m, 98m, 101m), (101m, 103m, 98m, 101m), (101m, 103m, 98m, 101m));   // chỉ 5 phiên sau
+
+        var t = PatternBacktestCore.Simulate(Sig(0), bars);
+
+        t.Outcome.Should().Be(TradeOutcome.NotObserved);
+        PatternBacktestCore.Summarise(EventKind.Donchian20, new[] { t }).Should().Match<KindSummary>(x => x.Episodes == 0 && x.NotObserved == 1 && x.Timeout == 0);
+    }
+
+    [Theory]
+    [InlineData(20, TradeOutcome.Timeout)]
+    [InlineData(19, TradeOutcome.NotObserved)]
+    public void exactly_twenty_observed_sessions_is_a_timeout_and_nineteen_is_still_not_observed(int quietBars, TradeOutcome expected)
+    {
+        var bars = Series(Enumerable.Repeat((101m, 103m, 98m, 101m), quietBars).ToArray());
+
+        PatternBacktestCore.Simulate(Sig(0), bars).Outcome.Should().Be(expected);
+    }
+
+    [Fact]
+    public void a_trade_that_resolves_before_the_data_ends_is_counted_even_with_few_sessions_left()
+    {
+        var success = Series((101m, 111m, 100m, 110m));
+        var trap = Series((101m, 103m, 94m, 95m));
+
+        PatternBacktestCore.Simulate(Sig(0), success).Outcome.Should().Be(TradeOutcome.Success);
+        PatternBacktestCore.Simulate(Sig(0), trap).Outcome.Should().Be(TradeOutcome.Trap);
+    }
+
+    [Fact]
+    public void a_low_exactly_at_the_stop_is_a_trap()
+    {
+        var bars = Series((101m, 103m, 95m, 100m));   // thấp đúng bằng cắt lỗ 95
+
+        PatternBacktestCore.Simulate(Sig(0), bars).Outcome.Should().Be(TradeOutcome.Trap);
+    }
+
+    [Fact]
+    public void the_failure_window_is_exactly_five_sessions()
+    {
+        var onFifth = Series((101m, 102m, 100m, 101m), (101m, 102m, 100m, 101m), (101m, 102m, 100m, 101m), (101m, 102m, 100m, 101m), (101m, 101m, 97m, 99m));
+        var onSixth = Series((101m, 102m, 100m, 101m), (101m, 102m, 100m, 101m), (101m, 102m, 100m, 101m), (101m, 102m, 100m, 101m), (101m, 102m, 100m, 101m), (101m, 101m, 97m, 99m));
+
+        PatternBacktestCore.Simulate(Sig(0), onFifth).FailedWithin5.Should().BeTrue("đóng dưới mức ở phiên thứ 5");
+        PatternBacktestCore.Simulate(Sig(0), onSixth).FailedWithin5.Should().BeFalse("đóng dưới mức ở phiên thứ 6");
     }
 
     [Fact]
@@ -294,7 +366,7 @@ public class PatternBacktestCoreTests
         var rows = new List<TradeResult> { R(EventKind.Donchian20, new DateTime(2025, 3, 3), TradeOutcome.Success) };
         var text = PatternBacktestCore.Format(new[] { PatternBacktestCore.Summarise(EventKind.Donchian20, rows) }, 30, new DateTime(2023, 1, 1), new DateTime(2026, 1, 1));
 
-        text.Should().Contain("Donchian20").And.Contain("thành công").And.Contain("biên độ đi ngược");
+        text.Should().Contain("Donchian20").And.Contain("thành công").And.Contain("biên độ đi ngược").And.Contain("chưa đủ phiên");
         text.Should().NotContain("%", "báo cáo chỉ đếm; riêng đơn vị biên độ ghi bằng chữ").And.NotContain("xác suất");
     }
 }

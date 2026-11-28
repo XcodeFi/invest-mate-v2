@@ -10,11 +10,11 @@ public enum EventKind { Cup, Donchian20, Donchian55, BearTrap }
 /// <summary>Một tín hiệu: quyết định chỉ dùng dữ liệu tới hết phiên <see cref="SignalIndex"/>; vào lệnh ở giá mở cửa phiên kế tiếp.</summary>
 public sealed record BacktestSignal(string Symbol, EventKind Kind, int SignalIndex, DateTime SignalDate, decimal Level, decimal Stop);
 
-public enum TradeOutcome { Success, Trap, Timeout, Skipped }
+public enum TradeOutcome { Success, Trap, Timeout, Skipped, NotObserved }
 
 public sealed record TradeResult(BacktestSignal Signal, TradeOutcome Outcome, decimal Entry, decimal R, decimal Adverse2Pct, decimal AdverseFullPct, int Sessions, bool FailedWithin5);
 
-public sealed record KindSummary(EventKind Kind, int Episodes, int Success, int Trap, int Timeout, int Skipped, int FailedWithin5,
+public sealed record KindSummary(EventKind Kind, int Episodes, int Success, int Trap, int Timeout, int Skipped, int NotObserved, int FailedWithin5,
     double[] Adverse2, double[] AdverseFull, List<(string Month, int Count)> ByMonth, int DateClusters, int MaxSameDate);
 
 /// <summary>
@@ -95,10 +95,12 @@ public static class PatternBacktestCore
         var failed5 = FailedWithin(bars, s);
         if (e >= bars.Count || r <= 0) return new TradeResult(s, TradeOutcome.Skipped, 0, r, 0, 0, 0, failed5);
         var entry = bars[e].Open;
-        if (entry <= 0 || entry >= bars[s.SignalIndex].Close * LimitUpFactor)
+        // Không khớp được: mở cửa khoá kịch trần (đã làm tròn XUỐNG bước giá HOSE), hoặc mở cửa đã ở/trên mục tiêu (R đo từ MỨC, nên gap vượt mục tiêu
+        // mà chưa tới kịch trần sẽ thành "thành công" không có lãi thật).
+        var target = s.Level + 2m * r;
+        if (entry <= 0 || entry >= LimitUpPrice(bars[s.SignalIndex].Close) || entry >= target)
             return new TradeResult(s, TradeOutcome.Skipped, entry, r, 0, 0, 0, failed5);
 
-        var target = s.Level + 2m * r;
         var outcome = TradeOutcome.Timeout;
         var exit = Math.Min(bars.Count - 1, e + TimeoutSessions - 1);
         for (var k = e; k <= Math.Min(bars.Count - 1, e + TimeoutSessions - 1); k++)
@@ -108,6 +110,8 @@ public static class PatternBacktestCore
             if (b.Low <= s.Stop) { outcome = TradeOutcome.Trap; exit = k; break; }
             if (b.High >= target) { outcome = TradeOutcome.Success; exit = k; break; }
         }
+        // Chưa đủ 20 phiên quan sát mà chưa có kết cục: KHÔNG phải hết hạn (bị cắt cụt bên phải), tách riêng để không thổi phồng số hết hạn của các tín hiệu mới.
+        if (outcome == TradeOutcome.Timeout && e + TimeoutSessions - 1 > bars.Count - 1) outcome = TradeOutcome.NotObserved;
         var low2 = MinLow(bars, e, Math.Min(bars.Count - 1, e + 1));
         var lowAll = MinLow(bars, e, exit);
         return new TradeResult(s, outcome, entry, r, Drop(entry, low2), Drop(entry, lowAll), exit - e + 1, failed5);
@@ -122,12 +126,24 @@ public static class PatternBacktestCore
         return false;
     }
 
+    /// <summary>
+    /// Giá kịch trần HOSE: đóng cửa × 1,07 làm tròn XUỐNG bước giá (dưới 10.000đ: 10đ; 10.000 đến 49.950đ: 50đ; từ 50.000đ: 100đ). Chuỗi giá có thể tính bằng nghìn đồng
+    /// (cổ phiếu VN30 dưới 1.000 nghìn) hoặc bằng đồng (từ 1.000): đoán đơn vị theo độ lớn.
+    /// </summary>
+    public static decimal LimitUpPrice(decimal close)
+    {
+        var scale = close >= 1000m ? 1m : 1000m;
+        var raw = close * scale * LimitUpFactor;
+        var tick = raw < 10_000m ? 10m : raw < 50_000m ? 50m : 100m;
+        return Math.Floor(raw / tick) * tick / scale;
+    }
+
     private static decimal Drop(decimal entry, decimal low) => entry <= 0 ? 0 : Math.Max(0m, (entry - low) / entry);
 
     public static KindSummary Summarise(EventKind kind, IReadOnlyList<TradeResult> all)
     {
         var mine = all.Where(r => r.Signal.Kind == kind).ToList();
-        var done = mine.Where(r => r.Outcome != TradeOutcome.Skipped).ToList();
+        var done = mine.Where(r => r.Outcome is TradeOutcome.Success or TradeOutcome.Trap or TradeOutcome.Timeout).ToList();
         var months = done.GroupBy(r => r.Signal.SignalDate.ToString("yyyy-MM", CultureInfo.InvariantCulture))
             .Select(g => (g.Key, g.Count())).OrderByDescending(x => x.Item2).ThenBy(x => x.Key, StringComparer.Ordinal).ToList();
         var dates = done.Select(r => r.Signal.SignalDate.Date).OrderBy(d => d).ToList();
@@ -140,7 +156,7 @@ public static class PatternBacktestCore
         }
         return new KindSummary(kind, done.Count,
             done.Count(r => r.Outcome == TradeOutcome.Success), done.Count(r => r.Outcome == TradeOutcome.Trap), done.Count(r => r.Outcome == TradeOutcome.Timeout),
-            mine.Count - done.Count, done.Count(r => r.FailedWithin5),
+            mine.Count(r => r.Outcome == TradeOutcome.Skipped), mine.Count(r => r.Outcome == TradeOutcome.NotObserved), done.Count(r => r.FailedWithin5),
             done.Select(r => (double)r.Adverse2Pct).OrderBy(x => x).ToArray(), done.Select(r => (double)r.AdverseFullPct).OrderBy(x => x).ToArray(),
             months, clusters, dates.GroupBy(d => d).Select(g => g.Count()).DefaultIfEmpty(0).Max());
     }
@@ -157,12 +173,12 @@ public static class PatternBacktestCore
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Back-test VN30 hiện tại: {symbols} mã, {from:yyyy-MM-dd} đến {to:yyyy-MM-dd}. Chỉ ĐẾM, không phần trăm thành công.");
-        sb.AppendLine("Luật: 1 sự kiện/mã/20 phiên; vào mở cửa phiên sau tín hiệu, bỏ nếu kịch trần +7 phần trăm; R = mức − cắt lỗ; thành công = chạm mức + 2R trước cắt lỗ;");
-        sb.AppendLine("      nến chạm cả hai tính là cắt lỗ; hết hạn sau 20 phiên. Biên độ đi ngược = (giá vào − đáy thấp nhất) / giá vào.");
+        sb.AppendLine("Luật: 1 sự kiện/mã/20 phiên; vào mở cửa phiên sau tín hiệu, bỏ nếu khoá kịch trần (làm tròn xuống bước giá) hoặc đã ở/trên mục tiêu; R = mức − cắt lỗ; thành công = chạm mức + 2R trước cắt lỗ;");
+        sb.AppendLine("      nến chạm cả hai tính là cắt lỗ; hết hạn sau 20 phiên; tín hiệu chưa đủ 20 phiên quan sát và chưa có kết cục ghi riêng (chưa đủ phiên), không tính là hết hạn. Biên độ đi ngược = (giá vào − đáy thấp nhất) / giá vào.");
         sb.AppendLine();
-        sb.AppendLine("loại             | n  | thành công | cắt lỗ (bẫy) | hết hạn | bỏ qua | thất bại ≤5 phiên | cụm ngày | tối đa/ngày");
+        sb.AppendLine("loại             | n  | thành công | cắt lỗ (bẫy) | hết hạn | bỏ qua | chưa đủ phiên | thất bại ≤5 phiên | cụm ngày | tối đa/ngày");
         foreach (var r in rows)
-            sb.AppendLine($"{r.Kind,-16} | {r.Episodes,2} | {r.Success,10} | {r.Trap,12} | {r.Timeout,7} | {r.Skipped,6} | {r.FailedWithin5,17} | {r.DateClusters,8} | {r.MaxSameDate,11}");
+            sb.AppendLine($"{r.Kind,-16} | {r.Episodes,2} | {r.Success,10} | {r.Trap,12} | {r.Timeout,7} | {r.Skipped,6} | {r.NotObserved,13} | {r.FailedWithin5,17} | {r.DateClusters,8} | {r.MaxSameDate,11}");
         sb.AppendLine();
         sb.AppendLine("biên độ đi ngược (đơn vị: phần trăm giá vào): 2 phiên đầu | cả lệnh");
         sb.AppendLine("loại             | 2p: p10 / p50 / p90          | cả lệnh: p10 / p50 / p90");
