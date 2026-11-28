@@ -166,9 +166,13 @@ public class HmoneyScreenerDataSourceTests
     public async Task hose_delistings_are_read_for_this_year_and_next()
     {
         var (source, handler) = Build();
-        handler.Respond = r => r.RequestUri!.AbsolutePath.EndsWith("/status-list")
-            ? (HttpStatusCode.OK, """{"data":[]}""")
-            : (HttpStatusCode.OK, CancelBody("ABC"));
+        handler.Respond = r =>
+        {
+            var path = r.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/status-list")) return (HttpStatusCode.OK, """{"data":[{"id":33,"name":"CK thuộc diện bị cảnh báo"}]}""");
+            if (path.EndsWith("/stock-status")) return (HttpStatusCode.OK, StockStatusBody(1, "AAA"));
+            return (HttpStatusCode.OK, CancelBody("ABC"));
+        };
 
         await source.FetchHoseListsAsync();
 
@@ -208,5 +212,43 @@ public class HmoneyScreenerDataSourceTests
         var act = () => source.FetchHoseListsAsync();
 
         await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Theory]
+    [InlineData("""{"data":[]}""")]
+    [InlineData("""{"data":[{"id":99,"name":"Danh sách khác"}]}""")]
+    public async Task hose_status_list_with_none_of_the_wanted_ids_fails_the_fetch_instead_of_looking_clean(string statusList)
+    {
+        var (source, handler) = Build();
+        handler.Respond = r => r.RequestUri!.AbsolutePath.EndsWith("/status-list")
+            ? (HttpStatusCode.OK, statusList)
+            : (HttpStatusCode.OK, CancelBody());
+
+        var act = () => source.FetchHoseListsAsync();
+
+        (await act.Should().ThrowAsync<FormatException>()).Which.Message.Should().Contain("HOSE");
+    }
+
+    [Fact]
+    public async Task hose_fetch_with_wanted_ids_but_zero_status_rows_in_total_fails_the_fetch()
+    {
+        var (source, handler) = Build();
+        handler.Respond = r =>
+        {
+            var path = r.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/status-list")) return (HttpStatusCode.OK, StatusListBody);
+            if (path.EndsWith("/stock-status")) return (HttpStatusCode.OK, StockStatusBody(1));
+            return (HttpStatusCode.OK, CancelBody());
+        };
+
+        var act = () => source.FetchHoseListsAsync();
+
+        await act.Should().ThrowAsync<FormatException>();
+    }
+
+    [Fact]
+    public void the_wanted_hose_list_ids_are_exactly_33_to_38_and_47_to_53()
+    {
+        HoseStatusParser.WantedListIds.OrderBy(x => x).Should().Equal(33, 34, 35, 36, 37, 38, 47, 48, 49, 50, 51, 52, 53);
     }
 }

@@ -189,6 +189,27 @@ public class ScreenerRulesTests
     }
 
     [Fact]
+    public void a_negative_or_zero_pe_never_passes_an_explicit_pe_cap()
+    {
+        var cap = new ScreenerCriteria { MaxPe = 30m };
+
+        Run(Snap(NoHoseFlags(), Row(pe: -5m)), cap).Passed.Should().BeEmpty("P/E âm không phải P/E thấp");
+        Run(Snap(NoHoseFlags(), Row(pe: 0m)), cap).Passed.Should().BeEmpty();
+        Run(Snap(NoHoseFlags(), Row(pe: null)), cap).Passed.Should().BeEmpty();
+        Run(Snap(NoHoseFlags(), Row(pe: 30m)), cap).Passed.Should().ContainSingle("đúng bằng trần thì còn trong");
+    }
+
+    [Theory]
+    [InlineData(1.8, false)]
+    [InlineData(1.81, true)]
+    public void beta_flag_is_strictly_above_1_8(double beta, bool flagged)
+    {
+        var flags = Run(Snap(NoHoseFlags(), Row(beta: (decimal)beta))).Passed[0].Flags;
+
+        flags.Any(f => f.StartsWith("beta cao")).Should().Be(flagged);
+    }
+
+    [Fact]
     public void skipping_the_quality_layer_lets_loss_making_rows_through()
     {
         var snap = Snap(NoHoseFlags(), Row(profit: -50m, roe: -3m));

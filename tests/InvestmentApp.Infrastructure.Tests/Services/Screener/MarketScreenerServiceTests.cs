@@ -263,6 +263,22 @@ public class MarketScreenerServiceTests
     }
 
     [Fact]
+    public async Task after_a_hose_failure_the_hose_source_is_not_hammered_for_the_backoff_window()
+    {
+        var (sut, source, time) = Build();
+        source.Hose = () => throw new HttpRequestException("HOSE chặn");
+
+        await sut.GetSnapshotAsync();
+        time.Advance(TimeSpan.FromMinutes(4));
+        await sut.GetSnapshotAsync();
+        source.HoseCalls.Should().Be(1, "trong 5 phút sau lỗi không gọi lại ~16 yêu cầu HOSE");
+
+        time.Advance(TimeSpan.FromMinutes(2));
+        await sut.GetSnapshotAsync();
+        source.HoseCalls.Should().Be(2);
+    }
+
+    [Fact]
     public async Task hose_lists_failure_serves_the_last_good_marked_stale_until_48h()
     {
         var (sut, source, time) = Build();

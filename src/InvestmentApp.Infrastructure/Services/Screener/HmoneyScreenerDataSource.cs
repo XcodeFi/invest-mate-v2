@@ -59,6 +59,9 @@ public class HmoneyScreenerDataSource : IScreenerDataSource
     {
         var baseUrl = _options.HsxBaseUrl.TrimEnd('/');
         var lists = HoseStatusParser.ParseStatusLists(await GetAsync($"{baseUrl}/l/api/v1/securities/status-list", ct));
+        // Không còn danh sách nào trong các id cần đọc nghĩa là nguồn đổi dạng hoặc đổi id: ném lỗi để đi đường cũ/đóng, không coi là "sạch".
+        if (lists.Count == 0)
+            throw new FormatException("HOSE status-list: không có danh sách nào trong các id cần đọc (33–38, 47–53); nguồn có thể đã đổi dạng.");
 
         var statuses = new List<HoseStatusEntry>();
         foreach (var list in lists)
@@ -80,6 +83,10 @@ public class HmoneyScreenerDataSource : IScreenerDataSource
                 pageIndex++;
             }
         }
+
+        // HOSE luôn có mã trong diện đặc biệt (≈ 50 mã đo 2026-11-28): tổng bằng 0 là dữ liệu hỏng, không phải "không mã nào bị cảnh báo".
+        if (statuses.Count == 0)
+            throw new FormatException("HOSE stock-status: không có mã nào trong các danh sách diện đặc biệt; nguồn có thể đã đổi dạng.");
 
         var year = _time.GetUtcNow().Year;
         var delistings = new List<HoseDelisting>();

@@ -27,7 +27,8 @@ public class ScreenerLiveSmoke
         universe.InvalidCount.Should().BeLessThan(universe.RawCount / 10);
 
         var hose = await source.FetchHoseListsAsync();
-        hose.Statuses.Should().NotBeNull();
+        hose.Statuses.Count.Should().BeGreaterThan(0, "HOSE luôn có mã trong diện đặc biệt; rỗng nghĩa là nguồn đổi dạng");
+        hose.Statuses.Select(s => s.ListName).Distinct().Count().Should().BeGreaterThan(0);
 
         var snapshot = new ScreenerSnapshot { Rows = universe.Rows, AsOf = DateTimeOffset.UtcNow, Hose = hose, HoseAsOf = DateTimeOffset.UtcNow };
         var result = ScreenerRules.Evaluate(snapshot, new ScreenerCriteria { IncludeExcluded = true }.Clamped());
