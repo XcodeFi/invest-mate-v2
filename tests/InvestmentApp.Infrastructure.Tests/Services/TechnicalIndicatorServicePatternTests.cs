@@ -117,4 +117,46 @@ public class TechnicalIndicatorServicePatternTests
 
         result.PatternCandidates.Should().BeEmpty();
     }
+
+    private static List<StockPriceData> RangeThenFailedBreakout(bool adjusted)
+    {
+        var closes = Enumerable.Repeat(100m, 30).Concat(new[] { 103m, 102m, 100m, 100m, 100m, 100m, 100.2m }).ToList();
+        return closes.Select((c, i) => new StockPriceData
+        {
+            Symbol = "TST", Date = new DateTime(2025, 1, 1).AddDays(i), Open = c, High = c * 1.004m, Low = c * 0.996m, Close = c, Volume = 1_000_000, IsAdjusted = adjusted
+        }).ToList();
+    }
+
+    [Fact]
+    public async Task an_adjusted_series_with_a_failed_breakout_returns_the_trap_event()
+    {
+        Prices(RangeThenFailedBreakout(adjusted: true));
+
+        var result = await Sut().AnalyzeAsync("TST");
+
+        result.TrapEvents.Should().ContainSingle().Which.Type.Should().Be("failed-breakout");
+    }
+
+    [Fact]
+    public async Task an_unadjusted_series_gets_no_trap_events_because_a_split_gap_would_fake_a_breakout()
+    {
+        Prices(RangeThenFailedBreakout(adjusted: false));
+
+        var result = await Sut().AnalyzeAsync("TST");
+
+        result.TrapEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task a_quiet_series_returns_an_empty_trap_list_not_null()
+    {
+        Prices(Enumerable.Range(0, 80).Select(i => new StockPriceData
+        {
+            Symbol = "TST", Date = new DateTime(2025, 1, 1).AddDays(i), Open = 100, High = 100.4m, Low = 99.6m, Close = 100, Volume = 1_000_000, IsAdjusted = true
+        }).ToList());
+
+        var result = await Sut().AnalyzeAsync("TST");
+
+        result.TrapEvents.Should().NotBeNull().And.BeEmpty();
+    }
 }

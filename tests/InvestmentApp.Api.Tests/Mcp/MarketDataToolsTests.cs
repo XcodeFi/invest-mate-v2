@@ -176,6 +176,52 @@ public class MarketDataToolsTests
         names.Should().NotContain(n => n.Contains("score") || n.Contains("confidence") || n.Contains("probab"));
     }
 
+    private static TrapEvent Trap() => new()
+    {
+        Type = "failed-breakout", TypeVi = "Phá vỡ thất bại", BreakoutDate = new DateTime(2026, 8, 3), ReturnDate = new DateTime(2026, 8, 5), ConfirmedDate = new DateTime(2026, 8, 10),
+        LevelPrice = 100.4m, StopPrice = 98.6m, RiskPct = 1.8m, ExcursionPct = 0.8m, Description = "Giá vượt rồi quay lại.", Disclaimer = "Mốc xác nhận hồi tố sau 5 phiên, không phải dự báo."
+    };
+
+    [Fact]
+    public async Task get_technical_analysis_carries_the_trap_events_with_their_downside_and_no_statistics()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _,
+            new TechnicalAnalysisResult { Symbol = "FPT", TrapEvents = { Trap() } });
+
+        var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        var e = result["trapEvents"]!.AsArray().Single()!.AsObject();
+        e["type"]!.GetValue<string>().Should().Be("failed-breakout");
+        e["levelPrice"]!.GetValue<decimal>().Should().Be(100.4m);
+        e["stopPrice"]!.GetValue<decimal>().Should().Be(98.6m);
+        e["riskPct"]!.GetValue<decimal>().Should().Be(1.8m);
+        e["excursionPct"]!.GetValue<decimal>().Should().Be(0.8m);
+        e["confirmedDate"]!.GetValue<DateTime>().Should().Be(new DateTime(2026, 8, 10));
+        e["disclaimer"]!.GetValue<string>().Should().Contain("không phải dự báo");
+        e.Select(kv => kv.Key.ToLowerInvariant()).Should().NotContain(n => n.Contains("probab") || n.Contains("rate") || n.Contains("freq") || n.Contains("score"));
+    }
+
+    [Fact]
+    public async Task get_technical_analysis_without_traps_has_an_empty_list()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT" });
+
+        var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        result["trapEvents"]!.AsArray().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void the_technical_analysis_tool_description_names_the_trap_events_and_their_limits()
+    {
+        var desc = ((System.ComponentModel.DescriptionAttribute)typeof(MarketDataTools).GetMethod(nameof(MarketDataTools.GetTechnicalAnalysis))!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false).Single()).Description;
+
+        desc.Should().Contain("trapEvents").And.Contain("failed-breakout").And.Contain("bear-trap");
+        desc.Should().Contain("t+5").And.Contain("không phải dự báo");
+        desc.Should().Contain("KHÔNG có tần suất");
+    }
+
     [Fact]
     public async Task get_technical_analysis_without_a_pattern_has_an_empty_list_not_a_made_up_one()
     {

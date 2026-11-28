@@ -5,7 +5,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { SymbolTimelineComponent } from './symbol-timeline.component';
 import { JournalEntryService } from '../../core/services/journal-entry.service';
-import { MarketDataService, PatternCandidate, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
+import { MarketDataService, PatternCandidate, TechnicalAnalysis, TechnicalSeries, TrapEvent } from '../../core/services/market-data.service';
 import { MarketEventService } from '../../core/services/market-event.service';
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -31,17 +31,22 @@ const cup: PatternCandidate = {
   criteria: [], disclaimer: 'không phải tín hiệu mua',
 };
 
+const trapEvent: TrapEvent = {
+  type: 'bear-trap', typeVi: 'Bẫy giảm giá', breakoutDate: dates[40], returnDate: dates[42], confirmedDate: dates[45],
+  levelPrice: 99.6, stopPrice: 94.7, riskPct: 4.9, excursionPct: 3.7, description: 'Giá thủng rồi quay lại.', disclaimer: 'Mốc xác nhận hồi tố sau 5 phiên, không phải dự báo.',
+};
+
 describe('SymbolTimelineComponent: ứng viên mô hình Cốc tay cầm', () => {
   let fixture: ComponentFixture<SymbolTimelineComponent>;
   let component: SymbolTimelineComponent;
 
-  function setup(withCup: boolean) {
+  function setup(withCup: boolean, withTrap = false) {
     const route = { snapshot: { paramMap: convertToParamMap({ symbol: 'vnm' }), queryParams: {} }, queryParamMap: new BehaviorSubject(convertToParamMap({})).asObservable() } as any;
     const market = jasmine.createSpyObj<MarketDataService>('MarketDataService', ['getTechnicalSeries', 'getTechnicalAnalysis']);
     market.getTechnicalSeries.and.callFake(() => of(series()));
     market.getTechnicalAnalysis.and.callFake(() => of({
       symbol: 'VNM', currentPrice: 100, supportLevels: [95], resistanceLevels: [105], suggestedEntry: 100, suggestedStopLoss: 95, suggestedTarget: 110,
-      overallSignal: 'buy', overallSignalVi: 'MUA', ...(withCup ? { patternCandidates: [cup] } : {}),
+      overallSignal: 'buy', overallSignalVi: 'MUA', ...(withCup ? { patternCandidates: [cup] } : {}), ...(withTrap ? { trapEvents: [trapEvent] } : {}),
     } as unknown as TechnicalAnalysis));
     const journal = jasmine.createSpyObj<JournalEntryService>('JournalEntryService', ['getTimeline', 'create']);
     journal.getTimeline.and.callFake(() => of({ symbol: 'VNM', items: [], holdingPeriods: [], emotionSummary: null, behavioralPatterns: [] } as any));
@@ -98,5 +103,24 @@ describe('SymbolTimelineComponent: ứng viên mô hình Cốc tay cầm', () =>
     box.dispatchEvent(new Event('change'));
     fixture.detectChanges();
     expect(labels().some(l => l.startsWith('Pivot'))).toBeTrue();
+  });
+  describe('mốc bẫy xác nhận hồi tố', () => {
+    it('puts a trap marker on the chart next to the timeline markers, with a legend that says it is not a forecast', () => {
+      setup(false, true);
+
+      const trap = component.chartMarkers.filter(m => m.text === 'Bẫy giảm');
+      expect(trap.length).toBe(1);
+      expect(trap[0].time).toBe(dates[40].slice(0, 10));
+      expect(trap[0].tooltip!.some(l => l.startsWith('Nếu sai: −4,9% từ hỗ trợ'))).toBeTrue();
+      expect(q('trap-legend')!.textContent).toContain('không phải dự báo');
+      expect(q('trap-legend')!.textContent).toContain('Không có thống kê tần suất');
+    });
+
+    it('no trap events: no marker and no legend', () => {
+      setup(false, false);
+
+      expect(component.chartMarkers.some(m => m.text === 'Bẫy giảm' || m.text === 'Bẫy tăng')).toBeFalse();
+      expect(q('trap-legend')).toBeNull();
+    });
   });
 });

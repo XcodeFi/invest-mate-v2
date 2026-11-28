@@ -320,8 +320,28 @@ export interface PatternCandidate {
   disclaimer: string;
 }
 
+/** Mốc bẫy xác nhận hồi tố (t+5): phá vỡ thất bại hoặc bẫy giảm giá. Không có tần suất, tỉ lệ hay xác suất. */
+export interface TrapEvent {
+  /** failed-breakout | bear-trap. */
+  type: string;
+  typeVi: string;
+  breakoutDate: string;
+  returnDate: string;
+  confirmedDate: string;
+  levelPrice: number;
+  stopPrice: number;
+  /** Nếu sai: % từ mức tới cắt lỗ quy ước (số dương). */
+  riskPct: number;
+  /** % giá đi xuyên qua mức trong cửa sổ xác nhận (đo được). */
+  excursionPct: number;
+  description: string;
+  disclaimer: string;
+}
+
 export interface TechnicalAnalysis {
   symbol: string;
+  /** Các mốc bẫy đã xác nhận, cũ trước (rỗng/vắng khi không có hoặc backend cũ). */
+  trapEvents?: TrapEvent[];
   /** Ứng viên mô hình giá (rỗng/vắng khi không thấy hoặc backend cũ). */
   patternCandidates?: PatternCandidate[];
   /** Xem TechnicalSeries.adjusted. */

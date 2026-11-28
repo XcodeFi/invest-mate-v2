@@ -1619,6 +1619,8 @@ Ghi nhận cổ tức tiền mặt, cổ tức cổ phiếu và chia tách cổ 
 
 **Ứng viên mô hình Cốc tay cầm (2026-11-28, PR A):** `GET market/stock/{symbol}/analysis` và MCP `get_technical_analysis` có thêm `patternCandidates` (rỗng hoặc 1 phần tử): số đo, `criteria[]` (rule, value, passed, required), `state` (forming, near-pivot, broke-out-unconfirmed, broke-out-with-volume), phần "nếu sai" (`stopPrice` ngay dưới đáy tay cầm, `riskPct`, `targetPrice` = pivot + độ sâu cốc, `rewardRisk` theo R), KHÔNG điểm số/xác suất. Thẻ "Ứng viên mô hình" và 3 đường ngang trên biểu đồ ở trang Thị trường và Dòng thời gian mã. Thống kê tỉ lệ thành công và cột ở trang Sàng lọc chưa làm (PR B và PR thống kê riêng).
 
+**Mốc bẫy (2026-11-28, PR A1):** `GET market/stock/{symbol}/analysis` và MCP `get_technical_analysis` có thêm `trapEvents` (cũ trước, tối đa 12): `failed-breakout` hoặc `bear-trap`, `breakoutDate`/`returnDate`/`confirmedDate` (t+5), `levelPrice`, `stopPrice` + `riskPct` ("nếu sai"), `excursionPct`; KHÔNG có tần suất/tỉ lệ/xác suất. Mốc vẽ hồi tố trên biểu đồ ở trang Thị trường và Dòng thời gian mã. Thống kê kết quả (PR A2) chưa làm.
+
 **MCP dữ liệu thị trường (2026-11-24):** 6 tool chỉ đọc cho agent — `get_stock_price`, `get_price_history`, `get_market_overview`, `search_stocks`, `get_technical_analysis` (không có `ema200`), `get_technical_series` (`lastN` 5–120, mặc định 30). Tổng 63 tool MCP.
 
 **Chưa làm — MCP:** chưa có `CorporateActionTools`, nên agent không nhập/xác nhận/xoá được sự kiện quyền. Ghi trong [backlog MCP](plans/mcp-p1-p4-tools-expansion.md#follow-up-ngoài-4-slice).

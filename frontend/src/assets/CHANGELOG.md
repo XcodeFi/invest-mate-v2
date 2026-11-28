@@ -2,6 +2,22 @@
 
 ---
 
+## [v2.126.0] — 2026-11-28 · Mốc bẫy trên biểu đồ: phá vỡ thất bại và bẫy giảm giá
+
+### Tính năng mới
+
+- **Mũi tên ▼ Bẫy tăng và ▲ Bẫy giảm** trên biểu đồ (trang Thị trường và Dòng thời gian mã). **Bẫy tăng (phá vỡ thất bại):** đóng cửa vượt đỉnh 20 phiên rồi đóng cửa trở lại dưới pivot trong 5 phiên. **Bẫy giảm:** đóng cửa thủng đáy 20 phiên rồi đóng cửa trở lại trên hỗ trợ trong 5 phiên.
+- **Xác nhận hồi tố ở phiên thứ 5**: mốc đặt ở nến phá vỡ nhưng chỉ hiện khi đã đủ 5 phiên sau đó, nên 5 phiên gần nhất không có mốc và không có dự đoán.
+- Mỗi mốc có **"Nếu sai: −X% từ pivot (hoặc hỗ trợ) tới cắt lỗ quy ước"**, mức giá đã đi xuyên qua tối đa bao nhiêu %, ngày quay lại và ngày xác nhận (trỏ chuột vào mốc). Chú giải dưới biểu đồ nói rõ đây không phải dự báo.
+- **Trợ lý AI (MCP):** `get_technical_analysis` có thêm `trapEvents` (chỉ đọc, không thêm công cụ).
+- Hướng dẫn "Phân tích thị trường" có mục mới giải thích cách đọc và các giới hạn.
+
+### Kỹ thuật
+
+- `TrapDetector.Detect` là hàm thuần trên nến ngày đã điều chỉnh (không dò trên giá chưa điều chỉnh); chỉ nến phá vỡ đầu tiên, nghỉ 20 phiên giữa hai mốc cùng loại, tối đa 12 mốc gần nhất. Không tần suất, không tỉ lệ, không xác suất (thống kê kết quả là một phần việc riêng, chưa làm).
+
+---
+
 ## [v2.125.0] — 2026-11-28 · Ứng viên mô hình Cốc tay cầm trên biểu đồ và cho trợ lý AI
 
 ### Tính năng mới
