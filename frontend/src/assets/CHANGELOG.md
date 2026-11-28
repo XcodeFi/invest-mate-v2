@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.107.0] — 2026-11-28 · Dòng thời gian mã có chỉ báo theo nhóm
+
+### Cải thiện
+
+- **Biểu đồ trang Dòng thời gian mã dùng cùng bộ chỉ báo với trang Phân tích thị trường.** Chọn một trong 6 nhóm (Tổng hợp, Xu hướng, Động lượng, Biến động, Dòng tiền, Mốc giá), có chú giải đúng màu đường và khối "📖 Cách đọc" dưới biểu đồ. Nến là nến thật đã điều chỉnh theo sự kiện quyền.
+- **EMA 200 giờ là đường chạy theo thời gian.** Trước đây trang này vẽ EMA là các đường ngang tại giá EMA hiện tại (sai về ý nghĩa); ba nút EMA, S/R và Fibonacci cũ được thay bằng các nhóm Xu hướng và Mốc giá. Nút Nến/đường cũng bỏ: luôn là nến.
+- **Mốc của dòng thời gian giữ nguyên và rõ hơn:** T (giao dịch), J (nhật ký), E (sự kiện), A (cảnh báo), thêm H (hồ sơ công ty); trỏ chuột vào phiên có mốc để xem chi tiết. Mốc rơi vào ngày không có phiên (cuối tuần, lễ) được gắn vào phiên liền trước.
+- **Giá giao dịch ghi "(giá gốc)"** khi chuỗi đã điều chỉnh và giá bạn khớp nằm ngoài khoảng thấp nhất đến cao nhất của phiên đó (dung sai 0,5%), vì giá bạn khớp là giá gốc còn nến đã điều chỉnh (vị trí mốc vẫn đúng ngày). So trực tiếp với nến nên bắt được cả chia tách và cổ tức cổ phiếu; chuỗi chưa điều chỉnh thì không ghi nhãn này. Đây là phép đoán theo dữ liệu, không phải đối chiếu sự kiện: điều chỉnh nhỏ (ví dụ cổ tức tiền mặt nhỏ) làm giá gốc vẫn nằm trong khoảng giá của phiên thì không có nhãn; ngày giao dịch không phải phiên của chuỗi (cuối tuần, lễ) hoặc sau nến cuối (chuỗi cũ do nguồn bị chặn) cũng không có nhãn.
+- **Tầng Cảm xúc** của nhật ký thành một tầng cột riêng dưới biểu đồ (cao cột là mức tự tin, màu theo cảm xúc), thay cho dải cột chồng lên nến.
+- **Chỉ báo đủ dữ liệu và giống nhau ở mọi nơi.** Backend luôn tính chỉ báo (EMA 20/50/200, RSI, MACD, ADX, ATR, Bollinger, Stochastic, OBV, MFI) trên cùng một lịch sử 36 tháng, rồi mới cắt theo khoảng hiển thị. EMA 200 và MACD không bị trống ở đầu khoảng, và giá trị phiên cuối giống nhau ở mọi khoảng 1T/3T/6T/1N, ở trang Phân tích thị trường và ở công cụ MCP (trước đây EMA 200 lệch từ vài trăm tới hơn 600 đồng giữa các khoảng và giữa hai trang vì mỗi nơi tính trên một lịch sử dài khác nhau). Các mốc hỗ trợ, kháng cự và Fibonacci vẫn nghĩa là "trong 12 tháng gần nhất" (theo tham số `months`), nên hai trang cho cùng mốc.
+- Các ghi chú "chưa điều chỉnh" và "dữ liệu đã điều chỉnh cập nhật tới …" cũng hiện ở trang này. Biểu đồ không còn dính khi cuộn (trang dài, có danh sách sự kiện bên dưới).
+
+### Kỹ thuật
+
+- `GET /market/stock/{symbol}/analysis` và `/analysis/series` nhận tham số tuỳ chọn `months` (kẹp 3 đến 36, mặc định 12): tham số và hình dạng phản hồi không đổi cho người gọi cũ và công cụ MCP, nhưng giá trị chỉ báo thay đổi nhẹ vì nay cùng tính trên một lịch sử 36 tháng. `months` chỉ quyết định phạm vi mốc hỗ trợ/kháng cự/Fibonacci và số nến của chuỗi; chỉ báo luôn tính trên lịch sử cố định 36 tháng (`TechnicalIndicatorService.IndicatorHistoryMonths`, provider đã giữ sẵn chuỗi 3 năm nên không thêm lần gọi nguồn).
+- Tách dùng chung sang `shared/`: thanh chọn nhóm, khối Cách đọc, ghi chú chuỗi đã điều chỉnh, `ta-group-layers`, `indicator-guides`, `adjusted-age`, `slice-series`. `app-indicator-chart` thêm đầu vào `markers` và cột có màu riêng từng điểm.
+- Ngày của giao dịch, nhật ký, sự kiện và cảnh báo được tính theo giờ Việt Nam (`vnDay`), không cắt chuỗi UTC: lệnh nhập lúc 00:00 giờ Việt Nam lưu ở 17:00 UTC hôm trước, trước đây lệch về phiên trước. Chuỗi chỉ báo chỉ tải một lần cho mỗi mã, đổi khoảng chỉ cắt lại (dòng thời gian vẫn tải theo khoảng); tải lỗi thì thử lại ở lần đổi khoảng sau. Phân tích không tải được thì hiện một dòng báo thay vì để các nhóm trống lặng lẽ.
+- Mốc dòng thời gian dựng bởi hàm thuần `buildTimelineMarkers`; nhãn "(giá gốc)" so giá giao dịch với [thấp; cao] của phiên trong chuỗi đang vẽ.
+
+---
+
 ## [v2.106.0] — 2026-11-28 · Sửa: setup Pullback bỏ qua nến đang hình thành trong giờ giao dịch
 
 ### Sửa lỗi
