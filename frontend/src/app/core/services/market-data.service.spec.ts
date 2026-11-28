@@ -53,4 +53,21 @@ describe('MarketDataService', () => {
     req.flush(body);
     expect(received).toEqual(body);
   });
+
+  it('getTechnicalSeries and getTechnicalAnalysis send months only when asked', () => {
+    service.getTechnicalSeries('FPT', 24).subscribe();
+    const withMonths = http.expectOne(r => r.url === `${environment.apiUrl}/market/stock/FPT/analysis/series`);
+    expect(withMonths.request.params.get('months')).toBe('24');
+    withMonths.flush({});
+
+    service.getTechnicalSeries('FPT').subscribe();
+    const without = http.expectOne(r => r.url === `${environment.apiUrl}/market/stock/FPT/analysis/series`);
+    expect(without.request.params.has('months')).toBeFalse();
+    without.flush({});
+
+    service.getTechnicalAnalysis('FPT', 15).subscribe();
+    const analysis = http.expectOne(r => r.url === `${environment.apiUrl}/market/stock/FPT/analysis`);
+    expect(analysis.request.params.get('months')).toBe('15');
+    analysis.flush({});
+  });
 });
