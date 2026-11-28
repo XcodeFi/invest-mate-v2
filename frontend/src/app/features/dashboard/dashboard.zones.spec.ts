@@ -141,15 +141,51 @@ describe('DashboardComponent — các vùng Hôm nay / Tài sản / Theo dõi', 
     expect(q('zone-watch')!.textContent).toContain('Tạo');   // thẻ Danh mục vẫn có nút tạo của riêng nó
   });
 
-  it('the CAGR number is rendered exactly once, in the hero, even with the Lãi kép card expanded', () => {
+  it('the CAGR number is rendered exactly once across the whole dashboard, collapsed AND expanded', () => {
+    const count = () => (root().textContent!.replace(/\s+/g, ' ').match(/12\.3%/g) ?? []).length;
+
+    expect(count()).toBe(1);   // thu gọn: chỉ hero
+    expect(q('investment-hero')!.textContent).toContain('CAGR +12.3%');
+    expect(q('compound-summary')!.textContent).not.toContain('12.3');
+
     (q('compound-toggle') as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    const body = root().textContent!.replace(/\s+/g, ' ');
-    const occurrences = body.match(/12\.3%/g) ?? [];
-    expect(occurrences.length).toBe(1);
-    expect(q('investment-hero')!.textContent).toContain('CAGR +12.3%');
+    expect(count()).toBe(1);   // mở: vẫn chỉ hero
     expect(q('compound-body')!.textContent).not.toContain('12.3%');
+  });
+
+  it('the collapsed summary states the target and its horizon exactly', () => {
+    component.cagrTarget = 15;
+    component.targetYears = 10;
+    fixture.detectChanges();
+
+    expect(q('compound-summary')!.textContent!.replace(/\s+/g, ' ').trim())
+      .toBe('Mục tiêu 15%/năm trong 10 năm. Số CAGR hiện tại nằm ở khối Tổng quan đầu tư phía trên.');
+  });
+
+  it('target editing still works inside the expanded card: Đặt mục tiêu opens the editor and a second click closes it', () => {
+    (q('compound-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const editorBtn = () => Array.from(q('compound-body')!.querySelectorAll('button')).find(b => /mục tiêu|Đóng/.test(b.textContent!) && /^(Đặt mục tiêu|Đóng)$/.test(b.textContent!.trim())) as HTMLButtonElement;
+    expect(editorBtn().textContent!.trim()).toBe('Đặt mục tiêu');
+    expect(q('compound-body')!.textContent).not.toContain('CAGR mục tiêu (%/năm)');
+
+    editorBtn().click();
+    fixture.detectChanges();
+    expect(q('compound-body')!.textContent).toContain('CAGR mục tiêu (%/năm)');
+    expect(editorBtn().textContent!.trim()).toBe('Đóng');
+
+    editorBtn().click();
+    fixture.detectChanges();
+    expect(q('compound-body')!.textContent).not.toContain('CAGR mục tiêu (%/năm)');
+  });
+
+  it('the Lãi kép toggle has a hit area of at least 32px (padding + min-height)', () => {
+    const toggle = q('compound-toggle') as HTMLButtonElement;
+
+    expect(toggle.classList).toContain('min-h-[32px]');
+    expect(toggle.classList).toContain('py-2');
   });
 
   it('the Lãi kép card is collapsed by default with a one-line summary, and its toggle opens and closes the body', () => {
