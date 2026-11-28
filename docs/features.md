@@ -1566,6 +1566,7 @@ Tổng 1106 tests pass. V1 thêm:
 
 ### PR-1 (P1+P2) — shipped 2026-05-04
 
+- **Home PR2 (2026-11-28) — gộp hai widget tài chính:** thẻ "Tài chính cá nhân" nằm riêng bị bỏ; `app-networth-summary` ở vị trí #2 gộp Net Worth + Reality Gap + Tổng tài sản − Nợ + cảnh báo nợ lãi cao + sức khoẻ + chia tài sản (thu gọn mặc định); hero đầu tư đổi tên "Tổng quan đầu tư". Thay quyết định "giữ cả hai" của v1.1.
 - **P1 — Reality Gap CAGR + NetWorth widget tách riêng:** `cagrTargetSet=true` default → user mở app lần đầu thấy ngay "đang lệch X điểm % so với mục tiêu CAGR 15%". Tách `<app-networth-summary>` thành widget compact 3-line ở vị trí #2 (sau Decision Queue), giữ Compound Growth Tracker đầy đủ ở giữa page.
 - **P2 — AI rebrand "Bản tin" → "Phản biện danh mục":** đổi vai AI từ news-reader (passive) → adversarial coach. Use-case backend `portfolio-critique` (3 điểm phản biện, mệnh lệnh, KHÔNG khen, KHÔNG động viên). Button label `🥊 AI phản biện danh mục`.
 
