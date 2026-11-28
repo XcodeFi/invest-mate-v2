@@ -2,6 +2,26 @@
 
 ---
 
+## [v2.119.0] — 2026-11-28 · Trang chủ chia thành ba vùng: Hôm nay, Tài sản, Theo dõi
+
+### Thay đổi
+
+- **Ba vùng, đọc từ trên xuống:**
+  - **Hôm nay**: màn tĩnh tâm, Việc cần xử lý hôm nay, điểm kỷ luật.
+  - **Tài sản**: khối **Tổng quan đầu tư** và thẻ **Tài chính cá nhân** đứng cạnh nhau từ màn rộng 1280px (xếp dọc khi hẹp hơn), rồi thẻ **Lãi kép**.
+  - **Theo dõi**: Watchlist, Công việc hằng ngày, Danh mục của bạn, Vị thế nổi bật.
+  - Dưới 1024px mọi vùng xếp thành một cột.
+- **Bộ chọn khung thời gian (Tuần/Tháng/…) nằm trong khối Tổng quan đầu tư**, vì nó điều khiển chính khối đó.
+- **Bỏ nút "+ Tạo Danh mục mới" ở đầu trang**: thẻ Danh mục của bạn đã có nút tạo riêng. Nút "AI phản biện danh mục" giữ nguyên.
+- **Thẻ Lãi kép thu gọn mặc định** (kèm một dòng tóm tắt mục tiêu). Bấm **Xem chi tiết ▾** để mở: mục tiêu, ước tính giá trị vốn và so sánh mục tiêu với thực tế vẫn còn nguyên. **Số CAGR hiện tại chỉ còn hiện một lần**, ở khối Tổng quan đầu tư (trước đây lặp lại trong thẻ Lãi kép).
+- Không thêm dữ liệu hay API mới.
+
+### Kỹ thuật
+
+- Thứ tự vùng, vị trí bộ chọn khung thời gian, việc không còn nút tạo thứ hai và đúng một số CAGR được ghim bằng spec dựng cả `DashboardComponent` (các widget con thay bằng bản giả).
+
+---
+
 ## [v2.118.0] — 2026-11-28 · Tâm trạng: lưu lịch sử đổi trong ngày, đọc và ghi qua trợ lý AI (MCP)
 
 ### Tính năng mới
