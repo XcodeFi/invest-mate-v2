@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, forkJoin, of } from 'rxjs';
+import { Subject, Subscription, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
@@ -282,6 +282,8 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
         }
         @if (chartError) {
           <div role="alert" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" data-testid="timeline-chart-error">{{ chartError }}</div>
+        } @else if (series && series.dates.length === 0) {
+          <p class="text-sm text-gray-500 py-8 text-center" data-testid="timeline-chart-empty">Không có dữ liệu giá trong khoảng này</p>
         } @else if (series) {
           <app-indicator-chart [dates]="series.dates" [candles]="chartCandles" [layers]="groupLayers" [markers]="chartMarkers"></app-indicator-chart>
         } @else {
@@ -668,6 +670,10 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   series: TechnicalSeries | null = null;
   private analysis: TechnicalAnalysis | null = null;
   chartError: string | null = null;
+  /** Mã mà `fullSeries` thuộc về; null khi chưa tải hoặc lần tải lỗi (lần loadData sau sẽ tải lại). */
+  private indicatorSymbol: string | null = null;
+  private fullSeries: TechnicalSeries | null = null;
+  private indicatorSub: Subscription | null = null;
   /** Phân tích (các lớp của nhóm chỉ báo) không tải được: hiện một dòng báo thay vì để các nhóm trống lặng lẽ. */
   analysisFailed = false;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
@@ -749,27 +755,57 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
         }
       });
 
-    // Chỉ báo luôn tính trên cùng một cửa sổ dài (đủ khởi động cho EMA 200), rồi cắt theo khoảng đang xem
+    // Chỉ báo tính trên cùng một cửa sổ cố định nên chỉ tải MỘT lần cho mỗi mã; đổi khoảng chỉ cắt lại chuỗi đã có.
+    // Chỉ dòng thời gian phụ thuộc khoảng (ở trên).
+    if (this.indicatorSymbol === this.symbol) {
+      this.applyRange();   // đã có (hoặc đang tải: câu trả lời sẽ được cắt theo khoảng lúc nó đến)
+    } else {
+      this.loadIndicators();
+    }
+  }
+
+  private loadIndicators(): void {
+    this.indicatorSub?.unsubscribe();
+    this.indicatorSymbol = this.symbol;
+    this.fullSeries = null;
     this.chartError = null;
     this.analysisFailed = false;
-    forkJoin([
+    this.indicatorSub = forkJoin([
       this.marketDataService.getTechnicalSeries(this.symbol, INDICATOR_WINDOW_MONTHS),
       this.marketDataService.getTechnicalAnalysis(this.symbol, INDICATOR_WINDOW_MONTHS).pipe(catchError(() => {
         this.analysisFailed = true;
         return of(null);
       }))
-    ]).pipe(takeUntil(this.destroy$), takeUntil(this.cancelLoad$)).subscribe({
+    ]).pipe(takeUntil(this.destroy$)).subscribe({
       next: ([series, analysis]) => {
+        this.fullSeries = series;
         this.analysis = analysis;
-        this.series = sliceSeriesFrom(series, fromStr);
-        this.chartCandles = { open: this.series.open, high: this.series.high, low: this.series.low, close: this.series.close };
-        this.refreshChart();
+        this.applyRange();
       },
       error: () => {
+        // Lỗi thì bỏ hẳn chuỗi cũ: không để lớp vẽ, mốc hay ghi chú nào còn dùng dữ liệu của lần trước
+        this.indicatorSymbol = null;
+        this.fullSeries = null;
+        this.analysis = null;
+        this.series = null;
+        this.chartCandles = { open: [], high: [], low: [], close: [] };
+        this.groupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+        this.chartMarkers = [];
+        this.readNowLines = [];
         this.chartError = 'Không tải được dữ liệu biểu đồ';
         this.notificationService.error('Lỗi', 'Không thể tải dữ liệu giá');
       }
     });
+  }
+
+  /** Cắt chuỗi đã tải theo khoảng đang chọn (tính theo ngày Việt Nam) rồi dựng lại biểu đồ. */
+  private applyRange(): void {
+    if (!this.fullSeries) return;
+    const from = new Date();
+    from.setMonth(from.getMonth() - this.selectedRange);
+    this.series = sliceSeriesFrom(this.fullSeries, vnDay(from));
+    this.chartCandles = { open: this.series.open, high: this.series.high, low: this.series.low, close: this.series.close };
+    this.refreshChart();
   }
 
   // ===== Biểu đồ =====
@@ -784,6 +820,12 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   private refreshChart(): void {
     const series = this.series;
     if (!series) return;
+    if (series.dates.length === 0) {
+      this.groupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+      this.chartMarkers = [];
+      this.readNowLines = [];
+      return;
+    }
 
     const base = this.analysis
       ? buildGroupLayers(this.selectedGroup, series, this.analysis)

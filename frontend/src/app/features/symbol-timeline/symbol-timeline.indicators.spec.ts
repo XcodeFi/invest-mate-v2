@@ -19,12 +19,14 @@ let adjustedFlag: boolean | null | undefined = true;
 let adjustedAsOfFlag: string | null | undefined;
 
 /** Chuỗi 330 ngày liên tiếp kết thúc hôm nay; EMA 20 có giá trị từ ngày đầu (đã khởi động) để kiểm việc cắt khoảng. */
+let seriesAgeDays = 0;   // > 0: chuỗi kết thúc cách đây chừng đó ngày (để khoảng đang xem không có phiên nào)
+
 const series = (months = 12): TechnicalSeries => {
   const flat = (v: number) => Array.from({ length: N }, () => v);
   return {
     ...(adjustedFlag === undefined ? {} : { adjusted: adjustedFlag }),
     ...(adjustedAsOfFlag === undefined ? {} : { adjustedAsOf: adjustedAsOfFlag }),
-    symbol: 'VNM', dates: Array.from({ length: N }, (_, i) => `${iso(daysAgo(N - 1 - i))}T00:00:00Z`),
+    symbol: 'VNM', dates: Array.from({ length: N }, (_, i) => `${iso(daysAgo(N - 1 - i + seriesAgeDays))}T00:00:00Z`),
     open: flat(100), high: flat(101), low: flat(99), close: flat(100), volume: flat(1000),
     ema20: flat(100 + months), ema50: flat(100), ema200: flat(98), bollingerUpper: flat(110), bollingerMiddle: flat(100), bollingerLower: flat(90),
     rsi14: flat(72), stochK: flat(50), stochD: flat(50), macdLine: flat(2), macdSignal: flat(1), macdHistogram: flat(1),
@@ -86,7 +88,7 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     fixture.detectChanges();
   };
 
-  beforeEach(() => { adjustedFlag = true; adjustedAsOfFlag = undefined; items = []; try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
+  beforeEach(() => { seriesAgeDays = 0; adjustedFlag = true; adjustedAsOfFlag = undefined; items = []; try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
   afterEach(() => fixture?.destroy());
 
   it('shows group chips and no guide block until a group is chosen', () => {
@@ -168,26 +170,75 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '1N') as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(2);
-    expect(marketSpy.getTechnicalSeries.calls.mostRecent().args).toEqual(['VNM', 36]);
     expect(chart().dates.length).toBeGreaterThan(before);
   });
 
-  it('stale_range_response_is_ignored (1T then 1N quickly, the 1T answer lands last)', () => {
-    setup({ deferred: true });                       // lần tải đầu: khoảng mặc định 3 tháng
+  it('range_switch_does_not_refetch_series_or_analysis', () => {
+    setup();
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(1);
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledTimes(1);
+
+    for (const label of ['1T', '6T', '1N', '3T']) {
+      (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === label) as HTMLButtonElement).click();
+      fixture.detectChanges();
+    }
+
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(1);
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledTimes(1);
+    expect(marketSpy.getTechnicalSeries.calls.mostRecent().args).toEqual(['VNM', 36]);
+    expect(chart().dates.length).toBeGreaterThan(80);   // đã quay lại 3T từ cùng một chuỗi
+  });
+
+  it('a range switch still refetches the timeline (the only call that depends on the range)', () => {
+    setup();
+    const journal = TestBed.inject(JournalEntryService) as jasmine.SpyObj<JournalEntryService>;
+    const before = journal.getTimeline.calls.count();
+
+    (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '6T') as HTMLButtonElement).click();
+
+    expect(journal.getTimeline.calls.count()).toBe(before + 1);
+  });
+
+  it('a series answer that lands after a range switch is cut to the NEW range, and no second request is made', () => {
+    setup({ deferred: true });                       // lần tải đầu: khoảng mặc định 3 tháng, chưa có câu trả lời
     (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '1N') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(pending.length).toBe(2);
+    expect(pending.length).toBe(1);
 
-    pending[1].next(series()); pending[1].complete();   // câu trả lời của khoảng 1N đến trước
-    fixture.detectChanges();
-    const yearBars = chart().dates.length;
-    expect(yearBars).toBeGreaterThan(300);
-
-    pending[0].next(series()); pending[0].complete();   // câu trả lời cũ (3 tháng) đến muộn: phải bị bỏ
+    pending[0].next(series()); pending[0].complete();
     fixture.detectChanges();
 
-    expect(chart().dates.length).toBe(yearBars);
+    expect(chart().dates.length).toBeGreaterThan(300);   // cắt theo 1N, không phải 3T
+  });
+
+  it('series_error_clears_previous_series', () => {
+    setup();
+    expect(chart()).toBeDefined();
+    marketSpy.getTechnicalSeries.and.returnValue(throwError(() => new Error('x')));
+
+    fixture.componentInstance.symbol = 'FPT';        // mã khác thì mới tải lại chuỗi
+    fixture.componentInstance.loadData();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.series).toBeNull();
+    expect(fixture.componentInstance.chartMarkers).toEqual([]);
+    expect(fixture.componentInstance.groupLayers.panes).toEqual([]);
+    expect(chart()).toBeUndefined();
+    expect(q('timeline-chart-error')).not.toBeNull();
+  });
+
+  it('an empty slice (the series ends before the chosen range starts) shows a message instead of a blank chart', () => {
+    seriesAgeDays = 400;
+    setup();
+
+    expect(q('timeline-chart-empty')!.textContent).toContain('Không có dữ liệu giá trong khoảng này');
+    expect(chart()).toBeUndefined();
+  });
+
+  it('no empty-slice message when the range has bars', () => {
+    setup();
+
+    expect(q('timeline-chart-empty')).toBeNull();
   });
 
   it('an analysis failure shows one short line instead of silently empty groups', () => {
