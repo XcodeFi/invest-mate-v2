@@ -70,6 +70,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             var closed = FormingBar.DropIfForming(prices.OrderBy(p => p.Date).ToList(), p => p.Date, _time.GetUtcNow());
             var cup = CupWithHandleDetector.Detect(closed);
             if (cup != null) result.PatternCandidates.Add(cup);
+            result.TrapEvents.AddRange(TrapDetector.Detect(closed));
         }
 
         // Price change (vs previous day)

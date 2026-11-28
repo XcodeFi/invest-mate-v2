@@ -307,6 +307,25 @@ Dưới biểu đồ chỉ báo (trang Thị trường và trang Dòng thời gi
 - Chỉ báo **tối đa một ứng viên** và chỉ nhìn các phiên đã đóng cửa (nến hôm nay trước 15:00 bị bỏ).
 - Hình dạng là phán đoán chủ quan: người khác vẽ cốc khác. Thẻ chỉ nói "theo ngưỡng mặc định này thì có".
 
+## Mốc bẫy: phá vỡ thất bại và bẫy giảm giá
+
+Trên biểu đồ (trang Thị trường và Dòng thời gian mã) có thể có các mũi tên **▼ Bẫy tăng** và **▲ Bẫy giảm**. Đây là mốc đánh dấu **sau khi sự việc đã xảy ra**, không phải dự báo.
+
+**Hai loại mốc**
+- **▼ Bẫy tăng (phá vỡ thất bại):** một phiên đóng cửa **vượt đỉnh cao nhất của 20 phiên trước** (gọi là pivot), rồi trong **5 phiên** sau đó có một phiên **đóng cửa trở lại dưới pivot**. Người mua đuổi theo cú phá vỡ bị kẹt. Mũi tên nằm trên nến phá vỡ.
+- **▲ Bẫy giảm (bear trap):** một phiên đóng cửa **thủng đáy thấp nhất của 20 phiên trước** (hỗ trợ), rồi trong **5 phiên** sau đó có một phiên **đóng cửa trở lại trên hỗ trợ**. Người bán tháo theo cú thủng bị kẹt. Mũi tên nằm dưới nến thủng.
+
+**Cách đọc mốc**
+- Mốc được **xác nhận hồi tố ở phiên thứ 5 sau nến phá vỡ**. Vì vậy **5 phiên gần nhất không có mốc**, và một cú phá vỡ đang diễn ra chưa bao giờ được gắn nhãn "bẫy".
+- Mỗi mốc có **"Nếu sai": −X% từ pivot (hoặc hỗ trợ) tới cắt lỗ quy ước**. Cắt lỗ quy ước là đáy thấp nhất 10 phiên trước nến phá vỡ (bẫy tăng) hoặc đáy của đợt thủng giả (bẫy giảm), trừ thêm 1%. Đây là khoảng cách để bạn hình dung rủi ro, **không phải mức cắt lỗ khuyến nghị**.
+- Tooltip còn cho biết giá **đã đi xuyên qua mức tối đa bao nhiêu %** trong 5 phiên (số đo của chính mốc đó), ngày giá quay lại và ngày xác nhận.
+- Hai mốc cùng loại cách nhau ít nhất 20 phiên để một vùng đi ngang giằng co không đánh dấu liên tục. Chỉ hiện tối đa 12 mốc gần nhất.
+
+**Giới hạn cần nhớ**
+- **Không có tần suất, tỉ lệ hay xác suất** nào ở đây: không nói bao nhiêu phần trăm cú phá vỡ thất bại, cũng không nói mốc này "đáng tin" thế nào. Phép thống kê trên dữ liệu lịch sử thuộc một phần việc riêng và chưa có.
+- Cửa sổ 20 phiên, 5 phiên xác nhận, 20 phiên nghỉ và cách đặt cắt lỗ là **ngưỡng mặc định có thể chỉnh**, không phải luật của một tác giả nào.
+- Chỉ dò trên giá **đã điều chỉnh**; khi nguồn chỉ có giá chưa điều chỉnh thì không có mốc (một cú gap do chia tách sẽ tạo "bẫy" giả).
+
 ## Cách đọc kết hợp 5 bước
 
 ```

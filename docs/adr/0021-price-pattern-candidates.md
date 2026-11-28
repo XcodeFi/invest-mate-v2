@@ -36,3 +36,12 @@ Người dùng muốn thấy các mô hình giá phổ biến (bắt đầu từ
 **Follow-ups:**
 - Back-test bộ dò trên chuỗi đã lưu của VN30 và ghi tỉ lệ vào `docs/project-context.md` (chưa làm: cần quyền đọc kho thật).
 - PR B: cột ở trang Sàng lọc chỉ đọc `IAdjustedPriceSeriesStore.GetAsync`, không bao giờ gọi UDF.
+
+## Bổ sung (PR A1, 2026-11-28): mốc bẫy
+
+Cùng nguyên tắc cho `TrapDetector`: hàm thuần trên nến đã điều chỉnh, ngưỡng là mặc định có thể chỉnh (`TrapOptions`), KHÔNG tần suất/tỉ lệ/xác suất (một test phản chiếu chặn các thành viên tên probab, rate, freq, win, score, confidence).
+- **Xác nhận hồi tố:** mốc chỉ có khi `t + 5 ≤` nến cuối; 5 phiên gần nhất không có mốc, nên không bao giờ gắn nhãn "bẫy" cho một cú phá vỡ còn đang diễn ra (không dự đoán).
+- **"Nếu sai":** khoảng cách tới cắt lỗ quy ước (đáy 10 phiên trước nến phá vỡ, hoặc đáy đợt thủng giả, trừ 1%): là hình học, không phải mức khuyến nghị.
+- **Chỉ nến phá vỡ ĐẦU TIÊN** và nghỉ 20 phiên giữa hai mốc cùng loại, để một vùng giằng co không tạo mốc liên tục.
+- **Hệ quả:** trên xu hướng tăng mạnh, mỗi đỉnh mới 20 phiên là một "phá vỡ" mới có thể bị đánh dấu nếu thất bại trong 5 phiên; đó là đúng định nghĩa nhưng có thể nhiều mốc hơn người dùng tưởng.
+- **Chưa làm:** thống kê kết quả (PR A2, cần back-test chỉ đọc trên dữ liệu thật; VN30, không lấy theo từng mã, n ≥ 30 mới hiện %, kèm khoảng Wilson).

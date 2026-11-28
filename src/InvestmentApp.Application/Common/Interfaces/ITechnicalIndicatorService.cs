@@ -66,6 +66,12 @@ public class TechnicalAnalysisResult
     public List<InvestmentApp.Application.MarketData.Patterns.PatternCandidate> PatternCandidates { get; set; } = new();
 
     /// <summary>
+    /// Các mốc bẫy đã được xác nhận hồi tố (phá vỡ thất bại, bẫy giảm giá), cũ trước, tối đa 12 mốc gần nhất. Mỗi mốc có mức, "nếu sai" (cắt lỗ quy ước và % khoảng cách),
+    /// ngày nến phá vỡ, ngày giá quay lại và ngày xác nhận (t+5). KHÔNG có tần suất, tỉ lệ hay xác suất; không có mốc cho 5 phiên gần nhất. Rỗng khi chuỗi chưa điều chỉnh.
+    /// </summary>
+    public List<InvestmentApp.Application.MarketData.Patterns.TrapEvent> TrapEvents { get; set; } = new();
+
+    /// <summary>
     /// <c>true</c> khi giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách); <c>false</c> khi dùng
     /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
     /// </summary>
