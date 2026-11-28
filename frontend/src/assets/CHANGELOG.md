@@ -28,6 +28,22 @@
 
 ---
 
+## [v2.109.0] — 2026-11-28 · Tỉ lệ nền VN30 cho setup Pullback
+
+### Tính năng mới
+
+- **Dòng "Tỉ lệ nền VN30"** trong khối Setup Pullback của trang Thị trường, chỉ cho mã thuộc VN30: *"Tỉ lệ nền VN30 (28 mã, 412 lệnh, 34 tháng): thắng 43% (95% xấp xỉ: 37% – 49%), kỳ vọng +0.12R (95% xấp xỉ: -0.05R – +0.29R)"*. Mỗi mã chỉ có 4–9 lệnh trong 3 năm nên không đủ để thống kê riêng; gộp cả rổ cho một con số tham khảo xem setup này có kỳ vọng dương hay không. Kèm lưu ý: đây là tỉ lệ của **rổ**, không phải bằng chứng riêng của mã; số liệu mô tả quá khứ; rổ hiện tại gồm các mã còn niêm yết (thiên lệch người sống sót).
+- **Khoảng tin cậy xấp xỉ, có tính phụ thuộc.** Các lệnh cùng tháng chịu chung bối cảnh thị trường nên không thể coi là độc lập: khoảng 95% lấy từ bootstrap theo khối tháng (2.000 lần, hạt giống cố định), không phải khoảng Wilson trên các lệnh gộp. Nhãn ghi "xấp xỉ" và nói rõ khoảng có thể vẫn hẹp hơn thực tế (lệnh kéo dài qua nhiều tháng).
+- **Chỉ hiện khi đủ dữ liệu:** từ 15 mã VN30 có chuỗi giá điều chỉnh còn mới, từ 30 lệnh đã đóng và các lệnh rải trên ít nhất 24 tháng. Chưa đủ thì ghi lý do (ví dụ "Chưa đủ mã VN30 có dữ liệu (7/30, cần từ 15)"); mã ngoài VN30 ghi "Chỉ có cho mã thuộc VN30". Không bao giờ điền sẵn vào form kế hoạch.
+- Công cụ MCP `get_signal_setups` trả thêm `baseRate` / `baseRateReason` (vắng mặt khi không có), mô tả công cụ nói rõ đây là tỉ lệ của rổ, không phải của mã.
+
+### Kỹ thuật
+
+- **Lấy trước chuỗi giá VN30 qua job `prices` sẵn có** (không thêm job Cloud Scheduler, không đổi hạ tầng): sau việc chính, mỗi lượt lấy tối đa 1 mã (chưa có chuỗi trước, rồi cũ nhất; bỏ mã mà nguồn coi là còn tươi) nên rổ đầy sau khoảng hai ngày giao dịch. Giới hạn cứng nằm ở phía nguồn giá: tối đa **30 lần gọi UDF mỗi ngày Việt Nam** (tính cả lần lỗi, lưu bền ở collection `job_state` bằng một lệnh `$inc` nguyên tử), **không dùng graph dự phòng**, bỏ qua **không gọi** khi nguồn đang trục trặc (cooldown chung hoặc chuỗi lỗi chung ≥ 1), và lỗi của warm-up **không** cộng vào chuỗi lỗi chung hay cooldown của biểu đồ người dùng (warm-up có cooldown riêng). Chạy sau việc chính kể cả khi job không có mã nào, hạn 20 giây, mọi lỗi chỉ ghi log, kết quả job giá không đổi. Công tắc tắt: `SignalWarmup__Enabled=false`; tinh chỉnh `SignalWarmup__SymbolsPerRun`, `MarketDataProvider__WarmupMaxCallsPerDay`.
+- Rổ VN30 một nguồn duy nhất `Domain/Constants/Vn30Basket` (nhập danh sách VN30 dùng chung). Thống kê gộp `BaseRateStatistics` (hàm thuần, bộ sinh số giả ngẫu nhiên tự viết nên kết quả không đổi giữa các bản .NET) và `SignalBaseRateService` (chạy cùng engine S1 trên chuỗi đã lưu, bỏ nến đang hình thành, dùng biên độ HOSE cho cả rổ, nhớ kết quả tới 15:10 hoặc hết ngày). Công cụ đếm chỉ đọc có thêm chế độ `pooled` (k, n, số tháng, bootstrap) dùng đúng hàm gộp của dịch vụ.
+n---
+
+- Hàm dựng `PriceSnapshotJobService` nhận thêm `ISignalSeriesWarmup`; `IAdjustedPriceSeriesStore` thêm `GetFetchedAtAsync` (chỉ đọc `FetchedAt`, không tải nến). ADR-0019.
 ## [v2.108.1] — 2026-11-28 · Bảng giá nhanh: bấm gợi ý khi lần tải đầu chưa về
 
 ### Sửa lỗi

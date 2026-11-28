@@ -51,7 +51,7 @@ Win/loss and expectancy are reported only with at least 30 completed trades: win
 
 **Follow-ups (if any):**
 
-- A pooled base rate (for example VN30) is a separate later step. Its conditions: a confidence interval that accounts for dependence (date-clustered block bootstrap or an effective n, never a raw Wilson interval on pooled trades); labelled as a base rate, never as the stock's own evidence; shown only for stocks in the pooled universe; survivorship and in-sample disclosures; kept out of the plan form until the anti-anchoring rule applies to it; and organic snapshots only unless the user explicitly agrees to a background crawl.
+- A pooled base rate (for example VN30) is a separate later step, decided in [ADR-0019](0019-signal-base-rate-vn30-warmup-via-prices-job.md). Its conditions: a confidence interval that accounts for dependence (date-clustered block bootstrap or an effective n, never a raw Wilson interval on pooled trades); labelled as a base rate, never as the stock's own evidence; shown only for stocks in the pooled universe; survivorship and in-sample disclosures; kept out of the plan form until the anti-anchoring rule applies to it; and organic snapshots only unless the user explicitly agrees to a background crawl.
 - The other setups are out of scope here.
 
 ## References
