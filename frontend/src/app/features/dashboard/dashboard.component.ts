@@ -244,7 +244,7 @@ Chart.register(...registerables);
           <!-- Header + CAGR + TWR chips -->
           <div class="flex items-start justify-between flex-wrap gap-2 mb-2">
             <div>
-              <h2 class="text-sm font-semibold text-emerald-900">Tổng quan đầu tư</h2>
+              <h2 class="text-sm font-semibold text-emerald-900" data-test="investment-hero-title">{{ investmentHeroTitle }}</h2>
               <span class="text-xs text-gray-600">So với vốn hiện tại {{ totalCurrentCapital | vndCurrency }}</span>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -754,6 +754,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Personal Finance Widget ───────────────────────────────────────────────
   netWorthSummary: NetWorthSummaryDto | null = null;
+  /** Tiêu đề khối đầu tư: "Tổng tài sản" chỉ còn một nghĩa (dòng Tổng tài sản − Nợ trong thẻ Tài chính cá nhân). */
+  readonly investmentHeroTitle = 'Tổng quan đầu tư';
 
   // ─── Luật dừng theo tâm trạng (ADR-0013) ──────────────────────────────────
   private todayMood: TodayMoodDto = { mood: null, overrode: false };

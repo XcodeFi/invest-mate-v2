@@ -201,6 +201,39 @@ describe('NetWorthSummaryComponent', () => {
     expect(q('health-score').nativeElement.textContent).toContain('85/100');
   });
 
+  it('the health score TEXT colour follows the same boundaries as the bar: 49 red, 50 and 79 amber, 80 emerald', () => {
+    const textClass = (score: number) => {
+      show({ healthScore: score });
+      return Array.from((q('health-score').nativeElement as HTMLElement).classList).filter(c => c.startsWith('text-') && /(red|amber|emerald)/.test(c));
+    };
+
+    expect(textClass(49)).toEqual(['text-red-600']);
+    expect(textClass(50)).toEqual(['text-amber-700']);
+    expect(textClass(79)).toEqual(['text-amber-700']);
+    expect(textClass(80)).toEqual(['text-emerald-600']);
+  });
+
+  it('Net Worth of exactly 0 is not red (green class), and -1 is red', () => {
+    show({ netWorth: 0 });
+    expect(q('networth-value').nativeElement.classList).toContain('text-emerald-700');
+    expect(q('networth-value').nativeElement.classList).not.toContain('text-red-700');
+
+    show({ netWorth: -1 });
+    expect(q('networth-value').nativeElement.classList).toContain('text-red-700');
+    expect(q('networth-value').nativeElement.classList).not.toContain('text-emerald-700');
+  });
+
+  it('the Chi tiết toggle exposes aria-expanded: false collapsed, true expanded', () => {
+    show();
+    const toggle = () => q('breakdown-toggle').nativeElement as HTMLButtonElement;
+    expect(toggle().getAttribute('aria-expanded')).toBe('false');
+
+    toggle().click();
+    fixture.detectChanges();
+
+    expect(toggle().getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('the health score text is dark enough on white in light mode (amber-700, not amber-600) and keeps the bar colour', () => {
     show({ healthScore: 73 });
 
