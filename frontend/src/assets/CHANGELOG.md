@@ -2,6 +2,19 @@
 
 ---
 
+## [v2.106.0] — 2026-11-28 · Sửa: setup Pullback bỏ qua nến đang hình thành trong giờ giao dịch
+
+### Sửa lỗi
+
+- Trong giờ giao dịch nguồn giá trả cả nến của hôm nay khi nó còn đang hình thành, và bộ quét setup Pullback coi nó như một phiên đã đóng: có thể sinh tín hiệu "đang kích hoạt" ma, với vào lệnh ước tính = giá đóng cửa của nến dở dang. Nay nến cuối bị bỏ khi ngày của nó là hôm nay (giờ Việt Nam) và chưa tới 15:00 giờ Việt Nam; từ 15:00 nến được tính như bình thường (kết quả tính trước 15:00 được giữ tới 15:10, nên nến đã đóng có thể hiện chậm tới 10 phút). Quy tắc nằm một chỗ (`FormingBar`) và dùng chung cho thống kê lịch sử, tín hiệu đang kích hoạt và công cụ đếm cỡ mẫu. Đồng hồ được tiêm vào, không gọi giờ hệ thống trực tiếp.
+
+### Kỹ thuật
+
+- Test: `signal_only_on_partial_bar_is_not_active_before_1500`, `same_bar_counts_after_1500`, `non_today_last_bar_unaffected`, và test mốc 15:00 (14:59:59 còn hình thành, 15:00:00 đã đóng). Bỏ lớp bảo vệ thì test đầu đỏ.
+- Hướng dẫn: thêm một dòng ở mục Setup Pullback của "Phân tích thị trường".
+
+---
+
 ## [v2.105.0] — 2026-11-28 · Sửa: chuẩn hoá mã cổ phiếu không phụ thuộc văn hoá của máy
 
 ### Sửa lỗi

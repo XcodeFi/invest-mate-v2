@@ -309,6 +309,8 @@ Dưới biểu đồ và khối phân tích có khối **"Setup Pullback trên <
 
 **Setup Pullback là gì?** Trong xu hướng tăng (EMA20 nằm trên EMA50, ADX từ 20), giá hồi về sát EMA20 (thấp nhất phiên cách EMA20 không quá 1 ATR), đóng cửa trên EMA20 và RSI nằm trong 40–55. Chỉ tính **phiên đầu tiên** điều kiện đúng; luật giống hệt nhau cho mọi mã, không chỉnh theo từng mã.
 
+**Trong giờ giao dịch:** nến của hôm nay còn đang hình thành nên bị bỏ qua cho tới 15:00 giờ Việt Nam (kết quả tính trước giờ đó được giữ tới khoảng 15:10, nên nến đã đóng có thể hiện chậm tới 10 phút); tín hiệu chỉ được tính trên các phiên đã đóng cửa, nên một nến dở dang không tạo ra tín hiệu "đang kích hoạt".
+
 **Một lệnh mô phỏng diễn ra thế nào?**
 - Vào ở **giá mở cửa phiên sau tín hiệu**. Bỏ qua lệnh nếu phiên tín hiệu đã đóng ở trần/sàn, hoặc giá mở phiên vào đã sát trần (mua không khớp được).
 - Cắt lỗ = vào − 2 × ATR; mục tiêu = vào + 2R (R là khoảng cách vào–cắt lỗ). Hết **20 phiên** thì bán ở giá đóng cửa.

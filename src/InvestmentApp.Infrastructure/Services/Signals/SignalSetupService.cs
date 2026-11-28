@@ -48,7 +48,8 @@ public class SignalSetupService : ISignalSetupService
             return cached.Dto;
 
         var prices = await _prices.GetHistoricalPricesAsync(symbol, today.AddYears(-4), today, cancellationToken);
-        var bars = prices.OrderBy(p => p.Date).ToList();
+        // Nến của hôm nay còn đang hình thành trước 15:00 giờ VN: không phải phiên đã đóng, bỏ khỏi mọi tính toán (tránh tín hiệu ma).
+        var bars = FormingBar.DropIfForming(prices.OrderBy(p => p.Date).ToList(), p => p.Date, _time.GetUtcNow());
 
         var dto = new SignalSetupsDto
         {
