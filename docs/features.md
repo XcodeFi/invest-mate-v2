@@ -1099,6 +1099,7 @@ Mỗi node gồm:
   - Quick-add form: nhật ký inline với auto-fill giá
   - Date range selector: 1T / 3T / 6T / 1N
   - **Trạng thái trên URL (2026-11-28, item 3 PR1):** `range` (1T/3T/6T/1N), `grp` (nhóm chỉ báo) và `focus` (ngày YYYY-MM-DD giờ VN của mục đang chọn), đọc qua `queryParamMap`, ghi bằng merge + `replaceUrl`; không đụng `symbol`/`tradeId`. Trang hồ sơ công ty có nút "📈 Dòng thời gian" sang đây (chip "🏢 Hồ sơ công ty" ở chiều ngược lại đã có).
+  - **Huy hiệu "hồ sơ lúc đó" trên từng giao dịch (2026-11-28, item 3 PR2):** server tính `dossierAtTrade` (`CompanyDossier.DescribeAtTrade`: unsigned / resigned-after / signed + `daysSigned` + `freshness` theo ngưỡng 90/180 của entity, ngày lịch VN); lệnh trước lần ký hiện tại chỉ báo "ký lại sau lệnh", không phán quyết. FE chỉ hiển thị (`dossier-at-trade.ts`). MCP `get_symbol_timeline` trả cùng trường.
   - Timeline detail list phía dưới chart
 
 ### Phase 7B: Event/News Overlay

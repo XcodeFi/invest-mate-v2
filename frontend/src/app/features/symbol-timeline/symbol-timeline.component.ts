@@ -22,6 +22,7 @@ import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-laye
 import { buildTimelineQuery, parseTimelineQuery, TimelineUrlState } from './timeline-url-state';
 import { readNow } from '../../shared/indicators/indicator-guides';
 import { sliceSeriesFrom } from '../../shared/indicators/slice-series';
+import { dossierBadge, DossierAtTradeDto, DossierBadge } from './dossier-at-trade';
 import { vnDay } from '../../shared/indicators/vn-date';
 import { buildEmotionPane, buildTimelineMarkers } from './timeline-markers';
 
@@ -538,6 +539,10 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
               <p class="font-medium text-gray-900 mt-1">
                 {{ (item.data.quantity) | number }} cp &#64; {{ (item.data.price) | vndCurrency }}
               </p>
+              <span *ngIf="dossierBadgeOf(item.data) as badge" data-testid="dossier-at-trade"
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1" [ngClass]="badge.cls" [title]="badge.tooltip">
+                <span aria-hidden="true">{{ badge.icon }}</span>{{ badge.text }}
+              </span>
             </div>
           </div>
 
@@ -1212,6 +1217,10 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
       'Overtrading': 'Giao dịch quá mức'
     };
     return labels[type] || type;
+  }
+
+  dossierBadgeOf(data: { dossierAtTrade?: DossierAtTradeDto | null }): DossierBadge | null {
+    return dossierBadge(data?.dossierAtTrade);
   }
 
   /** Màu cảm xúc; ở chế độ tối, màu quá tối so với nền thẻ (FOMO #1f2937) được làm sáng, màu đủ tương phản giữ nguyên. */

@@ -80,9 +80,38 @@ public class CompanyDossier : AggregateRoot
 
         var days = (utcNow.Add(VnOffset).Date - ReviewedAt.Add(VnOffset).Date).TotalDays;
 
+        return FreshnessForDays(days);
+    }
+
+    /// <summary>MỘT bản duy nhất của thang 90/180 ngày: dùng cho GetFreshness (tại hôm nay) và DescribeAtTrade (tại ngày lệnh).</summary>
+    private static DossierFreshness FreshnessForDays(double days)
+    {
         if (days >= ExpiresAfterDays) return DossierFreshness.Expired;
         if (days >= NeedsReviewAfterDays) return DossierFreshness.NeedsReview;
         return DossierFreshness.Fresh;
+    }
+
+    /// <summary>
+    /// Hồ sơ "lúc đó" của một giao dịch, chỉ từ ReviewedAt/ConfirmedAt HIỆN TẠI (Confirm() ghi đè ReviewedAt, lịch sử các lần ký không được lưu).
+    /// Chưa ký: "unsigned". Lệnh trước lần ký hiện tại (ngày VN của lệnh &lt; ngày VN của ReviewedAt): "resigned-after", KHÔNG có phán quyết
+    /// vì không biết lần ký trước đó. Còn lại: "signed" + số ngày từ lần ký tới lệnh và mức tươi theo đúng hai ngưỡng 90/180 của entity (một bản duy nhất).
+    /// </summary>
+    public DossierAtTrade DescribeAtTrade(DateTime tradeUtc)
+    {
+        if (ConfirmedAt is null) return new DossierAtTrade("unsigned", null, null, null);
+
+        var tradeDay = tradeUtc.Add(VnOffset).Date;
+        var signedDay = ReviewedAt.Add(VnOffset).Date;
+        if (tradeDay < signedDay) return new DossierAtTrade("resigned-after", null, ReviewedAt, null);
+
+        var days = (int)(tradeDay - signedDay).TotalDays;
+        var freshness = FreshnessForDays(days) switch
+        {
+            DossierFreshness.Expired => "expired",
+            DossierFreshness.NeedsReview => "needs-review",
+            _ => "fresh"
+        };
+        return new DossierAtTrade("signed", days, null, freshness);
     }
 
     private void Apply(string businessModel, List<MoatItem> moats,
@@ -149,3 +178,6 @@ public enum DossierFreshness
     NeedsReview,
     Expired
 }
+
+/// <summary>Huy hiệu "hồ sơ lúc đó" của một giao dịch. State: unsigned | resigned-after | signed; Freshness (chỉ khi signed): fresh | needs-review | expired.</summary>
+public sealed record DossierAtTrade(string State, int? DaysSigned, DateTime? ResignedAt, string? Freshness);
