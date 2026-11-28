@@ -100,6 +100,19 @@ Vào **Nhiệm vụ ngày** (`/daily-routine`):
 
 ---
 
+## Điều hướng: menu trái
+
+Trên máy tính (màn hình từ 1024px), menu nằm ở **cột bên trái**, xếp theo thời điểm làm việc:
+
+- **HÔM NAY**: Tổng quan, Nhiệm vụ ngày, Cảnh báo.
+- **TÌM CƠ HỘI**: Thị trường, Sàng lọc, Watchlist, Hồ sơ công ty, Dòng thời gian mã.
+- **KẾ HOẠCH & GD**: Kế hoạch GD, Giao dịch, Vị thế, Wizard GD, Chiến lược, Backtest.
+- **ĐÁNH GIÁ**: Chờ review, Kỳ vọng & chiến dịch, Rủi ro, Báo cáo tháng, Phân tích, Nhật ký, Lịch sử snapshot.
+- **TIỀN & TÀI SẢN**: Danh mục, Dòng vốn, Sự kiện quyền, Tài chính CN.
+- **Cài đặt** (thu gọn sẵn): Cài đặt AI, Khóa API, Hướng dẫn.
+
+Trang đang mở được tô sáng. Bấm **« Thu gọn** ở cuối menu để chuyển thành thanh biểu tượng hẹp (rê chuột lên biểu tượng để thấy tên trang). Ở các trang nhiều biểu đồ (Dòng thời gian mã, Kế hoạch GD, Thị trường, Replay) menu tự thu gọn để biểu đồ rộng hơn; nếu bạn đã chọn thu gọn hoặc mở rộng, **lựa chọn của bạn được nhớ và luôn thắng**. Trên điện thoại, menu ở nút ba gạch trên thanh trên cùng và thanh điều hướng dưới như cũ.
+
 ## Các trang chính
 
 | Trang | Mô tả |

@@ -1098,6 +1098,7 @@ Mỗi node gồm:
   - Holding period zones tính từ BUY/SELL trades
   - Quick-add form: nhật ký inline với auto-fill giá
   - Date range selector: 1T / 3T / 6T / 1N
+  - **Trạng thái trên URL (2026-11-28, item 3 PR1):** `range` (1T/3T/6T/1N), `grp` (nhóm chỉ báo) và `focus` (ngày YYYY-MM-DD giờ VN của mục đang chọn), đọc qua `queryParamMap`, ghi bằng merge + `replaceUrl`; không đụng `symbol`/`tradeId`. Trang hồ sơ công ty có nút "📈 Dòng thời gian" sang đây (chip "🏢 Hồ sơ công ty" ở chiều ngược lại đã có).
   - Timeline detail list phía dưới chart
 
 ### Phase 7B: Event/News Overlay

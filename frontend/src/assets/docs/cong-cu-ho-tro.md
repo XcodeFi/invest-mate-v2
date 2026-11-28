@@ -113,6 +113,10 @@ Xem lịch sử toàn bộ hoạt động liên quan đến 1 mã CP:
 - Nhật ký, giao dịch, sự kiện thị trường, cảnh báo
 - Sắp xếp theo thời gian
 
+### Quay lại đúng chỗ đang xem
+
+Khoảng thời gian (1T/3T/6T/1N), nhóm chỉ báo đang chọn và mục bạn vừa bấm trong danh sách được ghi lên **địa chỉ trang** (ví dụ `?range=6T&grp=xu-huong&focus=2026-11-20`). Bấm Back, tải lại trang hoặc gửi link cho chính mình thì trang mở lại đúng khoảng, đúng nhóm chỉ báo và đúng mục đó (được cuộn tới). Từ trang **Hồ sơ công ty** có nút **📈 Dòng thời gian** sang đây, và ở đầu trang này có chip **🏢 Hồ sơ công ty** để quay lại.
+
 ### Biểu đồ chỉ báo trên dòng thời gian
 Biểu đồ ở đầu trang giống trang **Phân tích thị trường**: bấm một nhóm chỉ báo (Tổng hợp, Xu hướng, Động lượng, Biến động, Dòng tiền, Mốc giá) để vẽ nhóm đó, bấm lại để bỏ. Dưới biểu đồ có khối **📖 Cách đọc** của nhóm đang chọn (đọc hướng dẫn đầy đủ ở mục Phân tích thị trường).
 - Nến là nến thật đã điều chỉnh theo sự kiện quyền (cổ tức, chia thưởng, phát hành thêm). Nếu thấy ghi chú "chưa điều chỉnh" hoặc "cập nhật tới ngày …" thì nguồn dữ liệu đang có sự cố.

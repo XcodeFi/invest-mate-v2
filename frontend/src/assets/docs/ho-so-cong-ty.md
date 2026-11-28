@@ -175,6 +175,10 @@ Bỏ tick ô **📋 Hồ sơ công ty** ở bộ lọc phía trên để ẩn c�
 
 ---
 
+## Từ hồ sơ sang biểu đồ của mã
+
+Ở đầu trang hồ sơ có nút **📈 Dòng thời gian**: bấm vào để xem biểu đồ, giao dịch, nhật ký và sự kiện của chính mã đó. Ở chiều ngược lại, đầu trang Dòng thời gian có chip **🏢 Hồ sơ công ty**. Hai trang đi qua lại được, nên đọc luận điểm xong là xem được giá, và đang xem giá thì mở được luận điểm.
+
 ## Điều cần biết
 
 - Kế hoạch **đang chạy** không bị soi lại dù hồ sơ liên quan hết hạn — chỉ kế hoạch **mới** hoặc kế hoạch sửa vượt ngưỡng 5% mới bị kiểm tra.

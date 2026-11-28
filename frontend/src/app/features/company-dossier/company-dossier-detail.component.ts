@@ -113,6 +113,12 @@ function serializeEditable(d: DossierEditable): string {
               {{ freshnessLabel() }}
             </span>
             <span *ngIf="reviewedAt" class="text-xs text-gray-400">Soát gần nhất: {{ reviewedAt | date:'short' }}</span>
+            <!-- Đường sang biểu đồ + dòng thời gian của mã (trang đó đã có chip ngược về hồ sơ) -->
+            <a *ngIf="symbol" [routerLink]="['/symbol-timeline', symbol]" data-testid="dossier-timeline-link"
+              title="Xem biểu đồ, giao dịch, nhật ký và sự kiện của mã này"
+              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-medium hover:bg-indigo-100">
+              📈 Dòng thời gian
+            </a>
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-3">
