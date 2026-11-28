@@ -63,6 +63,11 @@ public class MoodToolsTests
     [InlineData("Happy")]
     [InlineData("7")]
     [InlineData("0")]
+    [InlineData("Fomo,Fear")]
+    [InlineData("Calm, Fomo")]
+    [InlineData("Fomo|Fear")]
+    [InlineData("1,2")]
+    [InlineData("3")]
     public async Task SetTodayMood_rejects_an_invalid_value_with_a_vietnamese_error_and_writes_nothing(string input)
     {
         var act = () => MoodTools.SetTodayMood(input, _mediator.Object, McpTestContext.WithUser("u-1"), CancellationToken.None);

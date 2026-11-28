@@ -30,9 +30,11 @@ public static class MoodTools
         [Description("Calm | Fomo | Fear | Revenge (không phân biệt hoa thường).")] string mood,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(mood) || !Enum.TryParse<MoodState>(mood.Trim(), ignoreCase: true, out var parsed)
-            || !Enum.IsDefined(parsed) || int.TryParse(mood.Trim(), out _))
+        // So khớp TÊN chính xác (không phân biệt hoa thường), KHÔNG dùng Enum.TryParse: nó nhận "Fomo,Fear" (cờ ghép = một giá trị khác), "1" và "3".
+        var name = Enum.GetNames<MoodState>().FirstOrDefault(n => string.Equals(n, mood?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (name is null)
             throw new ArgumentException("Tâm trạng không hợp lệ. Dùng một trong: Calm (bình tĩnh), Fomo, Fear (sợ), Revenge (gỡ).");
+        var parsed = Enum.Parse<MoodState>(name);
 
         await mediator.Send(new SetMoodCommand { UserId = http.GetUserId(), Mood = parsed, Source = MoodChange.SourceMcp }, ct);
         return $"Đã ghi tâm trạng hôm nay: {parsed} (nguồn: agent).";
