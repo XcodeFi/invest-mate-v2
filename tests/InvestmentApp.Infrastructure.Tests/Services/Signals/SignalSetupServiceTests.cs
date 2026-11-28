@@ -530,4 +530,20 @@ public class SignalSetupServiceTests
         dto.Setups[0].BaseRate.Should().BeNull();
         dto.Setups[0].BaseRateReason.Should().Be("Chưa tính được tỉ lệ nền VN30");
     }
+    [Fact]
+    public async Task a_base_rate_error_is_not_remembered_so_the_next_call_retries()
+    {
+        Prices(Series(700, Today.AddDays(-1)));
+        Exchange("HOSE");
+        _baseRate.SetupSequence(b => b.GetPullbackBaseRateAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("mongo hỏng"))
+            .ReturnsAsync(new SignalBaseRateResult(SampleBaseRate(), null));
+        var sut = SutWithBaseRate();
+
+        var first = await sut.GetSignalSetupsAsync("FPT");
+        var second = await sut.GetSignalSetupsAsync("FPT");
+
+        first.Setups[0].BaseRateReason.Should().Be(SignalSetupService.BaseRateErrorReason);
+        second.Setups[0].BaseRate.Should().NotBeNull("lỗi tạm thời không được ghim tới hết buổi");
+    }
 }

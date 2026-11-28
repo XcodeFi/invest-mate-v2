@@ -23,9 +23,9 @@ public class SignalBaseRateServiceTests
 
     private SignalBaseRateService Sut(DateTimeOffset? now = null) => new(_store.Object, _cache, new FixedTime(now ?? NowUtc));
 
-    private static AdjustedPriceSeriesSnapshot Snapshot(string symbol, int seed, int bars, DateTime lastDate, bool adjusted = true)
+    private static AdjustedPriceSeriesSnapshot Snapshot(string symbol, int seed, int bars, DateTime lastDate, bool adjusted = true, decimal scale = 1m)
     {
-        var raw = PullbackBacktestTests.Synthetic(bars, seed);
+        var raw = PullbackBacktestTests.Synthetic(bars, seed, scale);
         var shift = lastDate.Date - raw[^1].Date;
         return new AdjustedPriceSeriesSnapshot(symbol, lastDate, raw.Select(b => new StockPriceData
         {
@@ -148,5 +148,86 @@ public class SignalBaseRateServiceTests
             .Select(p => p.ParameterType)
             .Should().NotContain(t => typeof(IMarketDataProvider).IsAssignableFrom(t) || typeof(IStockInfoProvider).IsAssignableFrom(t));
         await Task.CompletedTask;
+    }
+    // ───── hàm gộp (Pool) ─────
+
+    private static SignalBaseRateService.PooledOutcome PoolGood(int count = 30)
+        => SignalBaseRateService.Pool(Vn30Basket.Symbols.Take(count).Select((s, i) => (AdjustedPriceSeriesSnapshot?)Good(i, s)), NowUtc);
+
+    [Fact]
+    public void the_basket_uses_the_HOSE_rules()
+    {
+        // fixture tổng hợp không phân biệt được R giữa các bộ luật, nên ghim chính bộ luật được dùng (VN30 toàn HOSE: biên độ 7%, bước giá HOSE)
+        SignalBaseRateService.BasketRules.Limit.Should().Be(MarketRules.For("HOSE").Limit);
+        SignalBaseRateService.BasketRules.Limit.Should().NotBe(MarketRules.For("UPCOM").Limit);
+        SignalBaseRateService.BasketRules.Tick(30_000m).Should().Be(MarketRules.For("HOSE").Tick(30_000m));
+    }
+
+    [Fact]
+    public void pool_leaves_out_open_trades()
+    {
+        // tìm một chuỗi mà tại điểm cắt đang có lệnh mở
+        AdjustedPriceSeriesSnapshot? withOpen = null;
+        for (var bars = 600; bars < 760 && withOpen == null; bars++)
+        {
+            var snap = Snapshot("VNM", 11, bars, Today.AddDays(-1));
+            var run = PullbackBacktest.Run(snap.Bars.Select(b => new Bar(b.Date, b.Open, b.High, b.Low, b.Close)).ToList(), MarketRules.For("HOSE"));
+            if (run.Trades.Any(t => !t.Completed)) withOpen = snap;
+        }
+        withOpen.Should().NotBeNull("fixture phải có lệnh đang mở");
+
+        var pooled = SignalBaseRateService.Pool(new[] { (AdjustedPriceSeriesSnapshot?)withOpen }, NowUtc);
+
+        pooled.N.Should().Be(ExpectedTrades(withOpen!), "lệnh đang mở không được gộp");
+    }
+
+    [Fact]
+    public void pool_takes_AsOf_from_the_latest_bar_across_symbols()
+    {
+        var older = Snapshot("VNM", 11, 1000, Today.AddDays(-4));
+        var newer = Snapshot("FPT", 12, 1000, Today.AddDays(-2));
+
+        SignalBaseRateService.Pool(new AdjustedPriceSeriesSnapshot?[] { older, newer }, NowUtc).AsOf.Should().Be(Today.AddDays(-2));
+        SignalBaseRateService.Pool(new AdjustedPriceSeriesSnapshot?[] { newer, older }, NowUtc).AsOf.Should().Be(Today.AddDays(-2));
+    }
+
+    [Fact]
+    public void pool_interval_is_pinned_for_a_fixed_fixture()
+    {
+        // ghim thuật toán + hạt giống + số lần lấy mẫu: đổi bất kỳ thứ nào trong đó sẽ làm khoảng này đổi
+        var stats = PoolGood().Stats!;
+
+        stats.N.Should().Be(580);
+        stats.WinRate.Should().Be(0.7052m);
+        stats.WinRateLow.Should().Be(0.6667m);
+        stats.WinRateHigh.Should().Be(0.7411m);
+    }
+
+    // ───── hạn nhớ kết quả ─────
+
+    [Fact]
+    public async Task a_result_computed_before_1510_is_not_served_after_it()
+    {
+        Setup((i, s) => Good(i, s));
+        var at1400 = new DateTimeOffset(2026, 11, 30, 7, 0, 0, TimeSpan.Zero);
+        var at1530 = new DateTimeOffset(2026, 11, 30, 8, 30, 0, TimeSpan.Zero);
+
+        await Sut(at1400).GetPullbackBaseRateAsync();
+        await Sut(at1530).GetPullbackBaseRateAsync();
+
+        _store.Verify(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(60));
+    }
+
+    [Fact]
+    public async Task an_insufficient_result_is_remembered_only_briefly_because_warmup_keeps_adding_symbols()
+    {
+        Setup((i, s) => i < 14 ? Good(i, s) : null);
+
+        await Sut(NowUtc).GetPullbackBaseRateAsync();
+        await Sut(NowUtc.AddMinutes(10)).GetPullbackBaseRateAsync();
+        _store.Verify(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(30), "trong 30 phút vẫn dùng kết quả nhớ");
+
+        await Sut(NowUtc.AddMinutes(31)).GetPullbackBaseRateAsync();
+        _store.Verify(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(60), "qua 30 phút phải đọc lại chuỗi đã lưu");
     }
 }

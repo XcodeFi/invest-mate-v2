@@ -146,6 +146,21 @@ public class HmoneyProviderWarmupTests
     }
 
     [Fact]
+    public async Task warm_skips_a_symbol_whose_persisted_series_is_still_fresh()
+    {
+        var r = Create();
+        var bars = (await UserChart(r.P, r.S("FPT"))).ToList();   // lấy một chuỗi hợp lệ để lưu
+        r.H.TvUrls.Clear();
+        var fresh = Create();                                    // bộ nhớ đệm trống, chỉ có bản lưu
+        fresh.Store.Data[fresh.S("FPT")] = new AdjustedPriceSeriesSnapshot(fresh.S("FPT"), Morning.UtcDateTime.AddHours(-1), bars);
+
+        (await fresh.P.WarmAsync(fresh.S("FPT"))).Should().Be(WarmFetchResult.Skipped);
+
+        fresh.H.TvUrls.Should().BeEmpty();
+        fresh.Budget.Consumed.Should().Be(0, "bản lưu còn mới thì không tốn lượt gọi");
+    }
+
+    [Fact]
     public async Task warm_ignores_a_malformed_symbol_without_calling()
     {
         var r = Create();

@@ -80,6 +80,8 @@ public class SignalSetupService : ISignalSetupService
         // Không ghim cả ngày một kết quả tính bằng luật dự phòng 7% khi chưa biết sàn (HNX/UPCOM sẽ giữ số sai tới hết ngày): giữ vài phút.
         // Và không phục vụ sau 15:10 một kết quả tính trước giờ đóng cửa: nguồn lấy lại chuỗi một lần sau đó, phiên hôm nay có thể tạo tín hiệu mới.
         var until = exchangeKnown ? GoodUntil() : _time.GetUtcNow().AddMinutes(FallbackCacheMinutes);
+        // Lỗi tạm thời khi tính tỉ lệ nền không được ghim cả buổi: không nhớ kết quả này, lần sau tính lại.
+        if (pullback.BaseRateReason == BaseRateErrorReason) return dto;
         _cache.Set(key, new CachedSetups(dto, until), until.AddDays(1));
         return dto;
     }

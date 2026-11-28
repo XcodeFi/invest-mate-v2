@@ -248,6 +248,23 @@ public class PriceSnapshotJobServiceTests
     }
 
     [Fact]
+    public async Task warmup_runs_after_the_prices_work_not_before()
+    {
+        OneTradeOneSymbol();
+        var order = new List<string>();
+        _marketData.Setup(m => m.GetBatchPricesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("prices"))
+            .ReturnsAsync(new Dictionary<string, StockPriceData> { ["FPT"] = CreatePriceData("FPT", 100_000m) });
+        _warmup.Setup(w => w.WarmNextAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("warmup"))
+            .ReturnsAsync(new SignalWarmupOutcome(0, "ok"));
+
+        await _sut.RunAsync(CancellationToken.None);
+
+        order.Should().Equal("prices", "warmup");
+    }
+
+    [Fact]
     public async Task warmup_also_runs_when_there_are_no_symbols_to_snapshot()
     {
         _tradeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Trade>());

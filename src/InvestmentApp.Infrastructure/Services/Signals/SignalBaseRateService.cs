@@ -13,7 +13,8 @@ public class SignalBaseRateService : ISignalBaseRateService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
     private static readonly TimeSpan MarketCloseVietnam = new(15, 10, 0);
-    private static readonly MarketRules Rules = MarketRules.For("HOSE");
+    internal static readonly TimeSpan InsufficientCacheTtl = TimeSpan.FromMinutes(30);
+    internal static readonly MarketRules BasketRules = MarketRules.For("HOSE");
 
     private readonly IAdjustedPriceSeriesStore _store;
     private readonly IMemoryCache _cache;
@@ -59,7 +60,7 @@ public class SignalBaseRateService : ISignalBaseRateService
             if ((vnDay - last).TotalDays > SignalSetupService.MaxStaleCalendarDays) continue;
 
             var series = bars.Select(b => new Bar(b.Date, b.Open, b.High, b.Low, b.Close)).ToList();
-            var result = PullbackBacktest.Run(series, Rules);
+            var result = PullbackBacktest.Run(series, BasketRules);
             foreach (var t in result.Trades)
                 if (t.Completed && t.R != null && t.EntryDate != null)
                     trades.Add(new PooledTrade(t.EntryDate.Value, t.R.Value));
@@ -104,6 +105,12 @@ public class SignalBaseRateService : ISignalBaseRateService
         // nên kết quả "chưa đủ" cũng chỉ giữ tới mốc đó chứ không ghim cả ngày hơn thế.
         var close = new DateTimeOffset(vnDay + MarketCloseVietnam, VietnamOffset);
         var until = now < close ? close : new DateTimeOffset(vnDay.AddDays(1), VietnamOffset);
+        // Warm-up thêm khoảng một mã mỗi lượt, nên "chưa đủ" chỉ giữ ngắn để số k/30 không chậm cả ngày.
+        if (outcome.BaseRate == null)
+        {
+            var soon = now + InsufficientCacheTtl;
+            if (soon < until) until = soon;
+        }
         _cache.Set(key, new Cached(outcome, until), until.AddDays(1));
         return outcome;
     }
