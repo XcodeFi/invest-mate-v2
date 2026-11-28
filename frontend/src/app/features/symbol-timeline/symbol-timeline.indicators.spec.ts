@@ -3,7 +3,7 @@ import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { SymbolTimelineComponent } from './symbol-timeline.component';
 import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
 import { JournalEntryService } from '../../core/services/journal-entry.service';
@@ -19,21 +19,21 @@ let adjustedFlag: boolean | null | undefined = true;
 let adjustedAsOfFlag: string | null | undefined;
 
 /** Chuỗi 330 ngày liên tiếp kết thúc hôm nay; EMA 20 có giá trị từ ngày đầu (đã khởi động) để kiểm việc cắt khoảng. */
-const series = (): TechnicalSeries => {
+const series = (months = 12): TechnicalSeries => {
   const flat = (v: number) => Array.from({ length: N }, () => v);
   return {
     ...(adjustedFlag === undefined ? {} : { adjusted: adjustedFlag }),
     ...(adjustedAsOfFlag === undefined ? {} : { adjustedAsOf: adjustedAsOfFlag }),
     symbol: 'VNM', dates: Array.from({ length: N }, (_, i) => `${iso(daysAgo(N - 1 - i))}T00:00:00Z`),
     open: flat(100), high: flat(101), low: flat(99), close: flat(100), volume: flat(1000),
-    ema20: flat(105), ema50: flat(100), ema200: flat(98), bollingerUpper: flat(110), bollingerMiddle: flat(100), bollingerLower: flat(90),
+    ema20: flat(100 + months), ema50: flat(100), ema200: flat(98), bollingerUpper: flat(110), bollingerMiddle: flat(100), bollingerLower: flat(90),
     rsi14: flat(72), stochK: flat(50), stochD: flat(50), macdLine: flat(2), macdSignal: flat(1), macdHistogram: flat(1),
     adx: flat(18), plusDi: flat(20), minusDi: flat(15), atr14: flat(2), obv: flat(1000), mfi14: flat(50), volumeSma20: flat(1000),
   };
 };
 
-const analysis = (): TechnicalAnalysis => ({
-  symbol: 'VNM', currentPrice: 100, supportLevels: [95], resistanceLevels: [105],
+const analysis = (months = 12): TechnicalAnalysis => ({
+  symbol: 'VNM', currentPrice: 100, ema20: 100 + months, supportLevels: [95], resistanceLevels: [105],
   suggestedEntry: 100, suggestedStopLoss: 95, suggestedTarget: 110, confluenceScore: 68.5,
   overallSignal: 'buy', overallSignalVi: 'MUA',
 } as unknown as TechnicalAnalysis);
@@ -46,10 +46,19 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
   let marketSpy: jasmine.SpyObj<MarketDataService>;
   let notify: jasmine.SpyObj<NotificationService>;
 
-  function setup(opts: { seriesError?: boolean } = {}) {
+  /** Mỗi lần gọi chuỗi ở chế độ deferred trả một Subject để test tự quyết thứ tự trả lời. */
+  let pending: Subject<TechnicalSeries>[] = [];
+
+  function setup(opts: { seriesError?: boolean; deferred?: boolean; analysisError?: boolean } = {}) {
+    pending = [];
     marketSpy = jasmine.createSpyObj<MarketDataService>('MarketDataService', ['getTechnicalSeries', 'getTechnicalAnalysis']);
-    marketSpy.getTechnicalSeries.and.returnValue(opts.seriesError ? throwError(() => new Error('x')) : of(series()));
-    marketSpy.getTechnicalAnalysis.and.returnValue(of(analysis()));
+    marketSpy.getTechnicalSeries.and.callFake((_symbol: string, months?: number) => {
+      if (opts.seriesError) return throwError(() => new Error('x'));
+      if (opts.deferred) { const s = new Subject<TechnicalSeries>(); pending.push(s); return s; }
+      return of(series(months));
+    });
+    marketSpy.getTechnicalAnalysis.and.callFake((_symbol: string, months?: number) =>
+      opts.analysisError ? throwError(() => new Error('y')) : of(analysis(months)));
     const journalSpy = jasmine.createSpyObj<JournalEntryService>('JournalEntryService', ['getTimeline', 'create']);
     journalSpy.getTimeline.and.callFake(() => of(timeline() as any));
     notify = jasmine.createSpyObj<NotificationService>('NotificationService', ['error', 'success', 'warning']);
@@ -114,11 +123,11 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     expect(labels).not.toContain('Nến');
   });
 
-  it('asks for more history than the range so indicators are warmed up, then shows only the chosen range', () => {
+  it('asks for one fixed indicator window whatever the range, then shows only the chosen range', () => {
     setup();   // khoảng mặc định 3 tháng
 
-    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledWith('VNM', 15);
-    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledWith('VNM', 15);
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledWith('VNM', 36);
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledWith('VNM', 36);
     const dates = chart().dates;
     expect(dates.length).toBeGreaterThan(80);
     expect(dates.length).toBeLessThan(100);
@@ -131,23 +140,67 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     expect(ema20.values.length).toBe(dates.length);
   });
 
-  it('changing the date range reloads with the new warm-up and a wider slice', () => {
+  it('last_bar_indicators_identical_across_ranges_and_equal_analysis', () => {
+    setup();
+    click('xu-huong');
+    const lastEma20 = () => { const v = chart().layers.overlays.find(o => o.label.includes('20'))!.values; return v[v.length - 1]; };
+    const seen: (number | null)[] = [lastEma20()];
+
+    for (const label of ['1T', '6T', '1N', '3T']) {
+      (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === label) as HTMLButtonElement).click();
+      fixture.detectChanges();
+      seen.push(lastEma20());
+    }
+
+    // cùng một cửa sổ cho mọi khoảng và cho analysis, nên giá trị phiên cuối không phụ thuộc khoảng đang xem
+    const seriesMonths = marketSpy.getTechnicalSeries.calls.allArgs().map(a => a[1]);
+    const analysisMonths = marketSpy.getTechnicalAnalysis.calls.allArgs().map(a => a[1]);
+    expect(new Set(seriesMonths)).toEqual(new Set([36]));
+    expect(new Set(analysisMonths)).toEqual(new Set([36]));
+    expect(new Set(seen).size).toBe(1);
+    expect(seen[0]).toBe(136);   // = ema20 của analysis cùng cửa sổ (100 + 36)
+  });
+
+  it('changing the date range widens the visible slice from the same window', () => {
     setup();
     const before = chart().dates.length;
 
     (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '1N') as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledWith('VNM', 24);
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(2);
+    expect(marketSpy.getTechnicalSeries.calls.mostRecent().args).toEqual(['VNM', 36]);
     expect(chart().dates.length).toBeGreaterThan(before);
   });
 
-  it('warm-up never asks for more than 36 months', () => {
-    setup();
-    fixture.componentInstance.selectedRange = 36;
-    fixture.componentInstance.loadData();
+  it('stale_range_response_is_ignored (1T then 1N quickly, the 1T answer lands last)', () => {
+    setup({ deferred: true });                       // lần tải đầu: khoảng mặc định 3 tháng
+    (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '1N') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(pending.length).toBe(2);
 
-    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledWith('VNM', 36);
+    pending[1].next(series()); pending[1].complete();   // câu trả lời của khoảng 1N đến trước
+    fixture.detectChanges();
+    const yearBars = chart().dates.length;
+    expect(yearBars).toBeGreaterThan(300);
+
+    pending[0].next(series()); pending[0].complete();   // câu trả lời cũ (3 tháng) đến muộn: phải bị bỏ
+    fixture.detectChanges();
+
+    expect(chart().dates.length).toBe(yearBars);
+  });
+
+  it('an analysis failure shows one short line instead of silently empty groups', () => {
+    setup({ analysisError: true });
+
+    expect(q('timeline-analysis-error')!.textContent).toContain('Không tải được chỉ báo, thử lại sau');
+    expect(chart()).toBeDefined();   // nến và mốc vẫn vẽ
+  });
+
+  it('no analysis error line when the analysis loads', () => {
+    setup();
+
+    expect(q('timeline-analysis-error')).toBeNull();
   });
 
   it('passes trade, journal and event markers to the chart', () => {

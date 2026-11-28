@@ -1,5 +1,6 @@
 import { IndicatorChartMarker, PaneLayer } from '../../shared/components/indicator-chart/indicator-chart.types';
 import { sessionIndexFor } from '../../shared/components/indicator-chart/chart-markers';
+import { vnDay } from '../../shared/indicators/vn-date';
 
 /** Phần của một mục dòng thời gian mà việc dựng marker cần (khớp TimelineItem, không phụ thuộc service). */
 export interface MarkerItem {
@@ -27,7 +28,7 @@ export interface TimelineMarkerOptions {
 /** Dung sai quanh khoảng [thấp; cao] của phiên khi so giá giao dịch (làm tròn bước giá, khác biệt nhỏ giữa các nguồn). */
 const RANGE_TOLERANCE = 0.005;
 
-const day = (timestamp: string): string => (timestamp ?? '').substring(0, 10);
+const day = (timestamp: string): string => vnDay(timestamp ?? '');
 
 function truncate(text: string | undefined, max: number): string {
   if (!text) return '(không có tiêu đề)';
@@ -38,16 +39,19 @@ function truncate(text: string | undefined, max: number): string {
  * Marker của dòng thời gian đặt lên biểu đồ: giao dịch (mỗi lệnh một mũi tên), nhật ký/sự kiện/cảnh báo/hồ sơ (mỗi loại một
  * marker mỗi ngày, có số khi nhiều hơn một). Kèm các dòng tooltip. Trục thời gian và việc gắn marker vào phiên do biểu đồ lo.
  * Giá giao dịch là giá gốc còn nến đã điều chỉnh: khi chuỗi đã điều chỉnh và giá giao dịch nằm NGOÀI khoảng [thấp; cao] của phiên
- * đó (dung sai 0,5%), tooltip ghi rõ "(giá gốc)". So trực tiếp với dữ liệu nên bắt được cả chia tách, cổ tức cổ phiếu và những sự kiện
+ * đó (dung sai 0,5%) và ngày giao dịch LÀ một phiên của chuỗi, tooltip ghi rõ "(giá gốc)". So trực tiếp với dữ liệu nên bắt được cả chia tách, cổ tức cổ phiếu và những sự kiện
  * không có trong dòng thời gian. Chuỗi chưa điều chỉnh thì không bao giờ ghi (nến dự phòng phẳng O=H=L=C sẽ khiến gần như mọi giao dịch
  * bị ghi nhầm; ghi chú "chưa điều chỉnh" của trang đã lo trường hợp đó). Marker đặt theo thời gian nên vị trí không lệch.
  */
 export function buildTimelineMarkers(items: readonly MarkerItem[], options: TimelineMarkerOptions): IndicatorChartMarker[] {
   const barDays = options.adjusted === true && options.bars ? options.bars.dates.map(d => d.substring(0, 10)) : [];
   const isRawPrice = (d: string, price: number): boolean => {
-    const k = sessionIndexFor(barDays, d);
+    const k = barDays.indexOf(d);   // chỉ so khi ngày giao dịch LÀ một phiên của chuỗi (không gắn vào phiên gần nhất)
     if (k < 0 || !(price > 0)) return false;
-    return price < options.bars!.low[k] * (1 - RANGE_TOLERANCE) || price > options.bars!.high[k] * (1 + RANGE_TOLERANCE);
+    const low = options.bars!.low[k];
+    const high = options.bars!.high[k];
+    if (typeof low !== 'number' || typeof high !== 'number' || !Number.isFinite(low) || !Number.isFinite(high)) return false;
+    return price < low * (1 - RANGE_TOLERANCE) || price > high * (1 + RANGE_TOLERANCE);
   };
 
   const byDay = new Map<string, MarkerItem[]>();
@@ -59,7 +63,7 @@ export function buildTimelineMarkers(items: readonly MarkerItem[], options: Time
 
   const markers: IndicatorChartMarker[] = [];
   for (const [d, dayItems] of byDay) {
-    const time = dayItems[0].timestamp;
+    const time = d;   // ngày theo giờ Việt Nam; biểu đồ gắn tiếp vào phiên
 
     for (const t of dayItems.filter(i => i.type === 'trade')) {
       const isBuy = t.data.tradeType === 'BUY';

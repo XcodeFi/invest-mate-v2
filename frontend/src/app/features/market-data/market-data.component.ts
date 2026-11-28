@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
@@ -25,7 +25,7 @@ import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent,
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent,
     SignalSetupsPanelComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
   template: `
     <div class="container mx-auto px-4 py-6">

@@ -9,7 +9,6 @@ import { MarketEventService, CreateMarketEventRequest } from '../../core/service
 import { MarketDataService, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
-import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
@@ -20,7 +19,14 @@ import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adj
 import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
 import { readNow } from '../../shared/indicators/indicator-guides';
 import { sliceSeriesFrom } from '../../shared/indicators/slice-series';
+import { vnDay } from '../../shared/indicators/vn-date';
 import { buildEmotionPane, buildTimelineMarkers } from './timeline-markers';
+
+/**
+ * Cửa sổ lịch sử cố định (tháng) để tính chỉ báo, KHÔNG phụ thuộc khoảng đang xem: EMA 200 và các chỉ báo đệ quy khác phụ thuộc điểm
+ * bắt đầu, nên cửa sổ đổi theo khoảng thì giá trị phiên cuối cũng đổi theo. Là mức tối đa backend nhận và đủ dài cho mọi khoảng của trang.
+ */
+const INDICATOR_WINDOW_MONTHS = 36;
 
 const EMOTION_COLORS: { [key: string]: string } = {
   'Tự tin': '#22c55e',
@@ -55,7 +61,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
 @Component({
   selector: 'app-symbol-timeline',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, UppercaseDirective, NumMaskDirective, AiChatPanelComponent,
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, AiChatPanelComponent,
     IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-6">
@@ -271,6 +277,9 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       <!-- Biểu đồ: dùng lại biểu đồ nhiều tầng của trang Thị trường, thêm các mốc của dòng thời gian (không dính: trang dài, có feed bên dưới) -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4" data-testid="timeline-chart-card">
         <app-indicator-group-bar [selected]="selectedGroup" (groupToggle)="toggleGroup($event)"></app-indicator-group-bar>
+        @if (analysisFailed) {
+          <p class="mb-2 text-xs text-amber-700" data-testid="timeline-analysis-error">Không tải được chỉ báo, thử lại sau</p>
+        }
         @if (chartError) {
           <div role="alert" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" data-testid="timeline-chart-error">{{ chartError }}</div>
         } @else if (series) {
@@ -651,12 +660,16 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
 
   // Lifecycle
   private destroy$ = new Subject<void>();
+  /** Phát mỗi lần bắt đầu tải mới để huỷ các request của lần tải trước (đổi khoảng nhanh thì câu trả lời cũ đến muộn không ghi đè). */
+  private cancelLoad$ = new Subject<void>();
 
   // Biểu đồ chỉ báo theo nhóm: chuỗi tải ngay khi vào trang (cần cho nến), nhóm chỉ đổi lớp vẽ
   selectedGroup: TaGroup | null = null;
   series: TechnicalSeries | null = null;
   private analysis: TechnicalAnalysis | null = null;
   chartError: string | null = null;
+  /** Phân tích (các lớp của nhóm chỉ báo) không tải được: hiện một dòng báo thay vì để các nhóm trống lặng lẽ. */
+  analysisFailed = false;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
   groupLayers: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
   chartMarkers: IndicatorChartMarker[] = [];
@@ -707,16 +720,18 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   }
 
   loadData() {
+    this.cancelLoad$.next();
     this.loading = true;
     const to = new Date();
     const from = new Date();
     from.setMonth(from.getMonth() - this.selectedRange);
-    const fromStr = from.toISOString().split('T')[0];
-    const toStr = to.toISOString().split('T')[0];
+    // Ngày theo giờ Việt Nam: toISOString() là ngày UTC, lệch một ngày trong 7 giờ đầu mỗi ngày
+    const fromStr = vnDay(from);
+    const toStr = vnDay(to);
 
     // Load timeline + price history in parallel
     this.journalEntryService.getTimeline(this.symbol, fromStr, toStr)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntil(this.destroy$), takeUntil(this.cancelLoad$))
       .subscribe({
         next: (timeline) => {
           this.timeline = this.normalizeTimeline(timeline);
@@ -734,13 +749,16 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
         }
       });
 
-    // Chỉ báo tính trên chuỗi dài hơn khoảng hiển thị (thêm 12 tháng khởi động cho EMA 200), rồi cắt theo khoảng
-    const warmMonths = Math.min(36, this.selectedRange + 12);
+    // Chỉ báo luôn tính trên cùng một cửa sổ dài (đủ khởi động cho EMA 200), rồi cắt theo khoảng đang xem
     this.chartError = null;
+    this.analysisFailed = false;
     forkJoin([
-      this.marketDataService.getTechnicalSeries(this.symbol, warmMonths),
-      this.marketDataService.getTechnicalAnalysis(this.symbol, warmMonths).pipe(catchError(() => of(null)))
-    ]).pipe(takeUntil(this.destroy$)).subscribe({
+      this.marketDataService.getTechnicalSeries(this.symbol, INDICATOR_WINDOW_MONTHS),
+      this.marketDataService.getTechnicalAnalysis(this.symbol, INDICATOR_WINDOW_MONTHS).pipe(catchError(() => {
+        this.analysisFailed = true;
+        return of(null);
+      }))
+    ]).pipe(takeUntil(this.destroy$), takeUntil(this.cancelLoad$)).subscribe({
       next: ([series, analysis]) => {
         this.analysis = analysis;
         this.series = sliceSeriesFrom(series, fromStr);

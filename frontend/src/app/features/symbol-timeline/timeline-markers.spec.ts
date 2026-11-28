@@ -21,7 +21,7 @@ describe('buildTimelineMarkers', () => {
   it('buy is an up arrow below the bar in green, sell a down arrow above in red', () => {
     const [buy, sell] = buildTimelineMarkers([trade('2026-11-19T02:00:00Z', 'BUY'), trade('2026-11-20T02:00:00Z', 'SELL')], opts());
 
-    expect(buy).toEqual(jasmine.objectContaining({ time: '2026-11-19T02:00:00Z', position: 'belowBar', shape: 'arrowUp', color: '#22c55e', text: 'T' }));
+    expect(buy).toEqual(jasmine.objectContaining({ time: '2026-11-19', position: 'belowBar', shape: 'arrowUp', color: '#22c55e', text: 'T' }));
     expect(sell).toEqual(jasmine.objectContaining({ position: 'aboveBar', shape: 'arrowDown', color: '#ef4444', text: 'T' }));
   });
 
@@ -86,12 +86,52 @@ describe('buildTimelineMarkers', () => {
     expect(buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY', 63000)], opts(null, flat))[0].tooltip![0]).not.toContain('(giá gốc)');
   });
 
-  it('a trade on a weekend is compared with the previous session; before the first session or after no data there is no label', () => {
-    // 2026-09-12 là thứ Bảy: so với phiên 11/09 [62.800; 64.000]
-    expect(buildTimelineMarkers([trade('2026-09-12T02:00:00Z', 'BUY', 70000)], opts(true))[0].tooltip![0]).toContain('(giá gốc)');
-    expect(buildTimelineMarkers([trade('2026-09-12T02:00:00Z', 'BUY', 63000)], opts(true))[0].tooltip![0]).not.toContain('(giá gốc)');
+  it('a trade on a day that is not a session of the series (weekend, holiday) is never labelled', () => {
+    // 2026-09-12 là thứ Bảy: giá có thể hợp lệ nằm ngoài khoảng giá của thứ Sáu
+    expect(buildTimelineMarkers([trade('2026-09-12T02:00:00Z', 'BUY', 70000)], opts(true))[0].tooltip![0]).not.toContain('(giá gốc)');
     expect(buildTimelineMarkers([trade('2026-08-01T02:00:00Z', 'BUY', 70000)], opts(true))[0].tooltip![0]).not.toContain('(giá gốc)');
+  });
+
+  it('a trade after the last bar (series lagging behind) is never labelled', () => {
+    expect(buildTimelineMarkers([trade('2026-09-15T02:00:00Z', 'BUY', 70000)], opts(true))[0].tooltip![0]).not.toContain('(giá gốc)');
+  });
+
+  it('no bars at all means no label', () => {
     expect(buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY', 70000)], opts(true, null))[0].tooltip![0]).not.toContain('(giá gốc)');
+  });
+
+  it('a missing high or low (null from the API) is never a false label', () => {
+    const nullHigh = { dates: bars.dates, low: [62000, 62500, 62800], high: [64000, null as unknown as number, 64000] };
+    const nullLow = { dates: bars.dates, low: [62000, null as unknown as number, 62800], high: [64000, 63500, 64000] };
+    const undef = { dates: bars.dates, low: [62000, undefined as unknown as number, 62800], high: [64000, 63500, 64000] };
+
+    for (const b of [nullHigh, nullLow, undef])
+      expect(buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY', 63000)], opts(true, b))[0].tooltip![0]).not.toContain('(giá gốc)');
+  });
+
+  it('real FPT shape: a BUY at 73.000 on a session of the adjusted series around 64k is labelled', () => {
+    const fpt = {
+      dates: ['2026-09-17T00:00:00Z', '2026-09-18T00:00:00Z', '2026-09-21T00:00:00Z'],
+      low: [63400, 63715, 63537], high: [65100, 64906, 65297],
+    };
+    const markers = buildTimelineMarkers([trade('2026-09-18T03:00:00Z', 'BUY', 73000, 500)], opts(true, fpt));
+
+    expect(markers[0].tooltip![0]).toContain('MUA 500');
+    expect(markers[0].tooltip![0]).toContain('(giá gốc)');
+  });
+
+  it('timezone: a trade stored at 17:00Z belongs to the NEXT Vietnamese date, for the marker and for the price check', () => {
+    // 2026-09-09T17:00Z = 00:00 ngày 10/09 giờ Việt Nam; giá 70.000 ngoài khoảng của phiên 10/09 nhưng nếu bị lệch về 09/09 vẫn ngoài, nên dùng giá 62.100 (ngoài 10/09, trong 09/09)
+    const markers = buildTimelineMarkers([trade('2026-09-09T17:00:00Z', 'BUY', 62100)], opts(true));
+
+    expect(markers[0].time).toBe('2026-09-10');
+    expect(markers[0].tooltip![0]).toContain('(giá gốc)');
+  });
+
+  it('journals, events and alerts also use the Vietnamese date', () => {
+    const markers = buildTimelineMarkers([journal('2026-09-09T17:30:00Z'), event('2026-09-09T20:00:00Z')], opts(true));
+
+    expect(markers.map(m => m.time)).toEqual(['2026-09-10', '2026-09-10']);
   });
 
   it('dividend events no longer drive the label (one source of truth: the price against the bar)', () => {
@@ -115,6 +155,12 @@ describe('buildEmotionPane: dải cảm xúc của nhật ký thành một tần
     expect(pane.lines[0].kind).toBe('histogram');
     expect(pane.lines[0].values).toEqual([null, 8, null, null]);
     expect(pane.lines[0].colors).toEqual([null, '#22c55e', null, null]);
+  });
+
+  it('a journal stored at 17:00Z lands on the next Vietnamese session', () => {
+    const pane = buildEmotionPane(dates, [journal('2026-11-18T17:00:00Z', 'a', 'Tự tin', 6)], colors, '#6b7280')!;
+
+    expect(pane.lines[0].values).toEqual([null, 6, null, null]);
   });
 
   it('a journal on a weekend snaps to the previous session', () => {
