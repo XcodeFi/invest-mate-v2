@@ -6,15 +6,15 @@
 
 ### Cải thiện
 
-- **Cắt lỗ của gợi ý giao dịch** (trang Phân tích thị trường) nay lấy mức **chặt hơn** giữa hỗ trợ thứ 2 và **giá vào − 2 × ATR(14)**, nên không còn đặt cắt lỗ quá xa khi hỗ trợ thứ 2 ở rất thấp (R:R trước đây bị kéo xuống vì rủi ro phình to). Thiếu ATR thì giữ cách cũ.
-- Dưới mức cắt lỗ có ghi **cách tính**: "theo hỗ trợ thứ 2", "theo 2×ATR" hoặc "−5% dưới hỗ trợ".
+- **Cắt lỗ của gợi ý giao dịch** (trang Phân tích thị trường) nay lấy mức **chặt hơn** giữa hỗ trợ thứ 2 và **giá vào − 2 × ATR(14)**, rồi giữ khoảng cách tới giá vào trong **1–2 × ATR**: không còn đặt cắt lỗ quá xa khi hỗ trợ thứ 2 ở rất thấp, cũng không còn cắt lỗ sát giá vào đến mức R:R hiện "đẹp" giả (ví dụ 1:50). Thiếu ATR thì giữ cách cũ.
+- Dưới mức cắt lỗ có ghi **cách tính**: "theo hỗ trợ thứ 2", "theo 2×ATR", "tối thiểu 1×ATR" (hỗ trợ quá gần nên bị kéo ra) hoặc "−5% dưới hỗ trợ".
 - Tỉ lệ **R:R dưới 1** có ghi chú "R:R thấp — không đủ hấp dẫn".
 - Cắt lỗ không hợp lệ (không dương, hoặc không thấp hơn giá vào) thì không còn đưa ra gợi ý.
 
 ### Kỹ thuật
 
-- `TradeSuggestionCalculator.Build` (hàm thuần) thay đoạn tính gợi ý trong `TechnicalIndicatorService.AnalyzeAsync`; `TechnicalAnalysisResult.SuggestedStopLossMethod` (`support2` | `atr2x` | `percent5`) lộ ra qua API và MCP `get_technical_analysis`.
-- Test: 11 ca cho calculator (đổi `Math.Max` thành `Math.Min` thì 5 ca đỏ), test MCP, spec giao diện cho nhãn và ghi chú R:R.
+- `TradeSuggestionCalculator.Build` (hàm thuần) thay đoạn tính gợi ý trong `TechnicalIndicatorService.AnalyzeAsync`; `TechnicalAnalysisResult.SuggestedStopLossMethod` (`support2` | `atr2x` | `atr1x` | `percent5`) lộ ra qua API và MCP `get_technical_analysis`.
+- Test: 17 ca cho calculator (đổi `Math.Max` thành `Math.Min` thì 5 ca đỏ; bỏ kẹp 1 ATR hoặc đổi `>` thành `>=` ở biên thì đỏ), test MCP, spec giao diện cho nhãn và ghi chú R:R.
 
 ---
 

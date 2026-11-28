@@ -70,7 +70,7 @@ public static class MarketDataTools
     }
 
     [McpServerTool(Name = "get_technical_analysis", ReadOnly = true)]
-    [Description("Phân tích kỹ thuật một mã: EMA, RSI, MACD, Bollinger, ADX, khối lượng, hỗ trợ/kháng cự, Fibonacci, tín hiệu tổng hợp và gợi ý giao dịch (vào lệnh, cắt lỗ, mục tiêu, riskRewardRatio; suggestedStopLossMethod cho biết cắt lỗ tính theo support2 = hỗ trợ thứ 2, atr2x = vào lệnh − 2×ATR14 hoặc percent5 = −5% dưới hỗ trợ khi thiếu ATR; không có gợi ý nếu cắt lỗ không hợp lệ; riskRewardRatio dưới 1 là không đủ hấp dẫn). Có EMA200 khi nguồn đủ 200 phiên. Trường adjusted cho biết giá đã điều chỉnh theo sự kiện quyền (true) hay đang dùng nguồn dự phòng chưa điều chỉnh (false).")]
+    [Description("Phân tích kỹ thuật một mã: EMA, RSI, MACD, Bollinger, ADX, khối lượng, hỗ trợ/kháng cự, Fibonacci, tín hiệu tổng hợp và gợi ý giao dịch (vào lệnh, cắt lỗ, mục tiêu, riskRewardRatio; suggestedStopLossMethod cho biết cắt lỗ (luôn cách giá vào 1–2×ATR khi có ATR) tính theo support2 = hỗ trợ thứ 2, atr2x = vào lệnh − 2×ATR14, atr1x = hỗ trợ thứ 2 sát giá vào hơn 1 ATR nên cắt lỗ bị kéo ra vào lệnh − 1×ATR14, hoặc percent5 = −5% dưới hỗ trợ khi thiếu ATR; không có gợi ý nếu cắt lỗ không hợp lệ; riskRewardRatio dưới 1 là không đủ hấp dẫn). Có EMA200 khi nguồn đủ 200 phiên. Trường adjusted cho biết giá đã điều chỉnh theo sự kiện quyền (true) hay đang dùng nguồn dự phòng chưa điều chỉnh (false).")]
     public static async Task<JsonNode> GetTechnicalAnalysis(
         [Description("Mã chứng khoán, ví dụ FPT.")] string symbol,
         IMediator mediator, CancellationToken ct)

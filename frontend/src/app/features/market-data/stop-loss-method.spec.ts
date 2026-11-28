@@ -4,6 +4,7 @@ describe('stop-loss-method', () => {
   it('nhãn tiếng Việt cho từng cách tính cắt lỗ', () => {
     expect(stopLossMethodLabel('support2')).toBe('theo hỗ trợ thứ 2');
     expect(stopLossMethodLabel('atr2x')).toBe('theo 2×ATR');
+    expect(stopLossMethodLabel('atr1x')).toBe('tối thiểu 1×ATR');
     expect(stopLossMethodLabel('percent5')).toBe('−5% dưới hỗ trợ');
   });
 

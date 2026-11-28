@@ -127,7 +127,7 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
 
     it('ghi cách tính cắt lỗ cạnh mức cắt lỗ', () => {
       for (const [method, label] of [
-        ['support2', 'theo hỗ trợ thứ 2'], ['atr2x', 'theo 2×ATR'], ['percent5', '−5% dưới hỗ trợ'],
+        ['support2', 'theo hỗ trợ thứ 2'], ['atr2x', 'theo 2×ATR'], ['atr1x', 'tối thiểu 1×ATR'], ['percent5', '−5% dưới hỗ trợ'],
       ] as const) {
         TestBed.resetTestingModule();
         const ta = fullTa();

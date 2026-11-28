@@ -3,6 +3,7 @@ export function stopLossMethodLabel(method: string | null | undefined): string {
   switch (method) {
     case 'support2': return 'theo hỗ trợ thứ 2';
     case 'atr2x': return 'theo 2×ATR';
+    case 'atr1x': return 'tối thiểu 1×ATR';
     case 'percent5': return '−5% dưới hỗ trợ';
     default: return '';
   }

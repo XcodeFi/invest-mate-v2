@@ -42,6 +42,55 @@ public class TradeSuggestionCalculatorTests
     }
 
     [Fact]
+    public void second_support_within_1atr_clamped_to_entry_minus_1atr()
+    {
+        // Hỗ trợ 2 = 98 chỉ cách vào 2 (< 1 ATR = 5): cắt lỗ sát quá, R:R sẽ ảo. Kéo ra tối thiểu 1 ATR = 95.
+        var s = TradeSuggestionCalculator.Build(new[] { 100m, 98m }, Resistance, atr14: 5m)!;
+
+        s.StopLoss.Should().Be(95m);
+        s.StopLossMethod.Should().Be("atr1x");
+        s.RiskReward.Should().Be(2.0m, "lãi 10 / rủi ro 5, không phải 10 / 2 = 5");
+    }
+
+    [Fact]
+    public void second_support_exactly_1atr_below_entry_is_kept_and_labelled_support2()
+    {
+        // Biên: đúng 1 ATR thì không bị kéo, nhãn vẫn là hỗ trợ (chỉ khi bị kéo mới ghi atr1x)
+        var s = TradeSuggestionCalculator.Build(new[] { 100m, 95m }, Resistance, atr14: 5m)!;
+
+        s.StopLoss.Should().Be(95m);
+        s.StopLossMethod.Should().Be("support2");
+    }
+
+    [Fact]
+    public void second_support_just_inside_1atr_is_clamped()
+    {
+        var s = TradeSuggestionCalculator.Build(new[] { 100m, 95.5m }, Resistance, atr14: 5m)!;
+
+        s.StopLoss.Should().Be(95m);
+        s.StopLossMethod.Should().Be("atr1x");
+    }
+
+    [Fact]
+    public void second_support_between_1_and_2atr_is_kept()
+    {
+        var s = TradeSuggestionCalculator.Build(new[] { 100m, 92m }, Resistance, atr14: 5m)!;
+
+        s.StopLoss.Should().Be(92m);
+        s.StopLossMethod.Should().Be("support2");
+    }
+
+    [Fact]
+    public void the_clamp_does_not_apply_without_atr()
+    {
+        // Không có ATR: luật cũ giữ nguyên, kể cả hỗ trợ 2 sát giá vào
+        var s = TradeSuggestionCalculator.Build(new[] { 100m, 99.9m }, Resistance, atr14: null)!;
+
+        s.StopLoss.Should().Be(99.9m);
+        s.StopLossMethod.Should().Be("support2");
+    }
+
+    [Fact]
     public void no_second_support_uses_2atr()
     {
         var s = TradeSuggestionCalculator.Build(new[] { 100m }, Resistance, atr14: 5m)!;
@@ -81,9 +130,13 @@ public class TradeSuggestionCalculatorTests
     [Fact]
     public void invalid_stop_no_suggestion_when_second_support_is_not_below_entry()
     {
-        // Hỗ trợ 2 ≥ giá vào thì cắt lỗ không nằm dưới giá vào: không gợi ý, không đưa ra R:R vô nghĩa
-        TradeSuggestionCalculator.Build(new[] { 100m, 105m }, Resistance, atr14: 5m).Should().BeNull();
+        // Không ATR: hỗ trợ 2 ≥ giá vào thì cắt lỗ không nằm dưới giá vào: không gợi ý, không đưa ra R:R vô nghĩa
+        TradeSuggestionCalculator.Build(new[] { 100m, 105m }, Resistance, atr14: null).Should().BeNull();
         TradeSuggestionCalculator.Build(new[] { 100m, 100m }, Resistance, atr14: null).Should().BeNull();
+        // Có ATR: dữ liệu hỏng đó cũng bị kéo về vào − 1 ATR (không bao giờ ≥ giá vào)
+        var clamped = TradeSuggestionCalculator.Build(new[] { 100m, 105m }, Resistance, atr14: 5m)!;
+        clamped.StopLoss.Should().Be(95m);
+        clamped.StopLossMethod.Should().Be("atr1x");
     }
 
     [Fact]
