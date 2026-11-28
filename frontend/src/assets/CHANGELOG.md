@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.110.0] — 2026-11-28 · Hồ sơ công ty và Dòng thời gian mã nối được với nhau; trạng thái trang nằm trên URL
+## [v2.113.0] — 2026-11-28 · Hồ sơ công ty và Dòng thời gian mã nối được với nhau; trạng thái trang nằm trên URL
 
 ### Tính năng mới
 
@@ -14,6 +14,53 @@
 - `timeline-url-state.ts` (hàm thuần `parseTimelineQuery` / `buildTimelineQuery`) và trang đọc qua `queryParamMap` (không phải snapshot): lần phát đầu áp dụng trạng thái ban đầu, các lần sau chỉ áp dụng khoá nào đổi, nên lần phát lại do chính trang vừa ghi và các khoá không liên quan (`tradeId`) là no-op. Ghi bằng `queryParamsHandling: 'merge'` + `replaceUrl: true`; không đụng `symbol` và `tradeId` (luồng đánh giá sau giao dịch giữ nguyên, kể cả việc mở rộng mặc định lên 12 tháng).
 - `focus` chỉ xác định NGÀY, không xác định mục: ngày có nhiều mục (ví dụ một giao dịch và một nhật ký) thì mở lại sẽ chọn mục đầu tiên của ngày đó. Khi vào từ link review (`tradeId`) thì `tradeId` thắng `range`, giữ khoảng 12 tháng. `focus` là ngày theo giờ Việt Nam của mục đang chọn (giao dịch lúc 00:30 giờ VN ngày 20 có focus ngày 20, không phải ngày 19).
 - Chưa làm (theo kế hoạch): khôi phục vị trí cuộn, trạng thái thẻ trên URL, link từ Thị trường/Replay/Watchlist; huy hiệu "hồ sơ lúc đó" và thẻ "Luận điểm" là hai PR sau.
+## [v2.112.0] — 2026-11-28 · Tỉ lệ nền VN30 cho setup Pullback
+
+### Tính năng mới
+
+- **Dòng "Tỉ lệ nền VN30"** trong khối Setup Pullback của trang Thị trường, chỉ cho mã thuộc VN30: *"Tỉ lệ nền VN30 (28 mã, 412 lệnh, 34 tháng): thắng 43% (95% xấp xỉ: 37% – 49%), kỳ vọng +0.12R (95% xấp xỉ: -0.05R – +0.29R)"*. Mỗi mã chỉ có 4–9 lệnh trong 3 năm nên không đủ để thống kê riêng; gộp cả rổ cho một con số tham khảo xem setup này có kỳ vọng dương hay không. Kèm lưu ý: đây là tỉ lệ của **rổ**, không phải bằng chứng riêng của mã; số liệu mô tả quá khứ; rổ hiện tại gồm các mã còn niêm yết (thiên lệch người sống sót).
+- **Khoảng tin cậy xấp xỉ, có tính phụ thuộc.** Các lệnh cùng tháng chịu chung bối cảnh thị trường nên không thể coi là độc lập: khoảng 95% lấy từ bootstrap theo khối tháng (2.000 lần, hạt giống cố định), không phải khoảng Wilson trên các lệnh gộp. Nhãn ghi "xấp xỉ" và nói rõ khoảng có thể vẫn hẹp hơn thực tế (lệnh kéo dài qua nhiều tháng).
+- **Chỉ hiện khi đủ dữ liệu:** từ 15 mã VN30 có chuỗi giá điều chỉnh còn mới, từ 30 lệnh đã đóng và các lệnh rải trên ít nhất 24 tháng. Chưa đủ thì ghi lý do (ví dụ "Chưa đủ mã VN30 có dữ liệu (7/30, cần từ 15)"); mã ngoài VN30 ghi "Chỉ có cho mã thuộc VN30". Không bao giờ điền sẵn vào form kế hoạch.
+- Công cụ MCP `get_signal_setups` trả thêm `baseRate` / `baseRateReason` (vắng mặt khi không có), mô tả công cụ nói rõ đây là tỉ lệ của rổ, không phải của mã.
+
+### Kỹ thuật
+
+- **Lấy trước chuỗi giá VN30 qua job `prices` sẵn có** (không thêm job Cloud Scheduler, không đổi hạ tầng): sau việc chính, mỗi lượt lấy tối đa 1 mã (chưa có chuỗi trước, rồi cũ nhất; bỏ mã mà nguồn coi là còn tươi) nên rổ đầy sau khoảng hai ngày giao dịch. Giới hạn cứng nằm ở phía nguồn giá: tối đa **30 lần gọi UDF mỗi ngày Việt Nam** (tính cả lần lỗi, lưu bền ở collection `job_state` bằng một lệnh `$inc` nguyên tử), **không dùng graph dự phòng**, bỏ qua **không gọi** khi nguồn đang trục trặc (cooldown chung hoặc chuỗi lỗi chung ≥ 1), và lỗi của warm-up **không** cộng vào chuỗi lỗi chung hay cooldown của biểu đồ người dùng (warm-up có cooldown riêng). Chạy sau việc chính kể cả khi job không có mã nào, hạn 20 giây, mọi lỗi chỉ ghi log, kết quả job giá không đổi. Công tắc tắt: `SignalWarmup__Enabled=false`; tinh chỉnh `SignalWarmup__SymbolsPerRun`, `MarketDataProvider__WarmupMaxCallsPerDay`.
+- Rổ VN30 một nguồn duy nhất `Domain/Constants/Vn30Basket` (nhập danh sách VN30 dùng chung). Thống kê gộp `BaseRateStatistics` (hàm thuần, bộ sinh số giả ngẫu nhiên tự viết nên kết quả không đổi giữa các bản .NET) và `SignalBaseRateService` (chạy cùng engine S1 trên chuỗi đã lưu, bỏ nến đang hình thành, dùng biên độ HOSE cho cả rổ, nhớ kết quả tới 15:10 hoặc hết ngày). Công cụ đếm chỉ đọc có thêm chế độ `pooled` (k, n, số tháng, bootstrap) dùng đúng hàm gộp của dịch vụ.
+- Hàm dựng `PriceSnapshotJobService` nhận thêm `ISignalSeriesWarmup`; `IAdjustedPriceSeriesStore` thêm `GetFetchedAtAsync` (chỉ đọc `FetchedAt`, không tải nến). ADR-0019.
+## [v2.111.0] — 2026-11-28 · Chế độ tối (mặc định)
+
+### Tính năng mới
+
+- **Giao diện tối, mặc định bật** cho mọi trang để dịu mắt khi làm việc lâu. Nút **☀️/🌙** ở góc phải header (cả trên điện thoại) đổi qua lại; tooltip "Chế độ sáng" / "Chế độ tối". Lựa chọn được nhớ trên trình duyệt này; chưa chọn (hoặc trình duyệt chặn lưu) thì là tối, không lấy theo hệ điều hành. Trang không nháy sáng lúc mở vì chế độ được đặt trước khi ứng dụng khởi động.
+- **Biểu đồ đổi theo:** biểu đồ nến và các tầng chỉ báo (Thị trường, Dòng thời gian mã), biểu đồ Phân tích và Replay kế hoạch đổi nền, chữ, lưới và vạch trỏ chuột sang bảng màu tối; đường chỉ báo quá tối (ví dụ tím đậm) được làm sáng chỉ ở chế độ tối, màu nến và các đường nhận diện khác giữ nguyên. Đổi chế độ khi đang xem thì biểu đồ vẽ lại và giữ nguyên khoảng nhìn.
+- Chế độ sáng giữ nguyên như trước.
+
+### Kỹ thuật
+
+- Một lớp giao diện toàn cục thay vì sửa từng trang: `src/styles/dark-theme.css` ánh xạ các tiện ích Tailwind sáng đang dùng khắp app (nền trắng/xám, chữ xám, viền, hover, ô tô màu trạng thái, ô nhập, bóng) sang bảng màu tối, mọi luật nằm dưới `html.dark`. Luật cho class trơn dùng `:where()` để biến thể `hover:`/`focus:` vẫn thắng. Ô tô màu trạng thái (đỏ/xanh/vàng...) thành nền mờ 10–24% với chữ sắc sáng, nên màu giữ nguyên ý nghĩa. `darkMode: 'class'` được bật cho Tailwind để component mới dùng `dark:` được.
+- `ThemeService` (signal + localStorage `imv2.theme`, mọi truy cập storage bọc try/catch) và script nhỏ trong `index.html` chạy trước Angular. Component mới `app-theme-toggle`. `indicator-chart` đọc chế độ qua `indicator-chart.theme.ts`; Chart.js đặt màu mặc định qua `chartjs-theme.ts`.
+- Độ tương phản WCAG AA (≥ 4,5:1) được kiểm bằng test đọc chính file CSS: chữ chính/phụ/mờ trên trang, thẻ và nền nổi, chữ trạng thái trên nền tô mờ. Màu chữ mờ nhất dùng `#8b99ae` (6,1:1), không dùng `#64748b` vì chỉ đạt 3,7:1.
+- Chưa làm: lưu lựa chọn phía máy chủ (localStorage đủ cho một người dùng), kiểu in/email, riêng khu quản trị ngoài những gì lớp toàn cục đã phủ.
+
+---
+
+## [v2.110.0] — 2026-11-28 · Trang Sàng lọc cổ phiếu
+
+### Tính năng mới
+
+- **Trang "Sàng lọc cổ phiếu"** (`/screener`, mở từ trang Dữ liệu Thị trường và từ chip **Danh sách lọc (không xếp hạng)** ở Bảng giá nhanh): chọn sàn (UPCOM tuỳ chọn), chỉnh các ngưỡng (thanh khoản, giá, vốn hoá, ROE, trần P/E mặc định tắt, xếp hạng sức mạnh 3 tháng), bỏ qua tầng chất lượng. Bảng mã đạt xếp theo bảng chữ cái, bấm tiêu đề cột để sắp theo cột khác; mỗi dòng có cờ biến động kèm giá trị, ghi chú và "Vì sao đạt". Không có điểm số hay thứ hạng, luôn kèm lời nhắc "không phải khuyến nghị mua".
+- Mã HOSE chưa kiểm được trạng thái được tách thành nhóm riêng; có số mã bị loại theo lý do và theo ngành, dòng "loại vì định giá/chất lượng nhưng xu hướng tốt" và ô **Vì sao mã X không có?**.
+- Tick tối đa 30 mã rồi **Gửi sang Bảng giá nhanh**: trang Thị trường mở với đúng các mã đó và nhớ cho lần sau. Chip ở Bảng giá nhanh chỉ mở trang sàng lọc, không tự điền mã nào.
+- **Hướng dẫn "Sàng lọc cổ phiếu"** trong Trợ giúp: ý nghĩa từng tầng, ngưỡng mặc định, giới hạn (nguồn không chính thức, dữ liệu trễ, HNX/UPCOM chưa có danh sách cảnh báo, mã đã hủy niêm yết không còn trong dữ liệu).
+
+---
+
+## [v2.109.1] — 2026-11-28 · Hồ sơ công ty: thanh nút đầu trang không tràn màn hình hẹp
+
+### Sửa lỗi
+
+- **Trên điện thoại (khoảng 400px), các nút "Sao chép cho AI", "Chia sẻ", "Dán nội dung" và "Sửa" ở đầu trang Hồ sơ công ty không còn tràn ra ngoài màn hình và làm cả trang cuộn ngang.** Các nút nay tự xuống hàng khi thiếu chỗ; màn rộng vẫn một hàng như cũ.
 
 ---
 

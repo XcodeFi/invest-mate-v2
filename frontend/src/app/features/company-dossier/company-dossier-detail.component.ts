@@ -105,7 +105,7 @@ function serializeEditable(d: DossierEditable): string {
       <!-- Đường lùi là breadcrumb ở góc trái, không xếp cùng hàng với nhóm nút hành động bên phải. -->
       <a routerLink="/company-dossier" class="inline-block text-sm text-blue-600 hover:underline mb-2">← Danh sách hồ sơ</a>
 
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 class="text-2xl font-bold text-gray-800">Hồ sơ công ty: {{ symbol }}</h1>
           <div class="flex items-center gap-2 mt-1">
@@ -121,7 +121,7 @@ function serializeEditable(d: DossierEditable): string {
             </a>
           </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
           @if (!loading) {
             <button (click)="copyForAi()" data-testid="btn-copy" title="Sao chép hồ sơ + số liệu để hỏi một AI khác"
               class="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm whitespace-nowrap">

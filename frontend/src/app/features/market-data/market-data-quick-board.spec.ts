@@ -289,6 +289,32 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
       expect(chipLabels()).toEqual(['⭐ Có mã (2)']);
     });
 
+    it('the screener entry is a link that opens the page and fills nothing', () => {
+      setup({ positions: of([position('HPG')]) });
+      const link = el().querySelector('[data-testid="screener-link"]') as HTMLAnchorElement;
+      const before = fixture.componentInstance.batchSymbols;
+      const callsBefore = market.getBatchPrices.calls.count();
+
+      expect(link.textContent!.trim()).toBe('Danh sách lọc (không xếp hạng)');
+      expect(link.getAttribute('href')).toBe('/screener');
+      expect(chipLabels()).not.toContain('Danh sách lọc (không xếp hạng)');   // không phải chip điền mã
+      expect(fixture.componentInstance.batchSymbols).toBe(before);
+      expect(market.getBatchPrices.calls.count()).toBe(callsBefore);
+    });
+
+    it('the screener link stays even when every suggestion source is empty or failing', () => {
+      setup({ positions: throwError(() => new Error('x')), plans: throwError(() => new Error('y')), watchlists: throwError(() => new Error('z')) });
+
+      expect(el().querySelector('[data-testid="screener-link"]')).not.toBeNull();
+      expect(chips().length).toBe(0);
+    });
+
+    it('the Market page header links to the screener', () => {
+      setup();
+
+      expect((el().querySelector('[data-testid="screener-header-link"]') as HTMLAnchorElement).getAttribute('href')).toBe('/screener');
+    });
+
     it('no chips and no hint at all when every source is empty', () => {
       setup();
 

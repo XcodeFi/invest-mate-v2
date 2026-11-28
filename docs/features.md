@@ -209,8 +209,8 @@ Bước 5: ATR → Đặt SL ở đâu?
 | `GET` | `/market/stock/{symbol}/summary` | Biến động giá 1D/1W/1M/3M/6M |
 | `GET` | `/market/stock/{symbol}/analysis/series` | Chuỗi chỉ báo theo từng phiên (18 chuỗi + nến) để vẽ biểu đồ theo nhóm; điểm cuối khớp `/analysis` |
 | `GET` | `/market/stock/{symbol}/analysis` | Phân tích kỹ thuật (EMA, RSI, MACD, Stochastic, ADX, OBV, MFI, Bollinger, ATR, Volume, S&R, Fibonacci, Signal, Confluence Score, Market Condition, Divergence) |
-| `GET` | `/market/{symbol}/signal-setups` | Lịch sử setup Pullback trên một mã (~3 năm giá đã điều chỉnh): số tín hiệu, lệnh mô phỏng đã đóng/mở/bỏ qua theo luật thị trường VN (T+2,5, biên độ, khoá sàn, chi phí), tín hiệu đang kích hoạt (vào/cắt lỗ/mục tiêu). Tỉ lệ thắng và EV chỉ khi ≥ 30 lệnh đã đóng; không có danh sách từng lệnh. Khối "Setup Pullback trên <mã>" nằm dưới khối phân tích trang Thị trường. MCP: `get_signal_setups`. ADR-0018 |
-| `GET` | `/market/screener` | Sàng lọc cổ phiếu toàn thị trường theo tiêu chí (ADR-0020): `floors`, `includeUpcom`, `minAdtv`, `minPrice`, `minCap`, `minRoe`, `maxPe` (mặc định tắt), `minRs3m` (xếp hạng sức mạnh 3 tháng, mặc định 50), `skipQualityLayer`, `includeExcluded` (+ `excludedSkip`/`excludedTake`), `lookupSymbol`. Trả `passed[]` (xếp bảng chữ cái, không điểm số, kèm cờ biến động), `unverifiedHose[]`, `excludedCounts`, `sectorCounts`, `tradeoffCount`, `status` (ok/stale/unavailable), `asOf`. Dữ liệu đệm 6 giờ. MCP `screen_stocks` (86 tool). Chưa có giao diện (PR2). |
+| `GET` | `/market/{symbol}/signal-setups` | Lịch sử setup Pullback trên một mã (~3 năm giá đã điều chỉnh): số tín hiệu, lệnh mô phỏng đã đóng/mở/bỏ qua theo luật thị trường VN (T+2,5, biên độ, khoá sàn, chi phí), tín hiệu đang kích hoạt (vào/cắt lỗ/mục tiêu). Tỉ lệ thắng và EV chỉ khi ≥ 30 lệnh đã đóng; không có danh sách từng lệnh. Khối "Setup Pullback trên <mã>" nằm dưới khối phân tích trang Thị trường. **Mã thuộc VN30 có thêm `baseRate` (2026-11-28, ADR-0019):** tỉ lệ nền gộp cả rổ VN30 (k mã, n lệnh, số tháng, thắng và EV kèm khoảng 95% xấp xỉ theo bootstrap khối tháng), chỉ khi k ≥ 15, n ≥ 30, ≥ 24 tháng; không thì `baseRateReason`. Là tỉ lệ của rổ, không phải bằng chứng riêng của mã; không điền sẵn vào form kế hoạch. Chuỗi giá VN30 được lấy trước qua job `prices` (≤ 1 mã/lượt, ≤ 30 lần gọi/ngày). MCP: `get_signal_setups`. ADR-0018, ADR-0019 |
+| `GET` | `/market/screener` | Sàng lọc cổ phiếu toàn thị trường theo tiêu chí (ADR-0020): `floors`, `includeUpcom`, `minAdtv`, `minPrice`, `minCap`, `minRoe`, `maxPe` (mặc định tắt), `minRs3m` (xếp hạng sức mạnh 3 tháng, mặc định 50), `skipQualityLayer`, `includeExcluded` (+ `excludedSkip`/`excludedTake`), `lookupSymbol`. Trả `passed[]` (xếp bảng chữ cái, không điểm số, kèm cờ biến động), `unverifiedHose[]`, `excludedCounts`, `sectorCounts`, `tradeoffCount`, `status` (ok/stale/unavailable), `asOf`. Dữ liệu đệm 6 giờ. MCP `screen_stocks` (86 tool). Giao diện: trang `/screener` "Sàng lọc cổ phiếu". |
 
 **Lịch sử giá ngày là nến thật đã điều chỉnh (2026-11-28):** nguồn UDF của biểu đồ web 24hmoney (~3 năm), có dự phòng sang nguồn cũ chỉ giá đóng cửa; trường `adjusted` ở analysis/series/history; trang Thị trường ghi chú khi giá chưa điều chỉnh hoặc chuỗi đã điều chỉnh lùi hơn 1 phiên (`adjustedAsOf`); EMA200 có giá trị và được vẽ trên nhóm Xu hướng; mỗi mã gọi nguồn tối đa 2 lần/ngày (lấy lại một lần sau 15:10), lỗi thì nghỉ, có bản lưu bền dự phòng (`adjusted_price_series`).
 
@@ -1836,3 +1836,9 @@ Chứng khoán Việt Nam thanh toán **T+2**: bán hôm nay thì tiền về sa
 Lịch 2026 seed sẵn 12 phiên: 01/01; 16–20/02 (Tết Bính Ngọ); 27/04; 30/04–01/05; 31/08–02/09.
 
 **Ngoài phạm vi:** cổ phiếu mua chờ về T+2; dịch vụ ứng trước tiền bán. Chi tiết: [ADR-0016](adr/0016-t2-settlement-pending-cash.md).
+
+---
+
+## Giao diện sáng/tối (2026-11-28)
+
+Ứng dụng mở ở **chế độ tối** theo mặc định; nút ☀️/🌙 trên header đổi qua lại và nhớ lựa chọn trên trình duyệt (localStorage). Lớp giao diện toàn cục `dark-theme.css` ánh xạ các màu sáng của Tailwind; biểu đồ nến và Chart.js đổi màu theo. Chế độ sáng giữ nguyên. Xem `docs/architecture.md` (ThemeService) và CHANGELOG v2.111.0.

@@ -18,4 +18,8 @@ public interface IAdjustedPriceSeriesStore
 
     Task SaveAsync(string symbol, DateTime fetchedAtUtc, IReadOnlyList<StockPriceData> bars,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Thời điểm lấy chuỗi của từng mã đã có bản lưu (mã chưa có thì vắng mặt). Chỉ đọc trường nhẹ, không tải nến.</summary>
+    Task<IReadOnlyDictionary<string, DateTime>> GetFetchedAtAsync(IReadOnlyCollection<string> symbols,
+        CancellationToken cancellationToken = default);
 }

@@ -4,7 +4,7 @@
   "description": "Ứng dụng quản lý đầu tư chứng khoán — theo dõi danh mục, phân tích kỹ thuật và quản lý rủi ro.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
+  "background_color": "#0b1220",
   "theme_color": "#2563eb",
   "orientation": "portrait-primary",
   "lang": "vi",

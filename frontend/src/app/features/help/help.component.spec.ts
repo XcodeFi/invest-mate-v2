@@ -56,6 +56,13 @@ describe('HelpComponent: mở thẳng một chủ đề qua ?topic=', () => {
     expect(fixture.nativeElement.textContent).toContain('Quay lại danh sách');
   });
 
+  it('opens the screener topic from its query param', () => {
+    setup('sang-loc-co-phieu');
+    flushTopics();
+
+    expect(q('.guide-content')!.textContent).toContain('Nội dung sang-loc-co-phieu');
+  });
+
   it('unknown topic shows list', () => {
     setup('khong-co-chu-de-nay');
     flushTopics();

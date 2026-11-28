@@ -164,6 +164,7 @@ builder.Services.AddScoped<ITradeRepository, TradeRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IStockPriceRepository, StockPriceRepository>();
 builder.Services.AddScoped<IAdjustedPriceSeriesStore, AdjustedPriceSeriesStore>();
+builder.Services.AddScoped<IWarmupCallBudget, WarmupCallBudgetStore>();   // ngân sách gọi nguồn của việc lấy trước chuỗi giá, lưu bền theo ngày VN
 builder.Services.AddScoped<IMarketIndexRepository, MarketIndexRepository>();
 builder.Services.AddScoped<ICapitalFlowRepository, CapitalFlowRepository>();
 builder.Services.AddScoped<ICorporateActionRepository, CorporateActionRepository>();
@@ -214,6 +215,10 @@ builder.Services.AddScoped<IMarketDataProvider>(sp =>
     sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyMarketDataProvider>());
 builder.Services.AddScoped<IStockInfoProvider>(sp =>
     sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyMarketDataProvider>());
+builder.Services.AddScoped<IAdjustedSeriesWarmer>(sp =>
+    sp.GetRequiredService<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyMarketDataProvider>());
+builder.Services.Configure<SignalWarmupOptions>(builder.Configuration.GetSection(SignalWarmupOptions.SectionName));
+builder.Services.AddScoped<ISignalSeriesWarmup, SignalSeriesWarmup>();   // lấy trước chuỗi giá VN30 qua job prices (S3), tắt bằng SignalWarmup__Enabled=false
 builder.Services.AddScoped<ISnapshotService, SnapshotService>();
 builder.Services.AddScoped<ICashFlowAdjustedReturnService, CashFlowAdjustedReturnService>();
 builder.Services.AddScoped<IRiskCalculationService, RiskCalculationService>();
@@ -223,6 +228,7 @@ builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IPriceSnapshotJobService, PriceSnapshotJobService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
+builder.Services.AddScoped<ISignalBaseRateService, SignalBaseRateService>();   // tỉ lệ nền VN30 gộp từ chuỗi giá đã lưu (S3)
 builder.Services.AddScoped<ISignalSetupService, SignalSetupService>();   // setup Pullback + lịch sử trên từng mã (S1)
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBehavioralAnalysisService, BehavioralAnalysisService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IScenarioConsultantService, ScenarioConsultantService>();

@@ -34,6 +34,9 @@ public class MarketDataProviderOptions
 
     /// <summary>Thời gian ngừng gọi UDF cho mọi mã sau khi chạm ngưỡng lỗi liên tiếp.</summary>
     public int TradingViewGlobalCooldownMinutes { get; set; } = 15;
+
+    /// <summary>Trần số lần gọi UDF của việc lấy trước chuỗi giá (warm-up) mỗi ngày Việt Nam, tính cả lần lỗi, lưu bền.</summary>
+    public int WarmupMaxCallsPerDay { get; set; } = 30;
 }
 
 /// <summary>
@@ -41,7 +44,7 @@ public class MarketDataProviderOptions
 /// - Prices are scaled ×1000 (API returns prices in units of 1,000 VND)
 /// - Results are cached in IMemoryCache with configurable TTL
 /// </summary>
-public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
+public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider, IAdjustedSeriesWarmer
 {
     private readonly HttpClient _httpClient;
     private readonly IMemoryCache _cache;
@@ -49,6 +52,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     private readonly MarketDataProviderOptions _options;
     private readonly IAdjustedPriceSeriesStore? _store;
     private readonly TimeProvider _time;
+    private readonly IWarmupCallBudget? _warmupBudget;
 
     // Mỗi mã một cổng: nhiều yêu cầu đồng thời cho cùng mã chỉ gây đúng một lần gọi UDF.
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SymbolGates = new();
@@ -97,7 +101,8 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         ILogger<HmoneyMarketDataProvider> logger,
         IOptions<MarketDataProviderOptions> options,
         IAdjustedPriceSeriesStore? store = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IWarmupCallBudget? warmupBudget = null)
     {
         _httpClient = httpClient;
         _cache = cache;
@@ -105,6 +110,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         _options = options.Value;
         _store = store;
         _time = timeProvider ?? TimeProvider.System;
+        _warmupBudget = warmupBudget;
     }
 
     private static decimal ScalePrice(decimal raw) => raw * PriceScale;
@@ -265,6 +271,87 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         {
             gate.Release();
         }
+    }
+
+    // =============================================
+    // Lấy trước chuỗi giá đã điều chỉnh (warm-up) cho tỉ lệ nền của setup tín hiệu
+    // =============================================
+
+    /// <summary>Chuỗi lấy lúc <paramref name="fetchedAtUtc"/> còn dùng được theo luật của nguồn (người chọn mã không tốn lượt cho thứ bộ nhớ đệm sẽ trả lời).</summary>
+    public bool IsFresh(DateTime fetchedAtUtc) => IsFresh(new DateTimeOffset(DateTime.SpecifyKind(fetchedAtUtc, DateTimeKind.Utc)));
+
+    private static readonly string WarmGlobalPauseKey = "tv:warm:pause";
+
+    /// <summary>
+    /// Một lượt lấy trước cho một mã. KHÔNG BAO GIỜ dùng graph dự phòng (chuỗi chưa điều chỉnh không có chỗ ở đây) và KHÔNG đụng chuỗi lỗi
+    /// dùng chung <c>tv:fail-streak</c> hay cooldown của biểu đồ người dùng: warm-up có cooldown riêng. Nguồn đang trục trặc (cooldown chung
+    /// hay chuỗi lỗi chung ≥ 1) thì bỏ qua mà KHÔNG gọi. Mỗi lần gọi trừ một lượt ngân sách lưu bền theo ngày.
+    /// </summary>
+    public async Task<WarmFetchResult> WarmAsync(string symbol, CancellationToken cancellationToken = default)
+    {
+        symbol = symbol.ToUpperInvariant().Trim();
+        if (_store == null || !ValidSymbol.IsMatch(symbol))
+            return WarmFetchResult.Skipped;
+
+        var goodKey = $"tv:good:{symbol}";
+        if (TryFresh(goodKey, out List<StockPriceData> _))
+            return WarmFetchResult.Skipped;
+
+        if (UdfSharedlyDegraded() || TryFresh(WarmGlobalPauseKey, out bool _))
+            return WarmFetchResult.Degraded;
+
+        if (TryFresh($"tv:warm:rest:{symbol}", out bool _))
+            return WarmFetchResult.Skipped;
+
+        var gate = SymbolGates.GetOrAdd(symbol, _ => new SemaphoreSlim(1, 1));
+        if (!await gate.WaitAsync(0, cancellationToken))
+            return WarmFetchResult.Skipped;   // đang có người lấy cùng mã
+        try
+        {
+            if (TryFresh(goodKey, out List<StockPriceData> _))
+                return WarmFetchResult.Skipped;
+
+            var snapshot = await ReadSnapshotAsync(symbol, cancellationToken);
+            if (snapshot != null && IsFresh(new DateTimeOffset(snapshot.FetchedAtUtc, TimeSpan.Zero)))
+                return WarmFetchResult.Skipped;
+
+            if (_warmupBudget == null
+                || !await _warmupBudget.TryConsumeAsync(VietnamDate(Now), _options.WarmupMaxCallsPerDay, cancellationToken))
+                return WarmFetchResult.BudgetExhausted;
+
+            var fetchedAt = Now;
+            var result = await FetchTradingViewAsync(symbol, cancellationToken);
+            if (result.Bars != null)
+            {
+                StampAsOf(result.Bars);
+                SetTimed(goodKey, result.Bars, GoodUntil(fetchedAt));
+                await SaveSnapshotAsync(symbol, result.Bars, cancellationToken);
+                return WarmFetchResult.Fetched;
+            }
+
+            if (result.Failure == UdfFailure.SourceWide)
+            {
+                SetTimed(WarmGlobalPauseKey, true, Now.AddMinutes(_options.TradingViewFailureCooldownMinutes));
+                _logger.LogWarning("Signal warm-up: source-wide failure for {Symbol}; warm-up paused for {Minutes} minutes", symbol, _options.TradingViewFailureCooldownMinutes);
+            }
+            else
+            {
+                // Lỗi riêng của mã (no_data, mã rác): không gọi lại mã này tới hết ngày, các mã khác không bị ảnh hưởng.
+                SetTimed($"tv:warm:rest:{symbol}", true, new DateTimeOffset(VietnamDate(Now).AddDays(1), VietnamOffset));
+            }
+            return WarmFetchResult.Failed;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    /// <summary>Chỉ ĐỌC: cooldown chung đang bật hoặc đã có lỗi cả nguồn liên tiếp. Không tạo mục chuỗi lỗi nếu chưa có.</summary>
+    private bool UdfSharedlyDegraded()
+    {
+        if (TryFresh("tv:cooldown:global", out bool _)) return true;
+        return _cache.TryGetValue("tv:fail-streak", out FailureStreak? streak) && streak != null && Volatile.Read(ref streak.Count) >= 1;
     }
 
     /// <summary>Đóng dấu ngày nến cuối của CẢ chuỗi lên mọi nến (kể cả bản lưu cũ chưa có trường này), trước khi lọc theo khoảng.</summary>

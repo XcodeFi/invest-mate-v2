@@ -26,7 +26,7 @@ public class StopLossCorporateActionTests
 
     private PriceSnapshotJobService Sut() => new(
         _trades.Object, _prices.Object, _indices.Object, _marketData.Object,
-        _slRepo.Object, _actions.Object, NullLogger<PriceSnapshotJobService>.Instance);
+        _slRepo.Object, _actions.Object, Mock.Of<ISignalSeriesWarmup>(), NullLogger<PriceSnapshotJobService>.Instance);
 
     /// <summary>
     /// Giá vào 25.000, cắt lỗ 22.000, mục tiêu 40.000. Mốc điều chỉnh là <c>UpdatedAt</c> —
