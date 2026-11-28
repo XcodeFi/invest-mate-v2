@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.100.0] — 2026-11-28 · MCP: tính lại review, định cỡ vị thế, sự kiện quyền
+
+### Tính năng mới
+
+- Trợ lý AI nối qua MCP tính lại được review của kế hoạch đã review (`recompute_plan_review`, cùng cách với nút "Tính lại theo công thức mới"), tính cỡ vị thế theo nhiều mô hình kể cả Kelly từ dữ liệu của chính bạn (`calculate_position_size`) và xem sự kiện quyền trên danh mục của bạn (`list_corporate_actions`).
+- Số liệu review qua MCP: `realizedR` vắng mặt nghĩa là không tính được, không phải 0R.
+
+### Kỹ thuật
+
+- 3 tool MCP mới (84 tool): `recompute_plan_review` (ghi, `Destructive`), `calculate_position_size` và `list_corporate_actions` (chỉ đọc).
+- `CalculatePositionSizingQuery` là đường tính chung của `POST /api/v1/risk/position-sizing` và tool MCP; `RiskController` chỉ chuyển tiếp. Tool tự chạy lại các luật `Range` của request vì không đi qua `[ApiController]`.
+- `ListMyCorporateActionsQuery`: chỉ danh mục của người gọi; `portfolioId` lạ hoặc của người khác cùng trả không tìm thấy, không đọc dữ liệu.
+
+---
+
 ## [v2.99.0] — 2026-11-28 · Sửa: review còn mở, chưa bán gì không còn hiện 0R giả
 
 ### Sửa lỗi
