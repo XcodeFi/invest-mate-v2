@@ -81,7 +81,7 @@ public static class MarketDataTools
     }
 
     [McpServerTool(Name = "get_technical_series", ReadOnly = true)]
-    [Description("Chuỗi chỉ báo kỹ thuật theo từng phiên (ngày, mở/cao/thấp/đóng/khối lượng và 18 chuỗi: EMA20/50, Bollinger, RSI, Stochastic, MACD, ADX, +DI/-DI, ATR, OBV, MFI, SMA20 khối lượng). Mọi mảng cùng độ dài; phiên chưa đủ dữ liệu khởi động là null. Chỉ trả lastN phiên cuối.")]
+    [Description("Chuỗi chỉ báo kỹ thuật theo từng phiên (ngày, mở/cao/thấp/đóng/khối lượng và 19 chuỗi: EMA20/50/200, Bollinger, RSI, Stochastic, MACD, ADX, +DI/-DI, ATR, OBV, MFI, SMA20 khối lượng). Mọi mảng cùng độ dài; phiên chưa đủ dữ liệu khởi động là null. Chỉ trả lastN phiên cuối.")]
     public static async Task<JsonNode> GetTechnicalSeries(
         [Description("Mã chứng khoán, ví dụ FPT.")] string symbol,
         IMediator mediator, CancellationToken ct,

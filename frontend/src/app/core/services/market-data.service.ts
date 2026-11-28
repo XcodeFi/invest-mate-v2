@@ -128,6 +128,8 @@ export interface TechnicalSeries {
   volume: number[];
   ema20: (number | null)[];
   ema50: (number | null)[];
+  /** Chỉ có giá trị từ phiên thứ 200; backend cũ không gửi trường này. */
+  ema200?: (number | null)[];
   bollingerUpper: (number | null)[];
   bollingerMiddle: (number | null)[];
   bollingerLower: (number | null)[];

@@ -359,7 +359,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         if (n < 20)
         {
-            result.Ema20 = NullSeries(n); result.Ema50 = NullSeries(n);
+            result.Ema20 = NullSeries(n); result.Ema50 = NullSeries(n); result.Ema200 = NullSeries(n);
             result.BollingerUpper = NullSeries(n); result.BollingerMiddle = NullSeries(n); result.BollingerLower = NullSeries(n);
             result.Rsi14 = NullSeries(n); result.StochK = NullSeries(n); result.StochD = NullSeries(n);
             result.MacdLine = NullSeries(n); result.MacdSignal = NullSeries(n); result.MacdHistogram = NullSeries(n);
@@ -371,6 +371,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         result.Ema20 = EmaSeries(closes, 20);
         result.Ema50 = EmaSeries(closes, 50);
+        result.Ema200 = EmaSeries(closes, 200);
         (result.BollingerMiddle, result.BollingerUpper, result.BollingerLower) = BollingerSeries(closes, 20, 2m);
         result.Rsi14 = RsiSeriesFull(closes, 14);
         (result.StochK, result.StochD) = StochasticSeries(highs, lows, closes, 14, 3);

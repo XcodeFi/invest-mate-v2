@@ -210,7 +210,7 @@ Bước 5: ATR → Đặt SL ở đâu?
 | `GET` | `/market/stock/{symbol}/analysis/series` | Chuỗi chỉ báo theo từng phiên (18 chuỗi + nến) để vẽ biểu đồ theo nhóm; điểm cuối khớp `/analysis` |
 | `GET` | `/market/stock/{symbol}/analysis` | Phân tích kỹ thuật (EMA, RSI, MACD, Stochastic, ADX, OBV, MFI, Bollinger, ATR, Volume, S&R, Fibonacci, Signal, Confluence Score, Market Condition, Divergence) |
 
-**Lịch sử giá ngày là nến thật đã điều chỉnh (2026-11-28):** nguồn UDF của biểu đồ web 24hmoney (~3 năm), có dự phòng sang nguồn cũ chỉ giá đóng cửa; trường `adjusted` ở analysis/series/history; trang Thị trường ghi chú khi giá chưa điều chỉnh; EMA200 có giá trị.
+**Lịch sử giá ngày là nến thật đã điều chỉnh (2026-11-28):** nguồn UDF của biểu đồ web 24hmoney (~3 năm), có dự phòng sang nguồn cũ chỉ giá đóng cửa; trường `adjusted` ở analysis/series/history; trang Thị trường ghi chú khi giá chưa điều chỉnh; EMA200 có giá trị và được vẽ trên nhóm Xu hướng; mỗi mã gọi nguồn tối đa 1 lần/ngày, lỗi thì nghỉ, có bản lưu bền dự phòng (`adjusted_price_series`).
 
 **Services:** `MarketDataService` (FE), `HmoneyMarketDataProvider` (BE — implements `IMarketDataProvider` + `IStockInfoProvider`), `TechnicalIndicatorService` (BE — implements `ITechnicalIndicatorService`)
 

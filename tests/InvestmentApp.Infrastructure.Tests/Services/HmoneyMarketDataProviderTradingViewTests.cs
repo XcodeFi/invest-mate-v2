@@ -56,20 +56,71 @@ public class HmoneyMarketDataProviderTradingViewTests
     private static HttpResponseMessage Json(string body) =>
         new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
 
-    private static (HmoneyMarketDataProvider P, Handler H) Create(Action<Handler>? setup = null)
+    private static (HmoneyMarketDataProvider P, Handler H) Create(
+        Action<Handler>? setup = null, IAdjustedPriceSeriesStore? store = null, TimeProvider? time = null,
+        Mock<ILogger<HmoneyMarketDataProvider>>? logger = null)
     {
         var h = new Handler();
         setup?.Invoke(h);
         var client = new HttpClient(h) { BaseAddress = new Uri("https://api-test.example.com") };
         var p = new HmoneyMarketDataProvider(client, new MemoryCache(new MemoryCacheOptions()),
-            new Mock<ILogger<HmoneyMarketDataProvider>>().Object,
+            (logger ?? new Mock<ILogger<HmoneyMarketDataProvider>>()).Object,
             Options.Create(new MarketDataProviderOptions
             {
                 BaseUrl = "https://api-test.example.com",
                 TradingViewBaseUrl = TvBase,
-            }));
+            }), store, time);
         return (p, h);
     }
+
+    private sealed class FakeTime(DateTimeOffset start) : TimeProvider
+    {
+        private DateTimeOffset _now = start;
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan by) => _now += by;
+    }
+
+    private sealed class FakeStore : IAdjustedPriceSeriesStore
+    {
+        public Dictionary<string, AdjustedPriceSeriesSnapshot> Data { get; } = new();
+        public int GetCalls { get; private set; }
+        public int SaveCalls { get; private set; }
+        public bool ThrowOnGet { get; set; }
+        public bool ThrowOnSave { get; set; }
+
+        public Task<AdjustedPriceSeriesSnapshot?> GetAsync(string symbol, CancellationToken ct = default)
+        {
+            GetCalls++;
+            if (ThrowOnGet) throw new InvalidOperationException("mongo hỏng");
+            return Task.FromResult(Data.GetValueOrDefault(symbol));
+        }
+
+        public Task SaveAsync(string symbol, DateTime fetchedAtUtc, IReadOnlyList<StockPriceData> bars, CancellationToken ct = default)
+        {
+            SaveCalls++;
+            if (ThrowOnSave) throw new InvalidOperationException("mongo hỏng");
+            Data[symbol] = new AdjustedPriceSeriesSnapshot(symbol, fetchedAtUtc, bars.ToList());
+            return Task.CompletedTask;
+        }
+    }
+
+    private static AdjustedPriceSeriesSnapshot Snapshot(string symbol, DateTime fetchedAtUtc, int bars = 300, decimal close = 63_000m)
+    {
+        var last = DateTime.UtcNow.Date;
+        return new AdjustedPriceSeriesSnapshot(symbol, fetchedAtUtc, Enumerable.Range(0, bars).Select(i => new StockPriceData
+        {
+            Symbol = symbol, Date = last.AddDays(-(bars - 1 - i)), Open = close, High = close + 500, Low = close - 500,
+            Close = close, Volume = 1, IsAdjusted = true
+        }).ToList());
+    }
+
+    private static Func<HttpRequestMessage, HttpResponseMessage> HtmlWaf() =>
+        _ => Json("<!DOCTYPE html><html><body>Error. This page can't be displayed. The incident ID is: N/A.</body></html>");
+
+    private static void VerifyWarning(Mock<ILogger<HmoneyMarketDataProvider>> logger, string contains, Times times) =>
+        logger.Verify(l => l.Log(LogLevel.Warning, It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains(contains)), It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), times);
 
     private static Task<List<StockPriceData>> Year(HmoneyMarketDataProvider p, string sym = "FPT") =>
         p.GetHistoricalPricesAsync(sym, DateTime.UtcNow.AddMonths(-12), DateTime.UtcNow);
@@ -224,7 +275,7 @@ public class HmoneyMarketDataProviderTradingViewTests
     }
 
     [Fact]
-    public async Task both_sources_empty_is_not_cached()
+    public async Task both_sources_empty_is_not_cached_but_udf_still_rests()
     {
         var (p, h) = Create(x => x.GraphResp = _ =>
             Json("{\"message\":\"success\",\"status\":200,\"data\":{\"basic_price\":0,\"points\":[]}}"));
@@ -233,7 +284,8 @@ public class HmoneyMarketDataProviderTradingViewTests
         await Year(p);
 
         first.Should().BeEmpty();
-        h.TvUrls.Should().HaveCount(2, "chuỗi rỗng có thể chỉ là trục trặc nhất thời");
+        h.GraphUrls.Should().HaveCount(2, "chuỗi rỗng có thể chỉ là trục trặc nhất thời nên không đệm");
+        h.TvUrls.Should().ContainSingle("UDF vừa lỗi thì nghỉ, không bị gọi lại ngay");
     }
 
     [Fact]
@@ -245,5 +297,257 @@ public class HmoneyMarketDataProviderTradingViewTests
         await Year(p, "VNM");
 
         h.TvUrls.Should().HaveCount(2);
+    }
+
+    // ───────────── Gọi UDF thưa, lưu bản tốt cuối cùng, nghỉ khi lỗi ─────────────
+
+    private static readonly DateTimeOffset Morning = new(2026, 11, 30, 2, 0, 0, TimeSpan.Zero);   // 09:00 giờ Việt Nam
+
+    [Fact]
+    public async Task persisted_series_fetched_today_is_used_without_calling_udf()
+    {
+        var time = new FakeTime(Morning);
+        var store = new FakeStore();
+        store.Data["FPT"] = Snapshot("FPT", Morning.UtcDateTime.AddHours(-1), close: 63_000m);
+        var (p, h) = Create(store: store, time: time);
+
+        var bars = await Year(p);
+
+        h.TvUrls.Should().BeEmpty("đã lấy thành công hôm nay thì không gọi UDF nữa, kể cả sau khi khởi động lại");
+        h.GraphUrls.Should().BeEmpty();
+        bars.Should().NotBeEmpty().And.OnlyContain(b => b.IsAdjusted && b.Close == 63_000m);
+    }
+
+    [Fact]
+    public async Task udf_success_is_persisted_and_served_again_without_new_calls()
+    {
+        var store = new FakeStore();
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), store, new FakeTime(Morning));
+
+        await Year(p);
+        await Year(p);
+
+        h.TvUrls.Should().ContainSingle();
+        store.SaveCalls.Should().Be(1);
+        store.Data["FPT"].Bars.Should().HaveCount(300);
+        store.Data["FPT"].FetchedAtUtc.Should().Be(Morning.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task udf_is_called_at_most_once_per_symbol_per_vietnam_day()
+    {
+        var time = new FakeTime(Morning);   // 09:00 VN
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), time);
+
+        await Year(p);
+        time.Advance(TimeSpan.FromHours(9));    // 18:00 VN, cùng ngày
+        await Year(p);
+        h.TvUrls.Should().ContainSingle("cùng một ngày giao dịch");
+
+        time.Advance(TimeSpan.FromHours(7));    // 01:00 VN hôm sau
+        await Year(p);
+        h.TvUrls.Should().HaveCount(2, "sang ngày mới thì được lấy lại");
+    }
+
+    [Fact]
+    public async Task udf_is_called_once_per_day_even_when_there_is_no_persistent_store()
+    {
+        var time = new FakeTime(Morning);
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), store: null, time: time);
+
+        await Year(p);
+        time.Advance(TimeSpan.FromHours(9));   // 18:00 VN, cùng ngày
+        await Year(p);
+
+        h.TvUrls.Should().ContainSingle("bộ nhớ đệm chuỗi tốt sống tới hết ngày Việt Nam");
+    }
+
+    [Fact]
+    public async Task html_with_http_200_counts_as_failure_and_starts_a_cooldown()
+    {
+        var time = new FakeTime(Morning);
+        var (p, h) = Create(x => x.Tv = HtmlWaf(), new FakeStore(), time);
+
+        var first = await Year(p);
+        first.Should().OnlyContain(b => !b.IsAdjusted);
+
+        time.Advance(TimeSpan.FromMinutes(5));   // bộ nhớ đệm dự phòng (60 giây) đã hết
+        var second = await Year(p);
+
+        second.Should().OnlyContain(b => !b.IsAdjusted);
+        h.TvUrls.Should().ContainSingle("đang nghỉ 30 phút, không gọi lại UDF");
+        h.GraphUrls.Should().HaveCount(2, "chuỗi dự phòng chỉ đệm ngắn");
+    }
+
+    [Fact]
+    public async Task symbol_cooldown_ends_after_the_configured_minutes()
+    {
+        var time = new FakeTime(Morning);
+        var (p, h) = Create(x => x.Tv = HtmlWaf(), new FakeStore(), time);
+
+        await Year(p);
+        time.Advance(TimeSpan.FromMinutes(29));
+        await Year(p);
+        h.TvUrls.Should().ContainSingle();
+
+        time.Advance(TimeSpan.FromMinutes(2));   // 31 phút
+        await Year(p);
+
+        h.TvUrls.Should().HaveCount(2, "hết nghỉ thì thử đúng một lần");
+    }
+
+    [Fact]
+    public async Task several_failures_in_a_row_pause_udf_for_every_symbol()
+    {
+        var time = new FakeTime(Morning);
+        var (p, h) = Create(x => x.Tv = HtmlWaf(), new FakeStore(), time);
+
+        await Year(p, "AAA"); await Year(p, "BBB"); await Year(p, "CCC");
+        await Year(p, "DDD");
+
+        h.TvUrls.Should().HaveCount(3, "ba lần lỗi liên tiếp thì UDF nghỉ chung, mã thứ tư không bị gọi");
+
+        time.Advance(TimeSpan.FromMinutes(16));
+        await Year(p, "DDD");
+
+        h.TvUrls.Should().HaveCount(4, "hết nghỉ chung thì thăm dò một lần");
+    }
+
+    [Fact]
+    public async Task a_success_resets_the_failure_streak()
+    {
+        var time = new FakeTime(Morning);
+        var (p, h) = Create(x => x.Tv = req => req.RequestUri!.Query.Contains("symbol=OKK")
+            ? Json(TvOk(300)) : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable), new FakeStore(), time);
+
+        await Year(p, "AAA"); await Year(p, "BBB");   // 2 lỗi
+        await Year(p, "OKK");                        // thành công: về 0
+        await Year(p, "CCC"); await Year(p, "DDD");   // 2 lỗi nữa, vẫn dưới ngưỡng 3
+        await Year(p, "EEE");
+
+        h.TvUrls.Should().HaveCount(6, "chuỗi lỗi bị cắt bởi lần thành công nên chưa chạm ngưỡng chung");
+    }
+
+    [Fact]
+    public async Task failure_serves_the_last_good_persisted_series_never_the_flat_fallback()
+    {
+        var store = new FakeStore();
+        var time = new FakeTime(Morning);
+        var ok = true;
+        var (p, h) = Create(x => x.Tv = req => ok ? Json(TvOk(300)) : HtmlWaf()(req), store, time);
+        var day1 = await Year(p);
+        day1.Should().OnlyContain(b => b.IsAdjusted);
+
+        time.Advance(TimeSpan.FromHours(24));   // ngày hôm sau: chuỗi trong ngày hết hạn
+        ok = false;
+        var day2 = await Year(p);
+
+        day2.Should().HaveCount(day1.Count).And.OnlyContain(b => b.IsAdjusted, "vẫn là chuỗi đã điều chỉnh gần nhất");
+        h.GraphUrls.Should().BeEmpty("chuỗi dự phòng không được ghi đè hay thay thế một chuỗi tốt");
+    }
+
+    [Fact]
+    public async Task a_cached_fallback_never_shadows_a_good_series_persisted_meanwhile()
+    {
+        var store = new FakeStore();
+        var time = new FakeTime(Morning);
+        var (p, _) = Create(x => x.Tv = HtmlWaf(), store, time);
+        var first = await Year(p);
+        first.Should().OnlyContain(b => !b.IsAdjusted);   // UDF hỏng, chưa có bản lưu: dự phòng graph
+
+        // Một phiên bản khác của dịch vụ lấy được chuỗi tốt và lưu lại trong lúc đó.
+        store.Data["FPT"] = Snapshot("FPT", Morning.UtcDateTime.AddSeconds(5));
+        time.Advance(TimeSpan.FromSeconds(10));   // dự phòng (60 giây) chưa hết hạn
+        var second = await Year(p);
+
+        second.Should().NotBeEmpty().And.OnlyContain(b => b.IsAdjusted, "chuỗi dự phòng không được che chuỗi tốt");
+    }
+
+    [Fact]
+    public async Task persisted_series_older_than_a_day_is_flagged_in_the_log()
+    {
+        var store = new FakeStore();
+        var time = new FakeTime(Morning);
+        store.Data["FPT"] = Snapshot("FPT", Morning.UtcDateTime.AddDays(-3));
+        var logger = new Mock<ILogger<HmoneyMarketDataProvider>>();
+        var (p, _) = Create(x => x.Tv = HtmlWaf(), store, time, logger);
+
+        var bars = await Year(p);
+
+        bars.Should().NotBeEmpty().And.OnlyContain(b => b.IsAdjusted);
+        VerifyWarning(logger, "3 days old", Times.Once());
+    }
+
+    [Fact]
+    public async Task persisted_series_from_yesterday_is_not_flagged()
+    {
+        var store = new FakeStore();
+        var time = new FakeTime(Morning);
+        store.Data["FPT"] = Snapshot("FPT", Morning.UtcDateTime.AddDays(-1));
+        var logger = new Mock<ILogger<HmoneyMarketDataProvider>>();
+        var (p, _) = Create(x => x.Tv = HtmlWaf(), store, time, logger);
+
+        await Year(p);
+
+        VerifyWarning(logger, "days old", Times.Never());
+    }
+
+    [Fact]
+    public async Task no_persisted_series_and_udf_down_uses_graph_flagged_unadjusted()
+    {
+        var (p, h) = Create(x => x.Tv = HtmlWaf(), new FakeStore(), new FakeTime(Morning));
+
+        var bars = await Year(p);
+
+        bars.Should().HaveCount(60).And.OnlyContain(b => !b.IsAdjusted);
+        h.GraphUrls.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task failure_to_save_does_not_lose_the_series_just_fetched()
+    {
+        var store = new FakeStore { ThrowOnSave = true };
+        var (p, _) = Create(x => x.Tv = _ => Json(TvOk(300)), store, new FakeTime(Morning));
+
+        var bars = await Year(p);
+
+        bars.Should().OnlyContain(b => b.IsAdjusted);
+        bars.Count.Should().BeGreaterThan(200);
+    }
+
+    [Fact]
+    public async Task failure_to_read_the_store_still_tries_udf()
+    {
+        var store = new FakeStore { ThrowOnGet = true };
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), store, new FakeTime(Morning));
+
+        var bars = await Year(p);
+
+        h.TvUrls.Should().ContainSingle();
+        bars.Should().OnlyContain(b => b.IsAdjusted);
+    }
+
+    [Fact]
+    public async Task concurrent_requests_for_one_symbol_cause_one_udf_call()
+    {
+        var store = new FakeStore();
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), store, new FakeTime(Morning));
+
+        await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => Year(p)));
+
+        h.TvUrls.Should().ContainSingle();
+        store.SaveCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task intraday_never_touches_udf_store_or_cooldown()
+    {
+        var store = new FakeStore();
+        var (p, h) = Create(x => x.Tv = HtmlWaf(), store, new FakeTime(Morning));
+
+        await p.GetHistoricalPricesAsync("FPT", DateTime.UtcNow.AddHours(-6), DateTime.UtcNow);
+
+        h.TvUrls.Should().BeEmpty();
+        store.GetCalls.Should().Be(0);
     }
 }

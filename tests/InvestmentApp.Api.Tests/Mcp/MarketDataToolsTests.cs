@@ -39,6 +39,7 @@ public class MarketDataToolsTests
         Close = Enumerable.Range(0, n).Select(i => (decimal)i).ToList(),
         Volume = Enumerable.Range(0, n).Select(i => (long)i).ToList(),
         Ema20 = Enumerable.Range(0, n).Select(i => i < 20 ? (decimal?)null : i).ToList(),
+        Ema200 = Enumerable.Range(0, n).Select(_ => (decimal?)null).ToList(),
         Rsi14 = Enumerable.Range(0, n).Select(i => (decimal?)i).ToList(),
     };
 
@@ -237,7 +238,7 @@ public class MarketDataToolsTests
             .Where(kv => kv.Value is JsonArray)
             .ToDictionary(kv => kv.Key, kv => kv.Value!.AsArray().Count);
         lengths.Should().NotBeEmpty();
-        lengths.Values.Should().OnlyContain(c => c == 25, "mọi mảng (ngày, OHLCV, 18 chuỗi chỉ báo) phải cùng độ dài");
+        lengths.Values.Should().OnlyContain(c => c == 25, "mọi mảng (ngày, OHLCV, 19 chuỗi chỉ báo) phải cùng độ dài");
         lengths.Keys.Should().Contain(new[] { "dates", "open", "close", "volume", "ema20", "rsi14" });
     }
 

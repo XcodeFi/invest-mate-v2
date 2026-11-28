@@ -29,6 +29,8 @@ public class TechnicalSeriesResult
 
     public List<decimal?> Ema20 { get; set; } = new();
     public List<decimal?> Ema50 { get; set; } = new();
+    /// <summary>Chỉ có giá trị từ phiên thứ 200; trước đó và khi dưới 200 phiên là null.</summary>
+    public List<decimal?> Ema200 { get; set; } = new();
     public List<decimal?> BollingerUpper { get; set; } = new();
     public List<decimal?> BollingerMiddle { get; set; } = new();
     public List<decimal?> BollingerLower { get; set; } = new();

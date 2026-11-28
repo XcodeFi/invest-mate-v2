@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Text.Json;
 using InvestmentApp.Application.Interfaces;
@@ -23,6 +24,15 @@ public class MarketDataProviderOptions
 
     /// <summary>Số năm lịch sử ngày xin từ UDF (3 năm ≈ 750 phiên, đủ cho EMA200 có thời gian hội tụ).</summary>
     public int TradingViewHistoryYears { get; set; } = 3;
+
+    /// <summary>Sau một lần UDF lỗi cho một mã, không gọi lại UDF cho mã đó trong chừng này phút (không thử lại theo vòng).</summary>
+    public int TradingViewFailureCooldownMinutes { get; set; } = 30;
+
+    /// <summary>Số lần lỗi LIÊN TIẾP (bất kể mã) để coi UDF đang chặn cả IP và ngừng gọi cho mọi mã.</summary>
+    public int TradingViewGlobalFailureThreshold { get; set; } = 3;
+
+    /// <summary>Thời gian ngừng gọi UDF cho mọi mã sau khi chạm ngưỡng lỗi liên tiếp.</summary>
+    public int TradingViewGlobalCooldownMinutes { get; set; } = 15;
 }
 
 /// <summary>
@@ -36,6 +46,20 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     private readonly IMemoryCache _cache;
     private readonly ILogger<HmoneyMarketDataProvider> _logger;
     private readonly MarketDataProviderOptions _options;
+    private readonly IAdjustedPriceSeriesStore? _store;
+    private readonly TimeProvider _time;
+
+    // Mỗi mã một cổng: nhiều yêu cầu đồng thời cho cùng mã chỉ gây đúng một lần gọi UDF.
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> SymbolGates = new();
+
+    private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+    private static readonly TimeSpan PersistedReadCache = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan FallbackCache = TimeSpan.FromSeconds(60);
+
+    private sealed record Timed<T>(T Value, DateTimeOffset Until);
+
+    /// <summary>Số lần UDF lỗi liên tiếp (dùng chung mọi mã trong cùng một bộ nhớ đệm).</summary>
+    private sealed class FailureStreak { public int Count; }
 
     // 24hmoney returns stock prices in units of 1,000 VND
     private const decimal PriceScale = 1000m;
@@ -65,12 +89,16 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         HttpClient httpClient,
         IMemoryCache cache,
         ILogger<HmoneyMarketDataProvider> logger,
-        IOptions<MarketDataProviderOptions> options)
+        IOptions<MarketDataProviderOptions> options,
+        IAdjustedPriceSeriesStore? store = null,
+        TimeProvider? timeProvider = null)
     {
         _httpClient = httpClient;
         _cache = cache;
         _logger = logger;
         _options = options.Value;
+        _store = store;
+        _time = timeProvider ?? TimeProvider.System;
     }
 
     private static decimal ScalePrice(decimal raw) => raw * PriceScale;
@@ -116,26 +144,164 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     private async Task<List<StockPriceData>> GetDailyBarsAsync(
         string symbol, DateTime from, DateTime to, CancellationToken cancellationToken)
     {
-        // Một khoá cho cả hai nguồn: người gọi không cần biết bản nào, chỉ cần cờ IsAdjusted trên từng nến.
-        var cacheKey = $"history:{symbol}:daily";
-        if (!_cache.TryGetValue(cacheKey, out List<StockPriceData>? series))
-        {
-            series = await FetchTradingViewAsync(symbol, cancellationToken);
-            if (series == null)
-            {
-                series = await FetchGraphSeriesAsync(symbol, DailyGraphType, cancellationToken);
-                if (series == null || series.Count == 0)
-                    return new List<StockPriceData>();
-            }
-
-            // Cache chuỗi CHƯA lọc (mọi khoảng dùng chung khoá). Kết quả dự phòng cũng được cache để một
-            // nguồn đang hỏng không bị gọi dồn dập; chuỗi RỖNG thì không cache (có thể chỉ trục trặc nhất thời).
-            _cache.Set(cacheKey, series, TimeSpan.FromSeconds(60));
-        }
-
-        return series!
+        var series = await GetDailySeriesAsync(symbol, cancellationToken);
+        return series
             .Where(p => p.Date >= from.Date && p.Date <= to.Date)
             .ToList();
+    }
+
+    private DateTimeOffset Now => _time.GetUtcNow();
+    private DateTime VietnamDate(DateTimeOffset utc) => (utc + VietnamOffset).Date;
+
+    private bool TryFresh<T>(string key, out T value)
+    {
+        if (_cache.TryGetValue(key, out Timed<T>? entry) && entry != null && Now < entry.Until)
+        {
+            value = entry.Value;
+            return true;
+        }
+        value = default!;
+        return false;
+    }
+
+    private void SetTimed<T>(string key, T value, DateTimeOffset until) =>
+        _cache.Set(key, new Timed<T>(value, until), TimeSpan.FromHours(26));   // hạn thật do `Until` quyết, theo đồng hồ của provider
+
+    private DateTimeOffset EndOfVietnamDay() =>
+        new DateTimeOffset(VietnamDate(Now).AddDays(1), VietnamOffset);
+
+    /// <summary>
+    /// Thứ tự đọc (chuỗi CHƯA lọc theo khoảng): bộ nhớ đệm chuỗi tốt trong ngày → bản đã lưu bền nếu lấy trong
+    /// hôm nay → UDF (nếu không đang nghỉ) → bản đã lưu bền cũ hơn → nguồn graph cũ (<c>IsAdjusted=false</c>).
+    /// UDF tối đa một lần mỗi mã mỗi ngày; lỗi thì mã đó nghỉ, nhiều mã lỗi liên tiếp thì cả UDF nghỉ. Không thử lại theo vòng.
+    /// Chuỗi graph dự phòng nằm ở khoá riêng nên KHÔNG BAO GIỜ ghi đè một chuỗi tốt.
+    /// </summary>
+    private async Task<List<StockPriceData>> GetDailySeriesAsync(string symbol, CancellationToken cancellationToken)
+    {
+        var goodKey = $"tv:good:{symbol}";
+        if (TryFresh(goodKey, out List<StockPriceData> good))
+            return good;
+
+        var gate = SymbolGates.GetOrAdd(symbol, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (TryFresh(goodKey, out good))
+                return good;
+
+            // Bản lưu bền cũng là "bộ nhớ đệm": lấy trong hôm nay thì không gọi UDF nữa, kể cả sau khi khởi động lại.
+            var snapshot = await ReadSnapshotAsync(symbol, cancellationToken);
+            if (snapshot != null && VietnamDate(snapshot.FetchedAtUtc) == VietnamDate(Now))
+            {
+                var bars = snapshot.Bars.ToList();
+                SetTimed(goodKey, bars, EndOfVietnamDay());
+                return bars;
+            }
+
+            if (!UdfCooledDown(symbol))
+            {
+                var fetched = await FetchTradingViewAsync(symbol, cancellationToken);
+                if (fetched != null)
+                {
+                    RecordUdfSuccess();
+                    SetTimed(goodKey, fetched, EndOfVietnamDay());
+                    await SaveSnapshotAsync(symbol, fetched, cancellationToken);
+                    return fetched;
+                }
+                RecordUdfFailure(symbol);
+            }
+
+            if (snapshot != null)
+            {
+                var ageDays = (VietnamDate(Now) - VietnamDate(snapshot.FetchedAtUtc)).Days;
+                if (ageDays >= 2)
+                    _logger.LogWarning(
+                        "Serving a persisted adjusted series for {Symbol} that is {Days} days old (source unavailable); a newer ex-date may be missing",
+                        symbol, ageDays);
+                return snapshot.Bars.ToList();
+            }
+
+            var fallbackKey = $"tv:fallback:{symbol}";
+            if (TryFresh(fallbackKey, out List<StockPriceData> cachedFallback))
+                return cachedFallback;
+
+            var graph = await FetchGraphSeriesAsync(symbol, DailyGraphType, cancellationToken);
+            if (graph == null || graph.Count == 0)
+                return new List<StockPriceData>();   // rỗng thì không đệm: có thể chỉ trục trặc nhất thời
+
+            SetTimed(fallbackKey, graph, Now + FallbackCache);
+            return graph;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<AdjustedPriceSeriesSnapshot?> ReadSnapshotAsync(string symbol, CancellationToken cancellationToken)
+    {
+        if (_store == null) return null;
+
+        var key = $"tv:persisted:{symbol}";
+        if (TryFresh(key, out AdjustedPriceSeriesSnapshot? cached))
+            return cached;
+
+        try
+        {
+            var snapshot = await _store.GetAsync(symbol, cancellationToken);
+            if (snapshot != null)
+                SetTimed(key, snapshot, Now + PersistedReadCache);   // tránh đọc Mongo mỗi lần khi UDF đang nghỉ
+            return snapshot;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read persisted adjusted series for {Symbol}", symbol);
+            return null;
+        }
+    }
+
+    private async Task SaveSnapshotAsync(string symbol, List<StockPriceData> bars, CancellationToken cancellationToken)
+    {
+        if (_store == null) return;
+        try
+        {
+            await _store.SaveAsync(symbol, Now.UtcDateTime, bars, cancellationToken);
+            SetTimed($"tv:persisted:{symbol}", new AdjustedPriceSeriesSnapshot(symbol, Now.UtcDateTime, bars), Now + PersistedReadCache);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Lưu hỏng chỉ mất bản dự phòng, không làm hỏng kết quả vừa lấy được.
+            _logger.LogWarning(ex, "Failed to persist adjusted series for {Symbol}", symbol);
+        }
+    }
+
+    private bool UdfCooledDown(string symbol) =>
+        TryFresh("tv:cooldown:global", out bool _) || TryFresh($"tv:cooldown:{symbol}", out bool _);
+
+    private FailureStreak Streak() =>
+        _cache.GetOrCreate("tv:fail-streak", e => { e.SetSlidingExpiration(TimeSpan.FromHours(1)); return new FailureStreak(); })!;
+
+    private void RecordUdfSuccess() => Interlocked.Exchange(ref Streak().Count, 0);
+
+    private void RecordUdfFailure(string symbol)
+    {
+        SetTimed($"tv:cooldown:{symbol}", true, Now.AddMinutes(_options.TradingViewFailureCooldownMinutes));
+        var count = Interlocked.Increment(ref Streak().Count);
+        if (count >= _options.TradingViewGlobalFailureThreshold)
+        {
+            SetTimed("tv:cooldown:global", true, Now.AddMinutes(_options.TradingViewGlobalCooldownMinutes));
+            _logger.LogWarning(
+                "TradingView history failed {Count} times in a row; pausing all calls for {Minutes} minutes",
+                count, _options.TradingViewGlobalCooldownMinutes);
+        }
     }
 
     /// <summary>

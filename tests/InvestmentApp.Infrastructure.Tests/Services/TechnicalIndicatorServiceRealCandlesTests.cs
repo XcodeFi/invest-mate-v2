@@ -68,6 +68,40 @@ public class TechnicalIndicatorServiceRealCandlesTests
     }
 
     [Fact]
+    public async Task Series_Ema200_HasValuesFrom200thSessionAndEndsAtTheAnalysisScalar()
+    {
+        Setup(Trending(300, adjusted: true));
+
+        var s = await _sut.GetSeriesAsync("FPT");
+        var a = await _sut.AnalyzeAsync("FPT");
+
+        s.Ema200.Should().HaveCount(300);
+        s.Ema200.Take(199).Should().OnlyContain(v => v == null);
+        s.Ema200[199].Should().NotBeNull();
+        s.Ema200.Last().Should().Be(a.Ema200, "đường vẽ phải khớp con số trên thẻ");
+    }
+
+    [Fact]
+    public async Task Series_Ema200_IsAllNullWhenFewerThan200Sessions()
+    {
+        Setup(Trending(150, adjusted: true));
+
+        var s = await _sut.GetSeriesAsync("FPT");
+
+        s.Ema200.Should().HaveCount(150).And.OnlyContain(v => v == null);
+    }
+
+    [Fact]
+    public async Task Series_Ema200_IsAllNullWhenFewerThan20Sessions()
+    {
+        Setup(Trending(10, adjusted: true));
+
+        var s = await _sut.GetSeriesAsync("FPT");
+
+        s.Ema200.Should().HaveCount(10).And.OnlyContain(v => v == null);
+    }
+
+    [Fact]
     public async Task Series_AtrUsesCandleRange_NotOnlyCloses()
     {
         // Đóng cửa phẳng: tính chỉ từ giá đóng cửa thì ATR = 0. Râu nến ±2.000 cho True Range = 4.000.
