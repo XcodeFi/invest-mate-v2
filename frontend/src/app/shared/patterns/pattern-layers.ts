@@ -35,9 +35,9 @@ export function buildPatternLayers(c: PatternCandidate, s: TechnicalSeries): Gro
     overlays,
     panes: [],
     priceLines: [
-      { label: `Pivot ${price(c.pivotPrice)} (${pivotNote})`, price: c.pivotPrice },
-      { label: `Cắt lỗ ${price(c.stopPrice)} (−${pct(c.riskPct)}% từ pivot)`, price: c.stopPrice },
-      { label: `Mục tiêu đo ${price(c.targetPrice)} (+${pct(c.rewardPct)}% · ${pct(c.rewardRisk)}R)`, price: c.targetPrice },
+      { label: `Pivot ${price(c.pivotPrice)} (${pivotNote})`, shortLabel: 'Pivot', price: c.pivotPrice },
+      { label: `Cắt lỗ ${price(c.stopPrice)} (−${pct(c.riskPct)}% từ pivot)`, shortLabel: `Cắt lỗ −${pct(c.riskPct)}%`, price: c.stopPrice },
+      { label: `Mục tiêu đo ${price(c.targetPrice)} (+${pct(c.rewardPct)}% · ${pct(c.rewardRisk)}R)`, shortLabel: `Mục tiêu +${pct(c.rewardPct)}% · ${pct(c.rewardRisk)}R`, price: c.targetPrice },
     ],
     notes: [],
   };

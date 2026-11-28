@@ -234,10 +234,181 @@ public class TrapDetectorTests
     {
         var e = TrapDetector.Detect(After(103m, 102m, 100m, 100m, 100m, 100m, 100.2m)).Single();
 
-        typeof(TrapEvent).GetProperties().Select(p => p.Name.ToLowerInvariant())
-            .Should().NotContain(n => n.Contains("score") || n.Contains("probab") || n.Contains("rate") || n.Contains("freq") || n.Contains("win") || n.Contains("confidence"));
+        // Danh sách cho phép TUYỆT ĐỐI các thành viên của TrapEvent (phản chiếu trên kiểu, không trên một mẫu): thêm bất kỳ trường nào, kể cả "SuccessPct", "WinPct"
+        // hay "Confidence", đều làm test đỏ và buộc người thêm phải sửa test này một cách có chủ ý. Không có trường thống kê nào được phép lọt qua.
+        typeof(TrapEvent).GetProperties().Select(p => p.Name).Should().BeEquivalentTo(new[]
+        {
+            "Type", "TypeVi", "BreakoutDate", "ReturnDate", "ConfirmedDate", "LevelPrice", "StopPrice", "RiskPct", "ExcursionPct", "Description", "Disclaimer"
+        });
         e.Disclaimer.Should().Contain("sau 5 phiên").And.Contain("không phải dự báo");
         e.TypeVi.Should().NotBeNullOrWhiteSpace();
         e.Description.Should().NotBeNullOrWhiteSpace();
+    }
+
+    // ---------------- tiền "nếu sai": số đúng từng chữ số
+
+    [Fact]
+    public void the_failed_breakout_risk_pct_is_measured_from_the_pivot_exactly()
+    {
+        // một nến trong 10 phiên trước có bấc thấp 90 (đóng cửa vẫn 100): cắt lỗ = 90 × 0,99 = 89,1; rủi ro = (100,4 − 89,1) / 100,4 = 11,3%
+        var bars = After(103m, 102m, 100m, 100m, 100m, 100m, 100m);
+        bars[25].Low = 90m;
+
+        var e = TrapDetector.Detect(bars).Single();
+
+        e.StopPrice.Should().Be(89.1m);
+        e.RiskPct.Should().Be(11.3m, "chia cho cắt lỗ thay vì pivot sẽ ra 12,7");
+    }
+
+    [Fact]
+    public void the_bear_trap_risk_and_excursion_are_measured_from_the_support_exactly()
+    {
+        var bars = After(96m, 97m, 100m, 100m, 100m, 100m, 100m);   // thủng 96 (thấp 95,616), quay lại ở phiên 32
+
+        var e = TrapDetector.Detect(bars).Single(x => x.Type == "bear-trap");
+
+        e.StopPrice.Should().Be(95.616m * 0.99m);
+        e.RiskPct.Should().Be(5.0m, "(99,6 − 94,65984) / 99,6 = 4,96%; chia cho cắt lỗ sẽ ra 5,2");
+        e.ExcursionPct.Should().Be(4.0m);
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(9, true)]
+    [InlineData(10, true)]
+    [InlineData(11, false)]
+    public void the_stop_uses_the_lowest_low_of_the_ten_sessions_before_the_breakout_and_not_older_ones(int sessionsBefore, bool counts)
+    {
+        var bars = After(103m, 102m, 100m, 100m, 100m, 100m, 100m);
+        bars[30 - sessionsBefore].Low = 90m;
+
+        var e = TrapDetector.Detect(bars).Single();
+
+        e.StopPrice.Should().Be(counts ? 89.1m : 99.6m * 0.99m);
+        e.RiskPct.Should().Be(counts ? 11.3m : 1.8m);
+    }
+
+    [Fact]
+    public void the_excursion_looks_only_at_the_five_sessions_after_the_breakout_not_at_the_breakout_bar_itself()
+    {
+        var bars = After(103m, 102m, 100m, 100m, 100m, 100m, 100m);
+        bars[30].Low = 80m;   // nến phá vỡ có bấc rất thấp: không được tính vào mức đi xuyên qua
+
+        var e = TrapDetector.Detect(bars).Single();
+
+        e.ExcursionPct.Should().Be(0.8m, "(100,4 − 99,6) / 100,4; tính cả nến phá vỡ sẽ ra 20,3");
+        e.StopPrice.Should().Be(99.6m * 0.99m, "nến phá vỡ cũng không nằm trong cửa sổ cắt lỗ (các phiên TRƯỚC nó)");
+    }
+
+    // ---------------- biên cửa sổ
+
+    [Fact]
+    public void a_high_exactly_twenty_sessions_before_the_breakout_is_part_of_the_pivot_but_twenty_one_is_not()
+    {
+        var inside = After(103m, 102m, 100m, 100m, 100m, 100m, 100m);
+        inside[10].High = 105m;     // t − 20: cao hơn mọi nến khác → pivot = 105 → đóng 103 không phải vượt
+        var outside = After(103m, 102m, 100m, 100m, 100m, 100m, 100m);
+        outside[9].High = 105m;     // t − 21: ngoài cửa sổ → pivot vẫn 100,4
+
+        TrapDetector.Detect(inside).Should().BeEmpty();
+        TrapDetector.Detect(outside).Should().ContainSingle();
+    }
+
+    [Fact]
+    public void a_low_exactly_twenty_sessions_before_the_break_is_part_of_the_support_but_twenty_one_is_not()
+    {
+        var inside = After(96m, 97m, 100m, 100m, 100m, 100m, 100m);
+        inside[10].Low = 90m;       // t − 20: hỗ trợ = 90 → đóng 96 không phải thủng
+        var outside = After(96m, 97m, 100m, 100m, 100m, 100m, 100m);
+        outside[9].Low = 90m;       // t − 21: ngoài cửa sổ
+
+        TrapDetector.Detect(inside).Should().BeEmpty();
+        TrapDetector.Detect(outside).Should().ContainSingle(x => x.Type == "bear-trap");
+    }
+
+    [Fact]
+    public void the_earliest_detectable_breakout_is_the_twenty_second_bar_and_the_twenty_first_is_not_examined()
+    {
+        var first = Closes(Flat(21).Concat(new[] { 103m, 100m, 100m, 100m, 100m, 100m }).ToArray());      // t = 21
+        var before = Closes(Flat(20).Concat(new[] { 103m, 100m, 100m, 100m, 100m, 100m }).ToArray());     // t = 20
+
+        TrapDetector.Detect(first).Should().ContainSingle();
+        TrapDetector.Detect(before).Should().BeEmpty("chưa đủ lịch sử để xét nến thứ 21");
+    }
+
+    [Theory]
+    [InlineData(20, 2)]
+    [InlineData(19, 1)]
+    public void a_second_failed_breakout_is_reported_only_when_it_is_at_least_twenty_sessions_after_the_first(int gap, int expected)
+    {
+        var closes = Flat(30).Concat(new[] { 103m, 100m, 100m, 100m, 100m, 100m }).ToList();   // t1 = 30
+        closes.AddRange(Flat(gap - 6));
+        closes.AddRange(new[] { 104m, 100m, 100m, 100m, 100m, 100m, 100m });                   // t2 = 30 + gap
+
+        TrapDetector.Detect(Closes(closes.ToArray())).Where(e => e.Type == "failed-breakout").Should().HaveCount(expected);
+    }
+
+    [Theory]
+    [InlineData(20, 2)]
+    [InlineData(19, 1)]
+    public void a_second_bear_trap_is_reported_only_when_it_is_at_least_twenty_sessions_after_the_first(int gap, int expected)
+    {
+        var closes = Flat(30).Concat(new[] { 90m, 100m, 100m, 100m, 100m, 100m }).ToList();   // t1 = 30
+        closes.AddRange(Flat(gap - 6));
+        closes.AddRange(new[] { 85m, 100m, 100m, 100m, 100m, 100m, 100m });                    // t2 = 30 + gap, thủng dưới đáy 89,64
+
+        TrapDetector.Detect(Closes(closes.ToArray())).Where(e => e.Type == "bear-trap").Should().HaveCount(expected);
+    }
+
+    [Fact]
+    public void a_close_exactly_at_the_support_is_not_a_break_below_it()
+    {
+        var bars = After(99.6m, 100m, 100m, 100m, 100m, 100m, 100m);   // hỗ trợ = 99,6; đóng cửa đúng 99,6 chưa phải thủng
+
+        TrapDetector.Detect(bars).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void a_return_exactly_on_the_fifth_session_still_counts_for_a_failed_breakout()
+    {
+        var bars = After(103m, 104m, 104m, 104m, 104m, 100m);   // t = 30; t+1..t+4 trên pivot, t+5 (phiên 35) đóng 100 < 100,4
+
+        var e = TrapDetector.Detect(bars).Should().ContainSingle().Subject;
+
+        e.ReturnDate.Should().Be(bars[35].Date);
+        e.ConfirmedDate.Should().Be(bars[35].Date);
+    }
+
+    [Fact]
+    public void a_return_exactly_on_the_fifth_session_still_counts_for_a_bear_trap()
+    {
+        var bars = After(96m, 96m, 96m, 96m, 96m, 100m);   // thủng ở t = 30, quay lại trên hỗ trợ 99,6 đúng ở t+5
+
+        var e = TrapDetector.Detect(bars).Should().ContainSingle(x => x.Type == "bear-trap").Subject;
+
+        e.ReturnDate.Should().Be(bars[35].Date);
+    }
+
+    [Fact]
+    public void the_excursion_covers_the_whole_confirmation_window_including_lows_after_the_first_return()
+    {
+        var bars = After(103m, 102m, 100m, 100m, 100m, 100m, 100m);   // quay lại ở phiên 32
+        bars[34].Low = 90m;                                          // bấc thấp ở t+4, SAU lúc quay lại nhưng còn trong cửa sổ
+
+        var e = TrapDetector.Detect(bars).Single();
+
+        e.ExcursionPct.Should().Be(10.4m, "(100,4 − 90) / 100,4");
+    }
+
+    [Fact]
+    public void each_type_carries_its_own_vietnamese_name()
+    {
+        var failed = TrapDetector.Detect(After(103m, 102m, 100m, 100m, 100m, 100m, 100m)).Single();
+        var bear = TrapDetector.Detect(After(96m, 97m, 100m, 100m, 100m, 100m, 100m)).Single(x => x.Type == "bear-trap");
+
+        failed.TypeVi.Should().Be("Phá vỡ thất bại");
+        bear.TypeVi.Should().Be("Bẫy giảm giá");
+        failed.Description.Should().Contain("trở lại dưới pivot");
+        bear.Description.Should().Contain("trở lại trên hỗ trợ");
     }
 }

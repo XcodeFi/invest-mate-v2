@@ -63,6 +63,13 @@ describe('buildPatternLayers: vẽ cốc, tay cầm, pivot, cắt lỗ, mục ti
     expect(l.overlays[0].values.filter(v => v !== null).length).toBe(7);
   });
 
+  it('every line also has a short chart title (Pivot, Cắt lỗ −X%, Mục tiêu +Y% · NR) so the labels on the chart do not pile up at the right edge', () => {
+    const l = buildPatternLayers(cup(), series());
+
+    expect(l.priceLines.map(p => p.shortLabel)).toEqual(['Pivot', 'Cắt lỗ −9,7%', 'Mục tiêu +15,7% · 1,6R']);
+    l.priceLines.forEach(p => expect(p.shortLabel!.length).withContext(p.label).toBeLessThan(p.label.length));
+  });
+
   it('adds no price level of its own beyond the three and no notes or panes', () => {
     const l = buildPatternLayers(cup(), series());
 

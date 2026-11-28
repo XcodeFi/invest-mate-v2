@@ -159,4 +159,36 @@ public class TechnicalIndicatorServicePatternTests
 
         result.TrapEvents.Should().NotBeNull().And.BeEmpty();
     }
+
+    /// <summary>Phá vỡ thất bại có phiên xác nhận t+5 chính là nến "hôm nay" 2026-11-28 (nến cuối của chuỗi).</summary>
+    private static List<StockPriceData> TrapConfirmedByTodaysBar()
+    {
+        var closes = Enumerable.Repeat(100m, 30).Concat(new[] { 103m, 100m, 100m, 100m, 100m, 100m }).ToList();   // t = 30, t+5 = 35 = nến cuối
+        var today = new DateTime(2026, 11, 28);
+        return closes.Select((c, i) => new StockPriceData
+        {
+            Symbol = "TST", Date = today.AddDays(i - (closes.Count - 1)), Open = c, High = c * 1.004m, Low = c * 0.996m, Close = c, Volume = 1_000_000, IsAdjusted = true
+        }).ToList();
+    }
+
+    [Fact]
+    public async Task a_trap_whose_confirmation_session_is_todays_unfinished_bar_is_not_reported_before_the_vietnam_close()
+    {
+        Prices(TrapConfirmedByTodaysBar());
+
+        // 10:00 giờ Việt Nam: nến hôm nay còn đang hình thành → bỏ → cửa sổ t+5 chưa trọn → chưa có mốc
+        var result = await Sut(new DateTimeOffset(2026, 11, 28, 3, 0, 0, TimeSpan.Zero)).AnalyzeAsync("TST");
+
+        result.TrapEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task the_same_trap_is_reported_after_the_vietnam_close_when_todays_bar_is_final()
+    {
+        Prices(TrapConfirmedByTodaysBar());
+
+        var result = await Sut(new DateTimeOffset(2026, 11, 28, 9, 0, 0, TimeSpan.Zero)).AnalyzeAsync("TST");
+
+        result.TrapEvents.Should().ContainSingle().Which.Type.Should().Be("failed-breakout");
+    }
 }

@@ -172,8 +172,12 @@ public class MarketDataToolsTests
         c["rewardRisk"]!.GetValue<decimal>().Should().Be(2.3m);
         c["criteria"]!.AsArray().Single()!["passed"]!.GetValue<bool>().Should().BeTrue();
         c["disclaimer"]!.GetValue<string>().Should().Contain("không phải tín hiệu mua");
-        var names = c.Select(kv => kv.Key.ToLowerInvariant()).ToList();
-        names.Should().NotContain(n => n.Contains("score") || n.Contains("confidence") || n.Contains("probab"));
+        // Tập khoá JSON chính xác (mẫu có đủ mọi trường): trường lạ, kể cả tên không chứa từ khoá nào, làm test đỏ.
+        c.Select(kv => kv.Key).Should().BeEquivalentTo(new[]
+        {
+            "type", "typeVi", "state", "stateVi", "startDate", "bottomDate", "rightLipDate", "cupLengthWeeks", "cupDepthPct", "handleLengthSessions", "handleDepthPct",
+            "pivotPrice", "distanceToPivotPct", "volumeVsAvg50", "stopPrice", "riskPct", "targetPrice", "rewardPct", "rewardRisk", "criteria", "disclaimer"
+        });
     }
 
     private static TrapEvent Trap() => new()
@@ -198,7 +202,10 @@ public class MarketDataToolsTests
         e["excursionPct"]!.GetValue<decimal>().Should().Be(0.8m);
         e["confirmedDate"]!.GetValue<DateTime>().Should().Be(new DateTime(2026, 8, 10));
         e["disclaimer"]!.GetValue<string>().Should().Contain("không phải dự báo");
-        e.Select(kv => kv.Key.ToLowerInvariant()).Should().NotContain(n => n.Contains("probab") || n.Contains("rate") || n.Contains("freq") || n.Contains("score"));
+        e.Select(kv => kv.Key).Should().BeEquivalentTo(new[]
+        {
+            "type", "typeVi", "breakoutDate", "returnDate", "confirmedDate", "levelPrice", "stopPrice", "riskPct", "excursionPct", "description", "disclaimer"
+        });
     }
 
     [Fact]

@@ -231,6 +231,41 @@ describe('IndicatorChartComponent', () => {
       });
     });
 
+    describe('tiêu đề đường ngang trên biểu đồ', () => {
+      it('the chart title is the short label when there is one, while the legend below keeps the full label', () => {
+        setInputs(layers([]));
+        const proto = Object.getPrototypeOf((component as any).charts[0]);
+        const original = proto.addCandlestickSeries;
+        const titles: string[] = [];
+        spyOn(proto, 'addCandlestickSeries').and.callFake(function (this: any, ...args: any[]) {
+          const series = original.apply(this, args);
+          const create = series.createPriceLine.bind(series);
+          series.createPriceLine = (opts: any) => { titles.push(opts.title); return create(opts); };
+          return series;
+        });
+
+        setInputs({ overlays: [], panes: [], notes: [], priceLines: [
+          { label: 'Pivot 108 (còn 2,1% tới pivot)', shortLabel: 'Pivot', price: 108 },
+          { label: 'Giá vào', price: 100 },
+        ] });
+
+        expect(titles).toEqual(['Pivot', 'Giá vào']);
+        const items = Array.from(root().querySelectorAll('[data-testid="price-line-item"]')).map(i => (i.textContent ?? '').trim());
+        expect(items[0]).toContain('Pivot 108 (còn 2,1% tới pivot)');
+      });
+
+      it('the measured target is drawn green like other take-profit levels and the stop red', () => {
+        setInputs({ overlays: [], panes: [], notes: [], priceLines: [
+          { label: 'Mục tiêu đo 125 (+15,7% · 1,6R)', price: 125 },
+          { label: 'Cắt lỗ 97,5 (−9,7% từ pivot)', price: 97.5 },
+          { label: 'Pivot 108', price: 108 },
+        ] });
+
+        const swatches = Array.from(root().querySelectorAll('[data-testid="price-line-swatch"]')).map(s => (s as HTMLElement).style.borderTopColor);
+        expect(swatches).toEqual(['rgb(22, 163, 74)', 'rgb(220, 38, 38)', 'rgb(37, 99, 235)']);
+      });
+    });
+
     describe('nhãn giá cuối trên trục', () => {
       it('every indicator line shows its last value as an axis tag', () => {
         setInputs(layers(['RSI']));

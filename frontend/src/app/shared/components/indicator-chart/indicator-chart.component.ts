@@ -224,7 +224,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     layers.priceLines.forEach(pl => {
       candleSeries.createPriceLine({
         price: pl.price, color: this.priceLineColor(pl.label), lineWidth: 1,
-        lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: pl.label
+        lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: pl.shortLabel ?? pl.label
       });
     });
     this.anchors.push({ chart: priceChart, series: candleSeries, values: this.candles.close });
@@ -553,7 +553,7 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
 
   private priceLineColor(label: string): string {
     if (label.startsWith('Cắt lỗ') || label.startsWith('Kháng cự')) return '#dc2626';
-    if (label.startsWith('Chốt lời') || label.startsWith('Hỗ trợ')) return '#16a34a';
+    if (label.startsWith('Chốt lời') || label.startsWith('Hỗ trợ') || label.startsWith('Mục tiêu')) return '#16a34a';
     if (label.startsWith('Fib')) return '#f59e0b';
     if (label.endsWith('swing')) return '#64748b';
     return '#2563eb';
