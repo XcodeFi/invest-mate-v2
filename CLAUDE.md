@@ -63,6 +63,12 @@
 - Services nằm trong `core/services/`, shared code trong `shared/`.
 - **Commit message bằng tiếng Việt có dấu đầy đủ**, rõ và cụ thể (VD: `fix(mcp): nhận tham số phẳng thay cho lớp bọc command`). Giữ prefix conventional-commit tiếng Anh (`feat`/`fix`/`docs`/`refactor`). UI text cũng tiếng Việt có dấu.
 
+## Chế độ tối (mặc định)
+
+- App mở ở chế độ tối (`html.dark`, ThemeService, script trong `index.html`). Màu sáng của Tailwind được ánh xạ toàn cục trong `frontend/src/styles/dark-theme.css`: **component mới dùng các class sẵn có** (`bg-white`, `bg-gray-50`, `text-gray-500/700`, `border-gray-200/300`, `bg-red-50`, `text-green-600`...) là tự đúng ở cả hai chế độ, hoặc dùng biến thể `dark:` (đã bật `darkMode: 'class'`).
+- **Không** viết cứng màu sáng ngoài bảng ánh xạ (hex trong `styles: [...]` hoặc `style="..."`): nếu bắt buộc, thêm luật `html.dark ...` tương ứng vào `dark-theme.css`. Màu mới trong `dark-theme.css` phải đạt WCAG AA (test `dark-theme-contrast.spec.ts` đọc file này).
+- Biểu đồ: lightweight-charts lấy màu từ `indicator-chart.theme.ts`; Chart.js dùng `chartjs-theme.ts` (đặt mặc định và dựng lại khi đổi chế độ). **Xem thử mọi giao diện mới ở chế độ tối trước khi commit.**
+
 ## Trước khi Commit
 
 - **Cập nhật tài liệu liên quan** mỗi khi thay đổi code:
