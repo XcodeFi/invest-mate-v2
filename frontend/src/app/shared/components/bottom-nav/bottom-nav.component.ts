@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { NAV_GROUPS, NavGroup } from '../../nav/nav-config';
 
 interface NavItem {
   path: string;
@@ -40,17 +41,20 @@ interface NavItem {
         </button>
       </div>
 
-      <!-- More menu bottom sheet -->
+      <!-- More menu bottom sheet: đọc từ NAV_GROUPS (cùng nguồn với menu trái), bỏ bốn trang đã có trên thanh -->
       <div *ngIf="showMore" class="border-t border-gray-100 bg-white max-h-[60vh] overflow-y-auto pb-2">
-        <div class="grid grid-cols-4 gap-1 p-3">
-          <a *ngFor="let item of moreItems"
-            [routerLink]="item.path"
-            (click)="showMore = false"
-            routerLinkActive="text-blue-600 bg-blue-50"
-            class="flex flex-col items-center gap-1 p-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-            <span class="text-lg">{{ item.emoji }}</span>
-            <span class="text-[10px] font-medium text-center leading-tight">{{ item.label }}</span>
-          </a>
+        <div *ngFor="let group of moreGroups" class="px-3 pt-2" [attr.data-group]="group.key">
+          <div class="text-[10px] font-semibold text-gray-400 tracking-wide">{{ group.label }}</div>
+          <div class="grid grid-cols-4 gap-1 pt-1">
+            <a *ngFor="let item of group.items"
+              [routerLink]="item.path"
+              (click)="showMore = false"
+              routerLinkActive="text-blue-600 bg-blue-50"
+              class="flex flex-col items-center gap-1 p-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+              <span class="text-lg">{{ item.icon }}</span>
+              <span class="text-[10px] font-medium text-center leading-tight">{{ item.label }}</span>
+            </a>
+          </div>
         </div>
       </div>
     </nav>
@@ -91,28 +95,10 @@ export class BottomNavComponent {
     }
   ];
 
-  moreItems = [
-    { path: '/daily-routine', label: 'Nhiệm vụ', emoji: '📋' },
-    { path: '/ai-settings', label: 'Cài đặt AI', emoji: '🤖' },
-    { path: '/portfolios', label: 'Danh mục', emoji: '📁' },
-    { path: '/positions', label: 'Vị thế', emoji: '📊' },
-    { path: '/capital-flows', label: 'Dòng vốn', emoji: '💸' },
-    { path: '/analytics', label: 'Phân tích', emoji: '📈' },
-    { path: '/monthly-review', label: 'Báo cáo tháng', emoji: '📅' },
-    { path: '/mood-journal', label: 'Tâm trạng', emoji: '🎣' },
-    { path: '/backtesting', label: 'Backtest', emoji: '🧪' },
-    { path: '/watchlist', label: 'Watchlist', emoji: '⭐' },
-    { path: '/market-data', label: 'Thị trường', emoji: '🌐' },
-    { path: '/screener', label: 'Sàng lọc', emoji: '🔎' },
-    { path: '/snapshots', label: 'Snapshot', emoji: '📸' },
-    { path: '/trade-wizard', label: 'Wizard GD', emoji: '🧙' },
-    { path: '/risk-dashboard', label: 'Risk Board', emoji: '📋' },
-    { path: '/strategies', label: 'Chiến lược', emoji: '🎯' },
-    { path: '/journals', label: 'Nhật ký', emoji: '📝' },
-    { path: '/alerts', label: 'Cảnh báo', emoji: '🔔' },
-    { path: '/help', label: 'Hướng dẫn', emoji: '❓' },
-    { path: '/changelog', label: 'Changelog', emoji: '🔧' },
-  ];
+  /** Các nhóm của NAV_GROUPS trừ những trang đã nằm trên thanh dưới; nhóm hết mục thì bỏ. Không có danh sách nào khác để lệch. */
+  moreGroups: NavGroup[] = NAV_GROUPS
+    .map(g => ({ ...g, items: g.items.filter(i => !this.navItems.some(n => n.path === i.path)) }))
+    .filter(g => g.items.length > 0);
 
   isActive(path: string): boolean {
     return window.location.pathname.startsWith(path);
