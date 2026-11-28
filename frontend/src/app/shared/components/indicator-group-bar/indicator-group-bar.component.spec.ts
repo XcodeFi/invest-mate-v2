@@ -36,6 +36,14 @@ describe('IndicatorGroupBarComponent: sao nhóm', () => {
     expect(star('xu-huong').getAttribute('aria-label')).toBe('Sao nhóm 📈 Xu hướng');
   });
 
+  it('the star tap target is at least 32x32 px', () => {
+    create();
+
+    const box = star('xu-huong').getBoundingClientRect();
+    expect(box.width).toBeGreaterThanOrEqual(32);
+    expect(box.height).toBeGreaterThanOrEqual(32);
+  });
+
   it('starring toggles ★, writes localStorage, and does not emit a chip click', () => {
     create();
     const emitted: string[] = [];

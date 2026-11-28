@@ -20,7 +20,7 @@ import { orderByStars, readGroupStars, writeGroupStars } from '../../indicators/
             [attr.aria-pressed]="selected === g.key"
             (click)="groupToggle.emit(g.key)"
             [attr.data-group]="g.key">{{ g.label }}</button>
-          <button type="button" class="pl-1 pr-2 py-1 rounded-r-full text-sm cursor-pointer select-none"
+          <button type="button" class="inline-flex items-center justify-center min-w-[32px] min-h-[32px] rounded-r-full text-sm cursor-pointer select-none"
             [class.text-white]="selected === g.key" [class.text-amber-700]="selected !== g.key"
             [attr.aria-pressed]="isStarred(g.key)"
             [attr.aria-label]="'Sao nhóm ' + g.label"
