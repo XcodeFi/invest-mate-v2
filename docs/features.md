@@ -1098,6 +1098,7 @@ Mỗi node gồm:
   - Holding period zones tính từ BUY/SELL trades
   - Quick-add form: nhật ký inline với auto-fill giá
   - Date range selector: 1T / 3T / 6T / 1N
+  - **Thẻ "Luận điểm" (2026-11-28, item 3 PR3):** `ThesisCardComponent` cạnh biểu đồ (>1024px; xếp dưới từ 1024px trở xuống), thu gọn mặc định, tải lười `GET /company-dossier/:symbol` ở lần mở đầu (404 = "Chưa có hồ sơ" + "Tạo hồ sơ"); hiện mô hình kinh doanh, 3 rủi ro đầu, điều kiện vô hiệu (observableSignal của rủi ro isDealBreaker), ngày ký + tuổi, "Mở hồ sơ đầy đủ →" và "➕ Tạo kế hoạch" (`/trade-plan?symbol=`).
   - **Trạng thái trên URL (2026-11-28, item 3 PR1):** `range` (1T/3T/6T/1N), `grp` (nhóm chỉ báo) và `focus` (ngày YYYY-MM-DD giờ VN của mục đang chọn), đọc qua `queryParamMap`, ghi bằng merge + `replaceUrl`; không đụng `symbol`/`tradeId`. Trang hồ sơ công ty có nút "📈 Dòng thời gian" sang đây (chip "🏢 Hồ sơ công ty" ở chiều ngược lại đã có).
   - Timeline detail list phía dưới chart
 

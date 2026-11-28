@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.115.0] — 2026-11-28 · Dòng thời gian: thẻ "Luận điểm" cạnh biểu đồ
+
+### Tính năng mới
+
+- **Thẻ 🧭 Luận điểm** ở trang Dòng thời gian của mã, đứng cạnh biểu đồ khi màn rộng hơn 1024px và xếp dưới biểu đồ từ 1024px trở xuống. Thu gọn mặc định; bấm để mở thì mới tải hồ sơ (không thêm lần gọi nào khi chỉ xem biểu đồ).
+  - Hiện mô hình kinh doanh (một dòng), ba rủi ro hàng đầu, **điều kiện vô hiệu luận điểm** (dấu hiệu quan sát được của các rủi ro đánh dấu "phá vỡ luận điểm"; chưa có thì thẻ nói rõ là chưa ghi), ngày ký và số ngày trước, nút **Mở hồ sơ đầy đủ →**.
+  - Mã chưa có hồ sơ: "Chưa có hồ sơ công ty" kèm nút **Tạo hồ sơ**.
+  - Nút **➕ Tạo kế hoạch** mở form kế hoạch giao dịch đã điền sẵn mã (đường `/trade-plan?symbol=...` mà form kế hoạch vốn đã hỗ trợ).
+
+### Kỹ thuật
+
+- `ThesisCardComponent` dùng lại `CompanyDossierService.get`; 404 là trạng thái "chưa có hồ sơ", lỗi khác hiện thông báo và cho thử lại khi mở lại thẻ. Không thêm API.
+
+---
+
 ## [v2.114.0] — 2026-11-28 · Menu trái theo nhóm công việc
 
 ### Tính năng mới
