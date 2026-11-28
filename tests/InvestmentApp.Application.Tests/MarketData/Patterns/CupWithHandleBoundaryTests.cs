@@ -101,6 +101,63 @@ public class CupWithHandleBoundaryTests
     }
 
     [Fact]
+    public void the_bottom_must_be_at_least_five_sessions_after_the_left_high_so_a_v_shaped_crash_is_not_a_cup()
+    {
+        // cốc dài đúng 7,0 tuần ở cả hai ca (đáy cách đỉnh trái + vành cách đáy = 35 phiên); chỉ khoảng cách đỉnh trái → đáy đổi
+        Run(Exact(down: 2, up: 33)).Should().BeNull("đáy chỉ cách đỉnh trái 2 phiên");
+        Run(Exact(down: 4, up: 31)).Should().BeNull("đáy cách đỉnh trái 4 phiên");
+        Run(Exact(down: 5, up: 30)).Should().NotBeNull("đáy cách đỉnh trái đúng 5 phiên (SwingWindow)");
+    }
+
+    [Fact]
+    public void the_right_rim_must_be_at_least_five_sessions_after_the_bottom_so_a_rim_right_after_the_bottom_is_not_a_cup()
+    {
+        Run(Exact(down: 33, up: 2)).Should().BeNull("vành phải chỉ cách đáy 2 phiên");
+        Run(Exact(down: 31, up: 4)).Should().BeNull("vành phải cách đáy 4 phiên");
+        Run(Exact(down: 30, up: 5)).Should().NotBeNull("vành phải cách đáy đúng 5 phiên (SwingWindow)");
+    }
+
+    [Fact]
+    public void with_two_equal_lowest_lows_the_bottom_is_the_first_one()
+    {
+        var bars = Exact();
+        var b = 30 + 15 - 1;                 // chỉ số đáy của Exact mặc định
+        bars[b + 1].Open = bars[b + 1].High = bars[b + 1].Low = bars[b + 1].Close = bars[b].Low;   // đáy phẳng: hai nến cùng mức thấp nhất
+
+        var c = Run(bars)!;
+
+        c.BottomDate.Should().Be(bars[b].Date, "đáy là lần xuất hiện ĐẦU TIÊN của mức thấp nhất");
+    }
+
+    [Fact]
+    public void a_left_high_within_the_first_five_bars_has_too_little_history_to_be_a_swing_high_and_is_not_used()
+    {
+        Run(Exact(warm: 3, handle: 25)).Should().BeNull("đỉnh trái ở phiên thứ 3: chưa đủ 5 phiên phía trước để coi là đỉnh");
+        Run(Exact(warm: 6, handle: 25)).Should().NotBeNull("đỉnh trái ở phiên thứ 6 thì đủ");
+    }
+
+    [Fact]
+    public void a_series_of_zero_prices_gives_no_candidate_and_does_not_divide_by_zero()
+    {
+        var zeros = Enumerable.Range(0, 80).Select(i => new StockPriceData { Symbol = "TST", Date = Day0.AddDays(i), IsAdjusted = true }).ToList();
+
+        var act = () => Run(zeros);
+
+        act.Should().NotThrow();
+        act().Should().BeNull();
+    }
+
+    [Fact]
+    public void the_criteria_are_listed_with_their_stable_keys_and_only_the_volume_one_is_optional()
+    {
+        var c = Run(Exact())!;
+
+        c.Criteria.Select(k => k.Key).Should().Equal("cup-length", "cup-depth", "rim-recovery", "handle-length", "handle-depth",
+            "handle-upper-half", "above-handle-low", "not-extended", "breakout-volume");
+        c.Criteria.Where(k => !k.Required).Select(k => k.Key).Should().Equal("breakout-volume");
+    }
+
+    [Fact]
     public void state_boundaries_close_equal_to_the_pivot_near_pivot_at_exactly_3_percent_and_volume_at_exactly_1_4_times()
     {
         Run(Exact(last: 98m))!.State.Should().Be("near-pivot", "đóng cửa đúng pivot chưa phải vượt");
