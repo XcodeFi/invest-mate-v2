@@ -31,7 +31,8 @@
             ],
             "styles": [
               "src/styles.css",
-              "src/styles/dark-theme.css"
+              "src/styles/dark-theme.css",
+              "src/styles/charts.css"
             ],
             "scripts": [],
             "allowedCommonJsDependencies": [
@@ -131,7 +132,8 @@
             ],
             "styles": [
               "src/styles.css",
-              "src/styles/dark-theme.css"
+              "src/styles/dark-theme.css",
+              "src/styles/charts.css"
             ],
             "scripts": []
           }
