@@ -21,9 +21,9 @@ import { orderByStars, readGroupStars, writeGroupStars } from '../../indicators/
             (click)="groupToggle.emit(g.key)"
             [attr.data-group]="g.key">{{ g.label }}</button>
           <button type="button" class="pl-1 pr-2 py-1 rounded-r-full text-sm cursor-pointer select-none"
-            [class.text-white]="selected === g.key" [class.text-amber-500]="selected !== g.key"
+            [class.text-white]="selected === g.key" [class.text-amber-700]="selected !== g.key"
             [attr.aria-pressed]="isStarred(g.key)"
-            [attr.aria-label]="(isStarred(g.key) ? 'Bỏ sao nhóm ' : 'Gắn sao nhóm ') + g.label"
+            [attr.aria-label]="'Sao nhóm ' + g.label"
             [attr.title]="isStarred(g.key) ? 'Bỏ sao' : 'Gắn sao: nhóm hay dùng lên đầu và mở sẵn'"
             (click)="toggleStar(g.key)"
             [attr.data-star]="g.key">{{ isStarred(g.key) ? '★' : '☆' }}</button>

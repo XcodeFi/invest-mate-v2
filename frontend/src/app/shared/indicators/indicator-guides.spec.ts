@@ -127,6 +127,15 @@ describe('INDICATOR_GUIDES: lý do và nguồn', () => {
     items.flatMap(x => x.item.usedBy).filter(u => u.who.includes('tác giả chỉ báo')).forEach(u => expect(u.note).withContext(u.who).toContain('không phải bằng chứng'));
   });
 
+  it('cites Paul Tudor Jones to the Robbins interview and O’Neil with its first-edition year, not the Schwager chapter', () => {
+    const ptj = INDICATOR_GUIDES['xu-huong'].items[0].usedBy.find(u => u.who.includes('Paul Tudor Jones'))!;
+    const oneil = INDICATOR_GUIDES['dong-tien'].items[0].usedBy.find(u => u.who.includes('O’Neil'))!;
+
+    expect(ptj.source).toContain('Money: Master the Game');
+    expect(ptj.source).not.toContain('Market Wizards');
+    expect(oneil.source).toContain('1988');
+  });
+
   it('no investor badge or verdict wording (ĐẠT / PASS)', () => {
     expect(JSON.stringify(INDICATOR_GUIDES)).not.toMatch(/ĐẠT|PASS/);
   });

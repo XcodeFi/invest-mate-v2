@@ -17,13 +17,23 @@ describe('IndicatorGroupBarComponent: sao nhóm', () => {
   }
   afterEach(() => { fixture?.destroy(); localStorage.removeItem(GROUP_STARS_KEY); });
 
-  it('each chip has its own star button with an aria-label that names the group and the action', () => {
+  it('each chip has its own star button with an aria-label that names the group', () => {
     create();
 
     expect(el().querySelectorAll('[data-star]').length).toBe(6);
     expect(star('xu-huong').textContent!.trim()).toBe('☆');
-    expect(star('xu-huong').getAttribute('aria-label')).toBe('Gắn sao nhóm 📈 Xu hướng');
+    expect(star('xu-huong').getAttribute('aria-label')).toBe('Sao nhóm 📈 Xu hướng');
     expect(star('xu-huong').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('the star is an on/off toggle: aria-pressed carries the state, the label stays the same, and the idle star is not the low-contrast amber-500', () => {
+    create();
+
+    expect(star('xu-huong').className).not.toContain('text-amber-500');
+    star('xu-huong').click();
+    fixture.detectChanges();
+    expect(star('xu-huong').getAttribute('aria-pressed')).toBe('true');
+    expect(star('xu-huong').getAttribute('aria-label')).toBe('Sao nhóm 📈 Xu hướng');
   });
 
   it('starring toggles ★, writes localStorage, and does not emit a chip click', () => {
@@ -36,7 +46,7 @@ describe('IndicatorGroupBarComponent: sao nhóm', () => {
 
     expect(emitted).toEqual([]);
     expect(star('moc-gia').textContent!.trim()).toBe('★');
-    expect(star('moc-gia').getAttribute('aria-label')).toBe('Bỏ sao nhóm 🧱 Mốc giá');
+    expect(star('moc-gia').getAttribute('aria-label')).toBe('Sao nhóm 🧱 Mốc giá');
     expect(JSON.parse(localStorage.getItem(GROUP_STARS_KEY)!)).toEqual(['moc-gia']);
 
     star('moc-gia').click();
