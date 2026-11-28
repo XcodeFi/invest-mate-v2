@@ -2,6 +2,17 @@
 
 ---
 
+## [v2.110.0] — 2026-11-28 · Trang Sàng lọc cổ phiếu
+
+### Tính năng mới
+
+- **Trang "Sàng lọc cổ phiếu"** (`/screener`, mở từ trang Dữ liệu Thị trường và từ chip **Danh sách lọc (không xếp hạng)** ở Bảng giá nhanh): chọn sàn (UPCOM tuỳ chọn), chỉnh các ngưỡng (thanh khoản, giá, vốn hoá, ROE, trần P/E mặc định tắt, xếp hạng sức mạnh 3 tháng), bỏ qua tầng chất lượng. Bảng mã đạt xếp theo bảng chữ cái, bấm tiêu đề cột để sắp theo cột khác; mỗi dòng có cờ biến động kèm giá trị, ghi chú và "Vì sao đạt". Không có điểm số hay thứ hạng, luôn kèm lời nhắc "không phải khuyến nghị mua".
+- Mã HOSE chưa kiểm được trạng thái được tách thành nhóm riêng; có số mã bị loại theo lý do và theo ngành, dòng "loại vì định giá/chất lượng nhưng xu hướng tốt" và ô **Vì sao mã X không có?**.
+- Tick tối đa 30 mã rồi **Gửi sang Bảng giá nhanh**: trang Thị trường mở với đúng các mã đó và nhớ cho lần sau. Chip ở Bảng giá nhanh chỉ mở trang sàng lọc, không tự điền mã nào.
+- **Hướng dẫn "Sàng lọc cổ phiếu"** trong Trợ giúp: ý nghĩa từng tầng, ngưỡng mặc định, giới hạn (nguồn không chính thức, dữ liệu trễ, HNX/UPCOM chưa có danh sách cảnh báo, mã đã hủy niêm yết không còn trong dữ liệu).
+
+---
+
 ## [v2.109.1] — 2026-11-28 · Hồ sơ công ty: thanh nút đầu trang không tràn màn hình hẹp
 
 ### Sửa lỗi

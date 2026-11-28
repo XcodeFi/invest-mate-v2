@@ -162,6 +162,69 @@ export interface SignalSetups {
   notes: string[];
 }
 
+/** Một mã đạt bộ lọc (GET market/screener). Không có điểm số hay thứ hạng; flags là cờ biến động dựa trên xếp hạng tương đối. */
+export interface ScreenerPassedRow {
+  symbol: string;
+  floor: string;
+  sector?: string | null;
+  adtvBn?: number | null;
+  marketCapBn: number;
+  priceVnd: number;
+  roe?: number | null;
+  pe?: number | null;
+  /** Xếp hạng sức mạnh 3 tháng P1–P99 trong toàn bộ mã niêm yết (không phải tỉ suất sinh lời). */
+  rs3m?: number | null;
+  reasons: string[];
+  flags: string[];
+  notes: string[];
+}
+
+export interface ScreenerLookup {
+  symbol: string;
+  /** passed | unverified_hose | excluded | not_in_universe */
+  state: string;
+  reason?: string | null;
+}
+
+export interface ScreenerResult {
+  /** ok | stale (dữ liệu cũ vì làm mới lỗi, tối đa 48 giờ) | unavailable (không có kết quả, xem reason) */
+  status: 'ok' | 'stale' | 'unavailable';
+  stale: boolean;
+  asOf?: string | null;
+  hoseListsAsOf?: string | null;
+  hoseListsStale: boolean;
+  reason?: string | null;
+  universeCount: number;
+  passed: ScreenerPassedRow[];
+  /** Mã HOSE qua mọi tầng nhưng chưa kiểm được danh sách diện đặc biệt: KHÔNG phải mã đạt. */
+  unverifiedHose: ScreenerPassedRow[];
+  excludedCounts: Record<string, number>;
+  sectorCounts: Record<string, { passed: number; excluded: number }>;
+  tradeoffCount: number;
+  excludedTotal?: number | null;
+  excluded?: { symbol: string; floor: string; reason: string }[] | null;
+  lookup?: ScreenerLookup | null;
+  notes: string[];
+  disclaimer: string;
+}
+
+/** Tiêu chí gửi lên GET market/screener; trường nào bỏ trống (undefined, null, '') thì không gửi và server dùng mặc định. */
+export interface ScreenerQuery {
+  floors?: string;
+  includeUpcom?: boolean;
+  minAdtv?: number;
+  minPrice?: number;
+  minCap?: number;
+  minRoe?: number;
+  maxPe?: number;
+  minRs3m?: number;
+  skipQualityLayer?: boolean;
+  includeExcluded?: boolean;
+  excludedSkip?: number;
+  excludedTake?: number;
+  lookupSymbol?: string;
+}
+
 /** Chuỗi chỉ báo theo từng phiên (GET analysis/series). Mọi mảng dài bằng dates; null = chưa đủ warm-up. */
 export interface TechnicalSeries {
   symbol: string;
@@ -468,6 +531,16 @@ export class MarketDataService {
 
   getSignalSetups(symbol: string): Observable<SignalSetups> {
     return this.http.get<SignalSetups>(`${this.API_URL}/${symbol}/signal-setups`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getScreener(query: ScreenerQuery): Observable<ScreenerResult> {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null || value === '') continue;
+      params = params.set(key, String(value));
+    }
+    return this.http.get<ScreenerResult>(`${this.API_URL}/screener`, { headers: this.getHeaders(), params })
       .pipe(catchError(this.handleError));
   }
 

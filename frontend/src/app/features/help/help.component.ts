@@ -161,6 +161,7 @@ export class HelpComponent implements OnInit, OnDestroy {
     { id: 'ke-hoach-giao-dich', title: 'Kế hoạch giao dịch', description: 'Entry/SL/TP, checklist, chia lô, scenario', icon: '📑', color: 'purple' },
     { id: 'ho-so-cong-ty', title: 'Hồ sơ công ty', description: 'Chặn mua theo tin: mô hình kinh doanh, moat, rủi ro có dấu hiệu quan sát được', icon: '🏢', color: 'slate' },
     { id: 'phan-tich-thi-truong', title: 'Phân tích thị trường', description: 'Tra cứu giá, 10 chỉ báo kỹ thuật, tín hiệu', icon: '📊', color: 'orange' },
+    { id: 'sang-loc-co-phieu', title: 'Sàng lọc cổ phiếu', description: 'Quét toàn thị trường theo tiêu chí, cờ biến động, vì sao mã không có (không phải khuyến nghị)', icon: '🔎', color: 'orange' },
     { id: 'quan-ly-rui-ro', title: 'Quản lý rủi ro', description: 'Risk Profile, stop-loss, position sizing, cảnh báo, tập trung ngành', icon: '🛡️', color: 'red' },
     { id: 'phan-tich-hieu-suat', title: 'Phân tích hiệu suất', description: 'Equity curve, win rate, báo cáo tháng', icon: '📈', color: 'teal' },
     { id: 'cong-cu-ho-tro', title: 'Công cụ hỗ trợ', description: 'Watchlist, nhật ký, daily routine, AI assistant', icon: '🧰', color: 'indigo' },
