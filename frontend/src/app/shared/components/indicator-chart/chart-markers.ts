@@ -6,6 +6,7 @@ export interface SnappedMarker {
   position: 'aboveBar' | 'belowBar';
   color: string;
   shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
+  tone?: 'trapBull' | 'trapBear';
   text: string;
 }
 
@@ -26,7 +27,7 @@ export function snapMarkers(
     const k = sessionIndexFor(times, day);
     if (k < 0) continue;
     const time = times[k];
-    snapped.push({ time, position: marker.position, color: marker.color, shape: marker.shape, text: marker.text });
+    snapped.push({ time, position: marker.position, color: marker.color, shape: marker.shape, ...(marker.tone ? { tone: marker.tone } : {}), text: marker.text });
     if (marker.tooltip?.length) tooltips.set(time, [...(tooltips.get(time) ?? []), ...marker.tooltip]);
   }
   snapped.sort((a, b) => a.time.localeCompare(b.time));

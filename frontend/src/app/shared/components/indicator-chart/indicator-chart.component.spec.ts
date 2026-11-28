@@ -262,7 +262,20 @@ describe('IndicatorChartComponent', () => {
         ] });
 
         const swatches = Array.from(root().querySelectorAll('[data-testid="price-line-swatch"]')).map(s => (s as HTMLElement).style.borderTopColor);
-        expect(swatches).toEqual(['rgb(22, 163, 74)', 'rgb(220, 38, 38)', 'rgb(37, 99, 235)']);
+        expect(swatches).toEqual(['rgb(21, 128, 61)', 'rgb(220, 38, 38)', 'rgb(37, 99, 235)']);   // giao diện sáng: xanh lá đậm, đỏ, xanh dương
+      });
+
+      it('the price-line colours follow the theme (darker green in light, lighter in dark) so label text keeps AA contrast', () => {
+        const levels = { overlays: [], panes: [], notes: [], priceLines: [{ label: 'Mục tiêu đo 125', price: 125 }, { label: 'Cắt lỗ 97', price: 97 }] };
+        TestBed.inject(ThemeService).set('dark', false);
+        setInputs(levels);
+        const dark = Array.from(root().querySelectorAll('[data-testid="price-line-swatch"]')).map(s => (s as HTMLElement).style.borderTopColor);
+        TestBed.inject(ThemeService).set('light', false);
+        setInputs(levels);
+        const light = Array.from(root().querySelectorAll('[data-testid="price-line-swatch"]')).map(s => (s as HTMLElement).style.borderTopColor);
+
+        expect(dark).toEqual(['rgb(74, 222, 128)', 'rgb(248, 113, 113)']);
+        expect(light).toEqual(['rgb(21, 128, 61)', 'rgb(220, 38, 38)']);
       });
     });
 
@@ -297,9 +310,9 @@ describe('IndicatorChartComponent', () => {
       expect(entries[0].textContent).toContain('Hỗ trợ 1');
       expect(entries[0].textContent).toContain('85.200');
       const swatchColor = (e: HTMLElement) => (e.querySelector('[data-testid="price-line-swatch"]') as HTMLElement).style.borderTopColor;
-      expect(swatchColor(entries[0])).toBe(norm('#16a34a'));   // hỗ trợ: xanh lá
+      expect(swatchColor(entries[0])).toBe(norm('#15803d'));   // hỗ trợ: xanh lá (sắc đậm của giao diện sáng, đạt 4,5:1 trên nền trắng)
       expect(swatchColor(entries[1])).toBe(norm('#dc2626'));   // kháng cự: đỏ
-      expect(swatchColor(entries[2])).toBe(norm('#f59e0b'));   // Fibonacci: cam
+      expect(swatchColor(entries[2])).toBe(norm('#b45309'));   // Fibonacci: cam đậm (đạt 4,5:1 trên nền trắng)
     });
 
     it('no price line legend when there are no price lines', () => {
@@ -569,6 +582,37 @@ describe('IndicatorChartComponent', () => {
 
       expect(component.markerCount).toBe(0);
       expect(component.chartCount).toBe(1);
+    });
+
+    it('a marker with a tone takes its colour from the theme (text on the canvas must keep >= 4.5:1), a plain marker keeps its own colour', () => {
+      const applied: any[][] = [];
+      const capture = () => {
+        const proto = Object.getPrototypeOf((component as any).charts[0]);
+        const original = proto.addCandlestickSeries;
+        spyOn(proto, 'addCandlestickSeries').and.callFake(function (this: any, ...args: any[]) {
+          const series = original.apply(this, args);
+          const set = series.setMarkers.bind(series);
+          series.setMarkers = (ms: any[]) => { applied.push(ms); return set(ms); };
+          return series;
+        });
+      };
+      const marks = [
+        { ...m('2026-01-05', 'Bẫy tăng'), position: 'aboveBar' as const, color: '#dc2626', tone: 'trapBull' },
+        { ...m('2026-01-10', 'Bẫy giảm'), color: '#15803d', tone: 'trapBear' },
+        { ...m('2026-01-12', 'T'), color: '#22c55e' },
+      ];
+      withMarkers([]);
+      capture();
+
+      TestBed.inject(ThemeService).set('dark', false);
+      withMarkers(marks);
+      const dark = applied[applied.length - 1].map(x => x.color);
+      TestBed.inject(ThemeService).set('light', false);
+      withMarkers([...marks]);
+      const light = applied[applied.length - 1].map(x => x.color);
+
+      expect(dark).toEqual(['#f87171', '#4ade80', '#22c55e']);
+      expect(light).toEqual(['#dc2626', '#15803d', '#22c55e']);
     });
 
     it('no markers input keeps the chart working as before', () => {

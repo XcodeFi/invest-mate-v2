@@ -24,12 +24,17 @@ describe('buildTrapMarkers: mốc bẫy xác nhận hồi tố', () => {
     expect(m.text).toBe('Bẫy tăng');
   });
 
+  it('each marker names its theme tone so the chart can keep the label text readable in light and dark', () => {
+    expect(buildTrapMarkers([trap()])[0].tone).toBe('trapBull');
+    expect(buildTrapMarkers([trap({ type: 'bear-trap', typeVi: 'Bẫy giảm giá' })])[0].tone).toBe('trapBear');
+  });
+
   it('a bear trap is a green arrow up below the bar', () => {
     const [m] = buildTrapMarkers([trap({ type: 'bear-trap', typeVi: 'Bẫy giảm giá' })]);
 
     expect(m.position).toBe('belowBar');
     expect(m.shape).toBe('arrowUp');
-    expect(m.color).toBe('#16a34a');
+    expect(m.color).toBe('#15803d');
     expect(m.text).toBe('Bẫy giảm');
   });
 

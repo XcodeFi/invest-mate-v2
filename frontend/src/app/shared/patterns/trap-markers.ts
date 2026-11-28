@@ -18,7 +18,8 @@ export function buildTrapMarkers(events: TrapEvent[] | null | undefined): Indica
     return {
       time: day(e.breakoutDate),
       position: bull ? 'aboveBar' : 'belowBar',
-      color: bull ? '#dc2626' : '#16a34a',
+      color: bull ? '#dc2626' : '#15803d',   // sắc của giao diện sáng; biểu đồ đổi theo `tone` ở giao diện tối
+      tone: bull ? 'trapBull' : 'trapBear',
       shape: bull ? 'arrowDown' : 'arrowUp',
       text: bull ? 'Bẫy tăng' : 'Bẫy giảm',
       tooltip: [

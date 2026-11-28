@@ -204,7 +204,8 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     })));
 
     const snapped = snapMarkers(this.markers ?? [], times);
-    candleSeries.setMarkers(snapped.markers as any);
+    const palette = chartColors(this.currentTheme);
+    candleSeries.setMarkers(snapped.markers.map(({ tone, ...mk }) => ({ ...mk, color: tone ? palette[tone] : mk.color })) as any);
     this.appliedMarkers = snapped.markers.length;
     this.markerTooltips = snapped.tooltips;
     this.attachMarkerTooltip(priceChart, host, priceBlock.host);
@@ -551,12 +552,14 @@ export class IndicatorChartComponent implements AfterViewInit, OnChanges, OnDest
     return formatAxisValue(v);
   }
 
+  /** Màu đường ngang theo giao diện: nhãn của đường là chữ cùng màu nên mỗi chế độ có sắc riêng đạt >= 4,5:1 trên nền biểu đồ. */
   private priceLineColor(label: string): string {
-    if (label.startsWith('Cắt lỗ') || label.startsWith('Kháng cự')) return '#dc2626';
-    if (label.startsWith('Chốt lời') || label.startsWith('Hỗ trợ') || label.startsWith('Mục tiêu')) return '#16a34a';
-    if (label.startsWith('Fib')) return '#f59e0b';
-    if (label.endsWith('swing')) return '#64748b';
-    return '#2563eb';
+    const c = chartColors(this.currentTheme);
+    if (label.startsWith('Cắt lỗ') || label.startsWith('Kháng cự')) return c.lineLoss;
+    if (label.startsWith('Chốt lời') || label.startsWith('Hỗ trợ') || label.startsWith('Mục tiêu')) return c.lineProfit;
+    if (label.startsWith('Fib')) return c.lineFib;
+    if (label.endsWith('swing')) return c.lineSwing;
+    return c.lineEntry;
   }
 
   private teardown(): void {

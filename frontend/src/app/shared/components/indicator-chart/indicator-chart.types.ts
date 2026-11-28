@@ -57,6 +57,8 @@ export interface IndicatorChartMarker {
   position: 'aboveBar' | 'belowBar';
   color: string;
   shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
+  /** Tên sắc màu theo giao diện (xem ChartColors): có thì biểu đồ lấy màu theo chế độ sáng/tối thay cho `color` để chữ marker luôn đọc được. */
+  tone?: 'trapBull' | 'trapBear';
   text: string;
   tooltip?: string[];
 }
