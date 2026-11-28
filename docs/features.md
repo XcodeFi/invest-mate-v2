@@ -1840,4 +1840,4 @@ Lịch 2026 seed sẵn 12 phiên: 01/01; 16–20/02 (Tết Bính Ngọ); 27/04; 
 
 ## Giao diện sáng/tối (2026-11-28)
 
-Ứng dụng mở ở **chế độ tối** theo mặc định; nút ☀️/🌙 trên header đổi qua lại và nhớ lựa chọn trên trình duyệt (localStorage). Lớp giao diện toàn cục `dark-theme.css` ánh xạ các màu sáng của Tailwind; biểu đồ nến và Chart.js đổi màu theo. Chế độ sáng giữ nguyên. Xem `docs/architecture.md` (ThemeService) và CHANGELOG v2.110.0.
+Ứng dụng mở ở **chế độ tối** theo mặc định; nút ☀️/🌙 trên header đổi qua lại và nhớ lựa chọn trên trình duyệt (localStorage). Lớp giao diện toàn cục `dark-theme.css` ánh xạ các màu sáng của Tailwind; biểu đồ nến và Chart.js đổi màu theo. Chế độ sáng giữ nguyên. Xem `docs/architecture.md` (ThemeService) và CHANGELOG v2.111.0.
