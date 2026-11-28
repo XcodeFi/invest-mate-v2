@@ -2,6 +2,24 @@
 
 ---
 
+## [v2.114.0] — 2026-11-28 · Menu trái theo nhóm công việc
+
+### Tính năng mới
+
+- **Menu trái cho máy tính (từ 1024px)**, thay các menu thả xuống ở thanh trên. Các trang xếp theo thời điểm làm việc: **HÔM NAY** (Tổng quan, Nhiệm vụ ngày, Cảnh báo), **TÌM CƠ HỘI** (Thị trường, Sàng lọc, Watchlist, Hồ sơ công ty, Dòng thời gian mã), **KẾ HOẠCH & GD** (Kế hoạch GD, Giao dịch, Vị thế, Wizard GD, Chiến lược, Backtest), **ĐÁNH GIÁ** (Chờ review, Kỳ vọng & chiến dịch, Rủi ro, Báo cáo tháng, Phân tích, Nhật ký...), **TIỀN & TÀI SẢN** (Danh mục, Dòng vốn, Sự kiện quyền, Tài chính CN) và **Cài đặt** (thu gọn sẵn, tự mở khi bạn đang ở trong nhóm). Trang đang mở được tô sáng.
+- Mọi trang vào được bằng đường dẫn cố định đều có mặt trong menu, kể cả những trang trước đây không có mục nào: Chờ review, Kỳ vọng & chiến dịch, Sự kiện quyền, Sàng lọc, Dòng thời gian mã.
+- **« Thu gọn** biến menu thành thanh biểu tượng 56px (rê chuột để thấy tên trang). Các trang nhiều biểu đồ (Dòng thời gian mã, Kế hoạch GD, Thị trường, Replay) mặc định thu gọn để biểu đồ rộng nhất; lựa chọn của bạn được nhớ và luôn thắng mặc định.
+- Thanh trên gọn lại: logo, trợ lý AI, hướng dẫn, điểm rủi ro và người dùng; có sẵn chỗ cho nút chế độ sáng/tối. Điện thoại giữ nguyên thanh dưới; menu thả xuống của điện thoại đọc cùng danh sách trang với menu trái.
+
+### Kỹ thuật
+
+- Một cấu hình duy nhất `shared/nav/nav-config.ts` cho menu trái và menu điện thoại. Test đối chiếu với `app.routes.ts`: route mới (không có tham số) phải được thêm vào cấu hình, nếu không test đỏ; mục menu trỏ tới route chỉ chuyển hướng (như /position-sizing và /advanced-analytics, đã có mục ở Kế hoạch GD và Phân tích) cũng làm test đỏ.
+- `SidebarComponent` + `SidebarService` (khoá `imv2.sidebar.collapsed`, bị chặn storage thì vẫn đổi được trong phiên).
+
+---
+
+---
+
 ## [v2.113.0] — 2026-11-28 · Hồ sơ công ty và Dòng thời gian mã nối được với nhau; trạng thái trang nằm trên URL
 
 ### Tính năng mới
