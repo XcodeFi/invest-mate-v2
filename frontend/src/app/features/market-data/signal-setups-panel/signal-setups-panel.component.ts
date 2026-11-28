@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SignalSetup, SignalSetups } from '../../../core/services/market-data.service';
+import { SignalBaseRate, SignalSetup, SignalSetups } from '../../../core/services/market-data.service';
 import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
 
 /**
@@ -66,6 +66,15 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
                 </tr>
               </tbody>
             </table>
+
+            <!-- Tỉ lệ nền VN30: dưới dòng đếm của chính mã, kèm lưu ý. Không bao giờ điền sẵn vào form kế hoạch -->
+            <div *ngIf="s.baseRate as b" class="mt-3 pt-3 border-t" data-testid="signal-baserate-block">
+              <p class="text-sm text-gray-700" data-testid="signal-baserate">{{ baseRateLine(b) }}</p>
+              <ul class="mt-1 text-xs text-gray-500 list-disc pl-4 space-y-0.5" data-testid="signal-baserate-notes">
+                <li *ngFor="let n of b.notes">{{ n }}</li>
+              </ul>
+            </div>
+            <p *ngIf="!s.baseRate && s.baseRateReason" class="mt-3 text-xs text-gray-500" data-testid="signal-baserate-reason">Tỉ lệ nền VN30: {{ s.baseRateReason }}</p>
           </div>
 
           <ul class="mt-3 text-xs text-gray-500 list-disc pl-4 space-y-0.5" data-testid="signal-notes">
@@ -96,6 +105,12 @@ export class SignalSetupsPanelComponent {
   countsLine(s: SignalSetup): string {
     const base = `${s.signals} tín hiệu, ${s.completed} lệnh hoàn tất trong 3 năm.`;
     return s.sampleSufficient ? base : `${base} Chưa đủ mẫu để thống kê riêng mã này (cần ≥ ${s.minSample}).`;
+  }
+
+  /** "Tỉ lệ nền VN30 (28 mã, 412 lệnh, 34 tháng): thắng 43% (95% xấp xỉ: 37% – 49%), kỳ vọng +0.12R (95% xấp xỉ: -0.05R – +0.29R)". */
+  baseRateLine(b: SignalBaseRate): string {
+    return `${b.label} (${b.k} mã, ${b.n} lệnh, ${b.effectiveMonths} tháng): thắng ${this.pct(b.winRate)} (95% xấp xỉ: ${this.pct(b.winRateLow)} – ${this.pct(b.winRateHigh)}), ` +
+      `kỳ vọng ${this.r(b.evR)} (95% xấp xỉ: ${this.r(b.evRLow)} – ${this.r(b.evRHigh)})`;
   }
 
   /** Phân số 0–1 → "50%"; không có thì "n/a" (không phải 0%). */

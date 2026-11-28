@@ -33,23 +33,23 @@ public class SignalBaseRateService : ISignalBaseRateService
         "Rổ hiện tại gồm các mã còn niêm yết (thiên lệch người sống sót); giá đã điều chỉnh theo sự kiện quyền."
     };
 
-    private sealed record Cached(SignalBaseRateResult Result, DateTimeOffset Until);
 
-    public async Task<SignalBaseRateResult> GetPullbackBaseRateAsync(CancellationToken cancellationToken = default)
+    /// <summary>Kết quả gộp: <see cref="Stats"/> null thì <see cref="Reason"/> nói vì sao chưa đủ. K, N, EffectiveMonths luôn có (để thấy cách xa ngưỡng bao nhiêu).</summary>
+    public sealed record PooledOutcome(int K, int N, int EffectiveMonths, DateTime? AsOf, BaseRateStats? Stats, string? Reason);
+
+    /// <summary>
+    /// Hàm thuần: gộp lệnh đã đóng của các chuỗi đã lưu (null = mã chưa có bản lưu) rồi thống kê. Dùng chung cho dịch vụ và công cụ đếm chỉ đọc,
+    /// để con số công cụ in ra đúng là con số người dùng thấy.
+    /// </summary>
+    public static PooledOutcome Pool(IEnumerable<AdjustedPriceSeriesSnapshot?> snapshots, DateTimeOffset now)
     {
-        var now = _time.GetUtcNow();
         var vnDay = (now + VietnamOffset).Date;
-        var key = $"signals:baserate:pullback:{vnDay:yyyyMMdd}";
-        if (_cache.TryGetValue(key, out Cached? cached) && cached != null && now < cached.Until)
-            return cached.Result;
-
         var trades = new List<PooledTrade>();
         var used = 0;
         DateTime? asOf = null;
 
-        foreach (var symbol in Vn30Basket.Symbols)
+        foreach (var snapshot in snapshots)
         {
-            var snapshot = await _store.GetAsync(symbol, cancellationToken);
             if (snapshot == null) continue;
 
             // Cùng luật với S1: bỏ nến hôm nay còn đang hình thành (trước 15:00 giờ VN); nến cuối quá cũ thì mã không dùng được
@@ -70,23 +70,35 @@ public class SignalBaseRateService : ISignalBaseRateService
 
         var effective = BaseRateStatistics.CountEffectiveMonths(trades);
         var reason = BaseRateStatistics.GateFailure(used, trades.Count, effective);
-        SignalBaseRateResult outcome;
-        if (reason != null)
-        {
-            outcome = new SignalBaseRateResult(null, reason);
-        }
-        else
-        {
-            var s = BaseRateStatistics.Compute(used, trades)!;
-            outcome = new SignalBaseRateResult(new SignalBaseRateDto
+        var stats = reason == null ? BaseRateStatistics.Compute(used, trades) : null;
+        return new PooledOutcome(used, trades.Count, effective, asOf, stats, reason);
+    }
+
+    private sealed record Cached(SignalBaseRateResult Result, DateTimeOffset Until);
+
+    public async Task<SignalBaseRateResult> GetPullbackBaseRateAsync(CancellationToken cancellationToken = default)
+    {
+        var now = _time.GetUtcNow();
+        var vnDay = (now + VietnamOffset).Date;
+        var key = $"signals:baserate:pullback:{vnDay:yyyyMMdd}";
+        if (_cache.TryGetValue(key, out Cached? cached) && cached != null && now < cached.Until)
+            return cached.Result;
+
+        var snapshots = new List<AdjustedPriceSeriesSnapshot?>();
+        foreach (var symbol in Vn30Basket.Symbols)
+            snapshots.Add(await _store.GetAsync(symbol, cancellationToken));
+
+        var pooled = Pool(snapshots, now);
+        var outcome = pooled.Stats == null
+            ? new SignalBaseRateResult(null, pooled.Reason)
+            : new SignalBaseRateResult(new SignalBaseRateDto
             {
-                K = s.K, N = s.N, EffectiveMonths = s.EffectiveMonths,
-                WinRate = s.WinRate, WinRateLow = s.WinRateLow, WinRateHigh = s.WinRateHigh,
-                EvR = s.EvR, EvRLow = s.EvRLow, EvRHigh = s.EvRHigh,
-                AsOf = asOf!.Value,
+                K = pooled.Stats.K, N = pooled.Stats.N, EffectiveMonths = pooled.Stats.EffectiveMonths,
+                WinRate = pooled.Stats.WinRate, WinRateLow = pooled.Stats.WinRateLow, WinRateHigh = pooled.Stats.WinRateHigh,
+                EvR = pooled.Stats.EvR, EvRLow = pooled.Stats.EvRLow, EvRHigh = pooled.Stats.EvRHigh,
+                AsOf = pooled.AsOf!.Value,
                 Notes = Notes.ToList()
             }, null);
-        }
 
         // Kết quả tính trước 15:10 chỉ giữ tới 15:10 (nến hôm nay có thể vừa đóng); sau đó giữ tới hết ngày. Chuỗi lưu thay đổi dần theo warm-up,
         // nên kết quả "chưa đủ" cũng chỉ giữ tới mốc đó chứ không ghim cả ngày hơn thế.
