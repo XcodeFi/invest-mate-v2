@@ -16,6 +16,9 @@ public class MarketRulesTests
     [InlineData("HNX", 0.10)]
     [InlineData("UPCOM", 0.15)]
     [InlineData("upcom", 0.15)]
+    [InlineData("Sàn HNX", 0.10)]
+    [InlineData(" UPCOM ", 0.15)]
+    [InlineData("HOSE (HSX)", 0.07)]
     public void price_limit_by_exchange(string exchange, double limit)
     {
         MarketRules.For(exchange).Limit.Should().Be((decimal)limit);

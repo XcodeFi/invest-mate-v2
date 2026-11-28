@@ -2,6 +2,25 @@
 
 ---
 
+## [v2.103.0] — 2026-11-28 · Setup Pullback và lịch sử của nó trên từng mã
+
+### Tính năng mới
+
+- Trang Thị trường, dưới biểu đồ và khối phân tích: khối **"Setup Pullback trên <mã>"**. Đứng đầu là tín hiệu **đang kích hoạt** (3 phiên gần nhất) với vào lệnh, cắt lỗ, mục tiêu; vào lệnh ghi "ước tính = giá đóng cửa" khi chưa tới phiên vào, hoặc "đang mở, ngày thứ k" khi lệnh mô phỏng đang mở.
+- Dưới đó là một dòng đếm: "N tín hiệu, M lệnh hoàn tất trong 3 năm". **Tỉ lệ thắng và EV theo R chỉ hiện khi có từ 30 lệnh đã đóng**; với một mã thường chỉ có khoảng 7–9 lệnh nên đa số mã ghi "Chưa đủ mẫu để thống kê riêng mã này (cần ≥ 30)". Không liệt kê từng lệnh.
+- Mô phỏng theo luật thị trường Việt Nam: vào ở giá mở phiên sau, T+2,5, biên độ HOSE/HNX/UPCOM, khoá sàn, không chồng lệnh, đã trừ phí, thuế bán và trượt giá. Luôn có dòng "Kết quả quá khứ, không đảm bảo tương lai" và các lưu ý (giá đã điều chỉnh, thiên lệch người sống sót, HOSE không có lệnh dừng, T+2,5 mô phỏng thận trọng).
+- Mã chưa đủ lịch sử giá đã điều chỉnh thì chỉ hiện một dòng lý do.
+- Trợ lý AI nối qua MCP đọc được cùng dữ liệu (`get_signal_setups`).
+
+### Kỹ thuật
+
+- `IndicatorMath` (EMA, RSI, ATR, ADX theo từng phiên) tách khỏi `TechnicalIndicatorService`, dùng chung với bộ máy tín hiệu; giá trị và làm tròn giữ nguyên.
+- `Services/Signals/`: `MarketRules`, `PullbackSetup`, `SetupBacktester`, `PullbackBacktest`, `SetupStatistics`, `ActiveSignal`, `SignalSetupService`. Hàm thuần, có test không nhìn trước (cắt chuỗi tại t không đổi lệnh đã đóng) và test chia tách.
+- `GET /api/v1/market/{symbol}/signal-setups`, `GetSignalSetupsQuery`, MCP `get_signal_setups` (85 tool). Công cụ đếm cỡ mẫu chỉ đọc `SignalSetupCountTool`. ADR-0018.
+- Test hộ về tên tool: bảo vệ "không tool MCP nào ký hồ sơ công ty" nay bỏ qua chữ "signal" (`sign(?!al)`).
+
+---
+
 ## [v2.101.0] — 2026-11-28 · Gợi ý giao dịch: cắt lỗ theo ATR, ghi cách tính, cảnh báo R:R thấp
 
 ### Cải thiện

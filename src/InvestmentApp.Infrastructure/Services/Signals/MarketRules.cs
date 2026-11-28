@@ -19,12 +19,14 @@ public sealed class MarketRules
     }
 
     /// <summary>Sàn không rõ hoặc thiếu thì coi như HOSE (7%, bước giá HOSE): giả định chặt nhất.</summary>
-    public static MarketRules For(string? exchange) => exchange?.Trim().ToUpperInvariant() switch
+    public static MarketRules For(string? exchange)
     {
-        "HNX" => new MarketRules(0.10m, hose: false),
-        "UPCOM" => new MarketRules(0.15m, hose: false),
-        _ => new MarketRules(0.07m, hose: true)   // HOSE, HSX, rỗng, lạ
-    };
+        // So khớp theo chứa: nguồn dữ liệu có thể trả "HNX", "Sàn HNX" hay "UPCOM"; không nhận ra thì 7%
+        var name = exchange?.Trim().ToUpperInvariant() ?? "";
+        if (name.Contains("UPCOM")) return new MarketRules(0.15m, hose: false);
+        if (name.Contains("HNX")) return new MarketRules(0.10m, hose: false);
+        return new MarketRules(0.07m, hose: true);   // HOSE, HSX, rỗng, lạ
+    }
 
     /// <summary>
     /// Bước giá. HOSE: 10 đồng dưới 10.000, 50 đồng từ 10.000 đến dưới 50.000, 100 đồng từ 50.000. HNX và UPCOM: 100 đồng

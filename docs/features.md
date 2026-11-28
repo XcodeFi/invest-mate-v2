@@ -209,6 +209,7 @@ Bước 5: ATR → Đặt SL ở đâu?
 | `GET` | `/market/stock/{symbol}/summary` | Biến động giá 1D/1W/1M/3M/6M |
 | `GET` | `/market/stock/{symbol}/analysis/series` | Chuỗi chỉ báo theo từng phiên (18 chuỗi + nến) để vẽ biểu đồ theo nhóm; điểm cuối khớp `/analysis` |
 | `GET` | `/market/stock/{symbol}/analysis` | Phân tích kỹ thuật (EMA, RSI, MACD, Stochastic, ADX, OBV, MFI, Bollinger, ATR, Volume, S&R, Fibonacci, Signal, Confluence Score, Market Condition, Divergence) |
+| `GET` | `/market/{symbol}/signal-setups` | Lịch sử setup Pullback trên một mã (~3 năm giá đã điều chỉnh): số tín hiệu, lệnh mô phỏng đã đóng/mở/bỏ qua theo luật thị trường VN (T+2,5, biên độ, khoá sàn, chi phí), tín hiệu đang kích hoạt (vào/cắt lỗ/mục tiêu). Tỉ lệ thắng và EV chỉ khi ≥ 30 lệnh đã đóng; không có danh sách từng lệnh. Khối "Setup Pullback trên <mã>" nằm dưới khối phân tích trang Thị trường. MCP: `get_signal_setups`. ADR-0018 |
 
 **Lịch sử giá ngày là nến thật đã điều chỉnh (2026-11-28):** nguồn UDF của biểu đồ web 24hmoney (~3 năm), có dự phòng sang nguồn cũ chỉ giá đóng cửa; trường `adjusted` ở analysis/series/history; trang Thị trường ghi chú khi giá chưa điều chỉnh hoặc chuỗi đã điều chỉnh lùi hơn 1 phiên (`adjustedAsOf`); EMA200 có giá trị và được vẽ trên nhóm Xu hướng; mỗi mã gọi nguồn tối đa 2 lần/ngày (lấy lại một lần sau 15:10), lỗi thì nghỉ, có bản lưu bền dự phòng (`adjusted_price_series`).
 

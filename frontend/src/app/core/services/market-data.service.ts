@@ -116,6 +116,52 @@ export interface TopFluctuation {
   referencePrice: number;
 }
 
+/** Tín hiệu đang kích hoạt của một setup. status: "moi" (chưa vào lệnh, vào lệnh ước tính) | "dang-mo" (đã vào, chưa thoát). */
+export interface SignalActivePlan {
+  signalDate: string;
+  entry: number;
+  entryIsEstimate: boolean;
+  stop: number;
+  target: number;
+  status: string;
+  dayInTrade?: number | null;
+}
+
+/** Một setup trên một mã. Dưới 30 lệnh đã đóng: mọi trường tỉ lệ vắng mặt (không phải 0). Không có danh sách từng lệnh. */
+export interface SignalSetup {
+  key: string;
+  name: string;
+  description: string;
+  signals: number;
+  completed: number;
+  open: number;
+  skipped: number;
+  n: number;
+  minSample: number;
+  sampleSufficient: boolean;
+  winRate?: number | null;
+  winRateLow?: number | null;
+  winRateHigh?: number | null;
+  evR?: number | null;
+  evRLow?: number | null;
+  evRHigh?: number | null;
+  avgWinR?: number | null;
+  avgLossR?: number | null;
+  activeSince?: string | null;
+  activePlan?: SignalActivePlan | null;
+}
+
+/** GET market/{symbol}/signal-setups. reasonUnavailable có giá trị thì setups rỗng và không có số liệu. */
+export interface SignalSetups {
+  symbol: string;
+  adjusted: boolean;
+  adjustedAsOf?: string | null;
+  reasonUnavailable?: string | null;
+  setups: SignalSetup[];
+  disclaimer: string;
+  notes: string[];
+}
+
 /** Chuỗi chỉ báo theo từng phiên (GET analysis/series). Mọi mảng dài bằng dates; null = chưa đủ warm-up. */
 export interface TechnicalSeries {
   symbol: string;
@@ -416,6 +462,11 @@ export class MarketDataService {
 
   getTechnicalAnalysis(symbol: string): Observable<TechnicalAnalysis> {
     return this.http.get<TechnicalAnalysis>(`${this.API_URL}/stock/${symbol}/analysis`, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  getSignalSetups(symbol: string): Observable<SignalSetups> {
+    return this.http.get<SignalSetups>(`${this.API_URL}/${symbol}/signal-setups`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

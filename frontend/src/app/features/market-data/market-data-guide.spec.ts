@@ -39,13 +39,14 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
 
   function setup() {
     const marketSpy = jasmine.createSpyObj<MarketDataService>('MarketDataService', [
-      'getMarketOverview', 'getBatchPrices', 'getTopFluctuation', 'getTechnicalSeries', 'getTechnicalAnalysis',
+      'getMarketOverview', 'getBatchPrices', 'getTopFluctuation', 'getTechnicalSeries', 'getTechnicalAnalysis', 'getSignalSetups',
     ]);
     marketSpy.getMarketOverview.and.returnValue(of([]));
     marketSpy.getBatchPrices.and.returnValue(of([]));
     marketSpy.getTopFluctuation.and.returnValue(of([]));
     marketSpy.getTechnicalSeries.and.returnValue(of(series()));
     marketSpy.getTechnicalAnalysis.and.returnValue(of(analysis()));
+    marketSpy.getSignalSetups.and.returnValue(of({ symbol: 'HPG', adjusted: true, setups: [], disclaimer: 'Kết quả quá khứ, không đảm bảo tương lai', notes: [] }));
     TestBed.configureTestingModule({
       imports: [MarketDataComponent],
       providers: [

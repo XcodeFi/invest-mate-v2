@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using InvestmentApp.Application.MarketData.Queries.GetMarketOverview;
+using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.MarketData.Queries.GetSignalSetups;
 using InvestmentApp.Application.MarketData.Queries.GetStockPrice;
 using InvestmentApp.Application.MarketData.Queries.GetStockPriceHistory;
 using InvestmentApp.Application.MarketData.Queries.GetTechnicalAnalysis;
@@ -78,6 +80,17 @@ public static class MarketDataTools
         var result = await mediator.Send(new GetTechnicalAnalysisQuery { Symbol = NormalizeSymbol(symbol) }, ct);
         // Trường null (ví dụ ema200 khi chưa đủ 200 phiên) bị bỏ do tuỳ chọn JSON của MCP, không cần lọc riêng.
         return JsonSerializer.SerializeToNode(result, McpJsonUtilities.DefaultOptions)!.AsObject();
+    }
+
+    [McpServerTool(Name = "get_signal_setups", ReadOnly = true)]
+    [Description("Lịch sử setup Pullback (xu hướng tăng, giá hồi về sát EMA20, RSI 40–55) trên MỘT mã trong khoảng 3 năm giá đã điều chỉnh: số lần xuất hiện, số lệnh mô phỏng đã đóng/đang mở/bị bỏ qua (theo luật thị trường Việt Nam: vào ở giá mở phiên sau, T+2,5, biên độ, khoá sàn, phí và thuế), và tín hiệu đang kích hoạt (activePlan: vào lệnh, cắt lỗ, mục tiêu; entryIsEstimate = true là vào lệnh ước tính theo đóng cửa vì chưa tới phiên vào). CHỈ khi đủ 30 lệnh đã đóng (sampleSufficient = true) mới có winRate, evR (kèm khoảng tin cậy 95%); dưới 30 thì các trường đó VẮNG MẶT, không phải 0 — hãy nói với người dùng là chưa đủ mẫu thay vì suy ra tỉ lệ thắng từ vài lệnh. reasonUnavailable có giá trị nghĩa là chuỗi giá chưa đủ tốt (chưa điều chỉnh, dưới 250 phiên hoặc đã cũ) nên không có số liệu. Luôn kèm disclaimer và notes. Không có danh sách từng lệnh, không xếp hạng, không phải khuyến nghị.")]
+    public static async Task<SignalSetupsDto> GetSignalSetups(
+        [Description("Mã chứng khoán, ví dụ FPT.")] string symbol,
+        IMediator mediator, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            throw new ArgumentException("Cần nhập mã chứng khoán (symbol), ví dụ FPT.", nameof(symbol));
+        return await mediator.Send(new GetSignalSetupsQuery { Symbol = NormalizeSymbol(symbol) }, ct);
     }
 
     [McpServerTool(Name = "get_technical_series", ReadOnly = true)]

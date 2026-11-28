@@ -50,7 +50,9 @@ public class McpToolDiscoveryTests
         // Độ khớp ước lượng (kỳ vọng theo R, đợt 3)
         "get_estimate_calibration",
         // Định cỡ vị thế (dùng chung query với REST) và sự kiện quyền
-        "calculate_position_size", "list_corporate_actions"
+        "calculate_position_size", "list_corporate_actions",
+        // Lịch sử setup Pullback trên một mã (S1)
+        "get_signal_setups"
     };
 
     private static readonly string[] WriteTools =
@@ -84,12 +86,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_84_Tools()
+    public void Registers_All_85_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(84);
+        (ReadTools.Length + WriteTools.Length).Should().Be(85);
     }
 
     [Fact]
@@ -118,7 +120,8 @@ public class McpToolDiscoveryTests
 
         var signingNames = tools.Select(t => t.ProtocolTool.Name)
             .Where(n => n.Contains("confirm", StringComparison.OrdinalIgnoreCase)
-                     || n.Contains("sign", StringComparison.OrdinalIgnoreCase))
+                     // "sign" mà không phải "signal": get_signal_setups là tín hiệu giao dịch, không liên quan việc ký hồ sơ
+                     || System.Text.RegularExpressions.Regex.IsMatch(n, "sign(?!al)", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
             .ToList();
         signingNames.Should().BeEmpty("không tool MCP nào được ký/xác nhận hồ sơ công ty");
 
@@ -290,6 +293,7 @@ public class McpToolDiscoveryTests
             .Contain(new[] { "useHistory", "strategyId", "riskPercent", "maxPositionPercent", "atr", "winRate" });
         Required(schema["list_corporate_actions"]).Should().BeEmpty("symbol và portfolioId đều tuỳ chọn");
         Required(schema["recompute_plan_review"]).Should().BeEquivalentTo(new[] { "planId" });
+        Required(schema["get_signal_setups"]).Should().BeEquivalentTo(new[] { "symbol" });
 
         // Đợt 3: kế hoạch / lãi-lỗ / cảnh báo
         Required(schema["get_scenario_suggestion"]).Should().BeEquivalentTo(new[] { "symbol", "entryPrice" });
