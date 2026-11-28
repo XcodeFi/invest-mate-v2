@@ -86,7 +86,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         PropertyNameCaseInsensitive = true
     };
 
-    private const string CommonParams =
+    internal const string CommonParams =
         "device_id=web&locale=vi&device_name=INVALID&device_model=INVALID" +
         "&network_carrier=INVALID&connection_type=INVALID&os=Chrome&os_version=1" +
         "&access_token=INVALID&push_token=INVALID";
