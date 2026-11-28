@@ -19,6 +19,7 @@ import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-c
 import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
 import { GroupLayers, IndicatorChartCandles } from '../../shared/components/indicator-chart/indicator-chart.types';
 import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
+import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { readNow } from '../../shared/indicators/indicator-guides';
 import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
@@ -1069,9 +1070,18 @@ export class MarketDataComponent implements OnInit {
     this.resetChart();
     this.resetSignalSetups();
     this.marketDataService.getTechnicalAnalysis(symbol).subscribe({
-      next: data => { this.analysis = data; this.analyzingSignal = false; this.loadSignalSetups(symbol); },
+      next: data => { this.analysis = data; this.analyzingSignal = false; this.loadSignalSetups(symbol); this.openStarredGroupOnce(); },
       error: () => { this.analyzingSignal = false; }
     });
+  }
+
+  /** Chỉ ở lần tra cứu đầu của trang: nếu có nhóm gắn sao thì mở sẵn nó. Đổi mã sau đó vẫn trở về chưa chọn nhóm như cũ. */
+  private starredGroupApplied = false;
+  private openStarredGroupOnce(): void {
+    if (this.starredGroupApplied) return;
+    this.starredGroupApplied = true;
+    const group = firstStarredGroup();
+    if (group) this.toggleGroup(group);
   }
 
   private loadSignalSetups(symbol: string): void {

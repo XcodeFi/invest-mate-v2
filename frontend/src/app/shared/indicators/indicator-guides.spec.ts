@@ -78,6 +78,69 @@ describe('INDICATOR_GUIDES', () => {
   });
 });
 
+describe('INDICATOR_GUIDES: lý do và nguồn', () => {
+  const items = groups.flatMap(g => INDICATOR_GUIDES[g].items.map(item => ({ g, item })));
+
+  it('every way of reading has a how and a non-empty why', () => {
+    items.forEach(({ g, item }) => item.howToRead.forEach((r, i) => {
+      expect(r.how.trim().length).withContext(`${g}/${item.name} how ${i}`).toBeGreaterThan(10);
+      expect(r.why.trim().length).withContext(`${g}/${item.name} why ${i}`).toBeGreaterThan(10);
+    }));
+  });
+
+  it('every investor entry has who, how, a why and a source', () => {
+    items.forEach(({ g, item }) => item.usedBy.forEach((u, i) => {
+      (['who', 'how', 'why', 'source'] as const).forEach(k => expect(u[k].trim().length).withContext(`${g}/${item.name} usedBy ${i} ${k}`).toBeGreaterThan(5));
+    }));
+  });
+
+  it('an item with no verified investor says so out loud instead of staying silent', () => {
+    items.forEach(({ g, item }) => {
+      if (item.usedBy.length === 0) expect((item.noUsers ?? '').trim().length).withContext(`${g}/${item.name}`).toBeGreaterThan(10);
+    });
+  });
+
+  it('Fibonacci says no investor with a verified record uses it as a core rule', () => {
+    const fib = INDICATOR_GUIDES['moc-gia'].items.find(i => i.name.includes('Fibonacci'))!;
+
+    expect(fib.usedBy).toEqual([]);
+    expect(fib.noUsers).toBe('Chưa có nhà đầu tư có thành tích kiểm chứng dùng làm quy tắc cốt lõi; bằng chứng yếu.');
+  });
+
+  it('pins Minervini on the EMA item with the SMA-versus-EMA difference stated', () => {
+    const m = INDICATOR_GUIDES['xu-huong'].items[0].usedBy.find(u => u.who.includes('Minervini'))!;
+
+    expect(m.source).toContain('Trade Like a Stock Market Wizard');
+    expect(m.note).toContain('SMA');
+    expect(m.note).toContain('EMA');
+  });
+
+  it('states where the investor variant differs from the app: Turtles N of 20 days versus ATR 14, O’Neil 50-day versus 20-day volume', () => {
+    const atr = INDICATOR_GUIDES['bien-dong'].items.find(i => i.name.startsWith('ATR'))!;
+    const vol = INDICATOR_GUIDES['dong-tien'].items.find(i => i.name.startsWith('Khối lượng'))!;
+
+    expect(atr.usedBy.find(u => u.who.includes('Turtle'))!.note).toContain('20 ngày');
+    expect(vol.usedBy.find(u => u.who.includes('O’Neil'))!.note).toContain('50 ngày');
+  });
+
+  it('inventors are labelled as inventors, not presented as proof of a track record', () => {
+    items.flatMap(x => x.item.usedBy).filter(u => u.who.includes('tác giả chỉ báo')).forEach(u => expect(u.note).withContext(u.who).toContain('không phải bằng chứng'));
+  });
+
+  it('cites Paul Tudor Jones to the Robbins interview and O’Neil with its first-edition year, not the Schwager chapter', () => {
+    const ptj = INDICATOR_GUIDES['xu-huong'].items[0].usedBy.find(u => u.who.includes('Paul Tudor Jones'))!;
+    const oneil = INDICATOR_GUIDES['dong-tien'].items[0].usedBy.find(u => u.who.includes('O’Neil'))!;
+
+    expect(ptj.source).toContain('Money: Master the Game');
+    expect(ptj.source).not.toContain('Market Wizards');
+    expect(oneil.source).toContain('1988');
+  });
+
+  it('no investor badge or verdict wording (ĐẠT / PASS)', () => {
+    expect(JSON.stringify(INDICATOR_GUIDES)).not.toMatch(/ĐẠT|PASS/);
+  });
+});
+
 describe('readNow', () => {
   it('readNow rsi above 70 says overbought', () => {
     const out = readNow('dong-luong', series({ rsi14: withLast(50, 72) }), analysis());

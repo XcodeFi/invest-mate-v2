@@ -78,6 +78,22 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
     expect(q('ta-guide')).toBeNull();
   });
 
+  it('a starred group opens on the first lookup only; the next symbol goes back to no group', () => {
+    localStorage.setItem('ta-group-stars', JSON.stringify(['dong-luong']));
+    try {
+      setup();
+
+      fixture.componentInstance.loadTechnicalAnalysis('HPG');
+      fixture.detectChanges();
+      expect(fixture.componentInstance.selectedGroup).toBe('dong-luong');
+      expect(q('ta-guide')).not.toBeNull();
+
+      fixture.componentInstance.loadTechnicalAnalysis('VNM');
+      fixture.detectChanges();
+      expect(fixture.componentInstance.selectedGroup).toBeNull();
+    } finally { localStorage.removeItem('ta-group-stars'); }
+  });
+
   it('guide block shows for selected group with all its indicators', () => {
     setup();
     click('xu-huong');
@@ -88,7 +104,8 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
       expect(block.textContent).withContext(item.name).toContain(item.name);
       expect(block.textContent).withContext(item.name).toContain(item.what);
       expect(block.textContent).withContext(item.name).toContain(item.pitfall);
-      item.howToRead.forEach(line => expect(block.textContent).toContain(line));
+      item.howToRead.forEach(line => { expect(block.textContent).toContain(line.how); expect(block.textContent).toContain(line.why); });
+      item.usedBy.forEach(u => { expect(block.textContent).toContain(u.who); expect(block.textContent).toContain(u.why); expect(block.textContent).toContain(u.source); });
     });
   });
 
