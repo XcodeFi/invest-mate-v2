@@ -23,6 +23,7 @@ import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { readNow } from '../../shared/indicators/indicator-guides';
 import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
+import { TrendTemplateCardComponent } from '../../shared/components/trend-template-card/trend-template-card.component';
 import { PatternCardComponent } from '../../shared/patterns/pattern-card.component';
 import { withPattern } from '../../shared/patterns/pattern-layers';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
@@ -46,7 +47,7 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
   selector: 'app-market-data',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent,
-    SignalSetupsPanelComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent],
+    SignalSetupsPanelComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent, TrendTemplateCardComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-6">
@@ -259,6 +260,7 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
         <!-- Ghi chú chất lượng giá và khối Cách đọc: nằm NGOÀI khối dính để không làm khối dính cao thêm -->
         <app-series-adjusted-notes [series]="selectedGroup ? currentSeries : null"></app-series-adjusted-notes>
         <app-indicator-guide [group]="currentSeries ? selectedGroup : null" [readNowLines]="readNowLines"></app-indicator-guide>
+        <app-trend-template-card *ngIf="selectedGroup === 'xu-huong'" [template]="analysis?.trendTemplate"></app-trend-template-card>
         <app-pattern-card [candidate]="patternCandidate" [showOnChart]="showPattern" [chartReady]="!!currentSeries" (showOnChartChange)="setShowPattern($event)"></app-pattern-card>
 
         <!-- Khối 1: Tổng hợp (Confluence + Gợi ý giao dịch) -->

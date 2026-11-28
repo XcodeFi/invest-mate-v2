@@ -18,6 +18,7 @@ import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker } from '../../
 import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
+import { TrendTemplateCardComponent } from '../../shared/components/trend-template-card/trend-template-card.component';
 import { PatternCardComponent } from '../../shared/patterns/pattern-card.component';
 import { withPattern } from '../../shared/patterns/pattern-layers';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
@@ -73,7 +74,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
   selector: 'app-symbol-timeline',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, ThesisCardComponent, VndCurrencyPipe, NumMaskDirective, AiChatPanelComponent,
-    IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent],
+    IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent, TrendTemplateCardComponent],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-6">
       <!-- Header -->
@@ -321,6 +322,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       <app-series-adjusted-notes [series]="series"></app-series-adjusted-notes>
       <div class="mb-6">
         <app-indicator-guide [group]="selectedGroup" [readNowLines]="readNowLines"></app-indicator-guide>
+        <app-trend-template-card *ngIf="selectedGroup === 'xu-huong'" [template]="analysis?.trendTemplate"></app-trend-template-card>
         <app-pattern-card [candidate]="patternCandidate" [showOnChart]="showPattern" [chartReady]="!!series" (showOnChartChange)="setShowPattern($event)"></app-pattern-card>
       </div>
 

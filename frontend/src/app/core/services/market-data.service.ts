@@ -280,6 +280,35 @@ export interface TechnicalSeries {
   obv: (number | null)[];
   mfi14: (number | null)[];
   volumeSma20: (number | null)[];
+  /** Trung bình ĐƠN GIẢN (SMA) 50/150/200 phiên; backend cũ không gửi các trường này. */
+  sma50?: (number | null)[];
+  sma150?: (number | null)[];
+  sma200?: (number | null)[];
+  /** Kênh Donchian: đỉnh/đáy của 20 và 55 phiên TRƯỚC phiên hiện tại, và đáy 10 phiên trước (mức thoát của Turtle). */
+  donchian20High?: (number | null)[];
+  donchian20Low?: (number | null)[];
+  donchian55High?: (number | null)[];
+  donchian55Low?: (number | null)[];
+  exitLow10?: (number | null)[];
+}
+
+/** Một dòng của thẻ Trend Template: giá trị là khoảng cách theo %, vắng khi chưa đủ dữ liệu (không phải 0). */
+export interface TrendTemplateCriterion {
+  key: string;
+  rule: string;
+  value?: number | null;
+  unit?: string | null;
+  threshold?: number | null;
+  /** Thoả hay không; vắng khi chưa đủ dữ liệu hoặc không tính được. */
+  met?: boolean | null;
+  detail?: string | null;
+}
+
+/** Không có kết luận tổng "đạt": mỗi dòng đứng riêng. */
+export interface TrendTemplate {
+  sessions: number;
+  criteria: TrendTemplateCriterion[];
+  note: string;
 }
 
 /** Một điều kiện của mô hình: luật, giá trị đo, đạt hay không (`required` = bắt buộc để mô hình được báo). */
@@ -359,6 +388,22 @@ export interface TechnicalAnalysis {
   bollingerPercentB?: number;
   bollingerSignal?: string;
   ema200?: number;
+  /** Cấu trúc giá dài hạn của phiên cuối; vắng khi chưa đủ phiên (hoặc backend cũ). */
+  sma50?: number;
+  sma150?: number;
+  sma200?: number;
+  week52High?: number;
+  week52Low?: number;
+  /** Giá thấp hơn đỉnh 52 tuần bao nhiêu %. */
+  pctBelowWeek52High?: number;
+  /** Giá cao hơn đáy 52 tuần bao nhiêu %. */
+  pctAboveWeek52Low?: number;
+  donchian20High?: number;
+  donchian20Low?: number;
+  donchian55High?: number;
+  donchian55Low?: number;
+  exitLow10?: number;
+  trendTemplate?: TrendTemplate | null;
   ema21?: number;
   highestHigh22?: number;
   lowestLow22?: number;
