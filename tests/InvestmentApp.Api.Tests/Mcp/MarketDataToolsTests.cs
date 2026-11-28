@@ -176,6 +176,91 @@ public class MarketDataToolsTests
         names.Should().NotContain(n => n.Contains("score") || n.Contains("confidence") || n.Contains("probab"));
     }
 
+    private static TechnicalAnalysisResult WithStructure() => new()
+    {
+        Symbol = "FPT", Sma50 = 100m, Sma150 = 95m, Sma200 = 90m, Week52High = 120m, Week52Low = 70m, PctBelowWeek52High = 2.5m, PctAboveWeek52Low = 64.3m,
+        Donchian20High = 112m, Donchian20Low = 98m, Donchian55High = 118m, Donchian55Low = 92m, ExitLow10 = 103m,
+        TrendTemplate = new InvestmentApp.Application.MarketData.Trend.TrendTemplateInfo
+        {
+            Sessions = 400, Note = "bộ lọc, không phải tín hiệu mua",
+            Criteria =
+            {
+                new InvestmentApp.Application.MarketData.Trend.TrendTemplateCriterion
+                    { Key = "above_52w_low", Rule = "Giá cao hơn đáy 52 tuần ít nhất 30%", Value = 64.3m, Unit = "%", Threshold = 30m, Met = true, Detail = "chi tiết" }
+            }
+        }
+    };
+
+    [Fact]
+    public async Task get_technical_analysis_carries_sma_week52_and_donchian_scalars_under_camelCase_keys()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _, WithStructure());
+
+        var r = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        r["sma50"]!.GetValue<decimal>().Should().Be(100m);
+        r["sma150"]!.GetValue<decimal>().Should().Be(95m);
+        r["sma200"]!.GetValue<decimal>().Should().Be(90m);
+        r["week52High"]!.GetValue<decimal>().Should().Be(120m);
+        r["week52Low"]!.GetValue<decimal>().Should().Be(70m);
+        r["pctBelowWeek52High"]!.GetValue<decimal>().Should().Be(2.5m);
+        r["pctAboveWeek52Low"]!.GetValue<decimal>().Should().Be(64.3m);
+        r["donchian20High"]!.GetValue<decimal>().Should().Be(112m);
+        r["donchian20Low"]!.GetValue<decimal>().Should().Be(98m);
+        r["donchian55High"]!.GetValue<decimal>().Should().Be(118m);
+        r["donchian55Low"]!.GetValue<decimal>().Should().Be(92m);
+        r["exitLow10"]!.GetValue<decimal>().Should().Be(103m);
+    }
+
+    [Fact]
+    public async Task get_technical_analysis_omits_the_structure_fields_when_there_is_not_enough_data_instead_of_sending_zero()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT" });
+
+        var r = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        foreach (var key in new[] { "sma50", "sma150", "sma200", "week52High", "week52Low", "pctBelowWeek52High", "pctAboveWeek52Low", "donchian20High", "exitLow10", "trendTemplate" })
+            r.AsObject().ContainsKey(key).Should().BeFalse(key);
+    }
+
+    [Fact]
+    public async Task the_trend_template_has_exactly_the_allowed_keys_and_no_overall_verdict()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _, WithStructure());
+
+        var r = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        var t = r["trendTemplate"]!.AsObject();
+        t.Select(kv => kv.Key).Should().BeEquivalentTo(new[] { "sessions", "criteria", "note" });
+        t["criteria"]!.AsArray().Single()!.AsObject().Select(kv => kv.Key)
+            .Should().BeEquivalentTo(new[] { "key", "rule", "value", "unit", "threshold", "met", "detail" });
+        t.Select(kv => kv.Key.ToLowerInvariant()).Should().NotContain(n => n.Contains("pass") || n.Contains("score") || n.Contains("overall") || n.Contains("verdict"));
+    }
+
+    [Fact]
+    public async Task get_technical_series_trims_the_sma_and_donchian_arrays_with_the_rest()
+    {
+        ReturnSeries(61, out _);
+
+        var result = await MarketDataTools.GetTechnicalSeries("FPT", _mediator.Object, CancellationToken.None, lastN: 25);
+
+        foreach (var key in new[] { "sma50", "sma150", "sma200", "donchian20High", "donchian20Low", "donchian55High", "donchian55Low", "exitLow10" })
+            result[key]!.AsArray().Count.Should().Be(25, key);
+    }
+
+    [Fact]
+    public void the_tool_descriptions_name_the_new_series_and_say_the_template_is_not_a_buy_signal()
+    {
+        string Desc(string method) => ((System.ComponentModel.DescriptionAttribute)typeof(MarketDataTools).GetMethod(method)!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false).Single()).Description;
+
+        var analysis = Desc(nameof(MarketDataTools.GetTechnicalAnalysis));
+        analysis.Should().Contain("sma50").And.Contain("week52High").And.Contain("donchian20High").And.Contain("trendTemplate");
+        analysis.Should().Contain("KHÔNG có kết luận tổng");
+        var series = Desc(nameof(MarketDataTools.GetTechnicalSeries));
+        series.Should().Contain("SMA50").And.Contain("Donchian").And.NotContain("19 chuỗi");
+    }
+
     [Fact]
     public async Task get_technical_analysis_without_a_pattern_has_an_empty_list_not_a_made_up_one()
     {
@@ -414,7 +499,7 @@ public class MarketDataToolsTests
             .Where(kv => kv.Value is JsonArray)
             .ToDictionary(kv => kv.Key, kv => kv.Value!.AsArray().Count);
         lengths.Should().NotBeEmpty();
-        lengths.Values.Should().OnlyContain(c => c == 25, "mọi mảng (ngày, OHLCV, 19 chuỗi chỉ báo) phải cùng độ dài");
+        lengths.Values.Should().OnlyContain(c => c == 25, "mọi mảng (ngày, OHLCV, 27 chuỗi chỉ báo) phải cùng độ dài");
         lengths.Keys.Should().Contain(new[] { "dates", "open", "close", "volume", "ema20", "rsi14" });
     }
 

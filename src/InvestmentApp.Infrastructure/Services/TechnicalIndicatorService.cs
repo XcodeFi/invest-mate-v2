@@ -1,4 +1,5 @@
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.MarketData.Trend;
 using InvestmentApp.Application.MarketData.Patterns;
 using InvestmentApp.Infrastructure.Services.Signals;
 
@@ -84,6 +85,22 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         result.Ema20 = CalculateEma(closes, 20);
         result.Ema50 = CalculateEma(closes, 50);
         result.Ema200 = CalculateEma(closes, 200);
+
+        // --- SMA, đỉnh/đáy 52 tuần, kênh Donchian, Trend Template: cùng hàm với chuỗi nên phần tử cuối của chuỗi bằng giá trị này ---
+        var highsAll = prices.Select(p => p.High).ToList();
+        var lowsAll = prices.Select(p => p.Low).ToList();
+        result.Sma50 = PriceStructure.Sma(closes, 50).LastOrDefault();
+        result.Sma150 = PriceStructure.Sma(closes, 150).LastOrDefault();
+        result.Sma200 = PriceStructure.Sma(closes, 200).LastOrDefault();
+        (result.Week52High, result.Week52Low) = PriceStructure.Week52(highsAll, lowsAll);
+        if (result.Week52High is > 0) result.PctBelowWeek52High = Math.Round((result.Week52High.Value - current.Close) / result.Week52High.Value * 100, 2);
+        if (result.Week52Low is > 0) result.PctAboveWeek52Low = Math.Round((current.Close / result.Week52Low.Value - 1) * 100, 2);
+        result.Donchian20High = PriceStructure.PriorHighest(highsAll, 20).LastOrDefault();
+        result.Donchian20Low = PriceStructure.PriorLowest(lowsAll, 20).LastOrDefault();
+        result.Donchian55High = PriceStructure.PriorHighest(highsAll, 55).LastOrDefault();
+        result.Donchian55Low = PriceStructure.PriorLowest(lowsAll, 55).LastOrDefault();
+        result.ExitLow10 = PriceStructure.PriorLowest(lowsAll, 10).LastOrDefault();
+        result.TrendTemplate = TrendTemplateBuilder.Build(closes, highsAll, lowsAll);
 
         if (result.Ema20.HasValue && result.Ema50.HasValue)
         {
@@ -391,6 +408,9 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             result.Adx = NullSeries(n); result.PlusDi = NullSeries(n); result.MinusDi = NullSeries(n);
             result.Atr14 = NullSeries(n); result.Obv = NullSeries(n); result.Mfi14 = NullSeries(n);
             result.VolumeSma20 = NullSeries(n);
+            result.Sma50 = NullSeries(n); result.Sma150 = NullSeries(n); result.Sma200 = NullSeries(n);
+            result.Donchian20High = NullSeries(n); result.Donchian20Low = NullSeries(n);
+            result.Donchian55High = NullSeries(n); result.Donchian55Low = NullSeries(n); result.ExitLow10 = NullSeries(n);
             return SliceSeries(result, WindowStart(prices, windowFrom));
         }
 
@@ -406,6 +426,14 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         result.Obv = ObvSeries(closes, volumes);
         result.Mfi14 = MfiSeries(highs, lows, closes, volumes, 14);
         result.VolumeSma20 = VolumeSmaSeries(volumes, 20);
+        result.Sma50 = PriceStructure.Sma(closes, 50);
+        result.Sma150 = PriceStructure.Sma(closes, 150);
+        result.Sma200 = PriceStructure.Sma(closes, 200);
+        result.Donchian20High = PriceStructure.PriorHighest(highs, 20);
+        result.Donchian20Low = PriceStructure.PriorLowest(lows, 20);
+        result.Donchian55High = PriceStructure.PriorHighest(highs, 55);
+        result.Donchian55Low = PriceStructure.PriorLowest(lows, 55);
+        result.ExitLow10 = PriceStructure.PriorLowest(lows, 10);
 
         // Chỉ trả phần cuối theo khoảng được xin: giá trị đã được tính trên toàn bộ lịch sử nên đầu khoảng không bị trống
         return SliceSeries(result, WindowStart(prices, windowFrom));
@@ -430,6 +458,9 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         r.MacdLine = Cut(r.MacdLine); r.MacdSignal = Cut(r.MacdSignal); r.MacdHistogram = Cut(r.MacdHistogram);
         r.Adx = Cut(r.Adx); r.PlusDi = Cut(r.PlusDi); r.MinusDi = Cut(r.MinusDi);
         r.Atr14 = Cut(r.Atr14); r.Obv = Cut(r.Obv); r.Mfi14 = Cut(r.Mfi14); r.VolumeSma20 = Cut(r.VolumeSma20);
+        r.Sma50 = Cut(r.Sma50); r.Sma150 = Cut(r.Sma150); r.Sma200 = Cut(r.Sma200);
+        r.Donchian20High = Cut(r.Donchian20High); r.Donchian20Low = Cut(r.Donchian20Low);
+        r.Donchian55High = Cut(r.Donchian55High); r.Donchian55Low = Cut(r.Donchian55Low); r.ExitLow10 = Cut(r.ExitLow10);
         return r;
     }
 

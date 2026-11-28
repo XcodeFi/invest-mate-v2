@@ -53,6 +53,21 @@ public class TechnicalSeriesResult
     public List<decimal?> Obv { get; set; } = new();
     public List<decimal?> Mfi14 { get; set; } = new();
     public List<decimal?> VolumeSma20 { get; set; } = new();
+
+    /// <summary>Trung bình ĐƠN GIẢN (SMA) của giá đóng cửa 50/150/200 phiên (khác EMA: Minervini dùng SMA); null cho tới khi đủ phiên.</summary>
+    public List<decimal?> Sma50 { get; set; } = new();
+    public List<decimal?> Sma150 { get; set; } = new();
+    public List<decimal?> Sma200 { get; set; } = new();
+
+    /// <summary>
+    /// Kênh Donchian: đỉnh cao nhất / đáy thấp nhất của 20 và 55 phiên TRƯỚC phiên hiện tại (không tính phiên hiện tại), và đáy thấp nhất 10 phiên trước.
+    /// Theo Turtle: vào khi giá phá đỉnh 20 (hoặc 55) phiên, thoát khi thủng đáy 10 (hoặc 20) phiên (Donchian20Low là mức thoát 20 phiên). Null cho tới khi đủ phiên.
+    /// </summary>
+    public List<decimal?> Donchian20High { get; set; } = new();
+    public List<decimal?> Donchian20Low { get; set; } = new();
+    public List<decimal?> Donchian55High { get; set; } = new();
+    public List<decimal?> Donchian55Low { get; set; } = new();
+    public List<decimal?> ExitLow10 { get; set; } = new();
 }
 
 public class TechnicalAnalysisResult
@@ -146,6 +161,25 @@ public class TechnicalAnalysisResult
     // MFI (Money Flow Index, 14)
     public decimal? Mfi14 { get; set; }
     public string MfiSignal { get; set; } = "neutral"; // "oversold" | "overbought" | "neutral"
+
+    // Cấu trúc giá dài hạn (SMA, đỉnh/đáy 52 tuần, kênh Donchian): giá trị của phiên cuối, bằng phần tử cuối của chuỗi tương ứng. Thiếu phiên thì null (không 0).
+    public decimal? Sma50 { get; set; }
+    public decimal? Sma150 { get; set; }
+    public decimal? Sma200 { get; set; }
+    /// <summary>Đỉnh cao nhất / đáy thấp nhất của 250 phiên gần nhất (khoảng 52 tuần); null khi chưa đủ 250 phiên.</summary>
+    public decimal? Week52High { get; set; }
+    public decimal? Week52Low { get; set; }
+    /// <summary>Giá hiện tại thấp hơn đỉnh 52 tuần bao nhiêu % (dương = còn dưới đỉnh).</summary>
+    public decimal? PctBelowWeek52High { get; set; }
+    /// <summary>Giá hiện tại cao hơn đáy 52 tuần bao nhiêu %.</summary>
+    public decimal? PctAboveWeek52Low { get; set; }
+    public decimal? Donchian20High { get; set; }
+    public decimal? Donchian20Low { get; set; }
+    public decimal? Donchian55High { get; set; }
+    public decimal? Donchian55Low { get; set; }
+    public decimal? ExitLow10 { get; set; }
+    /// <summary>Các tiêu chí Trend Template (Minervini) với giá trị và khoảng cách; KHÔNG có kết luận tổng, không phải tín hiệu mua. Null khi dưới 20 phiên.</summary>
+    public InvestmentApp.Application.MarketData.Trend.TrendTemplateInfo? TrendTemplate { get; set; }
 
     // Confluence Score (0-100, weighted multi-indicator)
     public decimal? ConfluenceScore { get; set; }
