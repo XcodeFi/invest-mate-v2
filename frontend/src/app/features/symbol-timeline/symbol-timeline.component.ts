@@ -19,6 +19,7 @@ import { IndicatorGroupBarComponent } from '../../shared/components/indicator-gr
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
+import { buildTimelineQuery, parseTimelineQuery, TimelineUrlState } from './timeline-url-state';
 import { readNow } from '../../shared/indicators/indicator-guides';
 import { sliceSeriesFrom } from '../../shared/indicators/slice-series';
 import { dossierBadge, DossierAtTradeDto, DossierBadge } from './dossier-at-trade';
@@ -725,7 +726,77 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
     // are still inside the fetched timeline window.
     if (this.reviewTradeId) this.selectedRange = 12;
     if (!this.symbol) return;
-    this.loadData();
+    // Trạng thái trang (range, grp, focus) nằm trên URL: đọc qua queryParamMap (không phải snapshot) để Back và link dán lại đúng trạng thái.
+    // Lần phát đầu tiên áp dụng trạng thái ban đầu và tải dữ liệu; các lần sau chỉ áp dụng khoá nào ĐỔI.
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(q => this.onUrlState(parseTimelineQuery(q)));
+  }
+
+  // ===== Trạng thái trên URL =====
+
+  /** Những gì URL đang nói (hoặc ta vừa ghi lên đó), để lần phát lại của chính ta và các khoá không liên quan (tradeId) là no-op. */
+  private urlState: TimelineUrlState = {};
+  private firstUrlState = true;
+  /** Ngày của mục đang chọn (YYYY-MM-DD theo giờ VN); null khi chưa chọn. */
+  private focusDate: string | null = null;
+  /** Cuộn tới mục focus ở lần áp dụng kế tiếp (chỉ khi focus tới từ URL, không phải từ cú bấm của chính người dùng). */
+  private scrollToFocus = false;
+
+  private onUrlState(next: TimelineUrlState): void {
+    const prev = this.urlState;
+    this.urlState = next;
+
+    if (this.firstUrlState) {
+      this.firstUrlState = false;
+      // Luồng review (tradeId) cần khoảng 12 tháng để thấy lệnh cũ: tradeId thắng range trên URL
+      if (next.range !== undefined && !this.reviewTradeId) this.selectedRange = next.range;
+      if (next.group !== undefined) this.selectedGroup = next.group;
+      this.focusDate = next.focus ?? null;
+      this.scrollToFocus = this.focusDate !== null;
+      this.loadData();
+      return;
+    }
+
+    let reload = false;
+    if (next.range !== prev.range) {
+      this.selectedRange = next.range ?? (this.reviewTradeId ? 12 : 3);
+      reload = true;
+    }
+    if (next.group !== prev.group) {
+      this.selectedGroup = next.group ?? null;
+      if (!reload) this.refreshChart();
+    }
+    if (next.focus !== prev.focus) {
+      this.focusDate = next.focus ?? null;
+      this.scrollToFocus = this.focusDate !== null;
+      if (!reload) this.applyFocus();
+    }
+    if (reload) this.loadData();   // loadData áp dụng lại focus sau khi tải xong
+  }
+
+  /** Ghi range/grp/focus lên URL: merge để không đụng symbol và tradeId, replaceUrl để cú bấm trên biểu đồ không chất thêm mục lịch sử. */
+  private writeUrlState(): void {
+    this.urlState = {
+      range: this.selectedRange,
+      group: this.selectedGroup ?? undefined,
+      focus: this.focusDate ?? undefined
+    };
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: buildTimelineQuery({ range: this.selectedRange, group: this.selectedGroup, focus: this.focusDate }),
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
+  /** Chọn mục có ngày (giờ VN) trùng focus; nếu focus tới từ URL thì cuộn tới mục đó. Không có mục nào thì không chọn gì. */
+  private applyFocus(): void {
+    if (!this.focusDate) return;
+    const index = this.filteredItems.findIndex(i => vnDay(i.timestamp) === this.focusDate);
+    this.selectedItemIndex = index;
+    if (this.scrollToFocus && index >= 0) {
+      setTimeout(() => document.getElementById('timeline-item-' + index)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    }
+    this.scrollToFocus = false;
   }
 
   ngOnDestroy() {
@@ -735,6 +806,7 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
 
   setDateRange(months: number) {
     this.selectedRange = months;
+    this.writeUrlState();
     this.loadData();
   }
 
@@ -756,6 +828,7 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
           this.timeline = this.normalizeTimeline(timeline);
           this.filteredItems = [...this.timeline!.items];
           this.applyFilters();
+          this.applyFocus();
           this.computeEmotionStats();
           this.buildAiContext();
           this.refreshChart();
@@ -823,6 +896,7 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   toggleGroup(group: TaGroup): void {
     this.selectedGroup = this.selectedGroup === group ? null : group;
     this.refreshChart();
+    this.writeUrlState();
   }
 
   /** Dựng lại lớp vẽ, các mốc và các câu đọc nhanh từ chuỗi, phân tích và dòng thời gian hiện có. */
@@ -1117,6 +1191,9 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
 
   selectTimelineItem(index: number) {
     this.selectedItemIndex = index;
+    const item = this.filteredItems[index];
+    this.focusDate = item ? vnDay(item.timestamp) : null;
+    this.writeUrlState();
   }
 
   getEntryTypeLabel(type: string): string {

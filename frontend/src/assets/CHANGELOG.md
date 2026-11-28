@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.112.0] — 2026-11-28 · Dòng thời gian: mỗi giao dịch cho biết hồ sơ công ty lúc đó ra sao
+## [v2.114.0] — 2026-11-28 · Dòng thời gian: mỗi giao dịch cho biết hồ sơ công ty lúc đó ra sao
 
 ### Tính năng mới
 
@@ -20,6 +20,32 @@
 
 ---
 
+## [v2.113.0] — 2026-11-28 · Hồ sơ công ty và Dòng thời gian mã nối được với nhau; trạng thái trang nằm trên URL
+
+### Tính năng mới
+
+- **Hồ sơ công ty → Dòng thời gian:** trang chi tiết hồ sơ có nút **📈 Dòng thời gian** (cạnh nhãn độ tươi) đi thẳng tới biểu đồ, giao dịch, nhật ký và sự kiện của mã. Chiều ngược lại đã có sẵn (chip "🏢 Hồ sơ công ty" ở đầu trang Dòng thời gian), nên nay đi lại được cả hai hướng.
+- **Trang Dòng thời gian nhớ trạng thái trên URL:** khoảng thời gian (`range=1T|3T|6T|1N`), nhóm chỉ báo (`grp=...`) và mục đang chọn (`focus=YYYY-MM-DD`). Bấm Back, tải lại hoặc dán link thì trang trở về đúng khoảng, nhóm chỉ báo và mục đang xem (mục focus được chọn và cuộn tới). Giá trị sai trong URL bị bỏ qua, về mặc định (3T, không nhóm). Chọn khoảng hay nhóm không chất thêm mục vào lịch sử trình duyệt.
+
+### Kỹ thuật
+
+- `timeline-url-state.ts` (hàm thuần `parseTimelineQuery` / `buildTimelineQuery`) và trang đọc qua `queryParamMap` (không phải snapshot): lần phát đầu áp dụng trạng thái ban đầu, các lần sau chỉ áp dụng khoá nào đổi, nên lần phát lại do chính trang vừa ghi và các khoá không liên quan (`tradeId`) là no-op. Ghi bằng `queryParamsHandling: 'merge'` + `replaceUrl: true`; không đụng `symbol` và `tradeId` (luồng đánh giá sau giao dịch giữ nguyên, kể cả việc mở rộng mặc định lên 12 tháng).
+- `focus` chỉ xác định NGÀY, không xác định mục: ngày có nhiều mục (ví dụ một giao dịch và một nhật ký) thì mở lại sẽ chọn mục đầu tiên của ngày đó. Khi vào từ link review (`tradeId`) thì `tradeId` thắng `range`, giữ khoảng 12 tháng. `focus` là ngày theo giờ Việt Nam của mục đang chọn (giao dịch lúc 00:30 giờ VN ngày 20 có focus ngày 20, không phải ngày 19).
+- Chưa làm (theo kế hoạch): khôi phục vị trí cuộn, trạng thái thẻ trên URL, link từ Thị trường/Replay/Watchlist; huy hiệu "hồ sơ lúc đó" và thẻ "Luận điểm" là hai PR sau.
+## [v2.112.0] — 2026-11-28 · Tỉ lệ nền VN30 cho setup Pullback
+
+### Tính năng mới
+
+- **Dòng "Tỉ lệ nền VN30"** trong khối Setup Pullback của trang Thị trường, chỉ cho mã thuộc VN30: *"Tỉ lệ nền VN30 (28 mã, 412 lệnh, 34 tháng): thắng 43% (95% xấp xỉ: 37% – 49%), kỳ vọng +0.12R (95% xấp xỉ: -0.05R – +0.29R)"*. Mỗi mã chỉ có 4–9 lệnh trong 3 năm nên không đủ để thống kê riêng; gộp cả rổ cho một con số tham khảo xem setup này có kỳ vọng dương hay không. Kèm lưu ý: đây là tỉ lệ của **rổ**, không phải bằng chứng riêng của mã; số liệu mô tả quá khứ; rổ hiện tại gồm các mã còn niêm yết (thiên lệch người sống sót).
+- **Khoảng tin cậy xấp xỉ, có tính phụ thuộc.** Các lệnh cùng tháng chịu chung bối cảnh thị trường nên không thể coi là độc lập: khoảng 95% lấy từ bootstrap theo khối tháng (2.000 lần, hạt giống cố định), không phải khoảng Wilson trên các lệnh gộp. Nhãn ghi "xấp xỉ" và nói rõ khoảng có thể vẫn hẹp hơn thực tế (lệnh kéo dài qua nhiều tháng).
+- **Chỉ hiện khi đủ dữ liệu:** từ 15 mã VN30 có chuỗi giá điều chỉnh còn mới, từ 30 lệnh đã đóng và các lệnh rải trên ít nhất 24 tháng. Chưa đủ thì ghi lý do (ví dụ "Chưa đủ mã VN30 có dữ liệu (7/30, cần từ 15)"); mã ngoài VN30 ghi "Chỉ có cho mã thuộc VN30". Không bao giờ điền sẵn vào form kế hoạch.
+- Công cụ MCP `get_signal_setups` trả thêm `baseRate` / `baseRateReason` (vắng mặt khi không có), mô tả công cụ nói rõ đây là tỉ lệ của rổ, không phải của mã.
+
+### Kỹ thuật
+
+- **Lấy trước chuỗi giá VN30 qua job `prices` sẵn có** (không thêm job Cloud Scheduler, không đổi hạ tầng): sau việc chính, mỗi lượt lấy tối đa 1 mã (chưa có chuỗi trước, rồi cũ nhất; bỏ mã mà nguồn coi là còn tươi) nên rổ đầy sau khoảng hai ngày giao dịch. Giới hạn cứng nằm ở phía nguồn giá: tối đa **30 lần gọi UDF mỗi ngày Việt Nam** (tính cả lần lỗi, lưu bền ở collection `job_state` bằng một lệnh `$inc` nguyên tử), **không dùng graph dự phòng**, bỏ qua **không gọi** khi nguồn đang trục trặc (cooldown chung hoặc chuỗi lỗi chung ≥ 1), và lỗi của warm-up **không** cộng vào chuỗi lỗi chung hay cooldown của biểu đồ người dùng (warm-up có cooldown riêng). Chạy sau việc chính kể cả khi job không có mã nào, hạn 20 giây, mọi lỗi chỉ ghi log, kết quả job giá không đổi. Công tắc tắt: `SignalWarmup__Enabled=false`; tinh chỉnh `SignalWarmup__SymbolsPerRun`, `MarketDataProvider__WarmupMaxCallsPerDay`.
+- Rổ VN30 một nguồn duy nhất `Domain/Constants/Vn30Basket` (nhập danh sách VN30 dùng chung). Thống kê gộp `BaseRateStatistics` (hàm thuần, bộ sinh số giả ngẫu nhiên tự viết nên kết quả không đổi giữa các bản .NET) và `SignalBaseRateService` (chạy cùng engine S1 trên chuỗi đã lưu, bỏ nến đang hình thành, dùng biên độ HOSE cho cả rổ, nhớ kết quả tới 15:10 hoặc hết ngày). Công cụ đếm chỉ đọc có thêm chế độ `pooled` (k, n, số tháng, bootstrap) dùng đúng hàm gộp của dịch vụ.
+- Hàm dựng `PriceSnapshotJobService` nhận thêm `ISignalSeriesWarmup`; `IAdjustedPriceSeriesStore` thêm `GetFetchedAtAsync` (chỉ đọc `FetchedAt`, không tải nến). ADR-0019.
 ## [v2.111.0] — 2026-11-28 · Chế độ tối (mặc định)
 
 ### Tính năng mới

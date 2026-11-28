@@ -14,7 +14,12 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
     private readonly IMarketDataProvider _marketData;
     private readonly IStopLossTargetRepository _slRepo;
     private readonly ICorporateActionRepository _corporateActionRepo;
+    private readonly ISignalSeriesWarmup _warmup;
     private readonly ILogger<PriceSnapshotJobService> _logger;
+    private readonly TimeSpan _warmupTimeout;
+
+    /// <summary>Hạn của lượt lấy trước chuỗi giá: quá hạn thì bị cắt, job giá không bao giờ chờ nó lâu hơn.</summary>
+    public static readonly TimeSpan DefaultWarmupTimeout = TimeSpan.FromSeconds(20);
 
     private static readonly string[] TrackedIndices = new[] { "VNINDEX", "VN30" };
 
@@ -25,7 +30,9 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
         IMarketDataProvider marketData,
         IStopLossTargetRepository slRepo,
         ICorporateActionRepository corporateActionRepo,
-        ILogger<PriceSnapshotJobService> logger)
+        ISignalSeriesWarmup warmup,
+        ILogger<PriceSnapshotJobService> logger,
+        TimeSpan? warmupTimeout = null)
     {
         _tradeRepo = tradeRepo;
         _priceRepo = priceRepo;
@@ -33,10 +40,46 @@ public class PriceSnapshotJobService : IPriceSnapshotJobService
         _marketData = marketData;
         _slRepo = slRepo;
         _corporateActionRepo = corporateActionRepo;
+        _warmup = warmup;
         _logger = logger;
+        _warmupTimeout = warmupTimeout ?? DefaultWarmupTimeout;
     }
 
     public async Task<PriceSnapshotJobResult> RunAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await RunPricesAsync(cancellationToken);
+        await RunWarmupAsync(cancellationToken);   // sau việc chính, kể cả khi không có mã nào để chụp giá
+        return result;
+    }
+
+    /// <summary>
+    /// Lấy trước chuỗi giá đã điều chỉnh của rổ VN30 (tối đa một mã mỗi lượt). Cô lập hoàn toàn: hạn 20 giây, lỗi chỉ được ghi log,
+    /// kết quả của job giá không phụ thuộc vào nó. Chỉ huỷ từ chính request mới được ném tiếp.
+    /// </summary>
+    private async Task RunWarmupAsync(CancellationToken cancellationToken)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(_warmupTimeout);
+        try
+        {
+            var outcome = await _warmup.WarmNextAsync(cts.Token);
+            _logger.LogInformation("Signal warm-up: fetched {Fetched} ({Note})", outcome.Fetched, outcome.Note);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Signal warm-up exceeded {Seconds}s and was cut off", _warmupTimeout.TotalSeconds);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Signal warm-up failed; the prices job result is unaffected");
+        }
+    }
+
+    private async Task<PriceSnapshotJobResult> RunPricesAsync(CancellationToken cancellationToken)
     {
         var allTrades = await _tradeRepo.GetAllAsync(cancellationToken);
         var symbols = allTrades

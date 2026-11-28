@@ -149,6 +149,26 @@ export interface SignalSetup {
   avgLossR?: number | null;
   activeSince?: string | null;
   activePlan?: SignalActivePlan | null;
+  /** Tỉ lệ nền của setup trên rổ VN30 (chỉ mã thuộc VN30, và chỉ khi rổ đủ dữ liệu). KHÔNG phải bằng chứng riêng của mã. Vắng khi không có. */
+  baseRate?: SignalBaseRate | null;
+  /** Có khi baseRate vắng: mã ngoài VN30 hoặc rổ chưa đủ mã/lệnh/tháng. */
+  baseRateReason?: string | null;
+}
+
+/** Tỉ lệ nền gộp trên rổ VN30; khoảng 95% là XẤP XỈ (bootstrap theo khối tháng). */
+export interface SignalBaseRate {
+  label: string;
+  k: number;
+  n: number;
+  effectiveMonths: number;
+  winRate: number;
+  winRateLow: number;
+  winRateHigh: number;
+  evR: number;
+  evRLow: number;
+  evRHigh: number;
+  asOf: string;
+  notes: string[];
 }
 
 /** GET market/{symbol}/signal-setups. reasonUnavailable có giá trị thì setups rỗng và không có số liệu. */

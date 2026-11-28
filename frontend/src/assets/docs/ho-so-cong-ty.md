@@ -175,6 +175,9 @@ Bỏ tick ô **📋 Hồ sơ công ty** ở bộ lọc phía trên để ẩn c�
 
 ---
 
+## Từ hồ sơ sang biểu đồ của mã
+
+Ở đầu trang hồ sơ có nút **📈 Dòng thời gian**: bấm vào để xem biểu đồ, giao dịch, nhật ký và sự kiện của chính mã đó. Ở chiều ngược lại, đầu trang Dòng thời gian có chip **🏢 Hồ sơ công ty**. Hai trang đi qua lại được, nên đọc luận điểm xong là xem được giá, và đang xem giá thì mở được luận điểm.
 ### Huy hiệu "hồ sơ lúc đó" trên từng lệnh
 
 Mỗi giao dịch trên dòng thời gian có một huy hiệu cho biết hồ sơ công ty của mã đó **lúc bạn đặt lệnh** ra sao:

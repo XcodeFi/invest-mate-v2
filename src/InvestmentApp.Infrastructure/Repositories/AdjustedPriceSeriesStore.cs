@@ -55,6 +55,19 @@ public class AdjustedPriceSeriesStore : IAdjustedPriceSeriesStore
             new ReplaceOptions { IsUpsert = true }, cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<string, DateTime>> GetFetchedAtAsync(
+        IReadOnlyCollection<string> symbols, CancellationToken cancellationToken = default)
+    {
+        var ids = symbols.Select(Normalize).Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<string, DateTime>();
+
+        // Chỉ đọc _id và FetchedAt: không tải mảng nến (mỗi bản ghi ~750 nến)
+        var docs = await _collection.Find(d => ids.Contains(d.Id))
+            .Project(d => new { d.Id, d.FetchedAt })
+            .ToListAsync(cancellationToken);
+        return docs.ToDictionary(d => d.Id, d => DateTime.SpecifyKind(d.FetchedAt, DateTimeKind.Utc));
+    }
+
     private static string Normalize(string symbol) => symbol.ToUpperInvariant().Trim();
 
     public static AdjustedPriceSeriesDocument ToDocument(string symbol, DateTime fetchedAtUtc, IReadOnlyList<StockPriceData> bars) => new()

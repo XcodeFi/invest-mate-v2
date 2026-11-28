@@ -174,4 +174,66 @@ describe('SignalSetupsPanelComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('table tbody tr').length).toBeLessThanOrEqual(2);
     expect(fixture.nativeElement.textContent.toLowerCase()).not.toContain('lệnh thắng');
   });
+
+  // ───── tỉ lệ nền VN30 ─────
+
+  const baseRate = {
+    label: 'Tỉ lệ nền VN30', k: 28, n: 412, effectiveMonths: 34,
+    winRate: 0.4283, winRateLow: 0.37, winRateHigh: 0.49, evR: 0.1205, evRLow: -0.05, evRHigh: 0.29, asOf: '2026-11-27T00:00:00',
+    notes: [
+      'Khoảng 95% là xấp xỉ: lấy mẫu lại theo khối tháng; các lệnh có thể kéo dài qua nhiều tháng và cùng chịu một bối cảnh thị trường, nên khoảng có thể vẫn hẹp hơn thực tế.',
+      'Tham khảo cho setup trên rổ VN30 hiện tại — không phải bằng chứng riêng của mã này; số liệu mô tả quá khứ.'
+    ]
+  };
+
+  it('a VN30 member shows the base-rate line with k, n, months, win rate and EV with approximate intervals', () => {
+    render({ symbol: 'FPT', data: data({ baseRate }) });
+
+    const t = txt('signal-baserate');
+    expect(t).toContain('Tỉ lệ nền VN30');
+    expect(t).toContain('28 mã');
+    expect(t).toContain('412 lệnh');
+    expect(t).toContain('34 tháng');
+    expect(t).toContain('thắng 43%');
+    expect(t).toContain('xấp xỉ');
+    expect(t).toContain('37% – 49%');
+    expect(t).toContain('+0.12R');
+    expect(t).toContain('-0.05R – +0.29R');
+  });
+
+  it('the base-rate block carries the basket caveat and the clustering disclosure from the server', () => {
+    render({ symbol: 'FPT', data: data({ baseRate }) });
+
+    const notesText = txt('signal-baserate-notes');
+    expect(notesText).toContain('không phải bằng chứng riêng của mã này');
+    expect(notesText).toContain('kéo dài qua nhiều tháng');
+  });
+
+  it('the base-rate line sits below the own counts line of the stock', () => {
+    render({ symbol: 'FPT', data: data({ baseRate }) });
+
+    const ids = Array.from(q('signal-setups')!.querySelectorAll('[data-testid]')).map(e => e.getAttribute('data-testid'));
+    expect(ids.indexOf('signal-baserate')).toBeGreaterThan(ids.indexOf('signal-counts'));
+  });
+
+  it('a non-member shows the reason instead of numbers', () => {
+    render({ symbol: 'HHV', data: data({ baseRateReason: 'Chỉ có cho mã thuộc VN30' }) });
+
+    expect(q('signal-baserate')).toBeNull();
+    expect(txt('signal-baserate-reason')).toContain('Chỉ có cho mã thuộc VN30');
+  });
+
+  it('an insufficient basket shows the reason with the k/30 shortfall', () => {
+    render({ symbol: 'FPT', data: data({ baseRateReason: 'Chưa đủ mã VN30 có dữ liệu (7/30, cần từ 15)' }) });
+
+    expect(q('signal-baserate')).toBeNull();
+    expect(txt('signal-baserate-reason')).toContain('7/30');
+  });
+
+  it('without a base rate or a reason nothing is shown (older backend)', () => {
+    render({ symbol: 'FPT', data: data() });
+
+    expect(q('signal-baserate')).toBeNull();
+    expect(q('signal-baserate-reason')).toBeNull();
+  });
 });
