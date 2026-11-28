@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
@@ -14,19 +14,19 @@ import { UppercaseDirective } from '../../shared/directives/uppercase.directive'
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
 import { GroupLayers, IndicatorChartCandles } from '../../shared/components/indicator-chart/indicator-chart.types';
-import { buildGroupLayers, TaGroup } from './ta-group-layers';
-import { GroupGuide, INDICATOR_GUIDES, readNow } from './indicator-guides';
-import { formatAsOf, tradingDaysBehind } from './adjusted-age';
+import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
+import { readNow } from '../../shared/indicators/indicator-guides';
+import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
+import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
+import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { isLowRiskReward, LOW_RR_NOTE, stopLossMethodLabel } from './stop-loss-method';
 import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-panel.component';
-
-/** Khoá localStorage nhớ khối "Cách đọc" đang mở hay thu gọn ('1' mở, '0' thu gọn). */
-const GUIDE_OPEN_KEY = 'ta-guide-open';
 
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent, SignalSetupsPanelComponent],
+  imports: [CommonModule, FormsModule, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent,
+    SignalSetupsPanelComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -221,18 +221,7 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
         <!-- Thanh chọn nhóm + biểu đồ chỉ báo của nhóm đang chọn (chuỗi tải khi bấm nhóm lần đầu).
              chỉ dính khi màn hình rộng ≥1024 VÀ cao ≥800 (laptop thấp thì khối dính chiếm hết màn hình); header là z-50 nên z-40. -->
         <div class="mb-4 bg-white pb-2 ta-chart-sticky" data-testid="ta-chart-area">
-          <div class="flex flex-wrap gap-2 mb-2" role="group" aria-label="Chọn nhóm chỉ báo để vẽ biểu đồ">
-            @for (g of taGroups; track g.key) {
-              <button type="button" class="px-3 py-1 rounded-full text-sm font-semibold border cursor-pointer select-none"
-                [class.bg-blue-600]="selectedGroup === g.key" [class.text-white]="selectedGroup === g.key"
-                [class.border-blue-600]="selectedGroup === g.key"
-                [class.bg-white]="selectedGroup !== g.key" [class.text-gray-700]="selectedGroup !== g.key"
-                [class.border-gray-300]="selectedGroup !== g.key" [class.hover:bg-gray-100]="selectedGroup !== g.key"
-                [attr.aria-pressed]="selectedGroup === g.key"
-                (click)="toggleGroup(g.key)"
-                [attr.data-group]="g.key">{{ g.label }}</button>
-            }
-          </div>
+          <app-indicator-group-bar [selected]="selectedGroup" (groupToggle)="toggleGroup($event)"></app-indicator-group-bar>
           @if (chartLoading) {
             <div class="text-sm text-gray-500 py-8 text-center" data-testid="ta-chart-loading">Đang tải biểu đồ...</div>
           } @else if (chartError) {
@@ -244,60 +233,9 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
           }
         </div>
 
-        <!-- Giá chưa điều chỉnh (nguồn dự phòng): nằm NGOÀI khối dính để không làm khối dính cao thêm -->
-        @if (selectedGroup && currentSeries && currentSeries.adjusted === false) {
-          <p class="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2" data-testid="ta-unadjusted-note">
-            Dữ liệu chưa điều chỉnh theo sự kiện quyền, nến chỉ có giá đóng cửa: quanh ngày giao dịch không hưởng quyền, giá có thể tụt giả và làm lệch chỉ báo.
-          </p>
-        }
-
-        <!-- Chuỗi đã điều chỉnh đang phục vụ cũ hơn 1 phiên (nguồn bị chặn, dùng bản lưu): nằm NGOÀI khối dính -->
-        @if (selectedGroup && currentSeries && adjustedStaleDate) {
-          <p class="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2" data-testid="ta-adjusted-asof-note">
-            Dữ liệu đã điều chỉnh cập nhật tới {{ adjustedStaleDate }}: các phiên gần đây chưa có trong chuỗi này.
-          </p>
-        }
-
-        <!-- Cách đọc nhóm đang chọn: nằm NGOÀI khối dính nên không làm khối dính cao thêm. Chỉ hiện khi đã chọn nhóm và có dữ liệu. -->
-        @if (selectedGroup && currentSeries && activeGuide) {
-          <section class="mb-4 rounded-lg border border-blue-100 bg-blue-50/40" data-testid="ta-guide">
-            <button type="button" class="w-full flex items-center justify-between gap-2 px-4 py-2 text-left"
-              [attr.aria-expanded]="guideOpen" (click)="toggleGuide()" data-testid="ta-guide-toggle">
-              <span class="text-sm font-bold text-gray-800">📖 Cách đọc nhóm {{ activeGuide.title }}</span>
-              <span class="text-xs text-blue-600">{{ guideOpen ? 'Thu gọn' : 'Mở ra' }}</span>
-            </button>
-            @if (guideOpen) {
-              <div class="px-4 pb-4 text-sm text-gray-700 space-y-3" data-testid="ta-guide-body">
-                <p class="text-gray-600">{{ activeGuide.oneLine }}</p>
-                @if (readNowLines.length > 0) {
-                  <div class="rounded-lg bg-white border border-blue-100 px-3 py-2" data-testid="ta-guide-now">
-                    <div class="text-xs font-semibold text-blue-700 mb-1">Đọc nhanh hiện tại</div>
-                    <ul class="list-disc pl-5 space-y-0.5">
-                      @for (line of readNowLines; track line) { <li>{{ line }}</li> }
-                    </ul>
-                  </div>
-                }
-                @for (item of activeGuide.items; track item.name) {
-                  <div class="rounded-lg bg-white border border-gray-100 px-3 py-2" data-testid="ta-guide-item">
-                    <div class="font-semibold text-gray-900">{{ item.name }}</div>
-                    <p class="mt-0.5">{{ item.what }}</p>
-                    <p class="mt-1 text-xs text-gray-500"><span class="font-semibold">Nhìn trên biểu đồ:</span> {{ item.onChart }}</p>
-                    <div class="mt-1 text-xs font-semibold text-gray-600">Cách đọc</div>
-                    <ul class="list-disc pl-5 space-y-0.5">
-                      @for (line of item.howToRead; track line) { <li>{{ line }}</li> }
-                    </ul>
-                    <p class="mt-1 text-xs text-amber-700"><span class="font-semibold">Bẫy hay gặp:</span> {{ item.pitfall }}</p>
-                  </div>
-                }
-                <p class="text-xs text-gray-500">
-                  Chỉ báo mô tả quá khứ, không đảm bảo tương lai; dùng kết hợp nhiều chỉ báo, không ra quyết định chỉ từ một chỉ báo.
-                  <a routerLink="/help" [queryParams]="{ topic: 'phan-tich-thi-truong' }" class="text-blue-600 underline"
-                    data-testid="ta-guide-help-link">Xem hướng dẫn đầy đủ (Phân tích thị trường)</a>.
-                </p>
-              </div>
-            }
-          </section>
-        }
+        <!-- Ghi chú chất lượng giá và khối Cách đọc: nằm NGOÀI khối dính để không làm khối dính cao thêm -->
+        <app-series-adjusted-notes [series]="selectedGroup ? currentSeries : null"></app-series-adjusted-notes>
+        <app-indicator-guide [group]="currentSeries ? selectedGroup : null" [readNowLines]="readNowLines"></app-indicator-guide>
 
         <!-- Khối 1: Tổng hợp (Confluence + Gợi ý giao dịch) -->
         @if (analysis.confluenceScore != null || analysis.suggestedEntry) {
@@ -884,14 +822,6 @@ export class MarketDataComponent implements OnInit {
   private signalSetupsSub: Subscription | null = null;
 
   // Biểu đồ chỉ báo theo nhóm (tải lazy khi bấm nhóm lần đầu, cache theo mã đang xem)
-  readonly taGroups: { key: TaGroup; label: string }[] = [
-    { key: 'tong-hop', label: '🎯 Tổng hợp' },
-    { key: 'xu-huong', label: '📈 Xu hướng' },
-    { key: 'dong-luong', label: '⚡ Động lượng' },
-    { key: 'bien-dong', label: '📏 Biến động' },
-    { key: 'dong-tien', label: '💰 Dòng tiền' },
-    { key: 'moc-gia', label: '🧱 Mốc giá' },
-  ];
   selectedGroup: TaGroup | null = null;
   seriesCache = new Map<string, TechnicalSeries>();
   chartError: string | null = null;
@@ -899,8 +829,7 @@ export class MarketDataComponent implements OnInit {
   currentSeries: TechnicalSeries | null = null;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
   groupLayers: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
-  /** Khối "Cách đọc": mở/thu gọn (nhớ bằng localStorage, có thể bị chặn nên bọc try/catch) và các câu đọc nhanh. */
-  guideOpen = MarketDataComponent.readGuideOpen();
+  /** Các câu "Đọc nhanh hiện tại" của khối Cách đọc. */
   readNowLines: string[] = [];
   private chartSub: Subscription | null = null;
 
@@ -1185,25 +1114,6 @@ export class MarketDataComponent implements OnInit {
     this.readNowLines = this.selectedGroup && this.currentSeries && this.analysis
       ? readNow(this.selectedGroup, this.currentSeries, this.analysis)
       : [];
-  }
-
-  /** dd/MM/yyyy của chuỗi đã điều chỉnh khi nó lùi hơn 1 phiên so với hôm nay; rỗng khi không cần ghi chú. */
-  get adjustedStaleDate(): string {
-    const asOf = this.currentSeries?.adjustedAsOf;
-    return tradingDaysBehind(asOf, new Date()) > 1 ? formatAsOf(asOf) : '';
-  }
-
-  get activeGuide(): GroupGuide | null {
-    return this.selectedGroup ? INDICATOR_GUIDES[this.selectedGroup] : null;
-  }
-
-  toggleGuide(): void {
-    this.guideOpen = !this.guideOpen;
-    try { localStorage.setItem(GUIDE_OPEN_KEY, this.guideOpen ? '1' : '0'); } catch { /* bị chặn: chỉ không nhớ được */ }
-  }
-
-  private static readGuideOpen(): boolean {
-    try { return localStorage.getItem(GUIDE_OPEN_KEY) !== '0'; } catch { return true; }
   }
 
   /** Đổi mã: bỏ chọn nhóm, huỷ request đang bay, xoá cache — response muộn của mã cũ không vẽ lên mã mới. */

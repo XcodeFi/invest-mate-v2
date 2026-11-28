@@ -9,7 +9,7 @@ import { MarketDataService, TechnicalAnalysis, TechnicalSeries } from '../../cor
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService } from '../../core/services/company-dossier.service';
 import { AuthService } from '../../core/services/auth.service';
-import { INDICATOR_GUIDES } from './indicator-guides';
+import { INDICATOR_GUIDES } from '../../shared/indicators/indicator-guides';
 
 const N = 40;
 const flat = (v: number): number[] => Array.from({ length: N }, () => v);

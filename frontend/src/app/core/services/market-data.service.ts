@@ -460,8 +460,9 @@ export class MarketDataService {
     }).pipe(catchError(this.handleError));
   }
 
-  getTechnicalAnalysis(symbol: string): Observable<TechnicalAnalysis> {
-    return this.http.get<TechnicalAnalysis>(`${this.API_URL}/stock/${symbol}/analysis`, { headers: this.getHeaders() })
+  /** `months` (3 đến 36) là số tháng lịch sử dùng để tính; bỏ trống thì backend dùng 12. */
+  getTechnicalAnalysis(symbol: string, months?: number): Observable<TechnicalAnalysis> {
+    return this.http.get<TechnicalAnalysis>(`${this.API_URL}/stock/${symbol}/analysis`, { headers: this.getHeaders(), params: this.monthsParams(months) })
       .pipe(catchError(this.handleError));
   }
 
@@ -470,9 +471,14 @@ export class MarketDataService {
       .pipe(catchError(this.handleError));
   }
 
-  getTechnicalSeries(symbol: string): Observable<TechnicalSeries> {
-    return this.http.get<TechnicalSeries>(`${this.API_URL}/stock/${symbol}/analysis/series`, { headers: this.getHeaders() })
+  /** Xin `months` dài hơn khoảng hiển thị để chỉ báo có đủ dữ liệu khởi động rồi cắt theo khoảng. */
+  getTechnicalSeries(symbol: string, months?: number): Observable<TechnicalSeries> {
+    return this.http.get<TechnicalSeries>(`${this.API_URL}/stock/${symbol}/analysis/series`, { headers: this.getHeaders(), params: this.monthsParams(months) })
       .pipe(catchError(this.handleError));
+  }
+
+  private monthsParams(months?: number): HttpParams {
+    return months ? new HttpParams().set('months', String(months)) : new HttpParams();
   }
 
   getTradingSummary(symbol: string): Observable<TradingHistorySummary> {

@@ -164,7 +164,7 @@ public class TechnicalIndicatorServiceSeriesTests
     }
 
     [Fact]
-    public async Task GetSeriesAsync_Uses_Same_Date_Range_As_AnalyzeAsync()
+    public async Task GetSeriesAsync_Fetches_The_Same_Fixed_History_As_AnalyzeAsync()
     {
         Setup(Prices(150));
 
@@ -172,7 +172,7 @@ public class TechnicalIndicatorServiceSeriesTests
 
         _marketData.Verify(m => m.GetHistoricalPricesAsync(
             Symbol,
-            It.Is<DateTime>(from => Math.Abs((from - DateTime.UtcNow.AddMonths(-12)).TotalMinutes) < 5),
+            It.Is<DateTime>(from => Math.Abs((from - DateTime.UtcNow.AddMonths(-36)).TotalMinutes) < 5),
             It.IsAny<DateTime>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }

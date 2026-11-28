@@ -1,18 +1,32 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, of } from 'rxjs';
-import { takeUntil, switchMap, catchError } from 'rxjs/operators';
-import { createChart, IChartApi, ISeriesApi, Time, SeriesMarker, LineData, CandlestickData, LineStyle, IPriceLine } from 'lightweight-charts';
+import { Subject, Subscription, forkJoin, of } from 'rxjs';
+import { takeUntil, catchError } from 'rxjs/operators';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
-import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
+import { MarketDataService, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
-import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
+import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
+import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker } from '../../shared/components/indicator-chart/indicator-chart.types';
+import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
+import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
+import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
+import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
+import { readNow } from '../../shared/indicators/indicator-guides';
+import { sliceSeriesFrom } from '../../shared/indicators/slice-series';
+import { vnDay } from '../../shared/indicators/vn-date';
+import { buildEmotionPane, buildTimelineMarkers } from './timeline-markers';
+
+/**
+ * Cửa sổ lịch sử cố định (tháng) để tính chỉ báo, KHÔNG phụ thuộc khoảng đang xem: EMA 200 và các chỉ báo đệ quy khác phụ thuộc điểm
+ * bắt đầu, nên cửa sổ đổi theo khoảng thì giá trị phiên cuối cũng đổi theo. Là mức tối đa backend nhận và đủ dài cho mọi khoảng của trang.
+ */
+const INDICATOR_WINDOW_MONTHS = 36;
 
 const EMOTION_COLORS: { [key: string]: string } = {
   'Tự tin': '#22c55e',
@@ -47,7 +61,8 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
 @Component({
   selector: 'app-symbol-timeline',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, UppercaseDirective, NumMaskDirective, AiChatPanelComponent],
+  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, AiChatPanelComponent,
+    IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-6">
       <!-- Header -->
@@ -259,39 +274,24 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
         </div>
       </div>
 
-      <!-- Chart -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 relative">
-        <!-- Chart overlay toggles -->
-        <div class="flex gap-2 mb-3 flex-wrap">
-          <button (click)="toggleOverlay('candle')"
-            [class]="showCandle
-              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
-              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
-            Nến
-          </button>
-          <button (click)="toggleOverlay('ema')"
-            [class]="showEma
-              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
-              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
-            EMA
-          </button>
-          <button (click)="toggleOverlay('sr')"
-            [class]="showSR
-              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
-              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
-            S/R
-          </button>
-          <button (click)="toggleOverlay('fib')"
-            [class]="showFib
-              ? 'px-3 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white'
-              : 'px-3 py-1 rounded-lg text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300'">
-            Fibonacci
-          </button>
-        </div>
-        <div #chartContainer class="w-full" style="height: 420px;"></div>
-        <div #chartTooltip class="absolute pointer-events-none bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-50 max-w-xs hidden"
-          style="transition: opacity 0.15s ease;">
-        </div>
+      <!-- Biểu đồ: dùng lại biểu đồ nhiều tầng của trang Thị trường, thêm các mốc của dòng thời gian (không dính: trang dài, có feed bên dưới) -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4" data-testid="timeline-chart-card">
+        <app-indicator-group-bar [selected]="selectedGroup" (groupToggle)="toggleGroup($event)"></app-indicator-group-bar>
+        @if (analysisFailed) {
+          <p class="mb-2 text-xs text-amber-700" data-testid="timeline-analysis-error">Không tải được chỉ báo, thử lại sau</p>
+        }
+        @if (chartError) {
+          <div role="alert" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" data-testid="timeline-chart-error">{{ chartError }}</div>
+        } @else if (series && series.dates.length === 0) {
+          <p class="text-sm text-gray-500 py-8 text-center" data-testid="timeline-chart-empty">Không có dữ liệu giá trong khoảng này</p>
+        } @else if (series) {
+          <app-indicator-chart [dates]="series.dates" [candles]="chartCandles" [layers]="groupLayers" [markers]="chartMarkers"></app-indicator-chart>
+        } @else {
+          <p class="text-sm text-gray-500 py-8 text-center" data-testid="timeline-chart-loading">Đang tải biểu đồ...</p>
+        }
+        <p class="mt-2 text-xs text-gray-500" data-testid="timeline-marker-legend">
+          Mốc trên biểu đồ: T = giao dịch (mũi tên lên là mua, xuống là bán), J = nhật ký, E = sự kiện, A = cảnh báo, H = hồ sơ công ty. Trỏ chuột vào phiên có mốc để xem chi tiết.
+        </p>
 
         <!-- Emotion Ribbon Legend -->
         <div class="flex gap-3 mt-3 flex-wrap text-xs" *ngIf="timeline?.emotionSummary">
@@ -300,6 +300,12 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
             {{ e }}
           </span>
         </div>
+      </div>
+
+      <!-- Ghi chú chất lượng giá và khối Cách đọc của nhóm đang chọn -->
+      <app-series-adjusted-notes [series]="series"></app-series-adjusted-notes>
+      <div class="mb-6">
+        <app-indicator-guide [group]="selectedGroup" [readNowLines]="readNowLines"></app-indicator-guide>
       </div>
 
       <!-- Emotion Summary Panel (7C.2) -->
@@ -599,15 +605,9 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
     </div>
   `
 })
-export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('chartContainer') chartContainer!: ElementRef;
-  @ViewChild('chartTooltip') chartTooltip!: ElementRef;
-
+export class SymbolTimelineComponent implements OnInit, OnDestroy {
   symbol = '';
   timeline: SymbolTimeline | null = null;
-  priceHistory: StockPrice[] = [];
-  currentPrice: StockPrice | null = null;
-  private tooltipItemsByDate = new Map<string, TimelineItem[]>();
   loading = false;
   selectedRange = 3; // months
   selectedItemIndex = -1;
@@ -662,25 +662,25 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
 
   // Lifecycle
   private destroy$ = new Subject<void>();
-  private resizeObserver: ResizeObserver | null = null;
+  /** Phát mỗi lần bắt đầu tải mới để huỷ các request của lần tải trước (đổi khoảng nhanh thì câu trả lời cũ đến muộn không ghi đè). */
+  private cancelLoad$ = new Subject<void>();
 
-  // Chart
-  private chart: IChartApi | null = null;
-  private candleSeries: ISeriesApi<'Candlestick'> | null = null;
-  private lineSeries: ISeriesApi<'Line'> | null = null;
-  private emotionSeries: ISeriesApi<'Histogram'> | null = null;
-  private technicalAnalysis: TechnicalAnalysis | null = null;
-
-  // Chart overlay toggles
-  showCandle = true;
-  showEma = true;
-  showSR = true;
-  showFib = false;
-
-  // Overlay references
-  private emaPriceLines: IPriceLine[] = [];
-  private srPriceLines: IPriceLine[] = [];
-  private fibPriceLines: IPriceLine[] = [];
+  // Biểu đồ chỉ báo theo nhóm: chuỗi tải ngay khi vào trang (cần cho nến), nhóm chỉ đổi lớp vẽ
+  selectedGroup: TaGroup | null = null;
+  series: TechnicalSeries | null = null;
+  private analysis: TechnicalAnalysis | null = null;
+  chartError: string | null = null;
+  /** Mã mà `fullSeries` thuộc về; null khi chưa tải hoặc lần tải lỗi (lần loadData sau sẽ tải lại). */
+  private indicatorSymbol: string | null = null;
+  private fullSeries: TechnicalSeries | null = null;
+  /** Lần tải chỉ báo đang chạy: lần tải mới huỷ lần cũ để câu trả lời hoặc lỗi đến muộn của lần cũ không ghi đè lần mới. */
+  private indicatorSub: Subscription | null = null;
+  /** Phân tích (các lớp của nhóm chỉ báo) không tải được: hiện một dòng báo thay vì để các nhóm trống lặng lẽ. */
+  analysisFailed = false;
+  chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
+  groupLayers: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+  chartMarkers: IndicatorChartMarker[] = [];
+  readNowLines: string[] = [];
 
   // Derived
   topEmotion = '';
@@ -716,21 +716,9 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
     this.loadData();
   }
 
-  ngAfterViewInit() {
-    this.initChart();
-  }
-
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
-    if (this.chart) {
-      this.chart.remove();
-      this.chart = null;
-    }
   }
 
   setDateRange(months: number) {
@@ -739,16 +727,18 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   loadData() {
+    this.cancelLoad$.next();
     this.loading = true;
     const to = new Date();
     const from = new Date();
     from.setMonth(from.getMonth() - this.selectedRange);
-    const fromStr = from.toISOString().split('T')[0];
-    const toStr = to.toISOString().split('T')[0];
+    // Ngày theo giờ Việt Nam: toISOString() là ngày UTC, lệch một ngày trong 7 giờ đầu mỗi ngày
+    const fromStr = vnDay(from);
+    const toStr = vnDay(to);
 
     // Load timeline + price history in parallel
     this.journalEntryService.getTimeline(this.symbol, fromStr, toStr)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntil(this.destroy$), takeUntil(this.cancelLoad$))
       .subscribe({
         next: (timeline) => {
           this.timeline = this.normalizeTimeline(timeline);
@@ -756,7 +746,7 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
           this.applyFilters();
           this.computeEmotionStats();
           this.buildAiContext();
-          this.updateChartMarkers();
+          this.refreshChart();
           this.tryBeginReviewMode();
           this.loading = false;
         },
@@ -766,450 +756,79 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
         }
       });
 
-    this.marketDataService.getPriceHistory(this.symbol, fromStr, toStr)
-      .pipe(
-        takeUntil(this.destroy$),
-        switchMap(prices => {
-          this.priceHistory = prices;
-          return this.marketDataService.getCurrentPrice(this.symbol)
-            .pipe(catchError(() => of(null)));
-        })
-      )
-      .subscribe({
-        next: (current) => { this.currentPrice = current; this.updateChartData(); },
-        error: () => {
-          this.notificationService.error('Lỗi', 'Không thể tải dữ liệu giá');
-        }
-      });
-
-    // Fetch technical analysis for overlays
-    this.marketDataService.getTechnicalAnalysis(this.symbol)
-      .pipe(takeUntil(this.destroy$), catchError(() => of(null)))
-      .subscribe(ta => {
-        this.technicalAnalysis = ta;
-        this.updateOverlays();
-      });
+    // Chỉ báo tính trên cùng một cửa sổ cố định nên chỉ tải MỘT lần cho mỗi mã; đổi khoảng chỉ cắt lại chuỗi đã có.
+    // Chỉ dòng thời gian phụ thuộc khoảng (ở trên).
+    if (this.indicatorSymbol === this.symbol && !this.analysisFailed) {
+      this.applyRange();   // đã có (hoặc đang tải: câu trả lời sẽ được cắt theo khoảng lúc nó đến)
+    } else {   // chưa tải, tải lỗi, hoặc phân tích lỗi: tải lại khi người dùng đổi khoảng
+      this.loadIndicators();
+    }
   }
 
-  // ===== Chart =====
-
-  private initChart() {
-    if (!this.chartContainer?.nativeElement) return;
-    this.chart = createChart(this.chartContainer.nativeElement, {
-      layout: {
-        background: { color: '#ffffff' },
-        textColor: '#374151',
-        fontFamily: 'system-ui, sans-serif'
+  private loadIndicators(): void {
+    this.indicatorSub?.unsubscribe();
+    this.indicatorSymbol = this.symbol;
+    this.fullSeries = null;
+    this.chartError = null;
+    this.analysisFailed = false;
+    this.indicatorSub = forkJoin([
+      this.marketDataService.getTechnicalSeries(this.symbol, INDICATOR_WINDOW_MONTHS),
+      this.marketDataService.getTechnicalAnalysis(this.symbol).pipe(catchError(() => {
+        this.analysisFailed = true;
+        return of(null);
+      }))
+    ]).pipe(takeUntil(this.destroy$)).subscribe({
+      next: ([series, analysis]) => {
+        this.fullSeries = series;
+        this.analysis = analysis;
+        this.applyRange();
       },
-      grid: {
-        vertLines: { color: '#f3f4f6' },
-        horzLines: { color: '#f3f4f6' }
-      },
-      crosshair: { mode: 0 },
-      rightPriceScale: { borderColor: '#e5e7eb' },
-      timeScale: {
-        borderColor: '#e5e7eb',
-        timeVisible: false
-      },
-      width: this.chartContainer.nativeElement.clientWidth,
-      height: 380
-    });
-
-    // Candlestick series (primary)
-    this.candleSeries = this.chart.addCandlestickSeries({
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      borderUpColor: '#16a34a',
-      borderDownColor: '#dc2626',
-      wickUpColor: '#16a34a',
-      wickDownColor: '#dc2626',
-      priceLineVisible: true,
-      lastValueVisible: true
-    });
-
-    // Line series fallback (shown when candle is toggled off)
-    this.lineSeries = this.chart.addLineSeries({
-      color: '#6366f1',
-      lineWidth: 2,
-      priceLineVisible: true,
-      lastValueVisible: true,
-      visible: false
-    });
-
-    // Emotion histogram (7C.1)
-    this.emotionSeries = this.chart.addHistogramSeries({
-      priceScaleId: 'emotion',
-      priceFormat: { type: 'volume' }
-    });
-    this.chart.priceScale('emotion').applyOptions({
-      scaleMargins: { top: 0.85, bottom: 0 }
-    });
-
-    // Tooltip on crosshair move
-    this.chart.subscribeCrosshairMove((param) => {
-      const tooltip = this.chartTooltip?.nativeElement;
-      if (!tooltip) return;
-
-      if (!param.time || !param.point) {
-        tooltip.classList.add('hidden');
-        return;
-      }
-
-      const day = param.time as string;
-      const items = this.tooltipItemsByDate.get(day);
-      if (!items || items.length === 0) {
-        tooltip.classList.add('hidden');
-        return;
-      }
-
-      // Build tooltip content — escape dynamic text to prevent XSS
-      const lines = items.map(item => {
-        if (item.type === 'trade') {
-          const side = item.data.tradeType === 'BUY' ? 'MUA' : 'BÁN';
-          return `<div class="flex items-center gap-1.5"><span class="font-bold ${item.data.tradeType === 'BUY' ? 'text-green-400' : 'text-red-400'}">${side}</span> ${item.data.quantity} × ${(item.data.price ?? 0).toLocaleString()}đ</div>`;
-        }
-        if (item.type === 'journal')
-          return `<div class="flex items-center gap-1.5"><span class="text-indigo-400 font-bold">J</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
-        if (item.type === 'event')
-          return `<div class="flex items-center gap-1.5"><span class="text-amber-400 font-bold">E</span> ${this.escapeHtml(this.truncate(item.data.title, 40))}</div>`;
-        // Nhánh riêng cho mốc hồ sơ: data là { action, version }, KHÔNG có `title`, nên
-        // rơi xuống fallback bên dưới sẽ hiện thành "A · Cảnh báo" — sai loại hoàn toàn.
-        if (item.type === 'dossier')
-          return `<div class="flex items-center gap-1.5"><span class="text-indigo-300 font-bold">📋</span> ${this.escapeHtml(this.truncate(this.dossierMarkerLabel(item.data?.action), 40))}</div>`;
-        return `<div class="flex items-center gap-1.5"><span class="text-orange-400 font-bold">A</span> ${this.escapeHtml(this.truncate(item.data.title ?? 'Cảnh báo', 40))}</div>`;
-      });
-
-      tooltip.innerHTML = `<div class="font-medium text-gray-300 mb-1">${day}</div>${lines.join('')}`;
-      tooltip.classList.remove('hidden');
-
-      // Position tooltip near crosshair
-      const chartRect = this.chartContainer.nativeElement.getBoundingClientRect();
-      const x = param.point.x;
-      const y = param.point.y;
-      const tooltipW = tooltip.offsetWidth;
-      const left = x + tooltipW + 20 > chartRect.width ? x - tooltipW - 10 : x + 10;
-      const top = Math.max(0, Math.min(y - 10, chartRect.height - tooltip.offsetHeight));
-      tooltip.style.left = left + 'px';
-      tooltip.style.top = top + 'px';
-    });
-
-    // Responsive
-    this.resizeObserver = new ResizeObserver(() => {
-      if (this.chart && this.chartContainer?.nativeElement) {
-        this.chart.applyOptions({ width: this.chartContainer.nativeElement.clientWidth });
+      error: () => {
+        // Lỗi thì bỏ hẳn chuỗi cũ (biểu đồ và các ghi chú chỉ vẽ khi còn chuỗi) và cho phép tải lại ở lần đổi khoảng sau
+        this.indicatorSymbol = null;
+        this.fullSeries = null;
+        this.analysis = null;
+        this.series = null;
+        this.chartError = 'Không tải được dữ liệu biểu đồ';
+        this.notificationService.error('Lỗi', 'Không thể tải dữ liệu giá');
       }
     });
-    this.resizeObserver.observe(this.chartContainer.nativeElement);
-
-    this.updateChartData();
   }
 
-  private updateChartData() {
-    if ((!this.candleSeries && !this.lineSeries) || this.priceHistory.length === 0) return;
-
-    const sorted = this.priceHistory
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // Candlestick data (OHLC)
-    const candleData: CandlestickData[] = sorted.map(p => ({
-      time: p.date.split('T')[0] as Time,
-      open: p.open,
-      high: p.high,
-      low: p.low,
-      close: p.close
-    }));
-
-    // Line data (close only, for fallback)
-    const lineData: LineData[] = sorted.map(p => ({
-      time: p.date.split('T')[0] as Time,
-      value: p.close
-    }));
-
-    // Extend chart to today using current market price
-    const today = new Date().toISOString().split('T')[0];
-    const lastCandle = candleData.length > 0 ? candleData[candleData.length - 1] : null;
-    const lastDay = lastCandle ? lastCandle.time as string : '';
-    if (lastDay && lastDay < today) {
-      const todayPrice = this.currentPrice?.close ?? lastCandle!.close;
-      candleData.push({
-        time: today as Time,
-        open: todayPrice,
-        high: todayPrice,
-        low: todayPrice,
-        close: todayPrice
-      });
-      lineData.push({ time: today as Time, value: todayPrice });
-    }
-
-    if (this.candleSeries) this.candleSeries.setData(candleData);
-    if (this.lineSeries) this.lineSeries.setData(lineData);
-
-    this.chart?.timeScale().fitContent();
-    this.updateChartMarkers();
-    this.updateEmotionRibbon();
-    this.updateOverlays();
+  /** Cắt chuỗi đã tải theo khoảng đang chọn (tính theo ngày Việt Nam) rồi dựng lại biểu đồ. */
+  private applyRange(): void {
+    if (!this.fullSeries) return;
+    const from = new Date();
+    from.setMonth(from.getMonth() - this.selectedRange);
+    this.series = sliceSeriesFrom(this.fullSeries, vnDay(from));
+    this.chartCandles = { open: this.series.open, high: this.series.high, low: this.series.low, close: this.series.close };
+    this.refreshChart();
   }
 
-  private updateChartMarkers() {
-    const activeSeries = this.showCandle ? this.candleSeries : this.lineSeries;
-    if (!activeSeries || !this.timeline) return;
+  // ===== Biểu đồ =====
 
-    // Group items by date
-    const byDate = new Map<string, TimelineItem[]>();
-    for (const item of this.timeline.items) {
-      const day = item.timestamp.split('T')[0];
-      if (!byDate.has(day)) byDate.set(day, []);
-      byDate.get(day)!.push(item);
-    }
-    this.tooltipItemsByDate = byDate;
-
-    const markers: SeriesMarker<Time>[] = [];
-
-    for (const [day, items] of byDate) {
-      const time = day as Time;
-
-      // Trades — T marker (BUY below green, SELL above red)
-      const trades = items.filter(i => i.type === 'trade');
-      for (const t of trades) {
-        const isBuy = t.data.tradeType === 'BUY';
-        markers.push({
-          time,
-          position: isBuy ? 'belowBar' : 'aboveBar',
-          color: isBuy ? '#22c55e' : '#ef4444',
-          shape: isBuy ? 'arrowUp' : 'arrowDown',
-          text: isBuy ? 'T' : 'T'
-        });
-      }
-
-      // Journals — J marker (indigo)
-      const journals = items.filter(i => i.type === 'journal');
-      if (journals.length > 0) {
-        markers.push({
-          time,
-          position: 'aboveBar',
-          color: '#6366f1',
-          shape: 'circle',
-          text: journals.length > 1 ? `J${journals.length}` : 'J'
-        });
-      }
-
-      // Events — E marker, Alerts — A marker (amber)
-      const events = items.filter(i => i.type === 'event');
-      if (events.length > 0) {
-        markers.push({
-          time,
-          position: 'aboveBar',
-          color: '#f59e0b',
-          shape: 'square',
-          text: events.length > 1 ? `E${events.length}` : 'E'
-        });
-      }
-
-      const alerts = items.filter(i => i.type === 'alert');
-      if (alerts.length > 0) {
-        markers.push({
-          time,
-          position: 'aboveBar',
-          color: '#f97316',
-          shape: 'square',
-          text: alerts.length > 1 ? `A${alerts.length}` : 'A'
-        });
-      }
-    }
-
-    // Sort markers by time (required by lightweight-charts)
-    markers.sort((a, b) => (a.time as string).localeCompare(b.time as string));
-    activeSeries.setMarkers(markers);
+  /** Bấm nhóm đang chọn thì bỏ chọn (chỉ còn nến và các mốc); bấm nhóm khác thì vẽ nhóm đó. */
+  toggleGroup(group: TaGroup): void {
+    this.selectedGroup = this.selectedGroup === group ? null : group;
+    this.refreshChart();
   }
 
-  // 7C.1 — Emotion Ribbon
-  private updateEmotionRibbon() {
-    if (!this.emotionSeries || !this.timeline) return;
-
-    const emotionData: LineData[] = [];
-
-    for (const item of this.timeline.items) {
-      if (item.type === 'journal' && (item.data.emotionalState)) {
-        const emotion = item.data.emotionalState;
-        const confidence = item.data.confidenceLevel ?? 5;
-        emotionData.push({
-          time: item.timestamp.split('T')[0] as Time,
-          value: confidence,
-          color: EMOTION_COLORS[emotion] || '#6b7280'
-        } as any);
-      }
-    }
-
-    if (emotionData.length > 0) {
-      emotionData.sort((a, b) => (a.time as string).localeCompare(b.time as string));
-      this.emotionSeries.setData(emotionData as any);
-    }
-  }
-
-  // ===== Chart Overlays =====
-
-  toggleOverlay(overlay: 'candle' | 'ema' | 'sr' | 'fib') {
-    switch (overlay) {
-      case 'candle':
-        // Remove overlays from current series before switching
-        this.clearAllOverlayLines();
-        // Clear markers from old active series
-        const oldSeries = this.getOverlaySeries();
-        if (oldSeries) oldSeries.setMarkers([]);
-        this.showCandle = !this.showCandle;
-        if (this.candleSeries) this.candleSeries.applyOptions({ visible: this.showCandle });
-        if (this.lineSeries) this.lineSeries.applyOptions({ visible: !this.showCandle });
-        // Re-create overlays on new active series
-        this.updateOverlays();
-        this.updateChartMarkers();
-        break;
-      case 'ema':
-        this.showEma = !this.showEma;
-        this.updateEmaOverlay();
-        break;
-      case 'sr':
-        this.showSR = !this.showSR;
-        this.updateSROverlay();
-        break;
-      case 'fib':
-        this.showFib = !this.showFib;
-        this.updateFibOverlay();
-        break;
-    }
-  }
-
-  private updateOverlays() {
-    this.updateEmaOverlay();
-    this.updateSROverlay();
-    this.updateFibOverlay();
-  }
-
-  private getOverlaySeries(): ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null {
-    return this.showCandle ? this.candleSeries : this.lineSeries;
-  }
-
-  private clearAllOverlayLines() {
-    const series = this.getOverlaySeries();
-    if (!series) return;
-    for (const line of this.emaPriceLines) { series.removePriceLine(line); }
-    for (const line of this.srPriceLines) { series.removePriceLine(line); }
-    for (const line of this.fibPriceLines) { series.removePriceLine(line); }
-    this.emaPriceLines = [];
-    this.srPriceLines = [];
-    this.fibPriceLines = [];
-  }
-
-  private updateEmaOverlay() {
-    const series = this.getOverlaySeries();
+  /** Dựng lại lớp vẽ, các mốc và các câu đọc nhanh từ chuỗi, phân tích và dòng thời gian hiện có. */
+  private refreshChart(): void {
+    const series = this.series;
     if (!series) return;
 
-    // Remove existing EMA lines
-    for (const line of this.emaPriceLines) {
-      series.removePriceLine(line);
-    }
-    this.emaPriceLines = [];
-
-    if (!this.showEma || !this.technicalAnalysis) return;
-
-    const ta = this.technicalAnalysis;
-    const emaLevels: { value: number | undefined; label: string; color: string }[] = [
-      { value: ta.ema20, label: 'EMA 20', color: '#3b82f6' },
-      { value: ta.ema50, label: 'EMA 50', color: '#f97316' },
-      { value: ta.ema200, label: 'EMA 200', color: '#a855f7' }
-    ];
-
-    for (const ema of emaLevels) {
-      if (ema.value != null) {
-        const line = series.createPriceLine({
-          price: ema.value,
-          color: ema.color,
-          lineWidth: 1,
-          lineStyle: LineStyle.Dotted,
-          axisLabelVisible: true,
-          title: ema.label
-        });
-        this.emaPriceLines.push(line);
-      }
-    }
-  }
-
-  private updateSROverlay() {
-    const series = this.getOverlaySeries();
-    if (!series) return;
-
-    // Remove existing S/R lines
-    for (const line of this.srPriceLines) {
-      series.removePriceLine(line);
-    }
-    this.srPriceLines = [];
-
-    if (!this.showSR || !this.technicalAnalysis) return;
-
-    const ta = this.technicalAnalysis;
-
-    // Support levels (green dashed)
-    for (let i = 0; i < (ta.supportLevels?.length ?? 0); i++) {
-      const line = series.createPriceLine({
-        price: ta.supportLevels[i],
-        color: '#22c55e',
-        lineWidth: 1,
-        lineStyle: LineStyle.Dashed,
-        axisLabelVisible: true,
-        title: `S${i + 1}`
-      });
-      this.srPriceLines.push(line);
-    }
-
-    // Resistance levels (red dashed)
-    for (let i = 0; i < (ta.resistanceLevels?.length ?? 0); i++) {
-      const line = series.createPriceLine({
-        price: ta.resistanceLevels[i],
-        color: '#ef4444',
-        lineWidth: 1,
-        lineStyle: LineStyle.Dashed,
-        axisLabelVisible: true,
-        title: `R${i + 1}`
-      });
-      this.srPriceLines.push(line);
-    }
-  }
-
-  private updateFibOverlay() {
-    const series = this.getOverlaySeries();
-    if (!series) return;
-
-    // Remove existing Fibonacci lines
-    for (const line of this.fibPriceLines) {
-      series.removePriceLine(line);
-    }
-    this.fibPriceLines = [];
-
-    if (!this.showFib || !this.technicalAnalysis?.fibonacci) return;
-
-    const fib = this.technicalAnalysis.fibonacci;
-    const fibLevels: { value: number; label: string; color: string }[] = [
-      { value: fib.retracement236, label: 'Fib 23.6%', color: '#d97706' },
-      { value: fib.retracement382, label: 'Fib 38.2%', color: '#b45309' },
-      { value: fib.retracement500, label: 'Fib 50%', color: '#92400e' },
-      { value: fib.retracement618, label: 'Fib 61.8%', color: '#78350f' },
-      { value: fib.retracement786, label: 'Fib 78.6%', color: '#451a03' },
-      { value: fib.extension1272, label: 'Ext 127.2%', color: '#ca8a04' },
-      { value: fib.extension1618, label: 'Ext 161.8%', color: '#eab308' }
-    ];
-
-    for (const level of fibLevels) {
-      if (level.value != null && level.value > 0) {
-        const line = series.createPriceLine({
-          price: level.value,
-          color: level.color,
-          lineWidth: 1,
-          lineStyle: LineStyle.SparseDotted,
-          axisLabelVisible: true,
-          title: level.label
-        });
-        this.fibPriceLines.push(line);
-      }
-    }
+    const base = this.analysis
+      ? buildGroupLayers(this.selectedGroup, series, this.analysis)
+      : { overlays: [], panes: [], priceLines: [], notes: [] } as GroupLayers;
+    const items = this.timeline?.items ?? [];
+    const emotionPane = buildEmotionPane(series.dates, items, EMOTION_COLORS, '#6b7280');
+    this.groupLayers = emotionPane ? { ...base, panes: [...base.panes, emotionPane] } : base;
+    this.chartMarkers = buildTimelineMarkers(items, {
+      adjusted: series.adjusted, bars: { dates: series.dates, low: series.low, high: series.high },
+      dossierLabel: a => this.dossierMarkerLabel(a)
+    });
+    this.readNowLines = this.selectedGroup && this.analysis ? readNow(this.selectedGroup, series, this.analysis) : [];
   }
 
   // ===== Filters =====
@@ -1483,17 +1102,6 @@ export class SymbolTimelineComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   // ===== Helpers =====
-
-  private truncate(text: string | undefined, max: number): string {
-    if (!text) return '(không có tiêu đề)';
-    return text.length > max ? text.substring(0, max) + '…' : text;
-  }
-
-  private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
 
   selectTimelineItem(index: number) {
     this.selectedItemIndex = index;

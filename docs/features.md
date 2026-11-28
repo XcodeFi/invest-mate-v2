@@ -1093,6 +1093,7 @@ Mỗi node gồm:
 - `SymbolTimelineComponent` (`/symbol-timeline/:symbol`) — trang chính:
   - Biểu đồ nến (lightweight-charts v4) với OHLCV data
   - Journal markers (📓), Trade markers (▲/▼), Alert markers (⚠️) trên chart
+  - **Cập nhật 2026-11-28 (WS3):** biểu đồ là `app-indicator-chart` dùng chung với trang Thị trường: thanh chọn 6 nhóm chỉ báo, khối "Cách đọc", EMA 200 là đường thật (thay cho 3 nút EMA / S/R / Fibonacci cũ và đường EMA ngang), mốc T/J/E/A/H có tooltip, tầng cảm xúc nhật ký; nút khoảng thời gian cắt chuỗi đã tính trên dữ liệu dài hơn
   - Holding period zones tính từ BUY/SELL trades
   - Quick-add form: nhật ký inline với auto-fill giá
   - Date range selector: 1T / 3T / 6T / 1N

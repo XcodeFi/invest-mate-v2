@@ -207,9 +207,10 @@ public class MarketDataController : ControllerBase
     /// </summary>
     [HttpGet("stock/{symbol}/analysis")]
     [ProducesResponseType(typeof(TechnicalAnalysisResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetTechnicalAnalysis(string symbol)
+    public async Task<IActionResult> GetTechnicalAnalysis(string symbol, [FromQuery] int? months = null)
     {
         var query = new GetTechnicalAnalysisQuery { Symbol = symbol };
+        if (months.HasValue) query.Months = months.Value;
         var result = await _mediator.Send(query);
         return Ok(result);
     }
@@ -219,9 +220,10 @@ public class MarketDataController : ControllerBase
     /// </summary>
     [HttpGet("stock/{symbol}/analysis/series")]
     [ProducesResponseType(typeof(TechnicalSeriesResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetTechnicalSeries(string symbol)
+    public async Task<IActionResult> GetTechnicalSeries(string symbol, [FromQuery] int? months = null)
     {
         var query = new GetTechnicalSeriesQuery { Symbol = symbol };
+        if (months.HasValue) query.Months = months.Value;
         var result = await _mediator.Send(query);
         return Ok(result);
     }
