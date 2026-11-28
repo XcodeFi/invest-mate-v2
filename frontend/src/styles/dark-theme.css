@@ -483,7 +483,11 @@ html.dark .nav-link-inactive { color: var(--dm-text-2); }
 html.dark .nav-link-inactive:hover { color: var(--dm-text); background-color: var(--dm-raised); }
 html.dark .nav-item { color: var(--dm-text-2); }
 html.dark .nav-item:hover { color: var(--dm-text); background-color: var(--dm-raised); }
-html.dark .nav-item.nav-active { background-color: rgb(var(--dm-blue-rgb) / 0.16); color: var(--dm-blue-3); }
+/* !important: component header khai .nav-active bằng @apply ... !important, nên luật tối phải cùng mức mới thắng */
+html.dark .nav-item.nav-active { background-color: rgb(var(--dm-blue-rgb) / 0.16) !important; color: var(--dm-blue-3) !important; }
+/* Huy hiệu rủi ro đỏ (< 40/100): chữ sáng hơn và không nhấp nháy mờ xuống nửa độ đục (animate-pulse làm chữ đỏ chìm vào nền đỏ tối) */
+html.dark .bg-red-100.text-red-700.animate-pulse { color: var(--dm-red-3); }
+html.dark .bg-red-100.animate-pulse { animation: none; }
 html.dark .mobile-link { color: var(--dm-text-2); }
 html.dark .mobile-link:hover { background-color: var(--dm-raised); }
 

@@ -69,6 +69,21 @@ describe('dark-theme.css applied to the page', () => {
     expect(css(el('<div class="bg-white/60">x</div>'), 'background-color')).toBe('rgba(255, 255, 255, 0.6)');
   });
 
+  it('dark mode: the active header chip beats the light colours the header forces with !important', () => {
+    document.documentElement.classList.add('dark');
+    const chip = el('<a class="nav-item nav-active">x</a>');
+
+    expect(css(chip, 'background-color')).toBe('rgba(59, 130, 246, 0.16)');
+  });
+
+  it('dark mode: the red risk badge has lightened text and does not fade by pulsing', () => {
+    document.documentElement.classList.add('dark');
+    const badge = el('<a class="bg-red-100 text-red-700 animate-pulse">35/100</a>');
+
+    expect(css(badge, 'color')).toBe('rgb(252, 165, 165)');
+    expect(css(badge, 'animation-name')).toBe('none');
+  });
+
   it('dark mode: status panels become translucent tints with lightened text, keeping their meaning', () => {
     document.documentElement.classList.add('dark');
     const panel = el('<div class="bg-red-100 text-red-700 border border-red-200">x</div>');
