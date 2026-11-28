@@ -43,12 +43,6 @@ Chart.register(...registerables);
               <p class="text-gray-600 mt-1">Chào mừng, {{ currentUser?.name }}</p>
             </div>
             <div class="flex space-x-3">
-              <button
-                routerLink="/portfolios/create"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-              >
-                + Tạo Danh mục mới
-              </button>
               <button (click)="showAiPanel = true"
                 data-test="ai-button"
                 class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-1">
@@ -62,6 +56,9 @@ Chart.register(...registerables);
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+        <!-- Vùng "Hôm nay" -->
+        <section data-test="zone-today" class="mb-2">
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3" data-test="zone-today-title">Hôm nay</h2>
         <!-- Màn tĩnh tâm (ADR-0013) — khoảng lặng trước mọi hành động. -->
         <app-patience-hero (moodChange)="onMoodChange($event)"></app-patience-hero>
 
@@ -87,15 +84,11 @@ Chart.register(...registerables);
           <app-discipline-score-widget></app-discipline-score-widget>
         </div>
 
-        <!-- Tài chính cá nhân (Home PR2): MỘT widget gộp Net Worth + Reality Gap CAGR + Tổng tài sản − Nợ + sức khoẻ + chia tài sản
-             (thu gọn). Thay cho hai thẻ cũ cùng đọc netWorthSummary. Chưa có hồ sơ thì widget tự hiện thẻ mời thiết lập.
-             Vị trí #2 sau Decision Queue; Compound Growth Tracker đầy đủ vẫn ở giữa page. -->
-        <app-networth-summary
-          [summary]="netWorthSummary"
-          [cagrValue]="cagrValue"
-          [cagrTarget]="cagrTarget">
-        </app-networth-summary>
+        </section>
 
+        <!-- Vùng "Tài sản" -->
+        <section data-test="zone-assets" class="mb-2">
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3" data-test="zone-assets-title">Tài sản</h2>
         <!-- Smart Nudge: Capital Flow -->
         <div *ngIf="capitalFlowNudge.show" class="mb-6 bg-blue-50 rounded-xl p-4 border border-blue-200 flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -112,135 +105,44 @@ Chart.register(...registerables);
           </button>
         </div>
 
-        <!-- Watchlist + Daily Routine side-by-side on desktop -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-
-        <!-- Watchlist Widget -->
-        <div *ngIf="watchlistTopMovers.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">⭐</span>
-              <span class="font-bold text-sm text-gray-900">Watchlist</span>
-              <span class="text-xs text-gray-500">{{ watchlistTopMovers.length }} mã</span>
-            </div>
-            <a routerLink="/watchlist" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem tất cả →</a>
-          </div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <a *ngFor="let item of watchlistTopMovers.slice(0, 6)"
-              [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
-              class="p-2 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors text-center">
-              <div class="font-semibold text-sm text-gray-900" [appSymbolLink]="item.symbol">{{ item.symbol }}</div>
-              <div class="text-sm font-mono mt-0.5">{{ item.close | vndCurrency }}</div>
-            </a>
-          </div>
-        </div>
-
-        <!-- Daily Routine Widget -->
-        <div *ngIf="todayRoutine || suggestedRoutineTemplate" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <!-- Has routine -->
-          <div *ngIf="todayRoutine">
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span class="text-lg">📋</span>
-                <span class="font-bold text-sm text-gray-900">Nhiệm vụ hôm nay</span>
-                <span class="text-xs text-gray-500">{{ todayRoutine.templateName }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <div *ngIf="todayRoutine.currentStreak >= 3"
-                  class="flex items-center gap-1 bg-orange-50 text-orange-600 text-xs font-bold px-2 py-1 rounded-full">
-                  <span>🔥</span> {{ todayRoutine.currentStreak }}
-                </div>
-                <a routerLink="/daily-routine" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem chi tiết →</a>
-              </div>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
-              <div class="h-2 rounded-full transition-all duration-500"
-                [class.bg-emerald-500]="todayRoutine.progressPercent >= 50"
-                [class.bg-amber-500]="todayRoutine.progressPercent > 0 && todayRoutine.progressPercent < 50"
-                [style.width.%]="todayRoutine.progressPercent"></div>
-            </div>
-            <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
-              <span>{{ todayRoutine.completedCount }}/{{ todayRoutine.totalCount }} bước</span>
-              <span *ngIf="todayRoutine.isFullyCompleted" class="text-emerald-600 font-medium">✅ Hoàn thành!</span>
-            </div>
-            <!-- Show next uncompleted items (max 3) -->
-            <div class="space-y-1.5">
-              <div *ngFor="let item of nextRoutineItems; trackBy: trackByRoutineIndex" class="flex items-center gap-2">
-                <button (click)="toggleRoutineItem(item)"
-                  class="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all"
-                  [class.bg-emerald-500]="item.isCompleted" [class.border-emerald-500]="item.isCompleted"
-                  [class.border-gray-300]="!item.isCompleted">
-                  <svg *ngIf="item.isCompleted" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                  </svg>
-                </button>
-                <span *ngIf="item.emoji" class="text-sm">{{ item.emoji }}</span>
-                <span class="text-sm" [class.line-through]="item.isCompleted" [class.text-gray-400]="item.isCompleted"
-                  [class.text-gray-700]="!item.isCompleted">{{ item.label }}</span>
-                <a *ngIf="item.link && !item.isCompleted" [routerLink]="item.link"
-                  class="text-gray-400 hover:text-blue-600 ml-auto">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                  </svg>
-                </a>
-              </div>
-            </div>
-          </div>
-          <!-- No routine yet — suggestion -->
-          <div *ngIf="!todayRoutine && suggestedRoutineTemplate" class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">{{ suggestedRoutineTemplate.emoji }}</span>
-              <div>
-                <div class="text-sm font-bold text-gray-900">{{ suggestedRoutineTemplate.name }}</div>
-                <div class="text-xs text-gray-500">~{{ suggestedRoutineTemplate.estimatedMinutes }} phút · {{ suggestedRoutineTemplate.items.length }} bước</div>
-              </div>
-            </div>
-            <button (click)="startDailyRoutine(suggestedRoutineTemplate.id)"
-              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              Bắt đầu
-            </button>
-          </div>
-        </div>
-
-        </div> <!-- end Watchlist + Daily Routine grid -->
-
-        <!-- Timeframe Switcher -->
-        <div class="flex items-center gap-2 mb-6 flex-wrap">
-          <span class="text-xs font-medium text-gray-500 mr-1">Xem theo:</span>
-          <button *ngFor="let tf of timeframes"
-            (click)="setTimeframe(tf.key)"
-            class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            [class.bg-blue-600]="selectedTimeframe === tf.key"
-            [class.text-white]="selectedTimeframe === tf.key"
-            [class.bg-white]="selectedTimeframe !== tf.key"
-            [class.text-gray-600]="selectedTimeframe !== tf.key"
-            [class.border]="selectedTimeframe !== tf.key"
-            [class.border-gray-200]="selectedTimeframe !== tf.key">
-            {{ tf.label }}
-          </button>
-
-          <!-- Period stats badge (shown when not "all") -->
-          <div *ngIf="selectedTimeframe !== 'all' && equityCurveData"
-            class="ml-auto flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm">
-            <span class="text-gray-500">{{ getTimeframeLabel() }}:</span>
-            <span class="font-bold"
-              [class.text-emerald-600]="periodReturn >= 0"
-              [class.text-red-600]="periodReturn < 0">
-              {{ periodReturn >= 0 ? '+' : '' }}{{ periodReturn.toFixed(2) }}%
-            </span>
-            <span class="text-gray-400">|</span>
-            <span class="font-semibold"
-              [class.text-emerald-600]="periodPnL >= 0"
-              [class.text-red-600]="periodPnL < 0">
-              {{ periodPnL >= 0 ? '+' : '' }}{{ formatProjection(periodPnL) }}
-            </span>
-          </div>
-          <div *ngIf="selectedTimeframe !== 'all' && !equityCurveData"
-            class="ml-auto text-xs text-gray-400 italic">Chưa có dữ liệu equity curve</div>
-        </div>
-
+        <div class="grid grid-cols-1 min-[1280px]:grid-cols-2 gap-6 items-start mb-8" data-test="assets-row">
         <!-- Hero: Tổng quan tài sản (matches /capital-flows layout) -->
-        <div *ngIf="summary" class="bg-gradient-to-br from-emerald-50 via-white to-blue-50 rounded-xl shadow-sm border border-emerald-100 p-6 mb-8">
+        <div *ngIf="summary" class="bg-gradient-to-br from-emerald-50 via-white to-blue-50 rounded-xl shadow-sm border border-emerald-100 p-6" data-test="investment-hero">
+          <!-- Khung thời gian: nằm trong khối Tổng quan đầu tư mà nó điều khiển -->
+          <div class="flex items-center gap-2 mb-4 flex-wrap" data-test="timeframe-switcher">
+            <span class="text-xs font-medium text-gray-500 mr-1">Xem theo:</span>
+            <button *ngFor="let tf of timeframes"
+              (click)="setTimeframe(tf.key)"
+              class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+              [class.bg-blue-600]="selectedTimeframe === tf.key"
+              [class.text-white]="selectedTimeframe === tf.key"
+              [class.bg-white]="selectedTimeframe !== tf.key"
+              [class.text-gray-600]="selectedTimeframe !== tf.key"
+              [class.border]="selectedTimeframe !== tf.key"
+              [class.border-gray-200]="selectedTimeframe !== tf.key">
+              {{ tf.label }}
+            </button>
+
+            <!-- Period stats badge (shown when not "all") -->
+            <div *ngIf="selectedTimeframe !== 'all' && equityCurveData"
+              class="ml-auto flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm">
+              <span class="text-gray-500">{{ getTimeframeLabel() }}:</span>
+              <span class="font-bold"
+                [class.text-emerald-600]="periodReturn >= 0"
+                [class.text-red-600]="periodReturn < 0">
+                {{ periodReturn >= 0 ? '+' : '' }}{{ periodReturn.toFixed(2) }}%
+              </span>
+              <span class="text-gray-400">|</span>
+              <span class="font-semibold"
+                [class.text-emerald-600]="periodPnL >= 0"
+                [class.text-red-600]="periodPnL < 0">
+                {{ periodPnL >= 0 ? '+' : '' }}{{ formatProjection(periodPnL) }}
+              </span>
+            </div>
+            <div *ngIf="selectedTimeframe !== 'all' && !equityCurveData"
+              class="ml-auto text-xs text-gray-400 italic">Chưa có dữ liệu equity curve</div>
+          </div>
+
           <!-- Header + CAGR + TWR chips -->
           <div class="flex items-start justify-between flex-wrap gap-2 mb-2">
             <div>
@@ -337,15 +239,38 @@ Chart.register(...registerables);
           </div>
         </div>
 
+        <!-- Tài chính cá nhân (Home PR2): MỘT widget gộp Net Worth + Reality Gap CAGR + Tổng tài sản − Nợ + sức khoẻ + chia tài sản
+             (thu gọn). Thay cho hai thẻ cũ cùng đọc netWorthSummary. Chưa có hồ sơ thì widget tự hiện thẻ mời thiết lập.
+             Vị trí #2 sau Decision Queue; Compound Growth Tracker đầy đủ vẫn ở giữa page. -->
+        <app-networth-summary
+          [summary]="netWorthSummary"
+          [cagrValue]="cagrValue"
+          [cagrTarget]="cagrTarget">
+        </app-networth-summary>
+
+        </div>
+
         <!-- Compound Growth Tracker -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8" data-test="compound-card">
           <div class="flex items-center justify-between mb-4">
             <h2 class="tooltip-trigger text-lg font-semibold text-gray-900">Lãi kép (Compound Growth)
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-400 inline-block ml-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
               <div class="tooltip-box"><strong>CAGR — Tăng trưởng kép hàng năm:</strong> Mức lợi nhuận trung bình mỗi năm nếu danh mục tăng trưởng đều đặn. VD: CAGR 15% = vốn nhân đôi sau ~5 năm. Dùng CAGR để đặt mục tiêu dài hạn và so sánh với lãi suất tiết kiệm (~6%) hay VN-Index (~12%/năm).</div>
             </h2>
-            <button (click)="showTargetEditor = !showTargetEditor"
-              class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            <button type="button" data-test="compound-toggle" (click)="showCompound = !showCompound" [attr.aria-expanded]="showCompound"
+              class="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-2 min-h-[32px]">
+              {{ showCompound ? 'Thu gọn ▴' : 'Xem chi tiết ▾' }}
+            </button>
+          </div>
+
+          <div *ngIf="!showCompound" class="text-xs text-gray-500 -mt-2" data-test="compound-summary">
+            Mục tiêu {{ cagrTarget }}%/năm trong {{ targetYears }} năm. Số CAGR hiện tại nằm ở khối Tổng quan đầu tư phía trên.
+          </div>
+
+          <div *ngIf="showCompound" data-test="compound-body">
+          <div class="flex justify-end mb-2">
+            <button type="button" (click)="showTargetEditor = !showTargetEditor"
+              class="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-2 min-h-[32px]">
               {{ showTargetEditor ? 'Đóng' : 'Đặt mục tiêu' }}
             </button>
           </div>
@@ -377,13 +302,8 @@ Chart.register(...registerables);
               <!-- Branch 1: CAGR available (≥ ~30 ngày) -->
               <ng-container *ngIf="cagrValue !== 0">
                 <div class="text-xs text-gray-500 mb-1">
-                  CAGR
+                  Tiến độ so với mục tiêu CAGR
                   <span *ngIf="cagrPortfolioCount > 1" class="text-gray-400">(toàn bộ {{ cagrPortfolioCount }} danh mục)</span>
-                </div>
-                <div class="text-3xl font-bold"
-                  [class.text-emerald-600]="cagrValue > 0"
-                  [class.text-red-600]="cagrValue < 0">
-                  {{ (cagrValue > 0 ? '+' : '') + cagrValue.toFixed(1) + '%' }}
                 </div>
                 <div *ngIf="!cagrIsStable" class="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600"
                   title="CAGR annualize từ cửa sổ snapshot < 1 năm — sai số rất lớn nếu thị trường biến động trong giai đoạn này. Chỉ là ngoại suy.">
@@ -483,6 +403,104 @@ Chart.register(...registerables);
             </div>
           </div>
         </div>
+        </div>
+
+        </section>
+
+        <!-- Vùng "Theo dõi" -->
+        <section data-test="zone-watch" class="mb-2">
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3" data-test="zone-watch-title">Theo dõi</h2>
+        <!-- Watchlist + Daily Routine side-by-side on desktop -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+
+        <!-- Watchlist Widget -->
+        <div *ngIf="watchlistTopMovers.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">⭐</span>
+              <span class="font-bold text-sm text-gray-900">Watchlist</span>
+              <span class="text-xs text-gray-500">{{ watchlistTopMovers.length }} mã</span>
+            </div>
+            <a routerLink="/watchlist" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem tất cả →</a>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <a *ngFor="let item of watchlistTopMovers.slice(0, 6)"
+              [routerLink]="'/market-data'" [queryParams]="{ symbol: item.symbol }"
+              class="p-2 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors text-center">
+              <div class="font-semibold text-sm text-gray-900" [appSymbolLink]="item.symbol">{{ item.symbol }}</div>
+              <div class="text-sm font-mono mt-0.5">{{ item.close | vndCurrency }}</div>
+            </a>
+          </div>
+        </div>
+
+        <!-- Daily Routine Widget -->
+        <div *ngIf="todayRoutine || suggestedRoutineTemplate" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <!-- Has routine -->
+          <div *ngIf="todayRoutine">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">📋</span>
+                <span class="font-bold text-sm text-gray-900">Nhiệm vụ hôm nay</span>
+                <span class="text-xs text-gray-500">{{ todayRoutine.templateName }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div *ngIf="todayRoutine.currentStreak >= 3"
+                  class="flex items-center gap-1 bg-orange-50 text-orange-600 text-xs font-bold px-2 py-1 rounded-full">
+                  <span>🔥</span> {{ todayRoutine.currentStreak }}
+                </div>
+                <a routerLink="/daily-routine" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Xem chi tiết →</a>
+              </div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
+              <div class="h-2 rounded-full transition-all duration-500"
+                [class.bg-emerald-500]="todayRoutine.progressPercent >= 50"
+                [class.bg-amber-500]="todayRoutine.progressPercent > 0 && todayRoutine.progressPercent < 50"
+                [style.width.%]="todayRoutine.progressPercent"></div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
+              <span>{{ todayRoutine.completedCount }}/{{ todayRoutine.totalCount }} bước</span>
+              <span *ngIf="todayRoutine.isFullyCompleted" class="text-emerald-600 font-medium">✅ Hoàn thành!</span>
+            </div>
+            <!-- Show next uncompleted items (max 3) -->
+            <div class="space-y-1.5">
+              <div *ngFor="let item of nextRoutineItems; trackBy: trackByRoutineIndex" class="flex items-center gap-2">
+                <button (click)="toggleRoutineItem(item)"
+                  class="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all"
+                  [class.bg-emerald-500]="item.isCompleted" [class.border-emerald-500]="item.isCompleted"
+                  [class.border-gray-300]="!item.isCompleted">
+                  <svg *ngIf="item.isCompleted" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </button>
+                <span *ngIf="item.emoji" class="text-sm">{{ item.emoji }}</span>
+                <span class="text-sm" [class.line-through]="item.isCompleted" [class.text-gray-400]="item.isCompleted"
+                  [class.text-gray-700]="!item.isCompleted">{{ item.label }}</span>
+                <a *ngIf="item.link && !item.isCompleted" [routerLink]="item.link"
+                  class="text-gray-400 hover:text-blue-600 ml-auto">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
+          <!-- No routine yet — suggestion -->
+          <div *ngIf="!todayRoutine && suggestedRoutineTemplate" class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">{{ suggestedRoutineTemplate.emoji }}</span>
+              <div>
+                <div class="text-sm font-bold text-gray-900">{{ suggestedRoutineTemplate.name }}</div>
+                <div class="text-xs text-gray-500">~{{ suggestedRoutineTemplate.estimatedMinutes }} phút · {{ suggestedRoutineTemplate.items.length }} bước</div>
+              </div>
+            </div>
+            <button (click)="startDailyRoutine(suggestedRoutineTemplate.id)"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              Bắt đầu
+            </button>
+          </div>
+        </div>
+
+        </div> <!-- end Watchlist + Daily Routine grid -->
 
         <!-- Row 2: Allocation + Top Positions -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -560,6 +578,8 @@ Chart.register(...registerables);
           </div>
         </div>
 
+        </section>
+
       </div>
     </div>
 
@@ -574,6 +594,8 @@ Chart.register(...registerables);
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   showAiPanel = false;
+  /** Thẻ Lãi kép thu gọn mặc định (số CAGR chỉ hiện một lần, ở khối Tổng quan đầu tư). */
+  showCompound = false;
   readonly emptyContext = {};
   currentUser: User | null = null;
   summary: OverallPnLSummary | null = null;

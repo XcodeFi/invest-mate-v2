@@ -21,6 +21,7 @@ Transform from "trade recorder" to "opportunity finder":
 4. **AI integration** — 11 use cases, supports "copy prompt" (no API key required) + streaming (with key)
 5. **Vietnamese-first** — All UI text in Vietnamese with proper diacritics (dấu), commit messages in English
 6. **Một thẻ tài chính cá nhân trên Home (2026-11-28)** — quyết định v1.1 "giữ cả hai widget" (Net Worth ở trên + thẻ Tài chính cá nhân ở giữa) bị thay thế: cả hai đọc cùng `netWorthSummary` và cùng link /personal-finance nên chỉ gây thừa; nay gộp thành một thẻ có phần chia tài sản thu gọn.
+7. **Home chia vùng (2026-11-28)** — Hôm nay / Tài sản / Theo dõi; bộ chọn khung thời gian vào trong hero đầu tư; thẻ Lãi kép gập và chỉ hero giữ số CAGR. Đã CẮT dòng VNINDEX khỏi Home (kế hoạch ban đầu có): nó cãi lại ADR-0013 (khoảng lặng, không kích thích nhìn giá) và là phạm vi ngoài yêu cầu; sự kiện doanh nghiệp cho mã đang giữ và chip sàng lọc để sau.
 
 ## Current Improvement Plan (Round 9, score 9.4/10 → target 10/10)
 
