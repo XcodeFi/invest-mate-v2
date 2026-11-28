@@ -88,4 +88,38 @@ describe('BottomNavComponent: thanh dưới và danh sách "Thêm" trên điện
     const text = el().textContent ?? '';
     NAV_GROUPS.forEach(g => expect(text).withContext(g.key).toContain(g.label));
   });
+
+  it('the group headings appear in NAV_GROUPS order', () => {
+    openMore();
+
+    const keys = Array.from(el().querySelectorAll('[data-group]')).map(g => g.getAttribute('data-group'));
+    expect(keys).toEqual(NAV_GROUPS.map(g => g.key));
+  });
+
+  it('each link shows the icon from NAV_GROUPS next to its label', () => {
+    openMore();
+
+    const first = NAV_GROUPS[1].items[0];   // nhóm đầu không có mục bị thanh dưới lấy mất mục đầu
+    const link = moreLinks().find(a => a.getAttribute('href') === first.path)!;
+    expect((link.textContent ?? '').trim().startsWith(first.icon)).toBeTrue();
+  });
+
+  it('tapping a link in "Thêm" closes the sheet', () => {
+    openMore();
+    expect(moreLinks().length).toBeGreaterThan(0);
+
+    moreLinks()[0].click();
+    fixture.detectChanges();
+
+    expect(moreLinks().length).toBe(0);
+  });
+
+  it('a group whose every page is already on the bar shows no empty heading', () => {
+    const c = fixture.componentInstance;
+    c.navItems = [...c.navItems, ...NAV_GROUPS[0].items.map(i => ({ path: i.path, label: i.label, icon: '' }))];
+    openMore();
+
+    expect(el().querySelector(`[data-group="${NAV_GROUPS[0].key}"]`)).toBeNull();
+    expect(el().querySelector(`[data-group="${NAV_GROUPS[1].key}"]`)).not.toBeNull();
+  });
 });

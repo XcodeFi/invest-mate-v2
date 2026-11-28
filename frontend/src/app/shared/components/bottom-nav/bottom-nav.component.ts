@@ -96,9 +96,11 @@ export class BottomNavComponent {
   ];
 
   /** Các nhóm của NAV_GROUPS trừ những trang đã nằm trên thanh dưới; nhóm hết mục thì bỏ. Không có danh sách nào khác để lệch. */
-  moreGroups: NavGroup[] = NAV_GROUPS
-    .map(g => ({ ...g, items: g.items.filter(i => !this.navItems.some(n => n.path === i.path)) }))
-    .filter(g => g.items.length > 0);
+  get moreGroups(): NavGroup[] {
+    return NAV_GROUPS
+      .map(g => ({ ...g, items: g.items.filter(i => !this.navItems.some(n => n.path === i.path)) }))
+      .filter(g => g.items.length > 0);
+  }
 
   isActive(path: string): boolean {
     return window.location.pathname.startsWith(path);
