@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Infrastructure.Services;
 using InvestmentApp.Infrastructure.Services.Hmoney;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -716,5 +718,239 @@ public class HmoneyMarketDataProviderTradingViewTests
         var bars = await Year(p);
 
         bars.Should().NotBeEmpty().And.OnlyContain(b => b.AdjustedAsOf == null);
+    }
+
+    // ───────────── Chỉ lỗi của CẢ nguồn mới tính vào ngưỡng nghỉ chung ─────────────
+
+    private static Func<HttpRequestMessage, HttpResponseMessage> OkForFpt(Func<HttpResponseMessage> otherwise) =>
+        req => req.RequestUri!.Query.Contains("symbol=FPT") ? Json(TvOk(300)) : otherwise();
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)]
+    public async Task junk_symbols_answered_with_a_client_error_do_not_pause_udf_for_a_valid_symbol(HttpStatusCode junk)
+    {
+        var (p, h) = Create(x => x.Tv = OkForFpt(() => new HttpResponseMessage(junk)), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "JUNKA"); await Year(p, "JUNKB"); await Year(p, "JUNKC");
+        var fpt = await Year(p, "FPT");
+
+        h.TvUrls.Should().HaveCount(4, "ba mã rác không phải dấu hiệu nguồn bị chặn");
+        fpt.Should().NotBeEmpty().And.OnlyContain(b => b.IsAdjusted);
+    }
+
+    [Fact]
+    public async Task a_client_error_still_rests_that_symbol_so_it_is_not_asked_again()
+    {
+        var time = new FakeTime(Morning);
+        var (p, h) = Create(x => x.Tv = _ => new HttpResponseMessage(HttpStatusCode.NotFound), new FakeStore(), time);
+
+        await Year(p, "JUNKA");
+        time.Advance(TimeSpan.FromMinutes(5));
+        await Year(p, "JUNKA");
+
+        h.TvUrls.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task a_client_error_does_not_reset_the_streak_of_real_source_failures()
+    {
+        var (p, h) = Create(x => x.Tv = req => req.RequestUri!.Query.Contains("symbol=JUNK")
+            ? new HttpResponseMessage(HttpStatusCode.NotFound) : HtmlWaf()(req), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "AAA"); await Year(p, "BBB");   // 2 lần bị chặn
+        await Year(p, "JUNKA");                        // lỗi riêng của mã: không đổi chuỗi
+        await Year(p, "CCC");                          // lần thứ 3 → nghỉ chung
+        await Year(p, "DDD");
+
+        h.TvUrls.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public async Task a_json_error_status_for_one_symbol_is_not_a_source_wide_failure()
+    {
+        var (p, h) = Create(x => x.Tv = OkForFpt(() => Json("{\"s\":\"error\",\"errmsg\":\"unknown symbol\"}")),
+            new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "JUNKA"); await Year(p, "JUNKB"); await Year(p, "JUNKC");
+        await Year(p, "FPT");
+
+        h.TvUrls.Should().HaveCount(4);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task three_source_wide_http_failures_in_a_row_pause_everyone(HttpStatusCode status)
+    {
+        var (p, h) = Create(x => x.Tv = _ => new HttpResponseMessage(status), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "AAA"); await Year(p, "BBB"); await Year(p, "CCC");
+        await Year(p, "FPT");
+
+        h.TvUrls.Should().HaveCount(3, "đủ ba lần lỗi của cả nguồn thì mã thứ tư không được gọi");
+    }
+
+    [Fact]
+    public async Task three_waf_html_pages_in_a_row_pause_everyone()
+    {
+        var (p, h) = Create(x => x.Tv = HtmlWaf(), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "AAA"); await Year(p, "BBB"); await Year(p, "CCC");
+        await Year(p, "FPT");
+
+        h.TvUrls.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task three_timeouts_in_a_row_pause_everyone()
+    {
+        var (p, h) = Create(x => x.Tv = _ => throw new TaskCanceledException("timeout"), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, "AAA"); await Year(p, "BBB"); await Year(p, "CCC");
+        await Year(p, "FPT");
+
+        h.TvUrls.Should().HaveCount(3);
+    }
+
+    // ───────────── Mã sai dạng không tạo cổng, không gọi mạng ─────────────
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("A B")]
+    [InlineData("../etc")]
+    [InlineData("FPT;DROP")]
+    [InlineData("TOOLONGSYMBOL")]
+    [InlineData("FPT\u0000")]
+    [InlineData("FPT/../X")]
+    public async Task malformed_symbols_create_no_gate_and_make_no_call(string symbol)
+    {
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+
+        var bars = await Year(p, symbol);
+
+        bars.Should().BeEmpty();
+        h.TvUrls.Should().BeEmpty();
+        h.GraphUrls.Should().BeEmpty();
+        GateKeys().Should().NotContain(symbol.ToUpper().Trim());
+    }
+
+    [Fact]
+    public async Task a_lowercase_valid_symbol_is_normalised_and_works()
+    {
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+
+        var bars = await Year(p, "fpt ");
+
+        bars.Should().NotBeEmpty();
+        h.TvUrls.Should().ContainSingle().Which.Should().Contain("symbol=FPT");
+    }
+
+    [Theory]
+    [InlineData("E1VFVN30")]
+    [InlineData("VNINDEX")]
+    [InlineData("HPG")]
+    [InlineData("A")]
+    [InlineData("ABCDEFGHIJ")]
+    public async Task well_formed_symbols_up_to_ten_characters_are_accepted(string symbol)
+    {
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p, symbol);
+
+        h.TvUrls.Should().ContainSingle();
+    }
+
+    private static IEnumerable<string> GateKeys()
+    {
+        var field = typeof(HmoneyMarketDataProvider).GetField("SymbolGates",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        return ((System.Collections.IDictionary)field.GetValue(null)!).Keys.Cast<string>().ToList();
+    }
+
+    // ───────────── Đường vui từ đầu tới cuối: HTTP giả → provider → kho → chỉ báo, không mạng, không DB ─────────────
+
+    /// <summary>
+    /// Payload cùng hình với phản hồi thật của UDF 24hmoney (mốc 00:00 UTC chỉ các ngày thứ Hai đến thứ Sáu, giá nghìn đồng
+    /// ba chữ số thập phân, khối lượng là số cổ phiếu, có thêm trường <c>symbol</c>). Đây là dữ liệu DỰNG, không phải bản ghi thật:
+    /// chưa có bản ghi đầy đủ nào được lưu vì nguồn thật bị WAF chặn từ máy phát triển. Nến cuối cố định để so từng chữ số.
+    /// </summary>
+    private static string FptStylePayload(int sessions, out DateTime lastBar)
+    {
+        var day = DateTime.UtcNow.Date;
+        while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) day = day.AddDays(-1);
+        lastBar = day;
+
+        var t = new List<long>(); var o = new List<string>(); var h = new List<string>();
+        var l = new List<string>(); var c = new List<string>(); var v = new List<string>();
+        var d = day;
+        for (var i = sessions - 1; i >= 0; i--)
+        {
+            while (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) d = d.AddDays(-1);
+            t.Insert(0, new DateTimeOffset(d, TimeSpan.Zero).ToUnixTimeSeconds());
+            string F(decimal x) => x.ToString("0.000", CultureInfo.InvariantCulture);
+            if (i == sessions - 1)
+            {
+                o.Insert(0, "63.500"); h.Insert(0, "64.715"); l.Insert(0, "63.100"); c.Insert(0, "63.715"); v.Insert(0, "1234567");
+            }
+            else
+            {
+                var close = 40m + (sessions - 1 - i) * 0.04m + ((sessions - 1 - i) % 7) * 0.013m;
+                o.Insert(0, F(close - 0.2m)); h.Insert(0, F(close + 0.5m)); l.Insert(0, F(close - 0.6m)); c.Insert(0, F(close));
+                v.Insert(0, (1_000_000 + i).ToString(CultureInfo.InvariantCulture));
+            }
+            d = d.AddDays(-1);
+        }
+
+        string A(IEnumerable<string> xs) => "[" + string.Join(",", xs) + "]";
+        return "{\"symbol\":\"FPT\",\"s\":\"ok\",\"t\":[" + string.Join(",", t) + "],\"o\":" + A(o) + ",\"h\":" + A(h) +
+               ",\"l\":" + A(l) + ",\"c\":" + A(c) + ",\"v\":" + A(v) + "}";
+    }
+
+    [Fact]
+    public async Task end_to_end_payload_to_provider_to_store_to_indicators_then_served_from_the_store_when_blocked()
+    {
+        var payload = FptStylePayload(330, out var lastBar);
+        var time = new FakeTime(Morning);
+        var store = new FakeStore();
+        var (p, h) = Create(x => x.Tv = _ => Json(payload), store, time);
+        var indicators = new TechnicalIndicatorService(p);
+
+        // 1) nguồn trả được: chuỗi đã điều chỉnh, ngày và OHLCV đúng
+        var series = await indicators.GetSeriesAsync("FPT");
+
+        series.Adjusted.Should().BeTrue();
+        series.AdjustedAsOf.Should().Be(lastBar, "ngày nến cuối của chuỗi");
+        series.Dates.Should().HaveCountGreaterThanOrEqualTo(200).And.BeInAscendingOrder();
+        series.Dates.Should().OnlyContain(d => d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+        series.Dates.Last().Should().Be(lastBar);
+        (series.Open.Last(), series.High.Last(), series.Low.Last(), series.Close.Last(), series.Volume.Last())
+            .Should().Be((63_500m, 64_715m, 63_100m, 63_715m, 1_234_567L), "giá nghìn đồng ×1000, khối lượng giữ nguyên số cổ phiếu");
+        series.Ema200.Should().NotBeNull();
+        series.Ema200!.Last().Should().NotBeNull("đủ hơn 200 phiên thì EMA200 có giá trị ở phiên cuối");
+
+        // 2) mỗi nến mang ngày của cả chuỗi; kho được ghi đúng một lần với cả chuỗi
+        var bars = await p.GetHistoricalPricesAsync("FPT", lastBar.AddMonths(-12), lastBar);
+        bars.Should().OnlyContain(b => b.IsAdjusted && b.AdjustedAsOf == lastBar);
+        store.SaveCalls.Should().Be(1);
+        store.Data["FPT"].Bars.Should().HaveCount(330);
+        store.Data["FPT"].Bars.Last().Close.Should().Be(63_715m);
+        h.TvUrls.Should().ContainSingle();
+
+        // 3) hôm sau nguồn bị chặn (HTML, HTTP 200): phục vụ bản đã lưu, không rơi xuống chuỗi dẹt, không ghi đè kho
+        time.Advance(TimeSpan.FromDays(1));
+        h.Tv = HtmlWaf();
+        var analysis = await indicators.AnalyzeAsync("FPT");
+
+        analysis.Adjusted.Should().BeTrue();
+        analysis.AdjustedAsOf.Should().Be(lastBar, "bản đã lưu giữ nguyên ngày nến cuối của nó");
+        analysis.Ema200.Should().NotBeNull();
+        h.TvUrls.Should().HaveCount(2, "đã thử nguồn đúng một lần hôm sau");
+        h.GraphUrls.Should().BeEmpty();
+        store.SaveCalls.Should().Be(1);
     }
 }

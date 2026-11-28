@@ -80,6 +80,21 @@ public static class TradingViewHistoryParser
         }
     }
 
+    /// <summary>Thân là một JSON object hợp lệ (dù <c>s</c> không phải ok): nguồn đang trả lời, không phải trang chặn.</summary>
+    public static bool IsJsonObject(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.ValueKind == JsonValueKind.Object;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     private static bool TryArray(JsonElement root, string name, out JsonElement array)
     {
         if (root.TryGetProperty(name, out array) && array.ValueKind == JsonValueKind.Array) return true;

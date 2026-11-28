@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using InvestmentApp.Application.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
@@ -52,6 +53,9 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     // Mỗi mã một cổng: nhiều yêu cầu đồng thời cho cùng mã chỉ gây đúng một lần gọi UDF.
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SymbolGates = new();
 
+    /// <summary>Mã hợp lệ (sau khi viết hoa): chỉ chữ và số, tối đa 10 ký tự. Mã sai dạng không được tạo cổng hay gọi nguồn, để từ điển cổng không phình vô hạn.</summary>
+    private static readonly Regex ValidSymbol = new(@"^[A-Z0-9]{1,10}\z", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
     private static readonly TimeSpan PersistedReadCache = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan FallbackCache = TimeSpan.FromSeconds(60);
@@ -72,6 +76,8 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     /// Trường <c>z</c> của graph ngày bằng 1/10 số cổ phiếu: đo 2026-11-28, tỉ số v(UDF)/z là 10,00–10,10 trên
     /// 61/61 phiên của cả FPT và VNM, và v ngày 2026-11-27 = accumulated_vol của trading-history. Nhân 10 để
     /// khối lượng của nguồn dự phòng cùng đơn vị (cổ phiếu) với nguồn UDF, nếu không OBV/MFI/KL TB nhảy bậc khi đổi nguồn.
+    /// Kiểm thêm 2026-11-28 với HPG (HOSE) và SHS (HNX): z × 10 bằng đúng accumulated_vol của trading-history ở cả hai phiên gần nhất
+    /// (HPG 1.485.810 → 14.858.100; SHS 764.090 → 7.640.900). Phía UDF của hai mã này chưa kiểm được vì nguồn đang chặn.
     /// </summary>
     private const int GraphDailyVolumeFactor = 10;
 
@@ -192,6 +198,9 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     /// </summary>
     private async Task<List<StockPriceData>> GetDailySeriesAsync(string symbol, CancellationToken cancellationToken)
     {
+        if (!ValidSymbol.IsMatch(symbol))
+            return new List<StockPriceData>();
+
         var goodKey = $"tv:good:{symbol}";
         if (TryFresh(goodKey, out List<StockPriceData> good))
             return good;
@@ -225,10 +234,10 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
                     return result.Bars;
                 }
 
-                if (result.NoData)
-                    RecordUdfNoData(symbol);   // mã nguồn không có (ví dụ chỉ số): không phải bị chặn nên không tính vào chuỗi lỗi
-                else
+                if (result.Failure == UdfFailure.SourceWide)
                     RecordUdfFailure(symbol);
+                else
+                    RestSymbol(symbol);   // lỗi riêng của mã (không có dữ liệu, mã rác): mã nghỉ, nhưng không tính vào chuỗi lỗi của cả nguồn
             }
 
             if (snapshot != null)
@@ -312,8 +321,8 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         }
     }
 
-    /// <summary>Nguồn trả đúng cấu trúc nhưng không có dữ liệu cho mã này: chỉ nghỉ theo mã, không kéo cả nguồn nghỉ chung.</summary>
-    private void RecordUdfNoData(string symbol) =>
+    /// <summary>Lỗi riêng của một mã (no_data, 404 hay 400 cho mã rác, JSON báo lỗi): chỉ nghỉ theo mã, không kéo cả nguồn nghỉ chung.</summary>
+    private void RestSymbol(string symbol) =>
         SetTimed($"tv:cooldown:{symbol}", true, Now.AddMinutes(_options.TradingViewFailureCooldownMinutes));
 
     private bool UdfCooledDown(string symbol) =>
@@ -341,7 +350,17 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     /// <c>null</c> khi không dùng được (lỗi mạng, hết giờ, HTTP không thành công, <c>s != "ok"</c>, mảng rỗng
     /// hoặc lệch): người gọi chuyển sang nguồn dự phòng. Huỷ từ người gọi thì ném tiếp, không coi là lỗi nguồn.
     /// </summary>
-    private sealed record UdfResult(List<StockPriceData>? Bars, bool NoData);
+    private sealed record UdfResult(List<StockPriceData>? Bars, UdfFailure Failure);
+
+    /// <summary>
+    /// Phân loại lỗi để chỉ dấu hiệu của CẢ nguồn mới đẩy ngưỡng nghỉ chung: trang HTML/WAF, 403, 429, 408, 5xx, hết giờ hoặc lỗi mạng.
+    /// Mã rác (404/400, JSON báo lỗi, no_data) chỉ làm mã đó nghỉ.
+    /// </summary>
+    private enum UdfFailure { None, SymbolOnly, SourceWide }
+
+    private static bool IsSourceWideStatus(System.Net.HttpStatusCode status) =>
+        status is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.TooManyRequests
+            or System.Net.HttpStatusCode.RequestTimeout || (int)status >= 500;
 
     private async Task<UdfResult> FetchTradingViewAsync(string symbol, CancellationToken cancellationToken)
     {
@@ -358,18 +377,20 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
             {
                 _logger.LogWarning("TradingView history for {Symbol} returned HTTP {Status}; falling back to graph (unadjusted)",
                     symbol, (int)response.StatusCode);
-                return new UdfResult(null, false);
+                return new UdfResult(null, IsSourceWideStatus(response.StatusCode) ? UdfFailure.SourceWide : UdfFailure.SymbolOnly);
             }
 
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var bars = TradingViewHistoryParser.Parse(body, symbol);
             if (bars != null)
-                return new UdfResult(bars, false);
+                return new UdfResult(bars, UdfFailure.None);
 
-            var noData = TradingViewHistoryParser.IsNoData(body);
+            // Trang HTML/WAF hay thân không phải JSON là dấu hiệu cả nguồn bị chặn; JSON đúng cấu trúc (no_data, error, mảng rỗng) là chuyện của mã.
+            var failure = TradingViewHistoryParser.IsJsonObject(body) ? UdfFailure.SymbolOnly : UdfFailure.SourceWide;
             _logger.LogWarning("TradingView history for {Symbol} was {Kind}; falling back to graph (unadjusted)",
-                symbol, noData ? "reported as no_data" : "empty or unreadable");
-            return new UdfResult(null, noData);
+                symbol, TradingViewHistoryParser.IsNoData(body) ? "reported as no_data"
+                    : failure == UdfFailure.SymbolOnly ? "rejected for this symbol" : "empty or unreadable");
+            return new UdfResult(null, failure);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -378,7 +399,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "TradingView history for {Symbol} failed; falling back to graph (unadjusted)", symbol);
-            return new UdfResult(null, false);
+            return new UdfResult(null, UdfFailure.SourceWide);
         }
     }
 
