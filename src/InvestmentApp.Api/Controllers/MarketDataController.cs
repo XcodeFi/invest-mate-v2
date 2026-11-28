@@ -259,7 +259,8 @@ public class MarketDataController : ControllerBase
         {
             Floors = floors, IncludeUpcom = includeUpcom, MinAdtv = minAdtv, MinPrice = minPrice, MinCap = minCap, MinRoe = minRoe,
             MaxPe = maxPe, MinRs3m = minRs3m, SkipQualityLayer = skipQualityLayer, IncludeExcluded = includeExcluded,
-            ExcludedSkip = excludedSkip, ExcludedTake = excludedTake, LookupSymbol = lookupSymbol
+            ExcludedSkip = excludedSkip, ExcludedTake = excludedTake, LookupSymbol = lookupSymbol,
+            UserId = User?.FindFirst("sub")?.Value
         });
         return Ok(result);
     }

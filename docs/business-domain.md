@@ -93,7 +93,7 @@ ImpersonationAudit (independent, append-only)
 | DailyRoutine | User | N:1 | 1 routine/user/ngày |
 | DailyRoutine | RoutineTemplate | N:1 | Tạo từ template |
 | RoutineTemplate | User | N:1 | null = built-in, non-null = custom |
-| Watchlist | User | N:1 | Nhiều watchlist per user |
+| Watchlist | User | N:1 | Nhiều watchlist per user. Thêm hàng loạt (`AddWatchlistItemsCommand`, 2026-11-28): tối đa 30 mã/lần, chuẩn hoá chữ hoa + gộp trùng, mã đã có thì BỎ QUA (không lỗi), ghi chú chỉ cho mã mới, Version chỉ tăng khi thật sự có mã thêm; ghi **có điều kiện theo Version** (`TryUpdateAsync`) và đọc lại thử tối đa 3 lần khi bị ghi xen; mọi lần đọc đều kiểm `watchlist.UserId == userId` |
 | WatchlistItem | Watchlist | N:1 | Embedded, symbol + note + target prices |
 | AiSettings | User | 1:1 | 1 cấu hình AI per user (multi-provider: Claude + Gemini) |
 | FinancialProfile | User | 1:1 | Tổng quan tài chính cá nhân, unique index UserId, soft-delete |

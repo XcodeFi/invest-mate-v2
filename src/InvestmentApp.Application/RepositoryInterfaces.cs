@@ -222,6 +222,12 @@ public interface IWatchlistRepository : IRepository<Watchlist>
 {
     Task<IEnumerable<Watchlist>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<Watchlist?> GetDefaultByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ghi đè có điều kiện: chỉ ghi khi bản đang lưu vẫn ở đúng <paramref name="expectedVersion"/> (Version đã đọc, TRƯỚC khi sửa). Trả false khi ai đó đã ghi xen vào
+    /// (bản của ta cũ), để người gọi đọc lại và áp dụng lại thay vì ghi đè mất thay đổi của người kia. <see cref="IRepository{T}.UpdateAsync"/> thì ghi đè vô điều kiện.
+    /// </summary>
+    Task<bool> TryUpdateAsync(Watchlist entity, int expectedVersion, CancellationToken cancellationToken = default);
 }
 
 public interface IRoutineTemplateRepository : IRepository<RoutineTemplate>

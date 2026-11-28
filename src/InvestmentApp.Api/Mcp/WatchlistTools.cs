@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
+using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItems;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.DeleteWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.ImportVn30;
@@ -95,6 +96,21 @@ public static class WatchlistTools
             Note = note,
             TargetBuyPrice = targetBuyPrice,
             TargetSellPrice = targetSellPrice
+        }, ct);
+
+    [McpServerTool(Name = "add_watchlist_items", Destructive = true)]
+    [Description("Thêm nhiều mã vào một watchlist trong một lần (tối đa 30 mã). Mã đã có thì BỎ QUA, không lỗi; không bao giờ xoá hay sửa mã đã có. Trả về { added, skipped }. Dùng cho tác vụ định kỳ: lấy danh sách từ screen_stocks rồi thêm vào watchlist của chủ khoá API.")]
+    public static async Task<AddWatchlistItemsResult> AddWatchlistItems(
+        [Description("ID watchlist.")] string id,
+        [Description("Các mã chứng khoán, tối đa 30, ví dụ [\"FPT\",\"VCB\"].")] List<string> symbols,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("Ghi chú gắn cho các mã MỚI thêm, tối đa 200 ký tự, ví dụ \"Từ sàng lọc 28/11\" (bỏ trống = không ghi chú).")] string? note = null)
+        => await mediator.Send(new AddWatchlistItemsCommand
+        {
+            WatchlistId = id,
+            UserId = http.GetUserId(),
+            Symbols = symbols,
+            Note = note
         }, ct);
 
     [McpServerTool(Name = "update_watchlist_item", Destructive = true)]

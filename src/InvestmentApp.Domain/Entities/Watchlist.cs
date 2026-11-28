@@ -99,6 +99,30 @@ public class Watchlist : AggregateRoot
         IncrementVersion();
     }
 
+    /// <summary>
+    /// Thêm nhiều mã, BỎ QUA mã đã có (không ném lỗi như <see cref="AddItem"/>), ghi chú chỉ gắn cho mã mới thêm. Mã trống bị bỏ qua hẳn.
+    /// Version chỉ tăng (đúng một lần) khi thật sự có mã được thêm, để cập nhật có điều kiện theo Version không bị lệch vì lần gọi không làm gì.
+    /// </summary>
+    public (IReadOnlyList<string> Added, IReadOnlyList<string> Skipped) AddItemsIfMissing(IEnumerable<string> symbols, string? note)
+    {
+        var added = new List<string>();
+        var skipped = new List<string>();
+        foreach (var symbol in symbols)
+        {
+            var normalized = symbol?.ToUpperInvariant().Trim();
+            if (string.IsNullOrEmpty(normalized)) continue;
+            if (Items.Any(i => i.Symbol == normalized)) { skipped.Add(normalized); continue; }
+            Items.Add(new WatchlistItem { Symbol = normalized, Note = note, AddedAt = DateTime.UtcNow });
+            added.Add(normalized);
+        }
+        if (added.Count > 0)
+        {
+            UpdatedAt = DateTime.UtcNow;
+            IncrementVersion();
+        }
+        return (added, skipped);
+    }
+
     public void MarkAsDeleted()
     {
         IsDeleted = true;

@@ -36,6 +36,13 @@ public class WatchlistRepository : IWatchlistRepository
         await _collection.ReplaceOneAsync(w => w.Id == entity.Id, entity, cancellationToken: ct);
     }
 
+    public async Task<bool> TryUpdateAsync(Watchlist entity, int expectedVersion, CancellationToken ct = default)
+    {
+        // Lọc theo Id VÀ Version đã đọc: bản lưu mà đã đổi Version (ghi xen vào) thì không khớp, MatchedCount = 0.
+        var result = await _collection.ReplaceOneAsync(w => w.Id == entity.Id && w.Version == expectedVersion && !w.IsDeleted, entity, cancellationToken: ct);
+        return result.MatchedCount == 1;
+    }
+
     public async Task DeleteAsync(string id, CancellationToken ct = default)
     {
         var update = Builders<Watchlist>.Update

@@ -19,6 +19,7 @@ using InvestmentApp.Application.MarketClosures.Queries.GetMarketClosures;
 using InvestmentApp.Application.Portfolios.Queries.GetAllPortfolios;
 using InvestmentApp.Application.TradePlans.Queries.GetActivePositions;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
+using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItems;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.DeleteWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.ImportVn30;
@@ -106,6 +107,23 @@ public class AiAgentExposeControllersTests
         result.Should().BeOfType<OkObjectResult>();
         sent!.WatchlistId.Should().Be("wl-1");
         sent.UserId.Should().Be("user-1");
+    }
+
+    [Fact]
+    public async Task Watchlist_AddItemsBulk_BindsIdFromRoute_AndUserIdFromClaimNotFromBody()
+    {
+        AddWatchlistItemsCommand? sent = null;
+        _mediator.Setup(m => m.Send(It.IsAny<AddWatchlistItemsCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<AddWatchlistItemsResult>, CancellationToken>((c, _) => sent = (AddWatchlistItemsCommand)c)
+            .ReturnsAsync(new AddWatchlistItemsResult());
+
+        var sut = WithApiKeyClaim(new AiAgentWatchlistsController(_mediator.Object), "user-1");
+        var result = await sut.AddItemsBulk("wl-1", new AddWatchlistItemsCommand { WatchlistId = "other", UserId = "intruder", Symbols = new() { "VNM" } });
+
+        result.Should().BeOfType<OkObjectResult>();
+        sent!.WatchlistId.Should().Be("wl-1");
+        sent.UserId.Should().Be("user-1");
+        sent.Symbols.Should().Equal("VNM");
     }
 
     [Fact]

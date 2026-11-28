@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ScreenerComponent } from './screener.component';
 import { MarketDataService } from '../../core/services/market-data.service';
+import { WatchlistService } from '../../core/services/watchlist.service';
 
 /**
  * Bố cục ô lọc: nhãn dài xuống hai dòng thì ô nhập của nó KHÔNG được tụt xuống so với các ô cùng hàng. Điểm ngắt của Tailwind (`lg:`) tính theo
@@ -16,7 +17,7 @@ describe('ScreenerComponent: căn hàng của các ô lọc', () => {
   async function renderAt(width: number, dark = false): Promise<Document> {
     const market = jasmine.createSpyObj<MarketDataService>('MarketDataService', ['getScreener']);
     market.getScreener.and.returnValue(of({ status: 'unavailable', reason: 'x', universeCount: 0, passed: [], unverifiedHose: [], excludedCounts: {}, sectorCounts: {}, tradeoffCount: 0, notes: [], stale: false, hoseListsStale: false, disclaimer: '' } as any));
-    TestBed.configureTestingModule({ imports: [ScreenerComponent], providers: [provideRouter([]), { provide: MarketDataService, useValue: market }] });
+    TestBed.configureTestingModule({ imports: [ScreenerComponent], providers: [provideRouter([]), { provide: MarketDataService, useValue: market }, { provide: WatchlistService, useValue: { getAll: () => of([]), addItemsBulk: () => of({ watchlistId: '', added: [], skipped: [] }) } }] });
     fixture = TestBed.createComponent(ScreenerComponent);
     fixture.detectChanges();
 

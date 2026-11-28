@@ -51,6 +51,19 @@ Cờ dựa trên **xếp hạng tương đối**, không phải đánh giá rủ
 
 Tick các mã muốn xem (tối đa 30) rồi bấm **Gửi N mã sang Bảng giá nhanh**. Trang Thị trường mở ra với đúng những mã đó và nhớ cho lần sau. **Danh sách này thay thế danh sách Bảng giá nhanh bạn đã nhớ trước đó.** Không có gì tự điền. Nếu trình duyệt chặn lưu trữ (chế độ riêng tư), trang sẽ báo và hiện danh sách để bạn tự gõ sang.
 
+## Thêm mã vào Watchlist
+
+Tick các mã (tối đa 30), chọn watchlist (mặc định là watchlist mặc định của bạn) rồi bấm **⭐ Thêm N mã vào watchlist**. Mã nào **đã có sẵn** trong watchlist đó thì được bỏ qua, không lỗi và không đổi ghi chú cũ; trang báo **"Đã thêm N, bỏ qua M (đã có)"**.
+
+- Mã mới thêm có ghi chú tự điền, ngắn, dạng **"Từ sàng lọc 28/11 · ROE ≥ 12 · Sức mạnh 3T ≥ P50"** (đúng tiêu chí của lần lọc đang xem). Bạn sửa ghi chú ở trang Watchlist như mọi mã khác.
+- Mã đã nằm trong **bất kỳ** watchlist nào của bạn có **⭐** cạnh mã ngay từ khi trang mở.
+- Chưa có watchlist nào thì nút bị khoá; tạo một watchlist ở trang Watchlist trước.
+- Nút này chỉ **thêm**, không bao giờ xoá hay sửa mã đã có.
+
+### Để trợ lý AI thêm giúp mỗi ngày
+
+Trợ lý AI nối qua khoá API có công cụ `add_watchlist_items` (thêm tối đa 30 mã một lần, mã đã có thì bỏ qua) và `screen_stocks` (mỗi dòng đạt có cờ `inWatchlist`). Gợi ý cách chạy: **sau giờ đóng cửa (khoảng 16:00)**, khi dữ liệu đã phản ánh phiên vừa xong, trợ lý gọi `screen_stocks`, **bỏ qua lần chạy nếu `status` khác `ok` hoặc `stale` là true** (và báo lại), tìm hoặc tạo watchlist riêng tên **"🔎 Từ sàng lọc"**, rồi thêm các mã đạt vào đó với ghi chú "Từ sàng lọc dd/MM". Đầu phiên sáng dữ liệu vẫn là của phiên trước, nên lúc đó chỉ nên xem lại danh sách. Trợ lý chỉ thêm vào watchlist riêng của nó, không xoá gì và không ghi vào danh sách bạn tự quản lý. Việc đặt lịch chạy là việc của bạn với trợ lý (ứng dụng không tự chạy lịch).
+
 ## Giới hạn cần biết
 
 - **Nguồn không chính thức**: dữ liệu lấy từ 24hmoney và danh sách công khai của HOSE, có thể trễ hoặc đổi dạng. Dữ liệu được lưu tạm tối đa 6 giờ.

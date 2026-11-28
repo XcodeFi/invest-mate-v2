@@ -35,6 +35,13 @@ export interface WatchlistDetail {
   updatedAt: string;
 }
 
+/** Kết quả thêm nhiều mã: `added` là mã mới thêm, `skipped` là mã đã có sẵn. */
+export interface AddItemsResult {
+  watchlistId: string;
+  added: string[];
+  skipped: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -87,6 +94,13 @@ export class WatchlistService {
   }): Observable<WatchlistDetail> {
     return this.http.post<WatchlistDetail>(
       `${this.API_URL}/${watchlistId}/items`, data, { headers: this.getHeaders() }
+    ).pipe(catchError(this.handleError));
+  }
+
+  /** Thêm nhiều mã một lần (tối đa 30); mã đã có thì bỏ qua. Ghi chú chỉ gắn cho mã mới thêm. */
+  addItemsBulk(watchlistId: string, symbols: string[], note?: string): Observable<AddItemsResult> {
+    return this.http.post<AddItemsResult>(
+      `${this.API_URL}/${watchlistId}/items/bulk`, { symbols, note }, { headers: this.getHeaders() }
     ).pipe(catchError(this.handleError));
   }
 
