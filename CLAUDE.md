@@ -61,7 +61,7 @@
 
 - Inline templates trong `@Component({ template: \`...\` })` — không dùng file `.html` riêng.
 - Services nằm trong `core/services/`, shared code trong `shared/`.
-- **Route mới (không có tham số) phải vào menu**: thêm một mục vào `NAV_GROUPS` trong `frontend/src/app/shared/nav/nav-config.ts` (hoặc vào `NAV_EXCLUDED_ROUTES` kèm lý do). Test `nav-config.spec.ts` đối chiếu với `app.routes.ts` nên thiếu là đỏ. Menu trái và menu điện thoại đọc cùng cấu hình này, không viết mục menu cứng ở nơi khác.
+- **Route mới (không có tham số) phải vào menu**: thêm một mục vào `NAV_GROUPS` trong `frontend/src/app/shared/nav/nav-config.ts` (hoặc vào `NAV_EXCLUDED_ROUTES` kèm lý do). Test `nav-config.spec.ts` đối chiếu với `app.routes.ts` nên thiếu là đỏ. Menu trái và danh sách "Thêm" của menu điện thoại đọc cùng cấu hình này (thanh dưới chỉ giữ cứng bốn trang chính), không viết mục menu cứng ở nơi khác; test `bottom-nav.component.spec.ts` đỏ nếu một trang trong cấu hình không vào được từ điện thoại.
 - **Commit message bằng tiếng Việt có dấu đầy đủ**, rõ và cụ thể (VD: `fix(mcp): nhận tham số phẳng thay cho lớp bọc command`). Giữ prefix conventional-commit tiếng Anh (`feat`/`fix`/`docs`/`refactor`). UI text cũng tiếng Việt có dấu.
 
 ## Chế độ tối (mặc định)

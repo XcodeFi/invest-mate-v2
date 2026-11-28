@@ -13,14 +13,17 @@ import { allNavItems, NAV_GROUPS } from '../../nav/nav-config';
 describe('HeaderComponent: thanh trên gọn, menu điện thoại đọc từ cấu hình chung', () => {
   let fixture: ComponentFixture<HeaderComponent>;
   let authed = true;
+  let token: string | null = null;
+  const jwt = (payload: object) => `x.${btoa(JSON.stringify(payload))}.y`;
 
   beforeEach(() => {
     authed = true;
+    token = null;
     TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
-        { provide: AuthService, useValue: { isAuthenticated: () => authed, getToken: () => null, currentUser$: new BehaviorSubject(null), logout: () => of(null) } },
+        { provide: AuthService, useValue: { isAuthenticated: () => authed, getToken: () => token, currentUser$: new BehaviorSubject(null), logout: () => of(null) } },
         { provide: PnlService, useValue: { getSummary: () => of({ portfolios: [] }) } },
         { provide: RiskService, useValue: {} },
       ],
@@ -136,5 +139,34 @@ describe('HeaderComponent: thanh trên gọn, menu điện thoại đọc từ c
     });
 
     allNavItems().forEach(i => expect(seen).withContext(i.path).toContain(i.path));
+  });
+
+  describe('dòng DEV trong menu điện thoại (đường duy nhất tới Changelog trên điện thoại, vì huy hiệu ở thanh trên ẩn dưới 768px)', () => {
+    const devLink = () => Array.from(el().querySelectorAll('a[href="/changelog"]')).find(a => { const t = a.textContent ?? ''; return t.includes('DEV') && t.includes('Changelog'); }) as HTMLAnchorElement | undefined;
+
+    it('an admin sees a DEV link to /changelog at the bottom of the mobile menu', () => {
+      token = jwt({ role: 'Admin' });
+      fixture.detectChanges();
+      openMobile();
+
+      expect(devLink()).toBeDefined();
+      expect((devLink()!.textContent ?? '')).toContain('Changelog');
+    });
+
+    it('a regular user does not see it', () => {
+      token = jwt({ role: 'User' });
+      fixture.detectChanges();
+      openMobile();
+
+      expect(devLink()).toBeUndefined();
+    });
+
+    it('an admin who is impersonating another user does not see it', () => {
+      token = jwt({ role: 'Admin', amr: 'impersonate' });
+      fixture.detectChanges();
+      openMobile();
+
+      expect(devLink()).toBeUndefined();
+    });
   });
 });
