@@ -100,6 +100,10 @@ public class HmoneyMarketDataProviderTradingViewTests
             return Task.FromResult(Data.GetValueOrDefault(symbol));
         }
 
+        public Task<IReadOnlyDictionary<string, DateTime>> GetFetchedAtAsync(IReadOnlyCollection<string> symbols, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyDictionary<string, DateTime>>(
+                Data.Where(kv => symbols.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value.FetchedAtUtc));
+
         public Task SaveAsync(string symbol, DateTime fetchedAtUtc, IReadOnlyList<StockPriceData> bars, CancellationToken ct = default)
         {
             SaveCalls++;
