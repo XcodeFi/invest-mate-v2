@@ -4,13 +4,14 @@ import { HeaderComponent } from './shared/components/header/header.component';
 import { NotificationToastComponent } from './shared/components/notification-toast/notification-toast.component';
 import { BottomNavComponent } from './shared/components/bottom-nav/bottom-nav.component';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
+import { CommandPaletteComponent } from './shared/components/command-palette/command-palette.component';
 import { PwaInstallBannerComponent } from './shared/components/pwa-install-banner/pwa-install-banner.component';
 import { ImpersonationBannerComponent } from './shared/components/impersonation-banner/impersonation-banner.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, SidebarComponent, NotificationToastComponent, BottomNavComponent, PwaInstallBannerComponent, ImpersonationBannerComponent],
+  imports: [RouterOutlet, HeaderComponent, SidebarComponent, NotificationToastComponent, BottomNavComponent, PwaInstallBannerComponent, ImpersonationBannerComponent, CommandPaletteComponent],
   template: `
     <div class="min-h-screen bg-gray-50">
       <app-impersonation-banner></app-impersonation-banner>
@@ -24,6 +25,7 @@ import { ImpersonationBannerComponent } from './shared/components/impersonation-
       <app-bottom-nav></app-bottom-nav>
       <app-notification-toast></app-notification-toast>
       <app-pwa-install-banner></app-pwa-install-banner>
+      <app-command-palette></app-command-palette>
     </div>
   `,
   styles: []
