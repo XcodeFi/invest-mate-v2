@@ -20,6 +20,7 @@ Transform from "trade recorder" to "opportunity finder":
 3. **Dashboard Cockpit** — Single-page overview: portfolio summary, equity curve, risk alerts, market indices, watchlist
 4. **AI integration** — 11 use cases, supports "copy prompt" (no API key required) + streaming (with key)
 5. **Vietnamese-first** — All UI text in Vietnamese with proper diacritics (dấu), commit messages in English
+6. **Một thẻ tài chính cá nhân trên Home (2026-11-28)** — quyết định v1.1 "giữ cả hai widget" (Net Worth ở trên + thẻ Tài chính cá nhân ở giữa) bị thay thế: cả hai đọc cùng `netWorthSummary` và cùng link /personal-finance nên chỉ gây thừa; nay gộp thành một thẻ có phần chia tài sản thu gọn.
 
 ## Current Improvement Plan (Round 9, score 9.4/10 → target 10/10)
 
