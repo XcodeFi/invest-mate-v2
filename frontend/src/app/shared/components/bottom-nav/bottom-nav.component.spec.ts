@@ -122,4 +122,16 @@ describe('BottomNavComponent: thanh dưới và danh sách "Thêm" trên điện
     expect(el().querySelector(`[data-group="${NAV_GROUPS[0].key}"]`)).toBeNull();
     expect(el().querySelector(`[data-group="${NAV_GROUPS[1].key}"]`)).not.toBeNull();
   });
+
+  it('the sheet is not rebuilt on every change-detection pass: the same link element survives (a tap is not lost under a finger)', () => {
+    openMore();
+    const before = moreLinks().find(a => a.getAttribute('href') === '/screener')!;
+    const group = el().querySelector('[data-group="opportunities"]')!;
+
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    expect(moreLinks().find(a => a.getAttribute('href') === '/screener')).toBe(before);
+    expect(el().querySelector('[data-group="opportunities"]')).toBe(group);
+  });
 });

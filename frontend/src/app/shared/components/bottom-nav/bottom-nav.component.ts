@@ -97,10 +97,18 @@ export class BottomNavComponent {
 
   /** Các nhóm của NAV_GROUPS trừ những trang đã nằm trên thanh dưới; nhóm hết mục thì bỏ. Không có danh sách nào khác để lệch. */
   get moreGroups(): NavGroup[] {
-    return NAV_GROUPS
-      .map(g => ({ ...g, items: g.items.filter(i => !this.navItems.some(n => n.path === i.path)) }))
-      .filter(g => g.items.length > 0);
+    // Tính một lần cho mỗi giá trị của navItems: trả mảng và đối tượng mới ở mỗi lần kiểm tra thay đổi sẽ làm ngFor dựng lại cả bảng "Thêm"
+    // (mất cú chạm đang giữ trên điện thoại, nhảy vị trí cuộn).
+    if (this.groupsFor !== this.navItems) {
+      this.groupsFor = this.navItems;
+      this.groupsCache = NAV_GROUPS
+        .map(g => ({ ...g, items: g.items.filter(i => !this.navItems.some(n => n.path === i.path)) }))
+        .filter(g => g.items.length > 0);
+    }
+    return this.groupsCache;
   }
+  private groupsFor: NavItem[] | null = null;
+  private groupsCache: NavGroup[] = [];
 
   isActive(path: string): boolean {
     return window.location.pathname.startsWith(path);
