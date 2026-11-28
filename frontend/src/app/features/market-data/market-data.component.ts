@@ -1220,7 +1220,8 @@ export class MarketDataComponent implements OnInit {
         this.batchPrices = data;
         this.loadingBatch = false;
         if (data.length > 0) {   // danh sách gõ nhầm (không có giá) thì không nhớ
-          this.batchSymbols = symbols.join(',');   // ô nhập hiện đúng danh sách đã chuẩn hoá
+          // ô nhập hiện đúng danh sách đã chuẩn hoá, trừ khi người dùng đã gõ danh sách khác trong lúc chờ
+          if (normalizeSymbols(this.batchSymbols).join(',') === symbols.join(',')) this.batchSymbols = symbols.join(',');
           MarketDataComponent.saveBoard(symbols);
         }
       },

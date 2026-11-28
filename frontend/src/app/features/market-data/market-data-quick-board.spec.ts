@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, Subject, of, throwError } from 'rxjs';
 import { MarketDataComponent } from './market-data.component';
 import { BatchPrice, MarketDataService } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -138,6 +138,18 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
       fixture.componentInstance.loadBatchPrices();
 
       expect(localStorage.getItem(KEY)).toBeNull();
+    });
+
+    it('a late answer does not overwrite what the user typed meanwhile', () => {
+      const pending = new Subject<BatchPrice[]>();
+      setup({ batch: pending });
+      fixture.componentInstance.batchSymbols = 'AAA,BBB';   // gõ trong lúc lần tải đầu chưa về
+
+      pending.next([{ symbol: 'VNM', date: '2026-11-27', close: 100, volume: 1000 } as BatchPrice]);
+      pending.complete();
+
+      expect(fixture.componentInstance.batchSymbols).toBe('AAA,BBB');
+      expect(localStorage.getItem(KEY)).toBe(DEFAULT);   // danh sách đã xin vẫn được nhớ vì đã tải được
     });
 
     it('keeps the typed text when the load fails', () => {
