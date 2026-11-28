@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.116.0] — 2026-11-28 · Số liệu doanh nghiệp kèm so sánh kỳ (API và MCP)
+
+### Tính năng mới
+
+- **Khối `trend` trong `GET /api/v1/market/stock/{symbol}/fundamentals` và công cụ MCP `get_company_fundamentals`**: các so sánh kỳ tính sẵn ở server để người dùng và agent đọc cùng một bức tranh.
+  - Từng quý (mới nhất trước): doanh thu và lợi nhuận so với **cùng quý năm trước** (giá trị năm trước, % thay đổi, chiều tăng/giảm), kèm **biên lợi nhuận ròng** và chênh lệch biên so với năm trước.
+  - **TTM** (4 quý gần nhất) so với TTM liền trước; **cả năm** so với năm trước, CHỈ khi đủ 4 quý (năm chưa đủ thì số cả năm là null và `complete4Quarters = false`).
+  - Chiều `up`/`down`/`flat` với ngưỡng 1%. Lỗ chuyển sang lãi (hoặc ngược lại, lỗ thu hẹp/tăng, kỳ so sánh bằng 0) thì không có phần trăm, chỉ có chiều và ghi chú ("từ lỗ sang lãi"...). Giá trị thiếu luôn là null, không bao giờ là 0.
+  - **Vị trí giá trong vùng 52 tuần** (0–100, đơn vị nghìn đồng như nguồn trả về).
+  - Ghi chú rõ: doanh nghiệp báo cáo theo quý, không có số liệu tháng.
+- Mô tả công cụ MCP hướng dẫn agent đọc khối này (null là không có kỳ so sánh, không phải 0; đọc `direction` và `note` khi `yoyPct` null).
+- Biểu đồ và mũi tên xu hướng trên trang hồ sơ đi cùng bản sau.
+
+### Kỹ thuật
+
+- `FundamentalsTrendCalculator` (hàm thuần) trong `Application/MarketData/Queries/GetCompanyFundamentals/`; giá hiện tại lấy một lần từ nguồn giá khi có đáy/đỉnh 52 tuần, lỗi nguồn giá chỉ làm trống vị trí 52 tuần. Nguồn chỉ trả 8 quý gần nhất, nên chỉ 4 quý mới nhất có cùng quý năm trước và chỉ một năm có thể đủ 4 quý.
+
+---
+
+---
+
 ## [v2.115.0] — 2026-11-28 · Dòng thời gian: mỗi giao dịch cho biết hồ sơ công ty lúc đó ra sao
 
 ### Tính năng mới

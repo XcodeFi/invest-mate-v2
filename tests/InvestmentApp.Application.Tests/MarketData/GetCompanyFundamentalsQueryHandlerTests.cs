@@ -18,7 +18,7 @@ public class GetCompanyFundamentalsQueryHandlerTests
 
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
 
-    private GetCompanyFundamentalsQueryHandler Sut() => new(_provider.Object, _cache);
+    private GetCompanyFundamentalsQueryHandler Sut() => new(_provider.Object, _cache, Mock.Of<IMarketDataProvider>());
 
     private void Returns(ComprehensiveStockData? data, string symbol = "HPG") =>
         _provider.Setup(p => p.GetComprehensiveDataAsync(symbol, It.IsAny<CancellationToken>()))
