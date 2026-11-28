@@ -11,7 +11,7 @@ public class StockSymbol : IEquatable<StockSymbol>
         if (string.IsNullOrWhiteSpace(value))
             throw new ArgumentException("Stock symbol cannot be empty", nameof(value));
 
-        Value = value.ToUpper().Trim();
+        Value = value.ToUpperInvariant().Trim();
     }
 
     public bool Equals(StockSymbol? other)

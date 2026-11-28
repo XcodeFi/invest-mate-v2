@@ -74,7 +74,7 @@ public class TradeRepository : ITradeRepository
     {
         var filter = Builders<Trade>.Filter.And(
             Builders<Trade>.Filter.In(t => t.PortfolioId, portfolioIds),
-            Builders<Trade>.Filter.Eq(t => t.Symbol, symbol.ToUpper().Trim()));
+            Builders<Trade>.Filter.Eq(t => t.Symbol, symbol.ToUpperInvariant().Trim()));
         return await _collection.Find(filter)
             .SortBy(t => t.TradeDate)
             .ToListAsync(cancellationToken);

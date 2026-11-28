@@ -113,7 +113,7 @@ public static class RiskTools
         {
             UserId = http.GetUserId(),
             PortfolioId = portfolioId,
-            Symbol = symbol.ToUpper().Trim(),
+            Symbol = symbol.ToUpperInvariant().Trim(),
             AddValue = addValue
         }, ct);
     }

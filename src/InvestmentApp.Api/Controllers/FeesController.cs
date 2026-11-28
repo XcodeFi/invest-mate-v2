@@ -33,7 +33,7 @@ public class FeesController : ControllerBase
 
         // Determine security type and trade direction
         var securityType = SecurityType.Stock; // Default to Stock, can be extended later
-        var isBuy = request.TradeType.ToLower() == "buy";
+        var isBuy = request.TradeType.ToLowerInvariant() == "buy";
         var isListed = true; // Default to listed, can be extended later
 
         var feesSummary = _feeService.GetFeesSummary(moneyAmount, securityType, isBuy, isListed);

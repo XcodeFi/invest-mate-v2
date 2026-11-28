@@ -48,11 +48,11 @@ public class UpdateTradePlanStatusCommandHandler : IRequestHandler<UpdateTradePl
             throw new UnauthorizedAccessException("Not authorized to update this trade plan");
 
         // Kiểm quyền trade TRƯỚC khi đổi trạng thái plan
-        var linkedTrade = request.Status.ToLower() == "executed"
+        var linkedTrade = request.Status.ToLowerInvariant() == "executed"
             ? await TradeOwnership.LoadOwnedAsync(request.TradeId, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken)
             : null;
 
-        switch (request.Status.ToLower())
+        switch (request.Status.ToLowerInvariant())
         {
             case "ready":
                 // Đường quyết định tường minh: qua cổng kỳ vọng. Các đường dưới (inprogress/executed tự chuỗi từ Draft) là ghi lại

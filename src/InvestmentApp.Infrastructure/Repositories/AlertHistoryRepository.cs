@@ -49,7 +49,7 @@ public class AlertHistoryRepository : IAlertHistoryRepository
     {
         var filter = Builders<AlertHistory>.Filter.And(
             Builders<AlertHistory>.Filter.Eq(h => h.UserId, userId),
-            Builders<AlertHistory>.Filter.Eq(h => h.Symbol, symbol.ToUpper().Trim()));
+            Builders<AlertHistory>.Filter.Eq(h => h.Symbol, symbol.ToUpperInvariant().Trim()));
 
         if (from.HasValue)
             filter &= Builders<AlertHistory>.Filter.Gte(h => h.TriggeredAt, from.Value);

@@ -35,7 +35,7 @@ public class MarketEvent : AggregateRoot
         var trimmed = symbol.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
             throw new ArgumentException("Symbol cannot be empty", nameof(symbol));
-        Symbol = trimmed.ToUpper();
+        Symbol = trimmed.ToUpperInvariant();
         EventType = eventType;
         Title = title ?? throw new ArgumentNullException(nameof(title));
         EventDate = eventDate;

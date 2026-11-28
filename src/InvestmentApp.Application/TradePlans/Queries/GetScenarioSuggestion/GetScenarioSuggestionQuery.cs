@@ -26,7 +26,7 @@ public class GetScenarioSuggestionQueryHandler : IRequestHandler<GetScenarioSugg
         GetScenarioSuggestionQuery request, CancellationToken cancellationToken)
     {
         var suggestion = await _consultantService.SuggestAsync(
-            request.Symbol.ToUpper().Trim(),
+            request.Symbol.ToUpperInvariant().Trim(),
             request.EntryPrice,
             request.TimeHorizon,
             cancellationToken);

@@ -59,7 +59,7 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
         var allActions = portfolioIds.Count == 0
             ? NoActions
             : (await _corporateActionRepository.GetByPortfolioIdsAsync(portfolioIds, ct)).ToList();
-        var actionLookup = allActions.ToLookup(a => (a.PortfolioId, a.Symbol.ToUpper()));
+        var actionLookup = allActions.ToLookup(a => (a.PortfolioId, a.Symbol.ToUpperInvariant()));
 
         foreach (var plan in activePlans)
         {
@@ -67,7 +67,7 @@ public class ScenarioAdvisoryService : IScenarioAdvisoryService
 
             var actions = string.IsNullOrEmpty(plan.PortfolioId)
                 ? NoActions
-                : actionLookup[(plan.PortfolioId!, plan.Symbol.ToUpper())].ToList();
+                : actionLookup[(plan.PortfolioId!, plan.Symbol.ToUpperInvariant())].ToList();
 
             foreach (var node in plan.ScenarioNodes!)
             {

@@ -19,6 +19,6 @@ public class GetTechnicalSeriesQueryHandler : IRequestHandler<GetTechnicalSeries
 
     public async Task<TechnicalSeriesResult> Handle(GetTechnicalSeriesQuery request, CancellationToken ct)
     {
-        return await _technicalService.GetSeriesAsync(request.Symbol.ToUpper().Trim(), cancellationToken: ct);
+        return await _technicalService.GetSeriesAsync(request.Symbol.ToUpperInvariant().Trim(), cancellationToken: ct);
     }
 }

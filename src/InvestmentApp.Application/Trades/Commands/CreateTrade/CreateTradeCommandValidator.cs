@@ -15,7 +15,7 @@ public class CreateTradeCommandValidator : AbstractValidator<CreateTradeCommand>
 
         RuleFor(x => x.TradeType)
             .NotEmpty().WithMessage("Trade type is required")
-            .Must(type => type.ToUpper() == "BUY" || type.ToUpper() == "SELL")
+            .Must(type => type.ToUpperInvariant() == "BUY" || type.ToUpperInvariant() == "SELL")
             .WithMessage("Trade type must be BUY or SELL");
 
         RuleFor(x => x.Quantity)

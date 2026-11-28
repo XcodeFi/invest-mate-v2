@@ -43,7 +43,7 @@ public class CorporateAction : AggregateRoot
         Id = Guid.NewGuid().ToString();
         PortfolioId = portfolioId ?? throw new ArgumentNullException(nameof(portfolioId));
         UserId = userId ?? throw new ArgumentNullException(nameof(userId));
-        Symbol = symbol?.ToUpper().Trim() ?? throw new ArgumentNullException(nameof(symbol));
+        Symbol = symbol?.ToUpperInvariant().Trim() ?? throw new ArgumentNullException(nameof(symbol));
         Type = type;
         ExDate = AsUtcDate(exDate);
         if (settlementDate.HasValue && AsUtcDate(settlementDate.Value) < ExDate)

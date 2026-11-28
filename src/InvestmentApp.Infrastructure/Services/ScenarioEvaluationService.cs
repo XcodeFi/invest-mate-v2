@@ -47,7 +47,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
         // Fetch latest prices for all symbols
         var symbols = advancedPlans.Select(p => p.Symbol).Distinct();
         var latestPrices = await _stockPriceRepository.GetLatestPricesAsync(symbols, cancellationToken);
-        var priceMap = latestPrices.ToDictionary(p => p.Symbol.ToUpper(), p => p.Close);
+        var priceMap = latestPrices.ToDictionary(p => p.Symbol.ToUpperInvariant(), p => p.Close);
 
         // Giá thị trường đã điều chỉnh tại ngày GDKHQ còn giá trên kế hoạch thì chưa —
         // so thẳng hai mặt bằng khác nhau sẽ kích hoạt kịch bản sai.
@@ -55,7 +55,7 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
 
         foreach (var plan in advancedPlans)
         {
-            if (!priceMap.TryGetValue(plan.Symbol.ToUpper(), out var currentPrice))
+            if (!priceMap.TryGetValue(plan.Symbol.ToUpperInvariant(), out var currentPrice))
             {
                 _logger.LogWarning("No price data for {Symbol}, skipping scenario evaluation for plan {PlanId}",
                     plan.Symbol, plan.Id);
@@ -83,14 +83,14 @@ public class ScenarioEvaluationService : IScenarioEvaluationService
             ? NoActions
             : (await _corporateActionRepository.GetByPortfolioIdsAsync(portfolioIds, cancellationToken)).ToList();
 
-        return actions.ToLookup(a => (a.PortfolioId, a.Symbol.ToUpper()));
+        return actions.ToLookup(a => (a.PortfolioId, a.Symbol.ToUpperInvariant()));
     }
 
     private static IReadOnlyList<CorporateAction> ActionsFor(
         ILookup<(string PortfolioId, string Symbol), CorporateAction> lookup, TradePlan plan)
         => string.IsNullOrEmpty(plan.PortfolioId)
             ? NoActions
-            : lookup[(plan.PortfolioId!, plan.Symbol.ToUpper())].ToList();
+            : lookup[(plan.PortfolioId!, plan.Symbol.ToUpperInvariant())].ToList();
 
     private async Task<List<ScenarioEvaluationResult>> EvaluatePlan(
         TradePlan plan, decimal currentPrice, IReadOnlyList<CorporateAction> actions,

@@ -33,7 +33,7 @@ public class MockMarketDataProvider : IMarketDataProvider
 
     public Task<StockPriceData?> GetCurrentPriceAsync(string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var basePrice = _vnStockPrices.GetValueOrDefault(symbol, 50000m);
         var variation = (decimal)(_random.NextDouble() * 0.06 - 0.03); // ±3% variation
         var close = Math.Round(basePrice * (1 + variation), 0);
@@ -58,7 +58,7 @@ public class MockMarketDataProvider : IMarketDataProvider
 
     public Task<List<StockPriceData>> GetHistoricalPricesAsync(string symbol, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var basePrice = _vnStockPrices.GetValueOrDefault(symbol, 50000m);
         var results = new List<StockPriceData>();
         var currentPrice = basePrice * 0.9m; // Start 10% lower
@@ -104,14 +104,14 @@ public class MockMarketDataProvider : IMarketDataProvider
         {
             var price = await GetCurrentPriceAsync(symbol, cancellationToken);
             if (price != null)
-                result[symbol.ToUpper()] = price;
+                result[symbol.ToUpperInvariant()] = price;
         }
         return result;
     }
 
     public Task<MarketIndexData?> GetIndexDataAsync(string indexSymbol, CancellationToken cancellationToken = default)
     {
-        indexSymbol = indexSymbol.ToUpper().Trim();
+        indexSymbol = indexSymbol.ToUpperInvariant().Trim();
 
         var baseValues = new Dictionary<string, decimal>
         {

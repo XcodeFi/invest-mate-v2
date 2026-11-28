@@ -115,7 +115,7 @@ public static class MarketDataTools
         return node;
     }
 
-    private static string NormalizeSymbol(string symbol) => symbol.ToUpper().Trim();
+    private static string NormalizeSymbol(string symbol) => symbol.ToUpperInvariant().Trim();
 
     // Lỗi phải nói rõ phải gửi gì cho đúng, không chỉ nói là sai.
     private static DateTime ParseDate(string value, string paramName)

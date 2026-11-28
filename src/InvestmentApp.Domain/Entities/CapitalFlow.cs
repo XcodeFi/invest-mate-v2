@@ -49,7 +49,7 @@ public class CapitalFlow : AggregateRoot
     public void LinkCorporateAction(string corporateActionId, string symbol)
     {
         CorporateActionId = corporateActionId;
-        Symbol = symbol?.ToUpper().Trim();
+        Symbol = symbol?.ToUpperInvariant().Trim();
     }
 
     /// <summary>

@@ -41,7 +41,7 @@ public class Watchlist : AggregateRoot
 
     public void AddItem(string symbol, string? note = null, decimal? targetBuyPrice = null, decimal? targetSellPrice = null)
     {
-        var normalized = symbol.ToUpper().Trim();
+        var normalized = symbol.ToUpperInvariant().Trim();
         if (Items.Any(i => i.Symbol == normalized))
             throw new InvalidOperationException($"Symbol {normalized} đã có trong watchlist");
 
@@ -59,7 +59,7 @@ public class Watchlist : AggregateRoot
 
     public void UpdateItem(string symbol, string? note, decimal? targetBuyPrice, decimal? targetSellPrice)
     {
-        var normalized = symbol.ToUpper().Trim();
+        var normalized = symbol.ToUpperInvariant().Trim();
         var item = Items.FirstOrDefault(i => i.Symbol == normalized)
             ?? throw new InvalidOperationException($"Symbol {normalized} không có trong watchlist");
 
@@ -72,7 +72,7 @@ public class Watchlist : AggregateRoot
 
     public void RemoveItem(string symbol)
     {
-        var normalized = symbol.ToUpper().Trim();
+        var normalized = symbol.ToUpperInvariant().Trim();
         var item = Items.FirstOrDefault(i => i.Symbol == normalized)
             ?? throw new InvalidOperationException($"Symbol {normalized} không có trong watchlist");
 
@@ -85,7 +85,7 @@ public class Watchlist : AggregateRoot
     {
         foreach (var symbol in symbols)
         {
-            var normalized = symbol.ToUpper().Trim();
+            var normalized = symbol.ToUpperInvariant().Trim();
             if (!Items.Any(i => i.Symbol == normalized))
             {
                 Items.Add(new WatchlistItem

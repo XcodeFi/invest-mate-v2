@@ -45,7 +45,7 @@ public class CorporateActionRepository : ICorporateActionRepository
 
     public async Task<IEnumerable<CorporateAction>> GetByPortfolioIdAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default)
     {
-        var normalized = symbol.ToUpper().Trim();
+        var normalized = symbol.ToUpperInvariant().Trim();
         return await _collection.Find(c => c.PortfolioId == portfolioId && c.Symbol == normalized)
             .SortBy(c => c.ExDate)
             .ToListAsync(cancellationToken);

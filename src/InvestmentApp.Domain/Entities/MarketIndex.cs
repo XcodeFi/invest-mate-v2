@@ -24,7 +24,7 @@ public class MarketIndex : AggregateRoot
     public MarketIndex(string indexSymbol, DateTime date, decimal open, decimal high, decimal low, decimal close, long volume)
     {
         Id = Guid.NewGuid().ToString();
-        IndexSymbol = indexSymbol?.ToUpper().Trim() ?? throw new ArgumentNullException(nameof(indexSymbol));
+        IndexSymbol = indexSymbol?.ToUpperInvariant().Trim() ?? throw new ArgumentNullException(nameof(indexSymbol));
         Date = date.Date;
         Open = open;
         High = high;

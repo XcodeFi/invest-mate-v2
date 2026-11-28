@@ -61,7 +61,7 @@ public class JournalEntry : AggregateRoot
         var trimmed = symbol.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
             throw new ArgumentException("Symbol cannot be empty", nameof(symbol));
-        Symbol = trimmed.ToUpper();
+        Symbol = trimmed.ToUpperInvariant();
         EntryType = entryType;
         Title = title ?? throw new ArgumentNullException(nameof(title));
         Content = content ?? string.Empty;

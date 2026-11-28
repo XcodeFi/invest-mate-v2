@@ -34,7 +34,7 @@ public class CrawlVietstockEventsCommandHandler : IRequestHandler<CrawlVietstock
 
     public async Task<CrawlResultDto> Handle(CrawlVietstockEventsCommand request, CancellationToken cancellationToken)
     {
-        var symbol = request.Symbol.ToUpper().Trim();
+        var symbol = request.Symbol.ToUpperInvariant().Trim();
         var result = new CrawlResultDto();
 
         // Load existing events for dedup

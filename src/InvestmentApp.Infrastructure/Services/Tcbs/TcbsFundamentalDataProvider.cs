@@ -33,7 +33,7 @@ public class TcbsFundamentalDataProvider : IFundamentalDataProvider
 
     public async Task<StockFundamentalData?> GetFundamentalsAsync(string symbol, CancellationToken ct = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var cacheKey = $"tcbs_fundamental:{symbol}";
 
         if (_cache.TryGetValue(cacheKey, out StockFundamentalData? cached))
