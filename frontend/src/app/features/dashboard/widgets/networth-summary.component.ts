@@ -58,14 +58,14 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
         <span>Sức khỏe tài chính</span>
         <span data-test="health-score" class="font-semibold"
               [class.text-emerald-600]="summary!.healthScore >= 80"
-              [class.text-amber-600]="summary!.healthScore >= 50 && summary!.healthScore < 80"
+              [class.text-amber-700]="summary!.healthScore >= 50 && summary!.healthScore < 80"
               [class.text-red-600]="summary!.healthScore < 50">
           {{ summary!.healthScore }}/100
         </span>
       </div>
       <button type="button" data-test="breakdown-toggle" (click)="showBreakdown = !showBreakdown"
               [attr.aria-expanded]="showBreakdown"
-              class="text-[11px] text-blue-600 hover:underline">
+              class="text-[11px] text-blue-600 hover:underline py-2 pr-3 min-h-[32px] inline-flex items-center">
         Chi tiết {{ showBreakdown ? '▴' : '▾' }}
       </button>
       <div *ngIf="showBreakdown" data-test="breakdown" class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-600 mt-1">

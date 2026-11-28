@@ -201,6 +201,23 @@ describe('NetWorthSummaryComponent', () => {
     expect(q('health-score').nativeElement.textContent).toContain('85/100');
   });
 
+  it('the health score text is dark enough on white in light mode (amber-700, not amber-600) and keeps the bar colour', () => {
+    show({ healthScore: 73 });
+
+    const text = q('health-score').nativeElement as HTMLElement;
+    expect(text.classList).toContain('text-amber-700');
+    expect(text.classList).not.toContain('text-amber-600');
+    expect(q('health-bar').nativeElement.classList).toContain('bg-amber-500');
+  });
+
+  it('the Chi tiết toggle has a hit area of at least 32px (padding + min-height) even though its text is small', () => {
+    show();
+
+    const toggle = q('breakdown-toggle').nativeElement as HTMLButtonElement;
+    expect(toggle.classList).toContain('min-h-[32px]');
+    expect(toggle.classList).toContain('py-2');
+  });
+
   it('the breakdown is collapsed by default and the toggle shows and hides it without navigating', () => {
     show();
     expect(q('breakdown')).toBeFalsy();
