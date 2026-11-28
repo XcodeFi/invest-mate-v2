@@ -30,7 +30,7 @@ public static class TradePlanTools
         => await mediator.Send(new GetTradePlansQuery { UserId = http.GetUserId(), ActiveOnly = activeOnly }, ct);
 
     [McpServerTool(Name = "get_trade_plan", ReadOnly = true)]
-    [Description("Lấy chi tiết một kế hoạch giao dịch theo id. Null nếu không tồn tại/không thuộc chủ khóa.")]
+    [Description("Lấy chi tiết một kế hoạch giao dịch theo id. Null nếu không tồn tại/không thuộc chủ khóa. Trong reviewData, realizedR VẮNG MẶT nghĩa là không tính được (bán vượt số mua đã gắn, hoặc review cũ thiếu 1R), KHÔNG phải 0R; oversoldQuantity/openQuantity lớn hơn 0 nghĩa là chiến dịch bị loại khỏi thống kê R.")]
     public static async Task<TradePlanDto?> GetTradePlan(
         [Description("ID kế hoạch.")] string id,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)

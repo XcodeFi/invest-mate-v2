@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using InvestmentApp.Application.Common.Interfaces;
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.Risk.Queries.CalculatePositionSizing;
 using InvestmentApp.Application.Risk.Queries.GetCorrelation;
 using InvestmentApp.Application.Risk.Queries.GetDrawdown;
 using InvestmentApp.Application.Risk.Queries.GetPortfolioOptimization;
@@ -136,4 +137,54 @@ public static class RiskTools
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
         [Description("Chỉ tính một chiến lược (bỏ trống = tất cả). ID lạ cho kết quả rỗng.")] string? strategyId = null)
         => await mediator.Send(new GetEstimateCalibrationQuery { UserId = http.GetUserId(), StrategyId = strategyId }, ct);
+
+    [McpServerTool(Name = "calculate_position_size", ReadOnly = true)]
+    [Description("Định cỡ vị thế (số cổ nên mua) theo nhiều mô hình: cố định % rủi ro, ATR, Kelly, Turtle, điều chỉnh theo biến động; kèm mô hình khuyến nghị. Không tạo lệnh, không ghi gì. Bật useHistory=true thì Kelly lấy từ dữ liệu R của chính người dùng (cận dưới 95%, ghi đè winRate/averageWin/averageLoss tự truyền) và kết quả có khối kellyFromHistory; không đủ 20 lệnh hoặc không có lợi thế thì không có mô hình Kelly, chỉ có khối đó kèm lý do. winRate là phân số 0–1.")]
+    public static async Task<PositionSizingResult> CalculatePositionSize(
+        [Description("Vốn tài khoản, đơn vị đồng, tối thiểu 1.")] decimal accountBalance,
+        [Description("Giá vào lệnh dự kiến, đơn vị đồng, tối thiểu 0.01.")] decimal entryPrice,
+        [Description("Giá cắt lỗ, đơn vị đồng, tối thiểu 0.01.")] decimal stopLoss,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
+        [Description("% vốn chấp nhận rủi ro cho lệnh, 0.01–100 (bỏ trống = 2).")] decimal? riskPercent = null,
+        [Description("% vốn tối đa cho một vị thế, 0.01–100 (bỏ trống = 20).")] decimal? maxPositionPercent = null,
+        [Description("ATR (đồng) của mã, để có mô hình ATR và Turtle. Bỏ trống = không có hai mô hình đó.")] decimal? atr = null,
+        [Description("Hệ số nhân ATR (bỏ trống = 2).")] decimal? atrMultiplier = null,
+        [Description("Tỉ lệ thắng 0–1 (ví dụ 0.55) để có mô hình Kelly; bị bỏ qua khi useHistory=true.")] decimal? winRate = null,
+        [Description("Lãi trung bình mỗi lệnh thắng (đồng) cho Kelly; bị bỏ qua khi useHistory=true.")] decimal? averageWin = null,
+        [Description("Lỗ trung bình mỗi lệnh thua (đồng, số dương) cho Kelly; bị bỏ qua khi useHistory=true.")] decimal? averageLoss = null,
+        [Description("ATR theo % giá, để có mô hình điều chỉnh theo biến động.")] decimal? atrPercent = null,
+        [Description("true = Kelly lấy từ lịch sử R của chính người dùng (bỏ trống = false).")] bool? useHistory = null,
+        [Description("Chỉ khi useHistory=true: tính Kelly riêng cho một chiến lược (bỏ trống = tất cả). ID lạ cho kết quả như chiến lược chưa có lệnh nào.")] string? strategyId = null)
+    {
+        var request = new PositionSizingRequest
+        {
+            AccountBalance = accountBalance,
+            EntryPrice = entryPrice,
+            StopLoss = stopLoss,
+            Atr = atr,
+            WinRate = winRate,
+            AverageWin = averageWin,
+            AverageLoss = averageLoss,
+            AtrPercent = atrPercent
+        };
+        // Bỏ trống thì giữ mặc định của REST (2% / 20% / x2)
+        if (riskPercent.HasValue) request.RiskPercent = riskPercent.Value;
+        if (maxPositionPercent.HasValue) request.MaxPositionPercent = maxPositionPercent.Value;
+        if (atrMultiplier.HasValue) request.AtrMultiplier = atrMultiplier.Value;
+
+        // REST được [ApiController] chặn đầu vào sai bằng chính các thuộc tính Range này; MCP không qua đó nên tự chạy lại cùng bộ luật.
+        var problems = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+        if (!System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+                request, new System.ComponentModel.DataAnnotations.ValidationContext(request), problems, validateAllProperties: true))
+            throw new ArgumentException(string.Join(" | ", problems.Select(p =>
+                $"{string.Join(",", p.MemberNames.Select(n => char.ToLowerInvariant(n[0]) + n[1..]))}: {p.ErrorMessage}")));
+
+        return await mediator.Send(new CalculatePositionSizingQuery
+        {
+            UserId = http.GetUserId(),
+            Request = request,
+            UseHistory = useHistory ?? false,
+            StrategyId = strategyId
+        }, ct);
+    }
 }

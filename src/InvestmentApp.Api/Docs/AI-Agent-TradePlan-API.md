@@ -137,3 +137,9 @@ Ví dụ thêm mã theo dõi có giá mục tiêu:
 
 ## <a id="symbol-timeline"></a>Symbol timeline (sự kiện theo mã)
 - `GET /api/v1/ai/agent/symbols/{symbol}/timeline?from=&to=` — dòng thời gian hợp nhất của một mã (nhật ký + trade + sự kiện + cảnh báo), trả `SymbolTimelineDto`.
+
+## <a id="review-sizing-actions"></a>Review lại, định cỡ vị thế, sự kiện quyền (tool MCP, 2026-11-28)
+- **`recompute_plan_review(planId)`** — GHI (`Destructive`). Tính lại số liệu review của kế hoạch ĐÃ review theo công thức hiện hành; bài học giữ nguyên, số cũ lưu một lần vào `reviewData.legacy`. Kế hoạch chưa review → lỗi tham số; không có hoặc của người khác → cùng một lỗi không tìm thấy. Chỉ gọi khi người dùng muốn; xem trước bằng `preview_plan_review`.
+- **`calculate_position_size(accountBalance, entryPrice, stopLoss, …)`** — chỉ đọc, cùng bộ đầu vào với `POST /api/v1/risk/position-sizing`. Tuỳ chọn: `riskPercent` (2), `maxPositionPercent` (20), `atr`, `atrMultiplier` (2), `winRate` (0–1), `averageWin`, `averageLoss`, `atrPercent`, `useHistory`, `strategyId`. `useHistory=true`: Kelly lấy từ R của chính người dùng (cận dưới 95%), ghi đè số tự truyền, kết quả có khối `kellyFromHistory`; không đủ 20 lệnh hoặc không có lợi thế thì không có mô hình `kelly`, chỉ có khối đó kèm lý do.
+- **`list_corporate_actions(symbol?, portfolioId?)`** — chỉ đọc. Sự kiện quyền (cổ tức tiền mặt, thưởng, chia tách) trên danh mục của người dùng; `portfolioId` lạ hoặc của người khác → cùng lỗi không tìm thấy.
+- **`reviewData.realizedR` vắng mặt = không tính được** (bán vượt số mua đã gắn, hoặc review cũ thiếu 1R) — KHÔNG phải 0R. `oversoldQuantity` hoặc `openQuantity` lớn hơn 0 nghĩa là chiến dịch bị loại khỏi thống kê R.

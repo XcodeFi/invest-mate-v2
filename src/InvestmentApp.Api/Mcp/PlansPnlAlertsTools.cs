@@ -4,6 +4,7 @@ using InvestmentApp.Application.Alerts.Queries.GetAlertRules;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.Portfolios.Queries;
 using InvestmentApp.Application.Portfolios.Queries.GetPnL;
+using InvestmentApp.Application.TradePlans.Commands.RecomputeReview;
 using InvestmentApp.Application.TradePlans.Commands.ReviewTradePlan;
 using InvestmentApp.Application.TradePlans.Queries.GetExecutedPlansForReview;
 using InvestmentApp.Application.TradePlans.Queries.GetScenarioHistory;
@@ -72,7 +73,7 @@ public static class PlanInsightTools
         => await mediator.Send(new GetScenarioHistoryQuery { UserId = http.GetUserId(), TradePlanId = planId }, ct);
 
     [McpServerTool(Name = "preview_plan_review", ReadOnly = true)]
-    [Description("Xem trước kết quả review chiến dịch của một kế hoạch đã thực hiện (P/L, R, điểm kỷ luật) mà không đổi trạng thái kế hoạch.")]
+    [Description("Xem trước kết quả review chiến dịch của một kế hoạch đã thực hiện (P/L, R, điểm kỷ luật) mà không đổi trạng thái kế hoạch. Trường realizedR VẮNG MẶT nghĩa là không tính được (ví dụ bán vượt số mua đã gắn), KHÔNG phải 0R.")]
     public static async Task<CampaignReviewDto> PreviewPlanReview(
         [Description("ID kế hoạch (lấy từ list_trade_plans).")] string planId,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
@@ -83,6 +84,18 @@ public static class PlanInsightTools
     public static async Task<List<TradePlanDto>> ListPlansPendingReview(
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
         => await mediator.Send(new GetExecutedPlansForReviewQuery { UserId = http.GetUserId() }, ct);
+}
+
+/// <summary>Tool GHI duy nhất của nhóm này: tính lại review của kế hoạch đã review. Dùng chung RecomputeReviewCommand với nút "Tính lại review" trên web.</summary>
+[McpServerToolType]
+public static class PlanReviewTools
+{
+    [McpServerTool(Name = "recompute_plan_review", Destructive = true)]
+    [Description("GHI: tính lại số liệu review của một kế hoạch ĐÃ review theo công thức hiện hành (P/L chỉ phần đã bán, cổ tức tiền mặt theo quyền hưởng, realizedR vắng mặt nếu bán vượt số mua đã gắn, KHÔNG phải 0R). Bài học và ghi chú được giữ; số cũ được lưu một lần vào reviewData.legacy. Ghi đè số liệu đang lưu, nên xem trước bằng preview_plan_review khi cần. Kế hoạch chưa review thì báo lỗi; không có hoặc của người khác cho cùng một phản hồi không tìm thấy.")]
+    public static async Task<CampaignReviewDto> RecomputePlanReview(
+        [Description("ID kế hoạch đã review (lấy từ list_trade_plans).")] string planId,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct)
+        => await mediator.Send(new RecomputeReviewCommand { UserId = http.GetUserId(), PlanId = planId }, ct);
 }
 
 [McpServerToolType]

@@ -21,7 +21,7 @@ public class RiskControllerVolatilitySizingTests
 
     private RiskController CreateController(bool withUser = true)
     {
-        var controller = new RiskController(_mediator.Object, Mock.Of<IPositionSizingService>());
+        var controller = new RiskController(_mediator.Object);
         var identity = withUser
             ? new ClaimsIdentity(new[] { new Claim("sub", "user-1") }, "test")
             : new ClaimsIdentity();

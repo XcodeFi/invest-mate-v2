@@ -48,7 +48,9 @@ public class McpToolDiscoveryTests
         "list_plans_pending_review", "get_portfolio_pnl", "get_position_pnl", "get_pnl_summary",
         "list_alert_rules", "get_alert_history",
         // Độ khớp ước lượng (kỳ vọng theo R, đợt 3)
-        "get_estimate_calibration"
+        "get_estimate_calibration",
+        // Định cỡ vị thế (dùng chung query với REST) và sự kiện quyền
+        "calculate_position_size", "list_corporate_actions"
     };
 
     private static readonly string[] WriteTools =
@@ -61,7 +63,9 @@ public class McpToolDiscoveryTests
         "upsert_company_dossier",
         "add_market_closures", "remove_market_closure",
         // Hàng đợi quyết định: agent GIỮ được (có lý do), KHÔNG bán được — xem DecisionTools
-        "hold_decision"
+        "hold_decision",
+        // Tính lại review của kế hoạch đã review (cùng command với nút trên web)
+        "recompute_plan_review"
     };
 
     private static IReadOnlyList<McpServerTool> Tools()
@@ -80,12 +84,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_81_Tools()
+    public void Registers_All_84_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(81);
+        (ReadTools.Length + WriteTools.Length).Should().Be(84);
     }
 
     [Fact]
@@ -278,6 +282,14 @@ public class McpToolDiscoveryTests
         Required(schema["get_sector_exposure"]).Should().BeEquivalentTo(new[] { "portfolioId", "symbol", "addValue" });
         Required(schema["get_strategy_expectancy"]).Should().BeEmpty();
         Required(schema["get_estimate_calibration"]).Should().BeEmpty("strategyId là tuỳ chọn");
+
+        // Định cỡ vị thế: chỉ ba số bắt buộc; useHistory/strategyId và mọi đầu vào Kelly/ATR là tuỳ chọn (thiếu "= null" thì SDK đẩy vào required)
+        Required(schema["calculate_position_size"]).Should()
+            .BeEquivalentTo(new[] { "accountBalance", "entryPrice", "stopLoss" });
+        schema["calculate_position_size"].GetProperty("properties").EnumerateObject().Select(p => p.Name).Should()
+            .Contain(new[] { "useHistory", "strategyId", "riskPercent", "maxPositionPercent", "atr", "winRate" });
+        Required(schema["list_corporate_actions"]).Should().BeEmpty("symbol và portfolioId đều tuỳ chọn");
+        Required(schema["recompute_plan_review"]).Should().BeEquivalentTo(new[] { "planId" });
 
         // Đợt 3: kế hoạch / lãi-lỗ / cảnh báo
         Required(schema["get_scenario_suggestion"]).Should().BeEquivalentTo(new[] { "symbol", "entryPrice" });
