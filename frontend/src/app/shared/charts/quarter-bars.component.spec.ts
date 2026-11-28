@@ -403,6 +403,24 @@ describe('QuarterBarsComponent: doanh thu và lợi nhuận theo quý, cùng qu�
     });
   });
 
+  describe('tooltip theo tiêu điểm bàn phím, cột nằm ngoài vùng nhìn thấy', () => {
+    it('a bar scrolled off to the left: the tip is pulled back to the visible left edge, not left behind the scroller', () => {
+      (fixture.nativeElement as HTMLElement).style.display = 'block';
+      (fixture.nativeElement as HTMLElement).style.width = '400px';
+      show(eight());
+      const scroller = one('chart-body') as HTMLElement;
+      const wrap = el().querySelector('.qb-wrap') as HTMLElement;
+      scroller.scrollLeft = 150;
+      const visibleLeft = scroller.getBoundingClientRect().left - wrap.getBoundingClientRect().left;
+      const farLeft = qa('qb-hit')[0];   // Q3/2024: tâm cột nằm trái vùng nhìn thấy
+      expect(farLeft.getBoundingClientRect().left + farLeft.getBoundingClientRect().width / 2).toBeLessThan(scroller.getBoundingClientRect().left);
+
+      comp.focusTip('revenue', 'Q3/2024', { target: farLeft } as unknown as Event, wrap);
+
+      expect(comp.tip!.x).toBeGreaterThanOrEqual(visibleLeft - 0.5);
+    });
+  });
+
   describe('chữ đủ đọc ở cột hẹp (≥ 11px thực tế)', () => {
     it('không co nhỏ theo cột: ở khung 360px biểu đồ giữ cỡ gốc và cuộn ngang trong khung riêng, mọi chữ SVG ≥ 11px', () => {
       (fixture.nativeElement as HTMLElement).style.display = 'block';
