@@ -46,17 +46,25 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
             <div class="text-2xl font-bold">{{analytics.totalCampaigns}}</div>
             <div class="text-xs text-gray-400">{{analytics.winningCampaigns}} lãi / {{analytics.losingCampaigns}} lỗ</div>
           </div>
-          <div class="bg-white rounded-lg shadow p-4">
+          <div class="bg-white rounded-lg shadow p-4" data-testid="win-rate">
             <div class="text-sm text-gray-500">Win Rate</div>
-            <div class="text-2xl font-bold" [class.text-green-600]="analytics.winRate >= 50" [class.text-red-600]="analytics.winRate < 50">
-              {{analytics.winRate | number:'1.1-1'}}%
-            </div>
+            @if (analytics.winRate != null) {
+              <div class="text-2xl font-bold" [class.text-green-600]="analytics.winRate >= 50" [class.text-red-600]="analytics.winRate < 50">
+                {{analytics.winRate | number:'1.1-1'}}%
+              </div>
+            } @else {
+              <div class="text-2xl font-bold text-gray-400">n/a</div>
+            }
           </div>
-          <div class="bg-white rounded-lg shadow p-4">
+          <div class="bg-white rounded-lg shadow p-4" data-testid="avg-pnl">
             <div class="text-sm text-gray-500">TB Lãi/Lỗ</div>
-            <div class="text-2xl font-bold" [class.text-green-600]="analytics.averagePnLPercent > 0" [class.text-red-600]="analytics.averagePnLPercent < 0">
-              {{analytics.averagePnLPercent > 0 ? '+' : ''}}{{analytics.averagePnLPercent | number:'1.2-2'}}%
-            </div>
+            @if (analytics.averagePnLPercent != null) {
+              <div class="text-2xl font-bold" [class.text-green-600]="analytics.averagePnLPercent > 0" [class.text-red-600]="analytics.averagePnLPercent < 0">
+                {{analytics.averagePnLPercent > 0 ? '+' : ''}}{{analytics.averagePnLPercent | number:'1.2-2'}}%
+              </div>
+            } @else {
+              <div class="text-2xl font-bold text-gray-400">n/a</div>
+            }
           </div>
           <div class="bg-white rounded-lg shadow p-4">
             <div class="text-sm text-gray-500">Tổng tích lũy</div>
@@ -65,6 +73,12 @@ import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directi
             </div>
           </div>
         </div>
+
+        @if ((analytics.excludedOpenReviews ?? 0) > 0) {
+          <p class="text-xs text-gray-500" data-testid="excluded-open-line">
+            {{analytics.excludedOpenReviews}} chiến dịch còn mở/thiếu lệnh mua không tính vào tỉ lệ thắng.
+          </p>
+        }
 
         <!-- Best / Worst -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

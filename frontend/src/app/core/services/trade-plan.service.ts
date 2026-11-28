@@ -401,9 +401,12 @@ export interface CampaignAnalyticsDto {
   totalCampaigns: number;
   winningCampaigns: number;
   losingCampaigns: number;
-  winRate: number;
-  averagePnLPercent: number;
-  averagePnLPerDay: number;
+  /** Số review loại khỏi tỉ lệ thắng/trung bình/tốt nhất-tệ nhất (còn mở hoặc bán vượt số mua đã gắn). Vắng ở phản hồi cũ. */
+  excludedOpenReviews?: number;
+  /** Chỉ tính trên review đã đóng; null (không phải 0) khi chưa có review nào đã đóng. */
+  winRate?: number | null;
+  averagePnLPercent?: number | null;
+  averagePnLPerDay?: number | null;
   totalAccumulatedPnL: number;
   averageHoldingDays: number;
   bestCampaign?: CampaignSummaryDto;

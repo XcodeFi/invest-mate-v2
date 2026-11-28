@@ -13,12 +13,21 @@ public class GetCampaignAnalyticsQuery : IRequest<CampaignAnalyticsDto>
 
 public class CampaignAnalyticsDto
 {
+    /// <summary>Mọi chiến dịch đã review, gồm cả review còn mở/bán vượt (tiền đã chốt của chúng vẫn nằm trong tổng tích lũy và đường lũy kế).</summary>
     public int TotalCampaigns { get; set; }
     public int WinningCampaigns { get; set; }
     public int LosingCampaigns { get; set; }
-    public decimal WinRate { get; set; }
-    public decimal AveragePnLPercent { get; set; }
-    public decimal AveragePnLPerDay { get; set; }
+
+    /// <summary>
+    /// Số review loại khỏi tỉ lệ thắng, lãi/lỗ trung bình và tốt nhất/tệ nhất: còn cổ phiếu chưa bán (OpenQuantity &gt; 0) hoặc bán vượt số mua
+    /// đã gắn (OversoldQuantity &gt; 0), vì P&amp;L của chúng chỉ là phần đã chốt (có thể bằng 0) chứ không phải kết quả cả chiến dịch.
+    /// </summary>
+    public int ExcludedOpenReviews { get; set; }
+
+    // Chỉ tính trên review ĐÃ ĐÓNG. Null (không phải 0) khi không có review nào đã đóng.
+    public decimal? WinRate { get; set; }
+    public decimal? AveragePnLPercent { get; set; }
+    public decimal? AveragePnLPerDay { get; set; }
     public decimal TotalAccumulatedPnL { get; set; }
     public decimal AverageHoldingDays { get; set; }
     public CampaignSummaryDto? BestCampaign { get; set; }
@@ -70,11 +79,13 @@ public class GetCampaignAnalyticsQueryHandler : IRequestHandler<GetCampaignAnaly
         if (reviewed.Count == 0)
             return new CampaignAnalyticsDto();
 
-        var winning = reviewed.Count(p => p.ReviewData!.PnLAmount > 0);
-        var losing = reviewed.Count - winning;
+        // Review ĐÃ ĐÓNG: không còn cổ phiếu chưa bán và không bán vượt số mua đã gắn. Review cũ (hai trường null) tính là đã đóng.
+        var closed = reviewed.Where(p => !(p.ReviewData!.OpenQuantity is > 0m) && !(p.ReviewData.OversoldQuantity is > 0m)).ToList();
+        var winning = closed.Count(p => p.ReviewData!.PnLAmount > 0);
+        var losing = closed.Count - winning;
 
-        var best = reviewed.OrderByDescending(p => p.ReviewData!.PnLPerDay).First();
-        var worst = reviewed.OrderBy(p => p.ReviewData!.PnLPerDay).First();
+        var best = closed.OrderByDescending(p => p.ReviewData!.PnLPerDay).FirstOrDefault();
+        var worst = closed.OrderBy(p => p.ReviewData!.PnLPerDay).FirstOrDefault();
 
         // Build cumulative trend
         var ordered = reviewed.OrderBy(p => p.ReviewData!.ReviewedAt).ToList();
@@ -97,13 +108,14 @@ public class GetCampaignAnalyticsQueryHandler : IRequestHandler<GetCampaignAnaly
             TotalCampaigns = reviewed.Count,
             WinningCampaigns = winning,
             LosingCampaigns = losing,
-            WinRate = Math.Round((decimal)winning / reviewed.Count * 100m, 1),
-            AveragePnLPercent = Math.Round(reviewed.Average(p => p.ReviewData!.PnLPercent), 2),
-            AveragePnLPerDay = Math.Round(reviewed.Average(p => p.ReviewData!.PnLPerDay), 0),
+            ExcludedOpenReviews = reviewed.Count - closed.Count,
+            WinRate = closed.Count > 0 ? Math.Round((decimal)winning / closed.Count * 100m, 1) : null,
+            AveragePnLPercent = closed.Count > 0 ? Math.Round(closed.Average(p => p.ReviewData!.PnLPercent), 2) : null,
+            AveragePnLPerDay = closed.Count > 0 ? Math.Round(closed.Average(p => p.ReviewData!.PnLPerDay), 0) : null,
             TotalAccumulatedPnL = reviewed.Sum(p => p.ReviewData!.PnLAmount),
             AverageHoldingDays = Math.Round(reviewed.Average(p => (decimal)p.ReviewData!.HoldingDays), 1),
-            BestCampaign = MapToSummary(best),
-            WorstCampaign = MapToSummary(worst),
+            BestCampaign = best == null ? null : MapToSummary(best),
+            WorstCampaign = worst == null ? null : MapToSummary(worst),
             Trend = trend
         };
     }

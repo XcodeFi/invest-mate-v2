@@ -55,7 +55,7 @@ public static class AnalyticsTools
         }, ct);
 
     [McpServerTool(Name = "get_campaign_analytics", ReadOnly = true)]
-    [Description("Thống kê chiến dịch đã review: win rate, P/L trung bình, best/worst campaign, trend.")]
+    [Description("Thống kê chiến dịch đã review: win rate, P/L trung bình, best/worst campaign, trend. winRate, averagePnLPercent, averagePnLPerDay, bestCampaign và worstCampaign chỉ tính chiến dịch ĐÃ ĐÓNG (không còn cổ phiếu chưa bán, không bán vượt số mua đã gắn); excludedOpenReviews là số chiến dịch bị loại vì còn mở/thiếu lệnh mua. Các trường đó VẮNG MẶT (không phải 0) khi chưa có chiến dịch nào đã đóng. totalAccumulatedPnL và trend vẫn gồm mọi chiến dịch.")]
     public static async Task<CampaignAnalyticsDto> GetCampaignAnalytics(
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
         [Description("Lọc theo tầm nhìn, đúng 1 trong: ShortTerm/MediumTerm/LongTerm (bỏ trống = tất cả; giá trị sai cũng trả tất cả).")] string? timeHorizon = null)

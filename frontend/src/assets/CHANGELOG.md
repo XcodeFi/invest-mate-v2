@@ -2,6 +2,20 @@
 
 ---
 
+## [v2.104.0] — 2026-11-28 · Đánh giá chiến dịch: review còn mở không kéo tỉ lệ thắng xuống
+
+### Sửa lỗi
+
+- Trang **Đánh giá Chiến dịch** (và MCP `get_campaign_analytics`): chiến dịch **còn cổ phiếu chưa bán** hoặc **bán vượt số mua đã gắn** chỉ có lãi/lỗ của phần đã chốt (có thể bằng 0), nên trước đây bị đếm là "không thắng" và kéo **Win Rate** xuống, làm lệch cả TB Lãi/Lỗ và chiến dịch tốt nhất/tệ nhất. Nay các số đó chỉ tính chiến dịch **đã đóng**, cùng luật với kỳ vọng R, độ khớp ước lượng và Kelly. Review cũ (chưa ghi số còn mở) vẫn tính là đã đóng.
+- **Tổng tích lũy** và bảng/đường lũy kế vẫn gồm mọi chiến dịch: tiền đã chốt là tiền thật.
+- Trang ghi một dòng "N chiến dịch còn mở/thiếu lệnh mua không tính vào tỉ lệ thắng" khi có chiến dịch bị loại. Chưa có chiến dịch nào đã đóng thì Win Rate và TB Lãi/Lỗ hiện **n/a**, không phải 0%.
+
+### Kỹ thuật
+
+- `CampaignAnalyticsDto`: thêm `ExcludedOpenReviews`; `WinRate`, `AveragePnLPercent`, `AveragePnLPerDay` thành `decimal?` (null khi không có review đã đóng; MCP bỏ trường null). `BestCampaign`/`WorstCampaign` chỉ từ review đã đóng. `AverageHoldingDays` giữ mọi review.
+
+---
+
 ## [v2.103.0] — 2026-11-28 · Setup Pullback và lịch sử của nó trên từng mã
 
 ### Tính năng mới
