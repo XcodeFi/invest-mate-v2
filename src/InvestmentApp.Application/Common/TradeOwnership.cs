@@ -64,4 +64,21 @@ internal static class TradeOwnership
 
         return trades;
     }
+
+    /// <summary>
+    /// Sự kiện quyền của đúng các (danh mục, mã) có trong <paramref name="trades"/>. Trade đã qua
+    /// <see cref="CollectOwnedLinkedTradesAsync"/> nên danh mục đều của người gọi; không đọc thêm danh mục nào khác.
+    /// </summary>
+    public static async Task<List<CorporateAction>> LoadCorporateActionsAsync(
+        IEnumerable<Trade> trades, ICorporateActionRepository corporateActionRepository,
+        CancellationToken cancellationToken)
+    {
+        var actions = new List<CorporateAction>();
+        var keys = trades
+            .Select(t => (t.PortfolioId, Symbol: t.Symbol.ToUpperInvariant()))
+            .Distinct();
+        foreach (var (portfolioId, symbol) in keys)
+            actions.AddRange(await corporateActionRepository.GetByPortfolioIdAndSymbolAsync(portfolioId, symbol, cancellationToken));
+        return actions;
+    }
 }

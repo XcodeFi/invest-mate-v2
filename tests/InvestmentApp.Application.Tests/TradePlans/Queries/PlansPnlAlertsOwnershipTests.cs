@@ -33,9 +33,10 @@ public class PlansPnlAlertsOwnershipTests
     private readonly Mock<ITradeRepository> _trades = new();
     private readonly Mock<IPortfolioRepository> _portfolios = new();
     private readonly Mock<ICampaignReviewService> _review = new();
+    private readonly Mock<ICorporateActionRepository> _actions = new();
 
     private PreviewPlanReviewQueryHandler PreviewHandler() =>
-        new(_plans.Object, _trades.Object, _portfolios.Object, _review.Object);
+        new(_plans.Object, _trades.Object, _portfolios.Object, _review.Object, _actions.Object);
 
     [Fact]
     public async Task PreviewReview_missing_and_foreign_plans_give_the_same_exception_type_and_message()
@@ -69,6 +70,7 @@ public class PlansPnlAlertsOwnershipTests
         await act.Should().ThrowAsync<KeyNotFoundException>();
         _trades.VerifyNoOtherCalls();
         _review.VerifyNoOtherCalls();
+        _actions.VerifyNoOtherCalls();
     }
 
     // ---------- get_plan_scenario_history ----------

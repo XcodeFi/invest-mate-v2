@@ -34,7 +34,7 @@ public class GetEstimateCalibrationQueryHandler : IRequestHandler<GetEstimateCal
                         && string.Equals(p.Direction, "Buy", StringComparison.OrdinalIgnoreCase)
                         && (string.IsNullOrEmpty(request.StrategyId) || p.StrategyId == request.StrategyId)
                         && p.Estimate is { LockedAt: not null, ImpliedWinProbability: not null })
-            .Select(p => (Probability: p.Estimate!.ImpliedWinProbability!.Value / 100m, R: RMath.ResolveRealizedR(p).R))
+            .Select(p => (Probability: p.Estimate!.ImpliedWinProbability!.Value / 100m, R: RMath.ClosedRealizedR(p)))
             .Where(x => x.R.HasValue)
             .Select(x => (x.Probability, x.R!.Value))
             .ToList();

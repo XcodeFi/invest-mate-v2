@@ -302,6 +302,12 @@ export interface CampaignReviewDataDto {
   realizedR?: number | null;
   /** chot-ke-hoach | uoc-tinh | khop-mot-phan */
   riskBasis?: string | null;
+  /** Số CP còn giữ lúc review; lớn hơn 0 nghĩa là P&L/R chỉ tính phần đã bán. null = review cũ. */
+  openQuantity?: number | null;
+  /** Cổ tức tiền mặt ròng theo quyền hưởng, đã nằm trong P&L. */
+  dividendIncome?: number | null;
+  /** Giá vốn của phần đã bán (mẫu số của % lãi/lỗ). */
+  realizedCost?: number | null;
 }
 
 export interface CampaignReviewDto {
@@ -320,6 +326,12 @@ export interface CampaignReviewDto {
   realizedR?: number | null;
   /** chot-ke-hoach | uoc-tinh | khop-mot-phan */
   riskBasis?: string | null;
+  /** Số CP còn giữ lúc review; lớn hơn 0 nghĩa là P&L/R chỉ tính phần đã bán. null = review cũ. */
+  openQuantity?: number | null;
+  /** Cổ tức tiền mặt ròng theo quyền hưởng, đã nằm trong P&L. */
+  dividendIncome?: number | null;
+  /** Giá vốn của phần đã bán (mẫu số của % lãi/lỗ). */
+  realizedCost?: number | null;
 }
 
 /** Kỳ vọng theo R của các chiến dịch đã đóng (kế hoạch Mua đã review). Giá trị null = không đủ dữ liệu (hiện n/a). */

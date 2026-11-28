@@ -29,6 +29,7 @@ public class PlanNotFoundUniformTests
     private readonly Mock<IPortfolioRepository> _portfolios = new();
     private readonly Mock<IStrategyRepository> _strategies = new();
     private readonly Mock<ICampaignReviewService> _review = new();
+    private readonly Mock<ICorporateActionRepository> _actions = new();
     private readonly Mock<ICompanyDossierGate> _gate = new();
 
     private static TradePlan PlanOf(string userId) => new(userId, "VNM", "Buy", 80_000m, 75_000m, 90_000m, 100,
@@ -51,7 +52,7 @@ public class PlanNotFoundUniformTests
         var ct = default(CancellationToken);
         return handler switch
         {
-            "ReviewTradePlan" => new ReviewTradePlanCommandHandler(_plans.Object, _trades.Object, _portfolios.Object, _review.Object)
+            "ReviewTradePlan" => new ReviewTradePlanCommandHandler(_plans.Object, _trades.Object, _portfolios.Object, _review.Object, _actions.Object)
                 .Handle(new ReviewTradePlanCommand { PlanId = planId, UserId = userId }, ct),
             "DeleteTradePlan" => new DeleteTradePlanCommandHandler(_plans.Object)
                 .Handle(new DeleteTradePlanCommand { Id = planId, UserId = userId }, ct),
@@ -110,6 +111,7 @@ public class PlanNotFoundUniformTests
         _portfolios.VerifyNoOtherCalls();
         _strategies.VerifyNoOtherCalls();
         _review.VerifyNoOtherCalls();
+        _actions.VerifyNoOtherCalls();
         _gate.VerifyNoOtherCalls();
     }
 

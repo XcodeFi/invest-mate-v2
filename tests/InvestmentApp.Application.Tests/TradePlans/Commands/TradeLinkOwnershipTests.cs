@@ -324,8 +324,8 @@ public class TradeLinkOwnershipTests
     private IReadOnlyList<Trade> CaptureTradesPassedToReview(Mock<ICampaignReviewService> service)
     {
         var captured = new List<Trade>();
-        service.Setup(s => s.CalculateMetrics(It.IsAny<TradePlan>(), It.IsAny<IEnumerable<Trade>>()))
-            .Callback<TradePlan, IEnumerable<Trade>>((_, t) => captured.AddRange(t))
+        service.Setup(s => s.CalculateMetrics(It.IsAny<TradePlan>(), It.IsAny<IEnumerable<Trade>>(), It.IsAny<IEnumerable<CorporateAction>>()))
+            .Callback<TradePlan, IEnumerable<Trade>, IEnumerable<CorporateAction>>((_, t, _) => captured.AddRange(t))
             .Returns(new CampaignReviewData());
         return captured;
     }
@@ -340,11 +340,37 @@ public class TradeLinkOwnershipTests
             .ReturnsAsync(new[] { foreign });
         var service = new Mock<ICampaignReviewService>();
         var captured = CaptureTradesPassedToReview(service);
-        var handler = new ReviewTradePlanCommandHandler(_planRepo.Object, _tradeRepo.Object, _portfolioRepo.Object, service.Object);
+        var handler = new ReviewTradePlanCommandHandler(_planRepo.Object, _tradeRepo.Object, _portfolioRepo.Object, service.Object, new Mock<ICorporateActionRepository>().Object);
 
         await handler.Handle(new ReviewTradePlanCommand { PlanId = plan.Id, UserId = Me }, default);
 
         captured.Select(t => t.Id).Should().BeEquivalentTo(new[] { own.Id });
+    }
+
+    [Fact]
+    public async Task ReviewTradePlan_PassesCorporateActionsOfTheTradedPortfolioAndSymbol()
+    {
+        var own = AddTrade(_myPortfolio);
+        var foreign = AddTrade(_foreignPortfolio);
+        var plan = ExecutedPlanLinkedTo(own, foreign);
+        _tradeRepo.Setup(r => r.GetByTradePlanIdAsync(plan.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { foreign });
+        var cash = CorporateAction.CashDividend(_myPortfolio.Id, Me, own.Symbol, 10m, new DateTime(2026, 3, 1), null, 5m);
+        var actionsRepo = new Mock<ICorporateActionRepository>();
+        actionsRepo.Setup(r => r.GetByPortfolioIdAndSymbolAsync(_myPortfolio.Id, own.Symbol, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { cash });
+        var service = new Mock<ICampaignReviewService>();
+        IEnumerable<CorporateAction>? passed = null;
+        service.Setup(s => s.CalculateMetrics(It.IsAny<TradePlan>(), It.IsAny<IEnumerable<Trade>>(), It.IsAny<IEnumerable<CorporateAction>>()))
+            .Callback<TradePlan, IEnumerable<Trade>, IEnumerable<CorporateAction>>((_, _, a) => passed = a.ToList())
+            .Returns(new CampaignReviewData());
+        var handler = new ReviewTradePlanCommandHandler(_planRepo.Object, _tradeRepo.Object, _portfolioRepo.Object, service.Object, actionsRepo.Object);
+
+        await handler.Handle(new ReviewTradePlanCommand { PlanId = plan.Id, UserId = Me }, default);
+
+        passed.Should().BeEquivalentTo(new[] { cash });
+        // trade của người khác bị loại từ trước, nên danh mục lạ không bao giờ bị đọc sự kiện
+        actionsRepo.Verify(r => r.GetByPortfolioIdAndSymbolAsync(_foreignPortfolio.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -357,7 +383,7 @@ public class TradeLinkOwnershipTests
             .ReturnsAsync(new[] { foreign });
         var service = new Mock<ICampaignReviewService>();
         var captured = CaptureTradesPassedToReview(service);
-        var handler = new PreviewPlanReviewQueryHandler(_planRepo.Object, _tradeRepo.Object, _portfolioRepo.Object, service.Object);
+        var handler = new PreviewPlanReviewQueryHandler(_planRepo.Object, _tradeRepo.Object, _portfolioRepo.Object, service.Object, new Mock<ICorporateActionRepository>().Object);
 
         await handler.Handle(new PreviewPlanReviewQuery { PlanId = plan.Id, UserId = Me }, default);
 

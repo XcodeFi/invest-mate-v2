@@ -19,13 +19,16 @@ public class PreviewPlanReviewQueryHandler : IRequestHandler<PreviewPlanReviewQu
     private readonly ITradeRepository _tradeRepository;
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly ICampaignReviewService _reviewService;
+    private readonly ICorporateActionRepository _corporateActionRepository;
 
     public PreviewPlanReviewQueryHandler(
         ITradePlanRepository tradePlanRepository,
         ITradeRepository tradeRepository,
         IPortfolioRepository portfolioRepository,
-        ICampaignReviewService reviewService)
+        ICampaignReviewService reviewService,
+        ICorporateActionRepository corporateActionRepository)
     {
+        _corporateActionRepository = corporateActionRepository;
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
         _portfolioRepository = portfolioRepository;
@@ -43,7 +46,8 @@ public class PreviewPlanReviewQueryHandler : IRequestHandler<PreviewPlanReviewQu
         var trades = await TradeOwnership.CollectOwnedLinkedTradesAsync(
             plan, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
 
-        var metrics = _reviewService.CalculateMetrics(plan, trades);
+        var actions = await TradeOwnership.LoadCorporateActionsAsync(trades, _corporateActionRepository, cancellationToken);
+        var metrics = _reviewService.CalculateMetrics(plan, trades, actions);
         return ReviewTradePlanCommandHandler.MapToDto(metrics);
     }
 }

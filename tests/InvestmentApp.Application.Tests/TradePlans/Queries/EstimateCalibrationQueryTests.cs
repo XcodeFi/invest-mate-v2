@@ -44,6 +44,18 @@ public class EstimateCalibrationQueryTests
         => Sut().Handle(new GetEstimateCalibrationQuery { UserId = Me, StrategyId = strategyId }, default);
 
     [Fact]
+    public async Task calibration_excludes_open_review()
+    {
+        var open = Reviewed(60, 2);
+        open.ReviewData!.OpenQuantity = 100m;
+        Setup(Reviewed(60, 2), Reviewed(60, -1), open);
+
+        var result = await Run();
+
+        result.N.Should().Be(2);
+    }
+
+    [Fact]
     public async Task calibration_only_caller_reviewed_locked_buy()
     {
         var unlocked = new TradePlan(Me, "VNM", "Buy", 100m, 90m, 130m, 100, thesis: "Luận điểm mẫu đủ dài cho test độ khớp");

@@ -84,4 +84,5 @@ Bạn không phải sửa gì bằng tay. Sau khi nhập sự kiện, app tự q
 
 - Tự động lấy sự kiện từ nguồn dữ liệu bên ngoài — hiện phải nhập tay.
 - Quyền mua ưu đãi, sáp nhập, hoán đổi cổ phiếu.
-- Thống kê dài hạn (backtest, hiệu quả chiến lược, điểm kỷ luật) chưa tính sự kiện quyền.
+- Backtest và điểm kỷ luật chưa tính sự kiện quyền.
+- Review chiến dịch **đã** tính sự kiện quyền (cổ tức tiền mặt cộng vào lãi/lỗ, cổ tức cổ phiếu và chia tách điều chỉnh số lượng và giá vốn), nên kỳ vọng R, độ khớp ước lượng và Kelly dựa trên số đó. Các review đã lưu từ trước giữ nguyên số cũ.

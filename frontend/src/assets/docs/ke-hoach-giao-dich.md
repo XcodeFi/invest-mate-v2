@@ -144,6 +144,7 @@ Nháp → Sẵn sàng → Đang thực hiện → Đã thực hiện → Đã re
 - **1R** là số tiền bạn chấp nhận mất ở kế hoạch: |giá vào − cắt lỗ| × số lượng. Hệ thống ghi lại 1R khi bạn chuyển kế hoạch sang **Sẵn sàng** (hoặc khớp lot đầu tiên) và **khoá** từ lần khớp đầu tiên: dời cắt lỗ sau đó không làm đổi 1R, để kết quả luôn đo bằng đúng mức rủi ro ban đầu.
 - **R:R** trong danh sách kế hoạch và trang Vị thế là số hệ thống tính từ giá vào, cắt lỗ và giá chốt lời (nhiều mốc chốt lời thì lấy bình quân theo tỷ lệ vị thế). Lệnh Bán hoặc thiếu mục tiêu thì hiện giá trị bạn đã nhập.
 - Khi review, **R thực tế** = lãi/lỗ ròng ÷ 1R (ví dụ +1,6R: lãi gấp 1,6 lần mức rủi ro ban đầu). "(ước tính)" nghĩa là kế hoạch cũ chưa ghi 1R nên dùng cắt lỗ đầu tiên còn lưu; "n/a" nghĩa là không biết rủi ro ban đầu. Hiện chỉ áp dụng cho lệnh Mua.
+- **Review chỉ tính phần đã chốt.** Lãi/lỗ = tiền bán − giá vốn bình quân của số cổ phiếu ĐÃ BÁN, cộng cổ tức tiền mặt bạn được hưởng. Nếu còn cổ phiếu chưa bán, app cảnh báo "Còn N CP chưa bán", phần còn giữ không bị coi là lỗ (phí mua của nó nằm trong giá vốn còn giữ), và 1R cũng chỉ tính theo phần đã bán. Chiến dịch còn cổ phiếu chưa bán **không được tính** vào kỳ vọng R, độ khớp ước lượng và Kelly; bán hết rồi mới vào thống kê. Ví dụ: mua 1.000 @30.000, bán 500 @33.000 → lãi +1,5 triệu (+10%), không phải −13,5 triệu.
 
 ### Ước lượng kỳ vọng trước khi vào lệnh (lệnh Mua)
 

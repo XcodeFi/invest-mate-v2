@@ -168,7 +168,10 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             LessonsLearned = p.ReviewData.LessonsLearned,
             ReviewedAt = p.ReviewData.ReviewedAt,
             RealizedR = RMath.ResolveRealizedR(p).R,
-            RiskBasis = RMath.ResolveRealizedR(p).Basis
+            RiskBasis = RMath.ResolveRealizedR(p).Basis,
+            OpenQuantity = p.ReviewData.OpenQuantity,
+            DividendIncome = p.ReviewData.DividendIncome,
+            RealizedCost = p.ReviewData.RealizedCost
         } : null,
         Status = p.Status.ToString(),
         TradeId = p.TradeId,
@@ -384,4 +387,8 @@ public class CampaignReviewDataDto
     /// <summary>PnL ròng / 1R ban đầu. Review cũ thiếu giá trị thì tính khi đọc (chỉ trong DTO).</summary>
     public decimal? RealizedR { get; set; }
     public string? RiskBasis { get; set; }
+    /// <summary>Số CP còn giữ lúc review (null = review cũ). Lớn hơn 0: kết quả chỉ tính phần đã bán.</summary>
+    public decimal? OpenQuantity { get; set; }
+    public decimal? DividendIncome { get; set; }
+    public decimal? RealizedCost { get; set; }
 }
