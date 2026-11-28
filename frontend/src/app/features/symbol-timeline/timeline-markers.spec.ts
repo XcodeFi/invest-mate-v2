@@ -9,7 +9,13 @@ const alert = (ts: string, title = 'Cảnh báo giá') => ({ type: 'alert' as co
 const dossier = (ts: string, action = 'signed') => ({ type: 'dossier' as const, timestamp: ts, data: { action, version: 2 } });
 
 const label = (a: string | undefined) => (a === 'signed' ? 'Ký hồ sơ công ty' : 'Hồ sơ');
-const opts = (adjusted: boolean | null = true) => ({ adjusted, dossierLabel: label });
+// Ba phiên liên tiếp (giá nghìn đồng ×1000 như chuỗi thật); giao dịch 10/09 giá 63.000 nằm trong [62.500; 63.500].
+const bars = {
+  dates: ['2026-09-09T00:00:00Z', '2026-09-10T00:00:00Z', '2026-09-11T00:00:00Z'],
+  low: [62000, 62500, 62800],
+  high: [64000, 63500, 64000],
+};
+const opts = (adjusted: boolean | null = true, b: typeof bars | null = bars) => ({ adjusted, dossierLabel: label, bars: b });
 
 describe('buildTimelineMarkers', () => {
   it('buy is an up arrow below the bar in green, sell a down arrow above in red', () => {
@@ -48,34 +54,50 @@ describe('buildTimelineMarkers', () => {
     expect(lines[2]).toBe('Hồ sơ · Ký hồ sơ công ty');
   });
 
-  it('trade tooltip says "(giá gốc)" when the series is adjusted and a dividend or rights issue falls after the trade', () => {
-    const markers = buildTimelineMarkers([
-      trade('2026-09-10T02:00:00Z', 'BUY'),
-      event('2026-09-21T00:00:00Z', 'Dividend', 'Cổ tức bằng cổ phiếu'),
-    ], opts(true));
+  const tradeAt = (price: number, ts = '2026-09-10T02:00:00Z') => buildTimelineMarkers([trade(ts, 'BUY', price)], opts(true))[0].tooltip![0];
 
-    expect(markers[0].tooltip![0]).toContain('(giá gốc)');
+  it('adjusted_series_trade_outside_bar_range_labelled_gia_goc', () => {
+    expect(tradeAt(70000)).toContain('(giá gốc)');
+    expect(tradeAt(60000)).toContain('(giá gốc)');
   });
 
-  it('rights issue also counts; news and earnings do not', () => {
-    const rights = buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY'), event('2026-09-21T00:00:00Z', 'RightsIssue')], opts(true));
-    const news = buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY'), event('2026-09-21T00:00:00Z', 'News'), event('2026-09-22T00:00:00Z', 'Earnings')], opts(true));
-
-    expect(rights[0].tooltip![0]).toContain('(giá gốc)');
-    expect(news[0].tooltip![0]).not.toContain('(giá gốc)');
+  it('adjusted_series_trade_inside_range_not_labelled', () => {
+    expect(tradeAt(63000)).not.toContain('(giá gốc)');
+    expect(tradeAt(62500)).not.toContain('(giá gốc)');
+    expect(tradeAt(63500)).not.toContain('(giá gốc)');
   });
 
-  it('no "(giá gốc)" when the corporate action is BEFORE the trade (the trade price is already on the new basis)', () => {
-    const markers = buildTimelineMarkers([event('2026-09-01T00:00:00Z', 'Dividend'), trade('2026-09-10T02:00:00Z', 'BUY')], opts(true));
-
-    expect(markers.find(m => m.text === 'T')!.tooltip![0]).not.toContain('(giá gốc)');
+  it('a split (price halved) lies far outside the adjusted range and is labelled', () => {
+    expect(tradeAt(31500)).toContain('(giá gốc)');
+    expect(tradeAt(126000)).toContain('(giá gốc)');
   });
 
-  it('no "(giá gốc)" when the series is not adjusted (the chart prices are raw too) or unknown', () => {
-    const items = [trade('2026-09-10T02:00:00Z', 'BUY'), event('2026-09-21T00:00:00Z', 'Dividend')];
+  it('tolerance of 0.5% around the session range: just inside is not labelled, just outside is', () => {
+    expect(tradeAt(63800)).not.toContain('(giá gốc)');   // 63.500 × 1,005 = 63.817,5
+    expect(tradeAt(63900)).toContain('(giá gốc)');
+    expect(tradeAt(62200)).not.toContain('(giá gốc)');   // 62.500 × 0,995 = 62.187,5
+    expect(tradeAt(62100)).toContain('(giá gốc)');
+  });
 
-    expect(buildTimelineMarkers(items, opts(false))[0].tooltip![0]).not.toContain('(giá gốc)');
-    expect(buildTimelineMarkers(items, opts(null))[0].tooltip![0]).not.toContain('(giá gốc)');
+  it('unadjusted_series_never_labelled (flat O=H=L=C bars would make almost every trade look outside)', () => {
+    const flat = { dates: bars.dates, low: [60000, 60000, 60000], high: [60000, 60000, 60000] };
+
+    expect(buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY', 63000)], opts(false, flat))[0].tooltip![0]).not.toContain('(giá gốc)');
+    expect(buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY', 63000)], opts(null, flat))[0].tooltip![0]).not.toContain('(giá gốc)');
+  });
+
+  it('a trade on a weekend is compared with the previous session; before the first session or after no data there is no label', () => {
+    // 2026-09-12 là thứ Bảy: so với phiên 11/09 [62.800; 64.000]
+    expect(buildTimelineMarkers([trade('2026-09-12T02:00:00Z', 'BUY', 70000)], opts(true))[0].tooltip![0]).toContain('(giá gốc)');
+    expect(buildTimelineMarkers([trade('2026-09-12T02:00:00Z', 'BUY', 63000)], opts(true))[0].tooltip![0]).not.toContain('(giá gốc)');
+    expect(buildTimelineMarkers([trade('2026-08-01T02:00:00Z', 'BUY', 70000)], opts(true))[0].tooltip![0]).not.toContain('(giá gốc)');
+    expect(buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY', 70000)], opts(true, null))[0].tooltip![0]).not.toContain('(giá gốc)');
+  });
+
+  it('dividend events no longer drive the label (one source of truth: the price against the bar)', () => {
+    const markers = buildTimelineMarkers([trade('2026-09-10T02:00:00Z', 'BUY', 63000), event('2026-09-21T00:00:00Z', 'Dividend')], opts(true));
+
+    expect(markers[0].tooltip![0]).not.toContain('(giá gốc)');
   });
 
   it('no items → no markers', () => {

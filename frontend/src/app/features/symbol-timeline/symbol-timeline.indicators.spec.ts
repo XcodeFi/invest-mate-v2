@@ -163,14 +163,26 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     expect(chart().markerCount).toBe(3);
   });
 
-  it('trade tooltip says giá gốc when a dividend follows the trade on an adjusted series', () => {
-    items = [
-      { type: 'trade', timestamp: `${iso(daysAgo(20))}T03:00:00Z`, data: { tradeType: 'BUY', price: 63000, quantity: 100 } },
-      { type: 'event', timestamp: `${iso(daysAgo(10))}T00:00:00Z`, data: { eventType: 'Dividend', title: 'Cổ tức' } },
-    ];
-    setup();
+  it('trade tooltip says giá gốc when the trade price is outside that session range on an adjusted series', () => {
+    items = [{ type: 'trade', timestamp: `${iso(daysAgo(20))}T03:00:00Z`, data: { tradeType: 'BUY', price: 63000, quantity: 100 } }];
+    setup();   // nến của chuỗi giả quanh 99..101, giá giao dịch 63.000 nằm ngoài
 
     expect(chart().markers.find(m => m.text === 'T')!.tooltip![0]).toContain('(giá gốc)');
+  });
+
+  it('no giá gốc label when the trade price is inside the session range', () => {
+    items = [{ type: 'trade', timestamp: `${iso(daysAgo(20))}T03:00:00Z`, data: { tradeType: 'BUY', price: 100, quantity: 100 } }];
+    setup();
+
+    expect(chart().markers.find(m => m.text === 'T')!.tooltip![0]).not.toContain('(giá gốc)');
+  });
+
+  it('no giá gốc label on an unadjusted series', () => {
+    adjustedFlag = false;
+    items = [{ type: 'trade', timestamp: `${iso(daysAgo(20))}T03:00:00Z`, data: { tradeType: 'BUY', price: 63000, quantity: 100 } }];
+    setup();
+
+    expect(chart().markers.find(m => m.text === 'T')!.tooltip![0]).not.toContain('(giá gốc)');
   });
 
   it('markers on the chart do not break when there are no timeline items', () => {

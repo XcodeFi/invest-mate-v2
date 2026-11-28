@@ -655,7 +655,6 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   // Biểu đồ chỉ báo theo nhóm: chuỗi tải ngay khi vào trang (cần cho nến), nhóm chỉ đổi lớp vẽ
   selectedGroup: TaGroup | null = null;
   series: TechnicalSeries | null = null;
-  private fullSeries: TechnicalSeries | null = null;
   private analysis: TechnicalAnalysis | null = null;
   chartError: string | null = null;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
@@ -743,7 +742,6 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
       this.marketDataService.getTechnicalAnalysis(this.symbol, warmMonths).pipe(catchError(() => of(null)))
     ]).pipe(takeUntil(this.destroy$)).subscribe({
       next: ([series, analysis]) => {
-        this.fullSeries = series;
         this.analysis = analysis;
         this.series = sliceSeriesFrom(series, fromStr);
         this.chartCandles = { open: this.series.open, high: this.series.high, low: this.series.low, close: this.series.close };
@@ -775,7 +773,10 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
     const items = this.timeline?.items ?? [];
     const emotionPane = buildEmotionPane(series.dates, items, EMOTION_COLORS, '#6b7280');
     this.groupLayers = emotionPane ? { ...base, panes: [...base.panes, emotionPane] } : base;
-    this.chartMarkers = buildTimelineMarkers(items, { adjusted: series.adjusted, dossierLabel: a => this.dossierMarkerLabel(a) });
+    this.chartMarkers = buildTimelineMarkers(items, {
+      adjusted: series.adjusted, bars: { dates: series.dates, low: series.low, high: series.high },
+      dossierLabel: a => this.dossierMarkerLabel(a)
+    });
     this.readNowLines = this.selectedGroup && this.analysis ? readNow(this.selectedGroup, series, this.analysis) : [];
   }
 
