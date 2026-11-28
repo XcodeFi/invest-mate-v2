@@ -53,7 +53,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     // Mỗi mã một cổng: nhiều yêu cầu đồng thời cho cùng mã chỉ gây đúng một lần gọi UDF.
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SymbolGates = new();
 
-    /// <summary>Mã hợp lệ (sau khi viết hoa): chỉ chữ và số, tối đa 10 ký tự. Mã sai dạng không được tạo cổng hay gọi nguồn, để từ điển cổng không phình vô hạn.</summary>
+    /// <summary>Mã hợp lệ (sau khi viết hoa): chỉ chữ và số, tối đa 10 ký tự. Mã sai dạng không được tạo cổng hay gọi nguồn: số cổng bị giới hạn theo dạng mã chứ không theo số lượng (mã đúng dạng vẫn giữ một cổng nhỏ mỗi mã).</summary>
     private static readonly Regex ValidSymbol = new(@"^[A-Z0-9]{1,10}\z", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
@@ -115,7 +115,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<StockPriceData?> GetCurrentPriceAsync(string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var detail = await GetRawShareDetailAsync(symbol, cancellationToken);
         if (detail == null)
             return null;
@@ -137,7 +137,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     public async Task<List<StockPriceData>> GetHistoricalPricesAsync(
         string symbol, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
 
         // Khoảng ≤ 1 ngày là intraday: giữ nguyên nguồn graph. Từ 2 ngày trở lên là lịch sử NGÀY: lấy nến
         // thật đã điều chỉnh từ UDF, lỗi thì dự phòng sang graph (chỉ có giá đóng cửa, chưa điều chỉnh).
@@ -366,7 +366,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     {
         try
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = Now;
             var url = $"{_options.TradingViewBaseUrl.TrimEnd('/')}/tradingview/history" +
                       $"?symbol={Uri.EscapeDataString(symbol)}&resolution=D" +
                       $"&from={now.AddYears(-_options.TradingViewHistoryYears).ToUnixTimeSeconds()}" +
@@ -406,13 +406,11 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     private async Task<List<StockPriceData>> GetGraphHistoryAsync(
         string symbol, DateTime from, DateTime to, CancellationToken cancellationToken)
     {
-
-        int graphType = IntradayGraphType;   // chỉ còn nhánh intraday; lịch sử ngày đi qua GetDailyBarsAsync
-
-        var cacheKey = $"history:{symbol}:{graphType}";
+        // Chỉ còn nhánh intraday; lịch sử ngày đi qua GetDailyBarsAsync.
+        var cacheKey = $"history:{symbol}:{IntradayGraphType}";
         if (!_cache.TryGetValue(cacheKey, out List<StockPriceData>? series))
         {
-            series = await FetchGraphSeriesAsync(symbol, graphType, cancellationToken);
+            series = await FetchGraphSeriesAsync(symbol, IntradayGraphType, cancellationToken);
             if (series == null || series.Count == 0)
                 return new List<StockPriceData>();
 
@@ -478,7 +476,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     public async Task<List<StockPriceData>> GetDailyHistoryAsync(
         string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
 
         var cacheKey = $"daily-history:{symbol}";
         if (_cache.TryGetValue(cacheKey, out List<StockPriceData>? cached))
@@ -531,7 +529,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         var tasks = symbols.Select(async symbol =>
         {
             var price = await GetCurrentPriceAsync(symbol, cancellationToken);
-            return (symbol: symbol.ToUpper().Trim(), price);
+            return (symbol: symbol.ToUpperInvariant().Trim(), price);
         });
 
         var completed = await Task.WhenAll(tasks);
@@ -546,7 +544,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<MarketIndexData?> GetIndexDataAsync(string indexSymbol, CancellationToken cancellationToken = default)
     {
-        indexSymbol = indexSymbol.ToUpper().Trim();
+        indexSymbol = indexSymbol.ToUpperInvariant().Trim();
 
         // Map input symbol → floor_code for /v1/ios/indices/detail
         var floorCode = indexSymbol switch
@@ -623,7 +621,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<StockDetailInfo?> GetStockDetailAsync(string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var detail = await GetRawShareDetailAsync(symbol, cancellationToken);
         if (detail == null)
             return null;
@@ -716,7 +714,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         if (companies == null || companies.Count == 0)
             return new List<StockSearchResult>();
 
-        keyword = keyword.ToUpper().Trim();
+        keyword = keyword.ToUpperInvariant().Trim();
 
         return companies
             .Where(c =>
@@ -778,7 +776,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<TradingHistorySummaryInfo?> GetTradingHistorySummaryAsync(string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var cacheKey = $"trading_summary:{symbol}";
 
         if (_cache.TryGetValue(cacheKey, out TradingHistorySummaryInfo? cached))
@@ -818,7 +816,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     private async Task<HmoneyShareDetail?> GetRawShareDetailAsync(string symbol, CancellationToken cancellationToken)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var cacheKey = $"raw_share:{symbol}";
 
         if (_cache.TryGetValue(cacheKey, out HmoneyShareDetail? cached))

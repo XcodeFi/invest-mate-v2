@@ -827,6 +827,9 @@ public class HmoneyMarketDataProviderTradingViewTests
     [InlineData("TOOLONGSYMBOL")]
     [InlineData("FPT\u0000")]
     [InlineData("FPT/../X")]
+    [InlineData("VN-INDEX")]
+    [InlineData("FPT-1")]
+    [InlineData("FPT.HM")]
     public async Task malformed_symbols_create_no_gate_and_make_no_call(string symbol)
     {
         var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
@@ -952,5 +955,39 @@ public class HmoneyMarketDataProviderTradingViewTests
         h.TvUrls.Should().HaveCount(2, "đã thử nguồn đúng một lần hôm sau");
         h.GraphUrls.Should().BeEmpty();
         store.SaveCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task symbol_normalisation_ignores_the_machine_culture_so_turkish_i_does_not_break_the_gate()
+    {
+        var old = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("tr-TR");
+        try
+        {
+            var (p, h) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+
+            var bars = await Year(p, "vib");
+
+            bars.Should().NotBeEmpty("\"vib\" phải thành \"VIB\", không phải \"V\u0130B\"");
+            h.TvUrls.Should().ContainSingle().Which.Should().Contain("symbol=VIB");
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = old;
+        }
+    }
+
+    [Fact]
+    public async Task the_requested_window_follows_the_injected_clock_not_the_machine_clock()
+    {
+        var (p, h) = Create(x => x.Tv = _ => Json(TvOk(10)), new FakeStore(), new FakeTime(Morning));
+
+        await Year(p);
+
+        var url = h.TvUrls.Single();
+        var from = long.Parse(Regex.Match(url, @"from=(\d+)").Groups[1].Value);
+        var to = long.Parse(Regex.Match(url, @"to=(\d+)").Groups[1].Value);
+        to.Should().Be(Morning.AddDays(1).ToUnixTimeSeconds(), "cửa sổ kết thúc ngày mai theo đồng hồ của provider");
+        from.Should().Be(Morning.AddYears(-3).ToUnixTimeSeconds());
     }
 }
