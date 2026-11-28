@@ -52,7 +52,9 @@ public class McpToolDiscoveryTests
         // Định cỡ vị thế (dùng chung query với REST) và sự kiện quyền
         "calculate_position_size", "list_corporate_actions",
         // Lịch sử setup Pullback trên một mã (S1)
-        "get_signal_setups"
+        "get_signal_setups",
+        // Sàng lọc cổ phiếu toàn thị trường (ADR-0020)
+        "screen_stocks"
     };
 
     private static readonly string[] WriteTools =
@@ -113,12 +115,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_85_Tools()
+    public void Registers_All_86_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(85);
+        (ReadTools.Length + WriteTools.Length).Should().Be(86);
     }
 
     [Fact]
@@ -319,6 +321,9 @@ public class McpToolDiscoveryTests
         Required(schema["list_corporate_actions"]).Should().BeEmpty("symbol và portfolioId đều tuỳ chọn");
         Required(schema["recompute_plan_review"]).Should().BeEquivalentTo(new[] { "planId" });
         Required(schema["get_signal_setups"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["screen_stocks"]).Should().BeEmpty("mọi tham số của screen_stocks đều tuỳ chọn (thiếu `= null` thì SDK đẩy vào required)");
+        schema["screen_stocks"].GetProperty("properties").EnumerateObject().Select(p => p.Name).Should()
+            .Contain(new[] { "floors", "includeUpcom", "minAdtv", "minPrice", "minCap", "minRoe", "maxPe", "minRs3m", "skipQualityLayer", "includeExcluded", "excludedSkip", "excludedTake", "lookupSymbol" });
 
         // Đợt 3: kế hoạch / lãi-lỗ / cảnh báo
         Required(schema["get_scenario_suggestion"]).Should().BeEquivalentTo(new[] { "symbol", "entryPrice" });

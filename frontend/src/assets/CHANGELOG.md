@@ -2,6 +2,24 @@
 
 ---
 
+## [v2.109.0] — 2026-11-28 · Sàng lọc cổ phiếu toàn thị trường (backend và MCP)
+
+### Tính năng mới
+
+- **`GET /api/v1/market/screener` và công cụ MCP `screen_stocks`** (86 tool): quét toàn thị trường (HOSE, HNX; UPCOM khi bật) và trả danh sách mã đạt tiêu chí. Loại mã thuộc diện đặc biệt hoặc sắp hủy niêm yết của HOSE, thanh khoản dưới 5 tỷ/phiên, giá dưới 5.000 đ, vốn hoá dưới 1.000 tỷ; tầng chất lượng (lãi ròng dương, ROE từ 12%, trần P/E tuỳ chọn và mặc định tắt) có thể bỏ qua; tầng xu hướng theo xếp hạng sức mạnh 3 tháng từ P50 trong toàn bộ mã niêm yết.
+- Mỗi mã đạt có lý do đạt và **cờ biến động** kèm giá trị (ví dụ "RS1T 96/99, vốn hoá nhỏ", "beta cao (2.1)", "tăng nóng rồi gãy"); cờ chỉ để cân nhắc, không loại mã. Không có điểm số hay thứ hạng: danh sách xếp theo bảng chữ cái, luôn kèm lời nhắc "không phải khuyến nghị mua".
+- Kết quả có số mã bị loại theo từng lý do và theo ngành, số mã "loại vì chất lượng/P/E nhưng xu hướng tốt", và tra cứu "vì sao mã X không có".
+- HOSE đóng khi lỗi: nếu không đọc được danh sách diện đặc biệt/hủy niêm yết, các mã HOSE đạt tiêu chí được tách riêng ở `unverifiedHose`, không nằm trong danh sách đạt. Dòng HNX/UPCOM có ghi chú chưa kiểm được danh sách cảnh báo.
+- Dữ liệu đệm 6 giờ; làm mới lỗi hoặc không đạt kiểm tra chất lượng thì giữ bản tốt gần nhất (`status = stale`, tối đa 48 giờ, sau đó `status = unavailable` kèm lý do).
+- Chưa có giao diện: trang "Sàng lọc cổ phiếu" và mục Help đi cùng bản sau.
+
+### Kỹ thuật
+
+- Nguồn: `technical-filter` của 24hmoney (cùng host và cùng dạng yêu cầu với nguồn giá hiện có, không thêm header) và JSON công khai của HOSE. Đo ngày 2026-11-28: `rs1m/rs3m/rs52w` là xếp hạng phân vị 1–99 (không phải tỉ suất sinh lời); giá tính bằng nghìn đồng; `the_beta = 0` là thiếu dữ liệu. ADR-0020.
+- Cấu hình: `MarketDataProvider:BaseUrl` (technical-filter), `Screener:HsxBaseUrl` (HOSE, mặc định là API công khai của sàn).
+
+---
+
 ## [v2.108.1] — 2026-11-28 · Bảng giá nhanh: bấm gợi ý khi lần tải đầu chưa về
 
 ### Sửa lỗi

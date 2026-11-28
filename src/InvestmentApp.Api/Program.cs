@@ -259,6 +259,19 @@ builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IVietstoc
 // No-op fallback — satisfies DI for AiAssistantService._fundamentalProvider
 builder.Services.AddScoped<IFundamentalDataProvider, InvestmentApp.Infrastructure.Services.NoOpFundamentalDataProvider>();
 
+// Sàng lọc cổ phiếu toàn thị trường (ADR-0020): technical-filter của 24hmoney (cùng BaseUrl, không thêm header) + danh sách JSON công khai của HOSE.
+// Bộ nhớ đệm và bản tốt gần nhất nằm trong ScreenerStateStore (singleton); service và nguồn dùng theo từng yêu cầu.
+builder.Services.AddOptions<InvestmentApp.Infrastructure.Services.Screener.ScreenerOptions>().Bind(builder.Configuration.GetSection("Screener"));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<InvestmentApp.Infrastructure.Services.Screener.ScreenerStateStore>();
+builder.Services.AddHttpClient<InvestmentApp.Application.Interfaces.IScreenerDataSource, InvestmentApp.Infrastructure.Services.Screener.HmoneyScreenerDataSource>(client =>
+{
+    client.BaseAddress = new Uri(mdpConfig["BaseUrl"]!);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+    client.Timeout = TimeSpan.FromSeconds(mdpConfig.GetValue<int>("TimeoutSeconds", 15));
+});
+builder.Services.AddScoped<InvestmentApp.Application.Interfaces.IMarketScreenerService, InvestmentApp.Infrastructure.Services.Screener.MarketScreenerService>();
+
 // 24hmoney comprehensive data provider (for AI comprehensive analysis)
 builder.Services.AddHttpClient<InvestmentApp.Infrastructure.Services.Hmoney.HmoneyComprehensiveDataProvider>(client =>
 {

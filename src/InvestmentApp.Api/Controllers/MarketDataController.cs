@@ -9,6 +9,8 @@ using InvestmentApp.Application.MarketData.Queries.SearchStocks;
 using InvestmentApp.Application.MarketData.Queries.GetTopFluctuation;
 using InvestmentApp.Application.MarketData.Queries.GetTradingHistorySummary;
 using InvestmentApp.Application.MarketData.Queries.GetSignalSetups;
+using InvestmentApp.Application.MarketData.Queries.ScreenStocks;
+using InvestmentApp.Application.MarketData.Screener;
 using InvestmentApp.Application.MarketData.Queries.GetTechnicalAnalysis;
 using InvestmentApp.Application.MarketData.Queries.GetTechnicalSeries;
 using InvestmentApp.Application.Interfaces;
@@ -237,6 +239,28 @@ public class MarketDataController : ControllerBase
     public async Task<IActionResult> GetSignalSetups(string symbol)
     {
         var result = await _mediator.Send(new GetSignalSetupsQuery { Symbol = symbol });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Sàng lọc cổ phiếu toàn thị trường theo tiêu chí (ADR-0020). Danh sách theo tiêu chí, không phải khuyến nghị, không điểm số, xếp theo bảng chữ cái.
+    /// Dữ liệu đệm 6 giờ; làm mới lỗi thì dùng bản tốt gần nhất (status = stale, tối đa 48 giờ, sau đó status = unavailable).
+    /// </summary>
+    [HttpGet("screener")]
+    [ProducesResponseType(typeof(ScreenerResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Screener(
+        [FromQuery] string? floors = null, [FromQuery] bool? includeUpcom = null,
+        [FromQuery] decimal? minAdtv = null, [FromQuery] decimal? minPrice = null, [FromQuery] decimal? minCap = null,
+        [FromQuery] decimal? minRoe = null, [FromQuery] decimal? maxPe = null, [FromQuery] int? minRs3m = null,
+        [FromQuery] bool? skipQualityLayer = null, [FromQuery] bool? includeExcluded = null,
+        [FromQuery] int? excludedSkip = null, [FromQuery] int? excludedTake = null, [FromQuery] string? lookupSymbol = null)
+    {
+        var result = await _mediator.Send(new ScreenStocksQuery
+        {
+            Floors = floors, IncludeUpcom = includeUpcom, MinAdtv = minAdtv, MinPrice = minPrice, MinCap = minCap, MinRoe = minRoe,
+            MaxPe = maxPe, MinRs3m = minRs3m, SkipQualityLayer = skipQualityLayer, IncludeExcluded = includeExcluded,
+            ExcludedSkip = excludedSkip, ExcludedTake = excludedTake, LookupSymbol = lookupSymbol
+        });
         return Ok(result);
     }
 }
