@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.110.0] — 2026-11-28 · Hồ sơ công ty và Dòng thời gian mã nối được với nhau; trạng thái trang nằm trên URL
+
+### Tính năng mới
+
+- **Hồ sơ công ty → Dòng thời gian:** trang chi tiết hồ sơ có nút **📈 Dòng thời gian** (cạnh nhãn độ tươi) đi thẳng tới biểu đồ, giao dịch, nhật ký và sự kiện của mã. Chiều ngược lại đã có sẵn (chip "🏢 Hồ sơ công ty" ở đầu trang Dòng thời gian), nên nay đi lại được cả hai hướng.
+- **Trang Dòng thời gian nhớ trạng thái trên URL:** khoảng thời gian (`range=1T|3T|6T|1N`), nhóm chỉ báo (`grp=...`) và mục đang chọn (`focus=YYYY-MM-DD`). Bấm Back, tải lại hoặc dán link thì trang trở về đúng khoảng, nhóm chỉ báo và mục đang xem (mục focus được chọn và cuộn tới). Giá trị sai trong URL bị bỏ qua, về mặc định (3T, không nhóm). Chọn khoảng hay nhóm không chất thêm mục vào lịch sử trình duyệt.
+
+### Kỹ thuật
+
+- `timeline-url-state.ts` (hàm thuần `parseTimelineQuery` / `buildTimelineQuery`) và trang đọc qua `queryParamMap` (không phải snapshot): lần phát đầu áp dụng trạng thái ban đầu, các lần sau chỉ áp dụng khoá nào đổi, nên lần phát lại do chính trang vừa ghi và các khoá không liên quan (`tradeId`) là no-op. Ghi bằng `queryParamsHandling: 'merge'` + `replaceUrl: true`; không đụng `symbol` và `tradeId` (luồng đánh giá sau giao dịch giữ nguyên, kể cả việc mở rộng mặc định lên 12 tháng).
+- `focus` là ngày theo giờ Việt Nam của mục đang chọn (giao dịch lúc 00:30 giờ VN ngày 20 có focus ngày 20, không phải ngày 19).
+- Chưa làm (theo kế hoạch): khôi phục vị trí cuộn, trạng thái thẻ trên URL, link từ Thị trường/Replay/Watchlist; huy hiệu "hồ sơ lúc đó" và thẻ "Luận điểm" là hai PR sau.
+
+---
+
 ## [v2.109.0] — 2026-11-28 · Sàng lọc cổ phiếu toàn thị trường (backend và MCP)
 
 ### Tính năng mới
@@ -17,17 +32,11 @@
 
 - Nguồn: `technical-filter` của 24hmoney (cùng host và cùng dạng yêu cầu với nguồn giá hiện có, không thêm header) và JSON công khai của HOSE. Đo ngày 2026-11-28: `rs1m/rs3m/rs52w` là xếp hạng phân vị 1–99 (không phải tỉ suất sinh lời); giá tính bằng nghìn đồng; `the_beta = 0` là thiếu dữ liệu. ADR-0020.
 - Cấu hình: `MarketDataProvider:BaseUrl` (technical-filter), `Screener:HsxBaseUrl` (HOSE, mặc định là API công khai của sàn).
-
----
-
 ## [v2.108.1] — 2026-11-28 · Bảng giá nhanh: bấm gợi ý khi lần tải đầu chưa về
 
 ### Sửa lỗi
 
 - **Bấm chip gợi ý trong lúc Bảng giá nhanh đang tải lần đầu không còn bị lần tải cũ ghi đè.** Trước đây câu trả lời muộn của lần tải đầu có thể thay bảng giá và danh sách được nhớ bằng danh sách mặc định, trái với chip vừa bấm. Nay chỉ câu trả lời của lần xin gần nhất mới được áp dụng (bảng, ô nhập và bộ nhớ).
-
----
-
 ## [v2.108.0] — 2026-11-28 · Bảng giá nhanh nhớ danh sách và có gợi ý xem nhanh
 
 ### Sửa lỗi
