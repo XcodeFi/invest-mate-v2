@@ -2,12 +2,25 @@
 
 ---
 
-## [v2.121.1] — 2026-11-28 · Sửa: tab trình duyệt hiện biểu tượng của ứng dụng
+## [v2.122.1] — 2026-11-28 · Sửa: tab trình duyệt hiện biểu tượng của ứng dụng
 
 ### Sửa lỗi
 
 - Tab trình duyệt không có biểu tượng (hiện quả cầu mặc định) vì trang trỏ tới `favicon.ico` không tồn tại. Nay dùng biểu tượng ứng dụng sẵn có (`assets/icons/icon-128x128.svg`, kèm PNG dự phòng); SVG là vector thật, đọc rõ ở 16–32px trên cả thanh tab sáng và tối.
 - Bỏ khai báo tài nguyên `src/favicon.ico` (file không có) khỏi `angular.json`; thêm test kiểm mọi biểu tượng được khai báo đều tồn tại.
+
+---
+
+## [v2.122.0] — 2026-11-28 · Ctrl+K: tìm nhanh trang và mã cổ phiếu
+
+### Tính năng mới
+
+- **Bảng lệnh Ctrl+K** (Cmd+K trên macOS): gõ để nhảy tới một trang của ứng dụng, hoặc gõ một mã (VD: FPT) để mở **Dòng thời gian** của mã đó. Gõ không dấu cũng tìm ra trang có dấu ("ke hoach" → Kế hoạch GD). ↑↓ chọn, **Enter** mở, **Esc** đóng, bấm ra ngoài cũng đóng. Chỉ mở khi đã đăng nhập.
+- Nút **🔍** ở thanh trên để mở bảng lệnh khi không có bàn phím (điện thoại).
+
+### Kỹ thuật
+
+- `shared/components/command-palette/`: component, service trạng thái mở/đóng và logic tìm. Danh sách trang đọc từ **cùng cấu hình** với menu (`nav-config.ts`), không có danh sách riêng. Ô nhập dùng `appUppercase`.
 
 ---
 

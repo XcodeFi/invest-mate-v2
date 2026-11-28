@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { BehaviorSubject, of } from 'rxjs';
+import { CommandPaletteService } from '../command-palette/command-palette.service';
 import { HeaderComponent } from './header.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { PnlService } from '../../../core/services/pnl.service';
@@ -11,13 +12,15 @@ import { allNavItems, NAV_GROUPS } from '../../nav/nav-config';
 
 describe('HeaderComponent: thanh trên gọn, menu điện thoại đọc từ cấu hình chung', () => {
   let fixture: ComponentFixture<HeaderComponent>;
+  let authed = true;
 
   beforeEach(() => {
+    authed = true;
     TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
-        { provide: AuthService, useValue: { isAuthenticated: () => true, getToken: () => null, currentUser$: new BehaviorSubject(null), logout: () => of(null) } },
+        { provide: AuthService, useValue: { isAuthenticated: () => authed, getToken: () => null, currentUser$: new BehaviorSubject(null), logout: () => of(null) } },
         { provide: PnlService, useValue: { getSummary: () => of({ portfolios: [] }) } },
         { provide: RiskService, useValue: {} },
       ],
@@ -45,6 +48,24 @@ describe('HeaderComponent: thanh trên gọn, menu điện thoại đọc từ c
 
     expect(slot.querySelector('app-theme-toggle')).not.toBeNull();
     expect(slot.querySelector('[data-testid="theme-toggle"]')).not.toBeNull();
+  });
+
+  it('the search button is hidden when logged out and shown when logged in', () => {
+    expect(q('topbar-search')).not.toBeNull();
+
+    authed = false;
+    fixture.detectChanges();
+
+    expect(q('topbar-search')).toBeNull();
+  });
+
+  it('has a search button that opens the command palette (phone users have no Ctrl+K)', () => {
+    const svc = TestBed.inject(CommandPaletteService);
+    expect(svc.isOpen()).toBeFalse();
+
+    (q('topbar-search') as HTMLButtonElement).click();
+
+    expect(svc.isOpen()).toBeTrue();
   });
 
   it('keeps the logo that links to the dashboard', () => {
