@@ -41,8 +41,6 @@
 
 - **Lấy trước chuỗi giá VN30 qua job `prices` sẵn có** (không thêm job Cloud Scheduler, không đổi hạ tầng): sau việc chính, mỗi lượt lấy tối đa 1 mã (chưa có chuỗi trước, rồi cũ nhất; bỏ mã mà nguồn coi là còn tươi) nên rổ đầy sau khoảng hai ngày giao dịch. Giới hạn cứng nằm ở phía nguồn giá: tối đa **30 lần gọi UDF mỗi ngày Việt Nam** (tính cả lần lỗi, lưu bền ở collection `job_state` bằng một lệnh `$inc` nguyên tử), **không dùng graph dự phòng**, bỏ qua **không gọi** khi nguồn đang trục trặc (cooldown chung hoặc chuỗi lỗi chung ≥ 1), và lỗi của warm-up **không** cộng vào chuỗi lỗi chung hay cooldown của biểu đồ người dùng (warm-up có cooldown riêng). Chạy sau việc chính kể cả khi job không có mã nào, hạn 20 giây, mọi lỗi chỉ ghi log, kết quả job giá không đổi. Công tắc tắt: `SignalWarmup__Enabled=false`; tinh chỉnh `SignalWarmup__SymbolsPerRun`, `MarketDataProvider__WarmupMaxCallsPerDay`.
 - Rổ VN30 một nguồn duy nhất `Domain/Constants/Vn30Basket` (nhập danh sách VN30 dùng chung). Thống kê gộp `BaseRateStatistics` (hàm thuần, bộ sinh số giả ngẫu nhiên tự viết nên kết quả không đổi giữa các bản .NET) và `SignalBaseRateService` (chạy cùng engine S1 trên chuỗi đã lưu, bỏ nến đang hình thành, dùng biên độ HOSE cho cả rổ, nhớ kết quả tới 15:10 hoặc hết ngày). Công cụ đếm chỉ đọc có thêm chế độ `pooled` (k, n, số tháng, bootstrap) dùng đúng hàm gộp của dịch vụ.
-n---
-
 - Hàm dựng `PriceSnapshotJobService` nhận thêm `ISignalSeriesWarmup`; `IAdjustedPriceSeriesStore` thêm `GetFetchedAtAsync` (chỉ đọc `FetchedAt`, không tải nến). ADR-0019.
 ## [v2.108.1] — 2026-11-28 · Bảng giá nhanh: bấm gợi ý khi lần tải đầu chưa về
 
