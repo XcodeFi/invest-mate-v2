@@ -127,7 +127,7 @@ Tabs:
 - **Tra cứu cổ phiếu chi tiết**: Company info, giá OHLC, trần/sàn/tham chiếu, order book 3 mức (bid/ask), giao dịch nước ngoài, biến động giá (1D/1W/1M/3M/6M)
 - **Tìm kiếm mã**: Autocomplete từ danh sách ~1800 công ty (cache 30 phút), debounce 300ms
 - **Top biến động**: Tab HOSE/HNX/UPCOM, bảng mã biến động mạnh nhất
-- **Bảng giá nhanh**: Nhập nhiều mã, xem giá close + KL
+- **Bảng giá nhanh**: Nhập nhiều mã, xem giá close + KL; nhớ danh sách lần trước (localStorage `imv2.quickBoard.symbols`) và chip "Gợi ý xem nhanh hôm nay" (vị thế đang nắm, kế hoạch đang mở, từng danh sách theo dõi)
 - **Lịch sử giá**: Khoảng thời gian tùy chọn, bảng OHLCV
 - **Phân tích kỹ thuật (Smart Signals)**: Auto phân tích 10 chỉ báo:
   - **Xu hướng:** EMA(20/50/200), ADX(14) + DI (trending/sideway/strong_trend)
