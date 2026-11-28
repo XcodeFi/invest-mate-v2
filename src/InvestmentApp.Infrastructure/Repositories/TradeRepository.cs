@@ -59,15 +59,17 @@ public class TradeRepository : ITradeRepository
     public async Task<IEnumerable<Trade>> GetByPortfolioIdsAndDateRangeAsync(
         IEnumerable<string> portfolioIds, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Trade>.Filter.And(
-            Builders<Trade>.Filter.In(t => t.PortfolioId, portfolioIds),
-            Builders<Trade>.Filter.Gte(t => t.TradeDate, from),
-            Builders<Trade>.Filter.Lt(t => t.TradeDate, to.AddDays(1))
-        );
-        return await _collection.Find(filter)
+        return await _collection.Find(PortfoliosRangeFilter(portfolioIds, from, to))
             .SortBy(t => t.TradeDate)
             .ToListAsync(cancellationToken);
     }
+
+    /// <summary>Lệnh của các danh mục đã cho, từ <paramref name="from"/> (gồm) đến hết ngày của <paramref name="to"/>. Tách ra để test khoá hình dạng truy vấn.</summary>
+    internal static FilterDefinition<Trade> PortfoliosRangeFilter(IEnumerable<string> portfolioIds, DateTime from, DateTime to)
+        => Builders<Trade>.Filter.And(
+            Builders<Trade>.Filter.In(t => t.PortfolioId, portfolioIds),
+            Builders<Trade>.Filter.Gte(t => t.TradeDate, from),
+            Builders<Trade>.Filter.Lt(t => t.TradeDate, to.AddDays(1)));
 
     public async Task<IEnumerable<Trade>> GetByPortfolioIdAndDateRangeAsync(
         string portfolioId, DateTime from, DateTime to, CancellationToken cancellationToken = default)

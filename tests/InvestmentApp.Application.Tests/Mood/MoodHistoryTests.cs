@@ -80,11 +80,94 @@ public class MoodHistoryTests
     }
 
     [Fact]
-    public async Task From_after_to_is_rejected()
+    public async Task From_after_to_is_rejected_before_any_read()
     {
         var act = () => Sut().Handle(new GetMoodHistoryQuery { UserId = "u1", From = new DateTime(2026, 11, 28), To = new DateTime(2026, 11, 1) }, default);
 
         await act.Should().ThrowAsync<ArgumentException>();
+        _moods.Verify(r => r.GetByUserAndDateRangeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _trades.Verify(r => r.GetByPortfolioIdsAndDateRangeAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task A_range_of_367_days_is_rejected_and_nothing_is_read()
+    {
+        var act = () => Sut().Handle(new GetMoodHistoryQuery { UserId = "u1", From = new DateTime(2025, 11, 27), To = new DateTime(2026, 11, 28) }, default);
+
+        await act.Should().ThrowAsync<ArgumentException>();
+        _moods.Verify(r => r.GetByUserAndDateRangeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task The_default_to_is_today_in_VN_even_when_the_utc_date_is_still_yesterday()
+    {
+        // 2026-11-28 20:00 UTC = 03:00 giờ VN ngày 29/11
+        var late = new GetMoodHistoryQueryHandler(_moods.Object, _portfolios.Object, _trades.Object, new FixedTime(new DateTime(2026, 11, 28, 20, 0, 0, DateTimeKind.Utc)));
+        Portfolio("u1", "pf-1"); Moods("u1"); Trades();
+
+        var result = await late.Handle(new GetMoodHistoryQuery { UserId = "u1" }, default);
+
+        result.To.Should().Be("2026-11-29");
+    }
+
+    [Fact]
+    public async Task The_trade_query_gets_the_UTC_bounds_of_the_VN_range()
+    {
+        Portfolio("u1", "pf-1"); Moods("u1");
+        DateTime? gotFrom = null, gotTo = null;
+        _trades.Setup(r => r.GetByPortfolioIdsAndDateRangeAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<string>, DateTime, DateTime, CancellationToken>((_, f, t, _) => { gotFrom = f; gotTo = t; })
+            .ReturnsAsync(new List<Trade>());
+
+        await Sut().Handle(new GetMoodHistoryQuery { UserId = "u1", From = new DateTime(2026, 11, 20), To = new DateTime(2026, 11, 25) }, default);
+
+        gotFrom.Should().Be(new DateTime(2026, 11, 19, 17, 0, 0, DateTimeKind.Utc), "00:00 giờ VN ngày 20/11");
+        gotTo.Should().Be(new DateTime(2026, 11, 24, 17, 0, 0, DateTimeKind.Utc), "00:00 giờ VN ngày 25/11 (repository cộng một ngày để gồm cả ngày cuối)");
+    }
+
+    [Fact]
+    public async Task A_trade_outside_the_range_that_the_store_returns_anyway_is_ignored()
+    {
+        Portfolio("u1", "pf-1"); Moods("u1");
+        Trades(TradeAt(new DateTime(2026, 8, 1, 5, 0, 0, DateTimeKind.Utc)), TradeAt(new DateTime(2026, 11, 26, 5, 0, 0, DateTimeKind.Utc)));
+
+        var result = await Sut().Handle(new GetMoodHistoryQuery { UserId = "u1" }, default);
+
+        result.Days.Select(d => d.DateKey).Should().Equal("2026-11-26");
+    }
+
+    // ───── tài liệu cũ chưa có Changes (toàn bộ dữ liệu hiện có ở production) ─────
+
+    private static MoodCheckIn LegacyCheckIn(string userId, string dateKey, MoodState mood)
+    {
+        var c = new MoodCheckIn();
+        void Set(string name, object? v) => typeof(MoodCheckIn).GetProperty(name)!.SetValue(c, v);
+        Set(nameof(MoodCheckIn.UserId), userId); Set(nameof(MoodCheckIn.DateKey), dateKey); Set(nameof(MoodCheckIn.Mood), mood);
+        c.Changes.Should().BeEmpty("tài liệu cũ không có Changes");
+        return c;
+    }
+
+    [Fact]
+    public async Task A_legacy_not_calm_day_with_a_trade_is_emotional()
+    {
+        Portfolio("u1", "pf-1");
+        Moods("u1", LegacyCheckIn("u1", "2026-11-27", MoodState.Fomo));
+        Trades(TradeAt(new DateTime(2026, 11, 27, 5, 0, 0, DateTimeKind.Utc)));
+
+        var day = (await Sut().Handle(new GetMoodHistoryQuery { UserId = "u1" }, default)).Days.Single();
+
+        day.Changes.Should().BeEmpty();
+        day.EmotionalTrade.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_legacy_calm_day_with_a_trade_is_not_emotional()
+    {
+        Portfolio("u1", "pf-1");
+        Moods("u1", LegacyCheckIn("u1", "2026-11-27", MoodState.Calm));
+        Trades(TradeAt(new DateTime(2026, 11, 27, 5, 0, 0, DateTimeKind.Utc)));
+
+        (await Sut().Handle(new GetMoodHistoryQuery { UserId = "u1" }, default)).Days.Single().EmotionalTrade.Should().BeFalse();
     }
 
     // ───── cách ly người dùng ─────

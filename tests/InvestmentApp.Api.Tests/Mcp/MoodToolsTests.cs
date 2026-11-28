@@ -67,6 +67,9 @@ public class MoodToolsTests
     [InlineData("Calm, Fomo")]
     [InlineData("Fomo|Fear")]
     [InlineData("1,2")]
+    [InlineData("Calm,Fear")]
+    [InlineData(" fomo , revenge ")]
+    [InlineData("Fomo Fear")]
     [InlineData("3")]
     public async Task SetTodayMood_rejects_an_invalid_value_with_a_vietnamese_error_and_writes_nothing(string input)
     {
