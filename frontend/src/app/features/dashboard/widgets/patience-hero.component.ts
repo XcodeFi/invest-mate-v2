@@ -1,5 +1,6 @@
 import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { MoodService, MoodState, TodayMoodDto } from '../../../core/services/mood.service';
 import { TradeService } from '../../../core/services/trade.service';
@@ -17,7 +18,7 @@ const CALM_CEILING_DAYS = 14;
 @Component({
   selector: 'app-patience-hero',
   standalone: true,
-  imports: [CommonModule, FishingSceneComponent],
+  imports: [CommonModule, RouterLink, FishingSceneComponent],
   template: `
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
       <app-fishing-scene [calm]="calm" [dim]="isEmotional"></app-fishing-scene>
@@ -40,6 +41,7 @@ const CALM_CEILING_DAYS = 14;
         <div *ngIf="pickerVisible; else chosen"
              class="flex flex-wrap items-center justify-center gap-2">
           <span class="text-sm text-gray-600 mr-1">Giờ anh đang thế nào?</span>
+          <span *ngIf="fromAgent && mood === null" class="text-xs text-gray-500 mr-1" data-test="mood-agent-note">Trợ lý đã ghi Bình tĩnh (từ agent) — anh tự xác nhận lại nhé.</span>
           <button *ngFor="let option of moodOptions"
                   type="button"
                   (click)="choose(option)"
@@ -56,8 +58,11 @@ const CALM_CEILING_DAYS = 14;
                   [class.text-emerald-600]="!isEmotional"
                   [class.text-amber-600]="isEmotional"
                   data-test="mood-current">{{ label(mood!) }}</span>
+            <span *ngIf="fromAgent" class="text-xs text-gray-500" data-test="mood-agent">(từ agent)</span>
             <button type="button" (click)="reopen()" data-test="mood-change"
                     class="text-gray-400 hover:text-gray-600 underline underline-offset-2">đổi</button>
+            <a routerLink="/mood-journal" data-test="mood-history-link"
+               class="text-gray-400 hover:text-gray-600 underline underline-offset-2">xem lịch sử</a>
           </div>
         </ng-template>
       </div>
@@ -73,6 +78,8 @@ export class PatienceHeroComponent implements OnInit {
 
   mood: MoodState | null = null;
   overrode = false;
+  /** Lần đổi gần nhất do agent (MCP) ghi: hiện "(từ agent)"; Bình tĩnh từ agent thì server trả mood null nên vẫn hỏi lại. */
+  fromAgent = false;
   daysSince: number | null = null;
 
   /**
@@ -93,6 +100,7 @@ export class PatienceHeroComponent implements OnInit {
       .subscribe(today => {
         this.mood = today.mood;
         this.overrode = today.overrode;
+        this.fromAgent = today.fromAgent === true;
         this.moodChange.emit(today);
       });
   }
@@ -128,6 +136,7 @@ export class PatienceHeroComponent implements OnInit {
   choose(mood: MoodState): void {
     const previous = this.mood;
     this.mood = mood;
+    this.fromAgent = false;   // chính người dùng chấm: không còn là "từ agent"
     this.pickerOpen = false;
     // Đổi tâm trạng thì dấu bỏ qua lớp phủ bị xoá ở server — gương ở client theo đúng luật đó.
     if (previous !== mood) this.overrode = false;

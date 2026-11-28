@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { MoodService, TodayMoodDto } from '../../../core/services/mood.service';
 import { TradeService } from '../../../core/services/trade.service';
@@ -29,10 +30,67 @@ describe('PatienceHeroComponent', () => {
     await TestBed.configureTestingModule({
       imports: [PatienceHeroComponent],
       providers: [
+        provideRouter([]),
         { provide: MoodService, useValue: moodService },
         { provide: TradeService, useValue: tradeService },
       ],
     }).compileComponents();
+  });
+
+  describe('lịch sử và nguồn từ agent', () => {
+    const q = (f: ComponentFixture<PatienceHeroComponent>, id: string) => f.nativeElement.querySelector(`[data-test="${id}"]`) as HTMLElement | null;
+
+    it('có link "xem lịch sử" tới /mood-journal cạnh nút đổi', () => {
+      const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: 'Calm', overrode: false });
+
+      const link = q(fixture, 'mood-history-link')!;
+      expect(link.textContent).toContain('xem lịch sử');
+      expect(link.getAttribute('href')).toBe('/mood-journal');
+      expect(q(fixture, 'mood-change')).not.toBeNull();
+    });
+
+    it('tâm trạng cảm xúc do agent ghi: hiện nhãn kèm "(từ agent)"', () => {
+      const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: 'Fomo', overrode: false, fromAgent: true });
+
+      expect(q(fixture, 'mood-current')!.textContent).toContain('FOMO');
+      expect(q(fixture, 'mood-agent')!.textContent).toContain('(từ agent)');
+    });
+
+    it('Bình tĩnh do agent ghi: server trả mood null nên vẫn hỏi lại, kèm ghi chú "(từ agent)"', () => {
+      const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: null, overrode: false, fromAgent: true });
+
+      expect(q(fixture, 'mood-Calm')).not.toBeNull();   // bảng chọn hiện
+      expect(q(fixture, 'mood-agent-note')!.textContent).toContain('từ agent');
+      expect(q(fixture, 'mood-current')).toBeNull();
+    });
+
+    it('agent ghi trạng thái cảm xúc rồi người dùng bấm "đổi": KHÔNG có câu "Trợ lý đã ghi Bình tĩnh" (đó là câu của trường hợp Bình tĩnh)', () => {
+      const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: 'Fomo', overrode: false, fromAgent: true });
+
+      (q(fixture, 'mood-change') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(q(fixture, 'mood-Calm')).not.toBeNull();   // bảng chọn đã mở
+      expect(q(fixture, 'mood-agent-note')).toBeNull();
+    });
+
+    it('tâm trạng do chính người dùng chấm thì không có nhãn từ agent', () => {
+      const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: 'Calm', overrode: false });
+
+      expect(q(fixture, 'mood-agent')).toBeNull();
+      expect(q(fixture, 'mood-agent-note')).toBeNull();
+    });
+
+    it('người dùng tự chấm lại thì nhãn "(từ agent)" biến mất', () => {
+      const fixture = build({ lastTradeDate: null, daysSince: null }, { mood: null, overrode: false, fromAgent: true });
+
+      (q(fixture, 'mood-Calm') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(q(fixture, 'mood-agent-note')).toBeNull();
+      expect(q(fixture, 'mood-agent')).toBeNull();
+      expect(q(fixture, 'mood-current')!.textContent).toContain('Bình tĩnh');
+    });
   });
 
   describe('đồng hồ kiên nhẫn', () => {
