@@ -14,6 +14,15 @@ public class MarketDataProviderOptions
     public int PriceCacheTtlSeconds { get; set; } = 15;
     public int IndexCacheTtlSeconds { get; set; } = 15;
     public int CompanyListCacheTtlMinutes { get; set; } = 30;
+
+    /// <summary>
+    /// Host của UDF (TradingView) mà biểu đồ web 24hmoney dùng: nến ngày thật, đã điều chỉnh theo sự kiện
+    /// quyền, từ 2017. API không công bố nên có dự phòng sang endpoint graph. URL công khai, không phải secret.
+    /// </summary>
+    public string TradingViewBaseUrl { get; set; } = "https://24hmoney.vn";
+
+    /// <summary>Số năm lịch sử ngày xin từ UDF (3 năm ≈ 750 phiên, đủ cho EMA200 có thời gian hội tụ).</summary>
+    public int TradingViewHistoryYears { get; set; } = 3;
 }
 
 /// <summary>
@@ -34,6 +43,13 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     /// <summary>Tham số <c>type</c> duy nhất của endpoint graph trả lợi suất theo phiên.</summary>
     private const int DailyGraphType = 3;
     private const int IntradayGraphType = 1;
+
+    /// <summary>
+    /// Trường <c>z</c> của graph ngày bằng 1/10 số cổ phiếu: đo 2026-11-28, tỉ số v(UDF)/z là 10,00–10,10 trên
+    /// 61/61 phiên của cả FPT và VNM, và v ngày 2026-11-27 = accumulated_vol của trading-history. Nhân 10 để
+    /// khối lượng của nguồn dự phòng cùng đơn vị (cổ phiếu) với nguồn UDF, nếu không OBV/MFI/KL TB nhảy bậc khi đổi nguồn.
+    /// </summary>
+    private const int GraphDailyVolumeFactor = 10;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -89,12 +105,82 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     {
         symbol = symbol.ToUpper().Trim();
 
-        // `type` không còn chọn KHOẢNG. Đo 2026-08-16 (HAH): type 3/4/5/6 đều trả cùng cửa sổ
-        // 2026-06-08 → 2026-08-14, lần lượt 50/26/11/4 điểm — chỉ khác độ mịn thanh nến. Bảng map
-        // cũ theo số ngày khiến xin khoảng DÀI hơn lại nhận ÍT điểm hơn: 12 tháng → type 5 → 11
-        // điểm, dưới ngưỡng 20 của mọi chỉ báo kỹ thuật. Chuỗi ngày là dày nhất cho mọi khoảng.
-        var days = (to - from).TotalDays;
-        int graphType = days <= 1 ? IntradayGraphType : DailyGraphType;
+        // Khoảng ≤ 1 ngày là intraday: giữ nguyên nguồn graph. Từ 2 ngày trở lên là lịch sử NGÀY: lấy nến
+        // thật đã điều chỉnh từ UDF, lỗi thì dự phòng sang graph (chỉ có giá đóng cửa, chưa điều chỉnh).
+        if ((to - from).TotalDays > 1)
+            return await GetDailyBarsAsync(symbol, from, to, cancellationToken);
+
+        return await GetGraphHistoryAsync(symbol, from, to, cancellationToken);
+    }
+
+    private async Task<List<StockPriceData>> GetDailyBarsAsync(
+        string symbol, DateTime from, DateTime to, CancellationToken cancellationToken)
+    {
+        // Một khoá cho cả hai nguồn: người gọi không cần biết bản nào, chỉ cần cờ IsAdjusted trên từng nến.
+        var cacheKey = $"history:{symbol}:daily";
+        if (!_cache.TryGetValue(cacheKey, out List<StockPriceData>? series))
+        {
+            series = await FetchTradingViewAsync(symbol, cancellationToken);
+            if (series == null)
+            {
+                series = await FetchGraphSeriesAsync(symbol, DailyGraphType, cancellationToken);
+                if (series == null || series.Count == 0)
+                    return new List<StockPriceData>();
+            }
+
+            // Cache chuỗi CHƯA lọc (mọi khoảng dùng chung khoá). Kết quả dự phòng cũng được cache để một
+            // nguồn đang hỏng không bị gọi dồn dập; chuỗi RỖNG thì không cache (có thể chỉ trục trặc nhất thời).
+            _cache.Set(cacheKey, series, TimeSpan.FromSeconds(60));
+        }
+
+        return series!
+            .Where(p => p.Date >= from.Date && p.Date <= to.Date)
+            .ToList();
+    }
+
+    /// <summary>
+    /// <c>null</c> khi không dùng được (lỗi mạng, hết giờ, HTTP không thành công, <c>s != "ok"</c>, mảng rỗng
+    /// hoặc lệch): người gọi chuyển sang nguồn dự phòng. Huỷ từ người gọi thì ném tiếp, không coi là lỗi nguồn.
+    /// </summary>
+    private async Task<List<StockPriceData>?> FetchTradingViewAsync(string symbol, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            var url = $"{_options.TradingViewBaseUrl.TrimEnd('/')}/tradingview/history" +
+                      $"?symbol={Uri.EscapeDataString(symbol)}&resolution=D" +
+                      $"&from={now.AddYears(-_options.TradingViewHistoryYears).ToUnixTimeSeconds()}" +
+                      $"&to={now.AddDays(1).ToUnixTimeSeconds()}";
+
+            using var response = await _httpClient.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("TradingView history for {Symbol} returned HTTP {Status}; falling back to graph (unadjusted)",
+                    symbol, (int)response.StatusCode);
+                return null;
+            }
+
+            var bars = TradingViewHistoryParser.Parse(await response.Content.ReadAsStringAsync(cancellationToken), symbol);
+            if (bars == null)
+                _logger.LogWarning("TradingView history for {Symbol} was empty or unreadable; falling back to graph (unadjusted)", symbol);
+            return bars;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "TradingView history for {Symbol} failed; falling back to graph (unadjusted)", symbol);
+            return null;
+        }
+    }
+
+    private async Task<List<StockPriceData>> GetGraphHistoryAsync(
+        string symbol, DateTime from, DateTime to, CancellationToken cancellationToken)
+    {
+
+        int graphType = IntradayGraphType;   // chỉ còn nhánh intraday; lịch sử ngày đi qua GetDailyBarsAsync
 
         var cacheKey = $"history:{symbol}:{graphType}";
         if (!_cache.TryGetValue(cacheKey, out List<StockPriceData>? series))
@@ -143,7 +229,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
                         High = scaledPrice,
                         Low = scaledPrice,
                         Close = scaledPrice,
-                        Volume = point.Z
+                        Volume = graphType == DailyGraphType ? point.Z * GraphDailyVolumeFactor : point.Z
                     };
                 })
                 .OrderBy(p => p.Date)

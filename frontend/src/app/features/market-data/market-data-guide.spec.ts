@@ -14,7 +14,11 @@ import { INDICATOR_GUIDES } from './indicator-guides';
 const N = 40;
 const flat = (v: number): number[] => Array.from({ length: N }, () => v);
 
+// undefined = backend cũ chưa có trường; true/false/null như API
+let adjustedFlag: boolean | null | undefined;
+
 const series = (): TechnicalSeries => ({
+  ...(adjustedFlag === undefined ? {} : { adjusted: adjustedFlag }),
   symbol: 'HPG', dates: Array.from({ length: N }, (_, i) => `2026-01-${String((i % 28) + 1).padStart(2, '0')}`),
   open: flat(100), high: flat(101), low: flat(99), close: flat(100), volume: flat(1000),
   ema20: flat(105), ema50: flat(100), bollingerUpper: flat(110), bollingerMiddle: flat(100), bollingerLower: flat(90),
@@ -62,7 +66,7 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
   };
   const q = (id: string): HTMLElement | null => fixture.nativeElement.querySelector(`[data-testid="${id}"]`);
 
-  beforeEach(() => { try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
+  beforeEach(() => { adjustedFlag = undefined; try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
   afterEach(() => { fixture?.destroy(); try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
 
   it('no block when no group', () => {
@@ -166,6 +170,55 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
     } finally {
       Object.defineProperty(window, 'localStorage', original);
     }
+  });
+
+  describe('ghi chú giá chưa điều chỉnh', () => {
+    it('shows the note when the series is not adjusted', () => {
+      adjustedFlag = false;
+      setup();
+      click('xu-huong');
+
+      const note = q('ta-unadjusted-note')!;
+      expect(note).not.toBeNull();
+      expect(note.textContent).toContain('Dữ liệu chưa điều chỉnh theo sự kiện quyền, nến chỉ có giá đóng cửa');
+    });
+
+    it('lives outside the sticky chart area so it cannot grow the sticky block', () => {
+      adjustedFlag = false;
+      setup();
+      click('xu-huong');
+
+      expect(q('ta-chart-area')!.contains(q('ta-unadjusted-note'))).toBeFalse();
+    });
+
+    it('no note when adjusted', () => {
+      adjustedFlag = true;
+      setup();
+      click('xu-huong');
+
+      expect(q('ta-unadjusted-note')).toBeNull();
+    });
+
+    it('no note when the backend does not say (field missing or null)', () => {
+      adjustedFlag = null;
+      setup();
+      click('xu-huong');
+      expect(q('ta-unadjusted-note')).toBeNull();
+
+      fixture.destroy();
+      TestBed.resetTestingModule();
+      adjustedFlag = undefined;
+      setup();
+      click('xu-huong');
+      expect(q('ta-unadjusted-note')).toBeNull();
+    });
+
+    it('no note before a group is chosen', () => {
+      adjustedFlag = false;
+      setup();
+
+      expect(q('ta-unadjusted-note')).toBeNull();
+    });
   });
 
   it('uses textContent for the guide text (nothing is interpreted as html)', () => {

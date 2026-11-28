@@ -32,6 +32,12 @@ public class StockPriceData
     public decimal Low { get; set; }
     public decimal Close { get; set; }
     public long Volume { get; set; }
+
+    /// <summary>
+    /// <c>true</c> khi giá đã được nguồn điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách).
+    /// Nguồn dự phòng (graph, chỉ có giá đóng cửa) là <c>false</c>.
+    /// </summary>
+    public bool IsAdjusted { get; set; }
 }
 
 public class MarketIndexData

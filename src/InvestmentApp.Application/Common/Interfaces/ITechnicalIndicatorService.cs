@@ -14,6 +14,12 @@ public interface ITechnicalIndicatorService
 public class TechnicalSeriesResult
 {
     public string Symbol { get; set; } = null!;
+
+    /// <summary>
+    /// <c>true</c> khi giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách); <c>false</c> khi dùng
+    /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
+    /// </summary>
+    public bool? Adjusted { get; set; }
     public List<DateTime> Dates { get; set; } = new();
     public List<decimal> Open { get; set; } = new();
     public List<decimal> High { get; set; } = new();
@@ -44,6 +50,12 @@ public class TechnicalSeriesResult
 public class TechnicalAnalysisResult
 {
     public string Symbol { get; set; } = null!;
+
+    /// <summary>
+    /// <c>true</c> khi giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách); <c>false</c> khi dùng
+    /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
+    /// </summary>
+    public bool? Adjusted { get; set; }
     public DateTime AnalyzedAt { get; set; }
     public int DataPoints { get; set; }
 

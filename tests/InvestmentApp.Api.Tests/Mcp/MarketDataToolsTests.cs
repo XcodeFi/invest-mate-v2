@@ -155,18 +155,30 @@ public class MarketDataToolsTests
     }
 
     [Fact]
-    public async Task get_technical_analysis_omits_ema200()
+    public async Task get_technical_analysis_includes_ema200_when_present()
     {
-        // Nguồn chỉ có ~67 ngày nên ema200 luôn null; để khoá đó trong kết quả chỉ làm agent tưởng thiếu dữ liệu.
         McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(
-            _mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT", Ema200 = 123m, Rsi14 = 55m });
+            _mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT", Ema200 = 123m, Rsi14 = 55m, Adjusted = true });
 
         var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
 
         var json = result.ToJsonString();
-        json.Should().NotContainEquivalentOf("ema200");
+        json.Should().Contain("\"ema200\":123");
         json.Should().Contain("\"symbol\":\"FPT\"");
         json.Should().Contain("rsi14");
+        json.Should().Contain("\"adjusted\":true");
+    }
+
+    [Fact]
+    public async Task get_technical_analysis_omits_ema200_when_not_enough_sessions()
+    {
+        // Chưa đủ 200 phiên thì ema200 null và bị bỏ khỏi JSON (tuỳ chọn MCP bỏ trường null), không phải số 0.
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(
+            _mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT", Ema200 = null, Rsi14 = 55m });
+
+        var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        result.ToJsonString().Should().NotContainEquivalentOf("ema200");
     }
 
     // ---------- get_technical_series ----------

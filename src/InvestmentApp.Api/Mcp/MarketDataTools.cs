@@ -70,18 +70,14 @@ public static class MarketDataTools
     }
 
     [McpServerTool(Name = "get_technical_analysis", ReadOnly = true)]
-    [Description("Phân tích kỹ thuật một mã: EMA, RSI, MACD, Bollinger, ADX, khối lượng, hỗ trợ/kháng cự, Fibonacci, tín hiệu tổng hợp và gợi ý giao dịch. Không có EMA200 vì nguồn dữ liệu chỉ có khoảng 60 phiên.")]
+    [Description("Phân tích kỹ thuật một mã: EMA, RSI, MACD, Bollinger, ADX, khối lượng, hỗ trợ/kháng cự, Fibonacci, tín hiệu tổng hợp và gợi ý giao dịch. Có EMA200 khi nguồn đủ 200 phiên. Trường adjusted cho biết giá đã điều chỉnh theo sự kiện quyền (true) hay đang dùng nguồn dự phòng chưa điều chỉnh (false).")]
     public static async Task<JsonNode> GetTechnicalAnalysis(
         [Description("Mã chứng khoán, ví dụ FPT.")] string symbol,
         IMediator mediator, CancellationToken ct)
     {
         var result = await mediator.Send(new GetTechnicalAnalysisQuery { Symbol = NormalizeSymbol(symbol) }, ct);
-        var node = JsonSerializer.SerializeToNode(result, McpJsonUtilities.DefaultOptions)!.AsObject();
-        // Luôn null vì nguồn chỉ có ~67 ngày; để khoá đó trong kết quả chỉ khiến agent tưởng thiếu dữ liệu.
-        foreach (var key in node.Select(kv => kv.Key)
-                     .Where(k => string.Equals(k, "ema200", StringComparison.OrdinalIgnoreCase)).ToList())
-            node.Remove(key);
-        return node;
+        // Trường null (ví dụ ema200 khi chưa đủ 200 phiên) bị bỏ do tuỳ chọn JSON của MCP, không cần lọc riêng.
+        return JsonSerializer.SerializeToNode(result, McpJsonUtilities.DefaultOptions)!.AsObject();
     }
 
     [McpServerTool(Name = "get_technical_series", ReadOnly = true)]

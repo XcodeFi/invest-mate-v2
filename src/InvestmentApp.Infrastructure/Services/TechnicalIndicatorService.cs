@@ -25,6 +25,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
                 Symbol = symbol,
                 AnalyzedAt = DateTime.UtcNow,
                 DataPoints = prices.Count,
+                Adjusted = AdjustedFlag(prices),
                 OverallSignal = "hold",
                 OverallSignalVi = "Không đủ dữ liệu"
             };
@@ -39,6 +40,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             Symbol = symbol,
             AnalyzedAt = DateTime.UtcNow,
             DataPoints = prices.Count,
+            Adjusted = AdjustedFlag(prices),
             CurrentPrice = current.Close,
             CurrentVolume = current.Volume
         };
@@ -346,6 +348,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         var result = new TechnicalSeriesResult
         {
             Symbol = symbol,
+            Adjusted = AdjustedFlag(prices),
             Dates = prices.Select(p => p.Date).ToList(),
             Open = prices.Select(p => p.Open).ToList(),
             High = highs,
@@ -380,6 +383,10 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         return result;
     }
+
+    /// <summary>Cả chuỗi cùng một nguồn nên cờ chung; không có nến thì chưa biết (null), không phải "chưa điều chỉnh".</summary>
+    private static bool? AdjustedFlag(List<StockPriceData> prices) =>
+        prices.Count == 0 ? null : prices.All(p => p.IsAdjusted);
 
     private static List<decimal?> VolumeSmaSeries(List<decimal> volumes, int period)
     {

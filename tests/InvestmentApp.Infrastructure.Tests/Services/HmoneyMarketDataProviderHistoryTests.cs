@@ -114,7 +114,14 @@ public class HmoneyMarketDataProviderHistoryTests
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            LastUrl = request.RequestUri?.ToString() ?? "";
+            var url = request.RequestUri?.ToString() ?? "";
+            // Các test ở file này khoá hành vi của nguồn DỰ PHÒNG (graph); nguồn tradingview được cho
+            // lỗi để đường dự phòng chạy và không bị đếm vào CallCount. Hành vi của tradingview nằm ở
+            // HmoneyMarketDataProviderTradingViewTests.
+            if (url.Contains("/tradingview/"))
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+
+            LastUrl = url;
             CallCount++;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {

@@ -241,6 +241,13 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
           }
         </div>
 
+        <!-- Giá chưa điều chỉnh (nguồn dự phòng): nằm NGOÀI khối dính để không làm khối dính cao thêm -->
+        @if (selectedGroup && currentSeries && currentSeries.adjusted === false) {
+          <p class="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2" data-testid="ta-unadjusted-note">
+            Dữ liệu chưa điều chỉnh theo sự kiện quyền, nến chỉ có giá đóng cửa: quanh ngày giao dịch không hưởng quyền, giá có thể tụt giả và làm lệch chỉ báo.
+          </p>
+        }
+
         <!-- Cách đọc nhóm đang chọn: nằm NGOÀI khối dính nên không làm khối dính cao thêm. Chỉ hiện khi đã chọn nhóm và có dữ liệu. -->
         @if (selectedGroup && currentSeries && activeGuide) {
           <section class="mb-4 rounded-lg border border-blue-100 bg-blue-50/40" data-testid="ta-guide">
