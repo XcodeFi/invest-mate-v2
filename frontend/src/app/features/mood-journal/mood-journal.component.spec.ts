@@ -119,6 +119,29 @@ describe('MoodJournalComponent (/mood-journal)', () => {
     expect(q('mj-count-unrated')!.textContent).toContain('3');
   });
 
+  it('in a narrow container the strip opens scrolled to the latest week, so today is visible', async () => {
+    setup('ok', { from: '2026-08-31', to: '2026-11-28', days: [] });   // 90 ngày
+    const host = fixture.nativeElement as HTMLElement;
+    const box = document.createElement('div');
+    box.style.cssText = 'position:absolute;left:0;top:0;width:360px';
+    document.body.appendChild(box);
+    box.appendChild(host);
+    fixture.destroy();
+    fixture = TestBed.createComponent(MoodJournalComponent);
+    box.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+    await new Promise(r => setTimeout(r));
+
+    const scroller = q('mj-scroller')!;
+    const last = all('mj-cell').pop()!.getBoundingClientRect();
+    const view = scroller.getBoundingClientRect();
+    expect(scroller.scrollWidth).withContext('điều kiện phép thử: lưới rộng hơn khung').toBeGreaterThan(scroller.clientWidth);
+    expect(scroller.scrollLeft).toBeGreaterThan(0);
+    expect(last.right).toBeLessThanOrEqual(view.right + 1);
+    expect(last.left).toBeGreaterThanOrEqual(view.left - 1);
+    box.remove();
+  });
+
   it('a load failure shows an error instead of an empty strip', () => {
     setup('error');
 

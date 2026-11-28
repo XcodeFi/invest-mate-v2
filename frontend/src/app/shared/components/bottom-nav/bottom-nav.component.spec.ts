@@ -27,6 +27,14 @@ describe('BottomNavComponent: thanh dưới và danh sách "Thêm" trên điện
     expect((screener!.textContent ?? '').trim()).toContain('Sàng lọc');
   });
 
+  it('the "Thêm" list includes the mood journal (its only entry point on mobile besides the home hero link)', () => {
+    openMore();
+
+    const link = moreLinks().find(a => a.getAttribute('href') === '/mood-journal');
+    expect(link).toBeDefined();
+    expect((link!.textContent ?? '').trim()).toContain('Tâm trạng');
+  });
+
   it('the market page stays next to it', () => {
     openMore();
 

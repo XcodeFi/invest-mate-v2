@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MoodDayDto, MoodHistoryDto, MoodService, MoodState } from '../../core/services/mood.service';
@@ -43,7 +43,7 @@ import {
             @if (history.days.length === 0) {
               <p class="text-sm text-gray-500 mb-2" data-testid="mj-empty">Chưa có ngày nào được chấm trong khoảng này.</p>
             }
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto" data-testid="mj-scroller" #scroller>
               <div class="mj-grid" data-testid="mj-grid" role="group" aria-label="Lịch tâm trạng 90 ngày">
                 @for (i of blanks; track i) { <span class="mj-blank" aria-hidden="true"></span> }
                 @for (c of cells; track c.dateKey) {
@@ -158,6 +158,7 @@ export class MoodJournalComponent implements OnInit {
   emotional: MoodDayDto[] = [];
   showTable = false;
   selected: Cell | null = null;
+  @ViewChild('scroller') scroller?: ElementRef<HTMLElement>;
 
   constructor(private moodService: MoodService) {}
 
@@ -170,6 +171,8 @@ export class MoodJournalComponent implements OnInit {
         this.counts = countByMood(this.cells);
         this.emotional = emotionalDays(h);
         this.loading = false;
+        // Màn hẹp: mở ra ở tuần mới nhất (hôm nay ở mép phải), không phải 90 ngày trước.
+        setTimeout(() => { const el = this.scroller?.nativeElement; if (el) el.scrollLeft = el.scrollWidth; });
       },
       error: () => {
         this.loading = false;
