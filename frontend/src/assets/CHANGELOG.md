@@ -32,11 +32,17 @@
 
 - Nguồn: `technical-filter` của 24hmoney (cùng host và cùng dạng yêu cầu với nguồn giá hiện có, không thêm header) và JSON công khai của HOSE. Đo ngày 2026-11-28: `rs1m/rs3m/rs52w` là xếp hạng phân vị 1–99 (không phải tỉ suất sinh lời); giá tính bằng nghìn đồng; `the_beta = 0` là thiếu dữ liệu. ADR-0020.
 - Cấu hình: `MarketDataProvider:BaseUrl` (technical-filter), `Screener:HsxBaseUrl` (HOSE, mặc định là API công khai của sàn).
+
+---
+
 ## [v2.108.1] — 2026-11-28 · Bảng giá nhanh: bấm gợi ý khi lần tải đầu chưa về
 
 ### Sửa lỗi
 
 - **Bấm chip gợi ý trong lúc Bảng giá nhanh đang tải lần đầu không còn bị lần tải cũ ghi đè.** Trước đây câu trả lời muộn của lần tải đầu có thể thay bảng giá và danh sách được nhớ bằng danh sách mặc định, trái với chip vừa bấm. Nay chỉ câu trả lời của lần xin gần nhất mới được áp dụng (bảng, ô nhập và bộ nhớ).
+
+---
+
 ## [v2.108.0] — 2026-11-28 · Bảng giá nhanh nhớ danh sách và có gợi ý xem nhanh
 
 ### Sửa lỗi
