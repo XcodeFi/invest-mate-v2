@@ -85,6 +85,24 @@ public class CompanyDossier : AggregateRoot
         return DossierFreshness.Fresh;
     }
 
+    /// <summary>
+    /// Hồ sơ "lúc đó" của một giao dịch, chỉ từ ReviewedAt/ConfirmedAt HIỆN TẠI (Confirm() ghi đè ReviewedAt, lịch sử các lần ký không được lưu).
+    /// Chưa ký: "unsigned". Lệnh trước lần ký hiện tại (ngày VN của lệnh &lt; ngày VN của ReviewedAt): "resigned-after", KHÔNG có phán quyết
+    /// vì không biết lần ký trước đó. Còn lại: "signed" + số ngày từ lần ký tới lệnh và mức tươi theo đúng hai ngưỡng 90/180 của entity (một bản duy nhất).
+    /// </summary>
+    public DossierAtTrade DescribeAtTrade(DateTime tradeUtc)
+    {
+        if (ConfirmedAt is null) return new DossierAtTrade("unsigned", null, null, null);
+
+        var tradeDay = tradeUtc.Add(VnOffset).Date;
+        var signedDay = ReviewedAt.Add(VnOffset).Date;
+        if (tradeDay < signedDay) return new DossierAtTrade("resigned-after", null, ReviewedAt, null);
+
+        var days = (int)(tradeDay - signedDay).TotalDays;
+        var freshness = days >= ExpiresAfterDays ? "expired" : days >= NeedsReviewAfterDays ? "needs-review" : "fresh";
+        return new DossierAtTrade("signed", days, null, freshness);
+    }
+
     private void Apply(string businessModel, List<MoatItem> moats,
         List<RiskFactor> riskFactors, string? notes)
     {
@@ -149,3 +167,6 @@ public enum DossierFreshness
     NeedsReview,
     Expired
 }
+
+/// <summary>Huy hiệu "hồ sơ lúc đó" của một giao dịch. State: unsigned | resigned-after | signed; Freshness (chỉ khi signed): fresh | needs-review | expired.</summary>
+public sealed record DossierAtTrade(string State, int? DaysSigned, DateTime? ResignedAt, string? Freshness);

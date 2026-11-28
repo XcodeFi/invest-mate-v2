@@ -172,6 +172,9 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
         if (to.HasValue)
             allTrades = allTrades.Where(t => t.TradeDate <= to.Value).ToList();
 
+        // Hồ sơ công ty đọc MỘT lần: dùng cho huy hiệu "hồ sơ lúc đó" của từng giao dịch (mục 2) và mốc hồ sơ (mục 5).
+        var dossier = await _companyDossierRepository.GetAsync(request.UserId, request.Symbol);
+
         foreach (var trade in allTrades)
         {
             items.Add(new TimelineItemDto
@@ -185,7 +188,9 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
                     trade.Quantity,
                     trade.Price,
                     trade.Fee,
-                    trade.PortfolioId
+                    trade.PortfolioId,
+                    // Chỉ từ ReviewedAt/ConfirmedAt HIỆN TẠI (xem CompanyDossier.DescribeAtTrade); null khi mã chưa có hồ sơ.
+                    DossierAtTrade = dossier?.DescribeAtTrade(trade.TradeDate)
                 }
             });
         }
@@ -233,7 +238,6 @@ public class GetSymbolTimelineQueryHandler : IRequestHandler<GetSymbolTimelineQu
         // 5. Mốc hồ sơ công ty.
         // CompanyDossier KHÔNG lưu lịch sử — chỉ có ReviewedAt/ConfirmedAt/AgentDraftedAt —
         // nên đây là tối đa 2 mốc gần nhất, không phải lịch sử tiến hoá của luận điểm.
-        var dossier = await _companyDossierRepository.GetAsync(request.UserId, request.Symbol);
         if (dossier != null)
         {
             // "Đã viết" không phải một sự kiện; "đã chịu trách nhiệm" mới là.

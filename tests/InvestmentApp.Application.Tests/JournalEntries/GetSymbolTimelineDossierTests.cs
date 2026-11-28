@@ -165,4 +165,74 @@ public class GetSymbolTimelineDossierTests
         result.Items.Should().BeInAscendingOrder(i => i.Timestamp);
         result.Items.Last().Type.Should().Be("dossier");
     }
+
+    // ───── huy hiệu "hồ sơ lúc đó" trên từng giao dịch ─────
+
+    private void HasTrade(DateTime tradeDate)
+    {
+        var portfolio = new Portfolio("user-1", "P", 10_000_000m);
+        _portfolioRepo.Setup(r => r.GetByUserIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<Portfolio> { portfolio });
+        _tradeRepo.Setup(r => r.GetByUserPortfoliosAndSymbolAsync(It.IsAny<IEnumerable<string>>(), "HPG", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Trade> { new(portfolio.Id, "HPG", TradeType.BUY, 100, 25_000m, 0, 0, tradeDate) });
+    }
+
+    private static DossierAtTrade? BadgeOf(TimelineItemDto trade)
+    {
+        var prop = trade.Data.GetType().GetProperty("DossierAtTrade");
+        prop.Should().NotBeNull("mọi giao dịch phải mang trường DossierAtTrade (null khi không có hồ sơ)");
+        return (DossierAtTrade?)prop!.GetValue(trade.Data);
+    }
+
+    [Fact]
+    public async Task Trade_WithoutDossier_HasNullBadge()
+    {
+        HasDossier(null);
+        HasTrade(new DateTime(2026, 5, 1, 3, 0, 0, DateTimeKind.Utc));
+
+        var result = await Sut().Handle(Query(), default);
+
+        BadgeOf(result.Items.Single(i => i.Type == "trade")).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Trade_AfterSignature_GetsSignedBadgeWithDaysAndFreshness()
+    {
+        var d = Dossier();
+        d.Confirm();
+        HasDossier(d);
+        HasTrade(d.ReviewedAt.AddDays(95));
+
+        var badge = BadgeOf((await Sut().Handle(Query(), default)).Items.Single(i => i.Type == "trade"));
+
+        badge!.State.Should().Be("signed");
+        badge.DaysSigned.Should().Be(95);
+        badge.Freshness.Should().Be("needs-review");
+    }
+
+    [Fact]
+    public async Task Trade_BeforeCurrentSignature_GetsResignedAfterBadgeWithoutVerdict()
+    {
+        var d = Dossier();
+        d.Confirm();
+        HasDossier(d);
+        HasTrade(d.ReviewedAt.AddDays(-20));
+
+        var badge = BadgeOf((await Sut().Handle(Query(), default)).Items.Single(i => i.Type == "trade"));
+
+        badge!.State.Should().Be("resigned-after");
+        badge.ResignedAt.Should().Be(d.ReviewedAt);
+        badge.DaysSigned.Should().BeNull();
+        badge.Freshness.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Trade_WithUnsignedDossier_GetsUnsignedBadge()
+    {
+        HasDossier(Dossier());   // chưa ký
+        HasTrade(DateTime.UtcNow.AddDays(-3));
+
+        var badge = BadgeOf((await Sut().Handle(Query(), default)).Items.Single(i => i.Type == "trade"));
+
+        badge!.State.Should().Be("unsigned");
+    }
 }
