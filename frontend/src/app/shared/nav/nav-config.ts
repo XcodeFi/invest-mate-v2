@@ -3,6 +3,7 @@
  * Nhóm theo thời điểm làm việc. Mọi trang vào được bằng URL cố định đều có một mục; trang có tham số (`:symbol`, `:id`) không nằm đây.
  *
  * Thêm route mới thì PHẢI thêm một mục vào đây (hoặc vào NAV_EXCLUDED_ROUTES kèm lý do): test `nav-config.spec.ts` đối chiếu với `app.routes.ts`.
+ * Route chỉ chuyển hướng (`redirectTo`, ví dụ /position-sizing và /advanced-analytics) KHÔNG có mục: test cũng chặn điều đó.
  */
 export interface NavItem {
   path: string;
@@ -32,6 +33,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: 'opportunities', label: 'TÌM CƠ HỘI', icon: '🔭',
     items: [
       { path: '/market-data', label: 'Thị trường', icon: '🌐' },
+      { path: '/screener', label: 'Sàng lọc', icon: '🔎' },
       { path: '/watchlist', label: 'Watchlist', icon: '⭐' },
       { path: '/company-dossier', label: 'Hồ sơ công ty', icon: '🏢' },
       { path: '/symbol-timeline', label: 'Dòng thời gian mã', icon: '🕒' },
@@ -44,7 +46,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/trades', label: 'Giao dịch', icon: '🔄' },
       { path: '/positions', label: 'Vị thế', icon: '📌' },
       { path: '/trade-wizard', label: 'Wizard GD', icon: '🧙' },
-      { path: '/position-sizing', label: 'Tính cỡ vị thế', icon: '🧮' },
       { path: '/strategies', label: 'Chiến lược', icon: '🎯' },
       { path: '/backtesting', label: 'Backtest', icon: '🧪' },
     ]
@@ -58,7 +59,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/risk', label: 'Rủi ro chi tiết', icon: '⚠️' },
       { path: '/monthly-review', label: 'Báo cáo tháng', icon: '📅' },
       { path: '/analytics', label: 'Phân tích', icon: '📈' },
-      { path: '/advanced-analytics', label: 'Phân tích nâng cao', icon: '🔬' },
       { path: '/journals', label: 'Nhật ký', icon: '📓' },
       { path: '/snapshots', label: 'Lịch sử snapshot', icon: '📸' },
     ]

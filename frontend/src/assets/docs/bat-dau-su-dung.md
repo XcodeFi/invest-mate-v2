@@ -105,8 +105,8 @@ Vào **Nhiệm vụ ngày** (`/daily-routine`):
 Trên máy tính (màn hình từ 1024px), menu nằm ở **cột bên trái**, xếp theo thời điểm làm việc:
 
 - **HÔM NAY**: Tổng quan, Nhiệm vụ ngày, Cảnh báo.
-- **TÌM CƠ HỘI**: Thị trường, Watchlist, Hồ sơ công ty, Dòng thời gian mã.
-- **KẾ HOẠCH & GD**: Kế hoạch GD, Giao dịch, Vị thế, Wizard GD, Tính cỡ vị thế, Chiến lược, Backtest.
+- **TÌM CƠ HỘI**: Thị trường, Sàng lọc, Watchlist, Hồ sơ công ty, Dòng thời gian mã.
+- **KẾ HOẠCH & GD**: Kế hoạch GD, Giao dịch, Vị thế, Wizard GD, Chiến lược, Backtest.
 - **ĐÁNH GIÁ**: Chờ review, Kỳ vọng & chiến dịch, Rủi ro, Báo cáo tháng, Phân tích, Nhật ký, Lịch sử snapshot.
 - **TIỀN & TÀI SẢN**: Danh mục, Dòng vốn, Sự kiện quyền, Tài chính CN.
 - **Cài đặt** (thu gọn sẵn): Cài đặt AI, Khóa API, Hướng dẫn.

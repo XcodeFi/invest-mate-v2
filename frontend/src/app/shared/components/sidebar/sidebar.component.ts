@@ -48,7 +48,7 @@ import { SidebarService } from './sidebar.service';
         </nav>
         <button type="button" data-testid="sidebar-toggle" (click)="toggle()"
           [attr.aria-label]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'" [attr.title]="collapsed() ? 'Mở rộng menu' : null"
-          class="border-t border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 text-left"
+          class="sticky bottom-0 bg-white border-t border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 text-left"
           [class.text-center]="collapsed()">
           {{ collapsed() ? '»' : '« Thu gọn' }}
         </button>

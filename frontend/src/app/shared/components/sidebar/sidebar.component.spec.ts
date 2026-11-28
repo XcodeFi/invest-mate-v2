@@ -57,7 +57,7 @@ describe('SidebarComponent: menu trái nhóm theo thời điểm làm việc', (
     it('includes the pages that have no entry in the old header menu', () => {
       setup();
 
-      ['/pending-reviews', '/campaign-analytics', '/corporate-actions', '/advanced-analytics', '/position-sizing', '/symbol-timeline']
+      ['/pending-reviews', '/campaign-analytics', '/corporate-actions', '/screener', '/symbol-timeline']
         .forEach(path => expect(link(path)).withContext(path).toBeDefined());
     });
 
@@ -265,6 +265,16 @@ describe('SidebarComponent: menu trái nhóm theo thời điểm làm việc', (
       expect(cls.contains('hidden')).toBeTrue();
       expect(cls.contains('lg:flex')).toBeTrue();
       expect(cls.contains('sticky')).toBeTrue();
+    });
+
+    it('the expand/collapse button stays visible without scrolling (sticky at the bottom of the menu)', async () => {
+      setup();
+      await go('/market-data');   // thanh biểu tượng: nút « / » phải thấy ngay cả khi danh sách trang dài hơn màn hình
+
+      const cls = q('sidebar-toggle')!.classList;
+      expect(cls.contains('sticky')).toBeTrue();
+      expect(cls.contains('bottom-0')).toBeTrue();
+      expect(q('sidebar-toggle')!.parentElement).toBe(q('sidebar'));   // nằm trực tiếp trong khung cuộn để dính đáy
     });
 
     it('is not rendered when nobody is signed in', () => {

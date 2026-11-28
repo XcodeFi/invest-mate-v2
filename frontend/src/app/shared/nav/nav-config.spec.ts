@@ -3,13 +3,23 @@ import { allNavItems, CHART_ROUTE_PREFIXES, isChartRoute, NAV_EXCLUDED_ROUTES, N
 
 describe('nav-config: một cấu hình duy nhất cho menu trái và menu điện thoại', () => {
   const routePaths = routes.map(r => r.path).filter((p): p is string => p !== undefined);
-  const nonParamRoutes = routePaths.filter(p => !p.includes(':'));
+  /** Route chỉ chuyển hướng sang trang khác ('/position-sizing' → '/trade-plan'): không phải trang riêng nên không có mục menu. */
+  const redirectRoutes = routes.filter(r => r.redirectTo !== undefined).map(r => r.path!);
+  const nonParamRoutes = routePaths.filter(p => !p.includes(':') && !redirectRoutes.includes(p));
   const navPaths = allNavItems().map(i => i.path);
 
   it('covers_every_non_param_route (a new route must be added to the nav config or to the excluded list)', () => {
     const missing = nonParamRoutes.filter(p => !NAV_EXCLUDED_ROUTES.includes(p) && !navPaths.includes('/' + p));
 
     expect(missing).withContext('route chưa có trong menu: thêm vào NAV_GROUPS (hoặc NAV_EXCLUDED_ROUTES kèm lý do)').toEqual([]);
+  });
+
+  it('has_no_redirect_items (a menu item must not point to a route that only redirects, or the page shows twice)', () => {
+    const duplicates = navPaths.filter(p => redirectRoutes.includes(p.substring(1)));
+
+    expect(duplicates).withContext('mục menu trỏ tới route chỉ chuyển hướng: bỏ mục, trang đích đã có mục').toEqual([]);
+    expect(redirectRoutes).withContext('test này phải thấy các route chuyển hướng thật').toContain('position-sizing');
+    expect(redirectRoutes).toContain('advanced-analytics');
   });
 
   it('has_no_dead_links (every menu path is a real route)', () => {
@@ -45,6 +55,7 @@ describe('nav-config: một cấu hình duy nhất cho menu trái và menu đi�
     expect(group('/market-data')).toBe('TÌM CƠ HỘI');
     expect(group('/watchlist')).toBe('TÌM CƠ HỘI');
     expect(group('/company-dossier')).toBe('TÌM CƠ HỘI');
+    expect(group('/screener')).toBe('TÌM CƠ HỘI');
     expect(group('/trade-plan')).toBe('KẾ HOẠCH & GD');
     expect(group('/trades')).toBe('KẾ HOẠCH & GD');
     expect(group('/positions')).toBe('KẾ HOẠCH & GD');
