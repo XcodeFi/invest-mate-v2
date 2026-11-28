@@ -87,9 +87,9 @@ Chart.register(...registerables);
           <app-discipline-score-widget></app-discipline-score-widget>
         </div>
 
-        <!-- NetWorth Summary widget (v1.1 P1) — compact 3-line block với Reality Gap CAGR.
-             Vị trí #2 sau Decision Queue (P3 chưa ship); Compound Growth Tracker đầy đủ
-             vẫn ở giữa page cho user muốn deep-dive. -->
+        <!-- Tài chính cá nhân (Home PR2): MỘT widget gộp Net Worth + Reality Gap CAGR + Tổng tài sản − Nợ + sức khoẻ + chia tài sản
+             (thu gọn). Thay cho hai thẻ cũ cùng đọc netWorthSummary. Chưa có hồ sơ thì widget tự hiện thẻ mời thiết lập.
+             Vị trí #2 sau Decision Queue; Compound Growth Tracker đầy đủ vẫn ở giữa page. -->
         <app-networth-summary
           [summary]="netWorthSummary"
           [cagrValue]="cagrValue"
@@ -204,74 +204,6 @@ Chart.register(...registerables);
 
         </div> <!-- end Watchlist + Daily Routine grid -->
 
-        <!-- Personal Finance Widget — full version với health score + breakdown CK/Vàng/TK/DP/NR.
-             Coexist với <app-networth-summary> ở top: top widget = quick "are you on track?",
-             widget này = full breakdown khi user muốn deep-dive. Plan v1.1 chốt giữ cả 2. -->
-        <a *ngIf="netWorthSummary && netWorthSummary.hasProfile" routerLink="/personal-finance"
-           class="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 hover:border-blue-300 transition-colors">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">💰</span>
-              <span class="font-bold text-sm text-gray-900">Tài chính cá nhân</span>
-            </div>
-            <span class="text-xs text-blue-600 font-medium">Xem chi tiết →</span>
-          </div>
-          <div class="flex items-baseline justify-between mb-1">
-            <span class="text-xs text-gray-500">💎 Net Worth</span>
-            <span class="text-lg font-bold"
-                  [class.text-emerald-700]="netWorthSummary.netWorth >= 0"
-                  [class.text-red-700]="netWorthSummary.netWorth < 0">
-              {{ netWorthSummary.netWorth | vndCurrency }}
-            </span>
-          </div>
-          <div class="flex items-baseline justify-between text-[11px] text-gray-500 mb-2">
-            <span>Tổng tài sản {{ netWorthSummary.totalAssets | vndCurrency }}</span>
-            <span *ngIf="netWorthSummary.totalDebt > 0">− Nợ {{ netWorthSummary.totalDebt | vndCurrency }}</span>
-          </div>
-          <div *ngIf="netWorthSummary.hasHighInterestConsumerDebt"
-               class="bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 text-[11px] text-red-700 mb-2">
-            ⚠️ Bạn có nợ tiêu dùng lãi &gt; 20%/năm. Cân nhắc trả nợ trước khi đầu tư thêm.
-          </div>
-          <div class="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
-            <div class="h-2 transition-all duration-500"
-                 [class.bg-emerald-500]="netWorthSummary.healthScore >= 80"
-                 [class.bg-amber-500]="netWorthSummary.healthScore >= 50 && netWorthSummary.healthScore < 80"
-                 [class.bg-red-500]="netWorthSummary.healthScore < 50"
-                 [style.width.%]="netWorthSummary.healthScore"></div>
-          </div>
-          <div class="flex items-center justify-between text-[11px] text-gray-600 mb-2">
-            <span>Sức khỏe tài chính</span>
-            <span class="font-semibold"
-                  [class.text-emerald-600]="netWorthSummary.healthScore >= 80"
-                  [class.text-amber-600]="netWorthSummary.healthScore >= 50 && netWorthSummary.healthScore < 80"
-                  [class.text-red-600]="netWorthSummary.healthScore < 50">
-              {{ netWorthSummary.healthScore }}/100
-            </span>
-          </div>
-          <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-600">
-            <span>📈 CK: <span class="font-semibold">{{ netWorthSummary.securitiesValue | vndCurrency }}</span></span>
-            <span *ngIf="netWorthSummary.goldTotal > 0">🪙 Vàng: <span class="font-semibold">{{ netWorthSummary.goldTotal | vndCurrency }}</span></span>
-            <span>🏦 TK: <span class="font-semibold">{{ netWorthSummary.savingsTotal | vndCurrency }}</span></span>
-            <span>🛡️ DP: <span class="font-semibold">{{ netWorthSummary.emergencyTotal | vndCurrency }}</span></span>
-            <span>💵 NR: <span class="font-semibold">{{ netWorthSummary.idleCashTotal | vndCurrency }}</span></span>
-          </div>
-        </a>
-
-        <!-- Personal Finance onboarding (chưa thiết lập) -->
-        <a *ngIf="netWorthSummary && !netWorthSummary.hasProfile" routerLink="/personal-finance"
-           class="block bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4 mb-6 hover:border-blue-400 transition-colors">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">💰</span>
-              <div>
-                <div class="text-sm font-bold text-gray-900">Thiết lập tài chính cá nhân</div>
-                <div class="text-xs text-gray-600">Theo dõi tổng tài sản + quỹ dự phòng + vàng tích trữ</div>
-              </div>
-            </div>
-            <span class="text-xs text-blue-600 font-medium">Bắt đầu →</span>
-          </div>
-        </a>
-
         <!-- Timeframe Switcher -->
         <div class="flex items-center gap-2 mb-6 flex-wrap">
           <span class="text-xs font-medium text-gray-500 mr-1">Xem theo:</span>
@@ -312,7 +244,7 @@ Chart.register(...registerables);
           <!-- Header + CAGR + TWR chips -->
           <div class="flex items-start justify-between flex-wrap gap-2 mb-2">
             <div>
-              <h2 class="text-sm font-semibold text-emerald-900">Tổng tài sản</h2>
+              <h2 class="text-sm font-semibold text-emerald-900">Tổng quan đầu tư</h2>
               <span class="text-xs text-gray-600">So với vốn hiện tại {{ totalCurrentCapital | vndCurrency }}</span>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -930,7 +862,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const firstPortfolio = this.summary.portfolios[0];
     const portfolioId = firstPortfolio.portfolioId;
 
-    // Load TWR/MWR for the per-portfolio TWR badge in the "Tổng tài sản" header.
+    // Load TWR/MWR for the per-portfolio TWR badge in the "Tổng quan đầu tư" header.
     // Headline CAGR is sourced from /analytics/household/performance (loadHouseholdCagr),
     // not from this single-portfolio TWR.
     this.capitalFlowService.getTimeWeightedReturn(portfolioId).pipe(catchError(() => of(null))).subscribe(data => {

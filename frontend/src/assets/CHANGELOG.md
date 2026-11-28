@@ -2,6 +2,16 @@
 
 ---
 
+## [v2.115.1] — 2026-11-28 · Trang chủ: gộp hai thẻ tài chính thành một
+
+### Thay đổi
+
+- **Một thẻ "Tài chính cá nhân" duy nhất** thay cho hai thẻ cùng đọc một dữ liệu (thẻ "Tài chính cá nhân" nằm giữa trang và thẻ Net Worth ở trên). Thẻ gộp hiện Net Worth và mức lệch CAGR, "Tổng tài sản − Nợ", cảnh báo nợ tiêu dùng lãi cao, thanh sức khoẻ tài chính; phần chia tài sản (CK · Vàng · TK · DP · NR) nằm sau nút **Chi tiết ▾**, mặc định thu gọn. Chỉ còn một link (**Xem chi tiết →**) nên nút Chi tiết không bị link bao ngoài nuốt.
+- Chưa thiết lập tài chính cá nhân: thẻ mời thiết lập hiện ở đúng vị trí này.
+- Khối đầu tư lớn đổi tên từ "Tổng tài sản" thành **Tổng quan đầu tư** để "Tổng tài sản" chỉ còn một nghĩa.
+
+---
+
 ## [v2.115.0] — 2026-11-28 · Dòng thời gian: mỗi giao dịch cho biết hồ sơ công ty lúc đó ra sao
 
 ### Tính năng mới
