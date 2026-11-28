@@ -23,7 +23,7 @@ export function allPages(): PaletteItem[] {
   return NAV_GROUPS.flatMap(g => g.items.map(i => ({ kind: 'page' as const, path: i.path, label: i.label, icon: i.icon, hint: g.label })));
 }
 
-/** Các mục hiện ra cho ô nhập: trang khớp trước (mọi từ đều phải có mặt), rồi một dòng "Mở mã X" nếu ô nhập giống một mã. */
+/** Các mục hiện ra cho ô nhập: dòng "Mở mã X" đứng đầu nếu ô nhập giống một mã, rồi các trang khớp (mọi từ đều phải có mặt). */
 export function buildItems(query: string): PaletteItem[] {
   const q = (query ?? '').trim();
   const tokens = normalize(q).split(/\s+/).filter(Boolean);
@@ -32,8 +32,9 @@ export function buildItems(query: string): PaletteItem[] {
     return tokens.every(t => hay.includes(t));
   });
   const symbol = q.toUpperCase();
+  // Mã đứng ĐẦU: gõ "FPT" rồi Enter phải mở mã, kể cả khi chuỗi cũng khớp một tên trang (VD "AI" ~ "Cài đặt AI"); muốn trang thì ↓.
   if (SYMBOL_PATTERN.test(symbol)) {
-    pages.push({ kind: 'symbol', path: `/symbol-timeline/${symbol}`, label: `Mở mã ${symbol}`, icon: '🕒', hint: 'Dòng thời gian mã' });
+    return [{ kind: 'symbol', path: `/symbol-timeline/${symbol}`, label: `Mở mã ${symbol}`, icon: '🕒', hint: 'Dòng thời gian mã' }, ...pages];
   }
   return pages;
 }

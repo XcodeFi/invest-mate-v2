@@ -78,6 +78,10 @@ export class CommandPaletteComponent {
       return;
     }
     if (!this.svc.isOpen()) return;
+    // Bẫy tiêu điểm: hộp thoại chỉ có một ô nhập, Tab/Shift+Tab ở lại đó thay vì rời ra trang phía sau.
+    if (e.key === 'Tab') { e.preventDefault(); return; }
+    // Đang gõ dở một âm tiết tiếng Việt (Telex/VNI): Enter/mũi tên thuộc về bộ gõ, không phải để chọn mục.
+    if (e.isComposing) return;
     const n = this.items().length;
     switch (e.key) {
       case 'Escape': e.preventDefault(); this.svc.close(); break;

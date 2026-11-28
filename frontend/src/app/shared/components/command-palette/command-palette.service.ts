@@ -4,7 +4,21 @@ import { Injectable, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class CommandPaletteService {
   readonly isOpen = signal(false);
-  open(): void { this.isOpen.set(true); }
-  close(): void { this.isOpen.set(false); }
-  toggle(): void { this.isOpen.update(v => !v); }
+  /** Phần tử đang giữ tiêu điểm lúc mở: đóng thì trả tiêu điểm về đó (hộp thoại có aria-modal nên phải trả lại chỗ cũ). */
+  private opener: HTMLElement | null = null;
+
+  open(): void {
+    if (!this.isOpen()) this.opener = document.activeElement as HTMLElement | null;
+    this.isOpen.set(true);
+  }
+
+  close(): void {
+    if (!this.isOpen()) return;
+    this.isOpen.set(false);
+    const back = this.opener;
+    this.opener = null;
+    if (back && back.isConnected && typeof back.focus === 'function') back.focus();
+  }
+
+  toggle(): void { this.isOpen() ? this.close() : this.open(); }
 }

@@ -81,6 +81,12 @@ describe('CommandPaletteComponent: Ctrl+K tìm trang và mã', () => {
     expect(q('palette')).toBeNull();
   });
 
+  it('Ctrl+Shift+K không mở (trình duyệt dùng tổ hợp này)', () => {
+    setup();
+    key('k', { ctrlKey: true, shiftKey: true });
+    expect(q('palette')).toBeNull();
+  });
+
   it('chưa đăng nhập thì Ctrl+K không mở gì', () => {
     authenticated = false;
     setup();
@@ -184,6 +190,82 @@ describe('CommandPaletteComponent: Ctrl+K tìm trang và mã', () => {
     expect(nav).toHaveBeenCalledWith(lastPath);
   });
 
+  it('gõ tên nhóm menu (không có trong nhãn trang nào) vẫn ra các trang của nhóm đó', async () => {
+    setup();
+    open();
+
+    await type('tim co hoi');
+
+    const paths = qa('palette-item').map(i => i.dataset['path']);
+    expect(paths).toContain('/screener');
+    expect(paths).toContain('/watchlist');
+  });
+
+  it('gõ chữ mới thì chọn lại mục đầu: ↓↓ rồi gõ rồi Enter mở mục đầu của danh sách mới', async () => {
+    setup();
+    const nav = spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    open();
+    await fixture.whenStable();
+    key('ArrowDown'); key('ArrowDown');
+
+    await type('ke hoach');
+    const first = qa('palette-item')[0].dataset['path']!;
+    key('Enter');
+
+    expect(nav).toHaveBeenCalledWith(first);
+  });
+
+  it('đang gõ tiếng Việt có dấu (IME, isComposing) thì Enter và mũi tên không chọn mục', async () => {
+    setup();
+    const nav = spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    open();
+
+    key('ArrowDown', { isComposing: true });
+    key('Enter', { isComposing: true });
+
+    expect(nav).not.toHaveBeenCalled();
+    expect(q('palette')).not.toBeNull();
+    key('Enter');   // hết gõ dở: Enter chọn mục (mục đầu, vì ↓ lúc gõ dở không có tác dụng)
+    expect(nav).toHaveBeenCalledWith(allNavItems()[0].path);
+  });
+
+  it('mã gõ vào đứng ĐẦU danh sách: Enter mở mã dù chuỗi cũng khớp tên trang', async () => {
+    setup();
+    const nav = spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    open();
+
+    await type('ai');   // vừa là mã vừa khớp "Cài đặt AI"
+    expect(qa('palette-item')[0].dataset['kind']).toBe('symbol');
+    key('Enter');
+
+    expect(nav).toHaveBeenCalledWith('/symbol-timeline/AI');
+  });
+
+  it('Tab khi đang mở không rời khỏi hộp thoại (bẫy tiêu điểm); khi đóng thì Tab bình thường', () => {
+    setup();
+    expect(key('Tab').defaultPrevented).toBeFalse();
+
+    open();
+    expect(key('Tab').defaultPrevented).toBeTrue();
+    expect(key('Tab', { shiftKey: true }).defaultPrevented).toBeTrue();
+  });
+
+  it('đóng thì trả tiêu điểm về phần tử đã mở bảng lệnh', async () => {
+    setup();
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    try {
+      opener.focus();
+      svc.open(); fixture.detectChanges();
+      await new Promise(r => setTimeout(r));
+      expect(document.activeElement).withContext('ô nhập đã nhận tiêu điểm').toBe(input());
+
+      key('Escape');
+
+      expect(document.activeElement).toBe(opener);
+    } finally { opener.remove(); }
+  });
+
   it('không có gì khớp thì báo "Không tìm thấy" và Enter không đi đâu', async () => {
     setup();
     const nav = spyOn(router, 'navigateByUrl').and.resolveTo(true);
@@ -231,10 +313,10 @@ describe('command-palette.logic', () => {
     expect(sym('ABCDEFGHIJK')).toBeFalse();
   });
 
-  it('trang khớp đứng trước dòng mã', () => {
+  it('dòng mã đứng đầu, các trang khớp theo sau', () => {
     const items = buildItems('ai');
     expect(items.length).toBeGreaterThan(1);
-    expect(items[0].kind).toBe('page');
-    expect(items[items.length - 1].kind).toBe('symbol');
+    expect(items[0].kind).toBe('symbol');
+    expect(items.slice(1).every(i => i.kind === 'page')).toBeTrue();
   });
 });
