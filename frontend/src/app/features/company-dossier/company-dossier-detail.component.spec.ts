@@ -37,6 +37,26 @@ describe('CompanyDossierDetailComponent', () => {
     component = fixture.componentInstance;
   });
 
+  it('có nút "📈 Dòng thời gian" đi tới /symbol-timeline/:symbol của chính mã đang xem', () => {
+    fixture.detectChanges();
+    component.symbol = 'FPT';
+    component.loading = false;
+    fixture.changeDetectorRef.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('[data-testid="dossier-timeline-link"]') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.textContent).toContain('Dòng thời gian');
+    expect(link.getAttribute('href')).toBe('/symbol-timeline/FPT');
+  });
+
+  it('chưa có mã thì không có nút sang dòng thời gian (không dẫn tới /symbol-timeline/)', () => {
+    fixture.detectChanges();
+    component.symbol = '';
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="dossier-timeline-link"]')).toBeNull();
+  });
+
   it('chỉ cho tick một yếu tố hủy diệt', () => {
     component.riskFactors = [
       { rank: 1, description: 'A', observableSignal: 'x', isDealBreaker: true, suggestedTrigger: null },

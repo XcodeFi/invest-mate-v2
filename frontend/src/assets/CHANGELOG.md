@@ -2,6 +2,18 @@
 
 ---
 
+## [v2.113.0] — 2026-11-28 · Hồ sơ công ty và Dòng thời gian mã nối được với nhau; trạng thái trang nằm trên URL
+
+### Tính năng mới
+
+- **Hồ sơ công ty → Dòng thời gian:** trang chi tiết hồ sơ có nút **📈 Dòng thời gian** (cạnh nhãn độ tươi) đi thẳng tới biểu đồ, giao dịch, nhật ký và sự kiện của mã. Chiều ngược lại đã có sẵn (chip "🏢 Hồ sơ công ty" ở đầu trang Dòng thời gian), nên nay đi lại được cả hai hướng.
+- **Trang Dòng thời gian nhớ trạng thái trên URL:** khoảng thời gian (`range=1T|3T|6T|1N`), nhóm chỉ báo (`grp=...`) và mục đang chọn (`focus=YYYY-MM-DD`). Bấm Back, tải lại hoặc dán link thì trang trở về đúng khoảng, nhóm chỉ báo và mục đang xem (mục focus được chọn và cuộn tới). Giá trị sai trong URL bị bỏ qua, về mặc định (3T, không nhóm). Chọn khoảng hay nhóm không chất thêm mục vào lịch sử trình duyệt.
+
+### Kỹ thuật
+
+- `timeline-url-state.ts` (hàm thuần `parseTimelineQuery` / `buildTimelineQuery`) và trang đọc qua `queryParamMap` (không phải snapshot): lần phát đầu áp dụng trạng thái ban đầu, các lần sau chỉ áp dụng khoá nào đổi, nên lần phát lại do chính trang vừa ghi và các khoá không liên quan (`tradeId`) là no-op. Ghi bằng `queryParamsHandling: 'merge'` + `replaceUrl: true`; không đụng `symbol` và `tradeId` (luồng đánh giá sau giao dịch giữ nguyên, kể cả việc mở rộng mặc định lên 12 tháng).
+- `focus` chỉ xác định NGÀY, không xác định mục: ngày có nhiều mục (ví dụ một giao dịch và một nhật ký) thì mở lại sẽ chọn mục đầu tiên của ngày đó. Khi vào từ link review (`tradeId`) thì `tradeId` thắng `range`, giữ khoảng 12 tháng. `focus` là ngày theo giờ Việt Nam của mục đang chọn (giao dịch lúc 00:30 giờ VN ngày 20 có focus ngày 20, không phải ngày 19).
+- Chưa làm (theo kế hoạch): khôi phục vị trí cuộn, trạng thái thẻ trên URL, link từ Thị trường/Replay/Watchlist; huy hiệu "hồ sơ lúc đó" và thẻ "Luận điểm" là hai PR sau.
 ## [v2.112.0] — 2026-11-28 · Tỉ lệ nền VN30 cho setup Pullback
 
 ### Tính năng mới

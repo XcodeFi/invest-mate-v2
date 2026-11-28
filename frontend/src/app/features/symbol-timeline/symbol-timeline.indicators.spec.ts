@@ -73,7 +73,7 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
       imports: [SymbolTimelineComponent],
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ symbol: 'vnm' }), queryParams: {} } } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ symbol: 'vnm' }), queryParams: {} }, queryParamMap: of(convertToParamMap({})) } },
         { provide: MarketDataService, useValue: marketSpy },
         { provide: JournalEntryService, useValue: journalSpy },
         { provide: MarketEventService, useValue: jasmine.createSpyObj<MarketEventService>('MarketEventService', ['create']) },
