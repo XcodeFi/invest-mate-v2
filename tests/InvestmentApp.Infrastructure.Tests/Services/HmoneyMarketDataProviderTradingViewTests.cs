@@ -19,13 +19,16 @@ public class HmoneyMarketDataProviderTradingViewTests
 {
     private const string TvBase = "https://tv-test.example.com";
 
-    private static long Epoch(int daysAgo) =>
-        new DateTimeOffset(DateTime.UtcNow.Date.AddDays(-daysAgo), TimeSpan.Zero).ToUnixTimeSeconds();
+    private static long Epoch(int daysAgo, DateTime? today = null) =>
+        new DateTimeOffset((today ?? DateTime.UtcNow.Date).AddDays(-daysAgo), TimeSpan.Zero).ToUnixTimeSeconds();
 
-    private static string TvOk(int days)
+    /// <summary>Ngày của đồng hồ giả <c>Morning</c>: các ca kiểm ngày dựng dữ liệu từ đây, không từ giờ thật (tránh lệch ở 00:00 UTC).</summary>
+    private static DateTime FakeToday => Morning.UtcDateTime.Date;
+
+    private static string TvOk(int days, DateTime? today = null)
     {
         string Arr(Func<int, string> f) => "[" + string.Join(",", Enumerable.Range(0, days).Select(f)) + "]";
-        return "{\"symbol\":\"FPT\",\"s\":\"ok\",\"t\":" + Arr(i => Epoch(days - 1 - i).ToString()) +
+        return "{\"symbol\":\"FPT\",\"s\":\"ok\",\"t\":" + Arr(i => Epoch(days - 1 - i, today).ToString()) +
                ",\"c\":" + Arr(_ => "50.5") + ",\"o\":" + Arr(_ => "50") + ",\"h\":" + Arr(_ => "51") +
                ",\"l\":" + Arr(_ => "49") + ",\"v\":" + Arr(_ => "1000000") + "}";
     }
@@ -104,9 +107,9 @@ public class HmoneyMarketDataProviderTradingViewTests
         }
     }
 
-    private static AdjustedPriceSeriesSnapshot Snapshot(string symbol, DateTime fetchedAtUtc, int bars = 300, decimal close = 63_000m)
+    private static AdjustedPriceSeriesSnapshot Snapshot(string symbol, DateTime fetchedAtUtc, int bars = 300, decimal close = 63_000m, DateTime? lastBar = null)
     {
-        var last = DateTime.UtcNow.Date;
+        var last = lastBar ?? DateTime.UtcNow.Date;
         return new AdjustedPriceSeriesSnapshot(symbol, fetchedAtUtc, Enumerable.Range(0, bars).Select(i => new StockPriceData
         {
             Symbol = symbol, Date = last.AddDays(-(bars - 1 - i)), Open = close, High = close + 500, Low = close - 500,
@@ -662,22 +665,24 @@ public class HmoneyMarketDataProviderTradingViewTests
     [Fact]
     public async Task every_bar_of_a_fresh_udf_series_carries_the_date_of_its_last_bar()
     {
-        var (p, _) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+        var today = FakeToday;
+        var (p, _) = Create(x => x.Tv = _ => Json(TvOk(300, today)), new FakeStore(), new FakeTime(Morning));
 
-        var bars = await Year(p);
+        var bars = await p.GetHistoricalPricesAsync("FPT", today.AddMonths(-12), today);
 
-        bars.Should().NotBeEmpty().And.OnlyContain(b => b.AdjustedAsOf == DateTime.UtcNow.Date);
+        bars.Should().NotBeEmpty().And.OnlyContain(b => b.AdjustedAsOf == today);
     }
 
     [Fact]
     public async Task the_date_is_that_of_the_series_even_when_the_requested_range_ends_earlier()
     {
-        var (p, _) = Create(x => x.Tv = _ => Json(TvOk(300)), new FakeStore(), new FakeTime(Morning));
+        var today = FakeToday;
+        var (p, _) = Create(x => x.Tv = _ => Json(TvOk(300, today)), new FakeStore(), new FakeTime(Morning));
 
-        var bars = await p.GetHistoricalPricesAsync("FPT", DateTime.UtcNow.AddDays(-60), DateTime.UtcNow.AddDays(-30));
+        var bars = await p.GetHistoricalPricesAsync("FPT", today.AddDays(-60), today.AddDays(-30));
 
         bars.Should().NotBeEmpty();
-        bars.Should().OnlyContain(b => b.AdjustedAsOf == DateTime.UtcNow.Date,
+        bars.Should().OnlyContain(b => b.AdjustedAsOf == today,
             "người dùng hỏi một khoảng cũ thì độ tươi vẫn là của cả chuỗi, không phải của khoảng đó");
     }
 
@@ -686,7 +691,8 @@ public class HmoneyMarketDataProviderTradingViewTests
     {
         var time = new FakeTime(Morning);
         var store = new FakeStore();
-        var snap = Snapshot("FPT", Morning.UtcDateTime.AddDays(-4));
+        var today = FakeToday;
+        var snap = Snapshot("FPT", Morning.UtcDateTime.AddDays(-4), lastBar: today);
         // bản lưu cũ: nến cuối cách đây 4 ngày, và (như dữ liệu thật trong kho) chưa mang trường AdjustedAsOf
         var old = snap.Bars.Select(b => new StockPriceData
         {
@@ -696,10 +702,10 @@ public class HmoneyMarketDataProviderTradingViewTests
         store.Data["FPT"] = new AdjustedPriceSeriesSnapshot("FPT", snap.FetchedAtUtc, old);
         var (p, _) = Create(x => x.Tv = HtmlWaf(), store, time);
 
-        var bars = await p.GetHistoricalPricesAsync("FPT", DateTime.UtcNow.AddYears(-2), DateTime.UtcNow);
+        var bars = await p.GetHistoricalPricesAsync("FPT", today.AddYears(-2), today);
 
         bars.Should().NotBeEmpty();
-        bars.Should().OnlyContain(b => b.AdjustedAsOf == DateTime.UtcNow.Date.AddDays(-4));
+        bars.Should().OnlyContain(b => b.AdjustedAsOf == today.AddDays(-4));
     }
 
     [Fact]

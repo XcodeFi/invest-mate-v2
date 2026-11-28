@@ -117,4 +117,22 @@ public class TradingViewHistoryParserTests
     {
         TradingViewHistoryParser.IsNoData(json).Should().Be(expected);
     }
+
+    /// <summary>
+    /// Mốc thời gian THẬT của UDF 24hmoney (FPT, lấy từ phản hồi thật): nến ngày nằm ở 00:00 UTC (chia hết cho 86400),
+    /// không phải 17:00 UTC hôm trước, nên lấy phần ngày UTC là đúng ngày giao dịch.
+    /// 1768176000 = thứ Hai 12/01/2026, 1768521600 = thứ Sáu 16/01, 1768780800 = thứ Hai 19/01 (nến cuối tuần không có).
+    /// </summary>
+    [Fact]
+    public void Parse_RealDailyTimestampsAreMidnightUtcAndMapToTheSameTradingDate()
+    {
+        const string json = "{\"symbol\":\"FPT\",\"s\":\"ok\",\"t\":[1768176000,1768521600,1768780800]," +
+                            "\"o\":[1,1,1],\"h\":[1,1,1],\"l\":[1,1,1],\"c\":[1,1,1],\"v\":[1,1,1]}";
+
+        var bars = TradingViewHistoryParser.Parse(json, "FPT")!;
+
+        bars.Select(b => b.Date).Should().Equal(new DateTime(2026, 1, 12), new DateTime(2026, 1, 16), new DateTime(2026, 1, 19));
+        bars.Select(b => b.Date.DayOfWeek).Should().Equal(DayOfWeek.Monday, DayOfWeek.Friday, DayOfWeek.Monday);
+        1768176000L.Should().Be(1768176000L / 86400 * 86400, "mốc nằm đúng 00:00 UTC");
+    }
 }
