@@ -59,7 +59,7 @@ const MAX_SELECTION = 30;
           <label class="block">Xếp hạng sức mạnh 3 tháng tối thiểu (P)
             <input type="number" data-testid="screener-min-rs3m" [(ngModel)]="minRs3m" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded"></label>
         </div>
-        <p class="text-xs text-gray-500 mt-1">P50 là mức trung vị: chỉ giữ mã có xếp hạng sức mạnh 3 tháng từ P{{ minRs3m }} trở lên trong toàn bộ mã niêm yết.</p>
+        <p class="text-xs text-gray-500 mt-1">P50 là mức trung vị: chỉ giữ mã có xếp hạng sức mạnh 3 tháng từ P{{ rankFloor }} trở lên trong toàn bộ mã niêm yết.</p>
         <div class="flex flex-wrap items-center gap-4 mt-3">
           <label class="text-sm"><input type="checkbox" data-testid="screener-skip-quality" [(ngModel)]="skipQuality" class="mr-1">Bỏ qua tầng chất lượng</label>
           <button type="button" data-testid="screener-run" (click)="run()" [disabled]="loading"
@@ -101,6 +101,8 @@ const MAX_SELECTION = 30;
               </button>
             </div>
           </div>
+
+          <p *ngIf="sendError" class="text-sm text-red-600 mb-2" data-testid="screener-send-error">{{ sendError }}</p>
 
           <p *ngIf="result.passed.length === 0" class="text-sm text-gray-500" data-testid="screener-empty">Không có mã nào đạt tiêu chí hiện tại.</p>
 
@@ -211,6 +213,10 @@ export class ScreenerComponent implements OnInit {
   sortAsc = true;
   selected = new Set<string>();
 
+  /** Tiêu chí của lần lọc gần nhất đã hiện lên bảng: "Vì sao mã X không có?" giải thích theo đúng danh sách đang thấy, không theo ô vừa sửa. */
+  private lastQuery: ScreenerQuery | null = null;
+  sendError = '';
+
   lookupSymbol = '';
   lookupResult: ScreenerLookup | null = null;
   lookupError = '';
@@ -252,9 +258,12 @@ export class ScreenerComponent implements OnInit {
     }
     this.loading = true;
     this.error = '';
-    this.marketData.getScreener(this.buildQuery()).subscribe({
+    const query = this.buildQuery();
+    this.marketData.getScreener(query).subscribe({
       next: res => {
         this.result = res;
+        this.lastQuery = query;
+        this.sendError = '';
         this.loading = false;
         // Bỏ chọn những mã không còn trong danh sách mới.
         const listed = new Set(res.passed.map(r => r.symbol));
@@ -309,6 +318,11 @@ export class ScreenerComponent implements OnInit {
 
   // --- Chọn mã rồi gửi sang Bảng giá nhanh (không tự điền gì) ---
 
+  /** Ngưỡng xếp hạng đang hiện trong gợi ý: ô trống thì dùng mặc định P50 (đúng như server). */
+  get rankFloor(): number {
+    return this.num(this.minRs3m) ?? 50;
+  }
+
   toggle(symbol: string, event: Event): void {
     const box = event.target as HTMLInputElement;
     if (box.checked) {
@@ -327,7 +341,12 @@ export class ScreenerComponent implements OnInit {
   sendToBoard(): void {
     const symbols = [...this.selected].sort((a, b) => a.localeCompare(b));
     if (symbols.length === 0) return;
-    saveQuickBoardSymbols(symbols);
+    if (!saveQuickBoardSymbols(symbols)) {
+      // Lưu trữ bị chặn (chế độ riêng tư): danh sách không sang được Bảng giá nhanh, nên nói rõ và để người dùng tự gõ, không chuyển trang.
+      this.sendError = `Trình duyệt đang chặn lưu trữ nên không chuyển được danh sách sang Bảng giá nhanh. Hãy gõ các mã này vào ô Bảng giá nhanh: ${symbols.join(',')}`;
+      return;
+    }
+    this.sendError = '';
     this.router.navigate(['/market-data']);
   }
 
@@ -337,7 +356,7 @@ export class ScreenerComponent implements OnInit {
     const symbol = (this.lookupSymbol ?? '').trim().toUpperCase();
     if (!symbol) return;
     this.lookupError = '';
-    this.marketData.getScreener({ ...this.buildQuery(), lookupSymbol: symbol }).subscribe({
+    this.marketData.getScreener({ ...(this.lastQuery ?? this.buildQuery()), lookupSymbol: symbol }).subscribe({
       next: res => { this.lookupResult = res.lookup ?? null; },
       error: () => { this.lookupResult = null; this.lookupError = 'Không tra cứu được, thử lại sau.'; }
     });

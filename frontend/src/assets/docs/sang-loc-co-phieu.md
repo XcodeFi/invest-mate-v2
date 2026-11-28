@@ -49,7 +49,7 @@ Cờ dựa trên **xếp hạng tương đối**, không phải đánh giá rủ
 
 ## Gửi mã sang Bảng giá nhanh
 
-Tick các mã muốn xem (tối đa 30) rồi bấm **Gửi N mã sang Bảng giá nhanh**. Trang Thị trường mở ra với đúng những mã đó và nhớ cho lần sau. Không có gì tự điền.
+Tick các mã muốn xem (tối đa 30) rồi bấm **Gửi N mã sang Bảng giá nhanh**. Trang Thị trường mở ra với đúng những mã đó và nhớ cho lần sau. **Danh sách này thay thế danh sách Bảng giá nhanh bạn đã nhớ trước đó.** Không có gì tự điền. Nếu trình duyệt chặn lưu trữ (chế độ riêng tư), trang sẽ báo và hiện danh sách để bạn tự gõ sang.
 
 ## Giới hạn cần biết
 

@@ -197,6 +197,16 @@ describe('ScreenerComponent: Sàng lọc cổ phiếu', () => {
       expect(lastQuery().maxPe).toBeUndefined();
     });
 
+    it('clearing the rank box never prints "Pnull" in the hint and the run falls back to the default', () => {
+      setup();
+      type('screener-min-rs3m', '');
+
+      expect(el().textContent).not.toContain('null');
+      expect(el().textContent).not.toContain('Pundefined');
+      click('screener-run');
+      expect(lastQuery().minRs3m).toBeUndefined();
+    });
+
     it('numeric thresholds are sent as numbers', () => {
       setup();
       type('screener-min-adtv', '8');
@@ -281,17 +291,29 @@ describe('ScreenerComponent: Sàng lọc cổ phiếu', () => {
       expect(localStorage.getItem(KEY)!.split(',').length).toBe(30);
     });
 
-    it('blocked storage does not break the send (it still navigates)', () => {
+    it('blocked storage: no silent loss. The page says so, keeps the list on screen and does not navigate', async () => {
       setup();
+      tick('CCC');
       tick('AAA');
       const original = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
       Object.defineProperty(window, 'localStorage', { configurable: true, get: () => { throw new Error('bị chặn'); } });
       try {
         expect(() => click('screener-send')).not.toThrow();
-        expect(router.navigate).toHaveBeenCalledWith(['/market-data']);
+        expect(router.navigate).not.toHaveBeenCalled();
+        expect(q('screener-send-error')!.textContent).toContain('chặn lưu trữ');
+        expect(q('screener-send-error')!.textContent).toContain('AAA,CCC');   // để người dùng tự gõ sang Bảng giá nhanh
       } finally {
         Object.defineProperty(window, 'localStorage', original);
       }
+    });
+
+    it('a successful send shows no error', () => {
+      setup();
+      tick('AAA');
+
+      click('screener-send');
+
+      expect(q('screener-send-error')).toBeNull();
     });
 
     it('a new run clears the ticks of symbols that are no longer listed', () => {
@@ -338,6 +360,20 @@ describe('ScreenerComponent: Sàng lọc cổ phiếu', () => {
 
       lookup('not_in_universe', 'Mã không có trong dữ liệu sàng lọc', 'ZZZ');
       expect(q('screener-lookup-result')!.textContent).toContain('Mã không có trong dữ liệu sàng lọc');
+    });
+
+    it('explains against the criteria of the list on screen, not against edits not yet applied', () => {
+      setup();
+      type('screener-min-roe', '12');
+      click('screener-run');                         // bảng đang hiện ứng với ROE 12
+      type('screener-min-roe', '30');                // sửa ô nhưng chưa bấm Lọc
+      market.getScreener.and.returnValue(of(result({ lookup: { symbol: 'AAA', state: 'passed' } })));
+
+      type('screener-lookup-input', 'aaa');
+      click('screener-lookup-run');
+
+      expect(lastQuery().lookupSymbol).toBe('AAA');
+      expect(lastQuery().minRoe).toBe(12);
     });
 
     it('does not replace the main list with the lookup answer', () => {
