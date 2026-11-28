@@ -1219,7 +1219,10 @@ export class MarketDataComponent implements OnInit {
       next: data => {
         this.batchPrices = data;
         this.loadingBatch = false;
-        MarketDataComponent.saveBoard(symbols);   // chỉ nhớ danh sách đã xem giá được
+        if (data.length > 0) {   // danh sách gõ nhầm (không có giá) thì không nhớ
+          this.batchSymbols = symbols.join(',');   // ô nhập hiện đúng danh sách đã chuẩn hoá
+          MarketDataComponent.saveBoard(symbols);
+        }
       },
       error: () => {
         this.notificationService.error('Lỗi', 'Lỗi khi tải bảng giá');
@@ -1258,7 +1261,7 @@ export class MarketDataComponent implements OnInit {
     ]).subscribe(([positions, plans, lists]) => {
       this.quickChips = [
         ...fromSymbols('positions', 'Đang nắm giữ', (positions ?? []).map(p => p.symbol)),
-        ...fromSymbols('plans', 'Kế hoạch đang mở', (plans ?? []).map(p => p.symbol)),
+        ...fromSymbols('plans', 'Mã có kế hoạch mở', (plans ?? []).map(p => p.symbol)),
         ...(lists ?? []).filter(w => w.itemCount > 0)
           .map(w => ({ key: `wl:${w.id}`, label: `${w.emoji ? w.emoji + ' ' : ''}${w.name} (${w.itemCount})`, watchlistId: w.id }))
       ];

@@ -25,7 +25,7 @@ Nhập nhiều mã cách nhau dấu phẩy (VD: VNM,FPT,VCB), bấm **Xem giá**
 - **Trang nhớ danh sách bạn xem lần trước** và tự tải lại khi bạn mở trang. Chỉ nhớ khi xem giá thành công; chưa có danh sách nào thì dùng danh sách mặc định (VNM, FPT, VCB, HPG, MWG, VIC). Danh sách được nhớ trong trình duyệt này, không đồng bộ sang máy khác.
 - **Gợi ý xem nhanh hôm nay** nằm phía trên ô nhập, bấm một chip là điền mã vào ô, tải giá và nhớ luôn:
   - **Đang nắm giữ (N):** các mã bạn đang giữ trong các danh mục.
-  - **Kế hoạch đang mở (N):** các mã có kế hoạch giao dịch còn hiệu lực.
+  - **Mã có kế hoạch mở (N):** số mã (không phải số kế hoạch) có kế hoạch giao dịch còn hiệu lực; một mã có nhiều kế hoạch chỉ tính một lần.
   - **Mỗi danh sách theo dõi một chip** (tên danh sách và số mã): mã của danh sách được tải khi bạn bấm.
   - Nguồn nào trống thì chip đó không hiện; nguồn nào không tải được thì chỉ chip đó biến mất, bảng giá vẫn dùng bình thường.
 

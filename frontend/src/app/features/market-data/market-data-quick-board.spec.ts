@@ -39,7 +39,7 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
     market = jasmine.createSpyObj<MarketDataService>('MarketDataService', ['getMarketOverview', 'getBatchPrices', 'getTopFluctuation', 'getSignalSetups']);
     market.getMarketOverview.and.returnValue(of([]));
     market.getTopFluctuation.and.returnValue(of([]));
-    market.getBatchPrices.and.returnValue(src.batch ?? of([]));
+    market.getBatchPrices.and.returnValue(src.batch ?? of([{ symbol: 'X', date: '2026-11-27', close: 100, volume: 1000 } as BatchPrice]));
     positions = jasmine.createSpyObj<PositionsService>('PositionsService', ['getAll']);
     positions.getAll.and.returnValue(src.positions ?? of([]));
     plans = jasmine.createSpyObj<TradePlanService>('TradePlanService', ['getAll']);
@@ -118,6 +118,37 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
       expect(localStorage.getItem(KEY)).toBe('VNM,FPT,SSI');   // chuẩn hoá: hoa, bỏ trống, bỏ trùng
     });
 
+    it('input_shows_normalised_list_after_load', async () => {
+      setup();
+      fixture.componentInstance.batchSymbols = 'fpt, hpg, FPT';
+
+      fixture.componentInstance.loadBatchPrices();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.batchSymbols).toBe('FPT,HPG');
+      expect(input().value).toBe('FPT,HPG');
+    });
+
+    it('does not save a list that returned no prices (typo list)', () => {
+      setup({ batch: of([]) });
+      localStorage.removeItem(KEY);
+      fixture.componentInstance.batchSymbols = 'XYZ12';
+
+      fixture.componentInstance.loadBatchPrices();
+
+      expect(localStorage.getItem(KEY)).toBeNull();
+    });
+
+    it('keeps the typed text when the load fails', () => {
+      setup({ batch: throwError(() => new Error('x')) });
+      fixture.componentInstance.batchSymbols = 'fpt, hpg, FPT';
+
+      fixture.componentInstance.loadBatchPrices();
+
+      expect(fixture.componentInstance.batchSymbols).toBe('fpt, hpg, FPT');
+    });
+
     it('does not save when the load fails', () => {
       setup({ batch: throwError(() => new Error('x')) });
       localStorage.removeItem(KEY);
@@ -135,7 +166,7 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
       try {
         fixture.componentInstance.batchSymbols = 'ACB';
         expect(() => fixture.componentInstance.loadBatchPrices()).not.toThrow();
-        expect(fixture.componentInstance.batchPrices).toEqual([]);
+        expect(fixture.componentInstance.batchPrices.length).toBe(1);   // bảng vẫn hiện dù không lưu được
       } finally {
         Object.defineProperty(window, 'localStorage', original);
       }
@@ -150,7 +181,7 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
         watchlists: of([wl('w1', 'Ngân hàng', 4, '🏦')]),
       });
 
-      expect(chipLabels()).toEqual(['Đang nắm giữ (2)', 'Kế hoạch đang mở (2)', '🏦 Ngân hàng (4)']);
+      expect(chipLabels()).toEqual(['Đang nắm giữ (2)', 'Mã có kế hoạch mở (2)', '🏦 Ngân hàng (4)']);
       expect(el().textContent).toContain('Gợi ý xem nhanh hôm nay');
     });
 
@@ -169,7 +200,7 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
     it('open plans chip loads the plan symbols', () => {
       setup({ plans: of([plan('vnm'), plan('MWG')]) });
 
-      clickChip('Kế hoạch đang mở');
+      clickChip('Mã có kế hoạch mở');
 
       expect(lastBatch()).toEqual(['VNM', 'MWG']);
       expect(plans.getAll).toHaveBeenCalledWith(true);
@@ -208,9 +239,30 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
         watchlists: throwError(() => new Error('y')),
       });
 
-      expect(chipLabels()).toEqual(['Kế hoạch đang mở (1)']);
+      expect(chipLabels()).toEqual(['Mã có kế hoạch mở (1)']);
       expect(market.getBatchPrices).toHaveBeenCalled();   // bảng vẫn tải
       expect((TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>).error).not.toHaveBeenCalled();
+    });
+
+    it('failing plans source hides only the plans chip', () => {
+      setup({
+        positions: of([position('HPG')]),
+        plans: throwError(() => new Error('x')),
+        watchlists: of([wl('w1', 'Ngân hàng', 2)]),
+      });
+
+      expect(chipLabels()).toEqual(['Đang nắm giữ (1)', '⭐ Ngân hàng (2)']);
+    });
+
+    it('a watchlist with an empty detail leaves the input and the board untouched', () => {
+      setup({ watchlists: of([wl('w1', 'Rỗng', 2)]), details: { w1: of(wlDetail('w1', [])) } });
+      const before = fixture.componentInstance.batchSymbols;
+      const callsBefore = market.getBatchPrices.calls.count();
+
+      clickChip('⭐ Rỗng');
+
+      expect(fixture.componentInstance.batchSymbols).toBe(before);
+      expect(market.getBatchPrices.calls.count()).toBe(callsBefore);
     });
 
     it('a watchlist whose detail fails to load does not break the board or notify', () => {
@@ -218,6 +270,8 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
       const callsBefore = market.getBatchPrices.calls.count();
 
       clickChip('⭐ Hỏng');
+
+      expect(chipLabels()).toEqual([]);   // chip lỗi biến mất
 
       expect(market.getBatchPrices.calls.count()).toBe(callsBefore);
       expect((TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>).error).not.toHaveBeenCalled();

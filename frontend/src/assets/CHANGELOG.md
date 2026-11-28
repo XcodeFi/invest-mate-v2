@@ -10,7 +10,7 @@
 
 ### Tính năng mới
 
-- **Gợi ý xem nhanh hôm nay** phía trên ô nhập: chip "Đang nắm giữ (N)", "Kế hoạch đang mở (N)" và mỗi danh sách theo dõi một chip. Bấm chip thì điền ô nhập bằng danh sách đã bỏ trùng, tải giá và nhớ luôn. Nguồn trống thì ẩn chip; nguồn lỗi thì chỉ chip đó biến mất, lặng lẽ, không ảnh hưởng bảng giá. Danh sách theo dõi chỉ tải chi tiết khi bấm.
+- **Gợi ý xem nhanh hôm nay** phía trên ô nhập: chip "Đang nắm giữ (N)", "Mã có kế hoạch mở (N)" và mỗi danh sách theo dõi một chip. Bấm chip thì điền ô nhập bằng danh sách đã bỏ trùng, tải giá và nhớ luôn. Nguồn trống thì ẩn chip; nguồn lỗi thì chỉ chip đó biến mất, lặng lẽ, không ảnh hưởng bảng giá. Danh sách theo dõi chỉ tải chi tiết khi bấm. Sau khi xem giá thành công, ô nhập hiện đúng danh sách đã chuẩn hoá ("fpt, hpg, FPT" thành "FPT,HPG"); danh sách không có mã nào trả về giá (gõ nhầm) thì không được nhớ.
 
 ### Kỹ thuật
 
