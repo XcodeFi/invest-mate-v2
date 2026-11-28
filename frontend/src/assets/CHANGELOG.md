@@ -14,6 +14,7 @@
 
 ### Kỹ thuật
 
+- Nhãn các đường ngang của Cốc tay cầm trên biểu đồ giờ ngắn ("Pivot", "Cắt lỗ −9,7%", "Mục tiêu +15,7% · 1,6R") để không chồng lên nhau ở mép phải; nhãn đầy đủ vẫn nằm ở chú giải dưới biểu đồ. Đường mục tiêu đo tô xanh lá như các mức chốt lời.
 - `TrapDetector.Detect` là hàm thuần trên nến ngày đã điều chỉnh (không dò trên giá chưa điều chỉnh); chỉ nến phá vỡ đầu tiên, nghỉ 20 phiên giữa hai mốc cùng loại, tối đa 12 mốc gần nhất. Không tần suất, không tỉ lệ, không xác suất (thống kê kết quả là một phần việc riêng, chưa làm).
 
 ---
