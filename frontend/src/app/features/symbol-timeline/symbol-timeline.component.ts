@@ -21,6 +21,7 @@ import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adj
 import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
 import { readNow } from '../../shared/indicators/indicator-guides';
 import { sliceSeriesFrom } from '../../shared/indicators/slice-series';
+import { ThesisCardComponent } from './thesis-card.component';
 import { vnDay } from '../../shared/indicators/vn-date';
 import { buildEmotionPane, buildTimelineMarkers } from './timeline-markers';
 
@@ -66,7 +67,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
 @Component({
   selector: 'app-symbol-timeline',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, AiChatPanelComponent,
+  imports: [CommonModule, FormsModule, RouterModule, ThesisCardComponent, VndCurrencyPipe, NumMaskDirective, AiChatPanelComponent,
     IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-6">
@@ -280,7 +281,9 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       </div>
 
       <!-- Biểu đồ: dùng lại biểu đồ nhiều tầng của trang Thị trường, thêm các mốc của dòng thời gian (không dính: trang dài, có feed bên dưới) -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4" data-testid="timeline-chart-card">
+      <!-- Thẻ Luận điểm đứng cạnh biểu đồ khi màn rộng hơn 1024px, xếp dưới biểu đồ khi từ 1024px trở xuống -->
+      <div class="flex flex-col min-[1025px]:flex-row gap-4 mb-4 items-start" data-testid="timeline-chart-row">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 w-full min-w-0 min-[1025px]:flex-1" data-testid="timeline-chart-card">
         <app-indicator-group-bar [selected]="selectedGroup" (groupToggle)="toggleGroup($event)"></app-indicator-group-bar>
         @if (analysisFailed) {
           <p class="mb-2 text-xs text-amber-700" data-testid="timeline-analysis-error">Không tải được chỉ báo, thử lại sau</p>
@@ -305,6 +308,8 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
             {{ e }}
           </span>
         </div>
+      </div>
+      <app-thesis-card class="w-full min-[1025px]:w-80 min-[1025px]:flex-shrink-0" [symbol]="symbol"></app-thesis-card>
       </div>
 
       <!-- Ghi chú chất lượng giá và khối Cách đọc của nhóm đang chọn -->
