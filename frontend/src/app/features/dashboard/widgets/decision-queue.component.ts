@@ -77,7 +77,8 @@ const MIN_HOLD_NOTE_LENGTH = 20;
           </span>
         </h2>
       </div>
-      <div class="divide-y divide-gray-100">
+      <div class="divide-y divide-gray-100" data-test="decision-list"
+           [class.max-h-[70vh]]="showAll" [class.overflow-y-auto]="showAll">
         <div *ngFor="let item of visibleItems; trackBy: trackById"
              data-test="decision-item"
              class="p-4 hover:bg-gray-50 transition-colors"
@@ -168,10 +169,11 @@ const MIN_HOLD_NOTE_LENGTH = 20;
       <div *ngIf="items.length > maxVisible"
            data-test="overflow-link"
            class="px-4 py-2 text-xs text-center text-gray-500 border-t">
-        Hiển thị {{ maxVisible }}/{{ items.length }} ·
-        <a routerLink="/risk-dashboard" class="text-blue-600 hover:text-blue-800 font-medium">
-          Xem tất cả →
-        </a>
+        {{ showAll ? 'Hiển thị tất cả ' + items.length + ' việc' : 'Hiển thị ' + maxVisible + '/' + items.length }} ·
+        <button type="button" (click)="showAll = !showAll" [attr.aria-expanded]="showAll"
+                class="text-blue-600 hover:text-blue-800 font-medium">
+          {{ showAll ? 'Thu gọn ▴' : 'Xem thêm ' + (items.length - maxVisible) + ' ▾' }}
+        </button>
       </div>
     </div>
 
@@ -195,6 +197,8 @@ export class DecisionQueueComponent implements OnInit {
   streakDays: number | null = null;
   loading = true;
   readonly maxVisible = 5;
+  /** Mở rộng ngay trong thẻ (không lưu: tải lại trang thì thu gọn). Giữ nguyên qua loadQueue() và sau khi xử lý một việc. */
+  showAll = false;
   readonly minNoteLength = MIN_HOLD_NOTE_LENGTH;
 
   expandedNoteFor: string | null = null;
@@ -252,7 +256,7 @@ export class DecisionQueueComponent implements OnInit {
   }
 
   get visibleItems(): DecisionItemDto[] {
-    return this.items.slice(0, this.maxVisible);
+    return this.showAll ? this.items : this.items.slice(0, this.maxVisible);
   }
 
   get canSubmitHold(): boolean {

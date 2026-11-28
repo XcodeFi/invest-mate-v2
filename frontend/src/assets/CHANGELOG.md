@@ -9,6 +9,12 @@
 - **Một thẻ "Tài chính cá nhân" duy nhất** thay cho hai thẻ cùng đọc một dữ liệu (thẻ "Tài chính cá nhân" nằm giữa trang và thẻ Net Worth ở trên). Thẻ gộp hiện Net Worth và mức lệch CAGR, "Tổng tài sản − Nợ", cảnh báo nợ tiêu dùng lãi cao, thanh sức khoẻ tài chính; phần chia tài sản (CK · Vàng · TK · DP · NR) nằm sau nút **Chi tiết ▾**, mặc định thu gọn. Chỉ còn một link (**Xem chi tiết →**) nên nút Chi tiết không bị link bao ngoài nuốt.
 - Chưa thiết lập tài chính cá nhân: thẻ mời thiết lập hiện ở đúng vị trí này.
 - Khối đầu tư lớn đổi tên từ "Tổng tài sản" thành **Tổng quan đầu tư** để "Tổng tài sản" chỉ còn một nghĩa.
+## [v2.117.1] — 2026-11-28 · Sửa: "Việc cần xử lý hôm nay" xem được đủ danh sách ngay trên Trang chủ
+
+### Sửa lỗi
+
+- **Bấm "Xem thêm" trong thẻ Việc cần xử lý hôm nay giờ mở đủ danh sách ngay trong thẻ** thay vì đưa sang trang Sức khoẻ rủi ro (trang đó chỉ liệt kê 5 lần chạm cắt lỗ gần nhất, nên các việc còn lại không hề hiện ra). Thẻ vẫn hiện 5 việc đầu khi thu gọn ("Hiển thị 5/8 · Xem thêm 3 ▾"); mở rộng thì cuộn trong thẻ (cao tối đa 70% màn hình, phần đầu thẻ giữ nguyên), mọi việc đều có đủ nút BÁN và GIỮ. Bấm **Thu gọn ▴** để về 5 việc. Xử lý xong một việc hay làm mới danh sách không làm thẻ tự thu lại; tải lại trang thì thu gọn.
+- Nút "Xử lý →" của từng việc không đổi.
 ## [v2.117.0] — 2026-11-28 · Dòng thời gian: thẻ "Luận điểm" cạnh biểu đồ
 
 ### Tính năng mới

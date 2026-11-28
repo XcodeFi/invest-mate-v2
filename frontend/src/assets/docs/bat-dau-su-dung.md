@@ -73,6 +73,7 @@ Quay lại **Dashboard** (`/dashboard`) để xem:
 - **🚨 Decision Queue (vị trí #2)**: Việc cần xử lý hôm nay — gộp Stop-loss / Scenario trigger / Thesis review thành 1 list. Mỗi item có 2 button:
   - **🔪 BÁN THEO KẾ HOẠCH** — mở màn hình ghi lệnh bán với form đã điền sẵn theo kế hoạch (mã, danh mục, giá hiện tại, số lượng). Bạn sửa lại số lượng muốn bán rồi mới bấm lưu — không có gì được ghi lúc bấm nút này. Chỉ hiện khi thẻ có gắn Kế hoạch.
   - **✋ GIỮ + GHI LÝ DO** — bắt buộc nhập ≥ 20 ký tự để buộc nghĩ kỹ trước khi bỏ qua tín hiệu.
+  - Danh sách hiện 5 việc đầu; còn nhiều hơn thì bấm **Xem thêm** để mở đủ ngay trong thẻ (cuộn được, vẫn có đủ nút BÁN/GIỮ cho mọi việc), **Thu gọn** để về 5 việc.
   - Empty state: khi không có alert → `✅ Hôm nay đang kỷ luật + 🔥 streak X ngày`.
 - **NetWorth + Reality Gap CAGR**: cảnh báo lệch so với mục tiêu CAGR.
 - **Discipline Score**: điểm kỷ luật thesis.
