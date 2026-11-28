@@ -118,7 +118,7 @@ Biểu đồ ở đầu trang giống trang **Phân tích thị trường**: b�
 - Nến là nến thật đã điều chỉnh theo sự kiện quyền (cổ tức, chia thưởng, phát hành thêm). Nếu thấy ghi chú "chưa điều chỉnh" hoặc "cập nhật tới ngày …" thì nguồn dữ liệu đang có sự cố.
 - **Mốc trên biểu đồ:** T = giao dịch (mũi tên lên là mua, xuống là bán), J = nhật ký, E = sự kiện, A = cảnh báo, H = hồ sơ công ty. Ngày không có phiên (cuối tuần, lễ) thì mốc nằm ở phiên liền trước. Trỏ chuột vào phiên có mốc để xem chi tiết.
 - **Giá giao dịch là giá gốc.** Nến đã điều chỉnh nên có thể thấp hơn giá bạn đã khớp nếu sau đó có cổ tức, chia thưởng hoặc phát hành thêm. Khi giá bạn khớp nằm ngoài khoảng giá của phiên đó trên biểu đồ, mốc ghi "(giá gốc)": vị trí mốc vẫn đúng ngày, chỉ mặt bằng giá khác nhau. Nhãn này đến từ việc so giá giao dịch với khoảng giá của phiên, nên một điều chỉnh nhỏ (ví dụ cổ tức tiền mặt nhỏ) có thể không hiện nhãn.
-- Các nút **1T / 3T / 6T / 1N** đổi khoảng hiển thị; chỉ báo luôn được tính trên cùng một cửa sổ dài hơn khoảng hiển thị (nên đầu khoảng không bị trống và giá trị phiên cuối không đổi khi đổi khoảng).
+- Các nút **1T / 3T / 6T / 1N** đổi khoảng hiển thị; chỉ báo luôn được tính trên cùng một lịch sử dài (36 tháng) rồi mới cắt, nên đầu khoảng không bị trống và giá trị phiên cuối (kể cả EMA 200) không đổi khi đổi khoảng, và giống trang Phân tích thị trường. Các mốc hỗ trợ, kháng cự và Fibonacci vẫn là mốc trong 12 tháng gần nhất.
 - Tầng **Cảm xúc** (cột màu ở dưới cùng) xuất hiện khi bạn có nhật ký ghi cảm xúc: độ cao cột là mức tự tin, màu là cảm xúc.
 
 ### Đánh giá sau khi bán (post-trade review)

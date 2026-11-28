@@ -474,9 +474,9 @@ public class TechnicalIndicatorServiceTests
     // ─── Tests: Configurable months parameter ───────────────────────────
 
     [Fact]
-    public async Task AnalyzeAsync_WithMonthsParameter_FetchesCorrectDateRange()
+    public async Task AnalyzeAsync_WithMonthsParameter_FetchesTheFixedWarmUpHistoryOrLonger()
     {
-        // Arrange — request 12 months of data
+        // Arrange — chỉ báo luôn tính trên ít nhất 36 tháng, months chỉ quyết định phạm vi mốc; months > 36 thì lấy dài hơn
         var prices = GeneratePriceHistory(60, startPrice: 80_000m, dailyChange: 200m);
         DateTime capturedFrom = default;
         _marketDataMock
@@ -487,13 +487,15 @@ public class TechnicalIndicatorServiceTests
         // Act
         await _sut.AnalyzeAsync(Symbol, months: 12);
 
-        // Assert — the 'from' date should be ~12 months ago (within a small tolerance)
-        var expected = DateTime.UtcNow.AddMonths(-12);
-        capturedFrom.Should().BeCloseTo(expected, TimeSpan.FromSeconds(5));
+        // Assert
+        capturedFrom.Should().BeCloseTo(DateTime.UtcNow.AddMonths(-36), TimeSpan.FromSeconds(5));
+
+        await _sut.AnalyzeAsync(Symbol, months: 48);
+        capturedFrom.Should().BeCloseTo(DateTime.UtcNow.AddMonths(-48), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
-    public async Task AnalyzeAsync_WithoutMonthsParameter_DefaultsTo12Months()
+    public async Task AnalyzeAsync_WithoutMonthsParameter_StillFetchesTheFixedWarmUpHistory()
     {
         // Arrange
         var prices = GeneratePriceHistory(60, startPrice: 80_000m, dailyChange: 200m);
@@ -503,13 +505,11 @@ public class TechnicalIndicatorServiceTests
             .Callback<string, DateTime, DateTime, CancellationToken>((_, from, _, _) => capturedFrom = from)
             .ReturnsAsync(prices);
 
-        // Act — no months parameter, should default to 12
+        // Act — không truyền months (mặc định 12 chỉ dùng cho phạm vi mốc)
         await _sut.AnalyzeAsync(Symbol);
 
-        // Assert — the 'from' date should be ~12 months ago (not 6)
-        var expected12MonthsAgo = DateTime.UtcNow.AddMonths(-12);
-        var wrong6MonthsAgo = DateTime.UtcNow.AddMonths(-6);
-        capturedFrom.Should().BeCloseTo(expected12MonthsAgo, TimeSpan.FromSeconds(5));
-        capturedFrom.Should().NotBeCloseTo(wrong6MonthsAgo, TimeSpan.FromMinutes(1));
+        // Assert — lịch sử lấy về là cửa sổ cố định 36 tháng, không phải 12 hay 6
+        capturedFrom.Should().BeCloseTo(DateTime.UtcNow.AddMonths(-36), TimeSpan.FromSeconds(5));
+        capturedFrom.Should().NotBeCloseTo(DateTime.UtcNow.AddMonths(-12), TimeSpan.FromMinutes(1));
     }
 }

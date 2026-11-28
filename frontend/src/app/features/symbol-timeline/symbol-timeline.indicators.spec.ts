@@ -21,21 +21,21 @@ let adjustedAsOfFlag: string | null | undefined;
 /** Chuỗi 330 ngày liên tiếp kết thúc hôm nay; EMA 20 có giá trị từ ngày đầu (đã khởi động) để kiểm việc cắt khoảng. */
 let seriesAgeDays = 0;   // > 0: chuỗi kết thúc cách đây chừng đó ngày (để khoảng đang xem không có phiên nào)
 
-const series = (months = 12): TechnicalSeries => {
+const series = (): TechnicalSeries => {
   const flat = (v: number) => Array.from({ length: N }, () => v);
   return {
     ...(adjustedFlag === undefined ? {} : { adjusted: adjustedFlag }),
     ...(adjustedAsOfFlag === undefined ? {} : { adjustedAsOf: adjustedAsOfFlag }),
     symbol: 'VNM', dates: Array.from({ length: N }, (_, i) => `${iso(daysAgo(N - 1 - i + seriesAgeDays))}T00:00:00Z`),
     open: flat(100), high: flat(101), low: flat(99), close: flat(100), volume: flat(1000),
-    ema20: flat(100 + months), ema50: flat(100), ema200: flat(98), bollingerUpper: flat(110), bollingerMiddle: flat(100), bollingerLower: flat(90),
+    ema20: flat(112), ema50: flat(100), ema200: flat(98), bollingerUpper: flat(110), bollingerMiddle: flat(100), bollingerLower: flat(90),
     rsi14: flat(72), stochK: flat(50), stochD: flat(50), macdLine: flat(2), macdSignal: flat(1), macdHistogram: flat(1),
     adx: flat(18), plusDi: flat(20), minusDi: flat(15), atr14: flat(2), obv: flat(1000), mfi14: flat(50), volumeSma20: flat(1000),
   };
 };
 
-const analysis = (months = 12): TechnicalAnalysis => ({
-  symbol: 'VNM', currentPrice: 100, ema20: 100 + months, supportLevels: [95], resistanceLevels: [105],
+const analysis = (): TechnicalAnalysis => ({
+  symbol: 'VNM', currentPrice: 100, ema20: 112, supportLevels: [95], resistanceLevels: [105],
   suggestedEntry: 100, suggestedStopLoss: 95, suggestedTarget: 110, confluenceScore: 68.5,
   overallSignal: 'buy', overallSignalVi: 'MUA',
 } as unknown as TechnicalAnalysis);
@@ -51,16 +51,21 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
   /** Mỗi lần gọi chuỗi ở chế độ deferred trả một Subject để test tự quyết thứ tự trả lời. */
   let pending: Subject<TechnicalSeries>[] = [];
 
-  function setup(opts: { seriesError?: boolean; deferred?: boolean; analysisError?: boolean } = {}) {
+  function setup(opts: { seriesError?: boolean; deferred?: boolean; analysisError?: boolean; seriesFailOnce?: boolean; analysisFailOnce?: boolean; fixed?: TechnicalSeries } = {}) {
     pending = [];
     marketSpy = jasmine.createSpyObj<MarketDataService>('MarketDataService', ['getTechnicalSeries', 'getTechnicalAnalysis']);
-    marketSpy.getTechnicalSeries.and.callFake((_symbol: string, months?: number) => {
-      if (opts.seriesError) return throwError(() => new Error('x'));
+    let seriesCalls = 0;
+    let analysisCalls = 0;
+    marketSpy.getTechnicalSeries.and.callFake(() => {
+      seriesCalls++;
+      if (opts.seriesError || (opts.seriesFailOnce && seriesCalls === 1)) return throwError(() => new Error('x'));
       if (opts.deferred) { const s = new Subject<TechnicalSeries>(); pending.push(s); return s; }
-      return of(series(months));
+      return of(opts.fixed ?? series());
     });
-    marketSpy.getTechnicalAnalysis.and.callFake((_symbol: string, months?: number) =>
-      opts.analysisError ? throwError(() => new Error('y')) : of(analysis(months)));
+    marketSpy.getTechnicalAnalysis.and.callFake(() => {
+      analysisCalls++;
+      return opts.analysisError || (opts.analysisFailOnce && analysisCalls === 1) ? throwError(() => new Error('y')) : of(analysis());
+    });
     const journalSpy = jasmine.createSpyObj<JournalEntryService>('JournalEntryService', ['getTimeline', 'create']);
     journalSpy.getTimeline.and.callFake(() => of(timeline() as any));
     notify = jasmine.createSpyObj<NotificationService>('NotificationService', ['error', 'success', 'warning']);
@@ -129,7 +134,7 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     setup();   // khoảng mặc định 3 tháng
 
     expect(marketSpy.getTechnicalSeries).toHaveBeenCalledWith('VNM', 36);
-    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledWith('VNM', 36);
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledWith('VNM');   // phân tích dùng cửa sổ mặc định: mốc hỗ trợ/kháng cự trong 12 tháng như trang Thị trường
     const dates = chart().dates;
     expect(dates.length).toBeGreaterThan(80);
     expect(dates.length).toBeLessThan(100);
@@ -158,9 +163,9 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     const seriesMonths = marketSpy.getTechnicalSeries.calls.allArgs().map(a => a[1]);
     const analysisMonths = marketSpy.getTechnicalAnalysis.calls.allArgs().map(a => a[1]);
     expect(new Set(seriesMonths)).toEqual(new Set([36]));
-    expect(new Set(analysisMonths)).toEqual(new Set([36]));
+    expect(new Set(analysisMonths)).toEqual(new Set([undefined]));   // không truyền months
     expect(new Set(seen).size).toBe(1);
-    expect(seen[0]).toBe(136);   // = ema20 của analysis cùng cửa sổ (100 + 36)
+    expect(seen[0]).toBe(112);   // = ema20 của analysis (backend tính chỉ báo trên cùng một lịch sử cho mọi months)
   });
 
   it('changing the date range widens the visible slice from the same window', () => {
@@ -186,6 +191,7 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(1);
     expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledTimes(1);
     expect(marketSpy.getTechnicalSeries.calls.mostRecent().args).toEqual(['VNM', 36]);
+    expect(marketSpy.getTechnicalAnalysis.calls.mostRecent().args).toEqual(['VNM']);
     expect(chart().dates.length).toBeGreaterThan(80);   // đã quay lại 3T từ cùng một chuỗi
   });
 
@@ -245,10 +251,60 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     fixture.detectChanges();
 
     expect(fixture.componentInstance.series).toBeNull();
-    expect(fixture.componentInstance.chartMarkers).toEqual([]);
-    expect(fixture.componentInstance.groupLayers.panes).toEqual([]);
     expect(chart()).toBeUndefined();
     expect(q('timeline-chart-error')).not.toBeNull();
+  });
+
+  describe('đổi khoảng cắt theo ngày Việt Nam trên chuỗi đã tải', () => {
+    afterEach(() => jasmine.clock().uninstall());
+
+    /** Chuỗi có ngày cố định 20/08 đến 27/11/2026, không phụ thuộc hôm nay. */
+    const fixedSeries = (): TechnicalSeries => {
+      const base = series();
+      const n = 100;
+      const dates = Array.from({ length: n }, (_, i) => new Date(Date.UTC(2026, 7, 20 + i)).toISOString());
+      const cut = <T>(a: T[]) => a.slice(0, n);
+      return { ...base, dates, open: cut(base.open), high: cut(base.high), low: cut(base.low), close: cut(base.close), volume: cut(base.volume),
+        ema20: cut(base.ema20), ema50: cut(base.ema50), ema200: cut(base.ema200!), bollingerUpper: cut(base.bollingerUpper), bollingerMiddle: cut(base.bollingerMiddle),
+        bollingerLower: cut(base.bollingerLower), rsi14: cut(base.rsi14), stochK: cut(base.stochK), stochD: cut(base.stochD), macdLine: cut(base.macdLine),
+        macdSignal: cut(base.macdSignal), macdHistogram: cut(base.macdHistogram), adx: cut(base.adx), plusDi: cut(base.plusDi), minusDi: cut(base.minusDi),
+        atr14: cut(base.atr14), obv: cut(base.obv), mfi14: cut(base.mfi14), volumeSma20: cut(base.volumeSma20) };
+    };
+
+    it('01:00 on 28/11 in Vietnam: the first visible session for 3T is 28/08, not 27/08 (the UTC date)', () => {
+      jasmine.clock().install();
+      jasmine.clock().mockDate(new Date('2026-11-27T18:00:00Z'));
+      setup({ fixed: fixedSeries() });
+
+      expect(chart().dates[0].substring(0, 10)).toBe('2026-08-28');
+      expect(chart().dates[chart().dates.length - 1].substring(0, 10)).toBe('2026-11-27');
+    });
+  });
+
+  it('a failed series load can be retried by a range switch: the chart appears and the error clears', () => {
+    setup({ seriesFailOnce: true });
+    expect(q('timeline-chart-error')).not.toBeNull();
+    expect(chart()).toBeUndefined();
+
+    (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '6T') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(marketSpy.getTechnicalSeries).toHaveBeenCalledTimes(2);
+    expect(q('timeline-chart-error')).toBeNull();
+    expect(chart()).toBeDefined();
+  });
+
+  it('an analysis failure is retried on the next range switch and its line clears', () => {
+    setup({ analysisFailOnce: true });
+    expect(q('timeline-analysis-error')).not.toBeNull();
+
+    (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '6T') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(marketSpy.getTechnicalAnalysis).toHaveBeenCalledTimes(2);
+    expect(q('timeline-analysis-error')).toBeNull();
+    click('xu-huong');
+    expect(chart().layers.overlays.length).toBeGreaterThan(0);   // phân tích đã có nên nhóm vẽ được
   });
 
   it('an empty slice (the series ends before the chosen range starts) shows a message instead of a blank chart', () => {

@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, Subscription, forkJoin, of } from 'rxjs';
+import { Subject, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
@@ -673,7 +673,6 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   /** Mã mà `fullSeries` thuộc về; null khi chưa tải hoặc lần tải lỗi (lần loadData sau sẽ tải lại). */
   private indicatorSymbol: string | null = null;
   private fullSeries: TechnicalSeries | null = null;
-  private indicatorSub: Subscription | null = null;
   /** Phân tích (các lớp của nhóm chỉ báo) không tải được: hiện một dòng báo thay vì để các nhóm trống lặng lẽ. */
   analysisFailed = false;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
@@ -757,22 +756,21 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
 
     // Chỉ báo tính trên cùng một cửa sổ cố định nên chỉ tải MỘT lần cho mỗi mã; đổi khoảng chỉ cắt lại chuỗi đã có.
     // Chỉ dòng thời gian phụ thuộc khoảng (ở trên).
-    if (this.indicatorSymbol === this.symbol) {
+    if (this.indicatorSymbol === this.symbol && !this.analysisFailed) {
       this.applyRange();   // đã có (hoặc đang tải: câu trả lời sẽ được cắt theo khoảng lúc nó đến)
-    } else {
+    } else {   // chưa tải, tải lỗi, hoặc phân tích lỗi: tải lại khi người dùng đổi khoảng
       this.loadIndicators();
     }
   }
 
   private loadIndicators(): void {
-    this.indicatorSub?.unsubscribe();
     this.indicatorSymbol = this.symbol;
     this.fullSeries = null;
     this.chartError = null;
     this.analysisFailed = false;
-    this.indicatorSub = forkJoin([
+    forkJoin([
       this.marketDataService.getTechnicalSeries(this.symbol, INDICATOR_WINDOW_MONTHS),
-      this.marketDataService.getTechnicalAnalysis(this.symbol, INDICATOR_WINDOW_MONTHS).pipe(catchError(() => {
+      this.marketDataService.getTechnicalAnalysis(this.symbol).pipe(catchError(() => {
         this.analysisFailed = true;
         return of(null);
       }))
@@ -783,15 +781,11 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
         this.applyRange();
       },
       error: () => {
-        // Lỗi thì bỏ hẳn chuỗi cũ: không để lớp vẽ, mốc hay ghi chú nào còn dùng dữ liệu của lần trước
+        // Lỗi thì bỏ hẳn chuỗi cũ (biểu đồ và các ghi chú chỉ vẽ khi còn chuỗi) và cho phép tải lại ở lần đổi khoảng sau
         this.indicatorSymbol = null;
         this.fullSeries = null;
         this.analysis = null;
         this.series = null;
-        this.chartCandles = { open: [], high: [], low: [], close: [] };
-        this.groupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
-        this.chartMarkers = [];
-        this.readNowLines = [];
         this.chartError = 'Không tải được dữ liệu biểu đồ';
         this.notificationService.error('Lỗi', 'Không thể tải dữ liệu giá');
       }
@@ -820,12 +814,6 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   private refreshChart(): void {
     const series = this.series;
     if (!series) return;
-    if (series.dates.length === 0) {
-      this.groupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
-      this.chartMarkers = [];
-      this.readNowLines = [];
-      return;
-    }
 
     const base = this.analysis
       ? buildGroupLayers(this.selectedGroup, series, this.analysis)

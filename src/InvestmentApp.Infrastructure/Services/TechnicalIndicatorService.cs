@@ -13,12 +13,23 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         _marketData = marketData;
     }
 
+    /// <summary>
+    /// Lịch sử (tháng) luôn dùng để tính chỉ báo, bất kể <c>months</c> xin gì. EMA 200, RSI, ADX, ATR, OBV, MACD... đệ quy nên giá trị phiên cuối
+    /// phụ thuộc điểm bắt đầu; nếu mỗi nơi xin một khoảng khác nhau thì cùng một mã cho các số khác nhau. Provider đã giữ sẵn chuỗi 3 năm
+    /// trong bộ nhớ đệm nên không tốn thêm lần gọi nguồn.
+    /// </summary>
+    internal const int IndicatorHistoryMonths = 36;
+
+    /// <summary>
+    /// <c>months</c> chỉ quyết định phạm vi của các mốc "trong N tháng gần nhất" (hỗ trợ, kháng cự, Fibonacci) và số nến trả về của chuỗi;
+    /// chỉ báo được tính trên toàn bộ lịch sử cố định (<see cref="IndicatorHistoryMonths"/>), nên không đổi theo <c>months</c>.
+    /// </summary>
     public async Task<TechnicalAnalysisResult> AnalyzeAsync(string symbol, int months = 12, CancellationToken ct = default)
     {
-        // Fetch configurable months of data (default 12 for reliable EMA200 + MACD calculation)
-        var from = DateTime.UtcNow.AddMonths(-months);
         var to = DateTime.UtcNow;
-        var prices = await _marketData.GetHistoricalPricesAsync(symbol, from, to, ct);
+        var windowFrom = to.AddMonths(-months).Date;
+        var prices = await _marketData.GetHistoricalPricesAsync(symbol, to.AddMonths(-Math.Max(months, IndicatorHistoryMonths)), to, ct);
+        var windowStart = WindowStart(prices, windowFrom);
 
         if (prices.Count < 20)
         {
@@ -122,7 +133,8 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         }
 
         // --- Support / Resistance (swing high/low) ---
-        var (supports, resistances) = CalculateSwingLevels(closes);
+        // Chỉ trong khoảng `months` được xin (phần cuối của lịch sử), không phải toàn bộ lịch sử dùng cho chỉ báo
+        var (supports, resistances) = CalculateSwingLevels(closes.Skip(windowStart).ToList());
         result.SupportLevels = supports.Where(s => s < current.Close).OrderByDescending(s => s).Take(3).ToList();
         result.ResistanceLevels = resistances.Where(r => r > current.Close).OrderBy(r => r).Take(3).ToList();
 
@@ -335,9 +347,9 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
     /// </summary>
     public async Task<TechnicalSeriesResult> GetSeriesAsync(string symbol, int months = 12, CancellationToken ct = default)
     {
-        var from = DateTime.UtcNow.AddMonths(-months);
         var to = DateTime.UtcNow;
-        var prices = await _marketData.GetHistoricalPricesAsync(symbol, from, to, ct);
+        var windowFrom = to.AddMonths(-months).Date;
+        var prices = await _marketData.GetHistoricalPricesAsync(symbol, to.AddMonths(-Math.Max(months, IndicatorHistoryMonths)), to, ct);
         var n = prices.Count;
 
         var closes = prices.Select(p => p.Close).ToList();
@@ -367,7 +379,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             result.Adx = NullSeries(n); result.PlusDi = NullSeries(n); result.MinusDi = NullSeries(n);
             result.Atr14 = NullSeries(n); result.Obv = NullSeries(n); result.Mfi14 = NullSeries(n);
             result.VolumeSma20 = NullSeries(n);
-            return result;
+            return SliceSeries(result, WindowStart(prices, windowFrom));
         }
 
         result.Ema20 = EmaSeries(closes, 20);
@@ -383,7 +395,30 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         result.Mfi14 = MfiSeries(highs, lows, closes, volumes, 14);
         result.VolumeSma20 = VolumeSmaSeries(volumes, 20);
 
-        return result;
+        // Chỉ trả phần cuối theo khoảng được xin: giá trị đã được tính trên toàn bộ lịch sử nên đầu khoảng không bị trống
+        return SliceSeries(result, WindowStart(prices, windowFrom));
+    }
+
+    /// <summary>Chỉ số nến đầu tiên có ngày từ <paramref name="windowFrom"/> trở đi; bằng số nến nếu không có nến nào.</summary>
+    private static int WindowStart(List<StockPriceData> prices, DateTime windowFrom)
+    {
+        var i = prices.FindIndex(p => p.Date.Date >= windowFrom);
+        return i < 0 ? prices.Count : i;
+    }
+
+    /// <summary>Cắt mọi mảng cùng độ dài của chuỗi từ chỉ số <paramref name="start"/> trở đi (các thuộc tính vô hướng giữ nguyên).</summary>
+    private static TechnicalSeriesResult SliceSeries(TechnicalSeriesResult r, int start)
+    {
+        if (start <= 0) return r;
+        List<T> Cut<T>(List<T> list) => list.Skip(start).ToList();
+        r.Dates = Cut(r.Dates); r.Open = Cut(r.Open); r.High = Cut(r.High); r.Low = Cut(r.Low); r.Close = Cut(r.Close); r.Volume = Cut(r.Volume);
+        r.Ema20 = Cut(r.Ema20); r.Ema50 = Cut(r.Ema50); r.Ema200 = Cut(r.Ema200);
+        r.BollingerUpper = Cut(r.BollingerUpper); r.BollingerMiddle = Cut(r.BollingerMiddle); r.BollingerLower = Cut(r.BollingerLower);
+        r.Rsi14 = Cut(r.Rsi14); r.StochK = Cut(r.StochK); r.StochD = Cut(r.StochD);
+        r.MacdLine = Cut(r.MacdLine); r.MacdSignal = Cut(r.MacdSignal); r.MacdHistogram = Cut(r.MacdHistogram);
+        r.Adx = Cut(r.Adx); r.PlusDi = Cut(r.PlusDi); r.MinusDi = Cut(r.MinusDi);
+        r.Atr14 = Cut(r.Atr14); r.Obv = Cut(r.Obv); r.Mfi14 = Cut(r.Mfi14); r.VolumeSma20 = Cut(r.VolumeSma20);
+        return r;
     }
 
     /// <summary>Cả chuỗi cùng một nguồn nên cờ chung; không có nến thì chưa biết (null), không phải "chưa điều chỉnh".</summary>
