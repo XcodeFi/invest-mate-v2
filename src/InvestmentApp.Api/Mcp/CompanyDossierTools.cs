@@ -46,7 +46,7 @@ public static class CompanyDossierTools
         + "4 quý liền trước; annual[] (cả năm CHỈ khi complete4Quarters = true, năm chưa đủ 4 quý thì số cả năm là null); range52W = vị trí giá "
         + "hiện tại trong vùng đáy-đỉnh 52 tuần (positionPct 0-100, đơn vị nghìn đồng). direction = up | down | flat (biến động dưới 1% là flat). "
         + "Giá trị null nghĩa là KHÔNG CÓ kỳ so sánh hoặc không tính được, không phải bằng 0. yoyPct = null kèm direction và note là có chủ ý khi "
-        + "một kỳ là lỗ hoặc bằng 0: note = từ lỗ sang lãi | từ lãi sang lỗ | lỗ thu hẹp | lỗ tăng | kỳ so sánh bằng 0 (phần trăm trên cơ sở âm "
+        + "một kỳ là lỗ hoặc bằng 0: note = từ lỗ sang lãi | từ lỗ về hòa vốn | từ lãi sang lỗ | lỗ thu hẹp | lỗ tăng | kỳ so sánh bằng 0 (phần trăm trên cơ sở âm "
         + "là vô nghĩa, hãy đọc direction và note). Doanh nghiệp báo cáo theo quý; không có số liệu tháng (đừng suy ra số tháng từ quý). "
         + "Nếu 'trend' có trong unavailableSections thì không có số so sánh nào.")]
     public static async Task<CompanyFundamentalsDto> GetCompanyFundamentals(

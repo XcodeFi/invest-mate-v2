@@ -45,7 +45,7 @@ public class QuarterTrend
     /// <summary>Null khi một trong hai kỳ là lỗ hoặc bằng 0 (phần trăm trên cơ sở âm/bằng không là vô nghĩa); khi đó đọc <c>NetProfitDirection</c> và <c>NetProfitNote</c>.</summary>
     public decimal? NetProfitYoyPct { get; set; }
     public string? NetProfitDirection { get; set; }
-    /// <summary>"từ lỗ sang lãi", "từ lãi sang lỗ", "lỗ thu hẹp", "lỗ tăng", "kỳ so sánh bằng 0".</summary>
+    /// <summary>"từ lỗ sang lãi", "từ lỗ về hòa vốn", "từ lãi sang lỗ", "lỗ thu hẹp", "lỗ tăng", "kỳ so sánh bằng 0".</summary>
     public string? NetProfitNote { get; set; }
 
     /// <summary>Lợi nhuận ròng / doanh thu, %. Null khi doanh thu bằng 0, âm hoặc thiếu.</summary>
@@ -260,7 +260,8 @@ public static class FundamentalsTrendCalculator
         }
         if (prev == 0)
             return new(null, cur > 0 ? "up" : cur < 0 ? "down" : "flat", cur == 0 ? null : "kỳ so sánh bằng 0");
-        if (prev < 0 && cur >= 0) return new(null, "up", "từ lỗ sang lãi");
+        if (prev < 0 && cur > 0) return new(null, "up", "từ lỗ sang lãi");
+        if (prev < 0 && cur == 0) return new(null, "up", "từ lỗ về hòa vốn");   // 0 là hòa vốn, chưa phải có lãi
         if (prev > 0 && cur < 0) return new(null, "down", "từ lãi sang lỗ");
         // lỗ → lỗ
         return cur > prev ? new(null, "up", "lỗ thu hẹp") : cur < prev ? new(null, "down", "lỗ tăng") : new(null, "flat", null);

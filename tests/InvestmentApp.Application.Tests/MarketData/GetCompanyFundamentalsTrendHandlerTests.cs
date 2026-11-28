@@ -110,6 +110,45 @@ public class GetCompanyFundamentalsTrendHandlerTests
     }
 
     [Fact]
+    public async Task a_failed_price_lookup_is_not_cached_so_the_next_request_refetches_it()
+    {
+        Provider(Data());
+        _prices.SetupSequence(p => p.GetCurrentPriceAsync("FPT", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("lỗi giá"))
+            .ReturnsAsync(new StockPriceData { Symbol = "FPT", Close = 44_600m });
+
+        var first = await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+        var second = await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+
+        first.Trend!.Range52W!.PositionPct.Should().BeNull("lần đầu lỗi giá: vị trí để trống");
+        second.Trend!.Range52W!.PositionPct.Should().NotBeNull("lần sau thử lại và có giá");
+        _prices.Verify(p => p.GetCurrentPriceAsync("FPT", It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task an_empty_or_zero_price_is_not_cached_either()
+    {
+        Provider(Data());
+        Price(0m);
+
+        await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+        await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+
+        _prices.Verify(p => p.GetCurrentPriceAsync("FPT", It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task a_symbol_with_no_52_week_range_is_cached_normally_because_it_never_needed_a_price()
+    {
+        Provider(Data(ind: new FinanceIndicators { PE = 12m }));
+
+        await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+        await Sut().Handle(new GetCompanyFundamentalsQuery { Symbol = "FPT" }, default);
+
+        _provider.Verify(p => p.GetComprehensiveDataAsync("FPT", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task the_trend_is_cached_with_the_rest_so_the_price_is_fetched_once()
     {
         Provider(Data());

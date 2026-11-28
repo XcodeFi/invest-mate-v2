@@ -155,6 +155,30 @@ public class FundamentalsTrendCalculatorTests
     }
 
     [Fact]
+    public void profit_falling_to_exactly_zero_is_minus_100_percent_down_and_not_a_loss()
+    {
+        var items = new List<IncomeStatementItem> { Q(2026, 1, 500m, 0m), Q(2025, 1, 400m, 10m) };
+
+        var q = Quarter(Compute(items), "Q1/2026");
+
+        q.NetProfitYoyPct.Should().Be(-100.0m);
+        q.NetProfitDirection.Should().Be("down");
+        q.NetProfitNote.Should().BeNull("0 không phải lỗ: không được gọi là \"lỗ tăng\"");
+    }
+
+    [Fact]
+    public void loss_to_exactly_zero_is_break_even_not_profit()
+    {
+        var items = new List<IncomeStatementItem> { Q(2026, 1, 500m, 0m), Q(2025, 1, 400m, -50m) };
+
+        var q = Quarter(Compute(items), "Q1/2026");
+
+        q.NetProfitYoyPct.Should().BeNull();
+        q.NetProfitDirection.Should().Be("up");
+        q.NetProfitNote.Should().Be("từ lỗ về hòa vốn", "0 là hòa vốn, chưa phải có lãi");
+    }
+
+    [Fact]
     public void a_zero_base_has_no_percentage()
     {
         var items = new List<IncomeStatementItem> { Q(2026, 1, 500m, 10m), Q(2025, 1, 0m, 0m) };
@@ -305,6 +329,21 @@ public class FundamentalsTrendCalculatorTests
     }
 
     [Fact]
+    public void a_year_with_exactly_three_quarters_has_no_annual_figures_and_no_yoy()
+    {
+        var items = new List<IncomeStatementItem> { Q(2025, 1, 100, 10), Q(2025, 2, 100, 10), Q(2025, 3, 100, 10) };
+
+        var y = Compute(items).Annual.Single();
+
+        y.QuartersPresent.Should().Be(3);
+        y.Complete4Quarters.Should().BeFalse();
+        y.Revenue.Should().BeNull();
+        y.NetProfit.Should().BeNull();
+        y.RevenueYoyPct.Should().BeNull();
+        y.RevenueDirection.Should().BeNull();
+    }
+
+    [Fact]
     public void annual_yoy_only_when_both_years_have_four_quarters()
     {
         // Chỉ 2025 đủ 4 quý nên chưa có năm trước để so.
@@ -361,6 +400,24 @@ public class FundamentalsTrendCalculatorTests
 
         t.Quarters.Should().HaveCount(8);
         t.Annual.Single(a => a.Year == 2025).Revenue.Should().BeApproximately(70112.8255m, 0.001m);
+    }
+
+    [Theory]
+    [InlineData("xQ1/2023y")]
+    [InlineData("Q1/2023 (soát xét)")]
+    [InlineData("Q1/2023x")]
+    [InlineData("yQ1/2023")]
+    [InlineData("Q1/25")]
+    [InlineData("Q1/20235")]
+    public void a_period_with_extra_text_around_a_quarter_label_is_skipped_not_misread(string period)
+    {
+        var items = EightQuarters();
+        items.Add(new IncomeStatementItem { Period = period, Revenue = 99999m, NetProfit = 99999m });
+
+        var t = Compute(items);
+
+        t.Quarters.Should().HaveCount(8);
+        t.Quarters.Select(q => q.Revenue).Should().NotContain(99999m);
     }
 
     [Fact]

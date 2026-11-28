@@ -115,6 +115,7 @@ public class FundamentalsTrendToolTests
         description.Should().Contain("TTM");
         description.Should().Contain("1%");
         description.Should().Contain("từ lỗ sang lãi");
+        description.Should().Contain("từ lỗ về hòa vốn");
         description.Should().Contain("không có số liệu tháng");
         description.Should().Contain("null");
         method.GetCustomAttribute<McpServerToolAttribute>()!.ReadOnly.Should().BeTrue();

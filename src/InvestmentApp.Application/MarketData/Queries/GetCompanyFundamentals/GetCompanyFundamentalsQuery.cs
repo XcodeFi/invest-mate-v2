@@ -115,8 +115,11 @@ public class GetCompanyFundamentalsQueryHandler
         if (dto.Trend == null) dto.UnavailableSections.Add("trend");
 
         // Chỉ cache ca lấy được. Cache cả ca 404/lỗi là đóng băng một lỗi mạng nhất thời thành
-        // "mã không có dữ liệu" suốt TTL — cùng lý do đã ghi ở cache nhãn ngành.
-        _cache.Set(CacheKeyPrefix + symbol, dto, CacheTtl);
+        // "mã không có dữ liệu" suốt TTL — cùng lý do đã ghi ở cache nhãn ngành. Cùng lý do cho giá hiện tại: có đáy/đỉnh 52 tuần mà
+        // lần này không lấy được giá (nguồn giá lỗi hoặc trả giá không dương) thì KHÔNG ghi cache, để yêu cầu kế tiếp thử lại thay vì
+        // để vị trí 52 tuần trống suốt 15 phút. Ca có đủ giá, và ca không cần giá, vẫn được cache.
+        var needsPriceButHasNone = indicators?.Min52W != null && indicators.Max52W != null && priceThousands == null;
+        if (!needsPriceButHasNone) _cache.Set(CacheKeyPrefix + symbol, dto, CacheTtl);
         return dto;
     }
 
