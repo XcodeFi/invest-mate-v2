@@ -2,6 +2,7 @@ using FluentAssertions;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Infrastructure.Services.Signals;
 using InvestmentApp.Infrastructure.Tests.Services.Signals;
+using Moq;
 using Xunit.Abstractions;
 
 namespace InvestmentApp.Infrastructure.Tests.Tools;
@@ -115,6 +116,67 @@ public class SignalSetupCountToolTests
         text.Should().Contain("symbols: 0").And.Contain("median n/a");
     }
 
+    // ───── chế độ pooled: tỉ lệ nền VN30 ─────
+
+    private static readonly DateTimeOffset PooledNow = new(2026, 11, 30, 13, 0, 0, TimeSpan.Zero);   // 20:00 giờ VN
+
+    private static List<AdjustedPriceSeriesSnapshot?> Basket(int symbols)
+        => Enumerable.Range(0, symbols).Select(i =>
+        {
+            var raw = PullbackBacktestTests.Synthetic(1000, 11 + i);
+            var shift = new DateTime(2026, 11, 29) - raw[^1].Date;
+            return (AdjustedPriceSeriesSnapshot?)new AdjustedPriceSeriesSnapshot($"S{i}", PooledNow.UtcDateTime, raw.Select(b => new StockPriceData
+            {
+                Symbol = $"S{i}", Date = b.Date + shift, Open = b.Open, High = b.High, Low = b.Low, Close = b.Close, Volume = 1, IsAdjusted = true
+            }).ToList());
+        }).ToList();
+
+    [Fact]
+    public void pooled_mode_prints_k_n_effective_months_and_the_bootstrap_interval()
+    {
+        var text = SignalSetupCountTool.FormatPooled(SignalBaseRateService.Pool(Basket(30), PooledNow));
+
+        text.Should().Contain("k (symbols used): 30");
+        text.Should().Contain("n (completed trades):");
+        text.Should().Contain("effectiveMonths:");
+        text.Should().Contain("win rate:").And.Contain("EV (R):").And.Contain("xấp xỉ");
+        text.Should().NotContain("insufficient");
+    }
+
+    [Fact]
+    public void pooled_mode_prints_the_reason_when_the_basket_is_too_thin()
+    {
+        var text = SignalSetupCountTool.FormatPooled(SignalBaseRateService.Pool(Basket(5), PooledNow));
+
+        text.Should().Contain("k (symbols used): 5").And.Contain("insufficient").And.Contain("5/30");
+        text.Should().NotContain("win rate:");
+    }
+
+    [Fact]
+    public void pooled_mode_matches_what_the_service_serves()
+    {
+        var pooled = SignalBaseRateService.Pool(Basket(30), PooledNow);
+        var store = new Moq.Mock<IAdjustedPriceSeriesStore>();
+        var snapshots = Basket(30);
+        var i = 0;
+        foreach (var symbol in InvestmentApp.Domain.Constants.Vn30Basket.Symbols)
+        {
+            var snap = snapshots[i++]!;
+            store.Setup(s => s.GetAsync(symbol, It.IsAny<CancellationToken>())).ReturnsAsync(snap);
+        }
+        var served = new SignalBaseRateService(store.Object, new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), new FixedClock(PooledNow))
+            .GetPullbackBaseRateAsync().GetAwaiter().GetResult();
+
+        served.BaseRate!.N.Should().Be(pooled.N);
+        served.BaseRate.WinRate.Should().Be(pooled.Stats!.WinRate);
+        served.BaseRate.EvRLow.Should().Be(pooled.Stats.EvRLow);
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
     [Fact]
     public void tool_source_contains_no_mongo_write_api_and_builds_no_repository()
     {
@@ -133,10 +195,10 @@ public class SignalSetupCountToolTests
     {
         var conn = Environment.GetEnvironmentVariable("SIGNALS_MONGO_CONN");
         var db = Environment.GetEnvironmentVariable("SIGNALS_MONGO_DB");
-        var mode = Environment.GetEnvironmentVariable("SIGNALS_MODE") ?? "table";   // table | summary
+        var mode = Environment.GetEnvironmentVariable("SIGNALS_MODE") ?? "table";   // table | summary | pooled
         if (string.IsNullOrWhiteSpace(conn) || string.IsNullOrWhiteSpace(db))
         {
-            _output.WriteLine("Skipped — set SIGNALS_MONGO_CONN, SIGNALS_MONGO_DB (+ SIGNALS_MODE=table|summary, SIGNALS_EXCHANGE=HOSE|HNX|UPCOM, SIGNALS_SYMBOLS=FPT,VNM) to run read-only.");
+            _output.WriteLine("Skipped — set SIGNALS_MONGO_CONN, SIGNALS_MONGO_DB (+ SIGNALS_MODE=table|summary|pooled, SIGNALS_EXCHANGE=HOSE|HNX|UPCOM, SIGNALS_SYMBOLS=FPT,VNM) to run read-only.");
             return;
         }
 

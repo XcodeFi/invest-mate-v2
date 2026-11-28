@@ -64,16 +64,47 @@ internal static class SignalSetupCountTool
         return sb.ToString();
     }
 
+    /// <summary>Chế độ pooled: k, n, số tháng có lệnh và kết quả bootstrap (hoặc lý do chưa đủ). Cùng hàm gộp với dịch vụ.</summary>
+    public static string FormatPooled(SignalBaseRateService.PooledOutcome o)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"k (symbols used): {o.K}/{InvestmentApp.Domain.Constants.Vn30Basket.Symbols.Count}");
+        sb.AppendLine($"n (completed trades): {o.N}");
+        sb.AppendLine($"effectiveMonths: {o.EffectiveMonths}");
+        sb.AppendLine($"as of: {o.AsOf?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "n/a"}");
+        if (o.Stats == null)
+        {
+            sb.AppendLine($"insufficient: {o.Reason}");
+            return sb.ToString();
+        }
+
+        var s = o.Stats;
+        string P(decimal v) => (v * 100m).ToString("0.0", CultureInfo.InvariantCulture) + "%";
+        string R(decimal v) => v.ToString("+0.000;-0.000;0.000", CultureInfo.InvariantCulture);
+        sb.AppendLine($"win rate: {P(s.WinRate)} (95% xấp xỉ: {P(s.WinRateLow)} – {P(s.WinRateHigh)})");
+        sb.AppendLine($"EV (R): {R(s.EvR)} (95% xấp xỉ: {R(s.EvRLow)} – {R(s.EvRHigh)})");
+        sb.AppendLine($"bootstrap: {s.TotalMonths} monthly clusters, B={BaseRateStatistics.Resamples}, seed={BaseRateStatistics.Seed}");
+        return sb.ToString();
+    }
+
     private static void RegisterConventions()
         => ConventionRegistry.Register("SignalCountConventions", new ConventionPack { new IgnoreExtraElementsConvention(true) }, _ => true);
 
-    /// <summary>mode: table (bảng từng mã + phân bố) | summary (chỉ phân bố, không in mã). Chỉ đọc.</summary>
+    /// <summary>mode: table (bảng từng mã + phân bố) | summary (chỉ phân bố, không in mã) | pooled (tỉ lệ nền VN30: k, n, số tháng, bootstrap). Chỉ đọc.</summary>
     public static async Task<string> RunLiveAsync(string conn, string dbName, string mode, string? exchange, IReadOnlyCollection<string>? onlySymbols)
     {
         RegisterConventions();
         var db = new MongoClient(conn).GetDatabase(dbName);
         var col = db.GetCollection<AdjustedPriceSeriesDocument>(AdjustedPriceSeriesStore.CollectionName);
         var docs = await col.Find(FilterDefinition<AdjustedPriceSeriesDocument>.Empty).ToListAsync();
+
+        if (mode == "pooled")
+        {
+            var wanted = InvestmentApp.Domain.Constants.Vn30Basket.Symbols;
+            var snapshots = docs.Where(d => wanted.Contains(d.Symbol, StringComparer.Ordinal))
+                .Select(d => (AdjustedPriceSeriesSnapshot?)AdjustedPriceSeriesStore.ToSnapshot(d)).ToList();
+            return FormatPooled(SignalBaseRateService.Pool(snapshots, DateTimeOffset.UtcNow));
+        }
 
         var rules = MarketRules.For(exchange);
         var rows = new List<Row>();

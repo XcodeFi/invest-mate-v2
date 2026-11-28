@@ -16,6 +16,7 @@ public class PriceSnapshotJobServiceTests
     private readonly Mock<IMarketDataProvider> _marketData = new();
     private readonly Mock<IStopLossTargetRepository> _slRepo = new();
     private readonly Mock<ICorporateActionRepository> _corporateActionRepo = new();
+    private readonly Mock<ISignalSeriesWarmup> _warmup = new();
     private readonly PriceSnapshotJobService _sut;
 
     public PriceSnapshotJobServiceTests()
@@ -32,8 +33,10 @@ public class PriceSnapshotJobServiceTests
             _marketData.Object,
             _slRepo.Object,
             _corporateActionRepo.Object,
+            _warmup.Object,
             NullLogger<PriceSnapshotJobService>.Instance);
 
+        _warmup.Setup(w => w.WarmNextAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new SignalWarmupOutcome(0, "ok"));
         _slRepo.Setup(r => r.GetUntriggeredAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<StopLossTarget>());
         _marketData.Setup(m => m.GetIndexDataAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -219,5 +222,93 @@ public class PriceSnapshotJobServiceTests
         var result = await _sut.RunAsync(CancellationToken.None);
 
         result.StopLossTriggered.Should().Be(1);
+    }
+
+    // ───── lấy trước chuỗi giá cho tỉ lệ nền (warm-up) ─────
+
+    private PriceSnapshotJobService SutWith(TimeSpan warmupTimeout)
+        => new(_tradeRepo.Object, _priceRepo.Object, _indexRepo.Object, _marketData.Object, _slRepo.Object,
+            _corporateActionRepo.Object, _warmup.Object, NullLogger<PriceSnapshotJobService>.Instance, warmupTimeout);
+
+    private void OneTradeOneSymbol()
+    {
+        _tradeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[] { CreateTrade("FPT") });
+        _marketData.Setup(m => m.GetBatchPricesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, StockPriceData> { ["FPT"] = CreatePriceData("FPT", 100_000m) });
+    }
+
+    [Fact]
+    public async Task warmup_runs_after_the_prices_work()
+    {
+        OneTradeOneSymbol();
+
+        await _sut.RunAsync(CancellationToken.None);
+
+        _warmup.Verify(w => w.WarmNextAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task warmup_runs_after_the_prices_work_not_before()
+    {
+        OneTradeOneSymbol();
+        var order = new List<string>();
+        _marketData.Setup(m => m.GetBatchPricesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("prices"))
+            .ReturnsAsync(new Dictionary<string, StockPriceData> { ["FPT"] = CreatePriceData("FPT", 100_000m) });
+        _warmup.Setup(w => w.WarmNextAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("warmup"))
+            .ReturnsAsync(new SignalWarmupOutcome(0, "ok"));
+
+        await _sut.RunAsync(CancellationToken.None);
+
+        order.Should().Equal("prices", "warmup");
+    }
+
+    [Fact]
+    public async Task warmup_also_runs_when_there_are_no_symbols_to_snapshot()
+    {
+        _tradeRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Trade>());
+
+        var result = await _sut.RunAsync(CancellationToken.None);
+
+        result.Should().Be(PriceSnapshotJobResult.Empty);
+        _warmup.Verify(w => w.WarmNextAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task prices_job_result_unaffected_by_warmup_exception()
+    {
+        OneTradeOneSymbol();
+        _warmup.Setup(w => w.WarmNextAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("warm-up nổ"));
+
+        var result = await _sut.RunAsync(CancellationToken.None);
+
+        result.SymbolsFetched.Should().Be(1);
+        result.PricesPersisted.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task a_warmup_that_overruns_its_deadline_is_cut_off_without_failing_the_job()
+    {
+        OneTradeOneSymbol();
+        _warmup.Setup(w => w.WarmNextAsync(It.IsAny<CancellationToken>()))
+            .Returns(async (CancellationToken ct) => { await Task.Delay(Timeout.Infinite, ct); return new SignalWarmupOutcome(0, "x"); });
+
+        var result = await SutWith(TimeSpan.FromMilliseconds(50)).RunAsync(CancellationToken.None);
+
+        result.PricesPersisted.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task a_cancelled_request_is_not_swallowed_by_the_warmup_isolation()
+    {
+        OneTradeOneSymbol();
+        using var cts = new CancellationTokenSource();
+        _warmup.Setup(w => w.WarmNextAsync(It.IsAny<CancellationToken>()))
+            .Returns(async (CancellationToken ct) => { cts.Cancel(); ct.ThrowIfCancellationRequested(); await Task.Yield(); return new SignalWarmupOutcome(0, "x"); });
+
+        var act = async () => await _sut.RunAsync(cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

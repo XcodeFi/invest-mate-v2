@@ -116,4 +116,60 @@ public class SignalSetupsToolTests
 
         names.ToLowerInvariant().Should().NotContain("trades").And.NotContain("outcome");
     }
+
+    [Fact]
+    public void serialization_carries_the_pooled_base_rate_for_a_vn30_member()
+    {
+        var dto = new SignalSetupsDto
+        {
+            Symbol = "FPT",
+            Setups =
+            {
+                new SignalSetupDto
+                {
+                    Key = "pullback", Name = "n", Description = "d",
+                    BaseRate = new SignalBaseRateDto
+                    {
+                        K = 28, N = 412, EffectiveMonths = 34, WinRate = 0.4283m, WinRateLow = 0.37m, WinRateHigh = 0.49m,
+                        EvR = 0.1205m, EvRLow = -0.05m, EvRHigh = 0.29m, AsOf = new DateTime(2026, 11, 27), Notes = { "xấp xỉ" }
+                    }
+                }
+            }
+        };
+
+        var baseRate = JsonSerializer.SerializeToElement(dto, McpJsonUtilities.DefaultOptions).GetProperty("setups")[0].GetProperty("baseRate");
+
+        baseRate.GetProperty("label").GetString().Should().Be("Tỉ lệ nền VN30");
+        baseRate.GetProperty("k").GetInt32().Should().Be(28);
+        baseRate.GetProperty("n").GetInt32().Should().Be(412);
+        baseRate.GetProperty("effectiveMonths").GetInt32().Should().Be(34);
+        baseRate.GetProperty("winRate").GetDecimal().Should().Be(0.4283m);
+        baseRate.GetProperty("evRLow").GetDecimal().Should().Be(-0.05m, "khoảng EV có thể âm: không được làm tròn hay bỏ dấu");
+        baseRate.GetProperty("notes")[0].GetString().Should().Be("xấp xỉ");
+    }
+
+    [Fact]
+    public void serialization_without_a_base_rate_omits_it_and_carries_the_reason()
+    {
+        var dto = new SignalSetupsDto
+        {
+            Symbol = "HHV",
+            Setups = { new SignalSetupDto { Key = "pullback", Name = "n", Description = "d", BaseRateReason = "Chỉ có cho mã thuộc VN30" } }
+        };
+
+        var setup = JsonSerializer.SerializeToElement(dto, McpJsonUtilities.DefaultOptions).GetProperty("setups")[0];
+
+        setup.TryGetProperty("baseRate", out _).Should().BeFalse("vắng mặt, không phải null hay 0");
+        setup.GetProperty("baseRateReason").GetString().Should().Be("Chỉ có cho mã thuộc VN30");
+    }
+
+    [Fact]
+    public void the_tool_description_says_the_base_rate_is_the_baskets_not_the_stocks_own_evidence()
+    {
+        var description = typeof(MarketDataTools).GetMethod(nameof(MarketDataTools.GetSignalSetups))!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>().Single().Description;
+
+        description.Should().Contain("baseRate").And.Contain("KHÔNG phải bằng chứng riêng của mã").And.Contain("trong mẫu").And.Contain("thiên lệch người sống sót");
+    }
 }
