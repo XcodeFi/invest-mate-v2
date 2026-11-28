@@ -193,3 +193,8 @@ Tóm tắt 3 trụ:
 - **Backtick trong inline template literal, không chỉ trong HTML comment** — ba dấu ``` đặt trong một `placeholder=` cũng đóng sớm chuỗi `template:` và gây cả loạt TS1005/TS1002 ở cuối file. Tránh backtick trong mọi vị trí của inline template, kể cả giá trị thuộc tính.
 
 - **Sao nhóm chỉ báo chỉ là tuỳ chọn giao diện (2026-11-28):** khoá localStorage `ta-group-stars`, không có API hay công cụ MCP vì không có dữ liệu nào để agent dùng. Nội dung "nhà đầu tư lão luyện dùng thế nào" chỉ giữ mục có nguồn; mục không kiểm chứng được thì bỏ (Wilder RSI 70/30, Appel, Lane, quy tắc dừng lỗ của Darvas), tác giả chỉ báo không được trình bày như bằng chứng thành tích, và không bao giờ có nhãn ĐẠT/KHÔNG ĐẠT theo nhà đầu tư vì nó thành tín hiệu mua.
+
+### Mô hình giá: Cốc tay cầm (PR A, 2026-11-28, ADR-0021)
+- Đã có: bộ dò thuần + thẻ + đường vẽ + `patternCandidates` ở `get_technical_analysis`. Ngưỡng độ sâu tay cầm, khối lượng, "sát pivot", "đã chạy xa" **chưa kiểm chứng** (ghi rõ trong Help).
+- **Chưa làm (nợ có chủ ý):** back-test bộ dò trên chuỗi đã lưu của VN30 để ghi tỉ lệ trúng; không có số này thì KHÔNG đưa cột mô hình vào trang Sàng lọc (PR B) và không nêu tỉ lệ thành công/thất bại ở đâu cả. Cần quyền đọc `adjusted_price_series` thật; không chạy được từ máy dev.
+- Bẫy đã thấy khi viết: dò trên giá chưa điều chỉnh sẽ thấy "chiếc cốc" giả ở ngày chia tách; vì vậy chỉ dò khi cả chuỗi `IsAdjusted`.

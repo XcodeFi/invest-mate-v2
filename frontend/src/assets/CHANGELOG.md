@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.125.0] — 2026-11-28 · Ứng viên mô hình Cốc tay cầm trên biểu đồ và cho trợ lý AI
+
+### Tính năng mới
+
+- **Thẻ "Ứng viên mô hình: Cốc tay cầm"** ở trang Thị trường và Dòng thời gian mã khi giá hiện tại có hình dạng này: số đo (cốc dài/sâu, tay cầm dài/sâu, pivot, khoảng cách tới pivot, khối lượng nến cuối so với 50 phiên), **từng điều kiện đạt ✓ hay không ✗**, trạng thái (đang hình thành, sát pivot, vượt pivot chưa/đã có khối lượng) và lời nhắc "không phải tín hiệu mua; chưa vượt pivot kèm khối lượng thì chưa xác nhận". **Không có điểm số hay "độ tin cậy %"**: không có con số nào như vậy được hiệu chỉnh.
+- **Nếu sai (xác định, không phải dự báo):** "−X% từ pivot tới điểm cắt lỗ" với cắt lỗ ngay dưới đáy tay cầm; mục tiêu đo = pivot cộng độ sâu cốc; lãi/rủi ro hiển thị theo R.
+- **Trên biểu đồ:** đoạn cốc và đoạn tay cầm tô màu cùng ba đường ngang pivot, cắt lỗ, mục tiêu có nhãn %; ô trên thẻ để bật/tắt.
+- **Trợ lý AI (MCP):** `get_technical_analysis` có thêm `patternCandidates` (số đo, điều kiện, trạng thái, cắt lỗ, mục tiêu, R); chỉ đọc, không thêm công cụ.
+- Hướng dẫn "Phân tích thị trường" có mục mới nói rõ cơ sở (Lo, Mamaysky, Wang 2000; O'Neil qua Bulkowski), ngưỡng nào đã kiểm chứng một phần và ngưỡng nào chưa, và những giới hạn.
+
+### Kỹ thuật
+
+- `CupWithHandleDetector.Detect` là hàm thuần trên nến ngày đã điều chỉnh, ngưỡng nằm trong `CupWithHandleOptions` (mặc định có thể chỉnh). Chuỗi chưa điều chỉnh không được dò; nến đang hình thành bị bỏ. ADR-0021.
+- Chưa có thống kê tỉ lệ thành công/thất bại, chưa có cột ở trang Sàng lọc và chưa back-test trên bản lưu VN30 (cần chạy trên dữ liệu thật).
+
+---
+
 ## [v2.123.1] — 2026-11-28 · Sửa: danh sách "Thêm" trên điện thoại luôn đủ trang như menu trái
 
 ### Sửa lỗi

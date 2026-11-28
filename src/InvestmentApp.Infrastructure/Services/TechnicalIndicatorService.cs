@@ -1,4 +1,6 @@
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Application.MarketData.Patterns;
+using InvestmentApp.Infrastructure.Services.Signals;
 
 using static InvestmentApp.Infrastructure.Services.IndicatorMath;
 
@@ -59,6 +61,14 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             CurrentPrice = current.Close,
             CurrentVolume = current.Volume
         };
+
+        // Ứng viên mô hình (Cốc tay cầm): chỉ trên chuỗi ĐÃ điều chỉnh (chia tách/thưởng chưa điều chỉnh sẽ vẽ ra một "cốc" giả), và chỉ trên các phiên đã đóng.
+        if (result.Adjusted == true)
+        {
+            var closed = FormingBar.DropIfForming(prices.OrderBy(p => p.Date).ToList(), p => p.Date, DateTimeOffset.UtcNow);
+            var cup = CupWithHandleDetector.Detect(closed);
+            if (cup != null) result.PatternCandidates.Add(cup);
+        }
 
         // Price change (vs previous day)
         if (prices.Count >= 2)
