@@ -2,6 +2,23 @@
 
 ---
 
+## [v2.120.0] — 2026-11-28 · Nhật ký tâm trạng: xem lại 90 ngày bạn đã chấm gì
+
+### Tính năng mới
+
+- **Trang mới "Nhật ký tâm trạng"** (`/mood-journal`, nhóm ĐÁNH GIÁ trong menu; link "xem lịch sử" cạnh nút "đổi" ở màn tĩnh tâm Trang chủ):
+  - **Lịch 90 ngày** theo ngày giờ Việt Nam, mỗi ô là tâm trạng cuối ngày bằng **màu kèm biểu tượng riêng**: ■ Bình tĩnh, ▲ FOMO, ▼ Sợ, ✕ Cay cú, □ chưa chấm. Rê chuột hoặc Tab vào ô để xem ngày, tâm trạng, các lần đổi trong ngày (kèm giờ và nguồn), số lệnh; bấm ô để xem chi tiết ngay dưới lịch.
+  - **Số ngày theo từng tâm trạng** và số ngày chưa chấm.
+  - **Danh sách "Ngày đặt lệnh khi đang cảm xúc"**: ngày bạn đã bấm qua lớp phủ, hoặc có lệnh trong ngày mà tâm trạng ở bất kỳ lần đổi nào khác Bình tĩnh. Ngày có lệnh nhưng chưa chấm là "chưa chấm", không bao giờ bị tính là cảm xúc. Mỗi dòng có link sang trang Giao dịch.
+  - Nút **Xem bảng** cho đúng các số đó.
+- **Màn tĩnh tâm ghi rõ "(từ agent)"** khi tâm trạng hôm nay do trợ lý AI ghi. Nếu trợ lý ghi Bình tĩnh thì màn vẫn hỏi lại bạn (Bình tĩnh do agent ghi không mở khoá lớp phủ), kèm ghi chú.
+
+### Kỹ thuật
+
+- Frontend chỉ hiển thị dữ liệu của `GET /api/v1/mood/history` (cờ cảm xúc và số lệnh do server tính). Màu là bốn hue đầu của bảng màu dataviz mặc định theo thứ tự cố định, đã chạy `validate_palette.js` ở chế độ sáng (nền #ffffff: đạt, cam/ngọc/vàng dưới 3:1 nên bắt buộc có biểu tượng, chú giải và bảng) và tối (nền #111827: đạt tất cả).
+
+---
+
 ## [v2.118.0] — 2026-11-28 · Tâm trạng: lưu lịch sử đổi trong ngày, đọc và ghi qua trợ lý AI (MCP)
 
 ### Tính năng mới
