@@ -2,6 +2,21 @@
 
 ---
 
+## [v2.118.0] — 2026-11-28 · Tâm trạng: lưu lịch sử đổi trong ngày, đọc và ghi qua trợ lý AI (MCP)
+
+### Tính năng mới
+
+- **Lịch sử tâm trạng.** Mỗi lần bạn đổi tâm trạng trong ngày được ghi lại (giờ nào, sang gì, từ web hay từ trợ lý AI), tối đa 20 lần mỗi ngày. Tâm trạng hiện tại vẫn là điều tính; lịch sử chỉ là nhật ký. Dữ liệu cũ vẫn dùng bình thường (không cần di chuyển dữ liệu).
+- **Công cụ MCP `get_mood_history`** (chỉ đọc): các ngày đã chấm hoặc có lệnh trong 90 ngày gần nhất (tối đa 366), mỗi ngày có tâm trạng, các lần đổi, đã bấm qua lớp phủ chưa, số lệnh và cờ **đặt lệnh khi đang cảm xúc**. Ngày có lệnh mà chưa chấm tâm trạng là "chưa chấm" và không bao giờ bị coi là cảm xúc.
+- **Công cụ MCP `set_today_mood`**: trợ lý AI ghi tâm trạng hôm nay theo đúng điều bạn nói về chính mình (không được tự đoán). Hai giới hạn cứng: trợ lý **không bao giờ** đặt hay xoá dấu "đã bấm qua lớp phủ"; và **Bình tĩnh do trợ lý ghi không mở khoá** lớp phủ trên Trang chủ (bạn vẫn được hỏi lại, kèm ghi chú "từ agent"). Trạng thái cảm xúc do trợ lý ghi thì có hiệu lực ngay vì đó là chiều an toàn.
+- API `GET /api/v1/mood/history?from&to` cho màn xem lịch sử sắp tới.
+
+### Kỹ thuật
+
+- `MoodCheckIn.Changes[]` tuỳ chọn; truy vấn lịch sử gom lệnh của cả khoảng trong MỘT truy vấn và nhóm theo ngày giờ Việt Nam trong bộ nhớ. Phụ lục ADR-0013 ghi lại thay đổi hợp đồng dữ liệu.
+
+---
+
 ## [v2.117.2] — 2026-11-28 · Trang chủ: gộp hai thẻ tài chính thành một
 
 ### Thay đổi

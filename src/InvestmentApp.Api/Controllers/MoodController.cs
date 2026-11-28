@@ -1,6 +1,8 @@
 using InvestmentApp.Application.Mood.Commands.MarkMoodOverride;
 using InvestmentApp.Application.Mood.Commands.SetMood;
+using InvestmentApp.Application.Mood.Queries.GetMoodHistory;
 using InvestmentApp.Application.Mood.Queries.GetTodayMood;
+using InvestmentApp.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -36,6 +38,19 @@ public class MoodController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Lịch sử tâm trạng theo ngày VN: mặc định 90 ngày gần nhất, tối đa 366; from &gt; to hoặc khoảng quá dài là 400.
+    /// Chỉ dữ liệu của chính người gọi (userId lấy từ token).
+    /// </summary>
+    [HttpGet("history")]
+    [ProducesResponseType(typeof(MoodHistoryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetHistory([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetMoodHistoryQuery { UserId = GetUserId(), From = from, To = to }, cancellationToken);
+        return Ok(result);
+    }
+
     /// <summary>Chấm tâm trạng cho hôm nay. Chấm lại trong ngày là ghi đè, không tạo bản ghi thứ hai.</summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -43,6 +58,7 @@ public class MoodController : ControllerBase
     public async Task<IActionResult> SetMood([FromBody] SetMoodCommand command, CancellationToken cancellationToken)
     {
         command.UserId = GetUserId();
+        command.Source = MoodChange.SourceWeb;   // nguồn do server đặt: body của client không được chọn "mcp"
         await _mediator.Send(command, cancellationToken);
         return NoContent();
     }

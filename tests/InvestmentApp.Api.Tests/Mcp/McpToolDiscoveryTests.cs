@@ -54,7 +54,9 @@ public class McpToolDiscoveryTests
         // Lịch sử setup Pullback trên một mã (S1)
         "get_signal_setups",
         // Sàng lọc cổ phiếu toàn thị trường (ADR-0020)
-        "screen_stocks"
+        "screen_stocks",
+        // Tâm trạng tự chấm (ADR-0013): chỉ đọc lịch sử
+        "get_mood_history"
     };
 
     private static readonly string[] WriteTools =
@@ -68,6 +70,8 @@ public class McpToolDiscoveryTests
         "add_market_closures", "remove_market_closure",
         // Hàng đợi quyết định: agent GIỮ được (có lý do), KHÔNG bán được — xem DecisionTools
         "hold_decision",
+        // Tâm trạng: ghi đè một giá trị của hôm nay (không xoá gì) nên Destructive = false tường minh, xem NonDestructiveWriteTools
+        "set_today_mood",
         // Tính lại review của kế hoạch đã review (cùng command với nút trên web)
         "recompute_plan_review"
     };
@@ -115,12 +119,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_86_Tools()
+    public void Registers_All_88_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(86);
+        (ReadTools.Length + WriteTools.Length).Should().Be(88);
     }
 
     [Fact]
@@ -168,12 +172,26 @@ public class McpToolDiscoveryTests
             byName[name]!.ReadOnlyHint.Should().BeTrue($"{name} should be read-only");
     }
 
+    /// <summary>Công cụ ghi KHÔNG phá huỷ: ghi đè đúng một giá trị của hôm nay, không xoá gì. Phải khai Destructive = false TƯỜNG MINH.</summary>
+    private static readonly string[] NonDestructiveWriteTools = { "set_today_mood" };
+
     [Fact]
     public void Write_Tools_Are_Destructive()
     {
         var byName = Tools().ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.Annotations);
-        foreach (var name in WriteTools)
+        foreach (var name in WriteTools.Except(NonDestructiveWriteTools))
             byName[name]!.DestructiveHint.Should().BeTrue($"{name} should be destructive");
+    }
+
+    [Fact]
+    public void NonDestructive_Write_Tools_Declare_It_Explicitly_And_Are_Not_ReadOnly()
+    {
+        var byName = Tools().ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.Annotations);
+        foreach (var name in NonDestructiveWriteTools)
+        {
+            byName[name]!.DestructiveHint.Should().BeFalse($"{name} khai Destructive = false tường minh");
+            byName[name]!.ReadOnlyHint.Should().NotBe(true, $"{name} có ghi dữ liệu nên không được khai ReadOnly");
+        }
     }
 
     [Fact]
@@ -321,6 +339,8 @@ public class McpToolDiscoveryTests
         Required(schema["list_corporate_actions"]).Should().BeEmpty("symbol và portfolioId đều tuỳ chọn");
         Required(schema["recompute_plan_review"]).Should().BeEquivalentTo(new[] { "planId" });
         Required(schema["get_signal_setups"]).Should().BeEquivalentTo(new[] { "symbol" });
+        Required(schema["get_mood_history"]).Should().BeEmpty("from và to đều tuỳ chọn (thiếu `= null` thì SDK đẩy vào required)");
+        Required(schema["set_today_mood"]).Should().BeEquivalentTo(new[] { "mood" });
         Required(schema["screen_stocks"]).Should().BeEmpty("mọi tham số của screen_stocks đều tuỳ chọn (thiếu `= null` thì SDK đẩy vào required)");
         schema["screen_stocks"].GetProperty("properties").EnumerateObject().Select(p => p.Name).Should()
             .Contain(new[] { "floors", "includeUpcom", "minAdtv", "minPrice", "minCap", "minRoe", "maxPe", "minRs3m", "skipQualityLayer", "includeExcluded", "excludedSkip", "excludedTake", "lookupSymbol" });
