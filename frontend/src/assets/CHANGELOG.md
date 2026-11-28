@@ -2,6 +2,16 @@
 
 ---
 
+## [v2.122.0] — 2026-11-28 · Nhà đầu tư lão luyện dùng chỉ báo thế nào, vì sao; gắn sao nhóm hay dùng
+
+### Tính năng mới
+
+- Khối **Cách đọc** của mỗi nhóm chỉ báo nay có **lý do cho từng cách đọc** ("Vì sao") và mục **Nhà đầu tư lão luyện dùng thế nào, vì sao**: ai, dùng thế nào, vì sao, **nguồn** (sách hoặc bài), và chỗ cách dùng của họ **khác** chỉ báo app đang vẽ (ví dụ Minervini dùng SMA còn app vẽ EMA; Turtle dùng N 20 ngày còn app dùng ATR 14; O'Neil so khối lượng với trung bình 50 ngày còn app dùng 20 ngày). Tác giả chỉ báo (Wilder, Bollinger, Granville, Quong và Soudack) được ghi rõ là tác giả, không coi là bằng chứng thành tích. Chỉ báo chưa có nhà đầu tư kiểm chứng được thì nói thẳng (Fibonacci: bằng chứng yếu). Không có nhãn ĐẠT/KHÔNG ĐẠT theo nhà đầu tư nào.
+- **Gắn sao nhóm hay dùng**: mỗi nút nhóm có nút ☆/★ riêng. Nhóm có sao đứng đầu thanh, và nhóm có sao đầu tiên được **mở sẵn** ở lần tải đầu khi địa chỉ trang không chỉ định nhóm (địa chỉ có `grp` thì theo địa chỉ). Sao chỉ lưu trong trình duyệt này, không có trên MCP.
+- Hướng dẫn Phân tích thị trường có cùng nội dung ở từng chỉ báo.
+
+---
+
 ## [v2.121.0] — 2026-11-28 · Số liệu doanh nghiệp thành biểu đồ, có mũi tên so với cùng kỳ
 
 ### Tính năng mới
