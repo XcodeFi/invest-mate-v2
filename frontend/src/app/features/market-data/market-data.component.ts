@@ -17,6 +17,7 @@ import { GroupLayers, IndicatorChartCandles } from '../../shared/components/indi
 import { buildGroupLayers, TaGroup } from './ta-group-layers';
 import { GroupGuide, INDICATOR_GUIDES, readNow } from './indicator-guides';
 import { formatAsOf, tradingDaysBehind } from './adjusted-age';
+import { isLowRiskReward, LOW_RR_NOTE, stopLossMethodLabel } from './stop-loss-method';
 
 /** Khoá localStorage nhớ khối "Cách đọc" đang mở hay thu gọn ('1' mở, '0' thu gọn). */
 const GUIDE_OPEN_KEY = 'ta-guide-open';
@@ -342,6 +343,8 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
                 <div>
                   <span class="text-gray-500">Stop-loss:</span>
                   <span class="font-mono font-medium text-red-600 ml-1">{{ analysis.suggestedStopLoss | vndCurrency }}</span>
+                  <span *ngIf="stopLossMethodLabel(analysis.suggestedStopLossMethod)" class="block text-xs text-gray-500"
+                    data-testid="stop-loss-method">{{ stopLossMethodLabel(analysis.suggestedStopLossMethod) }}</span>
                 </div>
                 <div>
                   <span class="text-gray-500">Mục tiêu:</span>
@@ -353,6 +356,8 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
                     [class.text-amber-600]="(analysis.riskRewardRatio || 0) < 2">
                     1:{{ analysis.riskRewardRatio | number:'1.1-1' }}
                   </span>
+                  <span *ngIf="isLowRiskReward(analysis.riskRewardRatio)" class="block text-xs text-amber-700"
+                    data-testid="low-rr-note">{{ lowRrNote }}</span>
                 </div>
               </div>
               <div class="flex gap-2">
@@ -849,6 +854,9 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
   `]
 })
 export class MarketDataComponent implements OnInit {
+  readonly stopLossMethodLabel = stopLossMethodLabel;
+  readonly isLowRiskReward = isLowRiskReward;
+  readonly lowRrNote = LOW_RR_NOTE;
   // Overview
   marketOverview: MarketOverview[] = [];
   loadingOverview = false;

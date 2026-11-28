@@ -430,6 +430,17 @@ public class TechnicalIndicatorServiceTests
             result.SuggestedTarget.Should().NotBeNull();
             result.SuggestedEntry!.Value.Should().BeLessThan(result.SuggestedTarget!.Value);
             result.SuggestedStopLoss!.Value.Should().BeLessThan(result.SuggestedEntry!.Value);
+            result.SuggestedStopLossMethod.Should().BeOneOf("support2", "atr2x", "atr1x", "percent5");
+            if (result.Atr14 is > 0m)
+                result.SuggestedStopLoss.Value.Should().BeGreaterThanOrEqualTo(
+                    result.SuggestedEntry.Value - 2m * result.Atr14.Value, "không xa hơn 2 ATR dưới giá vào");
+            if (result.Atr14 is > 0m)
+                result.SuggestedStopLoss.Value.Should().BeLessThanOrEqualTo(
+                    result.SuggestedEntry.Value - result.Atr14.Value, "không sát hơn 1 ATR dưới giá vào");
+        }
+        else
+        {
+            result.SuggestedStopLossMethod.Should().BeNull();
         }
     }
 

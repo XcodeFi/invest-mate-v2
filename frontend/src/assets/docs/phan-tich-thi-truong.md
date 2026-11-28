@@ -297,8 +297,8 @@ Bộ lọc giảm tín hiệu sai: swing points cách nhau ≥ 5 phiên, chênh 
 
 Khi đủ dữ liệu, hệ thống gợi ý:
 - **Entry**: Mức hỗ trợ gần nhất
-- **Stop-Loss**: Mức hỗ trợ thứ 2 hoặc -5%
+- **Stop-Loss**: Lấy mức **cao hơn** (chặt hơn) giữa hỗ trợ thứ 2 và **Entry − 2 × ATR(14)**, rồi giữ khoảng cách tới giá vào trong **từ 1 đến 2 × ATR**: hỗ trợ thứ 2 sát giá vào hơn 1 ATR thì cắt lỗ bị kéo ra **Entry − 1 × ATR** (cắt lỗ quá sát sẽ cho R:R "đẹp" giả). Ngay dưới mức cắt lỗ có ghi cách tính: *theo hỗ trợ thứ 2*, *theo 2×ATR*, *tối thiểu 1×ATR* (hỗ trợ quá gần nên bị kéo ra) hoặc *−5% dưới hỗ trợ* (khi không có ATR và không có hỗ trợ thứ 2). Cắt lỗ không hợp lệ (không dương, hoặc không thấp hơn giá vào) thì **không có gợi ý**.
 - **Target**: Mức kháng cự gần nhất
-- **R:R**: Tỷ lệ reward/risk
+- **R:R**: Tỷ lệ reward/risk. Dưới 1:1 hệ thống ghi chú **"R:R thấp — không đủ hấp dẫn"**: rủi ro lớn hơn lợi nhuận kỳ vọng, cân nhắc bỏ qua hoặc đổi điểm vào.
 
 Nhấn **"Tạo Trade Plan từ gợi ý"** → chuyển đến trang Kế hoạch với thông tin đã điền sẵn.

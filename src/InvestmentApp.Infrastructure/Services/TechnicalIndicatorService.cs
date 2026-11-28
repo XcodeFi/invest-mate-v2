@@ -312,19 +312,15 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         result.ConfluenceScore = CalculateConfluenceScore(result);
 
         // --- Trade Suggestion ---
-        if (result.SupportLevels.Count > 0 && result.ResistanceLevels.Count > 0)
+        // Cắt lỗ = max(hỗ trợ thứ 2, vào − 2 × ATR14); không hợp lệ thì không gợi ý (xem TradeSuggestionCalculator)
+        var suggestion = TradeSuggestionCalculator.Build(result.SupportLevels, result.ResistanceLevels, result.Atr14);
+        if (suggestion != null)
         {
-            var nearestSupport = result.SupportLevels[0];
-            var nearestResistance = result.ResistanceLevels[0];
-            result.SuggestedEntry = nearestSupport;
-            result.SuggestedStopLoss = result.SupportLevels.Count > 1
-                ? result.SupportLevels[1]
-                : nearestSupport * 0.95m; // 5% below support
-            result.SuggestedTarget = nearestResistance;
-
-            var risk = result.SuggestedEntry.Value - result.SuggestedStopLoss.Value;
-            var reward = result.SuggestedTarget.Value - result.SuggestedEntry.Value;
-            result.RiskRewardRatio = risk > 0 ? Math.Round(reward / risk, 1) : null;
+            result.SuggestedEntry = suggestion.Entry;
+            result.SuggestedStopLoss = suggestion.StopLoss;
+            result.SuggestedTarget = suggestion.Target;
+            result.RiskRewardRatio = suggestion.RiskReward;
+            result.SuggestedStopLossMethod = suggestion.StopLossMethod;
         }
 
         return result;

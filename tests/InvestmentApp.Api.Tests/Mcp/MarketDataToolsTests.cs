@@ -146,6 +146,24 @@ public class MarketDataToolsTests
     }
 
     [Fact]
+    public async Task get_technical_analysis_exposes_the_stop_loss_method_and_omits_it_without_a_suggestion()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _, new TechnicalAnalysisResult
+        {
+            Symbol = "FPT", SuggestedEntry = 100m, SuggestedStopLoss = 90m, SuggestedTarget = 110m, RiskRewardRatio = 1.0m,
+            SuggestedStopLossMethod = "atr2x"
+        });
+        var withSuggestion = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+        withSuggestion["suggestedStopLossMethod"]!.GetValue<string>().Should().Be("atr2x");
+        withSuggestion["suggestedStopLoss"]!.GetValue<decimal>().Should().Be(90m);
+
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(
+            _mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT" });
+        var without = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+        without.AsObject().ContainsKey("suggestedStopLossMethod").Should().BeFalse("không có gợi ý thì không có cách tính");
+    }
+
+    [Fact]
     public async Task get_price_history_rows_carry_the_adjusted_flag_in_the_mcp_json()
     {
         McpTestContext.Capture<List<StockPriceHistoryDto>, GetStockPriceHistoryQuery>(_mediator, out _, new List<StockPriceHistoryDto>

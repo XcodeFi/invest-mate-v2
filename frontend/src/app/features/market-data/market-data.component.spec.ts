@@ -121,6 +121,49 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
       .map(el => el.nativeElement.getAttribute('data-heading'));
   }
 
+  describe('gợi ý giao dịch: cách tính cắt lỗ và ghi chú R:R thấp', () => {
+    const q = (id: string): HTMLElement | null => fixture.nativeElement.querySelector(`[data-testid="${id}"]`);
+    const txt = (id: string): string => (q(id)?.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+    it('ghi cách tính cắt lỗ cạnh mức cắt lỗ', () => {
+      for (const [method, label] of [
+        ['support2', 'theo hỗ trợ thứ 2'], ['atr2x', 'theo 2×ATR'], ['atr1x', 'tối thiểu 1×ATR'], ['percent5', '−5% dưới hỗ trợ'],
+      ] as const) {
+        TestBed.resetTestingModule();
+        const ta = fullTa();
+        ta.suggestedStopLossMethod = method;
+        setup(ta);
+        expect(txt('stop-loss-method')).toBe(label);
+      }
+    });
+
+    it('không ghi gì khi không biết cách tính cắt lỗ (kết quả cũ)', () => {
+      const ta = fullTa();
+      ta.suggestedStopLossMethod = undefined;
+      setup(ta);
+
+      expect(q('stop-loss-method')).toBeNull();
+    });
+
+    it('R:R dưới 1 thì ghi "R:R thấp — không đủ hấp dẫn" cạnh tỉ lệ', () => {
+      const ta = fullTa();
+      ta.riskRewardRatio = 0.8;
+      setup(ta);
+
+      expect(txt('low-rr-note')).toBe('R:R thấp — không đủ hấp dẫn');
+    });
+
+    it('R:R từ 1 trở lên hoặc không có thì không ghi chú', () => {
+      for (const rr of [1.0, 2.0, undefined]) {
+        TestBed.resetTestingModule();
+        const ta = fullTa();
+        ta.riskRewardRatio = rr;
+        setup(ta);
+        expect(q('low-rr-note')).toBeNull();
+      }
+    });
+  });
+
   it('6 tiêu đề khối render đúng thứ tự', () => {
     setup(fullTa());
 
