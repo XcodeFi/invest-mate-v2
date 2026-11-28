@@ -56,6 +56,19 @@ public class TradeRepository : ITradeRepository
         return await _collection.Find(filter).ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<Trade>> GetByPortfolioIdsAndDateRangeAsync(
+        IEnumerable<string> portfolioIds, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<Trade>.Filter.And(
+            Builders<Trade>.Filter.In(t => t.PortfolioId, portfolioIds),
+            Builders<Trade>.Filter.Gte(t => t.TradeDate, from),
+            Builders<Trade>.Filter.Lt(t => t.TradeDate, to.AddDays(1))
+        );
+        return await _collection.Find(filter)
+            .SortBy(t => t.TradeDate)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IEnumerable<Trade>> GetByPortfolioIdAndDateRangeAsync(
         string portfolioId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {

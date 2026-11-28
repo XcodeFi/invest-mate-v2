@@ -16,6 +16,10 @@ public class SetMoodCommand : IRequest<Unit>
     public string UserId { get; set; } = null!;
 
     public MoodState Mood { get; set; }
+
+    /// <summary>Nguồn của lần chấm: "web" (mặc định) hoặc "mcp". Không nhận từ client REST: đặt cứng ở nơi gọi.</summary>
+    [JsonIgnore]
+    public string Source { get; set; } = MoodChange.SourceWeb;
 }
 
 public class SetMoodCommandHandler : IRequestHandler<SetMoodCommand, Unit>
@@ -37,7 +41,7 @@ public class SetMoodCommandHandler : IRequestHandler<SetMoodCommand, Unit>
         {
             try
             {
-                var created = MoodCheckIn.Create(request.UserId, dateKey, request.Mood, now);
+                var created = MoodCheckIn.Create(request.UserId, dateKey, request.Mood, now, request.Source);
                 await _repo.AddAsync(created, cancellationToken);
                 return Unit.Value;
             }
@@ -50,7 +54,7 @@ public class SetMoodCommandHandler : IRequestHandler<SetMoodCommand, Unit>
             }
         }
 
-        existing.SetMood(request.Mood, now);
+        existing.SetMood(request.Mood, now, request.Source);
         await _repo.UpdateAsync(existing, cancellationToken);
         return Unit.Value;
     }
