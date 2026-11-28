@@ -6,6 +6,7 @@ import { PnlService } from '../../../core/services/pnl.service';
 import { RiskService } from '../../../core/services/risk.service';
 import { forkJoin } from 'rxjs';
 import { AiChatPanelComponent } from '../ai-chat-panel/ai-chat-panel.component';
+import { ThemeToggleComponent } from '../theme-toggle/theme-toggle.component';
 
 interface NavGroup {
   label: string;
@@ -16,7 +17,7 @@ interface NavGroup {
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule, AiChatPanelComponent],
+  imports: [CommonModule, RouterModule, AiChatPanelComponent, ThemeToggleComponent],
   template: `
     <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <nav class="container mx-auto px-4">
@@ -60,6 +61,9 @@ interface NavGroup {
 
           <!-- Right side: Risk Score + User + Mobile hamburger -->
           <div class="flex items-center gap-3">
+            <!-- Chế độ sáng/tối (hiện ở mọi cỡ màn hình, kể cả điện thoại) -->
+            <app-theme-toggle></app-theme-toggle>
+
             <!-- AI Chat Button -->
             <button (click)="showAiPanel = true"
               class="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
