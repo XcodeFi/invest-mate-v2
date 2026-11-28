@@ -7,6 +7,7 @@ import { RiskService } from '../../../core/services/risk.service';
 import { forkJoin } from 'rxjs';
 import { AiChatPanelComponent } from '../ai-chat-panel/ai-chat-panel.component';
 import { ThemeToggleComponent } from '../theme-toggle/theme-toggle.component';
+import { CommandPaletteService } from '../command-palette/command-palette.service';
 import { NAV_GROUPS, NavGroup } from '../../nav/nav-config';
 
 @Component({
@@ -29,6 +30,13 @@ import { NAV_GROUPS, NavGroup } from '../../nav/nav-config';
           <div class="flex items-center gap-3">
             <!-- Chế độ sáng/tối (hiện ở mọi cỡ màn hình, kể cả điện thoại) nằm trong vị trí dành sẵn của thanh trên gọn -->
             <div data-testid="topbar-theme-slot" class="flex items-center"><app-theme-toggle></app-theme-toggle></div>
+
+            <!-- Tìm trang / mã (Ctrl+K); trên điện thoại không có phím tắt nên cần nút -->
+            <button *ngIf="authService.isAuthenticated()" data-testid="topbar-search" type="button" (click)="palette.open()"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+              title="Tìm trang hoặc mã cổ phiếu (Ctrl+K)" aria-label="Tìm trang hoặc mã cổ phiếu">
+              🔍 <span class="hidden md:inline text-xs text-gray-500">Ctrl+K</span>
+            </button>
 
             <!-- AI Chat Button -->
             <button (click)="showAiPanel = true"
@@ -195,6 +203,7 @@ import { NAV_GROUPS, NavGroup } from '../../nav/nav-config';
 })
 export class HeaderComponent implements OnInit {
   authService = inject(AuthService);
+  palette = inject(CommandPaletteService);
   private pnlService = inject(PnlService);
   private riskService = inject(RiskService);
   currentUser: User | null = null;
