@@ -148,6 +148,44 @@ public class RecomputeReviewCommandTests
     }
 
     [Fact]
+    public async Task cross_plan_flag_ignores_a_sell_that_is_linked_to_this_very_plan()
+    {
+        // Ghim điều kiện TradePlanId != plan.Id. Trong dữ liệu nhất quán, lệnh bán gắn vào CHÍNH kế hoạch này luôn nằm trong
+        // trade đã gắn (nên chặn "có lệnh bán gắn" đã loại ca này). Hai truy vấn của repository là hai lần đọc riêng: nếu lệnh bán
+        // vừa được gắn giữa hai lần đọc, danh sách theo mã thấy nó còn danh sách theo kế hoạch thì chưa. Đó là kế hoạch NÀY, không
+        // phải "kế hoạch khác" nên không được gắn cờ.
+        var (plan, buy) = BuyOnlyPlan();
+        var ownSellJustLinked = new Trade(_mine.Id, "HHV", TradeType.SELL, 1_000, 13_000m);
+        ownSellJustLinked.LinkTradePlan(plan.Id);
+        _trades.Setup(r => r.GetByPortfolioIdAndSymbolAsync(_mine.Id, "HHV", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { buy, ownSellJustLinked });
+        ServiceReturns(new CampaignReviewData { OpenQuantity = 28_000m });
+
+        var preview = await new PreviewPlanReviewQueryHandler(_plans.Object, _trades.Object, _portfolios.Object, _service.Object, _actions.Object)
+            .Handle(new PreviewPlanReviewQuery { PlanId = plan.Id, UserId = Me }, default);
+
+        preview.Flags.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task cross_plan_flag_needs_an_open_quantity()
+    {
+        // Ghim điều kiện OpenQuantity > 0: số "còn mở" chỉ bị hiểu sai khi còn cổ phiếu mở. Kế hoạch đã không còn cổ phiếu
+        // (OpenQuantity 0) thì không có gì để ghi chú dù cùng mã có lệnh bán ở kế hoạch khác.
+        var (plan, buy) = BuyOnlyPlan();
+        var sellElsewhere = new Trade(_mine.Id, "HHV", TradeType.SELL, 14_500, 9_950m);
+        sellElsewhere.LinkTradePlan("plan-khac");
+        _trades.Setup(r => r.GetByPortfolioIdAndSymbolAsync(_mine.Id, "HHV", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { buy, sellElsewhere });
+        ServiceReturns(new CampaignReviewData { OpenQuantity = 0m });
+
+        var preview = await new PreviewPlanReviewQueryHandler(_plans.Object, _trades.Object, _portfolios.Object, _service.Object, _actions.Object)
+            .Handle(new PreviewPlanReviewQuery { PlanId = plan.Id, UserId = Me }, default);
+
+        preview.Flags.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
     public async Task sells_of_this_very_plan_do_not_trigger_the_cross_plan_flag()
     {
         var (plan, buy) = BuyOnlyPlan();

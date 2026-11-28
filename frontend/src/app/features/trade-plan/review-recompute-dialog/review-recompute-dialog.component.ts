@@ -53,8 +53,8 @@ export interface ReviewNumbers {
         </table>
 
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" (click)="cancel.emit()" data-testid="recompute-cancel"
-            class="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium">Hủy</button>
+          <button type="button" (click)="cancel.emit()" [disabled]="busy" data-testid="recompute-cancel"
+            class="px-4 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 rounded-lg text-sm font-medium">Hủy</button>
           <button type="button" (click)="confirm.emit()" [disabled]="busy" data-testid="recompute-confirm"
             class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium">
             {{ busy ? 'Đang xử lý...' : 'Tính lại' }}

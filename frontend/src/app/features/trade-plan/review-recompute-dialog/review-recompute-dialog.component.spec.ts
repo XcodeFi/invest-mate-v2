@@ -54,4 +54,16 @@ describe('ReviewRecomputeDialogComponent', () => {
 
     expect((q('recompute-confirm') as HTMLButtonElement).disabled).toBeTrue();
   });
+
+  it('disables the cancel button while busy so the dialog cannot be closed mid-request', () => {
+    render({ before, after, busy: true });
+
+    expect((q('recompute-cancel') as HTMLButtonElement).disabled).toBeTrue();
+  });
+
+  it('keeps the cancel button enabled when idle', () => {
+    render({ before, after, busy: false });
+
+    expect((q('recompute-cancel') as HTMLButtonElement).disabled).toBeFalse();
+  });
 });
