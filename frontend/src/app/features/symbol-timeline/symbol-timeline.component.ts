@@ -8,7 +8,7 @@ import { Subject, Subscription, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
-import { MarketDataService, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
+import { MarketDataService, PatternCandidate, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -18,6 +18,8 @@ import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker } from '../../
 import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
+import { PatternCardComponent } from '../../shared/patterns/pattern-card.component';
+import { withPattern } from '../../shared/patterns/pattern-layers';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { buildGroupLayers, TaGroup } from '../../shared/indicators/ta-group-layers';
 import { buildTimelineQuery, parseTimelineQuery, TimelineUrlState } from './timeline-url-state';
@@ -71,7 +73,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
   selector: 'app-symbol-timeline',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, ThesisCardComponent, VndCurrencyPipe, NumMaskDirective, AiChatPanelComponent,
-    IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
+    IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-6">
       <!-- Header -->
@@ -319,6 +321,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       <app-series-adjusted-notes [series]="series"></app-series-adjusted-notes>
       <div class="mb-6">
         <app-indicator-guide [group]="selectedGroup" [readNowLines]="readNowLines"></app-indicator-guide>
+        <app-pattern-card [candidate]="patternCandidate" [showOnChart]="showPattern" [chartReady]="!!series" (showOnChartChange)="setShowPattern($event)"></app-pattern-card>
       </div>
 
       <!-- Emotion Summary Panel (7C.2) -->
@@ -696,6 +699,14 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   analysisFailed = false;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
   groupLayers: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+
+  /** Vẽ cốc, pivot, cắt lỗ, mục tiêu của ứng viên mô hình lên biểu đồ (bật sẵn; thẻ ứng viên có ô tắt). */
+  showPattern = true;
+  get patternCandidate(): PatternCandidate | null { return this.analysis?.patternCandidates?.[0] ?? null; }
+  setShowPattern(on: boolean): void {
+    this.showPattern = on;
+    this.refreshChart();
+  }
   chartMarkers: IndicatorChartMarker[] = [];
   readNowLines: string[] = [];
 
@@ -911,9 +922,11 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
     const series = this.series;
     if (!series) return;
 
-    const base = this.analysis
-      ? buildGroupLayers(this.selectedGroup, series, this.analysis)
-      : { overlays: [], panes: [], priceLines: [], notes: [] } as GroupLayers;
+    const base = withPattern(
+      this.analysis
+        ? buildGroupLayers(this.selectedGroup, series, this.analysis)
+        : { overlays: [], panes: [], priceLines: [], notes: [] } as GroupLayers,
+      this.patternCandidate, series, this.showPattern);
     const items = this.timeline?.items ?? [];
     const emotionPane = buildEmotionPane(series.dates, items, EMOTION_COLORS, '#6b7280');
     this.groupLayers = emotionPane ? { ...base, panes: [...base.panes, emotionPane] } : base;

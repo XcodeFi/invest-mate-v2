@@ -282,8 +282,48 @@ export interface TechnicalSeries {
   volumeSma20: (number | null)[];
 }
 
+/** Một điều kiện của mô hình: luật, giá trị đo, đạt hay không (`required` = bắt buộc để mô hình được báo). */
+export interface PatternCriterion {
+  key: string;
+  rule: string;
+  value?: number | null;
+  unit: string;
+  passed: boolean;
+  required: boolean;
+}
+
+/** Ứng viên mô hình giá do server dò (hiện có Cốc tay cầm). Cố ý KHÔNG có điểm số hay xác suất. */
+export interface PatternCandidate {
+  type: string;
+  typeVi: string;
+  /** forming | near-pivot | broke-out-unconfirmed | broke-out-with-volume. */
+  state: string;
+  stateVi: string;
+  startDate: string;
+  bottomDate: string;
+  rightLipDate: string;
+  cupLengthWeeks: number;
+  cupDepthPct: number;
+  handleLengthSessions: number;
+  handleDepthPct: number;
+  pivotPrice: number;
+  /** Dương = còn dưới pivot, âm = đã trên pivot. */
+  distanceToPivotPct: number;
+  volumeVsAvg50?: number | null;
+  stopPrice: number;
+  /** Nếu sai: % mất từ pivot tới điểm cắt lỗ (số dương). */
+  riskPct: number;
+  targetPrice: number;
+  rewardPct: number;
+  rewardRisk: number;
+  criteria: PatternCriterion[];
+  disclaimer: string;
+}
+
 export interface TechnicalAnalysis {
   symbol: string;
+  /** Ứng viên mô hình giá (rỗng/vắng khi không thấy hoặc backend cũ). */
+  patternCandidates?: PatternCandidate[];
   /** Xem TechnicalSeries.adjusted. */
   adjusted?: boolean | null;
   adjustedAsOf?: string | null;

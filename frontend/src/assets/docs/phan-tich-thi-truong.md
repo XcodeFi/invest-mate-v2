@@ -271,6 +271,42 @@ Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm ch
 
 ---
 
+## Ứng viên mô hình: Cốc tay cầm
+
+Dưới biểu đồ chỉ báo (trang Thị trường và trang Dòng thời gian mã) có thể có thẻ **"Ứng viên mô hình: Cốc tay cầm"**. Đây là một **phép dò hình dạng giá**, không phải tín hiệu mua, và **không có điểm số hay "độ tin cậy %"**: không có con số nào như vậy được hiệu chỉnh.
+
+**Hình dạng:** giá giảm từ một đỉnh (đỉnh trái) xuống một đáy rồi hồi dần về gần đỉnh cũ (vành phải), tạo thành chiếc cốc; sau đó có một nhịp lùi ngắn (tay cầm) rồi giá tiến sát mức vành phải. **Pivot** là đỉnh của vành phải, mức giá cần vượt để mô hình được coi là bắt đầu chạy.
+
+**Thẻ cho bạn thấy gì**
+- **Số đo:** cốc dài bao nhiêu tuần và sâu bao nhiêu %, tay cầm dài bao nhiêu phiên và sâu bao nhiêu %, pivot, giá còn cách pivot bao nhiêu %, khối lượng nến cuối so với trung bình 50 phiên.
+- **Từng điều kiện đạt (✓) hay không (✗)** kèm giá trị đo được. Điều kiện bắt buộc phải đạt hết thì thẻ mới hiện; điều kiện ghi "tham khảo" (khối lượng) có thể ✗.
+- **Trạng thái:** *Đang hình thành*, *Sát pivot* (cách pivot không quá 3%), *Vượt pivot, chưa có khối lượng xác nhận*, *Vượt pivot kèm khối lượng*. **Chưa vượt pivot kèm khối lượng thì chưa xác nhận.**
+- **Nếu sai:** "−X% từ pivot tới điểm cắt lỗ". Cắt lỗ đặt **ngay dưới đáy tay cầm** (thấp hơn 1%). Kèm **mục tiêu đo** = pivot cộng độ sâu của cốc, và **lãi/rủi ro theo R** (R là khoảng cách pivot tới cắt lỗ). Đây là hình học xác định từ nến, **không phải dự báo** và không phải xác suất thắng.
+- Ô **"Vẽ cốc, pivot, cắt lỗ và mục tiêu trên biểu đồ"**: vẽ đoạn cốc (xanh da trời), đoạn tay cầm (cam) và ba đường ngang có nhãn %. Biểu đồ chỉ có khi đã chọn một nhóm chỉ báo (trang Thị trường) hoặc ngay khi trang mở (Dòng thời gian).
+
+**Ngưỡng mặc định (có thể chỉnh, KHÔNG phải luật của một tác giả nào)**
+
+| Điều kiện | Mặc định | Độ chắc của nguồn |
+|---|---|---|
+| Độ dài cốc | 7–65 tuần | O'Neil qua bảng so sánh của Bulkowski: kiểm chứng một phần |
+| Độ sâu cốc | 12–33% | cùng nguồn: kiểm chứng một phần (40–50% chỉ được chấp nhận ở thị trường giá xuống, ở đây không dùng) |
+| Vành phải | hồi ≥ 90% đỉnh trái | tự đặt |
+| Tay cầm | 5–25 phiên, nằm nửa trên của cốc | độ dài "thường 1–2 tuần" theo nguồn; còn lại tự đặt |
+| Độ sâu tay cầm | 8–15% | **chưa kiểm chứng** |
+| Khối lượng phá vỡ | từ 1,4 lần trung bình 50 phiên | **chưa kiểm chứng** (hay gặp là +40–50%) |
+| Sát pivot | cách pivot ≤ 3% | **chưa kiểm chứng**, tự đặt |
+| Đã chạy xa | trên pivot quá 5% thì không còn là ứng viên | **chưa kiểm chứng**, tự đặt |
+
+**Ai dùng và vì sao**
+- **William J. O'Neil** (người mô tả mô hình, sáng lập Investor's Business Daily). *Cách dùng:* mua khi giá vượt pivot của tay cầm sau một đợt tăng trước đó, với khối lượng tăng rõ. *Vì sao:* người mua trước đó đã được "dọn" ở nhịp cốc và tay cầm nên nguồn cung phía trên mỏng đi. *Nguồn:* William J. O'Neil, *How to Make Money in Stocks* (1988, nhiều lần tái bản); các số đo cốc 7–65 tuần và sâu 12–33% lấy qua bảng so sánh trong sách của Thomas Bulkowski (nguồn thứ cấp). *Lưu ý:* ứng dụng KHÔNG kiểm điều kiện "đã tăng mạnh trước đó" và không dùng bộ lọc cơ bản của ông; thị trường Việt Nam có biên độ ±7% (HOSE), T+2,5 và nhà đầu tư cá nhân chiếm nhiều, nên các ngưỡng gốc chưa chắc phù hợp.
+- **Andrew Lo, Harry Mamaysky, Jiang Wang** (nghiên cứu học thuật). *Điều họ làm:* dùng thuật toán để dò các hình dạng giá thay vì nhìn bằng mắt. *Kết quả:* các hình dạng này mang thêm một lượng thông tin **khiêm tốn**, không phải lợi thế lớn. *Nguồn:* "Foundations of Technical Analysis", *Journal of Finance* 55(4), 2000, tr. 1705 đến 1765 (NBER Working Paper 7613). *Vì sao ghi ở đây:* để biết đây là cơ sở cho việc dò bằng thuật toán, không phải lời hứa về lợi nhuận.
+
+**Giới hạn cần nhớ**
+- **Không có thống kê tỉ lệ thành công hay thất bại** của mô hình này trong tài liệu này; chưa có phép kiểm lại (back-test) trên dữ liệu Việt Nam được công bố ở đây. Đừng đọc thẻ như một xác suất.
+- Dò trên giá **đã điều chỉnh**; khi nguồn chỉ có giá chưa điều chỉnh (dự phòng) thì không hiện thẻ, vì chia tách hay thưởng cổ phiếu có thể tạo ra một "chiếc cốc" giả.
+- Chỉ báo **tối đa một ứng viên** và chỉ nhìn các phiên đã đóng cửa (nến hôm nay trước 15:00 bị bỏ).
+- Hình dạng là phán đoán chủ quan: người khác vẽ cốc khác. Thẻ chỉ nói "theo ngưỡng mặc định này thì có".
+
 ## Cách đọc kết hợp 5 bước
 
 ```

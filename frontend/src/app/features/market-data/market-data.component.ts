@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import {
-  MarketDataService, StockPrice, StockDetail, MarketOverview,
+  MarketDataService, PatternCandidate, StockPrice, StockDetail, MarketOverview,
   TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis, TechnicalSeries, SignalSetups
 } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -23,6 +23,8 @@ import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { readNow } from '../../shared/indicators/indicator-guides';
 import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
+import { PatternCardComponent } from '../../shared/patterns/pattern-card.component';
+import { withPattern } from '../../shared/patterns/pattern-layers';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
 import { isLowRiskReward, LOW_RR_NOTE, stopLossMethodLabel } from './stop-loss-method';
 import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-panel.component';
@@ -44,7 +46,7 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
   selector: 'app-market-data',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent,
-    SignalSetupsPanelComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent],
+    SignalSetupsPanelComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-6">
@@ -257,6 +259,7 @@ function normalizeSymbols(input: string | readonly string[]): string[] {
         <!-- Ghi chú chất lượng giá và khối Cách đọc: nằm NGOÀI khối dính để không làm khối dính cao thêm -->
         <app-series-adjusted-notes [series]="selectedGroup ? currentSeries : null"></app-series-adjusted-notes>
         <app-indicator-guide [group]="currentSeries ? selectedGroup : null" [readNowLines]="readNowLines"></app-indicator-guide>
+        <app-pattern-card [candidate]="patternCandidate" [showOnChart]="showPattern" [chartReady]="!!currentSeries" (showOnChartChange)="setShowPattern($event)"></app-pattern-card>
 
         <!-- Khối 1: Tổng hợp (Confluence + Gợi ý giao dịch) -->
         @if (analysis.confluenceScore != null || analysis.suggestedEntry) {
@@ -865,6 +868,14 @@ export class MarketDataComponent implements OnInit {
   currentSeries: TechnicalSeries | null = null;
   chartCandles: IndicatorChartCandles = { open: [], high: [], low: [], close: [] };
   groupLayers: GroupLayers = { overlays: [], panes: [], priceLines: [], notes: [] };
+
+  /** Vẽ cốc, pivot, cắt lỗ, mục tiêu của ứng viên mô hình lên biểu đồ (bật sẵn; thẻ ứng viên có ô tắt). */
+  showPattern = true;
+  get patternCandidate(): PatternCandidate | null { return this.analysis?.patternCandidates?.[0] ?? null; }
+  setShowPattern(on: boolean): void {
+    this.showPattern = on;
+    this.refreshLayers();
+  }
   /** Các câu "Đọc nhanh hiện tại" của khối Cách đọc. */
   readNowLines: string[] = [];
   private chartSub: Subscription | null = null;
@@ -1160,9 +1171,10 @@ export class MarketDataComponent implements OnInit {
   }
 
   private refreshLayers(): void {
-    this.groupLayers = this.currentSeries && this.analysis
+    const base = this.currentSeries && this.analysis
       ? buildGroupLayers(this.selectedGroup, this.currentSeries, this.analysis)
       : { overlays: [], panes: [], priceLines: [], notes: [] };
+    this.groupLayers = withPattern(base, this.patternCandidate, this.currentSeries, this.showPattern);
     this.readNowLines = this.selectedGroup && this.currentSeries && this.analysis
       ? readNow(this.selectedGroup, this.currentSeries, this.analysis)
       : [];

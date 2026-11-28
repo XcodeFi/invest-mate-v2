@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using InvestmentApp.Application.MarketData.Patterns;
 using InvestmentApp.Api.Mcp;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.MarketData.Queries.GetMarketOverview;
@@ -143,6 +144,57 @@ public class MarketDataToolsTests
         var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
 
         result["adjusted"]!.GetValue<bool>().Should().BeFalse();
+    }
+
+    private static PatternCandidate Cup() => new()
+    {
+        State = "near-pivot", StateVi = "Sát pivot", StartDate = new DateTime(2026, 3, 2), BottomDate = new DateTime(2026, 5, 4), RightLipDate = new DateTime(2026, 8, 3),
+        CupLengthWeeks = 22m, CupDepthPct = 21.5m, HandleLengthSessions = 8, HandleDepthPct = 9.4m, PivotPrice = 100m, DistanceToPivotPct = 2.1m, VolumeVsAvg50 = 0.8m,
+        StopPrice = 90.5m, RiskPct = 9.5m, TargetPrice = 121.5m, RewardPct = 21.5m, RewardRisk = 2.3m,
+        Criteria = { new PatternCriterion { Key = "cup-depth", Rule = "Cốc sâu 12–33% so với đỉnh trái", Value = 21.5m, Unit = "%", Passed = true, Required = true } }
+    };
+
+    [Fact]
+    public async Task get_technical_analysis_carries_the_pattern_candidates_with_measurements_criteria_state_and_downside_but_no_score()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _,
+            new TechnicalAnalysisResult { Symbol = "FPT", PatternCandidates = { Cup() } });
+
+        var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        var c = result["patternCandidates"]!.AsArray().Single()!.AsObject();
+        c["type"]!.GetValue<string>().Should().Be("cup-with-handle");
+        c["state"]!.GetValue<string>().Should().Be("near-pivot");
+        c["pivotPrice"]!.GetValue<decimal>().Should().Be(100m);
+        c["stopPrice"]!.GetValue<decimal>().Should().Be(90.5m);
+        c["riskPct"]!.GetValue<decimal>().Should().Be(9.5m);
+        c["targetPrice"]!.GetValue<decimal>().Should().Be(121.5m);
+        c["rewardRisk"]!.GetValue<decimal>().Should().Be(2.3m);
+        c["criteria"]!.AsArray().Single()!["passed"]!.GetValue<bool>().Should().BeTrue();
+        c["disclaimer"]!.GetValue<string>().Should().Contain("không phải tín hiệu mua");
+        var names = c.Select(kv => kv.Key.ToLowerInvariant()).ToList();
+        names.Should().NotContain(n => n.Contains("score") || n.Contains("confidence") || n.Contains("probab"));
+    }
+
+    [Fact]
+    public async Task get_technical_analysis_without_a_pattern_has_an_empty_list_not_a_made_up_one()
+    {
+        McpTestContext.Capture<TechnicalAnalysisResult, GetTechnicalAnalysisQuery>(_mediator, out _, new TechnicalAnalysisResult { Symbol = "FPT" });
+
+        var result = await MarketDataTools.GetTechnicalAnalysis("FPT", _mediator.Object, CancellationToken.None);
+
+        result["patternCandidates"]!.AsArray().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void the_technical_analysis_tool_description_names_the_pattern_candidates_and_their_limits()
+    {
+        var desc = ((System.ComponentModel.DescriptionAttribute)typeof(MarketDataTools).GetMethod(nameof(MarketDataTools.GetTechnicalAnalysis))!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false).Single()).Description;
+
+        desc.Should().Contain("patternCandidates").And.Contain("cup-with-handle").And.Contain("không phải tín hiệu mua");
+        desc.Should().Contain("ngưỡng mặc định có thể chỉnh");
+        desc.Should().Contain("rewardRisk").And.Contain("stopPrice").And.Contain("targetPrice");
     }
 
     [Fact]

@@ -60,6 +60,12 @@ public class TechnicalAnalysisResult
     public string Symbol { get; set; } = null!;
 
     /// <summary>
+    /// Ứng viên mô hình giá (hiện có Cốc tay cầm): tối đa một phần tử, rỗng khi không thấy hoặc chuỗi chưa điều chỉnh. Có số đo, từng điều kiện đạt hay không,
+    /// trạng thái và phần "nếu sai" (cắt lỗ, mục tiêu đo, lãi/rủi ro theo R); KHÔNG có điểm số hay xác suất. Không phải tín hiệu mua.
+    /// </summary>
+    public List<InvestmentApp.Application.MarketData.Patterns.PatternCandidate> PatternCandidates { get; set; } = new();
+
+    /// <summary>
     /// <c>true</c> khi giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách); <c>false</c> khi dùng
     /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
     /// </summary>
