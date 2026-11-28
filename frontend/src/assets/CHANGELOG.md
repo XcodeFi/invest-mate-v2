@@ -2,6 +2,22 @@
 
 ---
 
+## [v2.101.0] — 2026-11-28 · Gợi ý giao dịch: cắt lỗ theo ATR, ghi cách tính, cảnh báo R:R thấp
+
+### Cải thiện
+
+- **Cắt lỗ của gợi ý giao dịch** (trang Phân tích thị trường) nay lấy mức **chặt hơn** giữa hỗ trợ thứ 2 và **giá vào − 2 × ATR(14)**, nên không còn đặt cắt lỗ quá xa khi hỗ trợ thứ 2 ở rất thấp (R:R trước đây bị kéo xuống vì rủi ro phình to). Thiếu ATR thì giữ cách cũ.
+- Dưới mức cắt lỗ có ghi **cách tính**: "theo hỗ trợ thứ 2", "theo 2×ATR" hoặc "−5% dưới hỗ trợ".
+- Tỉ lệ **R:R dưới 1** có ghi chú "R:R thấp — không đủ hấp dẫn".
+- Cắt lỗ không hợp lệ (không dương, hoặc không thấp hơn giá vào) thì không còn đưa ra gợi ý.
+
+### Kỹ thuật
+
+- `TradeSuggestionCalculator.Build` (hàm thuần) thay đoạn tính gợi ý trong `TechnicalIndicatorService.AnalyzeAsync`; `TechnicalAnalysisResult.SuggestedStopLossMethod` (`support2` | `atr2x` | `percent5`) lộ ra qua API và MCP `get_technical_analysis`.
+- Test: 11 ca cho calculator (đổi `Math.Max` thành `Math.Min` thì 5 ca đỏ), test MCP, spec giao diện cho nhãn và ghi chú R:R.
+
+---
+
 ## [v2.100.0] — 2026-11-28 · MCP: tính lại review, định cỡ vị thế, sự kiện quyền
 
 ### Tính năng mới

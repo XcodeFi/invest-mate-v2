@@ -232,6 +232,8 @@ export interface TechnicalAnalysis {
   divergenceSignalVi?: string;
   suggestedEntry?: number;
   suggestedStopLoss?: number;
+  /** support2 | atr2x | percent5: cách tính cắt lỗ của gợi ý (không có ở kết quả cũ). */
+  suggestedStopLossMethod?: string;
   suggestedTarget?: number;
   riskRewardRatio?: number;
 }

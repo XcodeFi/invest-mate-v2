@@ -171,6 +171,8 @@ public class TechnicalAnalysisResult
     // Trade suggestion
     public decimal? SuggestedEntry { get; set; }
     public decimal? SuggestedStopLoss { get; set; }
+    /// <summary>Cách tính cắt lỗ: "support2" (hỗ trợ thứ 2) | "atr2x" (vào − 2×ATR14) | "percent5" (−5% dưới hỗ trợ gần nhất, khi không có ATR và hỗ trợ 2). Null khi không có gợi ý.</summary>
+    public string? SuggestedStopLossMethod { get; set; }
     public decimal? SuggestedTarget { get; set; }
     public decimal? RiskRewardRatio { get; set; }
 }
