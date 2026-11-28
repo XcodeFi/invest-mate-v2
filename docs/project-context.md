@@ -198,3 +198,12 @@ Tóm tắt 3 trụ:
 - Đã có: bộ dò thuần + thẻ + đường vẽ + `patternCandidates` ở `get_technical_analysis`. Ngưỡng độ sâu tay cầm, khối lượng, "sát pivot", "đã chạy xa" **chưa kiểm chứng** (ghi rõ trong Help).
 - **Chưa làm (nợ có chủ ý):** back-test bộ dò trên chuỗi đã lưu của VN30 để ghi tỉ lệ trúng; không có số này thì KHÔNG đưa cột mô hình vào trang Sàng lọc (PR B) và không nêu tỉ lệ thành công/thất bại ở đâu cả. Cần quyền đọc `adjusted_price_series` thật; không chạy được từ máy dev.
 - Bẫy đã thấy khi viết: dò trên giá chưa điều chỉnh sẽ thấy "chiếc cốc" giả ở ngày chia tách; vì vậy chỉ dò khi cả chuỗi `IsAdjusted`.
+
+### Back-test mô hình giá (PR A2, bước 1: chỉ ĐẾM, 2026-11-28)
+- **Vị trí:** `tests/InvestmentApp.Infrastructure.Tests/Backtest/` (`PatternBacktestCore` thuần + `PatternBacktestLive` chạy thật, chỉ khi `PATTERN_BACKTEST=1`). Không nằm trên đường chạy sản phẩm; không UI, không phần trăm thành công.
+- **Chỉ đọc:** dùng đúng `AdjustedPriceSeriesStore.GetAsync` (một lệnh Find theo `_id`) cho rổ VN30; không ghi, không gọi nguồn bên ngoài. Chuỗi kết nối lấy từ `PATTERN_BACKTEST_MONGO_CONN` + `PATTERN_BACKTEST_MONGO_DB` (hoặc từ `appsettings.Development.json`) và KHÔNG bao giờ được in hay lưu; lỗi chỉ in tên kiểu ngoại lệ.
+- **Cách chạy:** `PATTERN_BACKTEST=1 PATTERN_BACKTEST_OUT=<tệp báo cáo> dotnet test tests/InvestmentApp.Infrastructure.Tests --filter PatternBacktestLive`.
+- **Luật (đã thống nhất):** một sự kiện mỗi mã mỗi 20 phiên; vào ở giá MỞ CỬA phiên sau tín hiệu, bỏ qua nếu mở cửa kịch trần (+7% so với đóng cửa tín hiệu); R = mức − cắt lỗ; thành công = chạm mức + 2R trước cắt lỗ; nến chạm cả hai tính là cắt lỗ; hết hạn sau 20 phiên. Loại sự kiện: Cốc tay cầm (phiên ứng viên chuyển sang đã vượt pivot), Donchian 20 và 55 (nến phá vỡ đầu tiên, cắt lỗ = đáy 10 phiên × 0,99), bẫy giảm giá (phiên đóng lại trên hỗ trợ). Phá vỡ thất bại được đếm trong cột "thất bại ≤ 5 phiên" của các loại phá vỡ lên.
+- **Báo cáo:** theo loại: số tình tiết độc lập, số thành công/cắt lỗ/hết hạn/bỏ qua, biên độ đi ngược 2 phiên đầu và cả lệnh (p10, p50, p90), cụm theo ngày và theo tháng.
+- **Giới hạn phải nêu cùng mọi con số:** một giai đoạn thị trường (chủ yếu tăng), thiên lệch người sống sót (rổ VN30 hiện tại), biên độ ±7%. Rổ chỉ gồm VN30, gộp chung, không tách theo mã.
+
