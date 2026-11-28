@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.116.0] — 2026-11-28 · Sửa: "Việc cần xử lý hôm nay" xem được đủ danh sách ngay trên Trang chủ
+## [v2.115.1] — 2026-11-28 · Sửa: "Việc cần xử lý hôm nay" xem được đủ danh sách ngay trên Trang chủ
 
 ### Sửa lỗi
 
