@@ -308,6 +308,19 @@ export interface CampaignReviewDataDto {
   dividendIncome?: number | null;
   /** Giá vốn của phần đã bán (mẫu số của % lãi/lỗ). */
   realizedCost?: number | null;
+  /** Số CP bán nhưng chưa có lệnh mua đã gắn; lớn hơn 0 thì P&L chỉ phần khớp và R = null. */
+  oversoldQuantity?: number | null;
+  /** thieu-lenh-mua-lien-ket | lenh-ban-o-ke-hoach-khac */
+  flags?: string[] | null;
+  /** Số liệu trước lần tính lại đầu tiên. */
+  legacy?: ReviewLegacyDto | null;
+}
+
+export interface ReviewLegacyDto {
+  pnLAmount: number;
+  pnLPercent: number;
+  realizedR?: number | null;
+  recomputedAt: string;
 }
 
 export interface CampaignReviewDto {
@@ -332,6 +345,12 @@ export interface CampaignReviewDto {
   dividendIncome?: number | null;
   /** Giá vốn của phần đã bán (mẫu số của % lãi/lỗ). */
   realizedCost?: number | null;
+  /** Số CP bán nhưng chưa có lệnh mua đã gắn; lớn hơn 0 thì P&L chỉ phần khớp và R = null. */
+  oversoldQuantity?: number | null;
+  /** thieu-lenh-mua-lien-ket | lenh-ban-o-ke-hoach-khac */
+  flags?: string[] | null;
+  /** Số liệu trước lần tính lại đầu tiên. */
+  legacy?: ReviewLegacyDto | null;
 }
 
 /** Kỳ vọng theo R của các chiến dịch đã đóng (kế hoạch Mua đã review). Giá trị null = không đủ dữ liệu (hiện n/a). */
@@ -560,6 +579,12 @@ export class TradePlanService {
 
   submitReview(planId: string, data: { lessonsLearned?: string }): Observable<CampaignReviewDto> {
     return this.http.post<CampaignReviewDto>(`${this.API_URL}/${planId}/review`, data, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
+  /** Tính lại review của MỘT kế hoạch đã review (giữ bài học, số cũ vào legacy lần đầu). */
+  recomputeReview(planId: string): Observable<CampaignReviewDto> {
+    return this.http.post<CampaignReviewDto>(`${this.API_URL}/${planId}/review/recompute`, {}, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
   }
 

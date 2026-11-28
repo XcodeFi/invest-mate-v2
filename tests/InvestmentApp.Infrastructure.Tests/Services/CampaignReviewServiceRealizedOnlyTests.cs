@@ -194,6 +194,87 @@ public class CampaignReviewServiceRealizedOnlyTests
     }
 
     [Fact]
+    public void same_day_round_trip_is_matched_even_when_the_sell_is_listed_before_the_buy()
+    {
+        // PositionBuilder xử lý theo thứ tự đầu vào trong cùng một ngày; lệnh bán đứng trước lệnh mua bị coi là
+        // "bán khi chưa có gì" và bị bỏ → PnL 0 và còn 1.000 CP giả. Service phải xếp mua trước bán trong ngày.
+        var trades = new[] { Sell(1000, 33_000m, Apr1), Buy(1000, 30_000m, Apr1) };
+
+        var r = _sut.CalculateMetrics(NewPlan(), trades, NoActions);
+
+        r.PnLAmount.Should().Be(3_000_000m);
+        r.OpenQuantity.Should().Be(0m);
+    }
+
+    [Fact]
+    public void trades_of_another_symbol_linked_to_the_plan_are_ignored()
+    {
+        // Công thức cũ cộng mọi trade gắn vào plan, kể cả mã khác (dữ liệu gắn nhầm). Giờ chỉ tính mã của plan.
+        var trades = new[]
+        {
+            Buy(1000, 30_000m, Jan1), Sell(1000, 33_000m, Apr1),
+            Buy(100, 10_000m, Jan1, symbol: "FPT"),
+        };
+
+        var r = _sut.CalculateMetrics(NewPlan(), trades, NoActions);
+
+        r.PnLAmount.Should().Be(3_000_000m, "cũ: 3tr − 1tr vốn FPT chưa bán = 2tr");
+        r.OpenQuantity.Should().Be(0m);
+    }
+
+    [Fact]
+    public void selling_more_than_held_is_clamped_to_the_held_quantity()
+    {
+        // Nhập thiếu một lệnh mua: bán 1.200 trong khi chỉ có 1.000. Phần vượt không có giá vốn nên không tính lãi.
+        var trades = new[] { Buy(1000, 30_000m, Jan1), Sell(1200, 33_000m, Apr1) };
+
+        var r = _sut.CalculateMetrics(NewPlan(), trades, NoActions);
+
+        r.PnLAmount.Should().Be(3_000_000m, "cũ: 39,6tr − 30tr = 9,6tr, tính cả 200 CP không có giá vốn");
+    }
+
+    [Fact]
+    public void oversold_matched_only_flag_r_null()
+    {
+        // Hình dạng b4ad04c1: kế hoạch chỉ có lệnh BÁN 14.500 @9.950, lệnh mua nằm ở kế hoạch khác.
+        var plan = NewPlan("HHV", 29_000);
+        var trades = new[] { Sell(14_500, 9_950m, Apr1, symbol: "HHV") };
+
+        var r = _sut.CalculateMetrics(plan, trades, NoActions);
+
+        r.PnLAmount.Should().Be(0m, "không có lệnh mua gắn vào thì không có giá vốn để khớp");
+        r.OversoldQuantity.Should().Be(14_500m);
+        r.OpenQuantity.Should().Be(0m);
+        r.RealizedR.Should().BeNull("R = null, không bao giờ là 0");
+        r.Flags.Should().Contain(InvestmentApp.Domain.Services.ReviewFlags.MissingBuyLink);
+    }
+
+    [Fact]
+    public void partially_oversold_keeps_matched_pnl_but_r_is_null()
+    {
+        var trades = new[] { Buy(1000, 30_000m, Jan1), Sell(1200, 33_000m, Apr1) };
+
+        var r = _sut.CalculateMetrics(NewPlan(), trades, NoActions);
+
+        r.PnLAmount.Should().Be(3_000_000m);
+        r.OversoldQuantity.Should().Be(200m);
+        r.RealizedR.Should().BeNull();
+        r.Flags.Should().Contain(InvestmentApp.Domain.Services.ReviewFlags.MissingBuyLink);
+    }
+
+    [Fact]
+    public void normal_review_has_no_oversold_and_no_flag()
+    {
+        var trades = new[] { Buy(1000, 30_000m, Jan1), Sell(1000, 33_000m, Apr1) };
+
+        var r = _sut.CalculateMetrics(NewPlan(), trades, NoActions);
+
+        r.OversoldQuantity.Should().Be(0m);
+        r.Flags.Should().BeNullOrEmpty();
+        r.RealizedR.Should().Be(1.0m);
+    }
+
+    [Fact]
     public void two_arg_overload_behaves_like_no_corporate_actions()
     {
         var trades = new[] { Buy(1000, 30_000m, Jan1), Sell(1000, 33_000m, Apr1) };

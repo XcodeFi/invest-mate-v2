@@ -32,8 +32,14 @@ public class CampaignReviewService : ICampaignReviewService
 
         var lastTradeDate = trades.Count > 0 ? trades.Max(t => t.TradeDate.Date) : DateTime.MinValue;
         var asOf = lastTradeDate > DateTime.UtcNow.Date ? lastTradeDate : DateTime.UtcNow.Date;
+        // PositionBuilder giữ nguyên thứ tự đầu vào trong cùng một ngày: lệnh bán đứng trước lệnh mua cùng ngày bị coi là
+        // "bán khi chưa có gì". Xếp mua trước bán (ổn định) để mua-bán trong ngày luôn khớp nhau.
+        var ordered = trades
+            .OrderBy(t => t.TradeDate.Date)
+            .ThenBy(t => t.TradeType == TradeType.BUY ? 0 : 1)
+            .ToList();
         var position = PositionBuilder
-            .Build(trades, corporateActions, asOf)
+            .Build(ordered, corporateActions, asOf)
             .FirstOrDefault(p => string.Equals(p.Symbol, plan.Symbol, StringComparison.OrdinalIgnoreCase));
 
         var openQuantity = position?.TotalQuantity ?? 0m;
@@ -42,7 +48,9 @@ public class CampaignReviewService : ICampaignReviewService
         var pnlAmount = Math.Round((position?.RealizedPnL ?? 0m) + dividendIncome, 2);
         var pnlPercent = realizedCost > 0 ? pnlAmount / realizedCost * 100m : 0m;
 
-        var soldQuantity = sells.Sum(t => t.Quantity);
+        // Bán vượt số mua đã gắn (lệnh mua nằm ngoài kế hoạch): PnL chỉ phần khớp, R không xác định (null, KHÔNG phải 0).
+        var oversold = position?.OversoldQuantity ?? 0m;
+        var soldQuantity = sells.Sum(t => t.Quantity) - oversold;
         var totalAdjusted = openQuantity + soldQuantity;
         var riskFraction = totalAdjusted > 0 ? soldQuantity / totalAdjusted : 1m;
 
@@ -60,7 +68,9 @@ public class CampaignReviewService : ICampaignReviewService
             ? pnlPercent / plannedTargetPercent * 100m
             : 0m;
 
-        var realized = RMath.ResolveRealizedR(plan, pnlAmount, riskFraction);
+        var realized = oversold > 0m
+            ? new RealizedRResult(null, null)
+            : RMath.ResolveRealizedR(plan, pnlAmount, riskFraction);
 
         return new CampaignReviewData
         {
@@ -77,6 +87,8 @@ public class CampaignReviewService : ICampaignReviewService
             RealizedR = realized.R,
             RiskBasis = realized.Basis,
             OpenQuantity = openQuantity,
+            OversoldQuantity = oversold,
+            Flags = oversold > 0m ? new List<string> { ReviewFlags.MissingBuyLink } : null,
             DividendIncome = Math.Round(dividendIncome, 2),
             RealizedCost = Math.Round(realizedCost, 2)
         };

@@ -84,6 +84,24 @@ public class GetStrategyExpectancyQueryHandlerTests
     }
 
     [Fact]
+    public async Task oversold_review_is_skipped_and_its_null_r_never_becomes_a_zero_sample()
+    {
+        // Hình dạng b4ad04c1: PnL khớp được 0, RealizedR null, có cờ bán vượt. Suy lại từ PnL sẽ ra 0R giả (một mẫu "hoà").
+        var oversold = Reviewed("s1", 0);
+        oversold.ReviewData!.RealizedR = null;
+        oversold.ReviewData.OversoldQuantity = 14_500m;
+        oversold.ReviewData.OpenQuantity = 0m;
+        oversold.ReviewData.Flags = new List<string> { "thieu-lenh-mua-lien-ket" };
+        Setup(new[] { Reviewed("s1", 2), oversold }, ("s1", "Breakout"));
+
+        var result = await Sut().Handle(new GetStrategyExpectancyQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.Total.N.Should().Be(1, "mẫu bán vượt không được tính, kể cả như hoà");
+        result.Total.Draws.Should().Be(0);
+        result.Total.ExpectancyR.Should().Be(2m);
+    }
+
+    [Fact]
     public async Task sell_plan_with_a_stored_realized_r_is_still_excluded()
     {
         // RMath không tính được R cho lệnh bán, nhưng một review đã LƯU RealizedR thì RMath trả luôn giá trị đó.

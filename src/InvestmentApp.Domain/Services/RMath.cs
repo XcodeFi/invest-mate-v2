@@ -17,6 +17,16 @@ public enum TradeOutcome
 /// <summary>Kết quả R thực tế kèm cơ sở tính 1R (null/null nếu không tính được).</summary>
 public readonly record struct RealizedRResult(decimal? R, string? Basis);
 
+/// <summary>Cờ dữ liệu gắn vào review (không phải lỗi của người dùng: thường là thiếu liên kết lệnh).</summary>
+public static class ReviewFlags
+{
+    /// <summary>Có CP bán nhưng không có lệnh mua đã gắn tương ứng: PnL chỉ phần khớp, R = null.</summary>
+    public const string MissingBuyLink = "thieu-lenh-mua-lien-ket";
+
+    /// <summary>Kế hoạch chỉ có lệnh mua (còn mở) mà lệnh bán cùng mã, cùng danh mục nằm ở kế hoạch khác.</summary>
+    public const string SellsInOtherPlan = "lenh-ban-o-ke-hoach-khac";
+}
+
 public static class RMath
 {
     /// <summary>Ảnh chụp chốt khi chốt kế hoạch.</summary>
@@ -106,6 +116,8 @@ public static class RMath
     {
         var review = plan.ReviewData;
         if (review == null || plan.Status != TradePlanStatus.Reviewed) return new RealizedRResult(null, null);
+        // Bán vượt số mua đã gắn: R không xác định. KHÔNG suy lại từ PnL (sẽ ra 0R giả, một mẫu "hoà" không có thật).
+        if (review.OversoldQuantity is > 0m) return new RealizedRResult(null, null);
         if (review.RealizedR != null) return new RealizedRResult(review.RealizedR, review.RiskBasis);
         return ResolveRealizedR(plan, review.PnLAmount);
     }
@@ -116,7 +128,7 @@ public static class RMath
     /// Review cũ (OpenQuantity null) giữ nguyên hành vi.
     /// </summary>
     public static decimal? ClosedRealizedR(TradePlan plan)
-        => plan.ReviewData?.OpenQuantity is > 0m ? null : ResolveRealizedR(plan).R;
+        => plan.ReviewData?.OpenQuantity is > 0m || plan.ReviewData?.OversoldQuantity is > 0m ? null : ResolveRealizedR(plan).R;
 
     /// <summary>PnL ròng / số tiền rủi ro ban đầu. Null nếu không có rủi ro (không chia cho 0).</summary>
     public static decimal? RealizedR(decimal netPnL, decimal riskAmount)

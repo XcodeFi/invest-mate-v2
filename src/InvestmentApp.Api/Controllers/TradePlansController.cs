@@ -9,6 +9,7 @@ using InvestmentApp.Application.TradePlans.Commands.TriggerExitTarget;
 using InvestmentApp.Application.TradePlans.Commands.TriggerScenarioNode;
 using InvestmentApp.Application.TradePlans.Commands.SaveScenarioTemplate;
 using InvestmentApp.Application.TradePlans.Commands.DeleteScenarioTemplate;
+using InvestmentApp.Application.TradePlans.Commands.RecomputeReview;
 using InvestmentApp.Application.TradePlans.Commands.ReviewTradePlan;
 using InvestmentApp.Application.TradePlans.Commands.UpdateReviewLessons;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
@@ -329,6 +330,18 @@ public class TradePlansController : ControllerBase
         command.PlanId = id;
         command.UserId = GetUserId();
         var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Recompute a reviewed plan's auto-calculated metrics with the current formula (user-triggered, one plan).
+    /// Keeps the user's lessons; the previous numbers are stored once in ReviewData.Legacy.
+    /// </summary>
+    [HttpPost("{id}/review/recompute")]
+    [ProducesResponseType(typeof(CampaignReviewDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RecomputeReview(string id)
+    {
+        var result = await _mediator.Send(new RecomputeReviewCommand { PlanId = id, UserId = GetUserId() });
         return Ok(result);
     }
 

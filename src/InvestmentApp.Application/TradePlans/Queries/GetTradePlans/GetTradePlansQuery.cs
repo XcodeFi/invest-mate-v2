@@ -1,3 +1,4 @@
+using InvestmentApp.Application.TradePlans.Commands.ReviewTradePlan;
 using System.ComponentModel;
 using InvestmentApp.Application.Interfaces;
 using InvestmentApp.Application.TradePlans;
@@ -171,7 +172,14 @@ public class GetTradePlansQueryHandler : IRequestHandler<GetTradePlansQuery, IEn
             RiskBasis = RMath.ResolveRealizedR(p).Basis,
             OpenQuantity = p.ReviewData.OpenQuantity,
             DividendIncome = p.ReviewData.DividendIncome,
-            RealizedCost = p.ReviewData.RealizedCost
+            RealizedCost = p.ReviewData.RealizedCost,
+            OversoldQuantity = p.ReviewData.OversoldQuantity,
+            Flags = p.ReviewData.Flags,
+            Legacy = p.ReviewData.Legacy == null ? null : new LegacyReviewDto
+            {
+                PnLAmount = p.ReviewData.Legacy.PnLAmount, PnLPercent = p.ReviewData.Legacy.PnLPercent,
+                RealizedR = p.ReviewData.Legacy.RealizedR, RecomputedAt = p.ReviewData.Legacy.RecomputedAt
+            }
         } : null,
         Status = p.Status.ToString(),
         TradeId = p.TradeId,
@@ -391,4 +399,7 @@ public class CampaignReviewDataDto
     public decimal? OpenQuantity { get; set; }
     public decimal? DividendIncome { get; set; }
     public decimal? RealizedCost { get; set; }
+    public decimal? OversoldQuantity { get; set; }
+    public List<string>? Flags { get; set; }
+    public LegacyReviewDto? Legacy { get; set; }
 }

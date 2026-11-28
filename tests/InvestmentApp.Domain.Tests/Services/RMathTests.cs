@@ -242,6 +242,19 @@ public class RMathTests
     }
 
     [Fact]
+    public void oversold_review_has_null_r_never_zero_and_is_excluded()
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);
+        plan.MarkReady(); plan.MarkInProgress(); plan.Execute("t1");
+        // Hình dạng b4ad04c1: chỉ có lệnh bán, PnL khớp được = 0, RealizedR không lưu (null).
+        plan.MarkReviewed(new CampaignReviewData { PnLAmount = 0m, RealizedR = null, OversoldQuantity = 14_500m, OpenQuantity = 0m,
+            Flags = new List<string> { ReviewFlags.MissingBuyLink } });
+
+        RMath.ResolveRealizedR(plan).R.Should().BeNull("suy lại từ PnL 0 sẽ ra 0R: một mẫu hoà giả");
+        RMath.ClosedRealizedR(plan).Should().BeNull();
+    }
+
+    [Fact]
     public void ResolveForReview_uses_legacy_estimate_and_marks_basis()
     {
         var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);   // chưa qua MarkReady: không có ảnh chụp

@@ -18,6 +18,36 @@ public class PositionBuilderTests
         => new("p1", symbol, TradeType.SELL, qty, price, tradeDate: date);
 
     [Fact]
+    public void BanVuotSoDangGiu_BiChanVaGhiNhanSoLuongVuot()
+    {
+        var trades = new[] { Buy("HHV", 1000, 10_000, new DateTime(2026, 1, 5)), Sell("HHV", 1200, 12_000, new DateTime(2026, 2, 1)) };
+
+        var pos = PositionBuilder.Build(trades, Array.Empty<CorporateAction>(), asOf: Far).Single();
+
+        pos.TotalQuantity.Should().Be(0);
+        pos.OversoldQuantity.Should().Be(200);
+        pos.RealizedPnL.Should().Be(2_000_000, "chỉ 1.000 CP có giá vốn");
+    }
+
+    [Fact]
+    public void BanKhiChuaCoGi_TinhToanBoLaVuot()
+    {
+        var trades = new[] { Sell("HHV", 500, 12_000, new DateTime(2026, 2, 1)) };
+
+        var pos = PositionBuilder.Build(trades, Array.Empty<CorporateAction>(), asOf: Far).Single();
+
+        pos.OversoldQuantity.Should().Be(500);
+    }
+
+    [Fact]
+    public void BanDuSoDangGiu_KhongCoSoLuongVuot()
+    {
+        var trades = new[] { Buy("HHV", 1000, 10_000, new DateTime(2026, 1, 5)), Sell("HHV", 1000, 12_000, new DateTime(2026, 2, 1)) };
+
+        PositionBuilder.Build(trades, Array.Empty<CorporateAction>(), asOf: Far).Single().OversoldQuantity.Should().Be(0);
+    }
+
+    [Fact]
     public void CoTucCoPhieu30PhanTram_ChuaVe_ThiVaoChoVe_VaGiamGiaVon()
     {
         var trades = new[] { Buy("HPG", 1000, 25_000, new DateTime(2026, 1, 5)) };

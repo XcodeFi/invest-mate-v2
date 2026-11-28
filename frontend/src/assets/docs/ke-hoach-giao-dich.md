@@ -145,6 +145,10 @@ Nháp → Sẵn sàng → Đang thực hiện → Đã thực hiện → Đã re
 - **R:R** trong danh sách kế hoạch và trang Vị thế là số hệ thống tính từ giá vào, cắt lỗ và giá chốt lời (nhiều mốc chốt lời thì lấy bình quân theo tỷ lệ vị thế). Lệnh Bán hoặc thiếu mục tiêu thì hiện giá trị bạn đã nhập.
 - Khi review, **R thực tế** = lãi/lỗ ròng ÷ 1R (ví dụ +1,6R: lãi gấp 1,6 lần mức rủi ro ban đầu). "(ước tính)" nghĩa là kế hoạch cũ chưa ghi 1R nên dùng cắt lỗ đầu tiên còn lưu; "n/a" nghĩa là không biết rủi ro ban đầu. Hiện chỉ áp dụng cho lệnh Mua.
 - **Review chỉ tính phần đã chốt.** Lãi/lỗ = tiền bán − giá vốn bình quân của số cổ phiếu ĐÃ BÁN, cộng cổ tức tiền mặt bạn được hưởng. Nếu còn cổ phiếu chưa bán, app cảnh báo "Còn N CP chưa bán", phần còn giữ không bị coi là lỗ (phí mua của nó nằm trong giá vốn còn giữ), và 1R cũng chỉ tính theo phần đã bán. Chiến dịch còn cổ phiếu chưa bán **không được tính** vào kỳ vọng R, độ khớp ước lượng và Kelly; bán hết rồi mới vào thống kê. Ví dụ: mua 1.000 @30.000, bán 500 @33.000 → lãi +1,5 triệu (+10%), không phải −13,5 triệu.
+- **Hai cờ trên review:**
+  - *Có CP bán nhưng chưa gắn lệnh mua*: bạn bán nhiều hơn số mua đã gắn vào kế hoạch (thường vì lệnh mua nằm ở kế hoạch khác hoặc chưa gắn). Lãi/lỗ chỉ tính phần khớp được, **R hiện n/a** (không phải 0R) và chiến dịch không vào thống kê. Gắn lệnh mua còn thiếu vào kế hoạch rồi bấm **Tính lại**.
+  - *Lệnh bán có thể ở kế hoạch khác*: kế hoạch chỉ có lệnh mua, còn lệnh bán cùng mã, cùng danh mục đang gắn vào kế hoạch khác. Số cổ phiếu còn mở chỉ đúng theo lệnh mua đã gắn.
+- **Tính lại theo công thức mới**: trên kế hoạch đã review, bấm nút này để tính lại lãi/lỗ và R bằng công thức hiện tại (sau khi bạn gắn thêm lệnh hoặc sau khi công thức được sửa). Hộp xác nhận hiện số đang lưu và số sau khi tính lại. Bài học của bạn được giữ nguyên, số cũ được lưu một lần ở dòng "Số cũ trước khi tính lại". Chỉ tính lại từng kế hoạch, không chạy hàng loạt.
 
 ### Ước lượng kỳ vọng trước khi vào lệnh (lệnh Mua)
 

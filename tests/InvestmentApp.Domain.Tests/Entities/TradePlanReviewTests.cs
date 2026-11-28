@@ -52,6 +52,64 @@ public class TradePlanReviewTests
     #endregion
 
     // =====================================================================
+    // RecomputeReview ("Tính lại review" do người dùng bấm)
+    // =====================================================================
+
+    private static TradePlan ReviewedWith(string lessons, DateTime reviewedAt)
+    {
+        var plan = CreateExecutedPlan();
+        var data = CreateReviewData(pnlAmount: -13_500_000m, pnlPercent: -45m, lessons: lessons);
+        data.ReviewedAt = reviewedAt;
+        data.RealizedR = -4.5m;
+        plan.MarkReviewed(data);
+        return plan;
+    }
+
+    [Fact]
+    public void recompute_keeps_user_text_and_original_review_date_and_stores_legacy()
+    {
+        var reviewedAt = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        var plan = ReviewedWith("Bài học của tôi", reviewedAt);
+        plan.ClearDomainEvents();
+
+        plan.RecomputeReview(new CampaignReviewData { PnLAmount = 1_500_000m, PnLPercent = 10m, RealizedR = 1.0m, LessonsLearned = "bị ghi đè?" });
+
+        plan.ReviewData!.PnLAmount.Should().Be(1_500_000m);
+        plan.ReviewData.RealizedR.Should().Be(1.0m);
+        plan.ReviewData.LessonsLearned.Should().Be("Bài học của tôi");
+        plan.ReviewData.ReviewedAt.Should().Be(reviewedAt);
+        plan.Status.Should().Be(TradePlanStatus.Reviewed);
+        plan.ReviewData.Legacy.Should().NotBeNull();
+        plan.ReviewData.Legacy!.PnLAmount.Should().Be(-13_500_000m);
+        plan.ReviewData.Legacy.PnLPercent.Should().Be(-45m);
+        plan.ReviewData.Legacy.RealizedR.Should().Be(-4.5m);
+        plan.DomainEvents.Should().BeEmpty("không phát lại PlanReviewedEvent");
+    }
+
+    [Fact]
+    public void recompute_stores_legacy_once()
+    {
+        var plan = ReviewedWith("x", DateTime.UtcNow);
+        plan.RecomputeReview(new CampaignReviewData { PnLAmount = 1_500_000m, PnLPercent = 10m, RealizedR = 1.0m });
+
+        plan.RecomputeReview(new CampaignReviewData { PnLAmount = 2_000_000m, PnLPercent = 13m, RealizedR = 1.3m });
+
+        plan.ReviewData!.PnLAmount.Should().Be(2_000_000m);
+        plan.ReviewData.Legacy!.PnLAmount.Should().Be(-13_500_000m, "bản ghi đầu tiên không bị ghi đè");
+        plan.ReviewData.Legacy.RealizedR.Should().Be(-4.5m);
+    }
+
+    [Fact]
+    public void recompute_fails_for_a_plan_that_is_not_reviewed()
+    {
+        var plan = CreateExecutedPlan();
+
+        var act = () => plan.RecomputeReview(new CampaignReviewData());
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    // =====================================================================
     // MarkReviewed with CampaignReviewData
     // =====================================================================
 

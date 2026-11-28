@@ -2,6 +2,27 @@
 
 ---
 
+## [v2.97.0] — 2026-11-28 · Review: bán vượt số mua đã gắn, cờ kế hoạch khác và nút Tính lại
+
+### Sửa lỗi
+
+- **Lệnh bán đứng trước lệnh mua cùng ngày** (ví dụ mua và bán trong ngày) không còn bị bỏ qua: trong một ngày, lệnh mua luôn được xử lý trước lệnh bán. Trước đây review của ca này ra P&L 0 và còn giữ số cổ phiếu ảo.
+- **Bán nhiều hơn số mua đã gắn vào kế hoạch** (lệnh mua nằm ở kế hoạch khác hoặc chưa gắn): P&L chỉ tính phần khớp được, **R là n/a (không phải 0R)**, chiến dịch bị loại khỏi kỳ vọng R, độ khớp ước lượng và Kelly. Trước đây ca này ra R = 0 và bị đếm như một chiến dịch hoà.
+
+### Tính năng mới
+
+- Cảnh báo "Có N CP bán nhưng chưa gắn lệnh mua — hãy gắn lệnh mua vào kế hoạch rồi bấm Tính lại".
+- Kế hoạch chỉ có lệnh mua còn mở, trong khi lệnh bán cùng mã, cùng danh mục nằm ở kế hoạch khác: số còn mở ghi rõ "theo lệnh mua đã gắn — lệnh bán có thể ở kế hoạch khác".
+- Nút **Tính lại theo công thức mới** trên kế hoạch đã review (từng kế hoạch, do bạn bấm). Hộp xác nhận hiện số đang lưu và số sau khi tính lại. Bài học và ghi chú được giữ; số cũ được lưu một lần và hiện ở dòng "Số cũ trước khi tính lại".
+
+### Kỹ thuật
+
+- `POST /api/v1/trade-plans/{id}/review/recompute` (kế hoạch không có hoặc của người khác cùng trả 404; chưa review trả 400). `TradePlan.RecomputeReview` giữ `LessonsLearned`/`ReviewedAt`, ghi `ReviewData.Legacy` một lần, không phát lại `PlanReviewedEvent`.
+- `CampaignReviewData` thêm `OversoldQuantity`, `Flags`, `Legacy` (nullable). `AdjustedPosition.OversoldQuantity` do `PositionBuilder` ghi nhận. `ReviewMetricsLoader` là đường tính duy nhất cho review, xem trước và tính lại. `RMath.ResolveRealizedR` trả null cho review bán vượt thay vì suy lại 0R từ P&L.
+- Công cụ chạy thử chỉ đọc (`tests/.../Tools/ReviewRecomputeDryRun.cs`), có test cấm mọi API ghi Mongo.
+
+---
+
 ## [v2.96.0] — 2026-11-28 · Review chiến dịch chỉ tính phần đã chốt và cộng cổ tức tiền mặt
 
 ### Sửa lỗi

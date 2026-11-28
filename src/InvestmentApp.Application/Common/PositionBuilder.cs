@@ -16,7 +16,8 @@ public sealed record AdjustedPosition(
     decimal TotalCost,
     decimal RealizedPnL,
     decimal DividendNet,
-    decimal PendingDividend);
+    decimal PendingDividend,
+    decimal OversoldQuantity = 0m);
 
 /// <summary>
 /// Nguồn duy nhất dựng vị thế từ giao dịch + sự kiện quyền. Hàm thuần, không I/O.
@@ -32,6 +33,8 @@ public static class PositionBuilder
         public decimal RealizedPnL;
         public decimal DividendNet;
         public decimal PendingDividend;
+        /// <summary>Số lượng bán vượt số đang giữ (không có giá vốn để khớp): dữ liệu thiếu lệnh mua.</summary>
+        public decimal Oversold;
         public decimal Total => Settled + Pending;
         public decimal AvgCost => Total > 0 ? TotalCost / Total : 0m;
     }
@@ -74,6 +77,7 @@ public static class PositionBuilder
                     // Không bán được nhiều hơn đang giữ. Dữ liệu lệch (nhập thiếu lệnh mua cũ)
                     // sẽ bị chặn ở đây, thay vì đẩy số lượng và giá vốn xuống âm.
                     var sellable = Math.Min(trade.Quantity, s.Total);
+                    s.Oversold += trade.Quantity - Math.Max(sellable, 0m);
                     if (sellable <= 0) continue;
 
                     var avg = s.AvgCost;
@@ -117,7 +121,8 @@ public static class PositionBuilder
                 TotalCost: kv.Value.TotalCost,
                 RealizedPnL: kv.Value.RealizedPnL,
                 DividendNet: kv.Value.DividendNet,
-                PendingDividend: kv.Value.PendingDividend))
+                PendingDividend: kv.Value.PendingDividend,
+                OversoldQuantity: kv.Value.Oversold))
             .OrderBy(p => p.Symbol, StringComparer.Ordinal)
             .ToList();
     }

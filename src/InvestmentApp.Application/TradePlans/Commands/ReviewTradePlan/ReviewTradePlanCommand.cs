@@ -38,6 +38,20 @@ public class CampaignReviewDto
     public decimal? DividendIncome { get; set; }
     /// <summary>Giá vốn của phần đã bán (mẫu số của PnL%).</summary>
     public decimal? RealizedCost { get; set; }
+    /// <summary>Số CP bán vượt số mua đã gắn. Lớn hơn 0: PnL chỉ phần khớp, R = null, loại khỏi thống kê.</summary>
+    public decimal? OversoldQuantity { get; set; }
+    /// <summary>"thieu-lenh-mua-lien-ket" | "lenh-ban-o-ke-hoach-khac".</summary>
+    public List<string>? Flags { get; set; }
+    /// <summary>Số liệu trước lần tính lại đầu tiên (null nếu chưa tính lại).</summary>
+    public LegacyReviewDto? Legacy { get; set; }
+}
+
+public class LegacyReviewDto
+{
+    public decimal PnLAmount { get; set; }
+    public decimal PnLPercent { get; set; }
+    public decimal? RealizedR { get; set; }
+    public DateTime RecomputedAt { get; set; }
 }
 
 public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanCommand, CampaignReviewDto>
@@ -69,12 +83,9 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
         if (plan == null || plan.UserId != request.UserId)
             throw new KeyNotFoundException($"Trade plan {request.PlanId} not found");
 
-        // Collect all linked trades: from plan's TradeIds + query by TradePlanId
-        var linkedTrades = await TradeOwnership.CollectOwnedLinkedTradesAsync(plan, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
-
-        // Auto-calculate metrics
-        var actions = await TradeOwnership.LoadCorporateActionsAsync(linkedTrades, _corporateActionRepository, cancellationToken);
-        var reviewData = _reviewService.CalculateMetrics(plan, linkedTrades, actions);
+        // Trade gắn vào kế hoạch + sự kiện quyền → số liệu tự tính (cùng một đường với xem trước và tính lại)
+        var reviewData = await ReviewMetricsLoader.ComputeAsync(plan, request.UserId, _tradeRepository, _portfolioRepository,
+            _corporateActionRepository, _reviewService, cancellationToken);
         reviewData.LessonsLearned = request.LessonsLearned;
 
         // Mark plan as reviewed with data
@@ -101,6 +112,13 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
         RiskBasis = data.RiskBasis,
         OpenQuantity = data.OpenQuantity,
         DividendIncome = data.DividendIncome,
-        RealizedCost = data.RealizedCost
+        RealizedCost = data.RealizedCost,
+        OversoldQuantity = data.OversoldQuantity,
+        Flags = data.Flags,
+        Legacy = data.Legacy == null ? null : new LegacyReviewDto
+        {
+            PnLAmount = data.Legacy.PnLAmount, PnLPercent = data.Legacy.PnLPercent,
+            RealizedR = data.Legacy.RealizedR, RecomputedAt = data.Legacy.RecomputedAt
+        }
     };
 }

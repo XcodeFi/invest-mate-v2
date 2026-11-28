@@ -38,6 +38,7 @@ public class PlanNotFoundUniformTests
     public static IEnumerable<object[]> Handlers() => new[]
     {
         new object[] { "ReviewTradePlan" },
+        new object[] { "RecomputeReview" },
         new object[] { "DeleteTradePlan" },
         new object[] { "ExecuteLot" },
         new object[] { "TriggerExitTarget" },
@@ -54,6 +55,9 @@ public class PlanNotFoundUniformTests
         {
             "ReviewTradePlan" => new ReviewTradePlanCommandHandler(_plans.Object, _trades.Object, _portfolios.Object, _review.Object, _actions.Object)
                 .Handle(new ReviewTradePlanCommand { PlanId = planId, UserId = userId }, ct),
+            "RecomputeReview" => new InvestmentApp.Application.TradePlans.Commands.RecomputeReview.RecomputeReviewCommandHandler(
+                    _plans.Object, _trades.Object, _portfolios.Object, _actions.Object, _review.Object)
+                .Handle(new InvestmentApp.Application.TradePlans.Commands.RecomputeReview.RecomputeReviewCommand { PlanId = planId, UserId = userId }, ct),
             "DeleteTradePlan" => new DeleteTradePlanCommandHandler(_plans.Object)
                 .Handle(new DeleteTradePlanCommand { Id = planId, UserId = userId }, ct),
             "ExecuteLot" => new ExecuteLotCommandHandler(_plans.Object, _trades.Object, _portfolios.Object)

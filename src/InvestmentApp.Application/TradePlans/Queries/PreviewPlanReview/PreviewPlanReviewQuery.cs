@@ -42,12 +42,9 @@ public class PreviewPlanReviewQueryHandler : IRequestHandler<PreviewPlanReviewQu
         if (plan == null || plan.UserId != request.UserId)
             throw new KeyNotFoundException($"Trade plan {request.PlanId} not found");
 
-        // Chỉ tính giao dịch thuộc danh mục của người gọi (cùng logic với ReviewTradePlanCommand)
-        var trades = await TradeOwnership.CollectOwnedLinkedTradesAsync(
-            plan, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
-
-        var actions = await TradeOwnership.LoadCorporateActionsAsync(trades, _corporateActionRepository, cancellationToken);
-        var metrics = _reviewService.CalculateMetrics(plan, trades, actions);
+        // Cùng một đường tính với ReviewTradePlanCommand: chỉ giao dịch thuộc danh mục của người gọi
+        var metrics = await ReviewMetricsLoader.ComputeAsync(plan, request.UserId, _tradeRepository, _portfolioRepository,
+            _corporateActionRepository, _reviewService, cancellationToken);
         return ReviewTradePlanCommandHandler.MapToDto(metrics);
     }
 }

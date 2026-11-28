@@ -44,6 +44,19 @@ public class EstimateCalibrationQueryTests
         => Sut().Handle(new GetEstimateCalibrationQuery { UserId = Me, StrategyId = strategyId }, default);
 
     [Fact]
+    public async Task calibration_skips_oversold_review_and_does_not_turn_null_r_into_zero()
+    {
+        var oversold = Reviewed(60, 0);
+        oversold.ReviewData!.RealizedR = null;
+        oversold.ReviewData.OversoldQuantity = 14_500m;
+        Setup(Reviewed(60, 2), Reviewed(60, -1), oversold);
+
+        var result = await Run();
+
+        result.N.Should().Be(2);
+    }
+
+    [Fact]
     public async Task calibration_excludes_open_review()
     {
         var open = Reviewed(60, 2);
