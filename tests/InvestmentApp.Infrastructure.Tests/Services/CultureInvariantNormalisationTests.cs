@@ -84,6 +84,23 @@ public class CultureInvariantNormalisationTests
     }
 
     [Fact]
+    public void the_scanner_never_gets_stuck_in_a_string_or_comment_state_in_any_src_file()
+    {
+        // Nếu bộ quét hiểu sai một dạng chuỗi/chú thích nào đó trong mã thật, phần còn lại của file bị coi là chuỗi và rào chắn bị mù.
+        // Thêm một lời gọi mẫu ở cuối mỗi file: bộ quét phải thấy đúng nó (và chỉ nó).
+        var stuck = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(SrcRoot(), "*.cs", SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") || file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+            var text = File.ReadAllText(file) + Environment.NewLine + "class Probe { string F(string s) => s.ToUpper(); }" + Environment.NewLine;
+            var hits = CaseConversionScanner.FindCultureSensitiveCalls(text);
+            if (hits.Count != 1) stuck.Add(Path.GetRelativePath(SrcRoot(), file));
+        }
+
+        stuck.Should().BeEmpty("bộ quét phải thấy đúng một lời gọi mẫu ở cuối mỗi file: " + string.Join(", ", stuck));
+    }
+
+    [Fact]
     public void no_culture_sensitive_ToUpper_or_ToLower_remains_in_src()
     {
         // .ToUpper() / .ToLower() không tham số chạy theo văn hoá của máy. Mọi chuẩn hoá mã/khoá phải dùng *Invariant.

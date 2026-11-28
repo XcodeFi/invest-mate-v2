@@ -84,11 +84,11 @@ internal static class CaseConversionScanner
                 if (i < s.Length) Blank(sb, s[i++]);
                 continue;
             }
-            if (TryStringStart(s, i, out var interpolated, out var verbatim, out var raw, out var prefixLen))
+            if (TryStringStart(s, i, out var dollars, out var verbatim, out var rawQuotes, out var prefixLen))
             {
                 for (var k = 0; k < prefixLen; k++) Blank(sb, s[i + k]);
                 i += prefixLen;
-                ScanString(s, ref i, sb, interpolated, verbatim, raw);
+                ScanString(s, ref i, sb, dollars, verbatim, rawQuotes);
                 continue;
             }
 
@@ -98,33 +98,47 @@ internal static class CaseConversionScanner
     }
 
     /// <summary>Nhận diện đầu chuỗi: <c>"</c>, <c>@"</c>, <c>$"</c>, <c>$@"</c>, <c>@$"</c>, và chuỗi thô <c>"""</c>. prefixLen gồm cả dấu " mở.</summary>
-    private static bool TryStringStart(string s, int i, out bool interpolated, out bool verbatim, out bool raw, out int prefixLen)
+    private static bool TryStringStart(string s, int i, out int dollars, out bool verbatim, out int rawQuotes, out int prefixLen)
     {
-        interpolated = verbatim = raw = false;
+        dollars = 0;
+        verbatim = false;
+        rawQuotes = 0;
         prefixLen = 0;
         var j = i;
-        while (j < s.Length && (s[j] == '$' || s[j] == '@') && j - i < 2)
+        // tiền tố: một hoặc nhiều '$' (chuỗi thô có thể $$"""), và tối đa một '@' (chỉ chuỗi nguyên văn thường)
+        while (j < s.Length && (s[j] == '$' || (s[j] == '@' && !verbatim)))
         {
-            if (s[j] == '$') interpolated = true; else verbatim = true;
+            if (s[j] == '$') dollars++; else verbatim = true;
             j++;
         }
-        if (j >= s.Length || s[j] != '"') { interpolated = verbatim = false; return false; }
-        if (j == i && j + 2 < s.Length && s[j + 1] == '"' && s[j + 2] == '"') { raw = true; prefixLen = 3; return true; }
+        if (j >= s.Length || s[j] != '"') { dollars = 0; verbatim = false; return false; }
+
+        // Chuỗi thô: một chuỗi từ 3 dấu " liền nhau trở lên (sau tiền tố $), không đi với @. Số dấu " mở = độ dài dấu đóng.
+        var q = 0;
+        while (j + q < s.Length && s[j + q] == '"') q++;
+        if (q >= 3 && !verbatim)
+        {
+            rawQuotes = q;
+            prefixLen = (j - i) + q;
+            return true;
+        }
+
         prefixLen = j - i + 1;
         return true;
     }
 
-    private static void ScanString(string s, ref int i, StringBuilder sb, bool interpolated, bool verbatim, bool raw)
+    private static void ScanString(string s, ref int i, StringBuilder sb, int dollars, bool verbatim, int rawQuotes)
     {
+        var interpolated = dollars > 0;
+        if (rawQuotes > 0)
+        {
+            ScanRawString(s, ref i, sb, dollars, rawQuotes);
+            return;
+        }
+
         while (i < s.Length)
         {
             var c = s[i];
-            if (raw)
-            {
-                if (c == '"' && i + 2 < s.Length + 0 && s.AsSpan(i).StartsWith("\"\"\"")) { Blank(sb, s[i++]); Blank(sb, s[i++]); Blank(sb, s[i++]); return; }
-                Blank(sb, c); i++;
-                continue;
-            }
             if (verbatim)
             {
                 if (c == '"')
@@ -150,6 +164,46 @@ internal static class CaseConversionScanner
             }
             if (interpolated && c == '}' && i + 1 < s.Length && s[i + 1] == '}') { Blank(sb, s[i++]); Blank(sb, s[i++]); continue; }
 
+            Blank(sb, c);
+            i++;
+        }
+    }
+
+    /// <summary>
+    /// Chuỗi thô: kết thúc bằng một dãy dấu " dài ít nhất bằng dãy mở. Với <paramref name="dollars"/> = k dấu '$', một lỗ nội suy mở bằng đúng k dấu '{'
+    /// (dãy '{' dài hơn k thì phần dư là chữ) và đóng bằng k dấu '}'; dãy '{' ngắn hơn k là chữ.
+    /// </summary>
+    private static void ScanRawString(string s, ref int i, StringBuilder sb, int dollars, int openQuotes)
+    {
+        while (i < s.Length)
+        {
+            var c = s[i];
+            if (c == '"')
+            {
+                var run = 0;
+                while (i + run < s.Length && s[i + run] == '"') run++;
+                for (var k = 0; k < run; k++) Blank(sb, s[i + k]);
+                i += run;
+                if (run >= openQuotes) return;
+                continue;
+            }
+            if (dollars > 0 && c == '{')
+            {
+                var run = 0;
+                while (i + run < s.Length && s[i + run] == '{') run++;
+                if (run < dollars)
+                {
+                    for (var k = 0; k < run; k++) Blank(sb, s[i + k]);
+                    i += run;
+                    continue;
+                }
+                for (var k = 0; k < run; k++) Blank(sb, s[i + k]);   // dấu { dư là chữ, k dấu cuối mở lỗ
+                i += run;
+                ScanCode(s, ref i, sb, inHole: true);
+                var closing = 0;
+                while (closing < dollars && i < s.Length && s[i] == '}') { Blank(sb, s[i++]); closing++; }
+                continue;
+            }
             Blank(sb, c);
             i++;
         }

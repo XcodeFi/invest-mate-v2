@@ -23,6 +23,12 @@ public class CaseConversionScannerTests
     [InlineData("var u = @\"C:\\a\" + symbol.ToUpper();")]                          // chuỗi nguyên văn kết thúc bằng \
     [InlineData("var u = \"a\\\"b\" + symbol.ToLower();")]                          // dấu " được escape trong chuỗi
     [InlineData("/* ghi chú */ var u = symbol.ToUpper();")]
+    [InlineData("var x = $\"\"\"text {s.ToUpper()} more\"\"\";")]                      // chuỗi thô nội suy, lời gọi trong lỗ
+    [InlineData("var x = $$\"\"\"text {{s.ToUpper()}} more\"\"\";")]                  // $$: lỗ dùng hai dấu ngoặc nhọn
+    [InlineData("var x = $\"\"\"text\"\"\"; var u = s.ToUpper();")]                    // lời gọi SAU chuỗi thô nội suy
+    [InlineData("var x = \"\"\"text\"\"\"; var u = s.ToLower();")]                      // lời gọi sau chuỗi thô thường
+    [InlineData("var x = $\"\"\"\n  a\n  {s.ToUpper()}\n  \"\"\";")]                  // chuỗi thô nhiều dòng
+    [InlineData("var x = $\"\"\"a {s.ToUpper()} b {t.ToLower()} c\"\"\";")]            // hai lỗ
     public void flags_the_culture_sensitive_call(string source)
     {
         Lines(source).Should().NotBeEmpty(source);
@@ -39,7 +45,12 @@ public class CaseConversionScannerTests
     [InlineData("var s = $\"literal .ToUpper() outside a hole {x}\";")]
     [InlineData("var s = $\"{x} then .ToUpper() is literal text\";")]               // chữ sau lỗ nội suy lại là chuỗi
     [InlineData("var s = $\"{Foo(new { A = 1 })} then .ToLower() is literal\";")]     // dấu {} lồng trong lỗ
-    [InlineData("var s = $\"{{ .ToUpper() }}\";")]                                  // {{ là dấu ngoặc nhọn, không phải lỗ
+    [InlineData("var s = $\"{{ .ToUpper() }}\";")]
+    [InlineData("var x = \"\"\"text .ToUpper() literal\"\"\";")]                          // chuỗi thô thường
+    [InlineData("var x = $\"\"\"text .ToUpper() literal {y} .ToLower() more\"\"\";")]     // chữ giống lời gọi trong thân chuỗi thô nội suy
+    [InlineData("var x = $$\"\"\"a {s.ToUpper()} b\"\"\";")]                            // $$: một dấu { là chữ, không phải lỗ
+    [InlineData("var x = \"\"\"\"a \"\"\" b.ToUpper() c\"\"\"\";")]                      // thô 4 dấu ": ba dấu " bên trong không đóng chuỗi
+    [InlineData("var x = $\"\"\"a {y} .ToUpper() b\"\"\";")]                            // chữ sau lỗ lại là chuỗi                                  // {{ là dấu ngoặc nhọn, không phải lỗ
     [InlineData("var u = symbol.ToUpperInvariant();")]
     [InlineData("var u = symbol.ToLowerInvariant();")]
     [InlineData("var u = symbol.ToUpper(CultureInfo.InvariantCulture);")]
@@ -55,6 +66,14 @@ public class CaseConversionScannerTests
         var source = "var a = 1;\nvar b = \"x\";\nvar u = symbol\n    .ToUpper\n    ();\nvar c = 2;";
 
         Lines(source).Should().Equal(4);   // dòng chứa ".ToUpper"
+    }
+
+    [Fact]
+    public void reports_the_line_of_a_call_inside_a_multiline_raw_interpolated_string()
+    {
+        var source = "var a = $\"\"\"\nfirst\nsecond {s.ToUpper()}\n\"\"\";";
+
+        Lines(source).Should().Equal(3);
     }
 
     [Fact]
