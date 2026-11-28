@@ -38,6 +38,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'screener',
+    loadComponent: () => import('./features/screener/screener.component').then(m => m.ScreenerComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'capital-flows',
     loadComponent: () => import('./features/capital-flows/capital-flows.component').then(m => m.CapitalFlowsComponent),
     canActivate: [AuthGuard]
