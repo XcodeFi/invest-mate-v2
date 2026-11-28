@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
@@ -11,6 +11,34 @@ export interface TodayMoodDto {
   mood: MoodState | null;
   /** Đã bấm "Vẫn xem bây giờ" hôm nay chưa. */
   overrode: boolean;
+  /** Lần đổi gần nhất do agent (MCP) ghi. Bình tĩnh do agent ghi thì `mood` là null (không tính là đã tự chấm), trang chủ hỏi lại. */
+  fromAgent?: boolean;
+}
+
+export interface MoodChangeDto {
+  at: string;
+  mood: MoodState;
+  /** "web" hoặc "mcp". */
+  source: string;
+}
+
+export interface MoodDayDto {
+  /** Ngày VN, YYYY-MM-DD. */
+  dateKey: string;
+  /** null = có lệnh nhưng chưa chấm tâm trạng. */
+  mood: MoodState | null;
+  changes: MoodChangeDto[];
+  overrode: boolean;
+  tradeCount: number;
+  /** Đặt lệnh khi đang cảm xúc, do server tính. */
+  emotionalTrade: boolean;
+}
+
+export interface MoodHistoryDto {
+  from: string;
+  to: string;
+  /** Chỉ các ngày đã chấm hoặc có lệnh. */
+  days: MoodDayDto[];
 }
 
 /**
@@ -35,6 +63,14 @@ export class MoodService {
 
   getToday(): Observable<TodayMoodDto> {
     return this.http.get<TodayMoodDto>(`${this.apiUrl}/today`, { headers: this.getHeaders() });
+  }
+
+  /** Lịch sử theo ngày VN; bỏ trống thì server dùng 90 ngày gần nhất. */
+  getHistory(from?: string, to?: string): Observable<MoodHistoryDto> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<MoodHistoryDto>(`${this.apiUrl}/history`, { headers: this.getHeaders(), params });
   }
 
   setMood(mood: MoodState): Observable<void> {

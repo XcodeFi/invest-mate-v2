@@ -43,6 +43,11 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'mood-journal',
+    loadComponent: () => import('./features/mood-journal/mood-journal.component').then(m => m.MoodJournalComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'capital-flows',
     loadComponent: () => import('./features/capital-flows/capital-flows.component').then(m => m.CapitalFlowsComponent),
     canActivate: [AuthGuard]

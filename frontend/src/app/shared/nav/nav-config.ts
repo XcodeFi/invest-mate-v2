@@ -58,6 +58,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/risk-dashboard', label: 'Rủi ro (bảng)', icon: '🛡️' },
       { path: '/risk', label: 'Rủi ro chi tiết', icon: '⚠️' },
       { path: '/monthly-review', label: 'Báo cáo tháng', icon: '📅' },
+      { path: '/mood-journal', label: 'Nhật ký tâm trạng', icon: '🎣' },
       { path: '/analytics', label: 'Phân tích', icon: '📈' },
       { path: '/journals', label: 'Nhật ký', icon: '📓' },
       { path: '/snapshots', label: 'Lịch sử snapshot', icon: '📸' },

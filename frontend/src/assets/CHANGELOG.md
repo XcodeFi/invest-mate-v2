@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.120.0] — 2026-11-28 · Số liệu doanh nghiệp thành biểu đồ, có mũi tên so với cùng kỳ
+## [v2.121.0] — 2026-11-28 · Số liệu doanh nghiệp thành biểu đồ, có mũi tên so với cùng kỳ
 
 ### Tính năng mới
 
@@ -20,6 +20,29 @@
 
 ---
 
+## [v2.120.0] — 2026-11-28 · Nhật ký tâm trạng: xem lại 90 ngày bạn đã chấm gì
+
+### Tính năng mới
+
+- **Trang mới "Nhật ký tâm trạng"** (`/mood-journal`, nhóm ĐÁNH GIÁ trong menu; link "xem lịch sử" cạnh nút "đổi" ở màn tĩnh tâm Trang chủ):
+  - **Lịch 90 ngày** theo ngày giờ Việt Nam, mỗi ô là tâm trạng cuối ngày bằng **màu kèm biểu tượng riêng**: ■ Bình tĩnh, ▲ FOMO, ▼ Sợ, ✕ Cay cú, □ chưa chấm. Rê chuột hoặc Tab vào ô để xem ngày, tâm trạng, các lần đổi trong ngày (kèm giờ và nguồn), số lệnh; bấm ô để xem chi tiết ngay dưới lịch.
+  - **Số ngày theo từng tâm trạng** và số ngày chưa chấm.
+  - **Danh sách "Ngày đặt lệnh khi đang cảm xúc"**: ngày bạn đã bấm qua lớp phủ, hoặc có lệnh trong ngày mà tâm trạng ở bất kỳ lần đổi nào khác Bình tĩnh. Ngày có lệnh nhưng chưa chấm là "chưa chấm", không bao giờ bị tính là cảm xúc. Mỗi dòng có link sang trang Giao dịch.
+  - Nút **Xem bảng** cho đúng các số đó.
+- **Màn tĩnh tâm ghi rõ "(từ agent)"** khi tâm trạng hôm nay do trợ lý AI ghi. Nếu trợ lý ghi Bình tĩnh thì màn vẫn hỏi lại bạn (Bình tĩnh do agent ghi không mở khoá lớp phủ), kèm ghi chú.
+
+### Kỹ thuật
+
+- Frontend chỉ hiển thị dữ liệu của `GET /api/v1/mood/history` (cờ cảm xúc và số lệnh do server tính). Màu là bốn hue đầu của bảng màu dataviz mặc định theo thứ tự cố định, đã chạy `validate_palette.js` ở chế độ sáng (nền #ffffff: đạt, cam/ngọc/vàng dưới 3:1 nên bắt buộc có biểu tượng, chú giải và bảng) và tối (nền #111827: đạt tất cả).
+## [v2.119.1] — 2026-11-28 · Sửa: các ô lọc của trang Sàng lọc cổ phiếu bị lệch hàng
+
+### Sửa lỗi
+
+- **Sáu ô nhập tiêu chí lọc nay thẳng hàng.** Hai nhãn dài ("GTGD bình quân 10 phiên tối thiểu (tỷ)" và "Xếp hạng sức mạnh 3 tháng tối thiểu (P)") xuống hai dòng làm ô nhập của chúng tụt xuống so với bốn ô còn lại trên cùng một hàng (thấy rõ ở màn rộng, kể cả chế độ tối). Giờ mọi ô nhập nằm sát đáy ô của nó nên thẳng hàng dù nhãn dài một hay hai dòng. Nội dung nhãn giữ nguyên.
+
+### Kỹ thuật
+
+- Mỗi nhãn là `flex flex-col gap-1`, ô nhập dùng `mt-auto`. Spec `screener.layout.spec.ts` dựng trang trong iframe rộng 400, 800, 1400 và 1980px (chế độ tối) và kiểm `top` của sáu ô cùng hàng chênh nhau không quá 1px.
 ## [v2.119.0] — 2026-11-28 · Trang chủ chia thành ba vùng: Hôm nay, Tài sản, Theo dõi
 
 ### Thay đổi
