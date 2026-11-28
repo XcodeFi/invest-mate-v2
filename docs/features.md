@@ -40,6 +40,8 @@ Flow 5 bước dẫn dắt giao dịch có kỷ luật:
 
 ### Dashboard Cockpit (`/dashboard`)
 
+**Bố cục ba vùng (2026-11-28, Home PR3):** `Hôm nay` (patience hero → decision queue → discipline) · `Tài sản` (hero "Tổng quan đầu tư" kèm bộ chọn khung thời gian ở trong + `app-networth-summary` cạnh nhau từ 1280px, `min-[1280px]:grid-cols-2`; rồi thẻ Lãi kép gập, mặc định thu gọn, không lặp số CAGR) · `Theo dõi` (watchlist + daily routine, danh mục + vị thế). Dưới 1024px một cột. Đã bỏ nút "+ Tạo Danh mục mới" ở header. Không thêm dữ liệu/API.
+
 **Summary cards:** Tổng Giá trị, Đã Đầu tư, Tổng Lãi/Lỗ, CAGR
 
 **Compound Growth Tracker:**
