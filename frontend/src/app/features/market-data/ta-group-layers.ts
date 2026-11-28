@@ -13,6 +13,7 @@ const NO_DATA = 'Không đủ dữ liệu';
 const COLOR = {
   ema20: '#2563eb',
   ema50: '#f59e0b',
+  ema200: '#0d9488',
   bandOuter: '#94a3b8',
   bandMiddle: '#64748b',
   adx: '#7c3aed',
@@ -86,6 +87,8 @@ export function buildGroupLayers(group: TaGroup | null, s: TechnicalSeries, a: T
       out.overlays = keepWithData([
         { label: 'EMA 20 (TB 20 phiên)', values: s.ema20, color: COLOR.ema20 },
         { label: 'EMA 50 (TB 50 phiên)', values: s.ema50, color: COLOR.ema50 },
+        // Backend cũ không gửi ema200: bỏ hẳn (không ghi chú) để biểu đồ giữ nguyên như trước.
+        ...(s.ema200 ? [{ label: 'EMA 200 (TB 200 phiên)', values: s.ema200, color: COLOR.ema200 }] : []),
       ], out.notes);
       addPane(pane('ADX 14 (độ mạnh)', [
         { label: 'ADX 14', values: s.adx, color: COLOR.adx },

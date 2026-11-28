@@ -162,6 +162,7 @@ builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
 builder.Services.AddScoped<ITradeRepository, TradeRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IStockPriceRepository, StockPriceRepository>();
+builder.Services.AddScoped<IAdjustedPriceSeriesStore, AdjustedPriceSeriesStore>();
 builder.Services.AddScoped<IMarketIndexRepository, MarketIndexRepository>();
 builder.Services.AddScoped<ICapitalFlowRepository, CapitalFlowRepository>();
 builder.Services.AddScoped<ICorporateActionRepository, CorporateActionRepository>();

@@ -2,6 +2,30 @@
 
 ---
 
+## [v2.98.0] — 2026-11-28 · Lịch sử giá ngày là nến thật, đã điều chỉnh theo sự kiện quyền
+
+### Cải thiện
+
+- **Nến có râu thật.** Lịch sử giá ngày trước đây chỉ có giá đóng cửa nên mọi nến bị dẹt (mở = cao = thấp = đóng); ATR, ADX, Stochastic và MFI chỉ nhìn thấy giá đóng cửa. Nay lấy nến ngày đầy đủ (mở, cao, thấp, đóng, khối lượng) từ chính nguồn dữ liệu của biểu đồ web 24hmoney.
+- **Giá đã điều chỉnh theo sự kiện quyền** (cổ tức tiền, cổ phiếu thưởng, chia tách). Trước đây ngày giao dịch không hưởng quyền hiện ra thành cú tụt giả: ví dụ FPT thưởng 10% ngày 21/09/2026, giá trước ngày đó vẫn ~71.700 thay vì ~65.200, làm lệch EMA, RSI và các mức hỗ trợ.
+- **Có đủ lịch sử cho EMA200**: lấy khoảng 3 năm (~750 phiên) thay vì ~61 phiên, nên EMA200 có giá trị và đường vẽ hội tụ tốt hơn. Công cụ MCP `get_technical_analysis` trả `ema200` khi có.
+- **Khối lượng đúng đơn vị cổ phiếu** ở cả nguồn dự phòng (nguồn cũ ghi bằng 1/10 số cổ phiếu).
+- **Biết dữ liệu đã điều chỉnh cũ tới đâu:** kết quả phân tích, chuỗi chỉ báo và lịch sử giá (REST và MCP) có thêm `adjustedAsOf` — ngày nến cuối của chuỗi đã điều chỉnh đang phục vụ (null khi chưa điều chỉnh). Khi nguồn bị chặn và phải dùng bản lưu cũ, ngày này lùi lại; trang Thị trường ghi "Dữ liệu đã điều chỉnh cập nhật tới <ngày>" khi chuỗi lùi hơn 1 phiên so với hôm nay (đếm thứ Hai đến thứ Sáu, chưa biết ngày lễ).
+- **Đường EMA 200** (màu xanh ngọc) trên nhóm Xu hướng khi đủ 200 phiên; chuỗi chỉ báo `/analysis/series` có thêm mảng `ema200`.
+- **Gọi nguồn dữ liệu thưa và có bản lưu dự phòng.** Nguồn nến chính là API không công bố và có tường lửa: khi bị chặn nó trả một trang HTML với HTTP 200. Nay mỗi mã chỉ gọi tối đa hai lần mỗi ngày giao dịch (một lần bất kỳ lúc nào, và một lần lấy lại sau 15:10 nếu lần đầu trước giờ đóng cửa, để có nến phiên hôm nay); lỗi (kể cả HTML, HTTP 200) thì mã đó nghỉ 30 phút, ba lần lỗi liên tiếp của CẢ nguồn (trang HTML/chặn, 403, 429, 408, 5xx, hết giờ hoặc lỗi mạng) thì mọi mã nghỉ 15 phút, không thử lại theo vòng; lỗi riêng của một mã (`no_data` như chỉ số, 404 hoặc 400 cho mã rác, JSON báo lỗi) chỉ làm mã đó nghỉ, không tính vào chuỗi lỗi. Mã sai dạng (không phải 1 đến 10 chữ hoặc số) bị từ chối ngay, không gọi nguồn và không tạo cổng riêng. Chuỗi đã điều chỉnh lấy được gần nhất được lưu bền (bộ sưu tập `adjusted_price_series`, tách khỏi giá thô `stock_prices`) và được dùng khi nguồn đang chặn; chuỗi dự phòng chỉ có giá đóng cửa không bao giờ ghi đè chuỗi tốt.
+- Beta và tương quan trong phần rủi ro nay tính trên nhiều phiên hơn (tới 3 năm thay vì ~61 phiên khi khoảng thời gian rộng) và trên giá đã điều chỉnh: số liệu có thể khác so với trước.
+- Kết quả phân tích, chuỗi chỉ báo và lịch sử giá có thêm trường `adjusted` (`true`: đã điều chỉnh, `false`: chưa). Trang Thị trường hiện ghi chú "Dữ liệu chưa điều chỉnh theo sự kiện quyền, nến chỉ có giá đóng cửa" khi đang dùng nguồn dự phòng.
+- `GET /market/price/{symbol}/history` (trang Dòng thời gian mã dùng) ưu tiên nguồn đã điều chỉnh; không có thì dùng kho đã lưu (nến thật, chưa điều chỉnh, `adjusted=false`).
+
+### Kỹ thuật
+
+- `HmoneyMarketDataProvider.GetHistoricalPricesAsync` (khoảng > 1 ngày) gọi UDF `https://24hmoney.vn/tradingview/history?resolution=D`; lỗi mạng, hết giờ, HTTP lỗi, `s != "ok"`, mảng rỗng hoặc lệch thì dự phòng sang endpoint graph cũ và đánh dấu `StockPriceData.IsAdjusted = false`. Huỷ từ người gọi không bị nuốt thành lỗi nguồn. Intraday (≤ 1 ngày) và `GetDailyHistoryAsync` (ngân sách biến động) giữ nguyên nguồn cũ: `GetDailyHistoryAsync` ghi vào kho `stock_prices` rồi đọc lại trước, nên chưa chuyển sang chuỗi đã điều chỉnh (đã có việc riêng trong backlog); khối lượng nó ghi vẫn là 1/10 số cổ phiếu, khác đơn vị với nguồn mới, và `FilterAbnormalReturns` đã loại các bước nhảy ngày không hưởng quyền.
+- `TradingViewHistoryParser` (hàm thuần) đọc payload `{ s, t, o, h, l, c, v }`: giá nghìn đồng ×1000; `v` là số cổ phiếu (khớp `accumulated_vol` của trading-history); nến có giá trị null bị bỏ; mảng lệch độ dài thì bỏ cả payload.
+- Thứ tự đọc: bộ nhớ đệm chuỗi tốt (sống tới 15:10 giờ Việt Nam nếu lấy trước đó, không thì tới hết ngày; bản lưu cũ vẫn trả `adjusted=true` và chỉ có log khi cũ từ 2 ngày, giao diện chưa biết là cũ) → bản lưu bền nếu lấy trong hôm nay → UDF (nếu mã và cả nguồn không đang nghỉ) → bản lưu bền cũ hơn (ghi cảnh báo khi ≥ 2 ngày) → graph (`adjusted=false`). `IAdjustedPriceSeriesStore` / `AdjustedPriceSeriesStore`: mỗi mã một bản ghi (`_id` = mã).
+- Cấu hình `MarketDataProvider:TradingViewBaseUrl` (mặc định `https://24hmoney.vn`) và `TradingViewHistoryYears` (mặc định 3). Đây là API không công bố nên cần theo dõi: nếu đổi, hệ thống tự dự phòng và hiện ghi chú.
+
+---
+
 ## [v2.97.0] — 2026-11-28 · Review: bán vượt số mua đã gắn, cờ kế hoạch khác và nút Tính lại
 
 ### Sửa lỗi

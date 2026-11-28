@@ -25,6 +25,8 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
                 Symbol = symbol,
                 AnalyzedAt = DateTime.UtcNow,
                 DataPoints = prices.Count,
+                Adjusted = AdjustedFlag(prices),
+                AdjustedAsOf = AdjustedAsOf(prices),
                 OverallSignal = "hold",
                 OverallSignalVi = "Không đủ dữ liệu"
             };
@@ -39,6 +41,8 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
             Symbol = symbol,
             AnalyzedAt = DateTime.UtcNow,
             DataPoints = prices.Count,
+            Adjusted = AdjustedFlag(prices),
+            AdjustedAsOf = AdjustedAsOf(prices),
             CurrentPrice = current.Close,
             CurrentVolume = current.Volume
         };
@@ -346,6 +350,8 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
         var result = new TechnicalSeriesResult
         {
             Symbol = symbol,
+            Adjusted = AdjustedFlag(prices),
+            AdjustedAsOf = AdjustedAsOf(prices),
             Dates = prices.Select(p => p.Date).ToList(),
             Open = prices.Select(p => p.Open).ToList(),
             High = highs,
@@ -356,7 +362,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         if (n < 20)
         {
-            result.Ema20 = NullSeries(n); result.Ema50 = NullSeries(n);
+            result.Ema20 = NullSeries(n); result.Ema50 = NullSeries(n); result.Ema200 = NullSeries(n);
             result.BollingerUpper = NullSeries(n); result.BollingerMiddle = NullSeries(n); result.BollingerLower = NullSeries(n);
             result.Rsi14 = NullSeries(n); result.StochK = NullSeries(n); result.StochD = NullSeries(n);
             result.MacdLine = NullSeries(n); result.MacdSignal = NullSeries(n); result.MacdHistogram = NullSeries(n);
@@ -368,6 +374,7 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         result.Ema20 = EmaSeries(closes, 20);
         result.Ema50 = EmaSeries(closes, 50);
+        result.Ema200 = EmaSeries(closes, 200);
         (result.BollingerMiddle, result.BollingerUpper, result.BollingerLower) = BollingerSeries(closes, 20, 2m);
         result.Rsi14 = RsiSeriesFull(closes, 14);
         (result.StochK, result.StochD) = StochasticSeries(highs, lows, closes, 14, 3);
@@ -380,6 +387,14 @@ public class TechnicalIndicatorService : ITechnicalIndicatorService
 
         return result;
     }
+
+    /// <summary>Cả chuỗi cùng một nguồn nên cờ chung; không có nến thì chưa biết (null), không phải "chưa điều chỉnh".</summary>
+    private static bool? AdjustedFlag(List<StockPriceData> prices) =>
+        prices.Count == 0 ? null : prices.All(p => p.IsAdjusted);
+
+    /// <summary>Ngày nến cuối của chuỗi đã điều chỉnh đang được phục vụ; null khi chưa điều chỉnh hoặc không có nến.</summary>
+    private static DateTime? AdjustedAsOf(List<StockPriceData> prices) =>
+        prices.Count > 0 && prices.All(p => p.IsAdjusted) ? prices.Max(p => p.AdjustedAsOf) : null;
 
     private static List<decimal?> VolumeSmaSeries(List<decimal> volumes, int period)
     {

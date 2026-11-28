@@ -87,6 +87,10 @@ Bấm một **nút nhóm** trên thanh ngay phía trên biểu đồ (🎯 Tổn
 
 - Các tầng cùng trục thời gian: kéo hoặc zoom một tầng thì các tầng khác đi theo. Trỏ chuột vào một tầng, các tầng còn lại hiện đường dọc tại cùng phiên và dòng chú giải của từng tầng ghi giá trị của phiên đó.
 - Điểm cuối mỗi đường bằng đúng con số trên thẻ cùng tên.
+- Giá trên biểu đồ là giá **đã điều chỉnh** theo sự kiện quyền (cổ tức tiền, cổ phiếu thưởng, chia tách): ngày giao dịch không hưởng quyền không còn hiện thành một cú tụt giả, nên EMA, RSI và các mức hỗ trợ không bị lệch. Vì vậy giá cũ trên biểu đồ có thể thấp hơn giá bạn thấy hồi đó.
+- Nhóm Xu hướng vẽ thêm **đường EMA 200** (màu xanh ngọc, trung bình 200 phiên, nền dài hạn) khi mã đã có đủ 200 phiên.
+- Biểu đồ lấy khoảng 3 năm nến thật (mở, cao, thấp, đóng), nên **EMA200 có lại** và các chỉ báo dùng râu nến (ATR, ADX, Stochastic, MFI) tính trên giá cao và thấp thật của từng phiên.
+- Nếu nguồn dữ liệu chính tạm lỗi, trang tự dùng nguồn dự phòng và hiện dòng "Dữ liệu chưa điều chỉnh theo sự kiện quyền, nến chỉ có giá đóng cửa": lúc đó nến sẽ dẹt và quanh ngày không hưởng quyền chỉ báo có thể lệch.
 - Mã mới có ít phiên sẽ thiếu một số chỉ báo: biểu đồ vẫn có nến, chỉ báo thiếu ghi "Không đủ dữ liệu".
 - Nếu hiện "Không tải được dữ liệu biểu đồ" thì các thẻ vẫn dùng bình thường; bấm lại tên nhóm để thử tải lại.
 - Đổi sang mã khác thì biểu đồ trở về trạng thái chưa chọn nhóm.

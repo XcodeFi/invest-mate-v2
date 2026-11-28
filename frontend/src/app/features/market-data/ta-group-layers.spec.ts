@@ -11,7 +11,7 @@ function series(overrides: Partial<TechnicalSeries> = {}): TechnicalSeries {
     symbol: 'FPT',
     dates: Array.from({ length: N }, (_, i) => `2026-01-${String((i % 28) + 1).padStart(2, '0')}`),
     open: nums(), high: nums(), low: nums(), close: nums(), volume: nums(),
-    ema20: filled(), ema50: filled(),
+    ema20: filled(), ema50: filled(), ema200: filled(),
     bollingerUpper: filled(), bollingerMiddle: filled(), bollingerLower: filled(),
     rsi14: filled(), stochK: filled(), stochD: filled(),
     macdLine: filled(), macdSignal: filled(), macdHistogram: filled(),
@@ -61,9 +61,9 @@ describe('buildGroupLayers', () => {
     expect(l.notes).toContain('Chưa có gợi ý giao dịch');
   });
 
-  it('xu-huong → overlays EMA20, EMA50; pane ADX with guides [25]', () => {
+  it('xu-huong → overlays EMA20, EMA50, EMA200; pane ADX with guides [25]', () => {
     const l = buildGroupLayers('xu-huong', series(), analysis());
-    expect(l.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)', 'EMA 50 (TB 50 phiên)']);
+    expect(l.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)', 'EMA 50 (TB 50 phiên)', 'EMA 200 (TB 200 phiên)']);
     expect(l.panes.length).toBe(1);
     expect(l.panes[0].title).toBe('ADX 14 (độ mạnh)');
     expect(l.panes[0].lines.map(x => x.label)).toEqual(['ADX 14', '+DI 14 (lực tăng)', '−DI 14 (lực giảm)']);
@@ -111,7 +111,7 @@ describe('buildGroupLayers', () => {
       return [...l.overlays.map(o => o.label), ...l.panes.flatMap(p => p.lines.map(x => x.label))];
     });
 
-    ['EMA 20', 'EMA 50', 'ADX 14', 'RSI 14', 'MACD 12 26', 'Signal 9', '%K 14', '%D 3', 'Bollinger 20 2', 'ATR 14', 'MFI 14', 'KL SMA 20']
+    ['EMA 20', 'EMA 50', 'EMA 200', 'ADX 14', 'RSI 14', 'MACD 12 26', 'Signal 9', '%K 14', '%D 3', 'Bollinger 20 2', 'ATR 14', 'MFI 14', 'KL SMA 20']
       .forEach(p => expect(names.some(n => n.startsWith(p))).withContext(p).toBeTrue());
   });
 
@@ -144,10 +144,26 @@ describe('buildGroupLayers', () => {
     expect(l.priceLines.length).toBe(4);
   });
 
+  it('ema200 drawn only when the series has values for it', () => {
+    const withData = buildGroupLayers('xu-huong', series(), analysis());
+    expect(withData.overlays.find(o => o.label.startsWith('EMA 200'))!.values.length).toBe(N);
+
+    const allNull = buildGroupLayers('xu-huong', series({ ema200: nulls() }), analysis());
+    expect(allNull.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)', 'EMA 50 (TB 50 phiên)']);
+    expect(allNull.notes).toContain('EMA 200 (TB 200 phiên): Không đủ dữ liệu');
+  });
+
+  it('a backend that does not send ema200 at all keeps the chart as before (no line, no note)', () => {
+    const l = buildGroupLayers('xu-huong', series({ ema200: undefined }), analysis());
+
+    expect(l.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)', 'EMA 50 (TB 50 phiên)']);
+    expect(l.notes).toEqual([]);
+  });
+
   it('all-null ema50 → note "EMA50: Không đủ dữ liệu" and the line is dropped', () => {
     const l = buildGroupLayers('xu-huong', series({ ema50: nulls() }), analysis());
     expect(l.notes).toContain('EMA 50 (TB 50 phiên): Không đủ dữ liệu');
-    expect(l.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)']);
+    expect(l.overlays.map(o => o.label)).toEqual(['EMA 20 (TB 20 phiên)', 'EMA 200 (TB 200 phiên)']);
   });
 
   it('pane whose lines are all null is dropped with one note named after the pane', () => {
@@ -159,7 +175,7 @@ describe('buildGroupLayers', () => {
 
   it('under-20-bars series (every indicator all-null) never throws and keeps one note per missing indicator', () => {
     const allNull = series({
-      ema20: nulls(), ema50: nulls(), bollingerUpper: nulls(), bollingerMiddle: nulls(), bollingerLower: nulls(),
+      ema20: nulls(), ema50: nulls(), ema200: nulls(), bollingerUpper: nulls(), bollingerMiddle: nulls(), bollingerLower: nulls(),
       rsi14: nulls(), stochK: nulls(), stochD: nulls(), macdLine: nulls(), macdSignal: nulls(), macdHistogram: nulls(),
       adx: nulls(), plusDi: nulls(), minusDi: nulls(), atr14: nulls(), obv: nulls(), mfi14: nulls(), volumeSma20: nulls(),
     });
@@ -170,7 +186,7 @@ describe('buildGroupLayers', () => {
     const trend = buildGroupLayers('xu-huong', allNull, analysis());
     expect(trend.overlays).toEqual([]);
     expect(trend.panes).toEqual([]);
-    expect(trend.notes).toEqual(['EMA 20 (TB 20 phiên): Không đủ dữ liệu', 'EMA 50 (TB 50 phiên): Không đủ dữ liệu', 'ADX 14 (độ mạnh): Không đủ dữ liệu']);
+    expect(trend.notes).toEqual(['EMA 20 (TB 20 phiên): Không đủ dữ liệu', 'EMA 50 (TB 50 phiên): Không đủ dữ liệu', 'EMA 200 (TB 200 phiên): Không đủ dữ liệu', 'ADX 14 (độ mạnh): Không đủ dữ liệu']);
   });
 
   it('partially-null line is kept (warm-up nulls are skipped by the chart, not here)', () => {

@@ -56,7 +56,7 @@ export const INDICATOR_GUIDES: Record<TaGroup, GroupGuide> = {
       {
         name: 'EMA 20 và EMA 50 (đường trung bình)',
         what: 'Đường trung bình của giá đóng cửa 20 và 50 phiên gần nhất, trong đó phiên gần đây được tính nặng hơn. Nó làm mượt biến động hằng ngày để thấy hướng đi chung.',
-        onChart: 'Hai đường đè lên nến: EMA 20 màu xanh dương (nhanh hơn), EMA 50 màu cam (chậm hơn).',
+        onChart: 'Các đường đè lên nến: EMA 20 màu xanh dương (nhanh hơn), EMA 50 màu cam (chậm hơn), và khi đủ 200 phiên có thêm EMA 200 màu xanh ngọc (nền dài hạn).',
         howToRead: [
           'EMA 20 nằm trên EMA 50 và cả hai dốc lên: xu hướng ngắn hạn đang tăng. Ngược lại là đang giảm.',
           'Giá nằm trên cả hai đường: phe mua đang giữ thế. Giá chui xuống dưới cả hai: thế đã yếu đi.',

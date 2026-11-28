@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using InvestmentApp.Application.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
@@ -14,6 +16,24 @@ public class MarketDataProviderOptions
     public int PriceCacheTtlSeconds { get; set; } = 15;
     public int IndexCacheTtlSeconds { get; set; } = 15;
     public int CompanyListCacheTtlMinutes { get; set; } = 30;
+
+    /// <summary>
+    /// Host của UDF (TradingView) mà biểu đồ web 24hmoney dùng: nến ngày thật, đã điều chỉnh theo sự kiện
+    /// quyền, từ 2017. API không công bố nên có dự phòng sang endpoint graph. URL công khai, không phải secret.
+    /// </summary>
+    public string TradingViewBaseUrl { get; set; } = "https://24hmoney.vn";
+
+    /// <summary>Số năm lịch sử ngày xin từ UDF (3 năm ≈ 750 phiên, đủ cho EMA200 có thời gian hội tụ).</summary>
+    public int TradingViewHistoryYears { get; set; } = 3;
+
+    /// <summary>Sau một lần UDF lỗi cho một mã, không gọi lại UDF cho mã đó trong chừng này phút (không thử lại theo vòng).</summary>
+    public int TradingViewFailureCooldownMinutes { get; set; } = 30;
+
+    /// <summary>Số lần lỗi LIÊN TIẾP (bất kể mã) để coi UDF đang chặn cả IP và ngừng gọi cho mọi mã.</summary>
+    public int TradingViewGlobalFailureThreshold { get; set; } = 3;
+
+    /// <summary>Thời gian ngừng gọi UDF cho mọi mã sau khi chạm ngưỡng lỗi liên tiếp.</summary>
+    public int TradingViewGlobalCooldownMinutes { get; set; } = 15;
 }
 
 /// <summary>
@@ -27,6 +47,23 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     private readonly IMemoryCache _cache;
     private readonly ILogger<HmoneyMarketDataProvider> _logger;
     private readonly MarketDataProviderOptions _options;
+    private readonly IAdjustedPriceSeriesStore? _store;
+    private readonly TimeProvider _time;
+
+    // Mỗi mã một cổng: nhiều yêu cầu đồng thời cho cùng mã chỉ gây đúng một lần gọi UDF.
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> SymbolGates = new();
+
+    /// <summary>Mã hợp lệ (sau khi viết hoa): chỉ chữ và số, tối đa 10 ký tự. Mã sai dạng không được tạo cổng hay gọi nguồn: số cổng bị giới hạn theo dạng mã chứ không theo số lượng (mã đúng dạng vẫn giữ một cổng nhỏ mỗi mã).</summary>
+    private static readonly Regex ValidSymbol = new(@"^[A-Z0-9]{1,10}\z", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+    private static readonly TimeSpan PersistedReadCache = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan FallbackCache = TimeSpan.FromSeconds(60);
+
+    private sealed record Timed<T>(T Value, DateTimeOffset Until);
+
+    /// <summary>Số lần UDF lỗi liên tiếp (dùng chung mọi mã trong cùng một bộ nhớ đệm).</summary>
+    private sealed class FailureStreak { public int Count; }
 
     // 24hmoney returns stock prices in units of 1,000 VND
     private const decimal PriceScale = 1000m;
@@ -34,6 +71,15 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     /// <summary>Tham số <c>type</c> duy nhất của endpoint graph trả lợi suất theo phiên.</summary>
     private const int DailyGraphType = 3;
     private const int IntradayGraphType = 1;
+
+    /// <summary>
+    /// Trường <c>z</c> của graph ngày bằng 1/10 số cổ phiếu: đo 2026-11-28, tỉ số v(UDF)/z là 10,00–10,10 trên
+    /// 61/61 phiên của cả FPT và VNM, và v ngày 2026-11-27 = accumulated_vol của trading-history. Nhân 10 để
+    /// khối lượng của nguồn dự phòng cùng đơn vị (cổ phiếu) với nguồn UDF, nếu không OBV/MFI/KL TB nhảy bậc khi đổi nguồn.
+    /// Kiểm thêm 2026-11-28 với HPG (HOSE) và SHS (HNX): z × 10 bằng đúng accumulated_vol của trading-history ở cả hai phiên gần nhất
+    /// (HPG 1.485.810 → 14.858.100; SHS 764.090 → 7.640.900). Phía UDF của hai mã này chưa kiểm được vì nguồn đang chặn.
+    /// </summary>
+    private const int GraphDailyVolumeFactor = 10;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -49,12 +95,16 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         HttpClient httpClient,
         IMemoryCache cache,
         ILogger<HmoneyMarketDataProvider> logger,
-        IOptions<MarketDataProviderOptions> options)
+        IOptions<MarketDataProviderOptions> options,
+        IAdjustedPriceSeriesStore? store = null,
+        TimeProvider? timeProvider = null)
     {
         _httpClient = httpClient;
         _cache = cache;
         _logger = logger;
         _options = options.Value;
+        _store = store;
+        _time = timeProvider ?? TimeProvider.System;
     }
 
     private static decimal ScalePrice(decimal raw) => raw * PriceScale;
@@ -65,7 +115,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<StockPriceData?> GetCurrentPriceAsync(string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var detail = await GetRawShareDetailAsync(symbol, cancellationToken);
         if (detail == null)
             return null;
@@ -87,19 +137,280 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     public async Task<List<StockPriceData>> GetHistoricalPricesAsync(
         string symbol, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
 
-        // `type` không còn chọn KHOẢNG. Đo 2026-08-16 (HAH): type 3/4/5/6 đều trả cùng cửa sổ
-        // 2026-06-08 → 2026-08-14, lần lượt 50/26/11/4 điểm — chỉ khác độ mịn thanh nến. Bảng map
-        // cũ theo số ngày khiến xin khoảng DÀI hơn lại nhận ÍT điểm hơn: 12 tháng → type 5 → 11
-        // điểm, dưới ngưỡng 20 của mọi chỉ báo kỹ thuật. Chuỗi ngày là dày nhất cho mọi khoảng.
-        var days = (to - from).TotalDays;
-        int graphType = days <= 1 ? IntradayGraphType : DailyGraphType;
+        // Khoảng ≤ 1 ngày là intraday: giữ nguyên nguồn graph. Từ 2 ngày trở lên là lịch sử NGÀY: lấy nến
+        // thật đã điều chỉnh từ UDF, lỗi thì dự phòng sang graph (chỉ có giá đóng cửa, chưa điều chỉnh).
+        if ((to - from).TotalDays > 1)
+            return await GetDailyBarsAsync(symbol, from, to, cancellationToken);
 
-        var cacheKey = $"history:{symbol}:{graphType}";
+        return await GetGraphHistoryAsync(symbol, from, to, cancellationToken);
+    }
+
+    private async Task<List<StockPriceData>> GetDailyBarsAsync(
+        string symbol, DateTime from, DateTime to, CancellationToken cancellationToken)
+    {
+        var series = await GetDailySeriesAsync(symbol, cancellationToken);
+        return series
+            .Where(p => p.Date >= from.Date && p.Date <= to.Date)
+            .ToList();
+    }
+
+    private DateTimeOffset Now => _time.GetUtcNow();
+    private DateTime VietnamDate(DateTimeOffset utc) => (utc + VietnamOffset).Date;
+
+    private bool TryFresh<T>(string key, out T value)
+    {
+        if (_cache.TryGetValue(key, out Timed<T>? entry) && entry != null && Now < entry.Until)
+        {
+            value = entry.Value;
+            return true;
+        }
+        value = default!;
+        return false;
+    }
+
+    private void SetTimed<T>(string key, T value, DateTimeOffset until) =>
+        _cache.Set(key, new Timed<T>(value, until), TimeSpan.FromHours(26));   // hạn thật do `Until` quyết, theo đồng hồ của provider
+
+    /// <summary>
+    /// Sau giờ này (giờ Việt Nam) nến của phiên hôm nay đã chốt. Chuỗi lấy TRƯỚC giờ này thiếu hoặc còn dở nến hôm nay,
+    /// nên được phép lấy lại đúng một lần sau giờ đóng cửa (ngân sách tối đa 2 lần mỗi mã mỗi ngày).
+    /// </summary>
+    private static readonly TimeSpan MarketCloseVietnam = new(15, 10, 0);
+
+    /// <summary>Hạn dùng của chuỗi tốt lấy lúc <paramref name="fetchedAtUtc"/>: tới giờ đóng cửa nếu lấy trước đó, không thì tới hết ngày.</summary>
+    private DateTimeOffset GoodUntil(DateTimeOffset fetchedAtUtc)
+    {
+        var vnDay = VietnamDate(fetchedAtUtc);
+        var close = new DateTimeOffset(vnDay + MarketCloseVietnam, VietnamOffset);
+        return fetchedAtUtc < close ? close : new DateTimeOffset(vnDay.AddDays(1), VietnamOffset);
+    }
+
+    /// <summary>Chuỗi lấy lúc <paramref name="fetchedAtUtc"/> còn dùng được lúc này không (cùng ngày Việt Nam và chưa qua mốc đóng cửa kể từ lúc lấy).</summary>
+    private bool IsFresh(DateTimeOffset fetchedAtUtc) => Now < GoodUntil(fetchedAtUtc) && VietnamDate(fetchedAtUtc) == VietnamDate(Now);
+
+    /// <summary>
+    /// Thứ tự đọc (chuỗi CHƯA lọc theo khoảng): bộ nhớ đệm chuỗi tốt trong ngày → bản đã lưu bền nếu lấy trong
+    /// hôm nay → UDF (nếu không đang nghỉ) → bản đã lưu bền cũ hơn → nguồn graph cũ (<c>IsAdjusted=false</c>).
+    /// UDF tối đa một lần mỗi mã mỗi ngày; lỗi thì mã đó nghỉ, nhiều mã lỗi liên tiếp thì cả UDF nghỉ. Không thử lại theo vòng.
+    /// Chuỗi graph dự phòng nằm ở khoá riêng nên KHÔNG BAO GIỜ ghi đè một chuỗi tốt.
+    /// </summary>
+    private async Task<List<StockPriceData>> GetDailySeriesAsync(string symbol, CancellationToken cancellationToken)
+    {
+        if (!ValidSymbol.IsMatch(symbol))
+            return new List<StockPriceData>();
+
+        var goodKey = $"tv:good:{symbol}";
+        if (TryFresh(goodKey, out List<StockPriceData> good))
+            return good;
+
+        var gate = SymbolGates.GetOrAdd(symbol, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (TryFresh(goodKey, out good))
+                return good;
+
+            // Bản lưu bền cũng là "bộ nhớ đệm": lấy trong hôm nay thì không gọi UDF nữa, kể cả sau khi khởi động lại.
+            var snapshot = await ReadSnapshotAsync(symbol, cancellationToken);
+            if (snapshot != null && IsFresh(new DateTimeOffset(snapshot.FetchedAtUtc, TimeSpan.Zero)))
+            {
+                var bars = StampAsOf(snapshot.Bars.ToList());
+                SetTimed(goodKey, bars, GoodUntil(new DateTimeOffset(snapshot.FetchedAtUtc, TimeSpan.Zero)));
+                return bars;
+            }
+
+            if (!UdfCooledDown(symbol))
+            {
+                var fetchedAt = Now;
+                var result = await FetchTradingViewAsync(symbol, cancellationToken);
+                if (result.Bars != null)
+                {
+                    RecordUdfSuccess();
+                    StampAsOf(result.Bars);
+                    SetTimed(goodKey, result.Bars, GoodUntil(fetchedAt));
+                    await SaveSnapshotAsync(symbol, result.Bars, cancellationToken);
+                    return result.Bars;
+                }
+
+                if (result.Failure == UdfFailure.SourceWide)
+                    RecordUdfFailure(symbol);
+                else
+                    RestSymbol(symbol);   // lỗi riêng của mã (không có dữ liệu, mã rác): mã nghỉ, nhưng không tính vào chuỗi lỗi của cả nguồn
+            }
+
+            if (snapshot != null)
+            {
+                var ageDays = (VietnamDate(Now) - VietnamDate(snapshot.FetchedAtUtc)).Days;
+                if (ageDays >= 2)
+                    _logger.LogWarning(
+                        "Serving a persisted adjusted series for {Symbol} that is {Days} days old (source unavailable); a newer ex-date may be missing",
+                        symbol, ageDays);
+                return StampAsOf(snapshot.Bars.ToList());
+            }
+
+            var fallbackKey = $"tv:fallback:{symbol}";
+            if (TryFresh(fallbackKey, out List<StockPriceData> cachedFallback))
+                return cachedFallback;
+
+            var graph = await FetchGraphSeriesAsync(symbol, DailyGraphType, cancellationToken);
+            if (graph == null || graph.Count == 0)
+                return new List<StockPriceData>();   // rỗng thì không đệm: có thể chỉ trục trặc nhất thời
+
+            SetTimed(fallbackKey, graph, Now + FallbackCache);
+            return graph;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    /// <summary>Đóng dấu ngày nến cuối của CẢ chuỗi lên mọi nến (kể cả bản lưu cũ chưa có trường này), trước khi lọc theo khoảng.</summary>
+    private static List<StockPriceData> StampAsOf(List<StockPriceData> bars)
+    {
+        if (bars.Count == 0) return bars;
+        var asOf = bars.Max(b => b.Date);
+        foreach (var b in bars) b.AdjustedAsOf = asOf;
+        return bars;
+    }
+
+    private async Task<AdjustedPriceSeriesSnapshot?> ReadSnapshotAsync(string symbol, CancellationToken cancellationToken)
+    {
+        if (_store == null) return null;
+
+        var key = $"tv:persisted:{symbol}";
+        if (TryFresh(key, out AdjustedPriceSeriesSnapshot? cached))
+            return cached;
+
+        try
+        {
+            var snapshot = await _store.GetAsync(symbol, cancellationToken);
+            if (snapshot != null)
+                SetTimed(key, snapshot, Now + PersistedReadCache);   // tránh đọc Mongo mỗi lần khi UDF đang nghỉ
+            return snapshot;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read persisted adjusted series for {Symbol}", symbol);
+            return null;
+        }
+    }
+
+    private async Task SaveSnapshotAsync(string symbol, List<StockPriceData> bars, CancellationToken cancellationToken)
+    {
+        if (_store == null) return;
+        try
+        {
+            await _store.SaveAsync(symbol, Now.UtcDateTime, bars, cancellationToken);
+            SetTimed($"tv:persisted:{symbol}", new AdjustedPriceSeriesSnapshot(symbol, Now.UtcDateTime, bars), Now + PersistedReadCache);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Lưu hỏng chỉ mất bản dự phòng, không làm hỏng kết quả vừa lấy được.
+            _logger.LogWarning(ex, "Failed to persist adjusted series for {Symbol}", symbol);
+        }
+    }
+
+    /// <summary>Lỗi riêng của một mã (no_data, 404 hay 400 cho mã rác, JSON báo lỗi): chỉ nghỉ theo mã, không kéo cả nguồn nghỉ chung.</summary>
+    private void RestSymbol(string symbol) =>
+        SetTimed($"tv:cooldown:{symbol}", true, Now.AddMinutes(_options.TradingViewFailureCooldownMinutes));
+
+    private bool UdfCooledDown(string symbol) =>
+        TryFresh("tv:cooldown:global", out bool _) || TryFresh($"tv:cooldown:{symbol}", out bool _);
+
+    private FailureStreak Streak() =>
+        _cache.GetOrCreate("tv:fail-streak", e => { e.SetSlidingExpiration(TimeSpan.FromHours(1)); return new FailureStreak(); })!;
+
+    private void RecordUdfSuccess() => Interlocked.Exchange(ref Streak().Count, 0);
+
+    private void RecordUdfFailure(string symbol)
+    {
+        SetTimed($"tv:cooldown:{symbol}", true, Now.AddMinutes(_options.TradingViewFailureCooldownMinutes));
+        var count = Interlocked.Increment(ref Streak().Count);
+        if (count >= _options.TradingViewGlobalFailureThreshold)
+        {
+            SetTimed("tv:cooldown:global", true, Now.AddMinutes(_options.TradingViewGlobalCooldownMinutes));
+            _logger.LogWarning(
+                "TradingView history failed {Count} times in a row; pausing all calls for {Minutes} minutes",
+                count, _options.TradingViewGlobalCooldownMinutes);
+        }
+    }
+
+    /// <summary>
+    /// <c>null</c> khi không dùng được (lỗi mạng, hết giờ, HTTP không thành công, <c>s != "ok"</c>, mảng rỗng
+    /// hoặc lệch): người gọi chuyển sang nguồn dự phòng. Huỷ từ người gọi thì ném tiếp, không coi là lỗi nguồn.
+    /// </summary>
+    private sealed record UdfResult(List<StockPriceData>? Bars, UdfFailure Failure);
+
+    /// <summary>
+    /// Phân loại lỗi để chỉ dấu hiệu của CẢ nguồn mới đẩy ngưỡng nghỉ chung: trang HTML/WAF, 403, 429, 408, 5xx, hết giờ hoặc lỗi mạng.
+    /// Mã rác (404/400, JSON báo lỗi, no_data) chỉ làm mã đó nghỉ.
+    /// </summary>
+    private enum UdfFailure { None, SymbolOnly, SourceWide }
+
+    private static bool IsSourceWideStatus(System.Net.HttpStatusCode status) =>
+        status is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.TooManyRequests
+            or System.Net.HttpStatusCode.RequestTimeout || (int)status >= 500;
+
+    private async Task<UdfResult> FetchTradingViewAsync(string symbol, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var now = Now;
+            var url = $"{_options.TradingViewBaseUrl.TrimEnd('/')}/tradingview/history" +
+                      $"?symbol={Uri.EscapeDataString(symbol)}&resolution=D" +
+                      $"&from={now.AddYears(-_options.TradingViewHistoryYears).ToUnixTimeSeconds()}" +
+                      $"&to={now.AddDays(1).ToUnixTimeSeconds()}";
+
+            using var response = await _httpClient.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("TradingView history for {Symbol} returned HTTP {Status}; falling back to graph (unadjusted)",
+                    symbol, (int)response.StatusCode);
+                return new UdfResult(null, IsSourceWideStatus(response.StatusCode) ? UdfFailure.SourceWide : UdfFailure.SymbolOnly);
+            }
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var bars = TradingViewHistoryParser.Parse(body, symbol);
+            if (bars != null)
+                return new UdfResult(bars, UdfFailure.None);
+
+            // Trang HTML/WAF hay thân không phải JSON là dấu hiệu cả nguồn bị chặn; JSON đúng cấu trúc (no_data, error, mảng rỗng) là chuyện của mã.
+            var failure = TradingViewHistoryParser.IsJsonObject(body) ? UdfFailure.SymbolOnly : UdfFailure.SourceWide;
+            _logger.LogWarning("TradingView history for {Symbol} was {Kind}; falling back to graph (unadjusted)",
+                symbol, TradingViewHistoryParser.IsNoData(body) ? "reported as no_data"
+                    : failure == UdfFailure.SymbolOnly ? "rejected for this symbol" : "empty or unreadable");
+            return new UdfResult(null, failure);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "TradingView history for {Symbol} failed; falling back to graph (unadjusted)", symbol);
+            return new UdfResult(null, UdfFailure.SourceWide);
+        }
+    }
+
+    private async Task<List<StockPriceData>> GetGraphHistoryAsync(
+        string symbol, DateTime from, DateTime to, CancellationToken cancellationToken)
+    {
+        // Chỉ còn nhánh intraday; lịch sử ngày đi qua GetDailyBarsAsync.
+        var cacheKey = $"history:{symbol}:{IntradayGraphType}";
         if (!_cache.TryGetValue(cacheKey, out List<StockPriceData>? series))
         {
-            series = await FetchGraphSeriesAsync(symbol, graphType, cancellationToken);
+            series = await FetchGraphSeriesAsync(symbol, IntradayGraphType, cancellationToken);
             if (series == null || series.Count == 0)
                 return new List<StockPriceData>();
 
@@ -143,7 +454,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
                         High = scaledPrice,
                         Low = scaledPrice,
                         Close = scaledPrice,
-                        Volume = point.Z
+                        Volume = graphType == DailyGraphType ? point.Z * GraphDailyVolumeFactor : point.Z
                     };
                 })
                 .OrderBy(p => p.Date)
@@ -165,7 +476,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
     public async Task<List<StockPriceData>> GetDailyHistoryAsync(
         string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
 
         var cacheKey = $"daily-history:{symbol}";
         if (_cache.TryGetValue(cacheKey, out List<StockPriceData>? cached))
@@ -218,7 +529,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         var tasks = symbols.Select(async symbol =>
         {
             var price = await GetCurrentPriceAsync(symbol, cancellationToken);
-            return (symbol: symbol.ToUpper().Trim(), price);
+            return (symbol: symbol.ToUpperInvariant().Trim(), price);
         });
 
         var completed = await Task.WhenAll(tasks);
@@ -233,7 +544,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<MarketIndexData?> GetIndexDataAsync(string indexSymbol, CancellationToken cancellationToken = default)
     {
-        indexSymbol = indexSymbol.ToUpper().Trim();
+        indexSymbol = indexSymbol.ToUpperInvariant().Trim();
 
         // Map input symbol → floor_code for /v1/ios/indices/detail
         var floorCode = indexSymbol switch
@@ -310,7 +621,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<StockDetailInfo?> GetStockDetailAsync(string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var detail = await GetRawShareDetailAsync(symbol, cancellationToken);
         if (detail == null)
             return null;
@@ -403,7 +714,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
         if (companies == null || companies.Count == 0)
             return new List<StockSearchResult>();
 
-        keyword = keyword.ToUpper().Trim();
+        keyword = keyword.ToUpperInvariant().Trim();
 
         return companies
             .Where(c =>
@@ -465,7 +776,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     public async Task<TradingHistorySummaryInfo?> GetTradingHistorySummaryAsync(string symbol, CancellationToken cancellationToken = default)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var cacheKey = $"trading_summary:{symbol}";
 
         if (_cache.TryGetValue(cacheKey, out TradingHistorySummaryInfo? cached))
@@ -505,7 +816,7 @@ public class HmoneyMarketDataProvider : IMarketDataProvider, IStockInfoProvider
 
     private async Task<HmoneyShareDetail?> GetRawShareDetailAsync(string symbol, CancellationToken cancellationToken)
     {
-        symbol = symbol.ToUpper().Trim();
+        symbol = symbol.ToUpperInvariant().Trim();
         var cacheKey = $"raw_share:{symbol}";
 
         if (_cache.TryGetValue(cacheKey, out HmoneyShareDetail? cached))

@@ -13,6 +13,9 @@ export interface StockPrice {
   low: number;
   close: number;
   volume: number;
+  /** true: đã điều chỉnh theo sự kiện quyền; false: chưa (kho đã lưu hoặc nguồn dự phòng). */
+  adjusted?: boolean | null;
+  adjustedAsOf?: string | null;
 }
 
 export interface BatchPrice {
@@ -116,6 +119,10 @@ export interface TopFluctuation {
 /** Chuỗi chỉ báo theo từng phiên (GET analysis/series). Mọi mảng dài bằng dates; null = chưa đủ warm-up. */
 export interface TechnicalSeries {
   symbol: string;
+  /** true: giá đã điều chỉnh theo sự kiện quyền; false: nguồn dự phòng chưa điều chỉnh; null/thiếu: không rõ. */
+  adjusted?: boolean | null;
+  /** Ngày nến cuối của chuỗi đã điều chỉnh đang phục vụ (ISO); lùi lại khi nguồn bị chặn và dùng bản lưu cũ. */
+  adjustedAsOf?: string | null;
   dates: string[];
   open: number[];
   high: number[];
@@ -124,6 +131,8 @@ export interface TechnicalSeries {
   volume: number[];
   ema20: (number | null)[];
   ema50: (number | null)[];
+  /** Chỉ có giá trị từ phiên thứ 200; backend cũ không gửi trường này. */
+  ema200?: (number | null)[];
   bollingerUpper: (number | null)[];
   bollingerMiddle: (number | null)[];
   bollingerLower: (number | null)[];
@@ -144,6 +153,9 @@ export interface TechnicalSeries {
 
 export interface TechnicalAnalysis {
   symbol: string;
+  /** Xem TechnicalSeries.adjusted. */
+  adjusted?: boolean | null;
+  adjustedAsOf?: string | null;
   analyzedAt: string;
   dataPoints: number;
   currentPrice: number;

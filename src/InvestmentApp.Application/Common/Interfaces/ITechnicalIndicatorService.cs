@@ -14,6 +14,18 @@ public interface ITechnicalIndicatorService
 public class TechnicalSeriesResult
 {
     public string Symbol { get; set; } = null!;
+
+    /// <summary>
+    /// <c>true</c> khi giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách); <c>false</c> khi dùng
+    /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
+    /// </summary>
+    public bool? Adjusted { get; set; }
+
+    /// <summary>
+    /// Ngày của nến cuối trong chuỗi ĐÃ điều chỉnh được phục vụ (null khi chuỗi chưa điều chỉnh). Khi nguồn đang bị chặn và
+    /// phải dùng bản lưu cũ, ngày này lùi lại so với phiên mới nhất, nên người dùng và công cụ phía sau biết dữ liệu cũ tới đâu.
+    /// </summary>
+    public DateTime? AdjustedAsOf { get; set; }
     public List<DateTime> Dates { get; set; } = new();
     public List<decimal> Open { get; set; } = new();
     public List<decimal> High { get; set; } = new();
@@ -23,6 +35,8 @@ public class TechnicalSeriesResult
 
     public List<decimal?> Ema20 { get; set; } = new();
     public List<decimal?> Ema50 { get; set; } = new();
+    /// <summary>Chỉ có giá trị từ phiên thứ 200; trước đó và khi dưới 200 phiên là null.</summary>
+    public List<decimal?> Ema200 { get; set; } = new();
     public List<decimal?> BollingerUpper { get; set; } = new();
     public List<decimal?> BollingerMiddle { get; set; } = new();
     public List<decimal?> BollingerLower { get; set; } = new();
@@ -44,6 +58,18 @@ public class TechnicalSeriesResult
 public class TechnicalAnalysisResult
 {
     public string Symbol { get; set; } = null!;
+
+    /// <summary>
+    /// <c>true</c> khi giá đã điều chỉnh theo sự kiện quyền (cổ tức, thưởng, chia tách); <c>false</c> khi dùng
+    /// nguồn dự phòng chưa điều chỉnh (chỉ có giá đóng cửa); <c>null</c> khi không có dữ liệu.
+    /// </summary>
+    public bool? Adjusted { get; set; }
+
+    /// <summary>
+    /// Ngày của nến cuối trong chuỗi ĐÃ điều chỉnh được phục vụ (null khi chuỗi chưa điều chỉnh). Khi nguồn đang bị chặn và
+    /// phải dùng bản lưu cũ, ngày này lùi lại so với phiên mới nhất, nên người dùng và công cụ phía sau biết dữ liệu cũ tới đâu.
+    /// </summary>
+    public DateTime? AdjustedAsOf { get; set; }
     public DateTime AnalyzedAt { get; set; }
     public int DataPoints { get; set; }
 
