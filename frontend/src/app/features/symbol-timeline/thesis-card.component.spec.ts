@@ -75,6 +75,33 @@ describe('ThesisCardComponent (thẻ Luận điểm)', () => {
     expect(q('thesis-signed')!.textContent).toContain('12 ngày trước');
   });
 
+  it('lists the top 3 risks in rank order even when the server sends them out of order', () => {
+    const r = (rank: number, description: string) => ({ rank, description, observableSignal: 's' + rank, isDealBreaker: false, suggestedTrigger: null });
+    setup('ok', dossier({ riskFactors: [r(4, 'D'), r(2, 'B'), r(1, 'A'), r(3, 'C')] }));
+
+    toggle();
+
+    const risks = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="thesis-risk"]')) as HTMLElement[];
+    expect(risks.map(x => x.textContent!.trim())).toEqual(['A', 'B', 'C']);
+  });
+
+  it('the signed date is the VN calendar day of the signature (17:30Z is already the next VN day)', () => {
+    setup('ok', dossier({ reviewedAt: '2026-11-19T17:30:00Z', confirmedAt: '2026-11-19T17:30:00Z' }));
+
+    toggle();
+
+    expect(q('thesis-signed')!.textContent).toContain('20/11/2026');
+    expect(q('thesis-signed')!.textContent).not.toContain('19/11/2026');
+  });
+
+  it('a signature dated after today (clock skew) never shows a negative age', () => {
+    setup('ok', dossier({ reviewedAt: new Date(Date.now() + 3 * 86_400_000).toISOString(), confirmedAt: new Date().toISOString() }));
+
+    toggle();
+
+    expect(q('thesis-signed')!.textContent).toContain('0 ngày trước');
+  });
+
   it('links to the full dossier', () => {
     setup();
     toggle();
@@ -89,6 +116,7 @@ describe('ThesisCardComponent (thẻ Luận điểm)', () => {
 
     expect(q('thesis-empty')!.textContent).toContain('Chưa có hồ sơ');
     expect(q('thesis-create-dossier')!.getAttribute('href')).toBe('/company-dossier/HPG');
+    expect(q('thesis-create-dossier')!.textContent!.trim()).toBe('Tạo hồ sơ');
     expect(q('thesis-error')).toBeNull();
   });
 

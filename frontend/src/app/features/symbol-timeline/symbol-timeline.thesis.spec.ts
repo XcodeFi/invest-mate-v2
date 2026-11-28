@@ -59,5 +59,8 @@ describe('SymbolTimelineComponent — thẻ Luận điểm cạnh biểu đồ',
     expect(row.className).toContain('min-[1025px]:flex-row');
     expect(row.contains(q('timeline-chart-card'))).toBeTrue();
     expect(row.contains(q('thesis-card'))).toBeTrue();
+    const host = fixture.nativeElement.querySelector('app-thesis-card') as HTMLElement;
+    expect(host.className).toContain('min-[1025px]:w-80');
+    expect(host.className).toContain('w-full');
   });
 });
