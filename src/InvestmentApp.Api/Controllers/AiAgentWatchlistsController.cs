@@ -1,5 +1,6 @@
 using InvestmentApp.Api.Auth;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
+using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItems;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.DeleteWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.ImportVn30;
@@ -52,6 +53,18 @@ public class AiAgentWatchlistsController : AiAgentControllerBase
     {
         await _mediator.Send(new DeleteWatchlistCommand { Id = id, UserId = GetUserId() });
         return NoContent();
+    }
+
+    /// <summary>
+    /// Thêm nhiều mã vào watchlist (tối đa 30), bỏ qua mã đã có. Trả về { watchlistId, added, skipped }.
+    /// </summary>
+    [HttpPost("{id}/items/bulk")]
+    public async Task<IActionResult> AddItemsBulk(string id, [FromBody] AddWatchlistItemsCommand command)
+    {
+        command.WatchlistId = id;
+        command.UserId = GetUserId();
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 
     [HttpPost("{id}/items")]

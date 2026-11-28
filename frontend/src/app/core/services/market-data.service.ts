@@ -197,6 +197,8 @@ export interface ScreenerPassedRow {
   reasons: string[];
   flags: string[];
   notes: string[];
+  /** Mã đã nằm trong một watchlist của chính người dùng (server điền theo xác thực). */
+  inWatchlist?: boolean;
 }
 
 export interface ScreenerLookup {

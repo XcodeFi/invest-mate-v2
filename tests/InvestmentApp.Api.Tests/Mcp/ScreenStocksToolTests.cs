@@ -12,13 +12,14 @@ namespace InvestmentApp.Api.Tests.Mcp;
 public class ScreenStocksToolTests
 {
     private readonly Mock<IMediator> _mediator = new();
+    private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _http = McpTestContext.WithUser("u-1");
 
     [Fact]
     public async Task screen_stocks_with_no_arguments_sends_an_all_null_query()
     {
         McpTestContext.Capture<ScreenerResult, ScreenStocksQuery>(_mediator, out var sent, new ScreenerResult());
 
-        await MarketDataTools.ScreenStocks(_mediator.Object, CancellationToken.None);
+        await MarketDataTools.ScreenStocks(_mediator.Object, _http, CancellationToken.None);
 
         var q = sent()!;
         q.Floors.Should().BeNull();
@@ -28,11 +29,21 @@ public class ScreenStocksToolTests
     }
 
     [Fact]
+    public async Task screen_stocks_sets_the_user_from_the_api_key_so_rows_can_carry_the_inWatchlist_flag()
+    {
+        McpTestContext.Capture<ScreenerResult, ScreenStocksQuery>(_mediator, out var sent, new ScreenerResult());
+
+        await MarketDataTools.ScreenStocks(_mediator.Object, _http, CancellationToken.None);
+
+        sent()!.UserId.Should().Be("u-1");
+    }
+
+    [Fact]
     public async Task screen_stocks_forwards_every_argument()
     {
         McpTestContext.Capture<ScreenerResult, ScreenStocksQuery>(_mediator, out var sent, new ScreenerResult());
 
-        await MarketDataTools.ScreenStocks(_mediator.Object, CancellationToken.None,
+        await MarketDataTools.ScreenStocks(_mediator.Object, _http, CancellationToken.None,
             floors: "HOSE", includeUpcom: true, minAdtv: 10m, minPrice: 7000m, minCap: 2000m, minRoe: 15m, maxPe: 25m,
             minRs3m: 60, skipQualityLayer: true, includeExcluded: true, excludedSkip: 5, excludedTake: 20, lookupSymbol: "fpt");
 

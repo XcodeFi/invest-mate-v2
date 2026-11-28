@@ -13,6 +13,7 @@ using InvestmentApp.Application.MarketData.Queries.ScreenStocks;
 using InvestmentApp.Application.MarketData.Queries.SearchStocks;
 using InvestmentApp.Application.MarketData.Screener;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
@@ -98,7 +99,7 @@ public static class MarketDataTools
     [McpServerTool(Name = "screen_stocks", ReadOnly = true)]
     [Description("Sàng lọc cổ phiếu toàn thị trường theo tiêu chí (không phải khuyến nghị mua, không có điểm số hay thứ hạng; danh sách xếp theo bảng chữ cái). Ba tầng: (1) loại mã thuộc diện đặc biệt/hủy niêm yết của HOSE, thanh khoản thấp (GTGD bình quân 10 phiên dưới minAdtv tỷ), giá dưới minPrice đồng, vốn hoá dưới minCap tỷ; (2) chất lượng: lãi ròng dương và ROE từ minRoe (maxPe tuỳ chọn, mặc định TẮT; skipQualityLayer bỏ tầng này); (3) xu hướng: xếp hạng sức mạnh 3 tháng từ P(minRs3m) trong toàn bộ mã niêm yết. LƯU Ý: rs1m/rs3m/rs52w là xếp hạng phân vị 1–99, KHÔNG phải tỉ suất sinh lời. Mặc định HOSE+HNX; UPCOM chỉ khi includeUpcom (UPCOM và HNX chưa có danh sách cảnh báo chính thức nên mỗi dòng có ghi chú). Kết quả: passed[] (kèm lý do đạt, flags = cờ biến động dựa trên xếp hạng tương đối, notes), unverifiedHose[] (mã HOSE qua mọi tầng nhưng chưa kiểm được danh sách diện đặc biệt: KHÔNG coi là đạt), excludedCounts{lý do:số mã} và sectorCounts, tradeoffCount (loại vì chất lượng/P/E nhưng xu hướng và thanh khoản đạt). Trường máy đọc: status = ok | stale | unavailable, stale (dữ liệu cũ vì làm mới lỗi, tối đa 48 giờ), asOf, reason khi unavailable ('Dữ liệu sàng lọc quá cũ' nghĩa là không có kết quả, đừng tự suy ra). lookupSymbol trả lý do một mã đạt hoặc bị loại; includeExcluded thêm excluded[] (phân trang excludedSkip/excludedTake, tối đa 200). Luôn kèm disclaimer.")]
     public static async Task<ScreenerResult> ScreenStocks(
-        IMediator mediator, CancellationToken ct,
+        IMediator mediator, IHttpContextAccessor http, CancellationToken ct,
         // Mọi tham số phải nằm SAU ct và có `= null`: nullable một mình không đủ để schema đánh dấu optional.
         [Description("Các sàn, cách nhau bởi dấu phẩy, chỉ nhận HOSE, HNX, UPCOM (tuỳ chọn, mặc định HOSE,HNX).")] string? floors = null,
         [Description("Bật UPCOM (tuỳ chọn, mặc định false).")] bool? includeUpcom = null,
@@ -117,7 +118,8 @@ public static class MarketDataTools
         {
             Floors = floors, IncludeUpcom = includeUpcom, MinAdtv = minAdtv, MinPrice = minPrice, MinCap = minCap, MinRoe = minRoe,
             MaxPe = maxPe, MinRs3m = minRs3m, SkipQualityLayer = skipQualityLayer, IncludeExcluded = includeExcluded,
-            ExcludedSkip = excludedSkip, ExcludedTake = excludedTake, LookupSymbol = lookupSymbol
+            ExcludedSkip = excludedSkip, ExcludedTake = excludedTake, LookupSymbol = lookupSymbol,
+            UserId = http.GetUserId()   // chủ khoá API, để mỗi dòng có cờ inWatchlist; không nhận từ đối số
         }, ct);
 
     [McpServerTool(Name = "get_technical_series", ReadOnly = true)]

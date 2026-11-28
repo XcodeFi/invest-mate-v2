@@ -62,7 +62,7 @@ public class McpToolDiscoveryTests
     private static readonly string[] WriteTools =
     {
         "create_trade_plan", "update_trade_plan", "set_trade_plan_status", "move_stop_loss", "create_trade",
-        "create_watchlist", "update_watchlist", "delete_watchlist", "add_watchlist_item",
+        "create_watchlist", "update_watchlist", "delete_watchlist", "add_watchlist_item", "add_watchlist_items",
         "update_watchlist_item", "remove_watchlist_item", "import_vn30",
         "create_journal", "update_journal", "delete_journal",
         "create_journal_entry", "update_journal_entry", "delete_journal_entry",
@@ -119,12 +119,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_88_Tools()
+    public void Registers_All_89_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(88);
+        (ReadTools.Length + WriteTools.Length).Should().Be(89);
     }
 
     [Fact]
@@ -302,6 +302,7 @@ public class McpToolDiscoveryTests
         Required(schema["hold_decision"]).Should().BeEquivalentTo(new[] { "decisionId", "note" });
         Required(schema["update_watchlist"]).Should().BeEquivalentTo(new[] { "id", "name" });
         Required(schema["add_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });
+        Required(schema["add_watchlist_items"]).Should().BeEquivalentTo(new[] { "id", "symbols" });   // note tuỳ chọn
         Required(schema["update_watchlist_item"]).Should().BeEquivalentTo(new[] { "id", "symbol" });
 
         Required(schema["get_savings_comparison"]).Should().BeEquivalentTo(new[] { "portfolioId" });

@@ -3,6 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { Observable, Subject, of, throwError } from 'rxjs';
 import { ScreenerComponent } from './screener.component';
 import { MarketDataService, ScreenerPassedRow, ScreenerQuery, ScreenerResult } from '../../core/services/market-data.service';
+import { AddItemsResult, WatchlistService, WatchlistSummary } from '../../core/services/watchlist.service';
 
 const KEY = 'imv2.quickBoard.symbols';
 const DISCLAIMER = 'Danh sách lọc theo tiêu chí, không phải khuyến nghị mua. Dữ liệu từ nguồn công khai không chính thức, có thể trễ. Cờ dựa trên xếp hạng tương đối, không phải đánh giá rủi ro.';
@@ -18,17 +19,23 @@ const result = (over: Partial<ScreenerResult> = {}): ScreenerResult => ({
   sectorCounts: { '8000': { passed: 3, excluded: 10 } }, tradeoffCount: 0, notes: [], disclaimer: DISCLAIMER, ...over,
 });
 
+const list = (id: string, name: string, isDefault = false): WatchlistSummary =>
+  ({ id, name, emoji: '⭐', isDefault, sortOrder: 0, itemCount: 0, createdAt: '', updatedAt: '' });
+
 describe('ScreenerComponent: Sàng lọc cổ phiếu', () => {
   let fixture: ComponentFixture<ScreenerComponent>;
   let market: jasmine.SpyObj<MarketDataService>;
+  let watchlists: jasmine.SpyObj<WatchlistService>;
   let router: Router;
 
-  function setup(res: Observable<ScreenerResult> = of(result())) {
+  function setup(res: Observable<ScreenerResult> = of(result()), lists: WatchlistSummary[] = [list('w-other', 'Khác'), list('w-def', 'Mặc định', true)]) {
     market = jasmine.createSpyObj<MarketDataService>('MarketDataService', ['getScreener']);
     market.getScreener.and.returnValue(res);
+    watchlists = jasmine.createSpyObj<WatchlistService>('WatchlistService', ['getAll', 'addItemsBulk']);
+    watchlists.getAll.and.returnValue(of(lists));
     TestBed.configureTestingModule({
       imports: [ScreenerComponent],
-      providers: [provideRouter([]), { provide: MarketDataService, useValue: market }],
+      providers: [provideRouter([]), { provide: MarketDataService, useValue: market }, { provide: WatchlistService, useValue: watchlists }],
     });
     router = TestBed.inject(Router);
     spyOn(router, 'navigate').and.resolveTo(true);
@@ -399,6 +406,182 @@ describe('ScreenerComponent: Sàng lọc cổ phiếu', () => {
 
       expect(q('screener-lookup-error')!.textContent).toContain('Không tra cứu được');
       expect(symbols().length).toBe(3);
+    });
+  });
+  describe('thêm vào watchlist', () => {
+    const tick = (symbol: string) => {
+      const box = el().querySelector(`[data-testid="screener-tick"][data-symbol="${symbol}"]`) as HTMLInputElement;
+      box.checked = true;
+      box.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+    const added = (over: Partial<AddItemsResult> = {}): AddItemsResult => ({ watchlistId: 'w-def', added: ['AAA', 'CCC'], skipped: [], ...over });
+    const msg = () => (q('screener-watchlist-result')?.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+    it('the button is disabled until something is ticked and says how many will be added', () => {
+      setup();
+      expect((q('screener-watchlist-add') as HTMLButtonElement).disabled).toBeTrue();
+
+      tick('AAA'); tick('CCC');
+
+      expect((q('screener-watchlist-add') as HTMLButtonElement).disabled).toBeFalse();
+      expect(q('screener-watchlist-add')!.textContent).toContain('Thêm 2 mã vào watchlist');
+    });
+
+    /** Màu thật người xem thấy: chữ và nền (nền trong suốt thì trộn lên nền trang), đo bằng style tính toán của trình duyệt. */
+    const measure = (btn: HTMLElement, dark: boolean): number => {
+      const root = document.documentElement;
+      const had = root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try {
+        const parse = (c: string): [number, number, number, number] => {
+          const m = c.match(/[\d.]+/g)!.map(Number);
+          return [m[0], m[1], m[2], m[3] ?? 1];
+        };
+        const lum = ([r, g, b]: number[]) => {
+          const f = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+          return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+        };
+        const page = dark ? [17, 24, 39] : [255, 255, 255];
+        const cs = getComputedStyle(btn);
+        const bgRaw = parse(cs.backgroundColor);
+        const bg = bgRaw[3] < 1 ? [0, 1, 2].map(i => bgRaw[i] * bgRaw[3] + page[i] * (1 - bgRaw[3])) : bgRaw.slice(0, 3);
+        const fg = parse(cs.color).slice(0, 3);
+        const [hi, lo] = [lum(bg), lum(fg)].sort((x, y) => y - x);
+        return (hi + 0.05) / (lo + 0.05);
+      } finally { root.classList.toggle('dark', had); }
+    };
+
+    it('the add button meets AA contrast (>= 4.5:1) in the light and in the dark theme', () => {
+      setup();
+      tick('AAA');
+      const btn = q('screener-watchlist-add') as HTMLButtonElement;
+      expect(btn.disabled).toBeFalse();
+
+      expect(measure(btn, false)).withContext('sáng').toBeGreaterThanOrEqual(4.5);
+      expect(measure(btn, true)).withContext('tối').toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('at 400px the add button stays on one line (not a tall wrapped box) and inside the page', () => {
+      setup();
+      const host = el();
+      host.style.display = 'block';
+      host.style.width = '400px';
+      document.body.appendChild(host);
+      tick('AAA');
+      tick('BBB');
+
+      const btn = q('screener-watchlist-add') as HTMLButtonElement;
+      const r = btn.getBoundingClientRect();
+      expect(r.height).withContext('một dòng').toBeLessThanOrEqual(44);
+      expect(r.right).withContext('trong khung 400px').toBeLessThanOrEqual(host.getBoundingClientRect().right + 0.5);
+    });
+
+    it('the picker defaults to the default watchlist', () => {
+      setup();
+
+      expect((q('screener-watchlist-pick') as HTMLSelectElement).value).toBe('w-def');
+    });
+
+    it('adds the ticked symbols (sorted) to the chosen watchlist with an auto note "Từ sàng lọc dd/MM · tiêu chí"', () => {
+      setup();
+      watchlists.addItemsBulk.and.returnValue(of(added()));
+      tick('CCC'); tick('AAA');
+
+      click('screener-watchlist-add');
+
+      expect(watchlists.addItemsBulk).toHaveBeenCalledTimes(1);
+      const [id, symbols, note] = watchlists.addItemsBulk.calls.mostRecent().args;
+      expect(id).toBe('w-def');
+      expect(symbols).toEqual(['AAA', 'CCC']);
+      const d = new Date();
+      const dd = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      expect(note).toContain(`Từ sàng lọc ${dd}`);
+      expect(note).toContain('ROE ≥ 12');
+      expect((note as string).length).toBeLessThanOrEqual(200);
+    });
+
+    it('a different pick sends to that watchlist', () => {
+      setup();
+      watchlists.addItemsBulk.and.returnValue(of(added({ watchlistId: 'w-other' })));
+      tick('AAA');
+      const pick = q('screener-watchlist-pick') as HTMLSelectElement;
+      pick.value = 'w-other';
+      pick.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      click('screener-watchlist-add');
+
+      expect(watchlists.addItemsBulk.calls.mostRecent().args[0]).toBe('w-other');
+    });
+
+    it('shows "Đã thêm N, bỏ qua M (đã có)" and marks the rows with a star', () => {
+      setup();
+      watchlists.addItemsBulk.and.returnValue(of(added({ added: ['AAA'], skipped: ['CCC'] })));
+      tick('AAA'); tick('CCC');
+
+      click('screener-watchlist-add');
+
+      expect(msg()).toContain('Đã thêm 1, bỏ qua 1 (đã có)');
+      const starred = qa('screener-in-watchlist').map(s => s.dataset['symbol']);
+      expect(starred.sort()).toEqual(['AAA', 'CCC']);
+    });
+
+    it('rows the server already flags inWatchlist show a star from the start, the others do not', () => {
+      setup(of(result({ passed: [row('AAA', { inWatchlist: true }), row('BBB'), row('CCC', { inWatchlist: false })] })));
+
+      expect(qa('screener-in-watchlist').map(s => s.dataset['symbol'])).toEqual(['AAA']);
+      expect(qa('screener-in-watchlist')[0].getAttribute('aria-label')).toContain('Đã có trong watchlist');
+    });
+
+    it('the star sits OUTSIDE the symbol link so a click on the symbol still goes to the timeline', () => {
+      setup(of(result({ passed: [row('AAA', { inWatchlist: true })] })));
+
+      const star = qa('screener-in-watchlist')[0];
+      expect(star.closest('[data-testid="screener-symbol"]')).toBeNull();
+    });
+
+    it('a failure shows a Vietnamese message and keeps the selection so the user can retry', () => {
+      setup();
+      watchlists.addItemsBulk.and.returnValue(throwError(() => ({ status: 500 })));
+      tick('AAA');
+
+      click('screener-watchlist-add');
+
+      expect(q('screener-watchlist-error')!.textContent).toContain('Không thêm được');
+      expect((q('screener-watchlist-add') as HTMLButtonElement).disabled).toBeFalse();
+      expect(q('screener-watchlist-add')!.textContent).toContain('Thêm 1 mã');
+    });
+
+    it('with no watchlist at all the button stays disabled and points to the Watchlist page', () => {
+      setup(of(result()), []);
+      tick('AAA');
+
+      expect((q('screener-watchlist-add') as HTMLButtonElement).disabled).toBeTrue();
+      expect(q('screener-watchlist-none')!.textContent).toContain('Chưa có watchlist');
+    });
+
+    it('a successful add clears the ticks that were sent', () => {
+      setup();
+      watchlists.addItemsBulk.and.returnValue(of(added()));
+      tick('AAA'); tick('CCC');
+
+      click('screener-watchlist-add');
+
+      expect((q('screener-watchlist-add') as HTMLButtonElement).disabled).toBeTrue();
+    });
+
+    it('the button cannot fire twice while a request is in flight', () => {
+      setup();
+      const pending = new Subject<AddItemsResult>();
+      watchlists.addItemsBulk.and.returnValue(pending);
+      tick('AAA');
+
+      click('screener-watchlist-add');
+      expect((q('screener-watchlist-add') as HTMLButtonElement).disabled).withContext('nút khoá trong lúc chờ').toBeTrue();
+      fixture.componentInstance.addToWatchlist();   // và chính hàm cũng tự chặn, không chỉ nhờ nút bị khoá
+
+      expect(watchlists.addItemsBulk).toHaveBeenCalledTimes(1);
     });
   });
 });

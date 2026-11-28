@@ -17,6 +17,7 @@ using InvestmentApp.Application.TradePlans.Commands.UpdateTradePlan;
 using InvestmentApp.Application.TradePlans.Queries.GetActivePositions;
 using InvestmentApp.Application.TradePlans.Queries.GetTradePlans;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
+using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItems;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.ImportVn30;
 using InvestmentApp.Application.Watchlists.Commands.UpdateWatchlist;
@@ -309,6 +310,19 @@ public class McpToolArgumentBindingTests
         cmd.Symbol.Should().Be("MBB");
         cmd.Note.Should().Be("Chờ nhịp điều chỉnh");
         cmd.TargetBuyPrice.Should().Be(22000);
+    }
+
+    [Fact]
+    public async Task Add_Watchlist_Items_Accepts_Flat_Args_And_Ignores_A_Smuggled_UserId()
+    {
+        var cmd = await CallAsync<AddWatchlistItemsCommand, AddWatchlistItemsResult>("add_watchlist_items",
+            """{"id":"w-1","symbols":["VCB","FPT"],"note":"Từ sàng lọc 28/11","userId":"intruder"}""",
+            new AddWatchlistItemsResult());
+
+        cmd.WatchlistId.Should().Be("w-1");
+        cmd.UserId.Should().Be(TestUserId, "chủ sở hữu luôn lấy từ khoá API, không từ đối số");
+        cmd.Symbols.Should().Equal("VCB", "FPT");
+        cmd.Note.Should().Be("Từ sàng lọc 28/11");
     }
 
     [Fact]

@@ -25,6 +25,9 @@ public class ScreenStocksQuery : IRequest<ScreenerResult>
     public int? ExcludedSkip { get; set; }
     public int? ExcludedTake { get; set; }
     public string? LookupSymbol { get; set; }
+
+    /// <summary>Chủ yêu cầu (từ xác thực, KHÔNG nhận từ đối số): có thì mỗi dòng đạt được gắn cờ InWatchlist theo watchlist của họ.</summary>
+    public string? UserId { get; set; }
 }
 
 public class ScreenStocksQueryHandler : IRequestHandler<ScreenStocksQuery, ScreenerResult>
@@ -32,8 +35,13 @@ public class ScreenStocksQueryHandler : IRequestHandler<ScreenStocksQuery, Scree
     private static readonly Regex ValidSymbol = new(@"^[A-Z0-9]{1,10}\z", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly IMarketScreenerService _service;
+    private readonly IWatchlistRepository _watchlists;
 
-    public ScreenStocksQueryHandler(IMarketScreenerService service) => _service = service;
+    public ScreenStocksQueryHandler(IMarketScreenerService service, IWatchlistRepository watchlists)
+    {
+        _service = service;
+        _watchlists = watchlists;
+    }
 
     public async Task<ScreenerResult> Handle(ScreenStocksQuery request, CancellationToken ct)
     {
@@ -65,6 +73,18 @@ public class ScreenStocksQueryHandler : IRequestHandler<ScreenStocksQuery, Scree
         }.Clamped();
 
         var snapshot = await _service.GetSnapshotAsync(ct);
-        return ScreenerRules.Evaluate(snapshot, criteria);
+        var result = ScreenerRules.Evaluate(snapshot, criteria);
+
+        // Cờ theo người gọi: MỘT lần đọc watchlist của đúng userId từ xác thực. Dòng kết quả là đối tượng mới của lần gọi này nên gắn cờ không làm bẩn kho đệm.
+        if (!string.IsNullOrEmpty(request.UserId))
+        {
+            var inList = (await _watchlists.GetByUserIdAsync(request.UserId, ct))
+                .SelectMany(w => w.Items.Select(i => i.Symbol))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (inList.Count > 0)
+                foreach (var row in result.Passed.Concat(result.UnverifiedHose))
+                    row.InWatchlist = inList.Contains(row.Symbol);
+        }
+        return result;
     }
 }

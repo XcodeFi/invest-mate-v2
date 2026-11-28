@@ -20,7 +20,7 @@ public class ScreenStocksQueryTests
             AsOf = DateTimeOffset.UtcNow,
             Hose = new HoseLists(Array.Empty<HoseStatusEntry>(), Array.Empty<HoseDelisting>())
         });
-        return (new ScreenStocksQueryHandler(service.Object), service);
+        return (new ScreenStocksQueryHandler(service.Object, new Mock<IWatchlistRepository>().Object), service);
     }
 
     [Fact]
