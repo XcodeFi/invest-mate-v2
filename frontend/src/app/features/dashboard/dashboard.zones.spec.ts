@@ -167,7 +167,7 @@ describe('DashboardComponent — các vùng Hôm nay / Tài sản / Theo dõi', 
   it('target editing still works inside the expanded card: Đặt mục tiêu opens the editor and a second click closes it', () => {
     (q('compound-toggle') as HTMLButtonElement).click();
     fixture.detectChanges();
-    const editorBtn = () => Array.from(q('compound-body')!.querySelectorAll('button')).find(b => /mục tiêu|Đóng/.test(b.textContent!) && /^(Đặt mục tiêu|Đóng)$/.test(b.textContent!.trim())) as HTMLButtonElement;
+    const editorBtn = () => Array.from(q('compound-body')!.querySelectorAll('button')).find(b => /^(Đặt mục tiêu|Đóng)$/.test(b.textContent!.trim())) as HTMLButtonElement;
     expect(editorBtn().textContent!.trim()).toBe('Đặt mục tiêu');
     expect(q('compound-body')!.textContent).not.toContain('CAGR mục tiêu (%/năm)');
 
