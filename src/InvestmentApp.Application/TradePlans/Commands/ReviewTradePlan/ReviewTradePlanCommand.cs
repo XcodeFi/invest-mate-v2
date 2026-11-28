@@ -32,6 +32,12 @@ public class CampaignReviewDto
     /// <summary>PnL ròng / 1R ban đầu (null nếu không tính được).</summary>
     public decimal? RealizedR { get; set; }
     public string? RiskBasis { get; set; }
+    /// <summary>Số CP còn giữ lúc review. Lớn hơn 0: PnL/R chỉ tính phần đã bán và bị loại khỏi thống kê R.</summary>
+    public decimal? OpenQuantity { get; set; }
+    /// <summary>Cổ tức tiền mặt ròng theo quyền hưởng, đã cộng vào PnL.</summary>
+    public decimal? DividendIncome { get; set; }
+    /// <summary>Giá vốn của phần đã bán (mẫu số của PnL%).</summary>
+    public decimal? RealizedCost { get; set; }
 }
 
 public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanCommand, CampaignReviewDto>
@@ -40,13 +46,16 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
     private readonly ITradeRepository _tradeRepository;
     private readonly IPortfolioRepository _portfolioRepository;
     private readonly ICampaignReviewService _reviewService;
+    private readonly ICorporateActionRepository _corporateActionRepository;
 
     public ReviewTradePlanCommandHandler(
         ITradePlanRepository tradePlanRepository,
         ITradeRepository tradeRepository,
         IPortfolioRepository portfolioRepository,
-        ICampaignReviewService reviewService)
+        ICampaignReviewService reviewService,
+        ICorporateActionRepository corporateActionRepository)
     {
+        _corporateActionRepository = corporateActionRepository;
         _tradePlanRepository = tradePlanRepository;
         _tradeRepository = tradeRepository;
         _portfolioRepository = portfolioRepository;
@@ -64,7 +73,8 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
         var linkedTrades = await TradeOwnership.CollectOwnedLinkedTradesAsync(plan, request.UserId, _tradeRepository, _portfolioRepository, cancellationToken);
 
         // Auto-calculate metrics
-        var reviewData = _reviewService.CalculateMetrics(plan, linkedTrades);
+        var actions = await TradeOwnership.LoadCorporateActionsAsync(linkedTrades, _corporateActionRepository, cancellationToken);
+        var reviewData = _reviewService.CalculateMetrics(plan, linkedTrades, actions);
         reviewData.LessonsLearned = request.LessonsLearned;
 
         // Mark plan as reviewed with data
@@ -88,6 +98,9 @@ public class ReviewTradePlanCommandHandler : IRequestHandler<ReviewTradePlanComm
         LessonsLearned = data.LessonsLearned,
         ReviewedAt = data.ReviewedAt,
         RealizedR = data.RealizedR,
-        RiskBasis = data.RiskBasis
+        RiskBasis = data.RiskBasis,
+        OpenQuantity = data.OpenQuantity,
+        DividendIncome = data.DividendIncome,
+        RealizedCost = data.RealizedCost
     };
 }

@@ -849,6 +849,18 @@ public class CampaignReviewData
     public decimal? RealizedR { get; set; }
     /// <summary>"chot-ke-hoach" | "uoc-tinh" | "khop-mot-phan" (xem <see cref="InvestmentApp.Domain.Services.RMath"/>).</summary>
     public string? RiskBasis { get; set; }
+
+    /// <summary>
+    /// Số cổ phiếu CÒN GIỮ lúc review (đã điều chỉnh theo sự kiện quyền). Null = review cũ, chưa tính theo phần đã chốt.
+    /// Lớn hơn 0 nghĩa là PnL/R chỉ tính phần đã bán; review loại khỏi kỳ vọng R, độ khớp ước lượng và Kelly.
+    /// </summary>
+    public decimal? OpenQuantity { get; set; }
+
+    /// <summary>Cổ tức tiền mặt ròng theo quyền hưởng (số lượng của riêng kế hoạch tại ngày GDKHQ × ròng/CP), đã nằm trong <see cref="PnLAmount"/>.</summary>
+    public decimal? DividendIncome { get; set; }
+
+    /// <summary>Giá vốn (gồm phí, thuế mua) của phần ĐÃ BÁN; mẫu số của <see cref="PnLPercent"/>.</summary>
+    public decimal? RealizedCost { get; set; }
 }
 
 // --- Scenario Playbook types ---

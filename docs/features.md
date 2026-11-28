@@ -433,6 +433,7 @@ Hai cơ chế song song trong project:
 - InProgress: chỉ được **tighten SL** (Long: newSl ≥ currentSl; Short: newSl ≤ currentSl) + sửa lot chưa khớp + cập nhật ghi chú/context
 - Executed/Reviewed/Cancelled: read-only (Cancelled khoá cả ghi chú)
 - **Ngoại lệ — dời SL (ADR-0017):** plan `InProgress`/`Executed` dời được SL qua nút "Dời SL" (ngoài form, đi `PATCH /{id}/stop-loss`), hoặc qua tool MCP `move_stop_loss` cho agent. Nới SL bắt buộc lý do + đếm vào điểm kỷ luật; luật này nằm trong `TradePlan.UpdateStopLossWithHistory` nên mọi đường ghi đều bị chặn như nhau, không chỉ modal. `Executed` là trạng thái **đang giữ vị thế**, không phải đã đóng — `Reviewed` mới là đã đóng.
+- **Review chỉ tính phần đã chốt (2026-11-28):** P&L/R chỉ của số cổ phiếu đã bán (giá vốn bình quân gồm phí mua, có sự kiện quyền) + cổ tức tiền mặt theo quyền hưởng; còn cổ phiếu chưa bán thì UI cảnh báo và chiến dịch bị loại khỏi kỳ vọng R, độ khớp ước lượng, Kelly.
 - State banner đầu form + readonly affordance (`bg-gray-50 cursor-not-allowed`) + save buttons theo state
 - Template panel "Tải/Lưu template" ẩn khi editing non-Draft plan (tránh overwrite field khoá)
 - Chi tiết matrix: [`docs/plans/done/p2-trade-plan-editability.md`](plans/done/p2-trade-plan-editability.md)

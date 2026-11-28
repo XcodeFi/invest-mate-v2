@@ -2,6 +2,28 @@
 
 ---
 
+## [v2.96.0] — 2026-11-28 · Review chiến dịch chỉ tính phần đã chốt và cộng cổ tức tiền mặt
+
+### Sửa lỗi
+
+- **Review khi còn cổ phiếu chưa bán** không còn bị tính như lỗ nặng. Trước đây lãi/lỗ = tiền bán − TOÀN BỘ tiền mua, nên mua 1.000 @30.000 rồi bán 500 @33.000 ra −13,5 triệu (−45%, −4,5R) trong khi phần đã chốt thực sự lãi +1,5 triệu (+10%, +1R). Nay giá vốn = giá vốn bình quân (gồm phí, thuế mua) × số đã bán; phần còn giữ không phải lãi hay lỗ. Phí mua của phần chưa bán nằm trong giá vốn phần còn giữ, chỉ thành lỗ khi bán.
+- **Cổ tức tiền mặt** được cộng vào lãi/lỗ theo quyền hưởng: số cổ phiếu của riêng kế hoạch tại ngày GDKHQ × cổ tức ròng sau thuế. Hai kế hoạch cùng mã không cộng trùng. Tính theo sự kiện đã nhập nên không phụ thuộc cổ tức đã về tài khoản hay chưa.
+- **Cổ tức cổ phiếu / chia tách**: số lượng và giá vốn bình quân tính theo số cổ phiếu SAU điều chỉnh (1.000 CP + thưởng 30% = 1.300 CP).
+- **R thực tế** = lãi/lỗ đã chốt (gồm cổ tức) ÷ (1R × số đã bán ÷ tổng số lượng đã điều chỉnh).
+
+### Tính năng mới
+
+- Review còn cổ phiếu chưa bán hiện cảnh báo "Còn N CP chưa bán — kết quả chỉ tính phần đã chốt". Chiến dịch này **không được tính** vào kỳ vọng R, độ khớp ước lượng và Kelly cho tới khi bán hết.
+- Kết quả review hiện thêm dòng "Đã gồm cổ tức tiền mặt" khi có.
+
+### Kỹ thuật
+
+- `CampaignReviewData` thêm `OpenQuantity`, `DividendIncome`, `RealizedCost` (đều nullable, chỉ thêm). Review cũ không có các trường này và giữ nguyên giá trị đã lưu (số liệu cũ cần chạy lại riêng).
+- `ICampaignReviewService.CalculateMetrics` nhận thêm sự kiện quyền; dựng vị thế qua `PositionBuilder`. `RMath.ClosedRealizedR` loại review còn mở khỏi kỳ vọng R, độ khớp ước lượng và Kelly (Kelly lấy từ kỳ vọng).
+- Component mới `review-open-warning`.
+
+---
+
 ## [v2.95.0] — 2026-11-24 · Biểu đồ chỉ báo có chú giải rõ ràng và hướng dẫn cho người mới
 
 ### Tính năng mới

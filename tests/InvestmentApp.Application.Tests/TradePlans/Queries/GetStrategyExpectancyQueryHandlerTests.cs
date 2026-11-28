@@ -67,6 +67,23 @@ public class GetStrategyExpectancyQueryHandlerTests
     }
 
     [Fact]
+    public async Task open_review_excluded_from_expectancy()
+    {
+        // Review còn cổ phiếu chưa bán: R chỉ của phần đã bán, không đại diện cả chiến dịch → không vào mẫu.
+        var open = Reviewed("s1", 5);
+        open.ReviewData!.OpenQuantity = 500m;
+        var closed = Reviewed("s1", 1);
+        closed.ReviewData!.OpenQuantity = 0m;           // review mới đã đóng hết
+        var legacy = Reviewed("s1", 3);                 // review cũ: OpenQuantity null → giữ nguyên
+        Setup(new[] { open, closed, legacy }, ("s1", "Breakout"));
+
+        var result = await Sut().Handle(new GetStrategyExpectancyQuery { UserId = "u1" }, CancellationToken.None);
+
+        result.Total.N.Should().Be(2);
+        result.Total.ExpectancyR.Should().Be(2m);       // (1 + 3) / 2, không có 5
+    }
+
+    [Fact]
     public async Task sell_plan_with_a_stored_realized_r_is_still_excluded()
     {
         // RMath không tính được R cho lệnh bán, nhưng một review đã LƯU RealizedR thì RMath trả luôn giá trị đó.

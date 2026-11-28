@@ -173,7 +173,7 @@ Tách hai mốc vì sửa nhánh kịch bản không đặt lại giá nhập �
 
 **Nhánh kịch bản — hai trường quyết định là bắt buộc (2026-08-11, ADR-0015).** `ScenarioNode.ActionType` và `ConditionType` không có giá trị mặc định: gửi thiếu là lỗi, không phải âm thầm thành `SellPercent`/`PriceAbove`. `TrailingStopConfig.Method` bỏ trống hoặc `null` thì về `Percentage` — đơn vị đo được phép có mặc định, hành động thì không. Gửi `scenarioNodes` khi `ExitStrategyMode` hiệu dụng vẫn là `Simple` cũng là lỗi (`SetScenarioNodes` từ chối), không còn bị handler lọc bỏ im lặng rồi trả `ok`. Lưu ý `ExitTarget.ActionType` (`TakeProfit`/`CutLoss`/`TrailingStop`/`PartialExit`) là **tập giá trị khác** với `ScenarioNode.ActionType` dù trùng tên trường.
 
-**CampaignReviewData (P0.7):** Value object embedded trong TradePlan khi chuyển sang Reviewed — chứa auto-calculated metrics: P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons learned
+**CampaignReviewData (P0.7):** Value object embedded trong TradePlan khi chuyển sang Reviewed — chứa auto-calculated metrics: P&L amount, P&L %, VND/ngày, annualized return, target achievement %, lessons learned. **Chỉ tính phần đã chốt (2026-11-28):** P&L = lãi/lỗ bình quân gia quyền của số đã bán (`PositionBuilder`, có sự kiện quyền) + `DividendIncome` (cổ tức tiền mặt theo quyền hưởng của riêng plan); `RealizedCost` = giá vốn phần đã bán (mẫu số P&L%); `OpenQuantity` = số CP còn giữ sau điều chỉnh (null = review cũ). `OpenQuantity > 0` ⇒ loại khỏi kỳ vọng R, độ khớp ước lượng, Kelly (`RMath.ClosedRealizedR`)
 
 **Thesis-driven discipline (Vin-discipline, 2026-04-23):** Plan-level fields ép kỷ luật "tại sao mua / sai ở đâu thì bán / giữ bao lâu" theo triết lý Vinpearl Air 2020 (dám dừng khi thesis bị phá vỡ).
 
@@ -548,7 +548,7 @@ Chỉ hành động **ký** (`Confirm()`, qua `POST /company-dossiers/{symbol}/c
 3. **Symbol uppercase**: Luôn normalize thành uppercase (VNM, FPT, VCB)
 4. **CAGR đơn nguồn**: Headline Cockpit lấy household CAGR từ `/analytics/household/performance` — không weighted-average từ per-portfolio (sai về cấu trúc cho returns nhân tính), không lấy `portfolios[0]` (lừa user khi danh mục lớn không phải đầu list).
 5b. **Kịch bản kết quả và cổng kỳ vọng (2026-11-24)**: kế hoạch Mua có thể có bảng `OutcomeScenarios`; EV tính khi đọc/khi cổng chạy (R ròng đã trừ phí ước tính), `Estimate` chụp khi rời Draft và khoá ở lần khớp đầu. Chuyển Ready tường minh với EV ≤ 0 hoặc chưa ước lượng cần `evGateReason` (≥ 10 ký tự) → 400 `EV_GATE_REASON_REQUIRED`; ghi lại lệnh đã khớp không bị chặn nhưng đặt `EvGateSkipped`.
-5a. **1R cố định (2026-11-24)**: kế hoạch Mua có `InitialRisk` (|Entry − SL| × số lượng dự tính), chụp khi rời Draft, khoá ở lần khớp đầu, xoá khi Restore; SL dời sau đó không đổi 1R. `RealizedR` = PnL ròng / 1R; thắng R > +0,1, thua R < −0,1, còn lại hoà; kỳ vọng R gồm cả hoà. R tính khi đọc (review cũ, R:R hiệu lực) không bao giờ ghi vào entity.
+5a. **1R cố định (2026-11-24)**: kế hoạch Mua có `InitialRisk` (|Entry − SL| × số lượng dự tính), chụp khi rời Draft, khoá ở lần khớp đầu, xoá khi Restore; SL dời sau đó không đổi 1R. `RealizedR` = PnL ròng đã chốt / (1R × số đã bán ÷ tổng số lượng đã điều chỉnh); thắng R > +0,1, thua R < −0,1, còn lại hoà; kỳ vọng R gồm cả hoà. R tính khi đọc (review cũ, R:R hiệu lực) không bao giờ ghi vào entity.
 5. **Position size ≤ 100%**: Mẫu số dùng `Math.Max(netWorth, totalMarketValue)`
 6. **Soft delete**: Entities dùng `isDeleted` flag, không xóa vĩnh viễn
 7. **Tiền tệ**: Mặc định VND, format bằng `VndCurrencyPipe`

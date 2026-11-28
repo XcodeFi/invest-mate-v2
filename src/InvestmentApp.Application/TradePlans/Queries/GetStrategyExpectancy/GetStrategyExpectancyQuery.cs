@@ -67,7 +67,7 @@ public class GetStrategyExpectancyQueryHandler : IRequestHandler<GetStrategyExpe
                         && !p.IsDeleted
                         && p.Status == TradePlanStatus.Reviewed
                         && string.Equals(p.Direction, "Buy", StringComparison.OrdinalIgnoreCase))
-            .Select(p => (Plan: p, R: RMath.ResolveRealizedR(p).R))
+            .Select(p => (Plan: p, R: RMath.ClosedRealizedR(p)))
             .Where(x => x.R.HasValue)
             .Select(x => (x.Plan.StrategyId, R: x.R!.Value))
             .ToList();

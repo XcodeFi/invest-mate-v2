@@ -9,6 +9,7 @@ import { RiskService, RiskProfile, PortfolioRiskSummary, PositionSizingRequest, 
 import { MarketDataService, StockPrice, TechnicalAnalysis } from '../../core/services/market-data.service';
 import { TradePlanTemplateService, TradePlanTemplate } from '../../core/services/trade-plan-template.service';
 import { EstimateVsActualComponent } from './estimate-vs-actual/estimate-vs-actual.component';
+import { ReviewOpenWarningComponent } from './review-open-warning/review-open-warning.component';
 import { PlanExpectationComponent } from './plan-expectation/plan-expectation.component';
 import { ScenarioRow, scenariosPayload } from './plan-expectation/expectation-math';
 import { TradePlanService, TradePlan as TradePlanDto, ScenarioNodeDto, ScenarioPreset, TrailingStopConfigDto, ScenarioHistoryDto, ScenarioSuggestionDto, SuggestedNodeDto, ScenarioAdvisoryDto, CampaignReviewDto, InvalidationTrigger, PlanExpectationDto, EstimateDto } from '../../core/services/trade-plan.service';
@@ -111,7 +112,7 @@ interface DossierGateError {
 @Component({
   selector: 'app-trade-plan',
   standalone: true,
-  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent, PlanExpectationComponent, EstimateVsActualComponent],
+  imports: [SymbolLinkDirective, CommonModule, FormsModule, RouterModule, VndCurrencyPipe, NumMaskDirective, UppercaseDirective, AiChatPanelComponent, MoveStopLossModalComponent, PlanExpectationComponent, EstimateVsActualComponent, ReviewOpenWarningComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <div class="flex justify-between items-center mb-6">
@@ -1908,6 +1909,8 @@ interface DossierGateError {
         <div *ngIf="loadingReviewPreview" class="text-center py-4 text-gray-500">Đang tính toán...</div>
 
         <div *ngIf="!loadingReviewPreview && reviewPreview">
+          <app-review-open-warning class="block mb-4"
+            [openQuantity]="reviewPreview.openQuantity" [dividendIncome]="reviewPreview.dividendIncome"></app-review-open-warning>
           <!-- Preview metrics -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
             <div class="bg-white rounded-lg p-3 text-center">
@@ -1992,6 +1995,8 @@ interface DossierGateError {
       <!-- Review Data Display for loaded Reviewed plan -->
       <div *ngIf="selectedPlanId && selectedPlanStatus === 'Reviewed' && loadedReviewData" class="mt-6 bg-violet-50 border border-violet-200 rounded-lg shadow p-6">
         <h2 class="text-lg font-semibold text-violet-800 mb-4">Kết quả chiến dịch</h2>
+        <app-review-open-warning class="block mb-4"
+          [openQuantity]="loadedReviewData.openQuantity" [dividendIncome]="loadedReviewData.dividendIncome"></app-review-open-warning>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
           <div class="bg-white rounded-lg p-3 text-center">
             <div class="text-xs text-gray-500 mb-1">P&L</div>

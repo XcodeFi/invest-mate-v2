@@ -82,12 +82,14 @@ public static class RMath
     /// <see cref="TradePlan.InitialRisk"/>, không có (kế hoạch cũ) thì <see cref="EstimateLegacy"/>. Có lot chưa bao giờ khớp thì
     /// cờ cơ sở là <see cref="RiskBasisPartialFill"/>: 1R vẫn theo khối lượng dự tính, không tự co lại.
     /// </summary>
-    public static RealizedRResult ResolveRealizedR(TradePlan plan, decimal pnl)
+    public static RealizedRResult ResolveRealizedR(TradePlan plan, decimal pnl, decimal riskFraction = 1m)
     {
         var risk = plan.InitialRisk ?? EstimateLegacy(plan);
         if (risk == null) return new RealizedRResult(null, null);
 
-        var r = RealizedR(pnl, risk.RiskAmount);
+        // Review phần đã chốt: PnL chỉ của phần đã bán thì 1R cũng chỉ của phần đó
+        // (= RiskAmount × số đã bán ÷ tổng số lượng đã điều chỉnh theo sự kiện quyền).
+        var r = RealizedR(pnl, risk.RiskAmount * riskFraction);
         if (r == null) return new RealizedRResult(null, null);
 
         var basis = risk.RiskBasis == RiskBasisPlanned && plan.Lots?.Any(l => l.Status == PlanLotStatus.Pending) == true
@@ -107,6 +109,14 @@ public static class RMath
         if (review.RealizedR != null) return new RealizedRResult(review.RealizedR, review.RiskBasis);
         return ResolveRealizedR(plan, review.PnLAmount);
     }
+
+    /// <summary>
+    /// R thực tế dùng cho THỐNG KÊ (kỳ vọng, độ khớp ước lượng, Kelly): null nếu review còn cổ phiếu chưa bán
+    /// (<see cref="CampaignReviewData.OpenQuantity"/> &gt; 0), vì chiến dịch chưa đóng hết thì kết quả chưa phải của cả chiến dịch.
+    /// Review cũ (OpenQuantity null) giữ nguyên hành vi.
+    /// </summary>
+    public static decimal? ClosedRealizedR(TradePlan plan)
+        => plan.ReviewData?.OpenQuantity is > 0m ? null : ResolveRealizedR(plan).R;
 
     /// <summary>PnL ròng / số tiền rủi ro ban đầu. Null nếu không có rủi ro (không chia cho 0).</summary>
     public static decimal? RealizedR(decimal netPnL, decimal riskAmount)

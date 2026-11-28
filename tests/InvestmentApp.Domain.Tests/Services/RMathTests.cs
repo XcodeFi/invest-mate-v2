@@ -216,6 +216,32 @@ public class RMathTests
     }
 
     [Fact]
+    public void ResolveForReview_scales_one_r_by_the_sold_fraction()
+    {
+        var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);   // 1R = 1.000
+        plan.MarkReady();
+
+        // Đã bán 40% → 1R của phần đã chốt = 400; lãi 600 = 1,5R (không phải 0,6R)
+        RMath.ResolveRealizedR(plan, pnl: 600m, riskFraction: 0.4m).R.Should().Be(1.5m);
+        RMath.ResolveRealizedR(plan, pnl: 600m, riskFraction: 0m).R.Should().BeNull("chưa bán gì thì không có 1R");
+    }
+
+    [Fact]
+    public void ClosedRealizedR_is_null_only_while_shares_remain_open()
+    {
+        var open = NewPlan(entry: 100m, stop: 90m, quantity: 100);
+        open.MarkReady(); open.MarkInProgress(); open.Execute("t1");
+        open.MarkReviewed(new CampaignReviewData { PnLAmount = 500m, RealizedR = 0.5m, RiskBasis = "chot-ke-hoach", OpenQuantity = 10m });
+        var closed = NewPlan(entry: 100m, stop: 90m, quantity: 100);
+        closed.MarkReady(); closed.MarkInProgress(); closed.Execute("t1");
+        closed.MarkReviewed(new CampaignReviewData { PnLAmount = 500m, RealizedR = 0.5m, RiskBasis = "chot-ke-hoach", OpenQuantity = 0m });
+
+        RMath.ClosedRealizedR(open).Should().BeNull();
+        RMath.ClosedRealizedR(closed).Should().Be(0.5m);
+        RMath.ResolveRealizedR(open).R.Should().Be(0.5m, "hiển thị trên kế hoạch vẫn thấy R của phần đã chốt");
+    }
+
+    [Fact]
     public void ResolveForReview_uses_legacy_estimate_and_marks_basis()
     {
         var plan = NewPlan(entry: 100m, stop: 90m, quantity: 100);   // chưa qua MarkReady: không có ảnh chụp
