@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-28
-- **Related plan:** `group_indication-signals-s1-plan.md` (S1, lean form after the count tool)
+- **Related plan:** (none in the repo; this ADR is the record of the S1 design and of the decision to ship it in a lean form after measuring the sample size)
 - **Affected layers:** Infrastructure / Application / Api / Frontend
 
 ## Context
@@ -56,6 +56,6 @@ Win/loss and expectancy are reported only with at least 30 completed trades: win
 
 ## References
 
-- Plan: `group_indication-signals-s1-plan.md` and `group_indication-signals-design.md` (handoffs)
+- Docs: `docs/business-domain.md` (rule 5d), `docs/features.md`, `docs/architecture.md` (IndicatorMath / Services/Signals), Help topic `phan-tich-thi-truong`
 - Code: `Services/Signals/` (`MarketRules`, `PullbackSetup`, `SetupBacktester`, `PullbackBacktest`, `SetupStatistics`, `ActiveSignal`, `SignalSetupService`); count tool `tests/.../Tools/SignalSetupCountTool.cs`
 - PR: fill in after merge

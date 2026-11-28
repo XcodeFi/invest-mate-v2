@@ -12,8 +12,11 @@ public class ActiveSignalTests
     private const int N = 200;
     private static readonly DateTime Day0 = new(2025, 1, 1);
 
+    // Open ≠ Close ở mọi nến (Open thấp hơn 50 đồng): ước tính vào lệnh theo Open thay vì Close thì test đỏ
     private static List<Bar> Bars() => Enumerable.Range(0, N)
-        .Select(i => new Bar(Day0.AddDays(i), 30_000m + i, 30_000m + i, 30_000m + i, 30_000m + i)).ToList();
+        .Select(i => new Bar(Day0.AddDays(i), 29_950m + i, 30_050m + i, 29_900m + i, 30_000m + i)).ToList();
+
+    private static readonly MarketRules Hose = MarketRules.For("HOSE");
 
     private static List<decimal?> Atr() => Enumerable.Repeat((decimal?)1_000m, N).ToList();
 
@@ -27,7 +30,7 @@ public class ActiveSignalTests
         => new(t, Day0.AddDays(t), null, null, null, null, null, null, null, null, true, "open-near-ceiling");
 
     private static ActivePlan? Find(int[] signals, params SimulatedTrade[] trades)
-        => ActiveSignal.Find(Bars(), Atr(), signals, trades);
+        => ActiveSignal.Find(Bars(), Atr(), signals, trades, Hose);
 
     [Fact]
     public void no_signal_in_the_last_three_sessions_means_nothing_is_active()
@@ -48,6 +51,20 @@ public class ActiveSignalTests
         plan.Target.Should().Be(34_199m, "vào + 2R, 1R = 2 × ATR");
         plan.DayInTrade.Should().BeNull();
         plan.SignalDate.Should().Be(Day0.AddDays(199));
+    }
+
+    [Theory]
+    [InlineData(1)]    // đóng ở trần
+    [InlineData(-1)]   // đóng ở sàn
+    public void a_signal_on_the_last_session_that_closed_at_the_limit_is_not_active(int direction)
+    {
+        // Cùng luật với mô phỏng: phiên tín hiệu đóng ở trần/sàn thì bỏ qua lệnh, nên không thể "đang kích hoạt" với vào lệnh ước tính
+        var bars = Bars();
+        var prev = bars[198].Close;
+        var limitClose = prev * (1 + direction * Hose.Limit);
+        bars[199] = new Bar(bars[199].Date, prev, Math.Max(prev, limitClose), Math.Min(prev, limitClose), limitClose);
+
+        ActiveSignal.Find(bars, Atr(), new[] { 199 }, Array.Empty<SimulatedTrade>(), Hose).Should().BeNull();
     }
 
     [Fact]
@@ -115,6 +132,6 @@ public class ActiveSignalTests
         var atr = Atr();
         atr[199] = null;
 
-        ActiveSignal.Find(Bars(), atr, new[] { 199 }, Array.Empty<SimulatedTrade>()).Should().BeNull();
+        ActiveSignal.Find(Bars(), atr, new[] { 199 }, Array.Empty<SimulatedTrade>(), Hose).Should().BeNull();
     }
 }

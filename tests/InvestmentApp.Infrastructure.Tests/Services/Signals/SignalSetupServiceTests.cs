@@ -252,6 +252,67 @@ public class SignalSetupServiceTests
         _prices.Verify(p => p.GetHistoricalPricesAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
+    // ───── bộ nhớ đệm không được ghim kết quả sai ─────
+
+    [Fact]
+    public async Task a_result_built_with_the_fallback_rules_after_a_failed_exchange_lookup_is_only_kept_for_a_few_minutes()
+    {
+        Prices(Series(745, Today.AddDays(-1)));
+        _info.SetupSequence(i => i.GetStockDetailAsync("FPT", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("boom"))
+            .ReturnsAsync(new StockDetailInfo { Symbol = "FPT", Exchange = "UPCOM" });
+
+        await Sut().GetSignalSetupsAsync("FPT");
+        await Sut(NowUtc.AddMinutes(2)).GetSignalSetupsAsync("FPT");   // trong vài phút: dùng lại, không dồn dập gọi nguồn
+        _prices.Verify(p => p.GetHistoricalPricesAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        await Sut(NowUtc.AddMinutes(6)).GetSignalSetupsAsync("FPT");   // quá hạn dự phòng: tra lại sàn, tính lại bằng luật đúng
+        _prices.Verify(p => p.GetHistoricalPricesAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _info.Verify(i => i.GetStockDetailAsync("FPT", It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task a_missing_exchange_in_the_detail_is_not_cached_for_the_day_either()
+    {
+        Prices(Series(745, Today.AddDays(-1)));
+        Exchange(null);
+
+        await Sut().GetSignalSetupsAsync("FPT");
+        await Sut(NowUtc.AddMinutes(6)).GetSignalSetupsAsync("FPT");
+
+        _prices.Verify(p => p.GetHistoricalPricesAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    // 09:00 giờ VN = 02:00Z; 14:00 VN = 07:00Z; 15:11 VN = 08:11Z; 16:00 VN = 09:00Z; 17:00 VN = 10:00Z
+    private static DateTimeOffset VnTime(int hour, int minute) => new DateTimeOffset(2026, 11, 30, hour, minute, 0, TimeSpan.Zero).AddHours(-7);
+
+    [Fact]
+    public async Task a_result_computed_before_the_close_does_not_survive_past_15_10_vn_time()
+    {
+        // Nguồn lấy lại chuỗi một lần sau giờ đóng cửa: kết quả tính lúc 09:00 sẽ thiếu phiên hôm nay nên không được phục vụ sau 15:10.
+        Prices(Series(745, Today.AddDays(-1)));
+        Exchange("HOSE");
+
+        await Sut(VnTime(9, 0)).GetSignalSetupsAsync("FPT");
+        await Sut(VnTime(14, 0)).GetSignalSetupsAsync("FPT");      // vẫn trước 15:10: dùng lại
+        _prices.Verify(p => p.GetHistoricalPricesAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        await Sut(VnTime(15, 11)).GetSignalSetupsAsync("FPT");     // qua 15:10: tính lại
+        _prices.Verify(p => p.GetHistoricalPricesAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task a_result_computed_after_15_10_is_kept_until_the_next_vn_day()
+    {
+        Prices(Series(745, Today.AddDays(-1)));
+        Exchange("HOSE");
+
+        await Sut(VnTime(16, 0)).GetSignalSetupsAsync("FPT");
+        await Sut(VnTime(17, 0)).GetSignalSetupsAsync("FPT");
+
+        _prices.Verify(p => p.GetHistoricalPricesAsync("FPT", It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ───── sàn ─────
 
     [Theory]

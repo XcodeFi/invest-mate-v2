@@ -320,7 +320,7 @@ Dưới biểu đồ và khối phân tích có khối **"Setup Pullback trên <
 **Khối này hiện gì?**
 - **Đang kích hoạt** (đứng đầu): tín hiệu trong 3 phiên gần nhất với vào lệnh, cắt lỗ, mục tiêu. Nếu chưa tới phiên vào lệnh, vào lệnh là **ước tính theo giá đóng cửa**; nếu lệnh mô phỏng đang mở thì ghi "đang mở, ngày thứ k".
 - Một dòng đếm: *"N tín hiệu, M lệnh hoàn tất trong 3 năm."*
-- **Tỉ lệ thắng và EV (R) chỉ hiện khi có từ 30 lệnh đã đóng.** Với một mã, trong 3 năm thường chỉ có khoảng 7–9 lệnh, nên đa số mã sẽ ghi *"Chưa đủ mẫu để thống kê riêng mã này (cần ≥ 30)"*. Hãy xem đó là số lần xuất hiện để tham khảo, không phải xác suất. Khi đủ 30 lệnh: tỉ lệ thắng kèm khoảng Wilson 95%, EV kèm khoảng tin cậy t 95%; thắng nghĩa là R ròng > 0.
+- **Tỉ lệ thắng và EV (R) chỉ hiện khi có từ 30 lệnh đã đóng.** Ở hai mã đã đo (VNM, FPT) chỉ có 9 và 7 lệnh trong 3 năm, nên nhiều mã sẽ ghi *"Chưa đủ mẫu để thống kê riêng mã này (cần ≥ 30)"*. Hãy xem đó là số lần xuất hiện để tham khảo, không phải xác suất. Khi đủ 30 lệnh: tỉ lệ thắng kèm khoảng Wilson 95%, EV kèm khoảng tin cậy t 95%; thắng nghĩa là R ròng > 0.
 - Hệ thống **không liệt kê từng lệnh** để tránh nhìn vài kết quả rồi tự suy ra tỉ lệ thắng.
 - Mã chưa có đủ lịch sử giá **đã điều chỉnh** (dưới 250 phiên, có nến chưa điều chỉnh, hoặc nến cuối cũ hơn 10 ngày) thì chỉ hiện một dòng lý do và không có số liệu.
 

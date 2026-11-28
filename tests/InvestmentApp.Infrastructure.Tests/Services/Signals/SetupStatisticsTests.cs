@@ -54,8 +54,10 @@ public class SetupStatisticsTests
         // EV = (18×2 − 12)/30 = 0,8; sd mẫu = sqrt(Σ(x−0,8)²/29) = sqrt((18×1,44 + 12×3,24)/29) = sqrt(64,8/29) = 1,4949
         // nửa khoảng = t(0,975; 29) × sd/√30 = 2,0452 × 1,4949/5,4772 = 0,5582
         s.EvR.Should().BeApproximately(0.8m, 0.0001m);
-        s.EvRLow.Should().BeApproximately(0.8m - 0.5582m, 0.002m);
-        s.EvRHigh.Should().BeApproximately(0.8m + 0.5582m, 0.002m);
+        // Chặt để ghim đúng n − 1 = 29 bậc tự do: t(29) = 2,0452 so với t(30) = 2,0423 chỉ lệch ≈ 0,0008 ở nửa khoảng
+        var half = (decimal)(2.0452 * Math.Sqrt(64.8 / 29.0) / Math.Sqrt(30.0));
+        s.EvRLow.Should().BeApproximately(0.8m - half, 0.0002m);
+        s.EvRHigh.Should().BeApproximately(0.8m + half, 0.0002m);
     }
 
     [Fact]

@@ -15,7 +15,8 @@ public static class ActiveSignal
     /// Cắt lỗ = vào − 2 × ATR14(t); mục tiêu = vào + 2R.
     /// </summary>
     public static ActivePlan? Find(
-        IReadOnlyList<Bar> bars, IReadOnlyList<decimal?> atr, IReadOnlyList<int> signals, IReadOnlyList<SimulatedTrade> trades)
+        IReadOnlyList<Bar> bars, IReadOnlyList<decimal?> atr, IReadOnlyList<int> signals, IReadOnlyList<SimulatedTrade> trades,
+        MarketRules rules)
     {
         if (bars.Count == 0) return null;
         var last = bars.Count - 1;
@@ -34,6 +35,8 @@ public static class ActiveSignal
             if (t + 1 <= last) continue;                                   // có d0 mà không có lệnh = bị bỏ vì chồng lệnh
             if (trades.Any(x => !x.Skipped && x.SignalIndex < t && x.IsOpen)) continue;   // đang giữ lệnh khác
             if (atr[t] is not { } a || a <= 0m) continue;
+            // Cùng luật với mô phỏng: phiên tín hiệu đóng ở trần/sàn thì bỏ qua lệnh (Simulate không chạy tới đây vì chưa có d0)
+            if (t > 0 && rules.IsAtLimit(bars[t].Close, bars[t - 1].Close)) continue;
 
             var entry = bars[t].Close;
             var stop = entry - 2m * a;
