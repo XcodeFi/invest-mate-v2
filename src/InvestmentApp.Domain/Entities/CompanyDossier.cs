@@ -80,6 +80,12 @@ public class CompanyDossier : AggregateRoot
 
         var days = (utcNow.Add(VnOffset).Date - ReviewedAt.Add(VnOffset).Date).TotalDays;
 
+        return FreshnessForDays(days);
+    }
+
+    /// <summary>MỘT bản duy nhất của thang 90/180 ngày: dùng cho GetFreshness (tại hôm nay) và DescribeAtTrade (tại ngày lệnh).</summary>
+    private static DossierFreshness FreshnessForDays(double days)
+    {
         if (days >= ExpiresAfterDays) return DossierFreshness.Expired;
         if (days >= NeedsReviewAfterDays) return DossierFreshness.NeedsReview;
         return DossierFreshness.Fresh;
@@ -99,7 +105,12 @@ public class CompanyDossier : AggregateRoot
         if (tradeDay < signedDay) return new DossierAtTrade("resigned-after", null, ReviewedAt, null);
 
         var days = (int)(tradeDay - signedDay).TotalDays;
-        var freshness = days >= ExpiresAfterDays ? "expired" : days >= NeedsReviewAfterDays ? "needs-review" : "fresh";
+        var freshness = FreshnessForDays(days) switch
+        {
+            DossierFreshness.Expired => "expired",
+            DossierFreshness.NeedsReview => "needs-review",
+            _ => "fresh"
+        };
         return new DossierAtTrade("signed", days, null, freshness);
     }
 

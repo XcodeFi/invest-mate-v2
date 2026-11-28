@@ -127,4 +127,19 @@ public class CompanyDossierAtTradeTests
         d.DescribeAtTrade(VnTime(d, -1, 23, 30)).State.Should().Be("resigned-after");
         d.DescribeAtTrade(VnTime(d, 0, 0, 30)).State.Should().Be("signed");
     }
+
+    [Fact]
+    public void Vn_date_boundary_on_the_signature_side_signed_at_17_30_utc_is_the_next_vn_day()
+    {
+        // ký lúc 17:30 UTC ngày 19/11 = 00:30 giờ VN ngày 20/11: ngày VN của lần ký là 20/11, không phải ngày UTC 19/11
+        var d = Signed();
+        typeof(CompanyDossier).GetProperty(nameof(CompanyDossier.ReviewedAt))!.SetValue(d, new DateTime(2026, 11, 19, 17, 30, 0, DateTimeKind.Utc));
+
+        var sameVnDay = d.DescribeAtTrade(new DateTime(2026, 11, 20, 3, 0, 0, DateTimeKind.Utc));     // 10:00 VN ngày 20/11
+        var previousVnDay = d.DescribeAtTrade(new DateTime(2026, 11, 19, 16, 0, 0, DateTimeKind.Utc)); // 23:00 VN ngày 19/11
+
+        sameVnDay.State.Should().Be("signed");
+        sameVnDay.DaysSigned.Should().Be(0, "ngày UTC của lần ký sẽ cho 1 ngày");
+        previousVnDay.State.Should().Be("resigned-after", "ngày UTC của lần ký sẽ coi lệnh này là cùng ngày");
+    }
 }
