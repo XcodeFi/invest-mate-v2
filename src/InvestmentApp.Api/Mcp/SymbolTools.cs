@@ -10,7 +10,7 @@ namespace InvestmentApp.Api.Mcp;
 public static class SymbolTools
 {
     [McpServerTool(Name = "get_symbol_timeline", ReadOnly = true)]
-    [Description("Dòng thời gian sự kiện (trade/nhật ký) theo mã chứng khoán, trong khoảng from–to tùy chọn.")]
+    [Description("Dòng thời gian sự kiện (trade/nhật ký) theo mã chứng khoán, trong khoảng from–to tùy chọn. Mỗi mục trade có dossierAtTrade: hồ sơ công ty lúc đó (state unsigned|resigned-after|signed, daysSigned, resignedAt, freshness fresh|needs-review|expired; null nếu mã chưa có hồ sơ). Chỉ dựa vào lần ký HIỆN TẠI: lệnh trước lần ký đó chỉ báo resigned-after, không có phán quyết.")]
     public static async Task<SymbolTimelineDto> GetSymbolTimeline(
         [Description("Mã chứng khoán.")] string symbol,
         IMediator mediator, IHttpContextAccessor http, CancellationToken ct,

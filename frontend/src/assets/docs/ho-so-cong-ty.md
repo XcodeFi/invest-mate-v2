@@ -175,6 +175,17 @@ Bỏ tick ô **📋 Hồ sơ công ty** ở bộ lọc phía trên để ẩn c�
 
 ---
 
+### Huy hiệu "hồ sơ lúc đó" trên từng lệnh
+
+Mỗi giao dịch trên dòng thời gian có một huy hiệu cho biết hồ sơ công ty của mã đó **lúc bạn đặt lệnh** ra sao:
+
+- **✅ Hồ sơ ký N ngày trước lệnh** — hồ sơ còn tươi. Từ 90 ngày hiện thêm **⚠️ cần soát lại**, từ 180 ngày hiện **⛔ hết hạn** (cùng hai ngưỡng với mục "Hạn tươi của hồ sơ").
+- **🔁 Hồ sơ ký lại sau lệnh này (ngày/tháng)** — lệnh nằm trước lần ký hiện tại. Hệ thống không giữ lần ký trước nên **không đưa ra nhận xét** hồ sơ lúc đó tươi hay cũ.
+- **⚪ Hồ sơ chưa ký** — mã có hồ sơ nhưng chưa được ký.
+- Không có huy hiệu — mã chưa có hồ sơ.
+
+Số ngày tính theo ngày lịch giờ Việt Nam, từ lần ký hiện tại tới ngày lệnh.
+
 ## Điều cần biết
 
 - Kế hoạch **đang chạy** không bị soi lại dù hồ sơ liên quan hết hạn — chỉ kế hoạch **mới** hoặc kế hoạch sửa vượt ngưỡng 5% mới bị kiểm tra.
