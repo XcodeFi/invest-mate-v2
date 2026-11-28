@@ -17,6 +17,7 @@ const flat = (v: number): number[] => Array.from({ length: N }, () => v);
 // undefined = backend cũ chưa có trường; true/false/null như API
 let adjustedFlag: boolean | null | undefined;
 let adjustedAsOfFlag: string | null | undefined;
+let trendTemplate: unknown;
 
 const series = (): TechnicalSeries => ({
   ...(adjustedFlag === undefined ? {} : { adjusted: adjustedFlag }),
@@ -32,6 +33,7 @@ const analysis = (): TechnicalAnalysis => ({
   symbol: 'HPG', currentPrice: 100, supportLevels: [95], resistanceLevels: [105],
   suggestedEntry: 100, suggestedStopLoss: 95, suggestedTarget: 110, confluenceScore: 68.5,
   overallSignal: 'buy', overallSignalVi: 'MUA',
+  ...(trendTemplate ? { trendTemplate } : {}),
 } as unknown as TechnicalAnalysis);
 
 describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn', () => {
@@ -69,7 +71,7 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
   };
   const q = (id: string): HTMLElement | null => fixture.nativeElement.querySelector(`[data-testid="${id}"]`);
 
-  beforeEach(() => { adjustedFlag = undefined; adjustedAsOfFlag = undefined; try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
+  beforeEach(() => { adjustedFlag = undefined; adjustedAsOfFlag = undefined; trendTemplate = undefined; try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
   afterEach(() => { fixture?.destroy(); try { localStorage.removeItem('ta-guide-open'); } catch { /* bỏ qua */ } });
 
   it('no block when no group', () => {
@@ -92,6 +94,27 @@ describe('MarketDataComponent — khối "Cách đọc" của nhóm đang chọn
       fixture.detectChanges();
       expect(fixture.componentInstance.selectedGroup).toBeNull();
     } finally { localStorage.removeItem('ta-group-stars'); }
+  });
+
+  it('the Trend Template card shows under the Xu hướng group only, and only when the analysis carries it', () => {
+    trendTemplate = { sessions: 300, note: 'Đây là bộ lọc theo xu hướng, không phải tín hiệu mua.', criteria: [{ key: 'price_above_sma150', rule: 'Giá nằm trên SMA150', value: 5, unit: '%', threshold: 0, met: true }] };
+    setup();
+
+    click('dong-luong');
+    expect(q('tt-card')).toBeNull();
+    click('xu-huong');
+    expect(q('tt-card')).not.toBeNull();
+    expect(q('tt-card')!.textContent).toContain('Giá nằm trên SMA150');
+    click('xu-huong');
+    expect(q('tt-card')).toBeNull();
+  });
+
+  it('without a template in the analysis (older backend) there is no card under Xu hướng', () => {
+    setup();
+
+    click('xu-huong');
+
+    expect(q('tt-card')).toBeNull();
   });
 
   it('guide block shows for selected group with all its indicators', () => {

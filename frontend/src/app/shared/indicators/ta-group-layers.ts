@@ -40,6 +40,10 @@ const COLOR = {
   volumeSma: '#f59e0b',
   obv: '#2563eb',
   mfi: '#7c3aed',
+  donchianHigh20: '#ec4899',
+  donchianHigh55: '#a855f7',
+  exitLow10: '#f97316',
+  exitLow20: '#14b8a6',
 };
 
 /** Vạch tham chiếu dùng chung: trên ngưỡng trên là quá mua, dưới ngưỡng dưới là quá bán. */
@@ -143,6 +147,13 @@ export function buildGroupLayers(group: TaGroup | null, s: TechnicalSeries, a: T
     }
 
     case 'moc-gia': {
+      // Kênh Donchian (đỉnh/đáy các phiên TRƯỚC): backend cũ không gửi thì bỏ hẳn, không ghi chú.
+      out.overlays = keepWithData([
+        ...(s.donchian20High ? [{ label: 'Donchian: đỉnh 20 phiên', values: s.donchian20High, color: COLOR.donchianHigh20 }] : []),
+        ...(s.donchian55High ? [{ label: 'Donchian: đỉnh 55 phiên', values: s.donchian55High, color: COLOR.donchianHigh55 }] : []),
+        ...(s.exitLow10 ? [{ label: 'Thoát: đáy 10 phiên', values: s.exitLow10, color: COLOR.exitLow10 }] : []),
+        ...(s.donchian20Low ? [{ label: 'Thoát: đáy 20 phiên', values: s.donchian20Low, color: COLOR.exitLow20 }] : []),
+      ], out.notes);
       (a.supportLevels ?? []).forEach((price, i) => out.priceLines.push({ label: `Hỗ trợ ${i + 1}`, price }));
       (a.resistanceLevels ?? []).forEach((price, i) => out.priceLines.push({ label: `Kháng cự ${i + 1}`, price }));
       const fib = a.fibonacci;
@@ -157,6 +168,8 @@ export function buildGroupLayers(group: TaGroup | null, s: TechnicalSeries, a: T
           { label: 'Đáy swing', price: fib.swingLow },
         );
       }
+      if (a.week52High != null) out.priceLines.push({ label: 'Đỉnh 52 tuần', price: a.week52High });
+      if (a.week52Low != null) out.priceLines.push({ label: 'Đáy 52 tuần', price: a.week52Low });
       if (out.priceLines.length === 0) out.notes.push('Chưa có mốc giá');
       break;
     }

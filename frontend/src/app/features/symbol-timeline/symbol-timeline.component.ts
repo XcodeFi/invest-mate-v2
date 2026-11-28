@@ -8,7 +8,7 @@ import { Subject, Subscription, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
 import { JournalEntryService, SymbolTimeline, TimelineItem, CreateJournalEntryRequest } from '../../core/services/journal-entry.service';
 import { MarketEventService, CreateMarketEventRequest } from '../../core/services/market-event.service';
-import { MarketDataService, PatternCandidate, TechnicalAnalysis, TechnicalSeries } from '../../core/services/market-data.service';
+import { MarketDataService, PatternCandidate, TechnicalAnalysis, TechnicalSeries, TrendTemplate } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { VndCurrencyPipe } from '../../shared/pipes/vnd-currency.pipe';
 import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
@@ -18,6 +18,7 @@ import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker } from '../../
 import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
+import { TrendTemplateCardComponent } from '../../shared/components/trend-template-card/trend-template-card.component';
 import { PatternCardComponent } from '../../shared/patterns/pattern-card.component';
 import { withPattern } from '../../shared/patterns/pattern-layers';
 import { buildTrapMarkers } from '../../shared/patterns/trap-markers';
@@ -74,7 +75,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
   selector: 'app-symbol-timeline',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, ThesisCardComponent, VndCurrencyPipe, NumMaskDirective, AiChatPanelComponent,
-    IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent],
+    IndicatorChartComponent, IndicatorGroupBarComponent, IndicatorGuideComponent, SeriesAdjustedNotesComponent, PatternCardComponent, TrendTemplateCardComponent],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-6">
       <!-- Header -->
@@ -328,6 +329,7 @@ const EMOTIONS = ['Tự tin', 'Bình tĩnh', 'Hào hứng', 'Lo lắng', 'Sợ h
       <app-series-adjusted-notes [series]="series"></app-series-adjusted-notes>
       <div class="mb-6">
         <app-indicator-guide [group]="selectedGroup" [readNowLines]="readNowLines"></app-indicator-guide>
+        <app-trend-template-card *ngIf="selectedGroup === 'xu-huong'" [template]="trendTemplate"></app-trend-template-card>
         <app-pattern-card [candidate]="patternCandidate" [showOnChart]="showPattern" [chartReady]="!!series" (showOnChartChange)="setShowPattern($event)"></app-pattern-card>
       </div>
 
@@ -712,6 +714,8 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
   /** Số mốc bẫy đã xác nhận đang vẽ (để hiện chú giải). */
   trapCount = 0;
   get patternCandidate(): PatternCandidate | null { return this.analysis?.patternCandidates?.[0] ?? null; }
+  /** Thẻ Trend Template của phân tích hiện tại (mẫu của AOT chỉ đọc được thành viên công khai, nên bind qua getter, không bind thẳng vào analysis riêng tư). */
+  get trendTemplate(): TrendTemplate | null { return this.analysis?.trendTemplate ?? null; }
   setShowPattern(on: boolean): void {
     this.showPattern = on;
     this.refreshChart();

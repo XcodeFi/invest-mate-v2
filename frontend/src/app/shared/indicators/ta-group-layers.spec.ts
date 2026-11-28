@@ -139,6 +139,41 @@ describe('buildGroupLayers', () => {
     expect(l.panes).toEqual([]);
   });
 
+  it('moc-gia draws the Donchian channel (20 and 55 day highs, 10 and 20 day exit lows) when the series has it', () => {
+    const l = buildGroupLayers('moc-gia', series({
+      donchian20High: filled(), donchian55High: filled(), exitLow10: filled(), donchian20Low: filled(),
+    }), analysis());
+
+    expect(l.overlays.map(o => o.label)).toEqual(['Donchian: đỉnh 20 phiên', 'Donchian: đỉnh 55 phiên', 'Thoát: đáy 10 phiên', 'Thoát: đáy 20 phiên']);
+    expect(new Set(l.overlays.map(o => o.color)).size).toBe(4);
+  });
+
+  it('a Donchian line that is all null says "Không đủ dữ liệu" instead of drawing a flat line', () => {
+    const l = buildGroupLayers('moc-gia', series({
+      donchian20High: filled(), donchian55High: nulls(), exitLow10: filled(), donchian20Low: filled(),
+    }), analysis());
+
+    expect(l.overlays.map(o => o.label)).not.toContain('Donchian: đỉnh 55 phiên');
+    expect(l.notes).toContain('Donchian: đỉnh 55 phiên: Không đủ dữ liệu');
+  });
+
+  it('moc-gia with an old backend (no Donchian fields) draws no overlay and no note about it', () => {
+    const l = buildGroupLayers('moc-gia', series(), analysis());
+
+    expect(l.overlays).toEqual([]);
+    expect(l.notes.join(' ')).not.toContain('Donchian');
+  });
+
+  it('moc-gia adds the 52-week high and low as price lines only when the analysis has them', () => {
+    const withData = buildGroupLayers('moc-gia', series(), analysis({ week52High: 140, week52Low: 80 }));
+    expect(withData.priceLines.find(p => p.label === 'Đỉnh 52 tuần')!.price).toBe(140);
+    expect(withData.priceLines.find(p => p.label === 'Đáy 52 tuần')!.price).toBe(80);
+
+    const without = buildGroupLayers('moc-gia', series(), analysis());
+    expect(without.priceLines.map(p => p.label)).not.toContain('Đỉnh 52 tuần');
+    expect(without.priceLines.map(p => p.label)).not.toContain('Đáy 52 tuần');
+  });
+
   it('moc-gia without fibonacci → still draws supports and resistances', () => {
     const l = buildGroupLayers('moc-gia', series(), analysis({ fibonacci: undefined }));
     expect(l.priceLines.length).toBe(4);
