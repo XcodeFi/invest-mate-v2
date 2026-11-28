@@ -2,6 +2,15 @@
 
 ---
 
+## [v2.121.1] — 2026-11-28 · Sửa: tab trình duyệt hiện biểu tượng của ứng dụng
+
+### Sửa lỗi
+
+- Tab trình duyệt không có biểu tượng (hiện quả cầu mặc định) vì trang trỏ tới `favicon.ico` không tồn tại. Nay dùng biểu tượng ứng dụng sẵn có (`assets/icons/icon-128x128.svg`, kèm PNG dự phòng); SVG là vector thật, đọc rõ ở 16–32px trên cả thanh tab sáng và tối.
+- Bỏ khai báo tài nguyên `src/favicon.ico` (file không có) khỏi `angular.json`; thêm test kiểm mọi biểu tượng được khai báo đều tồn tại.
+
+---
+
 ## [v2.121.0] — 2026-11-28 · Số liệu doanh nghiệp thành biểu đồ, có mũi tên so với cùng kỳ
 
 ### Tính năng mới
