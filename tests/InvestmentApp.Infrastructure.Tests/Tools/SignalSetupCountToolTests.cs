@@ -22,6 +22,17 @@ public class SignalSetupCountToolTests
         }).ToList();
 
     [Fact]
+    public void count_ignores_a_bar_of_today_that_is_still_forming_before_1500_VN()
+    {
+        var prices = Prices("AAA", 700, 11);
+        var lastDate = prices[^1].Date;
+        var midday = new DateTimeOffset(lastDate.Year, lastDate.Month, lastDate.Day, 5, 0, 0, TimeSpan.Zero);   // 12:00 giờ VN
+
+        SignalSetupCountTool.Count("AAA", prices, MarketRules.For(null), midday).Bars.Should().Be(699);
+        SignalSetupCountTool.Count("AAA", prices, MarketRules.For(null), midday.AddHours(4)).Bars.Should().Be(700);   // 16:00 giờ VN
+    }
+
+    [Fact]
     public void count_matches_the_backtest_pipeline_for_one_symbol()
     {
         var prices = Prices("AAA", 700, 11);

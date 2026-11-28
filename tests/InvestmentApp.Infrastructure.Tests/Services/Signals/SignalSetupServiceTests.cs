@@ -364,4 +364,96 @@ public class SignalSetupServiceTests
         (await sut.ResolveRulesAsync("FPT", CancellationToken.None)).Limit.Should().Be(0.07m);
         (await sut.ResolveRulesAsync("FPT", CancellationToken.None)).Limit.Should().Be(0.15m);
     }
+
+    // ───── nến đang hình thành trong giờ giao dịch không phải phiên đã đóng ─────
+
+    private static readonly DateTimeOffset After1500Utc = new(2026, 11, 30, 8, 30, 0, TimeSpan.Zero);   // 15:30 giờ VN
+
+    /// <summary>Số nến n sao cho tín hiệu Pullback chỉ xuất hiện ở nến cuối (và không có tín hiệu nào ở 2 nến trước đó).</summary>
+    private static (int Seed, int Length) SignalOnlyOnLastBar()
+    {
+        for (var seed = 1; seed <= 300; seed++)
+        {
+            var full = PullbackBacktestTests.Synthetic(700, seed);
+            var signals = PullbackSetup.FindSignals(full, IndicatorSeries.Build(full));
+            foreach (var i in signals.Where(i => i >= 300 && !signals.Contains(i - 1) && !signals.Contains(i - 2)))
+            {
+                var bars = PullbackBacktestTests.Synthetic(i + 1, seed);
+                var s = IndicatorSeries.Build(bars);
+                if (PullbackSetup.FindSignals(bars, s).Contains(i)
+                    && ActiveSignal.Find(bars, s.Atr14, PullbackSetup.FindSignals(bars, s),
+                        SetupBacktester.Simulate(bars, PullbackSetup.FindSignals(bars, s), s.Atr14, MarketRules.For("HOSE")),
+                        MarketRules.For("HOSE")) != null)
+                    return (seed, i + 1);
+            }
+        }
+        throw new InvalidOperationException("Không tìm được chuỗi tổng hợp có tín hiệu chỉ ở nến cuối");
+    }
+
+    private List<StockPriceData> SeriesEndingWithTheSignal(DateTime lastDate)
+    {
+        var (seed, length) = SignalOnlyOnLastBar();
+        var bars = PullbackBacktestTests.Synthetic(length, seed);
+        var shift = lastDate.Date - bars[^1].Date;
+        return bars.Select(b => new StockPriceData
+        {
+            Symbol = "FPT", Date = b.Date + shift, Open = b.Open, High = b.High, Low = b.Low, Close = b.Close, Volume = 1000,
+            IsAdjusted = true, AdjustedAsOf = lastDate.Date
+        }).ToList();
+    }
+
+    [Fact]
+    public async Task signal_only_on_partial_bar_is_not_active_before_1500()
+    {
+        Prices(SeriesEndingWithTheSignal(Today));   // nến cuối là hôm nay, 12:00 giờ VN: còn đang hình thành
+        Exchange("HOSE");
+
+        var dto = await Sut().GetSignalSetupsAsync("FPT");
+
+        dto.Setups.Should().ContainSingle();
+        dto.Setups[0].ActivePlan.Should().BeNull();
+        dto.Setups[0].ActiveSince.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task same_bar_counts_after_1500()
+    {
+        Prices(SeriesEndingWithTheSignal(Today));
+        Exchange("HOSE");
+
+        var dto = await Sut(After1500Utc).GetSignalSetupsAsync("FPT");
+
+        dto.Setups[0].ActivePlan.Should().NotBeNull();
+        dto.Setups[0].ActivePlan!.SignalDate.Should().Be(Today);
+        dto.Setups[0].ActivePlan!.EntryIsEstimate.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task non_today_last_bar_unaffected()
+    {
+        Prices(SeriesEndingWithTheSignal(Today.AddDays(-1)));   // nến cuối là hôm qua: là phiên đã đóng dù bây giờ là 12:00
+        Exchange("HOSE");
+
+        var dto = await Sut().GetSignalSetupsAsync("FPT");
+
+        dto.Setups[0].ActivePlan.Should().NotBeNull();
+        dto.Setups[0].ActivePlan!.SignalDate.Should().Be(Today.AddDays(-1));
+    }
+
+    [Fact]
+    public async Task the_forming_bar_is_also_left_out_of_the_history_statistics()
+    {
+        var full = Series(700, Today);
+        Prices(full);
+        Exchange("HOSE");
+        var withBar = await Sut().GetSignalSetupsAsync("FPT");
+
+        var trimmed = full.Take(699).ToList();
+        _prices.Reset();
+        Prices(trimmed);
+        var withoutBar = await new SignalSetupService(_prices.Object, _info.Object, new MemoryCache(new MemoryCacheOptions()), new FixedTime(After1500Utc)).GetSignalSetupsAsync("FPT");
+
+        withBar.Setups[0].Signals.Should().Be(withoutBar.Setups[0].Signals);
+        withBar.Setups[0].Completed.Should().Be(withoutBar.Setups[0].Completed);
+    }
 }

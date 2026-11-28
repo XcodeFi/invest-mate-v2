@@ -25,9 +25,11 @@ internal static class SignalSetupCountTool
         public bool Short => Bars < MinBars;
     }
 
-    public static Row Count(string symbol, IReadOnlyList<StockPriceData> prices, MarketRules rules)
+    public static Row Count(string symbol, IReadOnlyList<StockPriceData> prices, MarketRules rules, DateTimeOffset? now = null)
     {
-        var bars = prices.OrderBy(p => p.Date).Select(p => new Bar(p.Date, p.Open, p.High, p.Low, p.Close)).ToList();
+        // Cùng quy tắc với dịch vụ: nến của hôm nay còn đang hình thành (trước 15:00 giờ VN) không tính
+        var sorted = FormingBar.DropIfForming(prices.OrderBy(p => p.Date).ToList(), p => p.Date, now ?? DateTimeOffset.UtcNow);
+        var bars = sorted.Select(p => new Bar(p.Date, p.Open, p.High, p.Low, p.Close)).ToList();
         var result = PullbackBacktest.Run(bars, rules);
         var s = result.Summary;
         return new Row(symbol, bars.Count, bars.Count > 0 ? bars[^1].Date : null, result.Signals.Count, s.Completed, s.Skipped, s.Open);
