@@ -228,6 +228,7 @@ builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IPriceSnapshotJobService, PriceSnapshotJobService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
+builder.Services.AddScoped<ISignalBaseRateService, SignalBaseRateService>();   // tỉ lệ nền VN30 gộp từ chuỗi giá đã lưu (S3)
 builder.Services.AddScoped<ISignalSetupService, SignalSetupService>();   // setup Pullback + lịch sử trên từng mã (S1)
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBehavioralAnalysisService, BehavioralAnalysisService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IScenarioConsultantService, ScenarioConsultantService>();

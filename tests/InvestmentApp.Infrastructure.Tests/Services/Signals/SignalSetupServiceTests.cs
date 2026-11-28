@@ -458,4 +458,76 @@ public class SignalSetupServiceTests
         beforeClose.Signals.Should().Be(closedOnly.Signals, "nến đang hình thành không được tính vào thống kê");
         afterClose.Signals.Should().Be(closedOnly.Signals + 1, "từ 15:00 nến cuối là phiên đã đóng và tín hiệu của nó được tính");
     }
+
+    // ───── tỉ lệ nền VN30 ─────
+
+    private readonly Mock<ISignalBaseRateService> _baseRate = new();
+
+    private SignalSetupService SutWithBaseRate()
+        => new(_prices.Object, _info.Object, _cache, new FixedTime(NowUtc), null, _baseRate.Object);
+
+    private static SignalBaseRateDto SampleBaseRate() => new() { K = 28, N = 400, EffectiveMonths = 34, WinRate = 0.42m, EvR = 0.1m };
+
+    private void PricesFor(string symbol)
+    {
+        var bars = Series(700, Today.AddDays(-1));
+        foreach (var b in bars) b.Symbol = symbol;
+        _prices.Setup(p => p.GetHistoricalPricesAsync(symbol, It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(bars);
+        _info.Setup(i => i.GetStockDetailAsync(symbol, It.IsAny<CancellationToken>())).ReturnsAsync(new StockDetailInfo { Symbol = symbol, Exchange = "HOSE" });
+    }
+
+    [Fact]
+    public async Task a_vn30_member_gets_the_pooled_base_rate()
+    {
+        Prices(Series(700, Today.AddDays(-1)));
+        Exchange("HOSE");
+        _baseRate.Setup(b => b.GetPullbackBaseRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new SignalBaseRateResult(SampleBaseRate(), null));
+
+        var setup = (await SutWithBaseRate().GetSignalSetupsAsync("FPT")).Setups.Single();
+
+        setup.BaseRate.Should().NotBeNull();
+        setup.BaseRate!.K.Should().Be(28);
+        setup.BaseRateReason.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task non_vn30_symbol_has_null_base_rate_with_reason()
+    {
+        PricesFor("HHV");
+
+        var setup = (await SutWithBaseRate().GetSignalSetupsAsync("HHV")).Setups.Single();
+
+        setup.BaseRate.Should().BeNull();
+        setup.BaseRateReason.Should().Be("Chỉ có cho mã thuộc VN30");
+        _baseRate.Verify(b => b.GetPullbackBaseRateAsync(It.IsAny<CancellationToken>()), Times.Never, "mã ngoài VN30 không cần tính tỉ lệ nền");
+    }
+
+    [Fact]
+    public async Task a_vn30_member_with_an_insufficient_basket_gets_the_reason_instead()
+    {
+        Prices(Series(700, Today.AddDays(-1)));
+        Exchange("HOSE");
+        _baseRate.Setup(b => b.GetPullbackBaseRateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SignalBaseRateResult(null, "Chưa đủ mã VN30 có dữ liệu (7/30, cần từ 15)"));
+
+        var setup = (await SutWithBaseRate().GetSignalSetupsAsync("FPT")).Setups.Single();
+
+        setup.BaseRate.Should().BeNull();
+        setup.BaseRateReason.Should().Contain("7/30");
+    }
+
+    [Fact]
+    public async Task a_failing_base_rate_does_not_take_the_symbols_own_statistics_down()
+    {
+        Prices(Series(700, Today.AddDays(-1)));
+        Exchange("HOSE");
+        _baseRate.Setup(b => b.GetPullbackBaseRateAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("mongo hỏng"));
+
+        var dto = await SutWithBaseRate().GetSignalSetupsAsync("FPT");
+
+        dto.Setups.Should().ContainSingle();
+        dto.Setups[0].Signals.Should().BeGreaterThan(0);
+        dto.Setups[0].BaseRate.Should().BeNull();
+        dto.Setups[0].BaseRateReason.Should().Be("Chưa tính được tỉ lệ nền VN30");
+    }
 }

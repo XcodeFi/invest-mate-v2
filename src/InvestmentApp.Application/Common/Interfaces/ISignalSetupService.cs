@@ -57,6 +57,12 @@ public class SignalSetupDto
     public decimal? AvgWinR { get; set; }
     public decimal? AvgLossR { get; set; }
 
+    /// <summary>Tỉ lệ nền của setup này trên rổ VN30 (chỉ cho mã thuộc VN30, và chỉ khi đủ dữ liệu). KHÔNG phải bằng chứng riêng của mã.</summary>
+    public SignalBaseRateDto? BaseRate { get; set; }
+
+    /// <summary>Có giá trị khi <see cref="BaseRate"/> vắng: mã không thuộc VN30, hoặc chưa đủ mã/lệnh/tháng trong rổ.</summary>
+    public string? BaseRateReason { get; set; }
+
     /// <summary>Ngày tín hiệu đang kích hoạt (3 phiên cuối); null nếu không có.</summary>
     public DateTime? ActiveSince { get; set; }
     public SignalActivePlanDto? ActivePlan { get; set; }
@@ -74,4 +80,43 @@ public class SignalActivePlanDto
     public string Status { get; set; } = null!;
     /// <summary>Khi "dang-mo": ngày thứ mấy kể từ phiên vào lệnh (d0 là ngày 1).</summary>
     public int? DayInTrade { get; set; }
+}
+
+/// <summary>
+/// Tỉ lệ nền gộp của setup trên rổ VN30 hiện tại. Khoảng 95% là XẤP XỈ (bootstrap theo khối tháng, tỉ lệ thắng và R trung bình tính trên mọi lệnh
+/// của các tháng được chọn), không phải khoảng Wilson trên các lệnh coi như độc lập.
+/// </summary>
+public class SignalBaseRateDto
+{
+    public const string DefaultLabel = "Tỉ lệ nền VN30";
+
+    public string Label { get; set; } = DefaultLabel;
+
+    /// <summary>Số mã dùng được (đủ nến đã điều chỉnh, còn mới).</summary>
+    public int K { get; set; }
+    /// <summary>Số lệnh đã đóng được gộp.</summary>
+    public int N { get; set; }
+    /// <summary>Số tháng có ít nhất một lệnh.</summary>
+    public int EffectiveMonths { get; set; }
+
+    public decimal WinRate { get; set; }
+    public decimal WinRateLow { get; set; }
+    public decimal WinRateHigh { get; set; }
+    public decimal EvR { get; set; }
+    public decimal EvRLow { get; set; }
+    public decimal EvRHigh { get; set; }
+
+    /// <summary>Ngày của nến mới nhất trong số liệu.</summary>
+    public DateTime AsOf { get; set; }
+
+    /// <summary>Lưu ý bắt buộc: khoảng xấp xỉ, đây là tỉ lệ của rổ chứ không phải của mã, thiên lệch người sống sót.</summary>
+    public List<string> Notes { get; set; } = new();
+}
+
+public sealed record SignalBaseRateResult(SignalBaseRateDto? BaseRate, string? Reason);
+
+/// <summary>Tỉ lệ nền của setup Pullback trên rổ VN30, gộp từ chuỗi giá đã điều chỉnh đã lưu. Không gọi nguồn giá.</summary>
+public interface ISignalBaseRateService
+{
+    Task<SignalBaseRateResult> GetPullbackBaseRateAsync(CancellationToken cancellationToken = default);
 }

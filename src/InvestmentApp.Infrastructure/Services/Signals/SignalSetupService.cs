@@ -1,4 +1,5 @@
 using InvestmentApp.Application.Interfaces;
+using InvestmentApp.Domain.Constants;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -25,16 +26,18 @@ public class SignalSetupService : ISignalSetupService
     private readonly IMemoryCache _cache;
     private readonly TimeProvider _time;
     private readonly ILogger<SignalSetupService>? _logger;
+    private readonly ISignalBaseRateService? _baseRate;
 
     public SignalSetupService(
         IMarketDataProvider prices, IStockInfoProvider info, IMemoryCache cache,
-        TimeProvider? timeProvider = null, ILogger<SignalSetupService>? logger = null)
+        TimeProvider? timeProvider = null, ILogger<SignalSetupService>? logger = null, ISignalBaseRateService? baseRate = null)
     {
         _prices = prices;
         _info = info;
         _cache = cache;
         _time = timeProvider ?? TimeProvider.System;
         _logger = logger;
+        _baseRate = baseRate;
     }
 
     private DateTime VietnamToday => (_time.GetUtcNow() + VietnamOffset).Date;
@@ -69,7 +72,9 @@ public class SignalSetupService : ISignalSetupService
 
         var (rules, exchangeKnown) = await ResolveRulesWithCertaintyAsync(symbol, cancellationToken);
         var series = bars.Select(b => new Bar(b.Date, b.Open, b.High, b.Low, b.Close)).ToList();
-        dto.Setups.Add(BuildPullback(series, rules));
+        var pullback = BuildPullback(series, rules);
+        await AttachBaseRateAsync(pullback, symbol, cancellationToken);
+        dto.Setups.Add(pullback);
         dto.Notes.AddRange(Notes);
 
         // Không ghim cả ngày một kết quả tính bằng luật dự phòng 7% khi chưa biết sàn (HNX/UPCOM sẽ giữ số sai tới hết ngày): giữ vài phút.
@@ -77,6 +82,36 @@ public class SignalSetupService : ISignalSetupService
         var until = exchangeKnown ? GoodUntil() : _time.GetUtcNow().AddMinutes(FallbackCacheMinutes);
         _cache.Set(key, new CachedSetups(dto, until), until.AddDays(1));
         return dto;
+    }
+
+    public const string NotVn30Reason = "Chỉ có cho mã thuộc VN30";
+    public const string BaseRateErrorReason = "Chưa tính được tỉ lệ nền VN30";
+
+    /// <summary>Chỉ mã thuộc VN30 có tỉ lệ nền. Lỗi khi tính tỉ lệ nền không được làm mất số liệu của chính mã.</summary>
+    private async Task AttachBaseRateAsync(SignalSetupDto setup, string symbol, CancellationToken cancellationToken)
+    {
+        if (!Vn30Basket.IsMember(symbol))
+        {
+            setup.BaseRateReason = NotVn30Reason;
+            return;
+        }
+        if (_baseRate == null) return;
+
+        try
+        {
+            var result = await _baseRate.GetPullbackBaseRateAsync(cancellationToken);
+            setup.BaseRate = result.BaseRate;
+            setup.BaseRateReason = result.BaseRate == null ? result.Reason : null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Base rate for {Symbol} failed; returning the symbol's own statistics without it", symbol);
+            setup.BaseRateReason = BaseRateErrorReason;
+        }
     }
 
     private const int FallbackCacheMinutes = 5;
