@@ -128,19 +128,134 @@ describe('DecisionQueueComponent', () => {
     expect(count.nativeElement.textContent.trim()).toBe('2');
   });
 
-  it('caps visible items at 5 and shows overflow link', () => {
-    const items = Array.from({ length: 8 }, (_, i) =>
-      mockItem({ id: `i${i}`, symbol: `SYM${i}` })
-    );
+  // -----------------------------------------------------------------
+  // Xem thêm: mở rộng ngay trong thẻ (không đi sang trang khác)
+  // -----------------------------------------------------------------
+  const eight = (over: (i: number) => Partial<DecisionItemDto> = () => ({})) =>
+    Array.from({ length: 8 }, (_, i) => mockItem({ id: `i${i}`, symbol: `SYM${i}`, ...over(i) }));
+  const cardsOf = () => fixture.debugElement.queryAll(By.css('[data-test="decision-item"]'));
+  const toggleBtn = () => fixture.debugElement.query(By.css('[data-test="overflow-link"] button'));
+  const clickToggle = () => { toggleBtn().nativeElement.click(); fixture.detectChanges(); };
+
+  it('collapsed by default: 5 of N items, count text and a "Xem thêm" button', () => {
+    const items = eight();
     setup({ items, totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
     fixture.detectChanges();
 
-    const cards = fixture.debugElement.queryAll(By.css('[data-test="decision-item"]'));
-    expect(cards.length).toBe(5);
-
+    expect(cardsOf().length).toBe(5);
     const overflow = fixture.debugElement.query(By.css('[data-test="overflow-link"]'));
-    expect(overflow).toBeTruthy();
     expect(overflow.nativeElement.textContent).toContain('5/8');
+    expect(toggleBtn().nativeElement.textContent.trim()).toBe('Xem thêm 3 ▾');
+    expect(toggleBtn().nativeElement.getAttribute('type')).toBe('button');
+    expect(toggleBtn().nativeElement.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('the toggle expands to all N items, says "Thu gọn", and no longer links to the risk dashboard', () => {
+    const items = eight();
+    setup({ items, totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    clickToggle();
+
+    expect(cardsOf().length).toBe(8);
+    expect(toggleBtn().nativeElement.textContent.trim()).toBe('Thu gọn ▴');
+    expect(toggleBtn().nativeElement.getAttribute('aria-expanded')).toBe('true');
+    expect(fixture.debugElement.query(By.css('[data-test="overflow-link"] a[routerLink="/risk-dashboard"]'))).toBeNull();
+    expect(fixture.debugElement.query(By.css('[data-test="overflow-link"] a'))).toBeNull();
+  });
+
+  it('toggling again collapses back to 5', () => {
+    const items = eight();
+    setup({ items, totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    clickToggle();
+    clickToggle();
+
+    expect(cardsOf().length).toBe(5);
+    expect(toggleBtn().nativeElement.textContent).toContain('Xem thêm 3');
+  });
+
+  it('when expanded the list scrolls inside the card (max 70vh) and the header stays', () => {
+    const items = eight();
+    setup({ items, totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    const list = () => fixture.debugElement.query(By.css('[data-test="decision-list"]')).nativeElement as HTMLElement;
+    expect(list().className).not.toContain('overflow-y-auto');
+    clickToggle();
+
+    expect(list().className).toContain('max-h-[70vh]');
+    expect(list().className).toContain('overflow-y-auto');
+    expect(fixture.debugElement.query(By.css('[data-test="decision-queue-count"]'))).toBeTruthy();
+  });
+
+  it('an item that was beyond the first 5 is fully actionable once expanded (BÁN and GIỮ)', () => {
+    const items = eight(i => ({ tradePlanId: `plan-${i}` }));
+    setup({ items, totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+    clickToggle();
+
+    const sixth = cardsOf()[5];
+    expect(sixth.nativeElement.textContent).toContain('SYM5');
+    expect(sixth.query(By.css('[data-test="btn-sell"]'))).toBeTruthy();
+    sixth.query(By.css('[data-test="btn-hold"]')).nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.expandedNoteFor).toBe('i5');
+  });
+
+  it('resolving an item while expanded keeps the list expanded', () => {
+    const items = eight(i => ({ tradePlanId: `plan-${i}` }));
+    setup({ items: [...items], totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    decisionSpy.resolve.and.returnValue(of({ resultId: 'j1', message: 'OK', resultType: 'JournalEntry' }));
+    fixture.detectChanges();
+    clickToggle();
+
+    component.expandNote(component.items[0]);
+    component.noteDraft = 'Giữ vì nền hỗ trợ vẫn còn nguyên, chưa vỡ';
+    component.submitHold(component.items[0]);
+    fixture.detectChanges();
+
+    expect(component.showAll).toBeTrue();
+    expect(cardsOf().length).toBe(7);
+    expect(toggleBtn().nativeElement.textContent).toContain('Thu gọn');
+  });
+
+  it('a queue refresh keeps the expanded state', () => {
+    const items = eight();
+    setup({ items, totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+    clickToggle();
+
+    (component as unknown as { loadQueue(): void }).loadQueue();
+    fixture.detectChanges();
+
+    expect(component.showAll).toBeTrue();
+    expect(cardsOf().length).toBe(8);
+  });
+
+  it('with 5 or fewer items there is no toggle at all', () => {
+    const items = Array.from({ length: 5 }, (_, i) => mockItem({ id: `j${i}`, symbol: `S${i}` }));
+    setup({ items, totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css('[data-test="overflow-link"]'))).toBeNull();
+    expect(cardsOf().length).toBe(5);
+  });
+
+  it('collapsing after the queue shrinks to 5 or fewer shows everything and no toggle', () => {
+    const items = eight();
+    setup({ items: [...items], totalCount: items.length }, { daysWithoutViolation: 0, hasData: false });
+    decisionSpy.resolve.and.returnValue(of({ resultId: 'j1', message: 'OK', resultType: 'JournalEntry' }));
+    fixture.detectChanges();
+    clickToggle();
+
+    component.items = component.items.slice(0, 4);
+    fixture.detectChanges();
+
+    expect(cardsOf().length).toBe(4);
+    expect(fixture.debugElement.query(By.css('[data-test="overflow-link"]'))).toBeNull();
   });
 
   it('renders Vietnamese labels for severity and type', () => {

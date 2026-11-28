@@ -2,6 +2,12 @@
 
 ---
 
+## [v2.117.1] — 2026-11-28 · Sửa: "Việc cần xử lý hôm nay" xem được đủ danh sách ngay trên Trang chủ
+
+### Sửa lỗi
+
+- **Bấm "Xem thêm" trong thẻ Việc cần xử lý hôm nay giờ mở đủ danh sách ngay trong thẻ** thay vì đưa sang trang Sức khoẻ rủi ro (trang đó chỉ liệt kê 5 lần chạm cắt lỗ gần nhất, nên các việc còn lại không hề hiện ra). Thẻ vẫn hiện 5 việc đầu khi thu gọn ("Hiển thị 5/8 · Xem thêm 3 ▾"); mở rộng thì cuộn trong thẻ (cao tối đa 70% màn hình, phần đầu thẻ giữ nguyên), mọi việc đều có đủ nút BÁN và GIỮ. Bấm **Thu gọn ▴** để về 5 việc. Xử lý xong một việc hay làm mới danh sách không làm thẻ tự thu lại; tải lại trang thì thu gọn.
+- Nút "Xử lý →" của từng việc không đổi.
 ## [v2.117.0] — 2026-11-28 · Dòng thời gian: thẻ "Luận điểm" cạnh biểu đồ
 
 ### Tính năng mới
