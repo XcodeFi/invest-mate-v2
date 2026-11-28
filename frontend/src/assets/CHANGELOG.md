@@ -2,6 +2,14 @@
 
 ---
 
+## [v2.108.1] — 2026-11-28 · Bảng giá nhanh: bấm gợi ý khi lần tải đầu chưa về
+
+### Sửa lỗi
+
+- **Bấm chip gợi ý trong lúc Bảng giá nhanh đang tải lần đầu không còn bị lần tải cũ ghi đè.** Trước đây câu trả lời muộn của lần tải đầu có thể thay bảng giá và danh sách được nhớ bằng danh sách mặc định, trái với chip vừa bấm. Nay chỉ câu trả lời của lần xin gần nhất mới được áp dụng (bảng, ô nhập và bộ nhớ).
+
+---
+
 ## [v2.108.0] — 2026-11-28 · Bảng giá nhanh nhớ danh sách và có gợi ý xem nhanh
 
 ### Sửa lỗi

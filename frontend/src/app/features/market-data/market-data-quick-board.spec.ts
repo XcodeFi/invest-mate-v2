@@ -152,6 +152,33 @@ describe('MarketDataComponent: Bảng giá nhanh nhớ danh sách và gợi ý x
       expect(localStorage.getItem(KEY)).toBe(DEFAULT);   // danh sách đã xin vẫn được nhớ vì đã tải được
     });
 
+    it('a chip click wins over a pending first load: the late first answer changes neither board, input nor storage', async () => {
+      const first = new Subject<BatchPrice[]>();
+      const second = new Subject<BatchPrice[]>();
+      setup({ positions: of([position('HPG'), position('SSI')]), batch: first });   // lần tải đầu (lúc mở trang) đang chờ
+      market.getBatchPrices.and.returnValue(second);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      clickChip('Đang nắm giữ');   // bấm chip trong lúc chờ
+      const row = (symbol: string) => [{ symbol, date: '2026-11-27', close: 100, volume: 1000 } as BatchPrice];
+      first.next(row('VNM'));      // câu trả lời muộn của lần đầu
+      first.complete();
+
+      expect(fixture.componentInstance.batchPrices).toEqual([]);          // chưa ghi đè bảng
+      expect(fixture.componentInstance.loadingBatch).toBeTrue();           // lần của chip vẫn đang chờ
+      expect(fixture.componentInstance.batchSymbols).toBe('HPG,SSI');
+      expect(localStorage.getItem(KEY)).toBeNull();
+
+      second.next(row('HPG'));
+      second.complete();
+
+      expect(fixture.componentInstance.batchPrices.map(b => b.symbol)).toEqual(['HPG']);
+      expect(fixture.componentInstance.loadingBatch).toBeFalse();
+      expect(localStorage.getItem(KEY)).toBe('HPG,SSI');
+    });
+
     it('keeps the typed text when the load fails', () => {
       setup({ batch: throwError(() => new Error('x')) });
       fixture.componentInstance.batchSymbols = 'fpt, hpg, FPT';

@@ -894,6 +894,8 @@ export class MarketDataComponent implements OnInit {
   quickChips: QuickChip[] = [];
   batchPrices: { symbol: string; close: number; volume: number }[] = [];
   loadingBatch = false;
+  /** Số thứ tự lần xin giá gần nhất: chỉ câu trả lời của lần gần nhất mới được áp dụng (bảng, ô nhập, bộ nhớ). */
+  private batchSeq = 0;
 
   private readonly PENDING_PLAN_KEY = 'pendingTradePlanDraft';
 
@@ -1215,8 +1217,10 @@ export class MarketDataComponent implements OnInit {
     const symbols = normalizeSymbols(this.batchSymbols);
     if (symbols.length === 0) return;
     this.loadingBatch = true;
+    const seq = ++this.batchSeq;
     this.marketDataService.getBatchPrices(symbols).subscribe({
       next: data => {
+        if (seq !== this.batchSeq) return;   // đã có lần xin mới hơn (vd. bấm chip): bỏ câu trả lời muộn
         this.batchPrices = data;
         this.loadingBatch = false;
         if (data.length > 0) {   // danh sách gõ nhầm (không có giá) thì không nhớ
@@ -1226,6 +1230,7 @@ export class MarketDataComponent implements OnInit {
         }
       },
       error: () => {
+        if (seq !== this.batchSeq) return;
         this.notificationService.error('Lỗi', 'Lỗi khi tải bảng giá');
         this.loadingBatch = false;
       }
