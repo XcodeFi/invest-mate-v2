@@ -211,6 +211,30 @@ describe('SymbolTimelineComponent — chỉ báo theo nhóm trên biểu đồ',
     expect(chart().dates.length).toBeGreaterThan(300);   // cắt theo 1N, không phải 3T
   });
 
+  describe('khoảng ngày gửi cho dòng thời gian tính theo giờ Việt Nam', () => {
+    afterEach(() => jasmine.clock().uninstall());
+
+    it('01:00 on 28/11 in Vietnam (18:00Z on 27/11) asks the timeline up to 2026-11-28, from 2026-08-28 for 3 months', () => {
+      jasmine.clock().install();
+      jasmine.clock().mockDate(new Date('2026-11-27T18:00:00Z'));
+      setup();
+
+      const journal = TestBed.inject(JournalEntryService) as jasmine.SpyObj<JournalEntryService>;
+      expect(journal.getTimeline).toHaveBeenCalledWith('VNM', '2026-08-28', '2026-11-28');
+    });
+
+    it('the same instant for a 12-month range starts on 2025-11-28', () => {
+      jasmine.clock().install();
+      jasmine.clock().mockDate(new Date('2026-11-27T18:00:00Z'));
+      setup();
+      const journal = TestBed.inject(JournalEntryService) as jasmine.SpyObj<JournalEntryService>;
+
+      (Array.from(el().querySelectorAll('button')).find(b => (b.textContent ?? '').trim() === '1N') as HTMLButtonElement).click();
+
+      expect(journal.getTimeline.calls.mostRecent().args).toEqual(['VNM', '2025-11-28', '2026-11-28']);
+    });
+  });
+
   it('series_error_clears_previous_series', () => {
     setup();
     expect(chart()).toBeDefined();
