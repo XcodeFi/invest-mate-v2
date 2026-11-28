@@ -50,7 +50,9 @@ public class McpToolDiscoveryTests
         // Độ khớp ước lượng (kỳ vọng theo R, đợt 3)
         "get_estimate_calibration",
         // Định cỡ vị thế (dùng chung query với REST) và sự kiện quyền
-        "calculate_position_size", "list_corporate_actions"
+        "calculate_position_size", "list_corporate_actions",
+        // Lịch sử setup Pullback trên một mã (S1)
+        "get_signal_setups"
     };
 
     private static readonly string[] WriteTools =
@@ -68,6 +70,33 @@ public class McpToolDiscoveryTests
         "recompute_plan_review"
     };
 
+    /// <summary>
+    /// Tên tool có dáng "ký/xác nhận": chứa "confirm", hoặc "sign" mà không đi liền "al" (tức không phải "signal": get_signal_setups là
+    /// tín hiệu giao dịch, không liên quan việc ký hồ sơ). Tách thành hàm có tên và có test riêng để một lần sửa regex sau này không
+    /// âm thầm mở lỗ cho tên kiểu <c>sign_dossier</c>.
+    /// </summary>
+    internal static bool IsSigningName(string name)
+        => name.Contains("confirm", StringComparison.OrdinalIgnoreCase)
+           || System.Text.RegularExpressions.Regex.IsMatch(name, "sign(?!al)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    [Theory]
+    [InlineData("sign_dossier")]
+    [InlineData("confirm_plan")]
+    [InlineData("design_x")]
+    [InlineData("assign_x")]
+    [InlineData("signature")]
+    [InlineData("sign_alerts")]
+    [InlineData("co_sign")]
+    [InlineData("SIGN_DOSSIER")]
+    [InlineData("confirm_company_dossier")]
+    public void Signing_names_are_flagged(string name) => IsSigningName(name).Should().BeTrue(name);
+
+    [Theory]
+    [InlineData("get_signal_setups")]
+    [InlineData("list_signals")]
+    [InlineData("get_daily_digest")]
+    public void Ordinary_names_are_not_flagged(string name) => IsSigningName(name).Should().BeFalse(name);
+
     private static IReadOnlyList<McpServerTool> Tools()
     {
         var services = new ServiceCollection();
@@ -84,12 +113,12 @@ public class McpToolDiscoveryTests
     }
 
     [Fact]
-    public void Registers_All_84_Tools()
+    public void Registers_All_85_Tools()
     {
         var names = Tools().Select(t => t.ProtocolTool.Name).ToHashSet();
         foreach (var name in ReadTools.Concat(WriteTools))
             names.Should().Contain(name);
-        (ReadTools.Length + WriteTools.Length).Should().Be(84);
+        (ReadTools.Length + WriteTools.Length).Should().Be(85);
     }
 
     [Fact]
@@ -117,8 +146,7 @@ public class McpToolDiscoveryTests
         var tools = Tools();
 
         var signingNames = tools.Select(t => t.ProtocolTool.Name)
-            .Where(n => n.Contains("confirm", StringComparison.OrdinalIgnoreCase)
-                     || n.Contains("sign", StringComparison.OrdinalIgnoreCase))
+            .Where(IsSigningName)
             .ToList();
         signingNames.Should().BeEmpty("không tool MCP nào được ký/xác nhận hồ sơ công ty");
 
@@ -290,6 +318,7 @@ public class McpToolDiscoveryTests
             .Contain(new[] { "useHistory", "strategyId", "riskPercent", "maxPositionPercent", "atr", "winRate" });
         Required(schema["list_corporate_actions"]).Should().BeEmpty("symbol và portfolioId đều tuỳ chọn");
         Required(schema["recompute_plan_review"]).Should().BeEquivalentTo(new[] { "planId" });
+        Required(schema["get_signal_setups"]).Should().BeEquivalentTo(new[] { "symbol" });
 
         // Đợt 3: kế hoạch / lãi-lỗ / cảnh báo
         Required(schema["get_scenario_suggestion"]).Should().BeEquivalentTo(new[] { "symbol", "entryPrice" });

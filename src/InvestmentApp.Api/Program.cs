@@ -13,6 +13,7 @@ using InvestmentApp.Infrastructure.Persistence;
 using InvestmentApp.Infrastructure.Repositories;
 using InvestmentApp.Infrastructure.Seed;
 using InvestmentApp.Infrastructure.Services;
+using InvestmentApp.Infrastructure.Services.Signals;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -222,6 +223,7 @@ builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IPriceSnapshotJobService, PriceSnapshotJobService>();
 builder.Services.AddScoped<BacktestEngine>();
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
+builder.Services.AddScoped<ISignalSetupService, SignalSetupService>();   // setup Pullback + lịch sử trên từng mã (S1)
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IBehavioralAnalysisService, BehavioralAnalysisService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.IScenarioConsultantService, ScenarioConsultantService>();
 builder.Services.AddScoped<InvestmentApp.Application.Common.Interfaces.ICampaignReviewService, CampaignReviewService>();

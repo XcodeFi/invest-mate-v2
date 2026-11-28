@@ -121,6 +121,45 @@ describe('MarketDataComponent — panel phân tích kỹ thuật theo 6 khối',
       .map(el => el.nativeElement.getAttribute('data-heading'));
   }
 
+  describe('setup Pullback trên mã', () => {
+    const signalData = {
+      symbol: 'HPG', adjusted: true, disclaimer: 'Kết quả quá khứ, không đảm bảo tương lai', notes: [],
+      setups: [{ key: 'pullback', name: 'Pullback xu hướng', description: 'd', signals: 9, completed: 6, open: 0, skipped: 1, n: 6, minSample: 30, sampleSufficient: false }]
+    };
+
+    it('không hiện khi chưa có phân tích', () => {
+      setup(null);
+
+      expect(fixture.nativeElement.querySelector('[data-testid="signal-setups"]')).toBeNull();
+    });
+
+    it('nằm SAU khối phân tích kỹ thuật, không bao giờ là phần tử đầu của trang', () => {
+      setup(fullTa());
+      fixture.componentInstance.signalSetups = signalData;
+      fixture.detectChanges();
+
+      const panel = fixture.nativeElement.querySelector('[data-testid="signal-setups"]') as HTMLElement;
+      const firstHeading = fixture.nativeElement.querySelector('h4[data-heading]') as HTMLElement;
+      expect(panel).not.toBeNull();
+      expect(firstHeading).not.toBeNull();
+      expect(firstHeading.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // và cũng sau cả khối biểu đồ/nhóm: không có phần tử nào của trang đứng sau nó mà thuộc khối phân tích
+      const lastHeading = Array.from(fixture.nativeElement.querySelectorAll('h4[data-heading]')).pop() as HTMLElement;
+      expect(lastHeading.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(panel.closest('app-signal-setups-panel')!.previousElementSibling).not.toBeNull('có phần tử đứng trước (khối phân tích)');
+    });
+
+    it('luôn có dòng "Kết quả quá khứ, không đảm bảo tương lai", cả khi chưa có dữ liệu setup', () => {
+      setup(fullTa());
+      fixture.componentInstance.signalSetups = null;
+      fixture.componentInstance.signalSetupsError = 'Không tải được lịch sử setup';
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement.querySelector('[data-testid="signal-disclaimer"]');
+      expect(el?.textContent?.trim()).toBe('Kết quả quá khứ, không đảm bảo tương lai');
+    });
+  });
+
   describe('gợi ý giao dịch: cách tính cắt lỗ và ghi chú R:R thấp', () => {
     const q = (id: string): HTMLElement | null => fixture.nativeElement.querySelector(`[data-testid="${id}"]`);
     const txt = (id: string): string => (q(id)?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -278,13 +317,14 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
 
   function setup() {
     marketSpy = jasmine.createSpyObj<MarketDataService>('MarketDataService', [
-      'getMarketOverview', 'getBatchPrices', 'getTopFluctuation', 'getTechnicalSeries', 'getTechnicalAnalysis',
+      'getMarketOverview', 'getBatchPrices', 'getTopFluctuation', 'getTechnicalSeries', 'getTechnicalAnalysis', 'getSignalSetups',
     ]);
     marketSpy.getMarketOverview.and.returnValue(of([]));
     marketSpy.getBatchPrices.and.returnValue(of([]));
     marketSpy.getTopFluctuation.and.returnValue(of([]));
     marketSpy.getTechnicalSeries.and.returnValue(of(fullSeries()));
     marketSpy.getTechnicalAnalysis.and.returnValue(of({ ...fullTa(), currentPrice: 99999 }));
+    marketSpy.getSignalSetups.and.returnValue(of({ symbol: 'HPG', adjusted: true, setups: [], disclaimer: 'Kết quả quá khứ, không đảm bảo tương lai', notes: [] }));
 
     TestBed.configureTestingModule({
       imports: [MarketDataComponent],
@@ -414,6 +454,45 @@ describe('MarketDataComponent — bấm nhóm để xem biểu đồ', () => {
     header('xu-huong').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     fixture.detectChanges();
     expect(component.selectedGroup).toBe('xu-huong');
+  });
+
+  it('tải lịch sử setup sau khi có phân tích của mã', () => {
+    setup();
+    const data = { symbol: 'VNM', adjusted: true, setups: [], disclaimer: 'Kết quả quá khứ, không đảm bảo tương lai', notes: [] };
+    marketSpy.getTechnicalAnalysis.and.returnValue(of({ ...fullTa(), symbol: 'VNM' }));
+    marketSpy.getSignalSetups.and.returnValue(of(data));
+
+    component.loadTechnicalAnalysis('VNM');
+
+    expect(marketSpy.getSignalSetups).toHaveBeenCalledWith('VNM');
+    expect(component.signalSetups).toBe(data);
+    expect(component.signalSetupsLoading).toBeFalse();
+    expect(component.signalSetupsError).toBeNull();
+  });
+
+  it('lỗi tải lịch sử setup chỉ hiện dòng lỗi, không làm mất phần phân tích', () => {
+    setup();
+    marketSpy.getTechnicalAnalysis.and.returnValue(of({ ...fullTa(), symbol: 'VNM' }));
+    marketSpy.getSignalSetups.and.returnValue(throwError(() => new Error('boom')));
+
+    component.loadTechnicalAnalysis('VNM');
+
+    expect(component.analysis!.symbol).toBe('VNM');
+    expect(component.signalSetups).toBeNull();
+    expect(component.signalSetupsError).toBe('Không tải được lịch sử setup');
+  });
+
+  it('phản hồi muộn của mã cũ không ghi đè lịch sử setup của mã mới', () => {
+    setup();
+    const old$ = new Subject<any>();
+    marketSpy.getTechnicalAnalysis.and.callFake((sym: string) => of({ ...fullTa(), symbol: sym }));
+    marketSpy.getSignalSetups.and.callFake((sym: string) => sym === 'HPG' ? old$ : of({ symbol: sym, adjusted: true, setups: [], disclaimer: 'x', notes: [] }));
+
+    component.loadTechnicalAnalysis('HPG');
+    component.loadTechnicalAnalysis('VNM');
+    old$.next({ symbol: 'HPG', adjusted: true, setups: [], disclaimer: 'x', notes: [] });
+
+    expect(component.signalSetups!.symbol).toBe('VNM');
   });
 
   it('late response for previous symbol is ignored', () => {

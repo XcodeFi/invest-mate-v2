@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { MarketDataService, TechnicalSeries } from './market-data.service';
+import { MarketDataService, SignalSetups, TechnicalSeries } from './market-data.service';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
 
@@ -28,6 +28,17 @@ describe('MarketDataService', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('getSignalSetups calls {symbol}/signal-setups with auth header', () => {
+    let received: SignalSetups | undefined;
+    service.getSignalSetups('FPT').subscribe(s => (received = s));
+
+    const req = http.expectOne(`${environment.apiUrl}/market/FPT/signal-setups`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
+    req.flush({ symbol: 'FPT', adjusted: true, setups: [], disclaimer: 'x', notes: [] });
+    expect(received?.symbol).toBe('FPT');
+  });
 
   it('getTechnicalSeries calls analysis/series with auth header', () => {
     let received: TechnicalSeries | undefined;

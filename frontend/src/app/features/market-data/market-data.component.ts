@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
 import {
   MarketDataService, StockPrice, StockDetail, MarketOverview,
-  TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis, TechnicalSeries
+  TopFluctuation, TradingHistorySummary, StockSearchResult, TechnicalAnalysis, TechnicalSeries, SignalSetups
 } from '../../core/services/market-data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CompanyDossierService } from '../../core/services/company-dossier.service';
@@ -18,6 +18,7 @@ import { buildGroupLayers, TaGroup } from './ta-group-layers';
 import { GroupGuide, INDICATOR_GUIDES, readNow } from './indicator-guides';
 import { formatAsOf, tradingDaysBehind } from './adjusted-age';
 import { isLowRiskReward, LOW_RR_NOTE, stopLossMethodLabel } from './stop-loss-method';
+import { SignalSetupsPanelComponent } from './signal-setups-panel/signal-setups-panel.component';
 
 /** Khoá localStorage nhớ khối "Cách đọc" đang mở hay thu gọn ('1' mở, '0' thu gọn). */
 const GUIDE_OPEN_KEY = 'ta-guide-open';
@@ -25,7 +26,7 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
 @Component({
   selector: 'app-market-data',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent],
+  imports: [CommonModule, FormsModule, RouterLink, VndCurrencyPipe, UppercaseDirective, AiChatPanelComponent, IndicatorChartComponent, SignalSetupsPanelComponent],
   template: `
     <div class="container mx-auto px-4 py-6">
       <h1 class="text-2xl font-bold text-gray-800 mb-6">Dữ liệu Thị trường</h1>
@@ -692,6 +693,10 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
         </div>
       </div>
 
+      <!-- Lịch sử setup Pullback trên mã: nằm DƯỚI biểu đồ và khối phân tích, không bao giờ là phần tử đầu trang -->
+      <app-signal-setups-panel *ngIf="analysis" [symbol]="analysis.symbol" [data]="signalSetups"
+        [loading]="signalSetupsLoading" [error]="signalSetupsError"></app-signal-setups-panel>
+
       <!-- Analyzing spinner -->
       <div *ngIf="analyzingSignal" class="border rounded-lg p-5 mb-6 text-center">
         <div class="animate-spin w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
@@ -871,6 +876,12 @@ export class MarketDataComponent implements OnInit {
   // Technical Analysis
   analysis: TechnicalAnalysis | null = null;
   analyzingSignal = false;
+
+  // Lịch sử setup Pullback trên mã (tải sau khi có phân tích; lỗi không ảnh hưởng phần còn lại của trang)
+  signalSetups: SignalSetups | null = null;
+  signalSetupsLoading = false;
+  signalSetupsError: string | null = null;
+  private signalSetupsSub: Subscription | null = null;
 
   // Biểu đồ chỉ báo theo nhóm (tải lazy khi bấm nhóm lần đầu, cache theo mã đang xem)
   readonly taGroups: { key: TaGroup; label: string }[] = [
@@ -1085,10 +1096,37 @@ export class MarketDataComponent implements OnInit {
     this.analyzingSignal = true;
     this.analysis = null;
     this.resetChart();
+    this.resetSignalSetups();
     this.marketDataService.getTechnicalAnalysis(symbol).subscribe({
-      next: data => { this.analysis = data; this.analyzingSignal = false; },
+      next: data => { this.analysis = data; this.analyzingSignal = false; this.loadSignalSetups(symbol); },
       error: () => { this.analyzingSignal = false; }
     });
+  }
+
+  private loadSignalSetups(symbol: string): void {
+    this.signalSetupsSub?.unsubscribe();
+    this.signalSetupsLoading = true;
+    this.signalSetupsError = null;
+    this.signalSetupsSub = this.marketDataService.getSignalSetups(symbol).subscribe({
+      next: data => {
+        if (this.analysis?.symbol !== symbol) return;   // đã đổi mã
+        this.signalSetups = data;
+        this.signalSetupsLoading = false;
+      },
+      error: () => {
+        if (this.analysis?.symbol !== symbol) return;
+        this.signalSetupsLoading = false;
+        this.signalSetupsError = 'Không tải được lịch sử setup';
+      }
+    });
+  }
+
+  private resetSignalSetups(): void {
+    this.signalSetupsSub?.unsubscribe();
+    this.signalSetupsSub = null;
+    this.signalSetups = null;
+    this.signalSetupsLoading = false;
+    this.signalSetupsError = null;
   }
 
   // --- Biểu đồ chỉ báo theo nhóm ---

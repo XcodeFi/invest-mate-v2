@@ -302,3 +302,30 @@ Khi đủ dữ liệu, hệ thống gợi ý:
 - **R:R**: Tỷ lệ reward/risk. Dưới 1:1 hệ thống ghi chú **"R:R thấp — không đủ hấp dẫn"**: rủi ro lớn hơn lợi nhuận kỳ vọng, cân nhắc bỏ qua hoặc đổi điểm vào.
 
 Nhấn **"Tạo Trade Plan từ gợi ý"** → chuyển đến trang Kế hoạch với thông tin đã điền sẵn.
+
+## Setup Pullback và lịch sử của nó
+
+Dưới biểu đồ và khối phân tích có khối **"Setup Pullback trên <mã>"**. Nó trả lời một câu hỏi hẹp: *khi setup này xuất hiện trên mã này trong quá khứ, chuyện gì xảy ra sau đó, nếu áp dụng luật thị trường Việt Nam thực tế?* Đây không phải khuyến nghị và không xếp hạng mã.
+
+**Setup Pullback là gì?** Trong xu hướng tăng (EMA20 nằm trên EMA50, ADX từ 20), giá hồi về sát EMA20 (thấp nhất phiên cách EMA20 không quá 1 ATR), đóng cửa trên EMA20 và RSI nằm trong 40–55. Chỉ tính **phiên đầu tiên** điều kiện đúng; luật giống hệt nhau cho mọi mã, không chỉnh theo từng mã.
+
+**Một lệnh mô phỏng diễn ra thế nào?**
+- Vào ở **giá mở cửa phiên sau tín hiệu**. Bỏ qua lệnh nếu phiên tín hiệu đã đóng ở trần/sàn, hoặc giá mở phiên vào đã sát trần (mua không khớp được).
+- Cắt lỗ = vào − 2 × ATR; mục tiêu = vào + 2R (R là khoảng cách vào–cắt lỗ). Hết **20 phiên** thì bán ở giá đóng cửa.
+- **T+2,5:** cổ phiếu mua ở phiên đầu chưa bán được trong 3 phiên đầu. Nếu chạm cắt lỗ hoặc mục tiêu trong 3 phiên đó, mô phỏng thoát ở **giá mở phiên thứ 4** (thận trọng, không phải chiều phiên thứ 3).
+- Từ phiên thứ 4: mở cửa đã dưới cắt lỗ thì bán ở giá mở; chạm cắt lỗ thì bán ở cắt lỗ; cùng phiên chạm cả cắt lỗ và mục tiêu thì tính **cắt lỗ**; chạm mục tiêu thì bán ở mục tiêu.
+- Phiên **khoá sàn** (không bán được) thì dời tới giá mở phiên đầu tiên không khoá. Không chồng lệnh: đang giữ lệnh thì bỏ tín hiệu mới.
+- Đã trừ **phí 0,15% mỗi chiều, thuế bán 0,1%, trượt giá 0,1% mỗi chiều**.
+
+**Khối này hiện gì?**
+- **Đang kích hoạt** (đứng đầu): tín hiệu trong 3 phiên gần nhất với vào lệnh, cắt lỗ, mục tiêu. Nếu chưa tới phiên vào lệnh, vào lệnh là **ước tính theo giá đóng cửa**; nếu lệnh mô phỏng đang mở thì ghi "đang mở, ngày thứ k". Các mức này theo **luật của setup** (vào giá mở cửa phiên sau, cắt lỗ 2×ATR, mục tiêu 2R) nên **khác với thẻ "Gợi ý giao dịch"** ở phần trên, vốn dựa trên hỗ trợ/kháng cự: hai phương pháp khác nhau, không phải mâu thuẫn.
+- Một dòng đếm: *"N tín hiệu, M lệnh hoàn tất trong 3 năm."*
+- **Tỉ lệ thắng và EV (R) chỉ hiện khi có từ 30 lệnh đã đóng.** Ở hai mã đã đo (VNM, FPT) chỉ có 9 và 7 lệnh trong 3 năm, nên nhiều mã sẽ ghi *"Chưa đủ mẫu để thống kê riêng mã này (cần ≥ 30)"*. Hãy xem đó là số lần xuất hiện để tham khảo, không phải xác suất. Khi đủ 30 lệnh: tỉ lệ thắng kèm khoảng Wilson 95%, EV kèm khoảng tin cậy t 95%; thắng nghĩa là R ròng > 0.
+- Hệ thống **không liệt kê từng lệnh** để tránh nhìn vài kết quả rồi tự suy ra tỉ lệ thắng.
+- Mã chưa có đủ lịch sử giá **đã điều chỉnh** (dưới 250 phiên, có nến chưa điều chỉnh, hoặc nến cuối cũ hơn 10 ngày) thì chỉ hiện một dòng lý do và không có số liệu.
+
+**Giới hạn cần nhớ**
+- Giá đã điều chỉnh theo sự kiện quyền nên mức giá cũ khác mức giao dịch thật lúc đó.
+- Mã đã hủy niêm yết không có trong dữ liệu (thiên lệch người sống sót).
+- HOSE không có lệnh dừng, nên khớp đúng giá cắt lỗ là lạc quan hơn thực tế.
+- **Kết quả quá khứ, không đảm bảo tương lai.**

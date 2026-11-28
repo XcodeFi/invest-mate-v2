@@ -8,6 +8,7 @@ using InvestmentApp.Application.MarketData.Queries.GetMarketOverview;
 using InvestmentApp.Application.MarketData.Queries.SearchStocks;
 using InvestmentApp.Application.MarketData.Queries.GetTopFluctuation;
 using InvestmentApp.Application.MarketData.Queries.GetTradingHistorySummary;
+using InvestmentApp.Application.MarketData.Queries.GetSignalSetups;
 using InvestmentApp.Application.MarketData.Queries.GetTechnicalAnalysis;
 using InvestmentApp.Application.MarketData.Queries.GetTechnicalSeries;
 using InvestmentApp.Application.Interfaces;
@@ -222,6 +223,18 @@ public class MarketDataController : ControllerBase
     {
         var query = new GetTechnicalSeriesQuery { Symbol = symbol };
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lịch sử setup Pullback trên một mã: số lần xuất hiện trong ~3 năm, lệnh mô phỏng theo luật thị trường Việt Nam, tín hiệu đang kích hoạt.
+    /// Dưới 30 lệnh đã đóng thì không có tỉ lệ thắng và EV. Không có danh sách từng lệnh.
+    /// </summary>
+    [HttpGet("{symbol}/signal-setups")]
+    [ProducesResponseType(typeof(SignalSetupsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSignalSetups(string symbol)
+    {
+        var result = await _mediator.Send(new GetSignalSetupsQuery { Symbol = symbol });
         return Ok(result);
     }
 }
