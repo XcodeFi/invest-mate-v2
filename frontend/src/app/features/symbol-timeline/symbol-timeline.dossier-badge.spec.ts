@@ -27,7 +27,7 @@ describe('SymbolTimelineComponent — huy hiệu hồ sơ lúc đó trên giao d
       imports: [SymbolTimelineComponent],
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ symbol: 'hpg' }), queryParams: {} } } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ symbol: 'hpg' }), queryParams: {} }, queryParamMap: of(convertToParamMap({})) } },
         { provide: MarketDataService, useValue: market },
         { provide: JournalEntryService, useValue: journal },
         { provide: MarketEventService, useValue: jasmine.createSpyObj<MarketEventService>('MarketEventService', ['create']) },
