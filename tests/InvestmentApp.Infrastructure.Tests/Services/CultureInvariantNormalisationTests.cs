@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using InvestmentApp.Domain.Entities;
 using InvestmentApp.Infrastructure.Services.Hmoney;
@@ -89,18 +88,12 @@ public class CultureInvariantNormalisationTests
     {
         // .ToUpper() / .ToLower() không tham số chạy theo văn hoá của máy. Mọi chuẩn hoá mã/khoá phải dùng *Invariant.
         var offenders = new List<string>();
-        var pattern = new Regex(@"\.(ToUpper|ToLower)\(\)");
         foreach (var file in Directory.EnumerateFiles(SrcRoot(), "*.cs", SearchOption.AllDirectories))
         {
             if (file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") || file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
-            var lines = File.ReadAllLines(file);
-            for (var i = 0; i < lines.Length; i++)
-            {
-                var code = lines[i].Split("//")[0];   // bỏ phần chú thích cuối dòng
-                if (code.TrimStart().StartsWith("*") || code.TrimStart().StartsWith("///")) continue;
-                if (pattern.IsMatch(code))
-                    offenders.Add($"{Path.GetRelativePath(SrcRoot(), file)}:{i + 1}");
-            }
+            // Quét cả file (không theo dòng): bỏ chú thích và nội dung chuỗi, giữ phần mã trong lỗ nội suy; bắt cả khoảng trắng và tách dòng
+            foreach (var line in CaseConversionScanner.FindCultureSensitiveCalls(File.ReadAllText(file)))
+                offenders.Add($"{Path.GetRelativePath(SrcRoot(), file)}:{line}");
         }
 
         offenders.Should().BeEmpty("dùng ToUpperInvariant()/ToLowerInvariant() cho mã cổ phiếu và khoá:\n" + string.Join("\n", offenders));
