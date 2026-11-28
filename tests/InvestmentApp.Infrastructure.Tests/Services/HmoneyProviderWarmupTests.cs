@@ -79,7 +79,14 @@ public class HmoneyProviderWarmupTests
         }
     }
 
-    private sealed record Rig(HmoneyMarketDataProvider P, Handler H, FakeStore Store, FakeBudget Budget, FakeTime Time);
+    private static int _uniq;
+
+    /// <summary>Cổng theo mã của nguồn là tĩnh (dùng chung giữa các instance, đúng như khi chạy thật): mỗi test dùng mã riêng để các test chạy song song không giành cổng của nhau.</summary>
+    private sealed record Rig(HmoneyMarketDataProvider P, Handler H, FakeStore Store, FakeBudget Budget, FakeTime Time)
+    {
+        private readonly int _id = Interlocked.Increment(ref _uniq);
+        public string S(string name) => name + "Z" + _id;
+    }
 
     private static Rig Create(Action<Handler>? setup = null, int budget = 30)
     {
@@ -106,11 +113,11 @@ public class HmoneyProviderWarmupTests
     {
         var r = Create();
 
-        (await r.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Fetched);
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Fetched);
 
         r.H.TvUrls.Should().ContainSingle();
-        r.Store.Data.Should().ContainKey("FPT");
-        r.Store.Data["FPT"].Bars.Should().HaveCount(300);
+        r.Store.Data.Should().ContainKey(r.S("FPT"));
+        r.Store.Data[r.S("FPT")].Bars.Should().HaveCount(300);
         r.Budget.Consumed.Should().Be(1);
     }
 
@@ -119,7 +126,7 @@ public class HmoneyProviderWarmupTests
     {
         var r = Create(h => h.Tv = _ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
 
-        (await r.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Failed);
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Failed);
 
         r.H.GraphUrls.Should().BeEmpty("warm-up không dùng graph dự phòng: chuỗi graph chưa điều chỉnh sẽ không bao giờ được lưu");
         r.Store.SaveCalls.Should().Be(0);
@@ -129,10 +136,10 @@ public class HmoneyProviderWarmupTests
     public async Task warm_skips_a_symbol_the_cache_already_answers()
     {
         var r = Create();
-        await UserChart(r.P, "FPT");   // người dùng mở biểu đồ: chuỗi tốt nằm trong bộ nhớ đệm
+        await UserChart(r.P, r.S("FPT"));   // người dùng mở biểu đồ: chuỗi tốt nằm trong bộ nhớ đệm
         r.H.TvUrls.Clear();
 
-        (await r.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Skipped);
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Skipped);
 
         r.H.TvUrls.Should().BeEmpty();
         r.Budget.Consumed.Should().Be(0, "không tốn lượt cho một cuộc gọi bộ nhớ đệm sẽ trả lời");
@@ -155,9 +162,9 @@ public class HmoneyProviderWarmupTests
     {
         var r = Create(budget: 2);
 
-        (await r.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Fetched);
-        (await r.P.WarmAsync("VNM")).Should().Be(WarmFetchResult.Fetched);
-        (await r.P.WarmAsync("HPG")).Should().Be(WarmFetchResult.BudgetExhausted);
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Fetched);
+        (await r.P.WarmAsync(r.S("VNM"))).Should().Be(WarmFetchResult.Fetched);
+        (await r.P.WarmAsync(r.S("HPG"))).Should().Be(WarmFetchResult.BudgetExhausted);
 
         r.H.TvUrls.Should().HaveCount(2, "lượt thứ ba bị chặn trước khi gọi nguồn");
     }
@@ -167,7 +174,7 @@ public class HmoneyProviderWarmupTests
     {
         var r = Create(h => h.Tv = _ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable), budget: 5);
 
-        await r.P.WarmAsync("FPT");
+        await r.P.WarmAsync(r.S("FPT"));
 
         r.Budget.Consumed.Should().Be(1);
     }
@@ -178,10 +185,10 @@ public class HmoneyProviderWarmupTests
     public async Task warm_makes_no_call_when_the_global_pause_is_active()
     {
         var r = Create(h => h.Tv = _ => Waf());
-        foreach (var s in new[] { "AAA", "BBB", "CCC" }) await UserChart(r.P, s);   // 3 lỗi cả nguồn liên tiếp: cooldown chung
+        foreach (var s in new[] { "AAA", "BBB", "CCC" }) await UserChart(r.P, r.S(s));   // 3 lỗi cả nguồn liên tiếp: cooldown chung
         var before = r.H.TvUrls.Count;
 
-        (await r.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Degraded);
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Degraded);
 
         r.H.TvUrls.Should().HaveCount(before);
         r.Budget.Consumed.Should().Be(0);
@@ -191,10 +198,10 @@ public class HmoneyProviderWarmupTests
     public async Task warm_makes_no_call_when_the_shared_streak_is_at_least_one()
     {
         var r = Create(h => h.Tv = _ => Waf());
-        await UserChart(r.P, "AAA");   // một lỗi cả nguồn: chuỗi lỗi = 1, chưa tới ngưỡng cooldown chung
+        await UserChart(r.P, r.S("AAA"));   // một lỗi cả nguồn: chuỗi lỗi = 1, chưa tới ngưỡng cooldown chung
         var before = r.H.TvUrls.Count;
 
-        (await r.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Degraded);
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Degraded);
 
         r.H.TvUrls.Should().HaveCount(before);
     }
@@ -203,12 +210,12 @@ public class HmoneyProviderWarmupTests
     public async Task a_warm_failure_does_not_count_toward_the_shared_pause_threshold()
     {
         var r = Create(h => h.Tv = _ => Waf());
-        await r.P.WarmAsync("WM0");               // một lỗi cả nguồn của warm-up
-        await UserChart(r.P, "AAA");              // hai lỗi cả nguồn của biểu đồ người dùng: chuỗi lỗi chung = 2, dưới ngưỡng 3
-        await UserChart(r.P, "BBB");
+        await r.P.WarmAsync(r.S("WM0"));               // một lỗi cả nguồn của warm-up
+        await UserChart(r.P, r.S("AAA"));              // hai lỗi cả nguồn của biểu đồ người dùng: chuỗi lỗi chung = 2, dưới ngưỡng 3
+        await UserChart(r.P, r.S("BBB"));
         var before = r.H.TvUrls.Count;
 
-        await UserChart(r.P, "CCC");
+        await UserChart(r.P, r.S("CCC"));
 
         r.H.TvUrls.Count.Should().Be(before + 1, "nếu lỗi warm-up được cộng vào chuỗi chung thì lần thứ ba đã bị cooldown chung chặn");
     }
@@ -217,25 +224,25 @@ public class HmoneyProviderWarmupTests
     public async Task a_warm_source_failure_pauses_warmup_itself_but_a_symbol_failure_does_not()
     {
         var r = Create(h => h.Tv = _ => Waf());
-        (await r.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Failed);
-        (await r.P.WarmAsync("VNM")).Should().Be(WarmFetchResult.Degraded, "warm-up tự nghỉ sau lỗi cả nguồn");
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Failed);
+        (await r.P.WarmAsync(r.S("VNM"))).Should().Be(WarmFetchResult.Degraded, "warm-up tự nghỉ sau lỗi cả nguồn");
 
         var r2 = Create(h => h.Tv = _ => NoData());
-        (await r2.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Failed);
+        (await r2.P.WarmAsync(r2.S("FPT"))).Should().Be(WarmFetchResult.Failed);
         r2.H.Tv = _ => Json(TvOk());
-        (await r2.P.WarmAsync("FPT")).Should().Be(WarmFetchResult.Skipped, "mã hỏng nghỉ tới hết ngày, không gọi lại");
-        (await r2.P.WarmAsync("VNM")).Should().Be(WarmFetchResult.Fetched, "mã khác không bị ảnh hưởng");
+        (await r2.P.WarmAsync(r2.S("FPT"))).Should().Be(WarmFetchResult.Skipped, "mã hỏng nghỉ tới hết ngày, không gọi lại");
+        (await r2.P.WarmAsync(r2.S("VNM"))).Should().Be(WarmFetchResult.Fetched, "mã khác không bị ảnh hưởng");
     }
 
     [Fact]
     public async Task a_warm_failure_does_not_rest_the_symbol_for_user_charts()
     {
         var r = Create(h => h.Tv = _ => NoData());
-        await r.P.WarmAsync("FPT");
+        await r.P.WarmAsync(r.S("FPT"));
         r.H.Tv = _ => Json(TvOk());
         var before = r.H.TvUrls.Count;
 
-        var bars = await UserChart(r.P, "FPT");
+        var bars = await UserChart(r.P, r.S("FPT"));
 
         r.H.TvUrls.Count.Should().Be(before + 1);
         bars.Should().NotBeEmpty();
@@ -245,10 +252,10 @@ public class HmoneyProviderWarmupTests
     public async Task warm_success_populates_the_good_cache_so_the_next_user_chart_makes_no_call()
     {
         var r = Create();
-        await r.P.WarmAsync("FPT");
+        await r.P.WarmAsync(r.S("FPT"));
         var calls = r.H.TvUrls.Count;
 
-        (await UserChart(r.P, "FPT")).Should().NotBeEmpty();
+        (await UserChart(r.P, r.S("FPT"))).Should().NotBeEmpty();
 
         r.H.TvUrls.Count.Should().Be(calls);
     }
