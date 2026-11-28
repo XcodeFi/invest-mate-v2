@@ -16,6 +16,15 @@
 ### Kỹ thuật
 
 - Frontend chỉ hiển thị dữ liệu của `GET /api/v1/mood/history` (cờ cảm xúc và số lệnh do server tính). Màu là bốn hue đầu của bảng màu dataviz mặc định theo thứ tự cố định, đã chạy `validate_palette.js` ở chế độ sáng (nền #ffffff: đạt, cam/ngọc/vàng dưới 3:1 nên bắt buộc có biểu tượng, chú giải và bảng) và tối (nền #111827: đạt tất cả).
+## [v2.119.1] — 2026-11-28 · Sửa: các ô lọc của trang Sàng lọc cổ phiếu bị lệch hàng
+
+### Sửa lỗi
+
+- **Sáu ô nhập tiêu chí lọc nay thẳng hàng.** Hai nhãn dài ("GTGD bình quân 10 phiên tối thiểu (tỷ)" và "Xếp hạng sức mạnh 3 tháng tối thiểu (P)") xuống hai dòng làm ô nhập của chúng tụt xuống so với bốn ô còn lại trên cùng một hàng (thấy rõ ở màn rộng, kể cả chế độ tối). Giờ mọi ô nhập nằm sát đáy ô của nó nên thẳng hàng dù nhãn dài một hay hai dòng. Nội dung nhãn giữ nguyên.
+
+### Kỹ thuật
+
+- Mỗi nhãn là `flex flex-col gap-1`, ô nhập dùng `mt-auto`. Spec `screener.layout.spec.ts` dựng trang trong iframe rộng 400, 800, 1400 và 1980px (chế độ tối) và kiểm `top` của sáu ô cùng hàng chênh nhau không quá 1px.
 ## [v2.119.0] — 2026-11-28 · Trang chủ chia thành ba vùng: Hôm nay, Tài sản, Theo dõi
 
 ### Thay đổi
