@@ -2,12 +2,24 @@
 
 ---
 
-## [v2.116.1] — 2026-11-28 · Sửa: "Việc cần xử lý hôm nay" xem được đủ danh sách ngay trên Trang chủ
+## [v2.117.1] — 2026-11-28 · Sửa: "Việc cần xử lý hôm nay" xem được đủ danh sách ngay trên Trang chủ
 
 ### Sửa lỗi
 
 - **Bấm "Xem thêm" trong thẻ Việc cần xử lý hôm nay giờ mở đủ danh sách ngay trong thẻ** thay vì đưa sang trang Sức khoẻ rủi ro (trang đó chỉ liệt kê 5 lần chạm cắt lỗ gần nhất, nên các việc còn lại không hề hiện ra). Thẻ vẫn hiện 5 việc đầu khi thu gọn ("Hiển thị 5/8 · Xem thêm 3 ▾"); mở rộng thì cuộn trong thẻ (cao tối đa 70% màn hình, phần đầu thẻ giữ nguyên), mọi việc đều có đủ nút BÁN và GIỮ. Bấm **Thu gọn ▴** để về 5 việc. Xử lý xong một việc hay làm mới danh sách không làm thẻ tự thu lại; tải lại trang thì thu gọn.
 - Nút "Xử lý →" của từng việc không đổi.
+## [v2.117.0] — 2026-11-28 · Dòng thời gian: thẻ "Luận điểm" cạnh biểu đồ
+
+### Tính năng mới
+
+- **Thẻ 🧭 Luận điểm** ở trang Dòng thời gian của mã, đứng cạnh biểu đồ khi màn rộng hơn 1024px và xếp dưới biểu đồ từ 1024px trở xuống. Thu gọn mặc định; bấm để mở thì mới tải hồ sơ (không thêm lần gọi nào khi chỉ xem biểu đồ).
+  - Hiện mô hình kinh doanh (một dòng), ba rủi ro hàng đầu, **điều kiện vô hiệu luận điểm** (dấu hiệu quan sát được của các rủi ro đánh dấu "phá vỡ luận điểm"; chưa có thì thẻ nói rõ là chưa ghi), ngày ký và số ngày trước, nút **Mở hồ sơ đầy đủ →**.
+  - Mã chưa có hồ sơ: "Chưa có hồ sơ công ty" kèm nút **Tạo hồ sơ**.
+  - Nút **➕ Tạo kế hoạch** mở form kế hoạch giao dịch đã điền sẵn mã (đường `/trade-plan?symbol=...` mà form kế hoạch vốn đã hỗ trợ).
+
+### Kỹ thuật
+
+- `ThesisCardComponent` dùng lại `CompanyDossierService.get`; 404 là trạng thái "chưa có hồ sơ", lỗi khác hiện thông báo và cho thử lại khi mở lại thẻ. Không thêm API.
 ## [v2.116.0] — 2026-11-28 · Số liệu doanh nghiệp kèm so sánh kỳ (API và MCP)
 
 ### Tính năng mới
