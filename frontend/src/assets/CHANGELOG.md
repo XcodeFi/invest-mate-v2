@@ -2,7 +2,7 @@
 
 ---
 
-## [v2.115.0] — 2026-11-28 · Dòng thời gian: thẻ "Luận điểm" cạnh biểu đồ
+## [v2.116.0] — 2026-11-28 · Dòng thời gian: thẻ "Luận điểm" cạnh biểu đồ
 
 ### Tính năng mới
 
@@ -17,6 +17,21 @@
 
 ---
 
+## [v2.115.0] — 2026-11-28 · Dòng thời gian: mỗi giao dịch cho biết hồ sơ công ty lúc đó ra sao
+
+### Tính năng mới
+
+- **Huy hiệu "hồ sơ lúc đó" trên từng giao dịch** ở trang Dòng thời gian của mã (chữ và biểu tượng, không chỉ màu):
+  - ⚪ **Hồ sơ chưa ký** — mã có hồ sơ nhưng chưa được ký.
+  - ✅ **Hồ sơ ký N ngày trước lệnh** — còn tươi; ⚠️ thêm **· cần soát lại** từ 90 ngày, ⛔ **· hết hạn** từ 180 ngày (đúng hai ngưỡng của hạn tươi hồ sơ, theo ngày lịch giờ Việt Nam).
+  - 🔁 **Hồ sơ ký lại sau lệnh này (dd/mm)** — lệnh nằm trước lần ký hiện tại. Không có phán quyết: lần ký trước đó không được lưu, nên không biết hồ sơ lúc đặt lệnh còn tươi hay đã cũ (xem chú giải khi rê chuột).
+  - Mã chưa có hồ sơ thì không hiện huy hiệu.
+- Công cụ MCP `get_symbol_timeline` trả cùng huy hiệu: mỗi mục `trade` có `dossierAtTrade` (`state`: `unsigned` | `resigned-after` | `signed`; `daysSigned`; `resignedAt`; `freshness`: `fresh` | `needs-review` | `expired`), null khi mã chưa có hồ sơ.
+
+### Kỹ thuật
+
+- Tính ở server: `CompanyDossier.DescribeAtTrade(tradeUtc)` dùng chung hằng số 90/180 và phép lệch giờ VN của entity (frontend không giữ bản sao ngưỡng, chỉ hiển thị kết luận). Chỉ dựa vào `ConfirmedAt`/`ReviewedAt` HIỆN TẠI vì `Confirm()` ghi đè `ReviewedAt` và lịch sử các lần ký không được lưu; vì vậy không có chuyện "hết hạn" cho lệnh trước lần ký hiện tại.
+- `GetSymbolTimelineQuery` đọc hồ sơ một lần cho cả huy hiệu và mốc hồ sơ.
 ## [v2.114.0] — 2026-11-28 · Menu trái theo nhóm công việc
 
 ### Tính năng mới
