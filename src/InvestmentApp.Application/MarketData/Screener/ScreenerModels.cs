@@ -142,6 +142,9 @@ public sealed class ScreenerPassedRow
 
     /// <summary>Ghi chú riêng của dòng, ví dụ chưa kiểm được danh sách cảnh báo HNX.</summary>
     public List<string> Notes { get; init; } = new();
+
+    /// <summary>Mã đã nằm trong một watchlist của CHÍNH người gọi. Điền sau khi lọc, trên dòng kết quả của lần gọi này (không phải trên kho đệm dùng chung); không có người gọi thì luôn false.</summary>
+    public bool InWatchlist { get; set; }
 }
 
 public sealed class ScreenerExcludedRow

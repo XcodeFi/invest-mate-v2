@@ -30,7 +30,7 @@ project/
 │   │
 │   └── InvestmentApp.Api/              # Controllers, DI, middleware (depends on all)
 │       ├── Controllers/               # 38 API controllers (incl. PersonalFinanceController, InternalJobsController, ApiKeysController, AiDigestController, AiAgentController + 7 AiAgent* expose controllers on AiAgentControllerBase: Positions, Watchlists, JournalEntries, Journals, Symbols, Portfolios, Fees)
-│       ├── Mcp/                        # MCP server: 19 [McpServerToolType] classes = 88 tools (mapped at /mcp, ApiKey scheme)
+│       ├── Mcp/                        # MCP server: 19 [McpServerToolType] classes = 89 tools (mapped at /mcp, ApiKey scheme)
 │       ├── Auth/                      # SchedulerEmailAllowlist, GcpOidcExtensions (Cloud Scheduler OIDC), ApiKeyAuthExtensions (per-user PAT scheme)
 │       ├── Authorization/             # RequireAdminAttribute
 │       ├── Middleware/                # ImpersonationValidationMiddleware, CorrelationId, Exception

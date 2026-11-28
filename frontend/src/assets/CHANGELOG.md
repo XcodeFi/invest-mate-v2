@@ -19,6 +19,21 @@
 
 ---
 
+## [v2.124.0] — 2026-11-28 · Sàng lọc: thêm mã vào Watchlist (và để trợ lý AI thêm giúp mỗi ngày)
+
+### Tính năng mới
+
+- **Trang Sàng lọc có nút "⭐ Thêm N mã vào watchlist"** cạnh "Gửi sang Bảng giá nhanh": chọn watchlist (mặc định là watchlist mặc định), mã đã có thì bỏ qua và báo **"Đã thêm N, bỏ qua M (đã có)"**. Mã mới có ghi chú tự điền ngắn "Từ sàng lọc dd/MM · ROE ≥ 12 · ...". Mã đã nằm trong bất kỳ watchlist nào có **⭐** cạnh mã.
+- **Trợ lý AI (MCP):** công cụ mới `add_watchlist_items` (tối đa 30 mã một lần, bỏ qua mã đã có, chỉ thêm) và cờ `inWatchlist` trên mỗi dòng đạt của `screen_stocks`, để một tác vụ định kỳ sau giờ đóng cửa tự cập nhật một watchlist "🔎 Từ sàng lọc". Cách chạy gợi ý nằm trong trang Hướng dẫn "Sàng lọc cổ phiếu".
+
+### Kỹ thuật
+
+- `POST /api/v1/watchlists/{id}/items/bulk` (JWT) và `POST /api/v1/ai/agent/watchlists/{id}/items/bulk` (ApiKey): chủ sở hữu luôn lấy từ xác thực, mã sai hoặc quá 30 mã làm hỏng cả lần gọi (không thêm một nửa).
+- Ghi **có điều kiện theo Version** (`IWatchlistRepository.TryUpdateAsync`) và đọc lại thử tối đa 3 lần khi có ghi xen vào, nên hai lần thêm đồng thời không ghi đè nhau. Các thao tác watchlist khác (sửa/xoá một mã) vẫn ghi đè theo kiểu cũ: một lần sửa tay đồng thời có thể ghi đè kết quả thêm hàng loạt trong cùng khoảnh khắc (đã biết, ngoài phạm vi).
+- Cờ `inWatchlist` tính bằng MỘT lần đọc watchlist của đúng người gọi, gắn lên dòng kết quả của lần gọi đó (không chạm kho đệm dùng chung).
+
+---
+
 ## [v2.123.1] — 2026-11-28 · Sửa: danh sách "Thêm" trên điện thoại luôn đủ trang như menu trái
 
 ### Sửa lỗi

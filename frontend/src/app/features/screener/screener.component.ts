@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { MarketDataService, ScreenerLookup, ScreenerPassedRow, ScreenerQuery, ScreenerResult } from '../../core/services/market-data.service';
 import { UppercaseDirective } from '../../shared/directives/uppercase.directive';
 import { SymbolLinkDirective } from '../../shared/directives/symbol-link.directive';
+import { WatchlistService, WatchlistSummary } from '../../core/services/watchlist.service';
 import { saveQuickBoardSymbols } from '../market-data/quick-board-storage';
 
 /** Cột sắp xếp được. Mặc định (sortKey = null) giữ nguyên thứ tự server trả về: bảng chữ cái, không ngầm xếp hạng. */
@@ -93,8 +94,16 @@ const MAX_SELECTION = 30;
         <div class="bg-white rounded-lg shadow p-4 mb-4">
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h2 class="text-lg font-semibold text-gray-700">Mã đạt tiêu chí</h2>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-2">
               <span *ngIf="selected.size >= maxSelection" class="text-xs text-amber-700" data-testid="screener-selection-cap">Chọn tối đa {{ maxSelection }} mã</span>
+              <select *ngIf="watchlistList.length > 0" data-testid="screener-watchlist-pick" aria-label="Chọn watchlist để thêm vào"
+                class="border border-gray-300 rounded-lg px-2 py-2 text-sm bg-white" (change)="targetWatchlistId = $any($event.target).value">
+                <option *ngFor="let w of watchlistList" [value]="w.id" [selected]="w.id === targetWatchlistId">{{ w.emoji }} {{ w.name }}</option>
+              </select>
+              <button type="button" data-testid="screener-watchlist-add" (click)="addToWatchlist()" [disabled]="selected.size === 0 || !targetWatchlistId || adding"
+                class="whitespace-nowrap border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                ⭐ Thêm {{ selected.size }} mã vào watchlist
+              </button>
               <button type="button" data-testid="screener-send" (click)="sendToBoard()" [disabled]="selected.size === 0"
                 class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
                 Gửi {{ selected.size }} mã sang Bảng giá nhanh
@@ -103,6 +112,11 @@ const MAX_SELECTION = 30;
           </div>
 
           <p *ngIf="sendError" class="text-sm text-red-600 mb-2" data-testid="screener-send-error">{{ sendError }}</p>
+          <p *ngIf="watchlistList.length === 0" class="text-xs text-gray-600 mb-2" data-testid="screener-watchlist-none">
+            {{ watchlistsFailed ? 'Không tải được danh sách watchlist.' : 'Chưa có watchlist nào để thêm vào.' }} <a routerLink="/watchlist" class="text-blue-600 underline">Mở trang Watchlist</a>
+          </p>
+          <p *ngIf="addResult" class="text-sm text-green-700 mb-2" data-testid="screener-watchlist-result" role="status">{{ addResult }}</p>
+          <p *ngIf="addError" class="text-sm text-red-600 mb-2" data-testid="screener-watchlist-error" role="alert">{{ addError }}</p>
 
           <p *ngIf="result.passed.length === 0" class="text-sm text-gray-500" data-testid="screener-empty">Không có mã nào đạt tiêu chí hiện tại.</p>
 
@@ -128,7 +142,7 @@ const MAX_SELECTION = 30;
                     <input type="checkbox" data-testid="screener-tick" [attr.data-symbol]="r.symbol" [attr.aria-label]="'Chọn ' + r.symbol"
                       [checked]="selected.has(r.symbol)" (change)="toggle(r.symbol, $event)">
                   </td>
-                  <td class="py-2 pr-3 font-semibold"><span data-testid="screener-symbol" [appSymbolLink]="r.symbol">{{ r.symbol }}</span></td>
+                  <td class="py-2 pr-3 font-semibold"><span data-testid="screener-symbol" [appSymbolLink]="r.symbol">{{ r.symbol }}</span><span *ngIf="r.inWatchlist" data-testid="screener-in-watchlist" [attr.data-symbol]="r.symbol" class="ml-1" title="Đã có trong watchlist" aria-label="Đã có trong watchlist">⭐</span></td>
                   <td class="py-2 pr-3">{{ r.floor }}</td>
                   <td class="py-2 pr-3">{{ r.sector ?? '—' }}</td>
                   <td class="py-2 pr-3 text-right font-mono">{{ r.adtvBn != null ? (r.adtvBn | number:'1.0-1') : '—' }}</td>
@@ -217,14 +231,33 @@ export class ScreenerComponent implements OnInit {
   private lastQuery: ScreenerQuery | null = null;
   sendError = '';
 
+  /** Thêm vào watchlist (một nơi cho cả hai nguồn: ô chọn của trang và lệnh định kỳ của agent). */
+  watchlistList: WatchlistSummary[] = [];
+  watchlistsFailed = false;
+  targetWatchlistId = '';
+  adding = false;
+  addResult = '';
+  addError = '';
+
   lookupSymbol = '';
   lookupResult: ScreenerLookup | null = null;
   lookupError = '';
 
-  constructor(private marketData: MarketDataService, private router: Router) {}
+  constructor(private marketData: MarketDataService, private router: Router, private watchlists: WatchlistService) {}
 
   ngOnInit(): void {
     this.run();
+    this.loadWatchlists();
+  }
+
+  private loadWatchlists(): void {
+    this.watchlists.getAll().subscribe({
+      next: lists => {
+        this.watchlistList = lists;
+        this.targetWatchlistId = (lists.find(w => w.isDefault) ?? lists[0])?.id ?? '';
+      },
+      error: () => { this.watchlistsFailed = true; }
+    });
   }
 
   private floors(): string[] {
@@ -348,6 +381,39 @@ export class ScreenerComponent implements OnInit {
     }
     this.sendError = '';
     this.router.navigate(['/market-data']);
+  }
+
+  /** Ghi chú tự điền, ngắn: "Từ sàng lọc 28/11 · ROE ≥ 12 · Sức mạnh 3T ≥ P50". Dùng đúng tiêu chí của lần lọc đang hiện trên bảng. */
+  private autoNote(): string {
+    const d = new Date();
+    const dd = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const qy = this.lastQuery ?? this.buildQuery();
+    const parts = [`Từ sàng lọc ${dd}`];
+    if (qy.minRoe != null) parts.push(`ROE ≥ ${qy.minRoe}`);
+    if (qy.minRs3m != null) parts.push(`Sức mạnh 3T ≥ P${qy.minRs3m}`);
+    if (qy.maxPe != null) parts.push(`P/E ≤ ${qy.maxPe}`);
+    return parts.join(' · ').slice(0, 200);
+  }
+
+  addToWatchlist(): void {
+    if (this.adding || this.selected.size === 0 || !this.targetWatchlistId) return;
+    const symbols = [...this.selected].sort((a, b) => a.localeCompare(b));
+    this.adding = true;
+    this.addResult = '';
+    this.addError = '';
+    this.watchlists.addItemsBulk(this.targetWatchlistId, symbols, this.autoNote()).subscribe({
+      next: res => {
+        this.adding = false;
+        this.addResult = `Đã thêm ${res.added.length}, bỏ qua ${res.skipped.length} (đã có)`;
+        const inList = new Set([...res.added, ...res.skipped]);
+        for (const r of this.result?.passed ?? []) if (inList.has(r.symbol)) r.inWatchlist = true;
+        this.selected = new Set([...this.selected].filter(s => !symbols.includes(s)));
+      },
+      error: () => {
+        this.adding = false;
+        this.addError = 'Không thêm được vào watchlist, thử lại sau.';   // giữ nguyên các mã đã chọn để thử lại
+      }
+    });
   }
 
   // --- Vì sao mã X không có? ---

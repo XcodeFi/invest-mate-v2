@@ -1,4 +1,5 @@
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
+using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItems;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.DeleteWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.ImportVn30;
@@ -90,6 +91,18 @@ public class WatchlistsController : ControllerBase
     /// </summary>
     [HttpPost("{id}/items")]
     public async Task<IActionResult> AddItem(string id, [FromBody] AddWatchlistItemCommand command)
+    {
+        command.WatchlistId = id;
+        command.UserId = GetUserId();
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Thêm nhiều mã vào watchlist (tối đa 30), bỏ qua mã đã có. Trả về { watchlistId, added, skipped }.
+    /// </summary>
+    [HttpPost("{id}/items/bulk")]
+    public async Task<IActionResult> AddItemsBulk(string id, [FromBody] AddWatchlistItemsCommand command)
     {
         command.WatchlistId = id;
         command.UserId = GetUserId();

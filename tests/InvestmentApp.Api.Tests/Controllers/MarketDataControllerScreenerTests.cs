@@ -33,6 +33,30 @@ public class MarketDataControllerScreenerTests
     }
 
     [Fact]
+    public async Task screener_passes_the_jwt_user_so_rows_can_carry_the_watchlist_flag_and_never_a_query_value()
+    {
+        var mediator = new Mock<IMediator>();
+        ScreenStocksQuery? sent = null;
+        mediator.Setup(m => m.Send(It.IsAny<ScreenStocksQuery>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<ScreenerResult>, CancellationToken>((q, _) => sent = (ScreenStocksQuery)q)
+            .ReturnsAsync(new ScreenerResult());
+        var controller = new MarketDataController(mediator.Object)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(new[] { new System.Security.Claims.Claim("sub", "user-7") }, "test"))
+                }
+            }
+        };
+
+        await controller.Screener();
+
+        sent!.UserId.Should().Be("user-7");
+    }
+
+    [Fact]
     public void the_route_is_get_market_screener_behind_the_jwt_policy()
     {
         var method = typeof(MarketDataController).GetMethod(nameof(MarketDataController.Screener))!;

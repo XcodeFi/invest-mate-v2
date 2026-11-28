@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InvestmentApp.Api.Mcp;
 using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItem;
+using InvestmentApp.Application.Watchlists.Commands.AddWatchlistItems;
 using InvestmentApp.Application.Watchlists.Commands.CreateWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.DeleteWatchlist;
 using InvestmentApp.Application.Watchlists.Commands.ImportVn30;
@@ -20,6 +21,19 @@ public class WatchlistToolsTests
 {
     private readonly Mock<IMediator> _mediator = new();
     private readonly IHttpContextAccessor _http = McpTestContext.WithUser("u-1");
+
+    [Fact]
+    public async Task AddWatchlistItems_SetsIdUserIdSymbolsAndNote_FromAuthNotFromArgs()
+    {
+        McpTestContext.Capture<AddWatchlistItemsResult, AddWatchlistItemsCommand>(_mediator, out var sent, new AddWatchlistItemsResult());
+
+        await WatchlistTools.AddWatchlistItems("w1", new List<string> { "VCB", "FPT" }, _mediator.Object, _http, CancellationToken.None, "Từ sàng lọc 28/11");
+
+        sent()!.WatchlistId.Should().Be("w1");
+        sent()!.UserId.Should().Be("u-1");
+        sent()!.Symbols.Should().Equal("VCB", "FPT");
+        sent()!.Note.Should().Be("Từ sàng lọc 28/11");
+    }
 
     [Fact]
     public async Task ListWatchlists_SetsUserId()

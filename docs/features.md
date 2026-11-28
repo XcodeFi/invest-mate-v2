@@ -617,7 +617,7 @@ Theo dõi cổ phiếu quan tâm trước khi tạo Trade Plan — cầu nối M
 
 - **Entities:** `Watchlist` (AggregateRoot), `WatchlistItem` (ValueObject embedded)
 - **Collection:** `watchlists` (compound index UserId)
-- **API:** `WatchlistsController` (`api/v1/watchlists`) — 9 endpoints (CRUD + items + import-vn30)
+- **API:** `WatchlistsController` (`api/v1/watchlists`) — 10 endpoints (CRUD + items + import-vn30 + `POST {id}/items/bulk` thêm tối đa 30 mã, bỏ qua mã đã có, trả `{ added, skipped }`; cùng lệnh ở `ai/agent/watchlists/{id}/items/bulk` và MCP `add_watchlist_items`). Trang Sàng lọc có nút "⭐ Thêm vào watchlist" (ghi chú tự điền) và `screen_stocks` / `GET market/screener` trả cờ `inWatchlist` theo người gọi (2026-11-28)
 - **CQRS:** 7 commands (Create/Update/Delete watchlist, Add/Update/Remove item, ImportVn30) + 2 queries
 
 ### Frontend
