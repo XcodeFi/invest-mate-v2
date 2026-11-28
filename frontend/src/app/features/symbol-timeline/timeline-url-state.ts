@@ -11,7 +11,7 @@ export interface TimelineUrlState {
   /** Số tháng. */
   range?: number;
   group?: TaGroup;
-  /** Ngày YYYY-MM-DD. */
+  /** Ngày YYYY-MM-DD (giờ VN). Chỉ xác định ngày, không xác định mục: nhiều mục cùng ngày thì chọn mục đầu tiên của ngày đó. */
   focus?: string;
 }
 
@@ -32,7 +32,7 @@ function isRealDate(text: string): boolean {
 export function parseTimelineQuery(params: ParamMap): TimelineUrlState {
   const state: TimelineUrlState = {};
   const range = params.get('range');
-  if (range && range in RANGE_BY_KEY) state.range = RANGE_BY_KEY[range];
+  if (range && Object.hasOwn(RANGE_BY_KEY, range)) state.range = RANGE_BY_KEY[range];
   const grp = params.get('grp');
   if (grp && GROUP_KEYS.has(grp)) state.group = grp as TaGroup;
   const focus = params.get('focus');

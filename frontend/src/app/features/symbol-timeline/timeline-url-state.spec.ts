@@ -15,6 +15,10 @@ describe('timeline URL state', () => {
     expect(parse({}).range).toBeUndefined();
   });
 
+  it('range: inherited object keys are not labels (constructor, toString, __proto__)', () => {
+    ['constructor', 'toString', '__proto__', 'hasOwnProperty'].forEach(k => expect(parse({ range: k }).range).toBeUndefined());
+  });
+
   it('grp: reads the six indicator group keys and ignores unknown values', () => {
     ['tong-hop', 'xu-huong', 'dong-luong', 'bien-dong', 'dong-tien', 'moc-gia']
       .forEach(g => expect(parse({ grp: g }).group).toBe(g as any));

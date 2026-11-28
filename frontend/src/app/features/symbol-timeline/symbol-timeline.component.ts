@@ -735,7 +735,8 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
 
     if (this.firstUrlState) {
       this.firstUrlState = false;
-      if (next.range !== undefined) this.selectedRange = next.range;
+      // Luồng review (tradeId) cần khoảng 12 tháng để thấy lệnh cũ: tradeId thắng range trên URL
+      if (next.range !== undefined && !this.reviewTradeId) this.selectedRange = next.range;
       if (next.group !== undefined) this.selectedGroup = next.group;
       this.focusDate = next.focus ?? null;
       this.scrollToFocus = this.focusDate !== null;

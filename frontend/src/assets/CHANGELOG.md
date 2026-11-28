@@ -12,7 +12,7 @@
 ### Kỹ thuật
 
 - `timeline-url-state.ts` (hàm thuần `parseTimelineQuery` / `buildTimelineQuery`) và trang đọc qua `queryParamMap` (không phải snapshot): lần phát đầu áp dụng trạng thái ban đầu, các lần sau chỉ áp dụng khoá nào đổi, nên lần phát lại do chính trang vừa ghi và các khoá không liên quan (`tradeId`) là no-op. Ghi bằng `queryParamsHandling: 'merge'` + `replaceUrl: true`; không đụng `symbol` và `tradeId` (luồng đánh giá sau giao dịch giữ nguyên, kể cả việc mở rộng mặc định lên 12 tháng).
-- `focus` là ngày theo giờ Việt Nam của mục đang chọn (giao dịch lúc 00:30 giờ VN ngày 20 có focus ngày 20, không phải ngày 19).
+- `focus` chỉ xác định NGÀY, không xác định mục: ngày có nhiều mục (ví dụ một giao dịch và một nhật ký) thì mở lại sẽ chọn mục đầu tiên của ngày đó. Khi vào từ link review (`tradeId`) thì `tradeId` thắng `range`, giữ khoảng 12 tháng. `focus` là ngày theo giờ Việt Nam của mục đang chọn (giao dịch lúc 00:30 giờ VN ngày 20 có focus ngày 20, không phải ngày 19).
 - Chưa làm (theo kế hoạch): khôi phục vị trí cuộn, trạng thái thẻ trên URL, link từ Thị trường/Replay/Watchlist; huy hiệu "hồ sơ lúc đó" và thẻ "Luận điểm" là hai PR sau.
 
 ---

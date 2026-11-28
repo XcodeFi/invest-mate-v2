@@ -230,6 +230,12 @@ describe('SymbolTimelineComponent — trạng thái trên URL (range, grp, focus
     expect(component.reviewTradeId).toBe('t1');
   });
 
+  it('tradeId wins over range on first load: the review flow keeps its 12 months', () => {
+    setup({ tradeId: 't1', range: '1T' });
+
+    expect(component.selectedRange).toBe(12);
+  });
+
   it('leaving review mode removes tradeId only (merge) and does not reset the widened range', () => {
     setup({ tradeId: 't1' });
     const before = timelineCalls();
