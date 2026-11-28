@@ -82,7 +82,7 @@ public class HmoneyProviderWarmupTests
     private static int _uniq;
 
     /// <summary>Cổng theo mã của nguồn là tĩnh (dùng chung giữa các instance, đúng như khi chạy thật): mỗi test dùng mã riêng để các test chạy song song không giành cổng của nhau.</summary>
-    private sealed record Rig(HmoneyMarketDataProvider P, Handler H, FakeStore Store, FakeBudget Budget, FakeTime Time)
+    private sealed record Rig(HmoneyMarketDataProvider P, Handler H, FakeStore Store, FakeBudget Budget, FakeTime Time, IMemoryCache Cache)
     {
         private readonly int _id = Interlocked.Increment(ref _uniq);
         public string S(string name) => name + "Z" + _id;
@@ -95,12 +95,13 @@ public class HmoneyProviderWarmupTests
         var store = new FakeStore();
         var bud = new FakeBudget(budget);
         var time = new FakeTime(Morning);
+        var cache = new MemoryCache(new MemoryCacheOptions());
         var p = new HmoneyMarketDataProvider(
-            new HttpClient(h) { BaseAddress = new Uri("https://api-test.example.com") }, new MemoryCache(new MemoryCacheOptions()),
+            new HttpClient(h) { BaseAddress = new Uri("https://api-test.example.com") }, cache,
             NullLogger<HmoneyMarketDataProvider>.Instance,
             Options.Create(new MarketDataProviderOptions { BaseUrl = "https://api-test.example.com", TradingViewBaseUrl = TvBase }),
             store, time, bud);
-        return new Rig(P: p, H: h, Store: store, Budget: bud, Time: time);
+        return new Rig(P: p, H: h, Store: store, Budget: bud, Time: time, Cache: cache);
     }
 
     private static Task<List<StockPriceData>> UserChart(HmoneyMarketDataProvider p, string symbol)
@@ -158,6 +159,21 @@ public class HmoneyProviderWarmupTests
 
         fresh.H.TvUrls.Should().BeEmpty();
         fresh.Budget.Consumed.Should().Be(0, "bản lưu còn mới thì không tốn lượt gọi");
+    }
+
+    [Fact]
+    public async Task warm_is_degraded_by_the_global_cooldown_even_with_no_failure_streak()
+    {
+        // một lần thành công đặt lại chuỗi lỗi trong khi mốc nghỉ chung 15 phút còn chạy: nhánh cooldown phải tự đứng được, không dựa vào chuỗi lỗi
+        var r = Create();
+        var timed = typeof(HmoneyMarketDataProvider).GetNestedType("Timed`1", System.Reflection.BindingFlags.NonPublic)!.MakeGenericType(typeof(bool));
+        r.Cache.Set("tv:cooldown:global", Activator.CreateInstance(timed, true, Morning.AddMinutes(10)));
+        r.Cache.TryGetValue("tv:fail-streak", out object? _).Should().BeFalse("không có chuỗi lỗi nào");
+
+        (await r.P.WarmAsync(r.S("FPT"))).Should().Be(WarmFetchResult.Degraded);
+
+        r.H.TvUrls.Should().BeEmpty();
+        r.Budget.Consumed.Should().Be(0);
     }
 
     [Fact]
