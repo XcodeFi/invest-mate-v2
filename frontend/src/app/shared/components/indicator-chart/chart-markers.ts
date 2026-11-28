@@ -23,7 +23,7 @@ export function snapMarkers(
 
   for (const marker of markers) {
     const day = (marker.time ?? '').substring(0, 10);
-    const k = lastIndexNotAfter(times, day);
+    const k = sessionIndexFor(times, day);
     if (k < 0) continue;
     const time = times[k];
     snapped.push({ time, position: marker.position, color: marker.color, shape: marker.shape, text: marker.text });
@@ -33,8 +33,8 @@ export function snapMarkers(
   return { markers: snapped, tooltips };
 }
 
-/** Chỉ số của phần tử lớn nhất không vượt quá `day` trong mảng tăng dần; -1 nếu mọi phần tử đều lớn hơn. */
-function lastIndexNotAfter(times: readonly string[], day: string): number {
+/** Chỉ số phiên gần nhất không sau `day` (YYYY-MM-DD) trong mảng ngày tăng dần: phiên của chính ngày đó, hoặc phiên trước nó; -1 nếu ngày nằm trước phiên đầu. */
+export function sessionIndexFor(times: readonly string[], day: string): number {
   let lo = 0, hi = times.length - 1, found = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
