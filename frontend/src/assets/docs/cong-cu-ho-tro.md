@@ -113,6 +113,14 @@ Xem lịch sử toàn bộ hoạt động liên quan đến 1 mã CP:
 - Nhật ký, giao dịch, sự kiện thị trường, cảnh báo
 - Sắp xếp theo thời gian
 
+### Biểu đồ chỉ báo trên dòng thời gian
+Biểu đồ ở đầu trang giống trang **Phân tích thị trường**: bấm một nhóm chỉ báo (Tổng hợp, Xu hướng, Động lượng, Biến động, Dòng tiền, Mốc giá) để vẽ nhóm đó, bấm lại để bỏ. Dưới biểu đồ có khối **📖 Cách đọc** của nhóm đang chọn (đọc hướng dẫn đầy đủ ở mục Phân tích thị trường).
+- Nến là nến thật đã điều chỉnh theo sự kiện quyền (cổ tức, chia thưởng, phát hành thêm). Nếu thấy ghi chú "chưa điều chỉnh" hoặc "cập nhật tới ngày …" thì nguồn dữ liệu đang có sự cố.
+- **Mốc trên biểu đồ:** T = giao dịch (mũi tên lên là mua, xuống là bán), J = nhật ký, E = sự kiện, A = cảnh báo, H = hồ sơ công ty. Ngày không có phiên (cuối tuần, lễ) thì mốc nằm ở phiên liền trước. Trỏ chuột vào phiên có mốc để xem chi tiết.
+- **Giá giao dịch là giá gốc.** Nến đã điều chỉnh nên có thể thấp hơn giá bạn đã khớp nếu sau đó có cổ tức hoặc phát hành thêm. Khi đó mốc ghi "(giá gốc)": vị trí mốc vẫn đúng ngày, chỉ mặt bằng giá khác nhau.
+- Các nút **1T / 3T / 6T / 1N** đổi khoảng hiển thị; chỉ báo vẫn được tính trên dữ liệu dài hơn nên đầu khoảng không bị trống.
+- Tầng **Cảm xúc** (cột màu ở dưới cùng) xuất hiện khi bạn có nhật ký ghi cảm xúc: độ cao cột là mức tự tin, màu là cảm xúc.
+
 ### Đánh giá sau khi bán (post-trade review)
 Sau khi có lệnh BÁN, lệnh sẽ hiện ở Dashboard card "Chờ đánh giá" và trong trang Giao dịch với biểu tượng ✎ vàng ("Chưa đánh giá"). Bấm vào để mở Symbol Timeline ở chế độ review:
 - Banner cam hiện lên ghi rõ giao dịch đang được đánh giá (loại, số lượng, giá, ngày).
