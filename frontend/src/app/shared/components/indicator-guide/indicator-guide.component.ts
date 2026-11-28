@@ -41,8 +41,23 @@ const GUIDE_OPEN_KEY = 'ta-guide-open';
                 <p class="mt-1 text-xs text-gray-500"><span class="font-semibold">Nhìn trên biểu đồ:</span> {{ item.onChart }}</p>
                 <div class="mt-1 text-xs font-semibold text-gray-600">Cách đọc</div>
                 <ul class="list-disc pl-5 space-y-0.5">
-                  @for (line of item.howToRead; track line) { <li>{{ line }}</li> }
+                  @for (line of item.howToRead; track line.how) {
+                    <li>{{ line.how }}<span class="block text-xs text-gray-500" data-testid="ta-guide-why"><span class="font-semibold">Vì sao:</span> {{ line.why }}</span></li>
+                  }
                 </ul>
+                <div class="mt-2 rounded-md bg-gray-50 border border-gray-100 px-2 py-1.5" data-testid="ta-guide-used-by">
+                  <div class="text-xs font-semibold text-gray-600">Nhà đầu tư lão luyện dùng thế nào, vì sao</div>
+                  @for (u of item.usedBy; track u.who) {
+                    <div class="mt-1 text-xs text-gray-700" data-testid="ta-guide-used-by-entry">
+                      <span class="font-semibold">{{ u.who }}</span>: {{ u.how }}
+                      <span class="block"><span class="font-semibold">Vì sao:</span> {{ u.why }}</span>
+                      <span class="block text-gray-500"><span class="font-semibold">Nguồn:</span> {{ u.source }}</span>
+                      @if (u.note) { <span class="block text-amber-700"><span class="font-semibold">Lưu ý:</span> {{ u.note }}</span> }
+                    </div>
+                  } @empty {
+                    <p class="mt-1 text-xs text-gray-600" data-testid="ta-guide-no-users">{{ item.noUsers }}</p>
+                  }
+                </div>
                 <p class="mt-1 text-xs text-amber-700"><span class="font-semibold">Bẫy hay gặp:</span> {{ item.pitfall }}</p>
               </div>
             }

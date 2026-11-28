@@ -95,6 +95,9 @@ Bấm một **nút nhóm** trên thanh ngay phía trên biểu đồ (🎯 Tổn
 | 💰 Dòng tiền | Khối lượng và đường KL SMA 20 (trung bình 20 phiên), OBV, MFI 14 (vạch 20/80) |
 | 🧱 Mốc giá | Đường ngang hỗ trợ, kháng cự và các mốc Fibonacci có nhãn |
 
+- **Gắn sao:** mỗi nút nhóm có nút **☆** riêng; bấm để gắn **★**. Nhóm có sao đứng đầu thanh, và nhóm có sao đầu tiên được mở sẵn khi vào trang (địa chỉ trang có chỉ định nhóm thì theo địa chỉ). Sao chỉ lưu trong trình duyệt này.
+- **Nhà đầu tư lão luyện dùng thế nào:** ở từng chỉ báo bên dưới có mục này, mỗi dòng ghi ai, dùng thế nào, **vì sao** và **nguồn**. Tác giả chỉ báo chỉ được ghi là tác giả, không phải bằng chứng họ giỏi đầu tư. Cách dùng của họ có thể khác chỉ báo app vẽ (SMA hay EMA, N 20 ngày hay ATR 14...), mục đó ghi rõ.
+- **Cơ sở và giới hạn:** nghiên cứu về quy tắc đường trung bình cho kết quả trái chiều (Brock, Lakonishok và LeBaron 1992 thấy có lợi thế; Sullivan, Timmermann và White 1999 không giữ được sau khi hiệu chỉnh việc thử nhiều quy tắc), nên hãy xem chúng như **bộ lọc rủi ro**, không phải công cụ dự báo. Ngưỡng RSI 70/30 dùng riêng có bằng chứng hạn chế. Ở Việt Nam, biên độ giá là ±7% (HOSE), ±10% (HNX), ±15% (UPCoM) và cổ phiếu mới mua về tài khoản vào chiều T+2: mức cắt lỗ là kế hoạch, không phải cam kết, vì giá có thể nhảy cóc qua mức đó.
 - Các tầng cùng trục thời gian: kéo hoặc zoom một tầng thì các tầng khác đi theo. Trỏ chuột vào một tầng, các tầng còn lại hiện đường dọc tại cùng phiên và dòng chú giải của từng tầng ghi giá trị của phiên đó.
 - Điểm cuối mỗi đường bằng đúng con số trên thẻ cùng tên.
 - Giá trên biểu đồ là giá **đã điều chỉnh** theo sự kiện quyền (cổ tức tiền, cổ phiếu thưởng, chia tách): ngày giao dịch không hưởng quyền không còn hiện thành một cú tụt giả, nên EMA, RSI và các mức hỗ trợ không bị lệch. Vì vậy giá cũ trên biểu đồ có thể thấp hơn giá bạn thấy hồi đó.
@@ -110,8 +113,16 @@ Bấm một **nút nhóm** trên thanh ngay phía trên biểu đồ (🎯 Tổn
 Khi bấm nhóm **🎯 Tổng hợp**, biểu đồ vẽ ba đường ngang đứt nét theo gợi ý giao dịch: **Giá vào** (xanh dương), **Cắt lỗ** (đỏ), **Chốt lời** (xanh lá).
 
 - **Là gì:** ba mức giá hệ thống đề xuất dựa trên hỗ trợ, kháng cự và biến động gần đây.
-- **Cách đọc:** cắt lỗ là mức giá nếu chạm thì nhận sai và thoát. Chốt lời xa giá vào hơn cắt lỗ thường được xem là đáng cân nhắc: vào 100, cắt lỗ 95 (rủi ro 5), chốt lời 110 (lãi 10) là lãi gấp đôi rủi ro.
-- **Điểm Confluence:** con số 0 đến 100 cho biết bao nhiêu chỉ báo cùng nghiêng về một phía. Trên 60 nghiêng về mua, dưới 40 nghiêng về bán, giữa là chưa đồng thuận. Ví dụ 72 điểm: nhiều chỉ báo đang cùng chiều.
+- **Cách đọc:**
+  - Cắt lỗ là mức giá nếu chạm thì nhận sai và thoát, để lỗ không vượt quá mức bạn chấp nhận. *Vì sao:* Một lệnh sai không có điểm thoát định sẵn sẽ dễ bị giữ lại theo cảm xúc, và lỗ sâu thì phải lãi lớn hơn nhiều mới bù lại được.
+  - Chốt lời nằm xa giá vào hơn cắt lỗ thì thường được xem là đáng cân nhắc: ví dụ vào 100, cắt lỗ 95 (rủi ro 5), chốt lời 110 (lãi 10) là lãi gấp đôi rủi ro. *Vì sao:* Lãi gấp đôi rủi ro thì dù đúng ít hơn sai vẫn có thể có lãi; lãi nhỏ hơn rủi ro thì phải đúng rất nhiều mới hoà vốn.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - Chưa có nhà đầu tư nào có thành tích kiểm chứng được gắn với chỉ báo này; đây là phần ứng dụng tự tính.
+- **Điểm Confluence:** con số 0 đến 100 cho biết bao nhiêu chỉ báo cùng nghiêng về một phía. Cách đọc:
+  - Trên 60: đa số chỉ báo nghiêng về mua. Dưới 40: đa số nghiêng về bán. Từ 40 đến 60: các chỉ báo chưa đồng thuận. *Vì sao:* Một chỉ báo đơn lẻ hay báo giả; nhiều chỉ báo cùng chiều thì xác suất sai của từng cái giảm đi.
+  - Ví dụ: 72 điểm nghĩa là nhiều chỉ báo đang cùng chiều, độ tin cậy cao hơn khi chỉ có một chỉ báo báo mua. *Vì sao:* Các chỉ báo đều tính từ cùng một chuỗi giá nên đồng thuận chưa phải bằng chứng độc lập; vì vậy chỉ coi là tham khảo.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - Chưa có nhà đầu tư nào có thành tích kiểm chứng được gắn với chỉ báo này; đây là phần ứng dụng tự tính.
 - **Bẫy hay gặp:** đây là gợi ý để so với kế hoạch của bạn, không phải lệnh phải làm theo; điểm cao chỉ nói các chỉ báo đồng thuận trên dữ liệu quá khứ.
 
 ### 📈 Xu hướng
@@ -119,13 +130,24 @@ Khi bấm nhóm **🎯 Tổng hợp**, biểu đồ vẽ ba đường ngang đ�
 **EMA 20 và EMA 50 (đường trung bình)**
 - **Là gì:** đường trung bình của giá đóng cửa 20 và 50 phiên gần nhất, phiên gần đây được tính nặng hơn. Nó làm mượt biến động hằng ngày để thấy hướng đi chung.
 - **Trên biểu đồ:** hai đường đè lên nến: EMA 20 màu xanh dương (nhanh hơn), EMA 50 màu cam (chậm hơn).
-- **Cách đọc:** EMA 20 nằm trên EMA 50 và cả hai dốc lên là xu hướng ngắn hạn đang tăng; ngược lại là đang giảm. Giá nằm trên cả hai đường là phe mua đang giữ thế. Hai đường cắt nhau là lúc xu hướng có thể đổi chiều.
+- **Cách đọc:**
+  - EMA 20 nằm trên EMA 50 và cả hai dốc lên: xu hướng ngắn hạn đang tăng. Ngược lại là đang giảm. *Vì sao:* Đường trung bình dốc lên nghĩa là giá đóng cửa gần đây trung bình cao hơn trước; đường nhanh trên đường chậm cho thấy đà đang đi cùng chiều.
+  - Giá nằm trên cả hai đường: phe mua đang giữ thế. Giá chui xuống dưới cả hai: thế đã yếu đi. *Vì sao:* Người mua gần đây đang có lãi so với giá trung bình nên ít có lý do bán; khi giá xuống dưới, phần lớn người mua gần đây đang lỗ và dễ bán.
+  - Hai đường cắt nhau là lúc xu hướng có thể đổi chiều. *Vì sao:* Đường nhanh cắt đường chậm nghĩa là giá gần đây đã đi ngược hướng của giá trung bình dài hơn.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **Mark Minervini (nhà đầu tư, vô địch US Investing Championship 1997)**: Mẫu xu hướng (Trend Template): giá nằm trên các đường 150 và 200 ngày, đường 150 trên đường 200, đường 200 dốc lên ít nhất một tháng, đường 50 trên đường 150 và 200, giá trên đường 50. *Vì sao:* Cổ phiếu tăng mạnh thường nằm trong giai đoạn tăng giá rõ ràng; bộ lọc này loại các cổ phiếu đang đi xuống hoặc đi ngang. *Nguồn:* Mark Minervini, Trade Like a Stock Market Wizard (2013), nguồn thứ cấp về thành tích. *Lưu ý:* Ông dùng đường trung bình đơn giản (SMA) 50, 150, 200 ngày; ứng dụng vẽ EMA 20, 50, 200 nên không đối chiếu từng tiêu chí của ông được.
+  - **Paul Tudor Jones (nhà quản lý quỹ)**: Chuyển sang phòng thủ khi giá nằm dưới đường trung bình 200 ngày của giá đóng cửa. *Vì sao:* Tránh phải chịu những đợt sụt giảm lớn: bảo toàn vốn được ưu tiên hơn việc bắt đáy. *Nguồn:* Phỏng vấn Paul Tudor Jones trong Tony Robbins, Money: Master the Game (2014), nguồn thứ cấp. *Lưu ý:* Ông dùng đường 200 ngày; ứng dụng vẽ EMA 200 khi mã có đủ 200 phiên. Các nghiên cứu về quy tắc đường trung bình cho kết quả trái chiều, nên dùng như bộ lọc rủi ro chứ không phải công cụ dự báo.
 - **Bẫy hay gặp:** khi giá đi ngang, hai đường cắt nhau liên tục và cho tín hiệu giả; xem thêm ADX trước khi tin.
 
 **ADX 14, +DI và −DI**
 - **Là gì:** ADX đo xu hướng mạnh hay yếu (không cho biết hướng). +DI là lực của phe mua, −DI là lực của phe bán.
 - **Trên biểu đồ:** một tầng riêng: ADX màu tím, +DI xanh lá, −DI đỏ, kèm vạch mờ ở mức 25 "Có xu hướng".
-- **Cách đọc:** ADX từ 25 trở lên là có xu hướng rõ; dưới 25 là đi ngang hoặc chưa rõ hướng (ví dụ ADX 18). +DI trên −DI là lực tăng trội hơn, ngược lại là lực giảm trội hơn. ADX cao vẫn có thể là xu hướng giảm: nhìn +DI và −DI để biết hướng.
+- **Cách đọc:**
+  - ADX từ 25 trở lên: có xu hướng rõ. Dưới 25: giá đang đi ngang hoặc chưa rõ hướng, ví dụ ADX 18. *Vì sao:* Chiến lược theo xu hướng chỉ có lợi khi có xu hướng; khi đi ngang thì các tín hiệu cắt đường trung bình thường báo giả.
+  - +DI nằm trên −DI: lực tăng trội hơn. −DI nằm trên +DI: lực giảm trội hơn. *Vì sao:* ADX không có hướng, nên cần so hai lực mua và bán để biết xu hướng mạnh đó đang đi lên hay đi xuống.
+  - ADX càng cao thì xu hướng càng mạnh, nhưng ADX cao vẫn có thể là xu hướng giảm: nhìn +DI và −DI để biết hướng. *Vì sao:* Xu hướng giảm mạnh cũng làm ADX tăng, vì ADX chỉ đo độ mạnh của cú đi một chiều.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **J. Welles Wilder (tác giả chỉ báo)**: Giới thiệu ADX và +DI, −DI trong hệ thống chuyển động có hướng; ADX trên 25 là có xu hướng mạnh, dưới 20 là gần như không có xu hướng. *Vì sao:* Cần một thước đo tách bạch độ mạnh của xu hướng khỏi hướng của nó, để biết khi nào nên dùng chiến lược theo xu hướng. *Nguồn:* J. Welles Wilder, New Concepts in Technical Trading Systems (1978); StockCharts ChartSchool: ADX. *Lưu ý:* Đây là người tạo ra chỉ báo, không phải bằng chứng về thành tích đầu tư. Mức 25 là quy ước, vùng 20 đến 25 là vùng xám.
 - **Bẫy hay gặp:** ADX là chỉ báo chậm; lên cao thường đã đi được một đoạn, và ADX giảm không có nghĩa là giá đảo chiều ngay.
 
 Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm chiến lược gợi ý (xem mục Trạng thái thị trường).
@@ -135,19 +157,33 @@ Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm ch
 **RSI 14**
 - **Là gì:** con số từ 0 đến 100 so sánh lực tăng và lực giảm của 14 phiên gần nhất. Cao nghĩa là giá vừa tăng mạnh, thấp nghĩa là vừa giảm mạnh.
 - **Trên biểu đồ:** một tầng riêng, đường tím giữa hai vạch mờ: 70 "Quá mua" ở trên, 30 "Quá bán" ở dưới.
-- **Cách đọc:** trên 70 là giá đã tăng nóng, dễ điều chỉnh (ví dụ RSI 72). Dưới 30 là giá đã giảm sâu, dễ hồi. Từ 30 đến 70 là chưa quá nóng cũng chưa quá lạnh. Nên chờ RSI quay đầu khỏi vùng nóng/lạnh rồi mới coi là tín hiệu.
+- **Cách đọc:**
+  - Trên 70: giá đã tăng nóng, dễ điều chỉnh. Dưới 30: giá đã giảm sâu, dễ hồi. Ví dụ RSI 72 là vùng nóng. *Vì sao:* Sau một chuỗi phiên tăng liên tiếp, người mua đã có lãi và lực mua mới yếu dần, nên giá dễ chững lại; chiều giảm thì ngược lại.
+  - Từ 30 đến 70: chưa quá nóng cũng chưa quá lạnh, không có tín hiệu riêng. *Vì sao:* Ở vùng giữa, lực tăng và giảm chưa lệch nhiều nên con số không cho thêm thông tin ngoài xu hướng đang có.
+  - Nên chờ RSI quay đầu khỏi vùng nóng/lạnh rồi mới coi là tín hiệu, không chỉ vì vừa chạm 70 hay 30. *Vì sao:* Trong xu hướng mạnh RSI có thể nằm ở vùng nóng rất lâu; chỉ khi nó quay đầu mới cho thấy đà đã thật sự yếu đi.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **J. Welles Wilder (tác giả chỉ báo)**: Đưa ra RSI với chu kỳ 14 phiên để so mức tăng trung bình với mức giảm trung bình. *Vì sao:* Cần một con số cố định trong khoảng 0 đến 100 để so độ nóng của các giai đoạn và các mã với nhau. *Nguồn:* J. Welles Wilder, New Concepts in Technical Trading Systems (1978). *Lưu ý:* Đây là người tạo ra chỉ báo, không phải bằng chứng về thành tích đầu tư. Ngưỡng 70 và 30 là quy ước phổ biến; dùng riêng nó, bằng chứng về hiệu quả còn hạn chế.
 - **Bẫy hay gặp:** trong xu hướng tăng mạnh RSI có thể ở trên 70 rất lâu; "quá mua" không có nghĩa là phải bán ngay.
 
 **MACD 12 26 9**
 - **Là gì:** so sánh hai đường trung bình (nhanh và chậm) để thấy đà tăng hay giảm đang mạnh lên hay yếu đi.
 - **Trên biểu đồ:** một tầng riêng: đường MACD xanh dương, đường tín hiệu (Signal) cam, và các cột xám (Histogram) là khoảng cách giữa hai đường.
-- **Cách đọc:** MACD cắt lên trên đường tín hiệu là đà tăng đang lên; cắt xuống dưới là đà giảm đang lên. Cột Histogram cao dần là đà mạnh lên, thấp dần về 0 là đà yếu đi. MACD trên mức 0 là xu hướng chung nghiêng về tăng.
+- **Cách đọc:**
+  - MACD cắt lên trên đường tín hiệu: đà tăng đang lên. Cắt xuống dưới: đà giảm đang lên. *Vì sao:* MACD là chênh lệch giữa đường trung bình nhanh và chậm; khi nó vượt đường làm mượt của chính nó, chênh lệch đang nở ra theo chiều đó.
+  - Cột Histogram cao dần: đà đang mạnh lên; thấp dần về 0: đà đang yếu đi. *Vì sao:* Histogram là khoảng cách giữa MACD và đường tín hiệu, nên nó co lại trước khi hai đường cắt nhau và báo sớm hơn.
+  - MACD trên mức 0 nghĩa là xu hướng chung nghiêng về tăng, dưới 0 là nghiêng về giảm. *Vì sao:* MACD bằng 0 nghĩa là đường nhanh bằng đường chậm; trên 0 nghĩa là giá gần đây đang cao hơn mức trung bình dài hơn.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **Alexander Elder (nhà giao dịch, tác giả)**: Hệ thống Ba màn hình: màn hình tuần (độ dốc của histogram MACD tuần hoặc EMA 13 tuần) cho biết "thuỷ triều"; màn hình ngày chờ chỉ báo dao động kéo ngược chiều thuỷ triều rồi mới vào lệnh; rủi ro tối đa 2% vốn mỗi lệnh, ngừng giao dịch trong tháng khi lỗ 6%. *Vì sao:* Giao dịch thuận chiều xu hướng lớn thì thắng thế hơn, và giới hạn mức thiệt hại giữ cho một chuỗi sai không làm cạn vốn. *Nguồn:* Alexander Elder, Trading for a Living (1993), nguồn thứ cấp. *Lưu ý:* Màn hình đầu của ông là khung tuần; ứng dụng chỉ vẽ nến ngày nên chỉ tham khảo được màn hình thứ hai.
 - **Bẫy hay gặp:** MACD phản ứng chậm hơn giá và hay cho tín hiệu giả khi giá đi ngang.
 
 **Stochastic 14 3**
 - **Là gì:** cho biết giá đóng cửa đang nằm ở đâu trong biên độ cao-thấp của 14 phiên gần nhất, từ 0 (sát đáy) đến 100 (sát đỉnh).
 - **Trên biểu đồ:** một tầng riêng: %K xanh dương (nhanh), %D cam (chậm, là trung bình của %K), hai vạch mờ ở 80 "Quá mua" và 20 "Quá bán".
-- **Cách đọc:** trên 80 là giá sát đỉnh biên độ gần đây, dưới 20 là sát đáy. %K cắt lên trên %D ở vùng dưới 20 thường được xem là tín hiệu hồi.
+- **Cách đọc:**
+  - Trên 80: giá đang sát đỉnh biên độ gần đây. Dưới 20: giá đang sát đáy. *Vì sao:* Giá đóng cửa sát đỉnh biên độ nghĩa là người mua đang thắng thế đến phút cuối phiên; sát đáy thì ngược lại.
+  - %K cắt lên trên %D ở vùng dưới 20 thường được xem là tín hiệu hồi; cắt xuống ở vùng trên 80 là tín hiệu yếu đi. *Vì sao:* %D là đường làm mượt của %K nên %K vượt nó cho thấy đà ngắn hạn vừa đổi chiều, còn vùng 20 và 80 cho biết đổi chiều đó đang xảy ra ở vùng cực.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **Alexander Elder (nhà giao dịch, tác giả)**: Dùng chỉ báo dao động như Stochastic ở màn hình ngày của hệ thống Ba màn hình: mua khi nó rơi xuống vùng thấp trong lúc xu hướng tuần đi lên. *Vì sao:* Chờ nhịp điều chỉnh ngắn trong xu hướng tăng để vào giá tốt hơn, thay vì đuổi theo giá. *Nguồn:* Alexander Elder, Trading for a Living (1993), nguồn thứ cấp. *Lưu ý:* Ông chỉ dùng nó khi màn hình tuần đã xác nhận xu hướng; ứng dụng không vẽ khung tuần.
 - **Bẫy hay gặp:** rất nhạy, hay đổi chiều liên tục; chỉ dùng để xác nhận cùng RSI hoặc xu hướng.
 
 **Phân kỳ:** giá và RSI/MACD lệch hướng nhau là tín hiệu đảo chiều (xem mục Phát hiện phân kỳ).
@@ -157,13 +193,24 @@ Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm ch
 **Bollinger 20 2**
 - **Là gì:** một dải gồm đường trung bình 20 phiên ở giữa, cùng hai đường cách đều hai bên (2 lần độ lệch chuẩn). Phần lớn thời gian giá nằm trong dải.
 - **Trên biểu đồ:** ba đường xám đè lên nến: đường giữa đậm hơn, hai đường ngoài nhạt hơn.
-- **Cách đọc:** dải hẹp lại là giá đang đi hẹp, thường báo trước một nhịp chạy mạnh (chưa biết lên hay xuống). Dải mở rộng là biến động đang lớn. Giá chạm hoặc vượt đường trên là đang đi xa mức trung bình, dễ chững lại hoặc quay về giữa dải; đường dưới thì ngược lại.
+- **Cách đọc:**
+  - Dải hẹp lại: giá đang đi hẹp, thường báo trước một nhịp chạy mạnh (chưa biết lên hay xuống). *Vì sao:* Biến động có chu kỳ: sau giai đoạn yên lặng thường là giai đoạn biến động lớn, nhưng dải hẹp không cho biết hướng.
+  - Dải mở rộng: biến động đang lớn. *Vì sao:* Dải được tính từ độ lệch chuẩn của giá, nên giá dao động rộng hơn thì dải nở ra.
+  - Giá chạm hoặc vượt đường trên: đang đi xa mức trung bình, dễ chững lại hoặc quay về giữa dải. Đường dưới thì ngược lại. *Vì sao:* Hai đường ngoài cách mức trung bình 2 độ lệch chuẩn, nơi giá ít khi ở lâu; nhưng trong xu hướng mạnh giá có thể bám dọc đường ngoài.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **John Bollinger (tác giả chỉ báo)**: Giai đoạn nén: độ rộng dải (BandWidth) xuống thấp nhất trong khoảng 6 tháng thì biến động lớn thường theo sau; hướng đi được xác định khi giá phá ra khỏi dải; chạm dải trên một mình không phải tín hiệu bán. *Vì sao:* Biến động lên xuống theo chu kỳ, nên lúc thị trường nén chặt nhất là lúc cần chuẩn bị cho nhịp mở rộng, còn hướng thì phải chờ giá cho biết. *Nguồn:* John Bollinger, Bollinger on Bollinger Bands (2001); StockCharts ChartSchool: Bollinger BandWidth. *Lưu ý:* Cài đặt mặc định của ông là đường 20 phiên và 2 độ lệch chuẩn, giống ứng dụng. Ứng dụng chưa vẽ BandWidth nên chưa phát hiện được giai đoạn nén; đây là người tạo ra chỉ báo, không phải bằng chứng thành tích.
 - **Bẫy hay gặp:** khi xu hướng tăng mạnh, giá bám dọc đường trên là bình thường; chạm đường trên không tự động là tín hiệu bán.
 
 **ATR 14**
 - **Là gì:** biên độ dao động trung bình mỗi phiên trong 14 phiên gần nhất, tính bằng đồng (không cho biết hướng).
 - **Trên biểu đồ:** một tầng riêng, đường xanh ngọc; số càng lớn thì giá càng dao động mạnh.
-- **Cách đọc:** ví dụ ATR là 2.000đ thì mỗi phiên giá thường chạy cỡ 2.000đ, cắt lỗ sát hơn mức đó dễ bị quét nhầm. Cắt lỗ thường đặt cách giá vào khoảng 1,5 đến 2 lần ATR (SL = Entry − 2 × ATR). ATR tăng nhanh là thị trường đang biến động hơn, nhiều người thường cân nhắc giảm khối lượng mua.
+- **Cách đọc:**
+  - Ví dụ ATR là 2.000đ: mỗi phiên giá thường chạy cỡ 2.000đ, cắt lỗ sát hơn mức đó dễ bị quét nhầm. *Vì sao:* Cắt lỗ nằm trong biên độ dao động bình thường của một phiên sẽ bị chạm bởi nhiễu chứ không phải vì ý tưởng sai.
+  - Cắt lỗ thường đặt cách giá vào khoảng 1,5 đến 2 lần ATR. *Vì sao:* Cách xa vài lần biên độ thường ngày để chỉ những biến động bất thường mới chạm, đồng thời vẫn có mức thoát xác định.
+  - ATR tăng nhanh: thị trường đang biến động hơn, nhiều người thường cân nhắc giảm khối lượng mua. *Vì sao:* Cắt lỗ phải xa hơn thì cùng số tiền rủi ro chỉ mua được ít cổ phiếu hơn.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **Các Turtle Traders của Richard Dennis và William Eckhardt**: Dùng N (biên độ dao động trung bình thật) để cắt lỗ ở 2N và đặt đơn vị vị thế bằng 1% vốn chia cho N. *Vì sao:* Mỗi vị thế chịu cùng một mức rủi ro bằng tiền dù cổ phiếu biến động mạnh hay yếu. *Nguồn:* Curtis Faith, Way of the Turtle (2007). *Lưu ý:* N của họ là trung bình 20 ngày, ứng dụng dùng ATR 14 của Wilder, nên con số hơi khác. Ở Việt Nam, biên độ ±7% (HOSE) làm giá có thể nhảy cóc qua mức cắt lỗ; cổ phiếu mua về tài khoản vào chiều T+2 nên lỗ trong 2 phiên đầu chưa thoát được.
+  - **J. Welles Wilder (tác giả chỉ báo)**: Tạo ra biên độ thật (true range) gồm cả khoảng trống giá giữa hai phiên, rồi lấy trung bình 14 phiên làm ATR. *Vì sao:* Biên độ cao-thấp trong một phiên bỏ sót những cú nhảy cóc qua đêm, vốn là một phần rủi ro thật của người giữ cổ phiếu. *Nguồn:* J. Welles Wilder, New Concepts in Technical Trading Systems (1978). *Lưu ý:* Đây là người tạo ra chỉ báo, không phải bằng chứng về thành tích đầu tư.
 - **Bẫy hay gặp:** ATR chỉ nói dao động rộng bao nhiêu, không nói giá sẽ lên hay xuống.
 
 ### 💰 Dòng tiền
@@ -171,19 +218,31 @@ Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm ch
 **Khối lượng và KL SMA 20**
 - **Là gì:** số cổ phiếu khớp mỗi phiên. KL SMA 20 là khối lượng trung bình 20 phiên gần nhất, dùng làm mốc so sánh.
 - **Trên biểu đồ:** một tầng riêng: cột xám là khối lượng từng phiên, đường cam là trung bình 20 phiên.
-- **Cách đọc:** cột cao hơn hẳn đường cam (ví dụ gấp 2 lần) là phiên đó có nhiều người quan tâm. Giá tăng kèm khối lượng cao là đà tăng có nhiều tiền ủng hộ; giá tăng nhưng khối lượng thấp là đà tăng yếu, dễ không bền.
+- **Cách đọc:**
+  - Cột cao hơn hẳn đường cam (ví dụ gấp 2 lần): phiên đó có nhiều người quan tâm. *Vì sao:* So với mức trung bình của chính mã đó mới biết phiên này bất thường hay không; khối lượng tuyệt đối khác nhau rất nhiều giữa các mã.
+  - Giá tăng kèm khối lượng cao: đà tăng có nhiều tiền ủng hộ. Giá tăng nhưng khối lượng thấp: đà tăng yếu, dễ không bền. *Vì sao:* Tổ chức lớn mua với khối lượng lớn nên để lại dấu vết trong khối lượng; giá nhích lên khi ít người mua thì dễ bị đảo ngược.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **William O’Neil (nhà đầu tư, người sáng lập Investor’s Business Daily)**: Mua khi giá phá điểm mua (pivot) với khối lượng cao hơn mức trung bình ít nhất 40 đến 50%, và cắt mọi lệnh lỗ ở mức 7 đến 8%. *Vì sao:* Khối lượng cao khi phá điểm mua cho thấy các tổ chức đang mua thật; mức lỗ nhỏ cố định giữ cho tài khoản còn sống để làm lại. *Nguồn:* William O’Neil, How to Make Money in Stocks (xuất bản lần đầu 1988, phương pháp CAN SLIM). *Lưu ý:* Ông so với khối lượng trung bình 50 ngày, ứng dụng dùng trung bình 20 ngày. Ở Việt Nam, biên độ ±7% (HOSE) có thể làm giá nhảy cóc qua mức cắt lỗ 7 đến 8%, và cổ phiếu mới mua chưa bán được trong 2 phiên đầu.
 - **Bẫy hay gặp:** khối lượng đột biến vào ngày đáo hạn, cơ cấu chỉ số hoặc tin lớn có thể không phản ánh dòng tiền bình thường.
 
 **OBV**
 - **Là gì:** cộng dồn khối lượng: phiên giá tăng thì cộng khối lượng vào, phiên giá giảm thì trừ đi. Cho thấy dòng tiền tích luỹ đi vào hay đi ra.
 - **Trên biểu đồ:** một tầng riêng, đường xanh dương; điều quan trọng là hướng đi, không phải con số tuyệt đối.
-- **Cách đọc:** OBV đi lên cùng giá là dòng tiền ủng hộ xu hướng tăng. Giá tăng nhưng OBV đi ngang hoặc giảm là tiền không đi theo, đà tăng có thể yếu.
+- **Cách đọc:**
+  - OBV đi lên cùng giá: dòng tiền ủng hộ xu hướng tăng. *Vì sao:* Giá tăng mà khối lượng cộng dồn cũng tăng nghĩa là các phiên tăng có nhiều giao dịch hơn các phiên giảm.
+  - Giá tăng nhưng OBV đi ngang hoặc giảm: tiền không đi theo, đà tăng có thể yếu. *Vì sao:* Nếu các phiên giảm có khối lượng lớn hơn các phiên tăng thì có người đang bán ra trong lúc giá nhích lên.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **Joseph Granville (tác giả chỉ báo)**: Khối lượng đi trước giá: OBV tăng trước khi giá tăng, nên theo dõi OBV để thấy dòng tiền sớm. *Vì sao:* Dòng tiền lớn phải vào trước rồi giá mới phản ánh, nên khối lượng là dấu hiệu sớm hơn giá. *Nguồn:* Joseph Granville, Granville’s New Key to Stock Market Profits (1963). *Lưu ý:* Đây là người tạo ra chỉ báo, không phải bằng chứng về thành tích đầu tư.
 - **Bẫy hay gặp:** con số OBV phụ thuộc điểm bắt đầu tính nên không so giữa các mã, chỉ so hướng đi của từng mã.
 
 **MFI 14**
 - **Là gì:** giống RSI nhưng có tính cả khối lượng, từ 0 đến 100: cao nghĩa là tiền đang đổ vào mạnh, thấp nghĩa là tiền đang rút ra.
 - **Trên biểu đồ:** một tầng riêng, đường tím, hai vạch mờ ở 80 "Quá mua" và 20 "Quá bán".
-- **Cách đọc:** trên 80 là tiền vào đã rất mạnh, dễ quá nóng; dưới 20 là tiền rút mạnh, dễ có nhịp hồi. MFI quay đầu khỏi vùng 80 hoặc 20 là lúc đáng chú ý, giống cách đọc RSI.
+- **Cách đọc:**
+  - Trên 80: tiền vào đã rất mạnh, dễ quá nóng. Dưới 20: tiền rút mạnh, dễ có nhịp hồi. *Vì sao:* Cùng logic với RSI nhưng có thêm khối lượng, nên phản ánh cả sức nặng của các phiên tăng hay giảm.
+  - MFI quay đầu khỏi vùng 80 hoặc 20 là lúc đáng chú ý, giống cách đọc RSI. *Vì sao:* Ở vùng cực, chỉ khi con số quay đầu mới cho thấy đà đã đổi chiều; chạm vùng cực mà chưa quay thì chưa có thông tin mới.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **Gene Quong và Avrum Soudack (tác giả chỉ báo)**: Đưa khối lượng vào công thức kiểu RSI (RSI có trọng số khối lượng) để so tiền vào với tiền ra. *Vì sao:* Một phiên tăng trên khối lượng rất lớn và một phiên tăng trên khối lượng rất nhỏ không có cùng ý nghĩa, nhưng RSI thường coi hai phiên như nhau. *Nguồn:* Quong, G. và Soudack, A., "Volume-weighted RSI: money flow", Technical Analysis of Stocks & Commodities 7(3), 1989, tr. 76-77. *Lưu ý:* Đây là người tạo ra chỉ báo, không phải bằng chứng về thành tích đầu tư.
 - **Bẫy hay gặp:** cũng như RSI, có thể ở vùng trên 80 rất lâu khi xu hướng tăng mạnh.
 
 ### 🧱 Mốc giá
@@ -191,13 +250,23 @@ Thẻ **Trạng thái thị trường** phân loại trend hay đi ngang kèm ch
 **Hỗ trợ và kháng cự**
 - **Là gì:** hỗ trợ là vùng giá bên dưới nơi giá từng dừng giảm và bật lên; kháng cự là vùng giá bên trên nơi giá từng dừng tăng và quay xuống. Hệ thống lấy các mức swing gần nhất; rỗng thì hiện "Chưa xác định".
 - **Trên biểu đồ:** đường ngang đứt nét: xanh lá là hỗ trợ, đỏ là kháng cự, mỗi đường có nhãn (Hỗ trợ 1, Kháng cự 1...) và giá ở danh sách dưới biểu đồ.
-- **Cách đọc:** giá tiến sát hỗ trợ có thể bật lên, và là chỗ tham khảo để đặt cắt lỗ ngay bên dưới. Giá tiến sát kháng cự có thể gặp cản, là chỗ tham khảo để chốt lời một phần. Giá vượt hẳn kháng cự với khối lượng lớn thì kháng cự đó thường trở thành hỗ trợ mới.
+- **Cách đọc:**
+  - Giá đang tiến sát hỗ trợ: có thể bật lên, và là chỗ tham khảo để đặt cắt lỗ ngay bên dưới. *Vì sao:* Đó là vùng người mua từng xuất hiện; nếu giá thủng nó thì ý tưởng "sẽ bật lên" đã sai nên có lý do rõ ràng để thoát.
+  - Giá đang tiến sát kháng cự: có thể gặp cản, là chỗ tham khảo để chốt lời một phần. *Vì sao:* Đó là vùng người bán từng xuất hiện, và những người mua kẹt ở vùng này có thể bán khi giá quay lại hoà vốn.
+  - Giá vượt hẳn kháng cự với khối lượng lớn thì kháng cự đó thường trở thành hỗ trợ mới. *Vì sao:* Khối lượng lớn cho thấy phe mua đã hấp thụ hết lượng bán ở vùng đó, nên vùng giá ấy đổi vai.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - **Jesse Livermore (nhà đầu cơ)**: Hành động ở các điểm then chốt (pivotal points): điểm đảo chiều khi một xu hướng mới bắt đầu và điểm tiếp diễn trong vùng tích luỹ của một xu hướng đang có; chờ giá vượt điểm đó mới vào. *Vì sao:* Chờ giá xác nhận bằng cách đi theo hướng mình dự tính, thay vì đoán đỉnh đáy. *Nguồn:* Jesse Livermore, How to Trade in Stocks (1940). *Lưu ý:* Ứng dụng chọn mốc theo đỉnh đáy gần nhất (swing), không phải theo định nghĩa điểm then chốt của ông.
+  - **Nicolas Darvas (vũ công, nhà đầu tư)**: Lý thuyết hộp (box theory): coi giá đi trong các hộp; mép trên hộp là kháng cự, mép dưới là hỗ trợ. *Vì sao:* Xem mốc giá như vùng mà thị trường đã chấp nhận, thay vì dựa vào dự đoán giá trị của cổ phiếu. *Nguồn:* Nicolas Darvas, How I Made $2,000,000 in the Stock Market (1960). *Lưu ý:* Ứng dụng chưa tự dựng hộp Darvas; mốc hiển thị chỉ là hỗ trợ và kháng cự gần nhất.
 - **Bẫy hay gặp:** mốc giá là vùng chứ không phải một con số chính xác; giá có thể xuyên qua rồi quay lại.
 
 **Fibonacci (đường thoái lui)**
 - **Là gì:** các mức cắt đoạn đi từ đáy đến đỉnh gần nhất theo tỉ lệ 23,6%, 38,2%, 50%, 61,8%, 78,6%, thường là chỗ giá chững lại khi điều chỉnh (xem mục Hỗ trợ / Kháng cự & Fibonacci).
 - **Trên biểu đồ:** các đường ngang đứt nét màu cam có nhãn Fib và giá, cùng hai đường xám là Đỉnh swing và Đáy swing.
-- **Cách đọc:** giá đang điều chỉnh sau nhịp tăng thì các mức 38,2%, 50%, 61,8% là chỗ thường được chú ý để cân nhắc mua lại. Giữ được mức 61,8% rồi bật lên là nhịp điều chỉnh còn khỏe; thủng hẳn mức 78,6% là điều chỉnh sâu.
+- **Cách đọc:**
+  - Giá đang điều chỉnh sau nhịp tăng: các mức 38,2%, 50%, 61,8% là chỗ thường được chú ý để cân nhắc mua lại. *Vì sao:* Vì nhiều người cùng nhìn các mức này nên đôi khi có lệnh tập trung ở đó; bản thân tỉ lệ không có cơ sở thống kê vững.
+  - Giá giữ được mức 61,8% rồi bật lên là dấu hiệu nhịp điều chỉnh còn khỏe; thủng hẳn mức 78,6% là điều chỉnh sâu. *Vì sao:* Điều chỉnh càng sâu thì phần lớn nhịp tăng trước đã bị xoá, nên khả năng xu hướng cũ còn tiếp diễn càng giảm.
+- **Nhà đầu tư lão luyện dùng thế nào, vì sao:**
+  - Chưa có nhà đầu tư có thành tích kiểm chứng dùng làm quy tắc cốt lõi; bằng chứng yếu.
 - **Bẫy hay gặp:** các mức này không có gì huyền bí: càng nhiều người cùng nhìn thì càng có tác dụng, thường chỉ được dùng khi trùng với hỗ trợ hoặc kháng cự khác.
 
 ---

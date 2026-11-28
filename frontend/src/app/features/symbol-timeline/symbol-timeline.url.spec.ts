@@ -91,6 +91,32 @@ describe('SymbolTimelineComponent — trạng thái trên URL (range, grp, focus
     expect(component.selectedGroup).toBeNull();
   });
 
+  describe('nhóm gắn sao mở sẵn', () => {
+    beforeEach(() => localStorage.setItem('ta-group-stars', JSON.stringify(['moc-gia', 'dong-luong'])));
+    afterEach(() => localStorage.removeItem('ta-group-stars'));
+
+    it('with no grp in the URL the first starred group (TA_GROUPS order) opens, and the URL is not written', () => {
+      setup();
+
+      expect(component.selectedGroup).toBe('dong-luong');
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('the group in the URL wins over the star', () => {
+      setup({ grp: 'bien-dong' });
+
+      expect(component.selectedGroup).toBe('bien-dong');
+    });
+
+    it('a later URL without grp closes the group instead of re-opening the starred one', () => {
+      setup({ grp: 'bien-dong' });
+
+      emit({ range: '3T' });
+
+      expect(component.selectedGroup).toBeNull();
+    });
+  });
+
   it('ignores invalid values and keeps the defaults', () => {
     setup({ range: '9T', grp: 'bậy', focus: '2026-13-45' });
 

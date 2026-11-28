@@ -15,6 +15,7 @@ import { NumMaskDirective } from '../../shared/directives/num-mask.directive';
 import { AiChatPanelComponent } from '../../shared/components/ai-chat-panel/ai-chat-panel.component';
 import { IndicatorChartComponent } from '../../shared/components/indicator-chart/indicator-chart.component';
 import { GroupLayers, IndicatorChartCandles, IndicatorChartMarker } from '../../shared/components/indicator-chart/indicator-chart.types';
+import { firstStarredGroup } from '../../shared/indicators/ta-group-stars';
 import { IndicatorGroupBarComponent } from '../../shared/components/indicator-group-bar/indicator-group-bar.component';
 import { IndicatorGuideComponent } from '../../shared/components/indicator-guide/indicator-guide.component';
 import { SeriesAdjustedNotesComponent } from '../../shared/components/series-adjusted-notes/series-adjusted-notes.component';
@@ -754,7 +755,8 @@ export class SymbolTimelineComponent implements OnInit, OnDestroy {
       this.firstUrlState = false;
       // Luồng review (tradeId) cần khoảng 12 tháng để thấy lệnh cũ: tradeId thắng range trên URL
       if (next.range !== undefined && !this.reviewTradeId) this.selectedRange = next.range;
-      if (next.group !== undefined) this.selectedGroup = next.group;
+      // URL thắng; không có thì mở sẵn nhóm gắn sao đầu tiên (chỉ ở lần tải đầu, không ghi ngược lên URL)
+      this.selectedGroup = next.group ?? firstStarredGroup();
       this.focusDate = next.focus ?? null;
       this.scrollToFocus = this.focusDate !== null;
       this.loadData();
