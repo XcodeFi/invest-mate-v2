@@ -92,6 +92,14 @@ Option A không làm được việc được giao. Option C nghe khách quan h�
 - Docs: `architecture.md`, `business-domain.md`, `features.md`, `project-context.md`, CHANGELOG, user guide + mục Help
 - Chưa làm: màn đối chiếu "hôm FOMO tôi đã làm gì", và route guard cho `/trade-plan`
 
+## Addendum 2026-11-28 — lịch sử đổi trong ngày và nguồn ghi (hợp đồng dữ liệu thay đổi)
+
+- **Dữ liệu:** `MoodCheckIn.Changes[]`, mỗi mục `{ At, Mood, Source: "web"|"mcp" }`. Trường tuỳ chọn nên không cần migration (tài liệu cũ không có `Changes`). Thêm mục ở `Create` và `SetMood`; lặp lại đúng trạng thái hiện tại thì bỏ qua; giữ tối đa 20 mục, bỏ mục cũ nhất. `Mood` hiện tại vẫn là sự thật; `Changes` chỉ là nhật ký. Quy ước "một bản ghi mỗi (UserId, DateKey)" và unique index không đổi.
+- **Đọc:** `GET /api/v1/mood/history?from&to` (mặc định 90 ngày VN gần nhất, tối đa 366, from > to là 400, userId chỉ từ token) và MCP `get_mood_history`. Lệnh của cả khoảng lấy trong MỘT truy vấn rồi nhóm theo ngày VN trong bộ nhớ. `emotionalTrade` = đã bấm qua lớp phủ, HOẶC có lệnh trong ngày mà tâm trạng ở bất kỳ lần đổi nào trong ngày khác Bình tĩnh; ngày có lệnh mà chưa chấm là "chưa chấm", không bao giờ là cảm xúc.
+- **Ghi từ agent:** MCP `set_today_mood` ghi với `Source = "mcp"`. Nó **không bao giờ đặt hay xoá `OverrodeAt`**: dấu đó chỉ do chính người dùng tạo (bấm qua lớp phủ) và chỉ bị xoá khi chính họ đổi tâm trạng. Ngưỡng tự đánh giá của ADR này không thay đổi: **Bình tĩnh do agent ghi không tính là đã tự chấm** (`GET /today` trả `mood = null`, `fromAgent = true`, trang chủ hỏi lại và ghi chú "(từ agent)"); trạng thái cảm xúc do agent ghi vẫn có hiệu lực vì đó là chiều an toàn.
+- **Hệ quả cần biết:** vì nguồn `mcp` không đụng `OverrodeAt`, nếu người dùng đã bấm qua lớp phủ cho một tâm trạng cảm xúc rồi agent ghi sang MỘT tâm trạng cảm xúc khác trong cùng ngày, dấu đó vẫn còn (agent không xoá được). Chỉ chính người dùng đổi tâm trạng mới xoá dấu.
+- **Vì sao không phải phương án khác:** suy ra tâm trạng từ hành vi vẫn bị loại (Option C); chỉ cho agent ghi khi người dùng nói là quy ước trong mô tả công cụ, còn ràng buộc cứng là hai điều trên (không đụng `OverrodeAt`, Bình tĩnh không mở khoá).
+
 ## References
 
 - Plan: `docs/plans/done/p1-dashboard-patience-hero.md`

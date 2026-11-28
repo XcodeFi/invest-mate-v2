@@ -19,6 +19,12 @@ public class TodayMoodDto
 
     /// <summary>Đã bấm "Vẫn xem bây giờ" hôm nay chưa.</summary>
     public bool Overrode { get; set; }
+
+    /// <summary>
+    /// Lần đổi gần nhất do agent (MCP) ghi. Bình tĩnh do agent ghi KHÔNG tính là đã tự chấm (<see cref="Mood"/> = null để trang chủ hỏi lại và
+    /// ghi chú "(từ agent)"); trạng thái cảm xúc do agent ghi vẫn có hiệu lực vì đó là chiều an toàn.
+    /// </summary>
+    public bool FromAgent { get; set; }
 }
 
 public class GetTodayMoodQueryHandler : IRequestHandler<GetTodayMoodQuery, TodayMoodDto>
@@ -35,8 +41,11 @@ public class GetTodayMoodQueryHandler : IRequestHandler<GetTodayMoodQuery, Today
         var dateKey = VietnamDate.ToDateKey(DateTime.UtcNow);
         var checkIn = await _repo.GetByUserAndDateAsync(request.UserId, dateKey, cancellationToken);
 
-        return checkIn is null
-            ? new TodayMoodDto()
-            : new TodayMoodDto { Mood = checkIn.Mood, Overrode = checkIn.OverrodeAt is not null };
+        if (checkIn is null) return new TodayMoodDto();
+
+        var fromAgent = checkIn.LatestSource == MoodChange.SourceMcp;
+        // Tự đánh giá: agent không được "mở khoá" lớp phủ bằng cách ghi Bình tĩnh thay người dùng.
+        var mood = fromAgent && checkIn.Mood == MoodState.Calm ? (MoodState?)null : checkIn.Mood;
+        return new TodayMoodDto { Mood = mood, Overrode = checkIn.OverrodeAt is not null, FromAgent = fromAgent };
     }
 }

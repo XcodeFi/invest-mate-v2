@@ -164,11 +164,16 @@ Health score sẽ tính lại theo ngưỡng mới.
 
 ## Widget Dashboard
 
-Trên Dashboard (`/dashboard`), nếu đã có profile tài chính, widget **"Tài chính cá nhân"** hiển thị:
+Trên Dashboard (`/dashboard`), nếu đã có profile tài chính, widget **"Tài chính cá nhân"** (một thẻ duy nhất, ngay dưới "Việc cần xử lý hôm nay") hiển thị:
 
-- Tổng tài sản
+- Net Worth (số chính, đỏ khi âm) và mức lệch so với mục tiêu CAGR
+- Tổng tài sản − Nợ
+- Cảnh báo khi có nợ tiêu dùng lãi cao
 - Health score màu (xanh / vàng / đỏ)
-- Deep link sang trang chi tiết
+- Nút **Chi tiết ▾** mở phần chia tài sản (chứng khoán, vàng, tiết kiệm, dự phòng, tiền nhàn rỗi); mặc định thu gọn
+- Link **Xem chi tiết →** sang trang đầy đủ
+
+Thẻ "Tổng tài sản" cũ bên dưới đã được gộp vào thẻ này; khối đầu tư lớn phía dưới giờ tên là **Tổng quan đầu tư**.
 
 Nếu chưa thiết lập, widget hiện CTA "Thiết lập tài chính cá nhân" để dẫn sang onboarding.
 

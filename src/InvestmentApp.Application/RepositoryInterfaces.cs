@@ -28,6 +28,8 @@ public interface ITradeRepository : IRepository<Trade>
     Task<IEnumerable<Trade>> GetByPortfolioIdAndSymbolAsync(string portfolioId, string symbol, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByUserPortfoliosAndSymbolAsync(IEnumerable<string> portfolioIds, string symbol, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByPortfolioIdAndDateRangeAsync(string portfolioId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    /// <summary>Lệnh của nhiều danh mục trong MỘT truy vấn; <paramref name="from"/> là mốc UTC bắt đầu (gồm), <paramref name="to"/> là mốc UTC của ngày cuối (gồm cả ngày đó).</summary>
+    Task<IEnumerable<Trade>> GetByPortfolioIdsAndDateRangeAsync(IEnumerable<string> portfolioIds, DateTime from, DateTime to, CancellationToken cancellationToken = default);
     Task<IEnumerable<Trade>> GetByTradePlanIdAsync(string tradePlanId, CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<string, (int Count, DateTime? LastTradeAt)>> GetStatsByPortfolioIdsAsync(IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default);
     Task<DateTime?> GetLastTradeDateByPortfolioIdsAsync(IEnumerable<string> portfolioIds, CancellationToken cancellationToken = default);
@@ -39,6 +41,9 @@ public interface ITradeRepository : IRepository<Trade>
 public interface IMoodCheckInRepository
 {
     Task<MoodCheckIn?> GetByUserAndDateAsync(string userId, string dateKey, CancellationToken cancellationToken = default);
+
+    /// <summary>Các ngày đã chấm của MỘT người dùng trong [fromKey, toKey] (so sánh chuỗi "YYYY-MM-DD", gồm cả hai đầu).</summary>
+    Task<IReadOnlyList<MoodCheckIn>> GetByUserAndDateRangeAsync(string userId, string fromDateKey, string toDateKey, CancellationToken cancellationToken = default);
 
     /// <summary>Ném <see cref="DuplicateMoodCheckInException"/> khi đâm vào unique index (UserId, DateKey).</summary>
     Task AddAsync(MoodCheckIn entity, CancellationToken cancellationToken = default);

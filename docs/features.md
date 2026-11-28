@@ -1566,6 +1566,7 @@ Tổng 1106 tests pass. V1 thêm:
 
 ### PR-1 (P1+P2) — shipped 2026-05-04
 
+- **Home PR2 (2026-11-28) — gộp hai widget tài chính:** thẻ "Tài chính cá nhân" nằm riêng bị bỏ; `app-networth-summary` ở vị trí #2 gộp Net Worth + Reality Gap + Tổng tài sản − Nợ + cảnh báo nợ lãi cao + sức khoẻ + chia tài sản (thu gọn mặc định); hero đầu tư đổi tên "Tổng quan đầu tư". Thay quyết định "giữ cả hai" của v1.1.
 - **P1 — Reality Gap CAGR + NetWorth widget tách riêng:** `cagrTargetSet=true` default → user mở app lần đầu thấy ngay "đang lệch X điểm % so với mục tiêu CAGR 15%". Tách `<app-networth-summary>` thành widget compact 3-line ở vị trí #2 (sau Decision Queue), giữ Compound Growth Tracker đầy đủ ở giữa page.
 - **P2 — AI rebrand "Bản tin" → "Phản biện danh mục":** đổi vai AI từ news-reader (passive) → adversarial coach. Use-case backend `portfolio-critique` (3 điểm phản biện, mệnh lệnh, KHÔNG khen, KHÔNG động viên). Button label `🥊 AI phản biện danh mục`.
 
@@ -1573,6 +1574,7 @@ Tổng 1106 tests pass. V1 thêm:
 
 - **Decision Queue mở rộng tại chỗ (2026-11-28, Home PR1):** nút "Xem thêm N ▾" (`<button>`, không còn link sang /risk-dashboard) mở đủ danh sách trong thẻ (`showAll`, `max-h-[70vh] overflow-y-auto`), "Thu gọn ▴" về 5 việc; không lưu qua tải lại, giữ qua `loadQueue()`/xử lý một việc.
 - **Decision Queue + Empty state Positive:** gộp 3 nguồn alert rời (Risk Alert Banner + Advisory Widget + Pending Review section) thành 1 widget duy nhất ở vị trí #1 trên Home. Sort severity desc (Critical đầu tiên), dedupe theo (Symbol, PortfolioId), cap 5 items với overflow link `/risk-dashboard`.
+- **Lịch sử tâm trạng + MCP (2026-11-28, item 10 PR1):** `MoodCheckIn.Changes[]` (tối đa 20, có nguồn web/mcp), `GET /mood/history`, MCP `get_mood_history` / `set_today_mood`; ngày đặt lệnh khi đang cảm xúc (`emotionalTrade`); Bình tĩnh do agent ghi không mở khoá lớp phủ, agent không đụng được dấu "đã bấm qua lớp phủ". Màn xem lịch sử là PR sau.
 - **Tín hiệu phía vào lệnh (2026-08-09, ADR-0009):** queue thêm 2 loại. **Thiếu stop-loss** (Warning) — vị thế đang mở chưa đặt SL, trước đây bị bỏ qua im lặng nên rủi ro lớn nhất lại vô hình. **Cơ hội mua** (Info) — mã trong watchlist có giá về ≤ "Mục tiêu mua"; xếp dưới mọi cảnh báo rủi ro để dọn vị thế đang lỗ trước khi mua thêm. Cả hai không có `tradePlanId` nên nút BÁN tự ẩn.
 - **Empty state positive (v1.1):** khi 0 alert → hiển thị `✅ Hôm nay đang kỷ luật + 🔥 X ngày` (streak = ngày liên tiếp gần nhất không có SL violation) thay vì widget biến mất. Streak ẩn khi user chưa có plan (`hasData = false`).
 - **Backend:** `DecisionsController.GetQueue` aggregate 5 sources qua `Task.WhenAll` (StopLossHit / ScenarioTrigger / ThesisReviewDue / MissingStopLoss / BuyOpportunity). `DisciplineController.GetDisciplineStreak` reuse logic SL-violation từ `DisciplineScoreCalculator`. 28 xUnit handler tests.
