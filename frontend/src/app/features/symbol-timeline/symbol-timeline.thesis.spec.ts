@@ -25,7 +25,7 @@ describe('SymbolTimelineComponent — thẻ Luận điểm cạnh biểu đồ',
       imports: [SymbolTimelineComponent],
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ symbol: 'hpg' }), queryParams: {} } } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ symbol: 'hpg' }), queryParams: {} }, queryParamMap: of(convertToParamMap({})) } },
         { provide: MarketDataService, useValue: market },
         { provide: JournalEntryService, useValue: journal },
         { provide: CompanyDossierService, useValue: dossiers },
