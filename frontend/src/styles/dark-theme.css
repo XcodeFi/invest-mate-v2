@@ -502,3 +502,14 @@ html.dark .guide-content a { color: var(--dm-blue-4); }
 html.dark .guide-content a:hover { color: var(--dm-blue-3); }
 html.dark .guide-content hr { border-color: var(--dm-border); }
 html.dark mark { background: rgb(var(--dm-yellow-rgb) / 0.35); color: var(--dm-text); }
+
+/* Biến thể trong suốt của lớp sáng (bg-white/60, bg-indigo-50/60...): cùng ánh xạ với bản đặc, nếu không sẽ còn là nền sáng nhạt trên trang tối */
+html.dark :where(.bg-white\/60) { background-color: rgb(17 24 39 / 0.6); }
+html.dark :where(.bg-white\/70) { background-color: rgb(17 24 39 / 0.7); }
+html.dark :where(.bg-white\/85) { background-color: rgb(17 24 39 / 0.85); }
+html.dark :where(.bg-indigo-50\/60) { background-color: rgb(var(--dm-indigo-rgb) / 0.10); }
+html.dark :where(.bg-blue-50\/40) { background-color: rgb(var(--dm-blue-rgb) / 0.10); }
+html.dark :where(.bg-blue-50\/30) { background-color: rgb(var(--dm-blue-rgb) / 0.10); }
+html.dark :where(.border-blue-200\/60) { border-color: rgb(var(--dm-blue-rgb) / 0.35); }
+html.dark :where(.border-emerald-200\/60) { border-color: rgb(var(--dm-emerald-rgb) / 0.35); }
+html.dark .hover\:bg-blue-50\/30:hover { background-color: rgb(var(--dm-blue-rgb) / 0.14); }

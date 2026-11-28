@@ -50,6 +50,25 @@ describe('dark-theme.css applied to the page', () => {
     expect(css(el('<p class="text-gray-400">x</p>'), 'color')).toBe('rgb(139, 153, 174)');
   });
 
+  it('dark mode: translucent light variants are remapped too (bg-white/60, bg-indigo-50/60, bg-blue-50/40, border-*-200/60)', () => {
+    document.documentElement.classList.add('dark');
+
+    expect(css(el('<div class="bg-white/60">x</div>'), 'background-color')).toBe('rgba(17, 24, 39, 0.6)');
+    expect(css(el('<div class="bg-white/70">x</div>'), 'background-color')).toBe('rgba(17, 24, 39, 0.7)');
+    expect(css(el('<div class="bg-white/85">x</div>'), 'background-color')).toBe('rgba(17, 24, 39, 0.85)');
+    expect(css(el('<div class="bg-indigo-50/60">x</div>'), 'background-color')).toBe('rgba(99, 102, 241, 0.1)');
+    expect(css(el('<div class="bg-blue-50/40">x</div>'), 'background-color')).toBe('rgba(59, 130, 246, 0.1)');
+    expect(css(el('<div class="bg-blue-50/30">x</div>'), 'background-color')).toBe('rgba(59, 130, 246, 0.1)');
+    expect(css(el('<div class="border border-blue-200/60">x</div>'), 'border-top-color')).toBe('rgba(59, 130, 246, 0.35)');
+    expect(css(el('<div class="border border-emerald-200/60">x</div>'), 'border-top-color')).toBe('rgba(16, 185, 129, 0.35)');
+  });
+
+  it('light mode: the same translucent classes keep their Tailwind look (no dark rule leaks)', () => {
+    document.documentElement.classList.remove('dark');
+
+    expect(css(el('<div class="bg-white/60">x</div>'), 'background-color')).toBe('rgba(255, 255, 255, 0.6)');
+  });
+
   it('dark mode: status panels become translucent tints with lightened text, keeping their meaning', () => {
     document.documentElement.classList.add('dark');
     const panel = el('<div class="bg-red-100 text-red-700 border border-red-200">x</div>');

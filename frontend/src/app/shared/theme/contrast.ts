@@ -41,7 +41,12 @@ export function blendOver(fg: Rgb, alpha: number, bgHex: string): string {
  * Màu đã đủ tương phản thì giữ nguyên, nên các màu nhận diện được (xanh, đỏ, cam...) không đổi.
  */
 export function ensureContrastOnDark(colorHex: string, bgHex: string, minRatio = 3): string {
-  let rgb = parseHex(colorHex);
+  let rgb: Rgb;
+  try {
+    rgb = parseHex(colorHex);
+  } catch {
+    return colorHex;   // rgba(...), tên màu, hex ngắn: không đoán, giữ nguyên thay vì làm trắng cả biểu đồ
+  }
   for (let step = 0; step < 20 && contrastRatio(toHex(rgb), bgHex) < minRatio; step++) {
     rgb = rgb.map(c => c + (255 - c) * 0.15) as Rgb;
   }

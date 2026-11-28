@@ -41,4 +41,8 @@ describe('contrast helper', () => {
     expect(ensureContrastOnDark('#22c55e', bg)).toBe('#22c55e');
     expect(ensureContrastOnDark('#2563eb', bg)).toBe('#2563eb');
   });
+
+  it('keeps a colour it cannot parse (rgba, named) instead of throwing', () => {
+    ['rgba(10, 20, 30, 0.5)', 'red', ''].forEach(c => expect(ensureContrastOnDark(c, '#0b1220')).toBe(c));
+  });
 });
