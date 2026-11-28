@@ -74,6 +74,26 @@ describe('SidebarComponent: menu trái nhóm theo thời điểm làm việc', (
       expect(link(settingsItems[0].path)).toBeUndefined();
     });
 
+    it('a manual open/close of the Cài đặt group applies to the current page only and resets after navigating', async () => {
+      setup();
+      await go('/dashboard');
+      q('sidebar-settings-toggle')!.click();   // mở tay trên trang ngoài nhóm
+      fixture.detectChanges();
+      expect(link(settingsItems[0].path)).toBeDefined();
+
+      await go('/alerts');
+      expect(link(settingsItems[0].path)).withContext('đổi trang thì mở tay phải được bỏ').toBeUndefined();
+
+      await go('/api-keys');
+      expect(link('/api-keys')).toBeDefined();   // tự mở vì trang nằm trong nhóm
+      q('sidebar-settings-toggle')!.click();      // đóng tay
+      fixture.detectChanges();
+      expect(link('/api-keys')).toBeUndefined();
+
+      await go('/ai-settings');
+      expect(link('/ai-settings')).withContext('sang trang khác trong nhóm thì tự mở lại').toBeDefined();
+    });
+
     it('opens the Cài đặt group by itself when the current page is inside it', async () => {
       setup();
 
@@ -179,6 +199,19 @@ describe('SidebarComponent: menu trái nhóm theo thời điểm làm việc', (
       expect(localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe('1');
       q('sidebar-toggle')!.click();
       fixture.detectChanges();
+      expect(localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe('0');
+    });
+
+    it('the first toggle click on a chart route with no saved choice expands the menu and saves "expanded"', async () => {
+      setup();
+      await go('/symbol-timeline/FPT');
+      expect(isRail()).toBeTrue();   // mặc định theo trang, chưa có lựa chọn nào được lưu
+      expect(localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBeNull();
+
+      q('sidebar-toggle')!.click();
+      fixture.detectChanges();
+
+      expect(isRail()).toBeFalse();
       expect(localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe('0');
     });
 

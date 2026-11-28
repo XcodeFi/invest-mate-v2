@@ -40,6 +40,13 @@ describe('HeaderComponent: thanh trên gọn, menu điện thoại đọc từ c
     ['Đầu tư', 'Phân tích', 'Quản lý'].forEach(old => expect(text).withContext(old).not.toContain(old));
   });
 
+  it('renders the theme toggle in the slot of the top bar', () => {
+    const slot = q('topbar-theme-slot')!;
+
+    expect(slot.querySelector('app-theme-toggle')).not.toBeNull();
+    expect(slot.querySelector('[data-testid="theme-toggle"]')).not.toBeNull();
+  });
+
   it('keeps the logo that links to the dashboard', () => {
     const logo = el().querySelector('a[href="/dashboard"]') as HTMLAnchorElement;
     expect(logo.textContent).toContain('Investment Mate');
@@ -70,6 +77,32 @@ describe('HeaderComponent: thanh trên gọn, menu điện thoại đọc từ c
     expect(hrefs).toEqual(expected);
     expect(hrefs).toContain('/pending-reviews');
     expect(hrefs).toContain('/campaign-analytics');
+  });
+
+  it('clicking an already open mobile group closes it (accordion toggles, it does not only open)', () => {
+    openMobile();
+    const group = el().querySelector('[data-testid="mobile-group"]') as HTMLButtonElement;
+
+    group.click();
+    fixture.detectChanges();
+    expect(el().querySelectorAll('[data-testid="mobile-link"]').length).toBeGreaterThan(0);
+
+    group.click();
+    fixture.detectChanges();
+    expect(el().querySelectorAll('[data-testid="mobile-link"]').length).toBe(0);
+  });
+
+  it('opening another mobile group closes the previous one', () => {
+    openMobile();
+    const groups = Array.from(el().querySelectorAll('[data-testid="mobile-group"]')) as HTMLButtonElement[];
+
+    groups[0].click();
+    fixture.detectChanges();
+    groups[1].click();
+    fixture.detectChanges();
+
+    const hrefs = Array.from(el().querySelectorAll('[data-testid="mobile-link"]')).map(a => a.getAttribute('href'));
+    expect(hrefs).toEqual(NAV_GROUPS[1].items.map(i => i.path));
   });
 
   it('every page of the config is reachable from the mobile menu', () => {
