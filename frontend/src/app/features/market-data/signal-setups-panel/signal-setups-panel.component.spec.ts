@@ -59,6 +59,25 @@ describe('SignalSetupsPanelComponent', () => {
     expect(t).not.toContain('ngày thứ');
   });
 
+  it('says under the active block that its levels follow the setup rule, unlike the trade-suggestion card', () => {
+    render({ symbol: 'FPT', data: data({ activePlan: active }) });
+
+    expect(txt('signal-active-method')).toBe(
+      'Theo luật setup Pullback: vào giá mở cửa phiên sau, cắt lỗ 2×ATR, mục tiêu 2R. Khác với thẻ Gợi ý giao dịch, vốn dựa trên hỗ trợ/kháng cự.');
+  });
+
+  it('the method line also shows for an open trade', () => {
+    render({ symbol: 'FPT', data: data({ activePlan: { ...active, entryIsEstimate: false, status: 'dang-mo', dayInTrade: 1 } }) });
+
+    expect(q('signal-active-method')).not.toBeNull();
+  });
+
+  it('has no method line when nothing is active', () => {
+    render({ symbol: 'FPT', data: data({ activePlan: undefined }) });
+
+    expect(q('signal-active-method')).toBeNull();
+  });
+
   it('active block of an open trade shows its status with the day number', () => {
     render({ symbol: 'FPT', data: data({ activePlan: { ...active, entryIsEstimate: false, status: 'dang-mo', dayInTrade: 2 } }) });
 

@@ -318,7 +318,7 @@ Dưới biểu đồ và khối phân tích có khối **"Setup Pullback trên <
 - Đã trừ **phí 0,15% mỗi chiều, thuế bán 0,1%, trượt giá 0,1% mỗi chiều**.
 
 **Khối này hiện gì?**
-- **Đang kích hoạt** (đứng đầu): tín hiệu trong 3 phiên gần nhất với vào lệnh, cắt lỗ, mục tiêu. Nếu chưa tới phiên vào lệnh, vào lệnh là **ước tính theo giá đóng cửa**; nếu lệnh mô phỏng đang mở thì ghi "đang mở, ngày thứ k".
+- **Đang kích hoạt** (đứng đầu): tín hiệu trong 3 phiên gần nhất với vào lệnh, cắt lỗ, mục tiêu. Nếu chưa tới phiên vào lệnh, vào lệnh là **ước tính theo giá đóng cửa**; nếu lệnh mô phỏng đang mở thì ghi "đang mở, ngày thứ k". Các mức này theo **luật của setup** (vào giá mở cửa phiên sau, cắt lỗ 2×ATR, mục tiêu 2R) nên **khác với thẻ "Gợi ý giao dịch"** ở phần trên, vốn dựa trên hỗ trợ/kháng cự: hai phương pháp khác nhau, không phải mâu thuẫn.
 - Một dòng đếm: *"N tín hiệu, M lệnh hoàn tất trong 3 năm."*
 - **Tỉ lệ thắng và EV (R) chỉ hiện khi có từ 30 lệnh đã đóng.** Ở hai mã đã đo (VNM, FPT) chỉ có 9 và 7 lệnh trong 3 năm, nên nhiều mã sẽ ghi *"Chưa đủ mẫu để thống kê riêng mã này (cần ≥ 30)"*. Hãy xem đó là số lần xuất hiện để tham khảo, không phải xác suất. Khi đủ 30 lệnh: tỉ lệ thắng kèm khoảng Wilson 95%, EV kèm khoảng tin cậy t 95%; thắng nghĩa là R ròng > 0.
 - Hệ thống **không liệt kê từng lệnh** để tránh nhìn vài kết quả rồi tự suy ra tỉ lệ thắng.

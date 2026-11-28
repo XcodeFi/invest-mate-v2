@@ -70,6 +70,33 @@ public class McpToolDiscoveryTests
         "recompute_plan_review"
     };
 
+    /// <summary>
+    /// Tên tool có dáng "ký/xác nhận": chứa "confirm", hoặc "sign" mà không đi liền "al" (tức không phải "signal": get_signal_setups là
+    /// tín hiệu giao dịch, không liên quan việc ký hồ sơ). Tách thành hàm có tên và có test riêng để một lần sửa regex sau này không
+    /// âm thầm mở lỗ cho tên kiểu <c>sign_dossier</c>.
+    /// </summary>
+    internal static bool IsSigningName(string name)
+        => name.Contains("confirm", StringComparison.OrdinalIgnoreCase)
+           || System.Text.RegularExpressions.Regex.IsMatch(name, "sign(?!al)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    [Theory]
+    [InlineData("sign_dossier")]
+    [InlineData("confirm_plan")]
+    [InlineData("design_x")]
+    [InlineData("assign_x")]
+    [InlineData("signature")]
+    [InlineData("sign_alerts")]
+    [InlineData("co_sign")]
+    [InlineData("SIGN_DOSSIER")]
+    [InlineData("confirm_company_dossier")]
+    public void Signing_names_are_flagged(string name) => IsSigningName(name).Should().BeTrue(name);
+
+    [Theory]
+    [InlineData("get_signal_setups")]
+    [InlineData("list_signals")]
+    [InlineData("get_daily_digest")]
+    public void Ordinary_names_are_not_flagged(string name) => IsSigningName(name).Should().BeFalse(name);
+
     private static IReadOnlyList<McpServerTool> Tools()
     {
         var services = new ServiceCollection();
@@ -119,9 +146,7 @@ public class McpToolDiscoveryTests
         var tools = Tools();
 
         var signingNames = tools.Select(t => t.ProtocolTool.Name)
-            .Where(n => n.Contains("confirm", StringComparison.OrdinalIgnoreCase)
-                     // "sign" mà không phải "signal": get_signal_setups là tín hiệu giao dịch, không liên quan việc ký hồ sơ
-                     || System.Text.RegularExpressions.Regex.IsMatch(n, "sign(?!al)", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            .Where(IsSigningName)
             .ToList();
         signingNames.Should().BeEmpty("không tool MCP nào được ký/xác nhận hồ sơ công ty");
 

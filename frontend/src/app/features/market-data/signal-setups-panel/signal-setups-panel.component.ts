@@ -45,6 +45,7 @@ import { VndCurrencyPipe } from '../../../shared/pipes/vnd-currency.pipe';
                   <span class="font-mono font-medium text-green-600 ml-1">{{ plan.target | vndCurrency }}</span>
                 </div>
               </div>
+              <p class="mt-2 text-xs text-gray-500" data-testid="signal-active-method">{{ activeMethodNote }}</p>
             </div>
             <ng-template #noActive>
               <p class="text-sm text-gray-500 mb-3" data-testid="signal-inactive">Chưa có tín hiệu trong 3 phiên gần nhất.</p>
@@ -82,6 +83,10 @@ export class SignalSetupsPanelComponent {
   @Input() data: SignalSetups | null = null;
   @Input() loading = false;
   @Input() error: string | null = null;
+
+  /** Mức của khối "đang kích hoạt" theo luật setup, khác với thẻ "Gợi ý giao dịch" (dựa trên hỗ trợ/kháng cự): nói rõ để không đọc là mâu thuẫn. */
+  readonly activeMethodNote =
+    'Theo luật setup Pullback: vào giá mở cửa phiên sau, cắt lỗ 2×ATR, mục tiêu 2R. Khác với thẻ Gợi ý giao dịch, vốn dựa trên hỗ trợ/kháng cự.';
 
   /** Luôn hiện, kể cả khi đang tải hay lỗi. */
   get disclaimer(): string {
