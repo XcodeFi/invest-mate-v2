@@ -113,6 +113,10 @@ Xem lịch sử toàn bộ hoạt động liên quan đến 1 mã CP:
 - Nhật ký, giao dịch, sự kiện thị trường, cảnh báo
 - Sắp xếp theo thời gian
 
+### Thẻ "Luận điểm" cạnh biểu đồ
+
+Thẻ **🧭 Luận điểm** nằm cạnh biểu đồ (dưới biểu đồ trên màn hẹp), thu gọn sẵn. Mở ra để xem tóm tắt hồ sơ công ty của mã (mô hình kinh doanh, rủi ro hàng đầu, điều kiện vô hiệu, ngày ký) mà không rời biểu đồ; nút **➕ Tạo kế hoạch** mở form kế hoạch đã điền sẵn mã.
+
 ### Quay lại đúng chỗ đang xem
 
 Khoảng thời gian (1T/3T/6T/1N), nhóm chỉ báo đang chọn và mục bạn vừa bấm trong danh sách được ghi lên **địa chỉ trang** (ví dụ `?range=6T&grp=xu-huong&focus=2026-11-20`). Bấm Back, tải lại trang hoặc gửi link cho chính mình thì trang mở lại đúng khoảng, đúng nhóm chỉ báo và đúng mục đó (được cuộn tới). Từ trang **Hồ sơ công ty** có nút **📈 Dòng thời gian** sang đây, và ở đầu trang này có chip **🏢 Hồ sơ công ty** để quay lại.
