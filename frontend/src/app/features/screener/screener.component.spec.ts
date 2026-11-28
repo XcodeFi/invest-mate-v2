@@ -428,6 +428,55 @@ describe('ScreenerComponent: Sàng lọc cổ phiếu', () => {
       expect(q('screener-watchlist-add')!.textContent).toContain('Thêm 2 mã vào watchlist');
     });
 
+    /** Màu thật người xem thấy: chữ và nền (nền trong suốt thì trộn lên nền trang), đo bằng style tính toán của trình duyệt. */
+    const measure = (btn: HTMLElement, dark: boolean): number => {
+      const root = document.documentElement;
+      const had = root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try {
+        const parse = (c: string): [number, number, number, number] => {
+          const m = c.match(/[\d.]+/g)!.map(Number);
+          return [m[0], m[1], m[2], m[3] ?? 1];
+        };
+        const lum = ([r, g, b]: number[]) => {
+          const f = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+          return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+        };
+        const page = dark ? [17, 24, 39] : [255, 255, 255];
+        const cs = getComputedStyle(btn);
+        const bgRaw = parse(cs.backgroundColor);
+        const bg = bgRaw[3] < 1 ? [0, 1, 2].map(i => bgRaw[i] * bgRaw[3] + page[i] * (1 - bgRaw[3])) : bgRaw.slice(0, 3);
+        const fg = parse(cs.color).slice(0, 3);
+        const [hi, lo] = [lum(bg), lum(fg)].sort((x, y) => y - x);
+        return (hi + 0.05) / (lo + 0.05);
+      } finally { root.classList.toggle('dark', had); }
+    };
+
+    it('the add button meets AA contrast (>= 4.5:1) in the light and in the dark theme', () => {
+      setup();
+      tick('AAA');
+      const btn = q('screener-watchlist-add') as HTMLButtonElement;
+      expect(btn.disabled).toBeFalse();
+
+      expect(measure(btn, false)).withContext('sáng').toBeGreaterThanOrEqual(4.5);
+      expect(measure(btn, true)).withContext('tối').toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('at 400px the add button stays on one line (not a tall wrapped box) and inside the page', () => {
+      setup();
+      const host = el();
+      host.style.display = 'block';
+      host.style.width = '400px';
+      document.body.appendChild(host);
+      tick('AAA');
+      tick('BBB');
+
+      const btn = q('screener-watchlist-add') as HTMLButtonElement;
+      const r = btn.getBoundingClientRect();
+      expect(r.height).withContext('một dòng').toBeLessThanOrEqual(44);
+      expect(r.right).withContext('trong khung 400px').toBeLessThanOrEqual(host.getBoundingClientRect().right + 0.5);
+    });
+
     it('the picker defaults to the default watchlist', () => {
       setup();
 

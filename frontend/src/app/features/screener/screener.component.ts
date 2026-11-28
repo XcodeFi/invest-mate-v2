@@ -94,14 +94,14 @@ const MAX_SELECTION = 30;
         <div class="bg-white rounded-lg shadow p-4 mb-4">
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h2 class="text-lg font-semibold text-gray-700">Mã đạt tiêu chí</h2>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-2">
               <span *ngIf="selected.size >= maxSelection" class="text-xs text-amber-700" data-testid="screener-selection-cap">Chọn tối đa {{ maxSelection }} mã</span>
               <select *ngIf="watchlistList.length > 0" data-testid="screener-watchlist-pick" aria-label="Chọn watchlist để thêm vào"
                 class="border border-gray-300 rounded-lg px-2 py-2 text-sm bg-white" (change)="targetWatchlistId = $any($event.target).value">
                 <option *ngFor="let w of watchlistList" [value]="w.id" [selected]="w.id === targetWatchlistId">{{ w.emoji }} {{ w.name }}</option>
               </select>
               <button type="button" data-testid="screener-watchlist-add" (click)="addToWatchlist()" [disabled]="selected.size === 0 || !targetWatchlistId || adding"
-                class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                class="whitespace-nowrap border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
                 ⭐ Thêm {{ selected.size }} mã vào watchlist
               </button>
               <button type="button" data-testid="screener-send" (click)="sendToBoard()" [disabled]="selected.size === 0"
